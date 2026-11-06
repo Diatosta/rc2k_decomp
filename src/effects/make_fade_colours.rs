@@ -9,7 +9,6 @@
 //! One caller, `sub_4C25F6`.
 
 use crate::effects::rain::Weather;
-use crate::effects::tuning::MARKS_FLOATS;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
 const FADES: usize = 0x11;
@@ -39,8 +38,14 @@ pub fn make_fade_colours(frame: &Frame, weather: &Weather) {
             let fade = (0xFF00_0000 | r << 16 | gr << 8 | b)
                 .wrapping_add(frame.frame_work.view_light.bits());
             l.fade_colours[n].set(fade);
-            l.fade_step
-                .set_bits(x87::add(step, MARKS_FLOATS.sixteenth.bits()));
+            l.fade_step.set_bits(x87::add(
+                step,
+                crate::effects::owner::effects()
+                    .setup
+                    .floats
+                    .sixteenth
+                    .bits(),
+            ));
         }
     }
 }

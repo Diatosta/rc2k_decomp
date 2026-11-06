@@ -26,8 +26,6 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_frame::Frame;
-use crate::scene::draw_store::DRAW;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 const MOST: i32 = 0x800;
 use crate::d3d::vertices_store::VERTICES;
@@ -65,7 +63,9 @@ pub fn run_snow(frame: &Frame, weather: &Weather) -> Result<(), Refused> {
             s.view_place[n].set(marks.listener_place[n].get());
         }
         crate::effects::place_view_2::place_view_2(weather)?;
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
+        crate::scene::set_texture::set_texture(
+            crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
+        );
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();
         for (value, state) in STATES {
@@ -83,8 +83,12 @@ pub fn run_snow(frame: &Frame, weather: &Weather) -> Result<(), Refused> {
             at.u.set_bits(u);
             at.v.set_bits(v);
         }
-        DRAW.polygon_vertex_count.set_bits(4u32);
-        let inverse = x87::reciprocal(DRAW.farthest.bits());
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .set_bits(4u32);
+        let inverse = x87::reciprocal(crate::scene::owner::scene().drawing.scene.farthest.bits());
         for r in &s.inverses {
             r.set_bits(inverse);
         }
@@ -103,7 +107,7 @@ pub fn run_snow(frame: &Frame, weather: &Weather) -> Result<(), Refused> {
                 s.wide_turn[n][m].set_bits(v.bits());
             }
         }
-        let focal: u32 = DRAW.view_scale.bits();
+        let focal: u32 = crate::scene::owner::scene().drawing.scene.view_scale.bits();
         for m in 0..4 {
             s.wide_focal[m].set_bits(focal);
         }

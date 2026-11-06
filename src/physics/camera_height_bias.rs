@@ -21,7 +21,6 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low};
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::scene::draw_store::DRAW;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn camera_height_bias(race: &Race) -> Result<(), crate::errors::BadInput> {
@@ -30,13 +29,19 @@ pub fn camera_height_bias(race: &Race) -> Result<(), crate::errors::BadInput> {
         return Ok(());
     }
     x87_1(&race.frame);
-    hold_low(&DRAW.scratch, &race.course.numbers.zero);
-    hold_high(&DRAW.scratch, &race.course.numbers.one);
+    hold_low(
+        &crate::scene::owner::scene().drawing.scene.scratch,
+        &race.course.numbers.zero,
+    );
+    hold_high(
+        &crate::scene::owner::scene().drawing.scene.scratch,
+        &race.course.numbers.one,
+    );
     if (esi.height_bias.get() as i32) < 0 {
         x87_2();
     }
     x87_3(race);
-    let eax = DRAW.scratch.get();
+    let eax = crate::scene::owner::scene().drawing.scene.scratch.get();
     race.frame
         .view_and_records
         .view_vars
@@ -55,7 +60,11 @@ fn x87_1(frame: &Frame) {
     let t0 = ld(frame.view_and_records.view_vars.camera_distance.bits());
     let t1 = ld(frame.view_and_records.view_vars.camera_bias_limit.bits());
     let t2 = t0 / t1;
-    DRAW.scratch.set_bits(st(t2));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -63,16 +72,20 @@ fn x87_1(frame: &Frame) {
 /// `[rc + 0x22400C] = 1 - [rc + 0x22400C]`
 fn x87_2() {
     let t0 = X(1.0);
-    let t1 = ld(DRAW.scratch.bits());
+    let t1 = ld(crate::scene::owner::scene().drawing.scene.scratch.bits());
     let t2 = t0 - t1;
-    DRAW.scratch.set_bits(st(t2));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x22400C] * [rc + 0x1C5D98]) * [rc + 0x20628C]`
 fn x87_3(race: &Race) {
-    let t0 = ld(DRAW.scratch.bits());
+    let t0 = ld(crate::scene::owner::scene().drawing.scene.scratch.bits());
     let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 * t1;
     let t3 = ld(race
@@ -82,7 +95,11 @@ fn x87_3(race: &Race) {
         .camera_bias_scale
         .bits());
     let t4 = t2 * t3;
-    DRAW.scratch.set_bits(to_int(t4) as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(to_int(t4) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -175,7 +175,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"bundleheapsize",
         0x51B980,
-        dword!(crate::gfx::glyph_tables::TABLES.units),
+        dword!(crate::gfx::owner::gfx().fonts.glyph_tables.units),
     ),
     (
         b"imageheapsize",
@@ -185,7 +185,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"gamegfxheapsize",
         0x5BE894,
-        dword!(crate::gfx::build_game_fonts::GAME_FONTS.units),
+        dword!(crate::gfx::owner::gfx().fonts.game_fonts.units),
     ),
     (
         b"forcedx5",
@@ -250,7 +250,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"v3driverfix",
         0x624238,
-        dword!(crate::scene::draw_store::DRAW.v3_driver_fix),
+        dword!(crate::scene::owner::scene().drawing.scene.v3_driver_fix),
     ),
     (
         b"nopngdecode",

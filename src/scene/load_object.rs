@@ -38,9 +38,6 @@ use crate::race::owner::race;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
-use crate::scene::object_slots_store::OBJECT_SLOTS;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::objects::{FACES, SLOTS};
 use crate::scene::set_object_file_names::set_object_file_names;
 
@@ -160,15 +157,15 @@ pub fn load_object(
     race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    let kind: u32 = OBJECT_WORK.loading_kind.bits();
+    let kind: u32 = scene.drawing.object_work.loading_kind.bits();
     if kind == 0 {
         return Ok(());
     }
-    let slot: u32 = OBJECT_WORK.loading_slot.bits();
+    let slot: u32 = scene.drawing.object_work.loading_slot.bits();
     if slot >= SLOTS {
         return Err(crate::errors::BadInput("an object's slot past the tables").into());
     }
-    OBJECT_TABLES.object_kinds[slot as usize].set(kind);
+    scene.objects.tables.object_kinds[slot as usize].set(kind);
     set_object_file_names(scene, kind)?;
     let name = scene.file_numbers.object_ro3_number.bits();
     // The file read is the `.ro3` one, whatever the name's last character was.
@@ -224,22 +221,26 @@ pub fn load_object(
     course.course.group_masks[REST / 4].set_bits(rest);
     let (car, part) = ((slot - 0x50) / 0x14, (slot - 0x50) % 0x14);
     let first = car * 0x14 + 0x50;
-    crate::session::write_all(&OBJECT_WORK.loading_car, [car, part, first]);
+    crate::session::write_all(&scene.drawing.object_work.loading_car, [car, part, first]);
     match part {
         0 => {
             for (n, &at) in FIRST_FIVE.iter().enumerate() {
-                OBJECT_WORK.loading_slot.set_bits(first + n as u32);
+                scene
+                    .drawing
+                    .object_work
+                    .loading_slot
+                    .set_bits(first + n as u32);
                 shape(scene, &race.course, mask(at))?;
             }
-            OBJECT_WORK.loading_slot.set_bits(first + 5);
+            scene.drawing.object_work.loading_slot.set_bits(first + 5);
             for &(offset, at) in &MEASURED {
                 let slot = first + offset;
-                OBJECT_WORK.loading_slot.set_bits(slot);
+                scene.drawing.object_work.loading_slot.set_bits(slot);
                 shape(scene, &race.course, mask(at))?;
                 measure_object(&race.course)?;
-                let measures: [u32; 6] = crate::session::read_first(&OBJECT_SLOTS.measures);
+                let measures: [u32; 6] = crate::session::read_first(&scene.objects.slots.measures);
                 for (table, &measure) in measures.iter().enumerate() {
-                    OBJECT_SLOTS.part_extents[table][slot as usize].set(measure);
+                    scene.objects.slots.part_extents[table][slot as usize].set(measure);
                 }
             }
         }
@@ -262,13 +263,26 @@ fn shape(
 
 /// The three fatal errors at the end, in the original's order.
 fn check(course: &crate::race::owner_course::Course) -> Result<(), Refused> {
-    if OBJECT_WORK.face_cursor.bits() > course.lists.face_memory_room.bits() {
+    if crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .face_cursor
+        .bits()
+        > course.lists.face_memory_room.bits()
+    {
         return Err(NO_FACE_MEMORY.into());
     }
-    if OBJECT_TABLES.point_count.get().wrapping_mul(12) > course.lists.object_points_room.bits() {
+    if crate::scene::owner::scene()
+        .objects
+        .tables
+        .point_count
+        .get()
+        .wrapping_mul(12)
+        > course.lists.object_points_room.bits()
+    {
         return Err(NO_POINT_MEMORY.into());
     }
-    if OBJECT_TABLES.face_count.get() >= FACES {
+    if crate::scene::owner::scene().objects.tables.face_count.get() >= FACES {
         return Err(NO_FACE_ROOM.into());
     }
     Ok(())

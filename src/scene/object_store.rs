@@ -84,10 +84,13 @@ pub struct ObjectWork {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static OBJECT_WORK: ObjectWork =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ObjectWork {
+    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
+    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x634FA0, the first byte of the piece.
 pub const START: usize = 0x634FA0;
@@ -99,7 +102,9 @@ const _: () = assert!(END - START == core::mem::size_of::<ObjectWork>());
 /// Where IDA 0x634FA0 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&OBJECT_WORK))
+    crate::pointers::game_address(std::ptr::from_ref(
+        &crate::scene::owner::scene().drawing.object_work,
+    ))
 }
 
 #[cfg(test)]
@@ -109,7 +114,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&OBJECT_WORK, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::scene().drawing.object_work,
+            START,
+            END,
+        );
     }
 
     #[test]

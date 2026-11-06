@@ -18,9 +18,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::MACHINE;
 
 // ---- game data ----
@@ -41,7 +38,8 @@ pub fn add_point_lights(race: &crate::race::owner::Race) -> Result<(), Refused> 
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
     let mmx = MACHINE.has_mmx.get() != 0;
-    let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
+    let place: [u32; 3] =
+        crate::session::read_bits(&crate::scene::owner::scene().lights.state.lit_place);
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {
         // The list holds 16 lamps, the refusal allows `MOST`: read by address.
@@ -60,13 +58,28 @@ pub fn add_point_lights(race: &crate::race::owner::Race) -> Result<(), Refused> 
         }
     });
     let at = |point: u32| reading.keep(crate::race::scene_points::point_number(point));
-    let out = lamps::add_point_lights(list, place, at, LIGHT_WORK.light_colour.bits(), mmx);
+    let out = lamps::add_point_lights(
+        list,
+        place,
+        at,
+        crate::scene::owner::scene().lights.work.light_colour.bits(),
+        mmx,
+    );
     reading.finish()?;
     for (to, value) in [
         (&race.physics.ground.point_light_strength, out.strength),
-        (&LIGHT_WORK.lamp_tint, out.colour),
-        (&DRAW.scratch, out.distance),
-        (&LIGHT_WORK.light_colour, out.light),
+        (
+            &crate::scene::owner::scene().lights.work.lamp_tint,
+            out.colour,
+        ),
+        (
+            &crate::scene::owner::scene().drawing.scene.scratch,
+            out.distance,
+        ),
+        (
+            &crate::scene::owner::scene().lights.work.light_colour,
+            out.light,
+        ),
     ] {
         if let Some(v) = value {
             to.set_bits(v);

@@ -36,11 +36,7 @@ use crate::effects::emit_particle_11::Kind11Set;
 use crate::effects::emit_particle_13::Kind13Set;
 use crate::effects::emit_particle_19::{TwinState, TwinTuning};
 use crate::effects::emit_particle_21::Kind21Set;
-use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::ring_store::Ring;
-use crate::effects::setup::CLOCK;
-use crate::effects::tuning::MARKS_FRAME;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
@@ -68,7 +64,7 @@ fn colour_index(particles: &Particles, e: u32, life: u32) -> Result<(i32, bool),
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
 fn refusal(particles: &Particles, ring: &Ring) -> Result<Option<&'static str>, Refused> {
     Ok({
-        let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
+        let settings: u32 = crate::effects::owner::effects().setup.settings.is_set.get();
         if settings == 0 {
             return Ok(Some("no marks settings"));
         }
@@ -76,7 +72,11 @@ fn refusal(particles: &Particles, ring: &Ring) -> Result<Option<&'static str>, R
         if marks.race_done.get() == 0 {
             return Ok(None);
         }
-        let ticks: u32 = CLOCK.frame_ticks.get();
+        let ticks: u32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get();
         let mut e: u32 = ring.pool.free.get();
         let used = ring.pool.used.get() as i32;
         if used > 0 && (e == 0 || particle(particles, e, 0)? == 0) {
@@ -111,7 +111,11 @@ fn refusal(particles: &Particles, ring: &Ring) -> Result<Option<&'static str>, R
 fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
     use crate::effects::{burst_particles, draw_particle, trail_particles};
     {
-        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        let t: i32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get() as i32;
         let move_place = |with_up: bool| -> Result<_, Refused> {
             set_particle(
                 particles,
@@ -183,16 +187,20 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                     0x2C,
                     x87::plus_times_int(
                         particle(particles, e, 0x2C)?,
-                        PARTICLE_TUNING.dust[0].bits(),
+                        crate::effects::owner::effects().kinds.particle_tuning.dust[0].bits(),
                         t,
                     ),
                 )?;
-                gain_int(&PARTICLE_TUNING.dust[1])?;
+                gain_int(&crate::effects::owner::effects().kinds.particle_tuning.dust[1])?;
                 let s = x87::compare_status(
-                    PARTICLE_TUNING.dust[2].bits(),
+                    crate::effects::owner::effects().kinds.particle_tuning.dust[2].bits(),
                     particle(particles, e, 0x2C)?,
                 );
-                MARKS_WORK.fpu_status.set(s as u32);
+                crate::effects::owner::effects()
+                    .setup
+                    .work
+                    .fpu_status
+                    .set(s as u32);
                 if s != 0x100 {
                     burst_particles::burst_particles(particles, ring, e)?;
                     return Ok(true);
@@ -210,11 +218,11 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                     0x2C,
                     x87::plus_times_int(
                         particle(particles, e, 0x2C)?,
-                        PARTICLE_TUNING.trail[0].bits(),
+                        crate::effects::owner::effects().kinds.particle_tuning.trail[0].bits(),
                         t,
                     ),
                 )?;
-                gain_int(&PARTICLE_TUNING.trail[1])?;
+                gain_int(&crate::effects::owner::effects().kinds.particle_tuning.trail[1])?;
                 let (i, _) = colour_index(particles, e, particle(particles, e, 0x44)?)?;
                 ring.pool.index.set(i as u32);
                 let alpha = particle(particles, e, 0x3C)? & 0xFF00_0000;
@@ -229,9 +237,15 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
             }
             kind => {
                 let k = if kind == 9 {
-                    &PARTICLE_TUNING.burst9
+                    &crate::effects::owner::effects()
+                        .kinds
+                        .particle_tuning
+                        .burst9
                 } else {
-                    &PARTICLE_TUNING.burst8
+                    &crate::effects::owner::effects()
+                        .kinds
+                        .particle_tuning
+                        .burst8
                 };
                 move_place(true)?;
                 set_particle(
@@ -261,7 +275,9 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                 gain_int(&k[4])?;
                 let (i, _) = colour_index(particles, e, particle(particles, e, 0x44)?)?;
                 ring.pool.index.set(i as u32);
-                let tint = BURST_COLOURS
+                let tint = crate::effects::owner::effects()
+                    .kinds
+                    .burst_colours
                     .table
                     .get_u32((particle(particles, e, 0x48)? as usize).wrapping_add(4 * i as usize))
                     & 0xFF_FFFF;
@@ -271,8 +287,14 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                 let colour = (particle(particles, e, 0x3C)? & 0xFF00_0000) | tint;
                 let mut size = particle(particles, e, 0x38)?;
                 if kind == 9 {
-                    let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-                    MARKS_WORK.seed.set(s);
+                    let s = crate::effects::owner::effects()
+                        .setup
+                        .work
+                        .seed
+                        .get()
+                        .wrapping_mul(0x9D)
+                        .wrapping_add(0x47);
+                    crate::effects::owner::effects().setup.work.seed.set(s);
                     if s.rotate_right(16) & 0x7F == 0 {
                         size = size.wrapping_add(BIGGER);
                     }
@@ -303,7 +325,11 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
                 break;
             }
             let next = particle(particles, e, 4)?;
-            let t: u32 = CLOCK.frame_ticks.get();
+            let t: u32 = crate::effects::owner::effects()
+                .setup
+                .clock
+                .frame_ticks
+                .get();
             let life = particle(particles, e, 0x44)?;
             set_particle(particles, e, 0x44, life.wrapping_sub(t))?;
             let mut dies = life < t;
@@ -312,7 +338,11 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
                     particle(particles, e, 0x10)?,
                     particle(particles, e, 0x24)?,
                 );
-                MARKS_WORK.fpu_status.set(s as u32);
+                crate::effects::owner::effects()
+                    .setup
+                    .work
+                    .fpu_status
+                    .set(s as u32);
                 dies = s == 0x100;
                 if !dies {
                     dies = step(frame, particles, ring, e)?;
@@ -336,18 +366,24 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
             }
             e = next;
         }
-        if MARKS_FRAME.steps.bits() & 7 != 0 {
+        if crate::effects::owner::effects().setup.frame.steps.bits() & 7 != 0 {
             return Ok(());
         }
         crate::sound::owner::sound().race.stage.random[0].set(1);
         let seed = || {
-            let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-            MARKS_WORK.seed.set(s);
+            let s = crate::effects::owner::effects()
+                .setup
+                .work
+                .seed
+                .get()
+                .wrapping_mul(0x9D)
+                .wrapping_add(0x47);
+            crate::effects::owner::effects().setup.work.seed.set(s);
             s & 0xFFFF
         };
         let r = seed();
         let view = |o: usize| frame.matrices.view_place[o / 4].bits();
-        let uv_k: u32 = DRAW_WORK.uv_k.bits();
+        let uv_k: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
         let wave = |k: &[crate::session::Float; 3], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(
                 r as i32,
@@ -357,19 +393,61 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
                 cosine,
             )
         };
-        let x = wave(&PARTICLE_TUNING.puff_x, view(0x30), false);
+        let x = wave(
+            &crate::effects::owner::effects()
+                .kinds
+                .particle_tuning
+                .puff_x,
+            view(0x30),
+            false,
+        );
         let y = x87::loaded(view(0x34));
-        let z = wave(&PARTICLE_TUNING.puff_z, view(0x38), true);
+        let z = wave(
+            &crate::effects::owner::effects()
+                .kinds
+                .particle_tuning
+                .puff_z,
+            view(0x38),
+            true,
+        );
         let lift = seed();
         let up = x87::int_times_plus_times_plus(
             lift as i32,
             uv_k,
-            PARTICLE_TUNING.puff_y[0].bits(),
-            PARTICLE_TUNING.puff_y[1].bits(),
-            PARTICLE_TUNING.puff_y[2].bits(),
+            crate::effects::owner::effects()
+                .kinds
+                .particle_tuning
+                .puff_y[0]
+                .bits(),
+            crate::effects::owner::effects()
+                .kinds
+                .particle_tuning
+                .puff_y[1]
+                .bits(),
+            crate::effects::owner::effects()
+                .kinds
+                .particle_tuning
+                .puff_y[2]
+                .bits(),
         );
-        let mx = x87::sub_mul(view(0x30), x, PARTICLE_TUNING.puff_m[0].bits());
-        let mz = x87::sub_mul(view(0x38), z, PARTICLE_TUNING.puff_m[1].bits());
+        let mx = x87::sub_mul(
+            view(0x30),
+            x,
+            crate::effects::owner::effects()
+                .kinds
+                .particle_tuning
+                .puff_m[0]
+                .bits(),
+        );
+        let mz = x87::sub_mul(
+            view(0x38),
+            z,
+            crate::effects::owner::effects()
+                .kinds
+                .particle_tuning
+                .puff_m[1]
+                .bits(),
+        );
         for (n, v) in [x, y, z, mx, up, mz].into_iter().enumerate() {
             particles.puff_work.puff[n].set_bits(v);
         }
@@ -576,10 +654,14 @@ pub struct BurstColours {
     pub table: Bytes<8192>,
 }
 
-/// BurstColours's first values.
-pub static BURST_COLOURS: BurstColours = BurstColours {
-    table: Bytes::new(burst_colours()),
-};
+impl BurstColours {
+    /// BurstColours's first values.
+    pub const fn new() -> Self {
+        Self {
+            table: Bytes::new(burst_colours()),
+        }
+    }
+}
 
 impl BurstColours {
     pub const START: usize = 0x93A618;
@@ -602,7 +684,7 @@ mod burst_colours_tests {
     fn burst_colours_starts_as_the_games() {
         assert_eq!(size_of::<BurstColours>(), BurstColours::LEN);
         assert!(
-            bytes(&BURST_COLOURS)
+            bytes(&crate::effects::owner::effects().kinds.burst_colours)
                 == crate::moved::image_bytes(BurstColours::START, BurstColours::LEN),
             "BURST_COLOURS starts differently from the image"
         );
@@ -653,61 +735,65 @@ pub struct ParticleTuning {
     pub _gap_93c6bc: Bytes<12>,
 }
 
-/// ParticleTuning's first values.
-pub static PARTICLE_TUNING: ParticleTuning = ParticleTuning {
-    puff_x: [
-        Float::from_bits(0x40490FDB),
-        Float::from_bits(0x40000000),
-        Float::from_bits(0x4A200000),
-    ],
-    puff_z: [
-        Float::from_bits(0x40490FDB),
-        Float::from_bits(0x40000000),
-        Float::from_bits(0x4A200000),
-    ],
-    puff_y: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x44FA0000),
-        Float::from_bits(0x43FA0000),
-    ],
-    puff_m: [Float::from_bits(0x38D1B717), Float::from_bits(0x38D1B717)],
-    drift_lower: Float::from_bits(0x447A0000),
-    trail_random_k: Float::from_bits(0xBF000000),
-    trail_axes: [
-        Float::from_bits(0x3A83126F),
-        Float::from_bits(0x3DCCCCCD),
-        Float::from_bits(0x3A83126F),
-        Float::from_bits(0x3DCCCCCD),
-        Float::from_bits(0x3A83126F),
-        Float::from_bits(0x3DCCCCCD),
-    ],
-    trail_spread: Float::from_bits(0x43800000),
-    trail_size_k: [Float::from_bits(0x41800000), Float::from_bits(0x45000000)],
-    trail_life_k: Float::from_bits(0x43800000),
-    burst_scale: [Float::from_bits(0x3F800000), Float::from_bits(0x44800000)],
-    burst_life: Float::from_bits(0x43800000),
-    dust: [
-        Float::from_bits(0xBF99999A),
-        Float::from_bits(0xFF800000),
-        Float::from_bits(0xC47A0000),
-    ],
-    trail: [Float::from_bits(0xBDCCCCCD), Float::from_bits(0xFF800000)],
-    burst8: [
-        Float::from_bits(0xBDCCCCCD),
-        Float::from_bits(0x3DCCCCCD),
-        Float::from_bits(0x3DCCCCCD),
-        Float::from_bits(0x3DCCCCCD),
-        Float::from_bits(0xFF800000),
-    ],
-    burst9: [
-        Float::from_bits(0xBDCCCCCD),
-        Float::from_bits(0x3DCCCCCD),
-        Float::from_bits(0x3DCCCCCD),
-        Float::from_bits(0x3DCCCCCD),
-        Float::from_bits(0xFF800000),
-    ],
-    _gap_93c6bc: Bytes::new([0; 12]),
-};
+impl ParticleTuning {
+    /// ParticleTuning's first values.
+    pub const fn new() -> Self {
+        Self {
+            puff_x: [
+                Float::from_bits(0x40490FDB),
+                Float::from_bits(0x40000000),
+                Float::from_bits(0x4A200000),
+            ],
+            puff_z: [
+                Float::from_bits(0x40490FDB),
+                Float::from_bits(0x40000000),
+                Float::from_bits(0x4A200000),
+            ],
+            puff_y: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x44FA0000),
+                Float::from_bits(0x43FA0000),
+            ],
+            puff_m: [Float::from_bits(0x38D1B717), Float::from_bits(0x38D1B717)],
+            drift_lower: Float::from_bits(0x447A0000),
+            trail_random_k: Float::from_bits(0xBF000000),
+            trail_axes: [
+                Float::from_bits(0x3A83126F),
+                Float::from_bits(0x3DCCCCCD),
+                Float::from_bits(0x3A83126F),
+                Float::from_bits(0x3DCCCCCD),
+                Float::from_bits(0x3A83126F),
+                Float::from_bits(0x3DCCCCCD),
+            ],
+            trail_spread: Float::from_bits(0x43800000),
+            trail_size_k: [Float::from_bits(0x41800000), Float::from_bits(0x45000000)],
+            trail_life_k: Float::from_bits(0x43800000),
+            burst_scale: [Float::from_bits(0x3F800000), Float::from_bits(0x44800000)],
+            burst_life: Float::from_bits(0x43800000),
+            dust: [
+                Float::from_bits(0xBF99999A),
+                Float::from_bits(0xFF800000),
+                Float::from_bits(0xC47A0000),
+            ],
+            trail: [Float::from_bits(0xBDCCCCCD), Float::from_bits(0xFF800000)],
+            burst8: [
+                Float::from_bits(0xBDCCCCCD),
+                Float::from_bits(0x3DCCCCCD),
+                Float::from_bits(0x3DCCCCCD),
+                Float::from_bits(0x3DCCCCCD),
+                Float::from_bits(0xFF800000),
+            ],
+            burst9: [
+                Float::from_bits(0xBDCCCCCD),
+                Float::from_bits(0x3DCCCCCD),
+                Float::from_bits(0x3DCCCCCD),
+                Float::from_bits(0x3DCCCCCD),
+                Float::from_bits(0xFF800000),
+            ],
+            _gap_93c6bc: Bytes::new([0; 12]),
+        }
+    }
+}
 
 impl ParticleTuning {
     pub const START: usize = 0x93C618;
@@ -730,7 +816,7 @@ mod particle_tuning_tests {
     fn particle_tuning_starts_as_the_games() {
         assert_eq!(size_of::<ParticleTuning>(), ParticleTuning::LEN);
         assert!(
-            bytes(&PARTICLE_TUNING)
+            bytes(&crate::effects::owner::effects().kinds.particle_tuning)
                 == crate::moved::image_bytes(ParticleTuning::START, ParticleTuning::LEN),
             "PARTICLE_TUNING starts differently from the image"
         );

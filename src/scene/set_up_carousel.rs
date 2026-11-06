@@ -35,7 +35,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::lists_store::CarList;
 use crate::scene::carousel_set_ups::PLAIN;
-use crate::scene::object_store::OBJECT_WORK;
 use crate::session::{Dword, write_all, write_prefix};
 
 // ---- game data ----
@@ -75,8 +74,14 @@ const CARS_TAIL: [Op; 9] = [
         &crate::menu::owner::MENUS.screens.state.carousel.forward,
         0x20000,
     ),
-    Op::Run(|| &OBJECT_WORK.angles[0], 0x10FF),
-    Op::Run(|| &OBJECT_WORK.place[1], 0xFFFE_6000),
+    Op::Run(
+        || &crate::scene::owner::scene().drawing.object_work.angles[0],
+        0x10FF,
+    ),
+    Op::Run(
+        || &crate::scene::owner::scene().drawing.object_work.place[1],
+        0xFFFE_6000,
+    ),
 ];
 
 /// `sub_48FF83`'s six kinds.
@@ -171,7 +176,11 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
         menus.screens.state.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
         menus.cars.table.last_car.set(last);
-        OBJECT_WORK.size.set_bits(size);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .size
+            .set_bits(size);
         for op in CARS_TAIL {
             run_op(op);
         }
@@ -199,7 +208,11 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
             0xC => {
                 menus.screens.state.carousel.set_up.set(1);
                 menus.screens.state.carousel.set_list(CarList::A8);
-                OBJECT_WORK.size.set_bits(0xCu32);
+                crate::scene::owner::scene()
+                    .drawing
+                    .object_work
+                    .size
+                    .set_bits(0xCu32);
                 write_prefix(&menus.screens.state.carousel.kinds, &FIXED_KINDS);
                 menus.screens.state.carousel.count.set(6u32);
                 menus.cars.table.last_car.set(5u32);

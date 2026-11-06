@@ -21,7 +21,7 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::race::marks_settings_store::MarkCar;
 use crate::race::owner_course::Course;
-use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
+use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::SLOTS;
 use crate::session::{Bytes, Dword};
 
@@ -55,13 +55,21 @@ fn points(course: &Course, b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
     Ok({
         let base: u32 = course.lists.object_points.bits();
         let first = |id: u32| {
-            base.wrapping_add(12 * ObjectTables::slot_value(&OBJECT_SLOTS.first_point, id as usize))
+            base.wrapping_add(
+                12 * ObjectTables::slot_value(
+                    &crate::scene::owner::scene().objects.slots.first_point,
+                    id as usize,
+                ),
+            )
         };
         let (a, c) = (b.word(BLOCK)?, b.word(BLOCK + 4)?);
         (
             first(a),
             first(c),
-            ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, a as usize) as i32,
+            ObjectTables::slot_value(
+                &crate::scene::owner::scene().objects.slots.point_counts,
+                a as usize,
+            ) as i32,
         )
     })
 }

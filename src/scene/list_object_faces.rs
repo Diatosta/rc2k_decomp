@@ -13,8 +13,6 @@
 
 use crate::errors::Refused;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
@@ -26,14 +24,26 @@ pub fn list_object_faces(
 ) -> Result<(), Refused> {
     {
         let (first, count): (u32, u32) = (
-            OBJECT_WORK.object_first_face.bits(),
-            OBJECT_WORK.object_face_count.bits(),
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .object_first_face
+                .bits(),
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .object_face_count
+                .bits(),
         );
         // Every face is looked up before anything is written.
         let faces = rc2k_core::scene::objects::object_faces(first, count, |number| {
             crate::scene::objects::face_cell(number as usize).get()
         })?;
-        LIGHT_WORK.listed_face_count.set_bits(0u32);
+        crate::scene::owner::scene()
+            .lights
+            .work
+            .listed_face_count
+            .set_bits(0u32);
         RACE_VARS.face_mark.set_bits(u32::MAX);
         for (n, &face) in faces.iter().enumerate() {
             RACE_VARS.face_number.set_bits(n as u32);

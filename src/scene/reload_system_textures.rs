@@ -23,11 +23,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::race;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::load_changed_texture_picture::{TEXTURES, load_changed_texture_picture_in_game};
 use crate::scene::load_hud_car_icons::load_hud_car_icons;
 use crate::scene::step_loading_bar::step_loading_bar;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::KINDS;
 use rc2k_core::scene::pictures::{kind_picture, read_size};
 
@@ -52,11 +50,11 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race().course;
-    let textures: u32 = TEXTURE_PLACES.totals[3].get();
+    let textures: u32 = scene.textures.places.totals[3].get();
     if textures == 0 || textures > TEXTURES {
         return Err(BadInput("no system textures, or more than the table has").into());
     }
-    let first = |kind: u32| KIND_TEXTURES.kind_first_textures[kind as usize].get();
+    let first = |kind: u32| scene.textures.kinds.kind_first_textures[kind as usize].get();
     if (0..KINDS).any(|kind| first(kind) != u32::MAX && first(kind) >= TEXTURES) {
         return Err(BadInput("a kind's first texture past the pictures' table").into());
     }
@@ -67,8 +65,8 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
         if texture == u32::MAX {
             continue;
         }
-        let picture = kind_picture(TEXTURE_PLACES.kind_pictures[kind as usize].get());
-        TEXTURE_PLACES.wanted_pictures[texture as usize].set(picture);
+        let picture = kind_picture(scene.textures.places.kind_pictures[kind as usize].get());
+        scene.textures.places.wanted_pictures[texture as usize].set(picture);
     }
     let size = [
         course.stage_prefs.scene_size_a.get(),
@@ -76,7 +74,7 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
     ];
     for texture in 0..textures {
         crate::gfx::owner::gfx().grading.reading.set(1u32);
-        let wanted = TEXTURE_PLACES.wanted_pictures[texture as usize].get();
+        let wanted = scene.textures.places.wanted_pictures[texture as usize].get();
         let [scale, saturation] = read_size(wanted, size);
         let grading = &crate::gfx::owner::gfx().grading;
         grading.scale.set(scale);

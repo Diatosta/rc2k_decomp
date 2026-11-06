@@ -46,10 +46,6 @@ use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
-use crate::scene::object_slots_store::OBJECT_SLOTS;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
 fn touch(race: &Race) -> Result<(), Refused> {
@@ -100,7 +96,10 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         FaceObject::Object(object) => object,
     };
     race_owner.physics.contact.face_object.set(object);
-    let kind = OBJECT_TABLES.object_kind(object);
+    let kind = crate::scene::owner::scene()
+        .objects
+        .tables
+        .object_kind(object);
     if let Err(e) = contacts::check_material(kind) {
         crate::framework::log(&format!(
             "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",
@@ -123,9 +122,14 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         return Ok(());
     }
     for (k, o) in [8u32, 0xC, 0x10].iter().enumerate() {
-        OBJECT_WORK.angles[k].set(contacts::turn_word(face_byte(*o)?));
+        crate::scene::owner::scene().drawing.object_work.angles[k]
+            .set(contacts::turn_word(face_byte(*o)?));
     }
-    OBJECT_WORK.size.set(face_byte(0x18)?);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .size
+        .set(face_byte(0x18)?);
     // esi and ebp both the face here.
     let (inside, point) =
         { crate::physics::scene_point_hits_car::scene_point_hits_car(race_owner, face) }?;
@@ -140,10 +144,16 @@ pub fn steps(number: u32) -> Result<(), Refused> {
             .wrapping_add(face_dword(0x38)?)
             .wrapping_sub(CAR.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
-        DRAW.scratch.set(distance);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(distance);
         let (reach, _) = contacts::reach(
-            OBJECT_SLOTS.radii[race_owner.physics.contact.face_object.get() as usize].get(),
-            OBJECT_WORK.size.get(),
+            crate::scene::owner::scene().objects.slots.radii
+                [race_owner.physics.contact.face_object.get() as usize]
+                .get(),
+            crate::scene::owner::scene().drawing.object_work.size.get(),
         );
         if contacts::out_of_reach(reach, distance) {
             return Ok(());

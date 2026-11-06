@@ -18,7 +18,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::race;
-use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{Listed, listed};
 use crate::scene::project_point::{NEAR, project_point};
 
@@ -47,7 +46,7 @@ pub fn project_entries(
     {
         return Err(BadInput("no points or no records for them").into());
     }
-    let far = f32::from_bits(DRAW.farthest.bits());
+    let far = f32::from_bits(crate::scene::owner::scene().drawing.scene.farthest.bits());
     let mut outside = 0u32;
     for entry in entries {
         let point = project_point(course, entry.point.get())?;
@@ -64,6 +63,10 @@ pub fn project_entries(
             outside += 1;
         }
     }
-    DRAW.polygon_outside_count.set_bits(outside);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_outside_count
+        .set_bits(outside);
     Ok(())
 }

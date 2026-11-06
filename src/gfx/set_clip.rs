@@ -7,8 +7,6 @@
 //! height - 1. Three callers, each with the surface's own rectangle (`g_surface`).
 //! Refuses a null rectangle. The name is a reading.
 
-use crate::gfx::blit::BLIT;
-
 // ---- Rust version ----
 
 /// (left, top, right, bottom) for a rectangle of x, y, width, height. Converted:
@@ -17,8 +15,13 @@ pub use rc2k_core::gfx::raster::clip_of;
 
 pub fn set_clip(rectangle: [u32; 4]) {
     let [left, top, right, bottom] = clip_of(rectangle);
-    BLIT.clip.left.set(left);
-    BLIT.clip.top.set(top);
-    BLIT.clip.right.set(right);
-    BLIT.clip.bottom.set(bottom);
+    crate::gfx::owner::gfx().drawing.blit.clip.left.set(left);
+    crate::gfx::owner::gfx().drawing.blit.clip.top.set(top);
+    crate::gfx::owner::gfx().drawing.blit.clip.right.set(right);
+    crate::gfx::owner::gfx()
+        .drawing
+        .blit
+        .clip
+        .bottom
+        .set(bottom);
 }

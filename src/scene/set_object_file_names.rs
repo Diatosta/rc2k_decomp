@@ -13,7 +13,6 @@
 //! character). One caller, `scene::load_object`.
 
 use crate::scene::file_numbers_store::texts;
-use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
@@ -41,7 +40,7 @@ pub fn set_object_file_names(
         scene.file_numbers.object_ro3_path.set_bits(ro3 as u32);
         scene.file_numbers.object_lwo_path.set_bits(lwo as u32);
         scene.file_numbers.object_lwo_number.set_bits(lwo_number);
-        let digits = number_digits(OBJECT_WORK.loading_kind.bits());
+        let digits = number_digits(scene.drawing.object_work.loading_kind.bits());
         scene
             .file_numbers
             .text_ptr(ro3 + number)

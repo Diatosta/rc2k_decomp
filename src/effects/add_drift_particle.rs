@@ -13,7 +13,7 @@
 
 use crate::effects::blocks::{particle, set_particle};
 use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
+use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
@@ -50,7 +50,17 @@ pub fn add_drift_particle(
         put(0x14, rounded(v[3]))?;
         put(0x20, rounded(v[3]))?;
         put(0x10, rounded(v[4]))?;
-        put(0x1C, x87::ext_sub(v[4], PARTICLE_TUNING.drift_lower.bits()))?;
+        put(
+            0x1C,
+            x87::ext_sub(
+                v[4],
+                crate::effects::owner::effects()
+                    .kinds
+                    .particle_tuning
+                    .drift_lower
+                    .bits(),
+            ),
+        )?;
         put(0xC, rounded(v[5]))?;
         put(0x18, rounded(v[5]))?;
         put(0x38, 0x8000)?;

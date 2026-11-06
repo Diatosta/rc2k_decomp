@@ -16,7 +16,6 @@
 //! Caller: `race::viewer_frame`.
 
 use crate::errors::Refused;
-use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::race::owner_replay::Replay;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
@@ -39,7 +38,7 @@ pub fn draw_viewer_panel(replay: &Replay) -> Result<(), Refused> {
     }
     // The surface cleared (as `rep stosd` row by row). A height of 0 is refused: the
     // original goes round 2^32 times.
-    let height = DRAW_SURFACE.height.get();
+    let height = crate::gfx::owner::gfx().drawing.draw_surface.height.get();
     if height == 0 {
         return Err(crate::errors::BadInput("a panel texture of no rows").into());
     }

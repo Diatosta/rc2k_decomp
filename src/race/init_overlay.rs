@@ -21,7 +21,6 @@ use crate::math::x87;
 use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
 
 const ONE: u32 = 0x3F80_0000;
 
@@ -70,7 +69,7 @@ pub fn init_overlay(race: &Race) -> Result<(), Refused> {
                         "an overlay variable",
                     )?)?;
                     let half = half_length(end, start);
-                    DRAW.scratch.set(half);
+                    crate::scene::owner::scene().drawing.scene.scratch.set(half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
                     race.frame.panel_and_overlay.overlay.overlay_part_miles[n as usize]
                         .set_bits(miles); // g_overlayPartMiles

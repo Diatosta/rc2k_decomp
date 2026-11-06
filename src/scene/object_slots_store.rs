@@ -43,18 +43,26 @@ impl ObjectTables {
     pub fn slot_value(table: &[Dword; 256], slot: usize) -> u32 {
         // The tables are contiguous; a slot far past them is the caller's slip, as it was the
         // original's (a checked read: outside the allocation ends the program).
-        crate::session::read_on_in(&OBJECT_SLOTS, table, slot, "an object slot")
-            .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
+        crate::session::read_on_in(
+            &crate::scene::owner::scene().objects.slots,
+            table,
+            slot,
+            "an object slot",
+        )
+        .unwrap_or_else(|e| crate::fatal::raise::end("an object slot", e))
     }
 }
 
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static OBJECT_SLOTS: ObjectTables =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ObjectTables {
+    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
+    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x62DB5C, the first byte of the piece.
 pub const START: usize = 0x62DB5C;
@@ -66,7 +74,9 @@ const _: () = assert!(END - START == core::mem::size_of::<ObjectTables>());
 /// Where IDA 0x62DB5C is now.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&OBJECT_SLOTS))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::scene::owner::scene().objects.slots,
+    ))
 }
 
 #[cfg(test)]
@@ -76,7 +86,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&OBJECT_SLOTS, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::scene().objects.slots,
+            START,
+            END,
+        );
     }
 
     #[test]

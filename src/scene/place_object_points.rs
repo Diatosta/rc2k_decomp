@@ -32,7 +32,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
 use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld, fstp};
@@ -68,7 +67,11 @@ fn moved(course: &crate::race::owner_course::Course, from: usize, by: u32) -> Re
     course.course.point_moved.set(w[7]);
     course.course.group_masks[0].set(w[8]);
     course.course.group_masks[1].set(w[9]);
-    DRAW.scratch.set_bits(w[10]);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(w[10]);
     Ok(())
 }
 
@@ -150,10 +153,10 @@ fn object(course: &crate::race::owner_course::Course) -> Result<Object, BadInput
         return Err(BadInput("an object's number past the tables"));
     }
     let object = Object {
-        first: crate::scene::object_slots_store::OBJECT_SLOTS.first_point[number as usize].get(),
-        points: crate::scene::object_slots_store::OBJECT_SLOTS.point_counts[number as usize].get()
+        first: crate::scene::owner::scene().objects.slots.first_point[number as usize].get(),
+        points: crate::scene::owner::scene().objects.slots.point_counts[number as usize].get()
             as i32,
-        normals: crate::scene::object_slots_store::OBJECT_SLOTS.normal_counts[number as usize].get()
+        normals: crate::scene::owner::scene().objects.slots.normal_counts[number as usize].get()
             as i32,
         table: course.lists.object_points.bits(),
     };
@@ -201,13 +204,18 @@ pub fn place_object_points(race: &crate::race::owner::Race) -> Result<(), Refuse
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
             let v = [
-                DRAW.view_scale.bits(),
-                DRAW.view_centre[0].bits(),
-                DRAW.view_centre[1].bits(),
+                crate::scene::owner::scene().drawing.scene.view_scale.bits(),
+                crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+                crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
                 race.course.course.flat_depth.bits(),
             ];
             let flat = race.course.stage_prefs.flat_depth.bits() != 0;
-            to_screen(&mut r, &v, flat, &DRAW.scratch);
+            to_screen(
+                &mut r,
+                &v,
+                flat,
+                &crate::scene::owner::scene().drawing.scene.scratch,
+            );
         }
         point_records::set(record, r)?;
         from = from.wrapping_add(12);
@@ -257,13 +265,18 @@ pub fn place_object_points_sse(race: &crate::race::owner::Race) -> Result<(), Re
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {
             let v = [
-                DRAW.view_scale.bits(),
-                DRAW.view_centre[0].bits(),
-                DRAW.view_centre[1].bits(),
+                crate::scene::owner::scene().drawing.scene.view_scale.bits(),
+                crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+                crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
                 race.course.course.flat_depth.bits(),
             ];
             let flat = race.course.stage_prefs.flat_depth.bits() != 0;
-            to_screen(&mut r, &v, flat, &DRAW.scratch);
+            to_screen(
+                &mut r,
+                &v,
+                flat,
+                &crate::scene::owner::scene().drawing.scene.scratch,
+            );
         }
         point_records::set(record, r)?;
         from = from.wrapping_add(12);

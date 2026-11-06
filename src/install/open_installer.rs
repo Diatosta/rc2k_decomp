@@ -15,7 +15,6 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::gfx::picture_store::PICTURE;
 use crate::install::installer::{components_to_pixels, copy_picture, draw_string, fatal, show};
 
 const FONT_94: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEAD;
@@ -82,7 +81,9 @@ pub fn open_installer(g: &'static crate::install::owner::Install) -> Result<(), 
     // gfx::load_picture: its carry is not read.
     crate::gfx::load_picture::load_picture(&g.names.backdrop)?;
     crate::gfx::convert_picture::convert_picture_now()?;
-    PICTURE
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
         .flags
         .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
     crate::gfx::picture_as_surface::picture_as_surface()?;

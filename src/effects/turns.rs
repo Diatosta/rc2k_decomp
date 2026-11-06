@@ -1,10 +1,8 @@
 //! Small float steps of `make_masks`' tree (IDA, 2026-10-17): the 2 x 2 turn a line gives,
 //! three rows scaled to set lengths, and two cosine-eased steps.
 
-use crate::effects::mask_constants::MASK_CONSTANTS;
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
-use crate::effects::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::session::{Dword, Float};
 
@@ -30,7 +28,11 @@ pub fn set_line_turn(masks: &Masks, line: &[Dword; 6], back: bool) {
 pub fn scale_rows3(rows: &[Float; 9]) {
     for (n, row) in rows.as_chunks::<3>().0.iter().enumerate() {
         let bits = [row[0].bits(), row[1].bits(), row[2].bits()];
-        let length = MASK_CONSTANTS.row_lengths[n].bits();
+        let length = crate::effects::owner::effects()
+            .setup
+            .mask_constants
+            .row_lengths[n]
+            .bits();
         for (cell, v) in row.iter().zip(x87::scale_row_bits(bits, length)) {
             cell.set_bits(v);
         }
@@ -43,14 +45,27 @@ pub fn scale_rows3(rows: &[Float; 9]) {
 /// `dword_764F40` and `dword_71C880` left holding a.
 pub fn smooth_steps(drops: &WindscreenDrops, n: u32, a: u32, b: u32) -> (u32, u32) {
     drops.inputs.scratch.set(a);
-    MARKS_WORK.scratch.set(a);
+    crate::effects::owner::effects().setup.work.scratch.set(a);
     smooth_pair(n, a, b)
 }
 /// `smooth_steps`' two results (ecx, ebx) from step n, a and b, writing nothing.
 pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
     {
-        let t = x87::sub_mul(b, a, MASK_CONSTANTS.ease.bits());
-        let steps: [i32; 2] = MASK_CONSTANTS.steps.each_ref().map(|c| c.get() as i32);
+        let t = x87::sub_mul(
+            b,
+            a,
+            crate::effects::owner::effects()
+                .setup
+                .mask_constants
+                .ease
+                .bits(),
+        );
+        let steps: [i32; 2] = crate::effects::owner::effects()
+            .setup
+            .mask_constants
+            .steps
+            .each_ref()
+            .map(|c| c.get() as i32);
         (
             x87::cosine_step(steps[0], n.wrapping_add(1) as i32, t, a),
             x87::cosine_step(steps[1], n as i32, t, a),
@@ -79,7 +94,10 @@ fn int_over_80(v: i32, k: &Float) -> [u8; 10] {
 /// `flt_89CA00` (a); a held to 0 .. 0xFFFF and b to 0 .. 0x7FFF; then st(1) a over
 /// `flt_89CA04` and st(0) b over `flt_89CA08`, unrounded.
 pub fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
-    let scales = &MASK_CONSTANTS.pair_scales;
+    let scales = &crate::effects::owner::effects()
+        .setup
+        .mask_constants
+        .pair_scales;
     let (b, a) = scaled_ints(&inputs, &scales[0], &scales[1]);
     let b = b.clamp(0, 0x7FFF);
     let a = a.clamp(0, 0xFFFF);

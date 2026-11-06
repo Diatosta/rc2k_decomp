@@ -22,7 +22,6 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
-use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
@@ -54,18 +53,34 @@ pub const HALVES: [Half; 2] = [
     Half {
         kind: 0x11,
         strength: &crate::effects::owner::EFFECTS.ring.work.strength[0],
-        factors: [&EMITTER.side_a[0], &EMITTER.side_a[1], &EMITTER.side_a[2]],
+        factors: [
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[0],
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[1],
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[2],
+        ],
         scaled: false,
         size: (0x7FF, 0x400),
-        sides: [&EMITTER.side_b[0], &EMITTER.side_b[1], &EMITTER.side_b[2]],
+        sides: [
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[0],
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[1],
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[2],
+        ],
     },
     Half {
         kind: 0x10,
         strength: &crate::effects::owner::EFFECTS.ring.work.strength[1],
-        factors: [&EMITTER.side_b[0], &EMITTER.side_b[1], &EMITTER.side_b[2]],
+        factors: [
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[0],
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[1],
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_b[2],
+        ],
         scaled: true,
         size: (0x3FF, 0x600),
-        sides: [&EMITTER.side_a[0], &EMITTER.side_a[1], &EMITTER.side_a[2]],
+        sides: [
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[0],
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[1],
+            &crate::effects::owner::EFFECTS.kinds.emitter.side_a[2],
+        ],
     },
 ];
 
@@ -85,7 +100,11 @@ impl BurstTuning {
 /// The half's strength and rate (`n` 0 or 1), from the wheel.
 fn strength(set: &BurstSet, n: usize, wheel: &MarkRecord) -> Result<(u32, i32), Refused> {
     Ok({
-        let scale: u32 = MARKS_FLOATS.thirty_two.bits();
+        let scale: u32 = crate::effects::owner::effects()
+            .setup
+            .floats
+            .thirty_two
+            .bits();
         if n == 0 {
             x87::times_kept_abs_to_int(wheel.speed_10.bits(), set.tuning.strength_k.bits(), scale)
         } else {
@@ -174,9 +193,15 @@ pub fn emit_bursts_with(
                 continue;
             }
             let car = emitting_car()?;
-            let k: u32 = MARKS_FLOATS.minus_65_536.bits();
+            let k: u32 = crate::effects::owner::effects()
+                .setup
+                .floats
+                .minus_65_536
+                .bits();
             let s: u32 = h.strength.bits();
-            let scale = h.scaled.then(|| MARKS_FLOATS.half.bits());
+            let scale = h
+                .scaled
+                .then(|| crate::effects::owner::effects().setup.floats.half.bits());
             let direction = [
                 x87::mul2(h.factors[0].bits(), s, k),
                 x87::times_less_abs_times(h.factors[1].bits(), s, scale, k),
@@ -198,7 +223,7 @@ pub fn emit_bursts_with(
                 let (out, _) = crate::effects::spread_point::spread_point(
                     paths,
                     [
-                        extended(MARKS_FLOATS.half.bits()),
+                        extended(crate::effects::owner::effects().setup.floats.half.bits()),
                         extended(d[2]),
                         extended(d[1]),
                         extended(d[0]),
@@ -209,10 +234,18 @@ pub fn emit_bursts_with(
                 put(0x2C, rounded(out[2]))?;
                 let r = next_c5(&set.tuning.randoms(n)[2]);
                 let size = (r.rotate_right(8) & h.size.0) + h.size.1;
-                MARKS_FRAME.emit_side.set_bits(size);
+                crate::effects::owner::effects()
+                    .setup
+                    .frame
+                    .emit_side
+                    .set_bits(size);
                 put(0x60, x87::from_int(size as i32))?;
                 put(0x58, ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3))?;
-                let tk: u32 = MARKS_FLOATS.minus_eighth.bits();
+                let tk: u32 = crate::effects::owner::effects()
+                    .setup
+                    .floats
+                    .minus_eighth
+                    .bits();
                 put(0x40, x87::mul(car.word(0x54)?, tk))?;
                 put(0x3C, x87::mul(car.word(0x50)?, tk))?;
                 put(0x38, x87::mul(car.word(0x4C)?, tk))?;
@@ -221,7 +254,11 @@ pub fn emit_bursts_with(
                 }
                 let m = car.whole()?;
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
-                MARKS_FRAME.emit_side.set_bits(side);
+                crate::effects::owner::effects()
+                    .setup
+                    .frame
+                    .emit_side
+                    .set_bits(side);
                 let place: [u32; 3] = crate::effects::try_from_fn(|k| {
                     let k4 = 4 * k as u32;
                     Ok(x87::less_plus_int_times(
@@ -241,14 +278,27 @@ pub fn emit_bursts_with(
                     0x5C,
                     x87::int_times_plus(
                         pick as i32,
-                        MARKS_FLOATS.over_65536.bits(),
-                        MARKS_FLOATS.one.bits(),
+                        crate::effects::owner::effects()
+                            .setup
+                            .floats
+                            .over_65536
+                            .bits(),
+                        crate::effects::owner::effects().setup.floats.one.bits(),
                     ),
                 )?;
                 put(0x84, LIFE)?;
-                put(0x7C, EMITTER.looks[0].get())?;
-                put(0x80, EMITTER.looks[1].get())?;
-                put(0x68, EMITTER.car.get())?;
+                put(
+                    0x7C,
+                    crate::effects::owner::effects().kinds.emitter.looks[0].get(),
+                )?;
+                put(
+                    0x80,
+                    crate::effects::owner::effects().kinds.emitter.looks[1].get(),
+                )?;
+                put(
+                    0x68,
+                    crate::effects::owner::effects().kinds.emitter.car.get(),
+                )?;
             }
         }
     }

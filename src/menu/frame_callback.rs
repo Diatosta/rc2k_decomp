@@ -19,7 +19,6 @@ use crate::menu::fn_list::ListCell;
 use crate::menu::owner::Menus;
 use crate::menu::table_calls::call_listed;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
-use crate::scene::light_store::LIGHT_STATE;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::menu::notice;
 
@@ -82,7 +81,11 @@ pub fn frame_callback(
     draw_menu(menu)?;
     run_listed(menus, DRAW_LIST)?;
     unlock_surface();
-    LIGHT_STATE.scene_state.set_bits(4u32);
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .scene_state
+        .set_bits(4u32);
     crate::scene::begin_scene::begin_scene();
     run_listed(menus, SCENE_LIST)?;
     crate::scene::end_scene::end_scene();

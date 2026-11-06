@@ -29,10 +29,7 @@
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::texture_needs::TEXTURES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::texture_places_store::cell_at;
 
 // ---- game data ----
@@ -49,25 +46,36 @@ struct GameMemory;
 impl rc2k_core::scene::textures::TextureMemory for GameMemory {
     fn level(&self, video: bool, texture: u32) -> u32 {
         let table = if video {
-            &OBJECT_TABLES.video_levels
+            &crate::scene::owner::scene().objects.tables.video_levels
         } else {
-            &OBJECT_TABLES.system_levels
+            &crate::scene::owner::scene().objects.tables.system_levels
         };
         cell_at(&table[0], texture).get()
     }
     fn size(&self, level: u32) -> u32 {
-        cell_at(&OBJECT_TABLES.level_sizes[0], level).get()
+        cell_at(
+            &crate::scene::owner::scene().objects.tables.level_sizes[0],
+            level,
+        )
+        .get()
     }
     fn mips(&self) -> u32 {
         RACE_VARS.mip_setting.bits()
     }
     fn level_mips(&self, level: u32) -> u32 {
-        cell_at(&OBJECT_TABLES.level_mips[0], level).get()
+        cell_at(
+            &crate::scene::owner::scene().objects.tables.level_mips[0],
+            level,
+        )
+        .get()
     }
     fn forget_kinds(&mut self) {
         for table in [
-            &KIND_TEXTURES.kind_first_slots,
-            &KIND_TEXTURES.kind_first_textures,
+            &crate::scene::owner::scene().textures.kinds.kind_first_slots,
+            &crate::scene::owner::scene()
+                .textures
+                .kinds
+                .kind_first_textures,
         ] {
             for cell in &table[..TEXTURES] {
                 cell.set(u32::MAX);
@@ -75,15 +83,31 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
         }
     }
     fn set_asked(&mut self, asked: [u32; 2]) {
-        KIND_TEXTURES.textures_asked.set(asked[0]);
-        KIND_TEXTURES.textures_asked_other.set(asked[1]);
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .textures_asked
+            .set(asked[0]);
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .textures_asked_other
+            .set(asked[1]);
     }
     fn set_first_slot(&mut self, texture: u32, slot: u32) {
-        KIND_TEXTURES.kind_first_slots[texture as usize].set(slot);
+        crate::scene::owner::scene().textures.kinds.kind_first_slots[texture as usize].set(slot);
     }
     fn set_first_texture(&mut self, texture: u32, first: u32) {
-        cell_at(&TEXTURE_PLACES.texture_of[0], first).set(texture);
-        KIND_TEXTURES.kind_first_textures[texture as usize].set(first);
+        cell_at(
+            &crate::scene::owner::scene().textures.places.texture_of[0],
+            first,
+        )
+        .set(texture);
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[texture as usize]
+            .set(first);
     }
 }
 

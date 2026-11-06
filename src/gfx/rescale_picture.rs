@@ -22,10 +22,8 @@
 //! decoded height above the row table's room, and null pointers. The name is a reading.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::decoder::DECODER;
 use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
 use crate::gfx::picture::{has_picture, read_bytes, with_picture};
-use crate::gfx::picture_store::PICTURE;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::session::{Bytes, Dword};
@@ -95,9 +93,15 @@ impl Rescaler {
 // work variables.
 
 pub fn rescale_picture(rescaler: &Rescaler) -> Result<(), Refused> {
-    let (from_width, from_height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
-    let (width, height): (u32, u32) = (PICTURE.width.get(), PICTURE.height.get());
-    let from = DECODER.pixels.get();
+    let (from_width, from_height): (u32, u32) = (
+        crate::gfx::owner::gfx().pictures.decoder.width.get(),
+        crate::gfx::owner::gfx().pictures.decoder.height.get(),
+    );
+    let (width, height): (u32, u32) = (
+        crate::gfx::owner::gfx().pictures.picture.width.get(),
+        crate::gfx::owner::gfx().pictures.picture.height.get(),
+    );
+    let from = crate::gfx::owner::gfx().pictures.decoder.pixels.get();
     if from_width == 0 || from_height == 0 || width == 0 || height == 0 {
         return Err(BadInput("a picture without width or height to rescale").into());
     }
@@ -112,7 +116,7 @@ pub fn rescale_picture(rescaler: &Rescaler) -> Result<(), Refused> {
     let list = crate::pointers::GamePtr::to(&rescaler.copy_memory);
     let row_bytes = from_width.wrapping_mul(4);
     let mut copy = crate::memory::owned::counted(list, from_width.wrapping_mul(from_height) << 2)?;
-    let gap: u32 = DECODER.row_gap.get();
+    let gap: u32 = crate::gfx::owner::gfx().pictures.decoder.row_gap.get();
     let mut source = 0usize;
     for row in copy
         .chunks_exact_mut(row_bytes as usize)

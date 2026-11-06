@@ -14,7 +14,6 @@ use crate::math::cells::Cells;
 use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Cell32, Float};
@@ -38,12 +37,16 @@ pub fn matrix_angles(course: &Course, m: &(impl Cells + ?Sized)) {
     turn_unit(m, &turned, [0, 0, ONE]);
     let pitch = clamped_asin_at(
         extended(l.turned_y.bits()),
-        &DRAW.scratch,
+        &crate::scene::owner::scene().drawing.scene.scratch,
         &course.numbers.one,
     );
     l.car_pitch.set_bits(neg_rounded(pitch));
     turn_unit(m, &turned, [ONE, 0, 0]);
     let sine = over_cos_80(l.turned_y.bits(), l.car_pitch.bits());
-    let roll = clamped_asin_at(sine, &DRAW.scratch, &course.numbers.one);
+    let roll = clamped_asin_at(
+        sine,
+        &crate::scene::owner::scene().drawing.scene.scratch,
+        &course.numbers.one,
+    );
     l.car_roll.set_bits(rounded(roll));
 }

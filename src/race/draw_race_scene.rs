@@ -38,11 +38,6 @@ use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::session::SCREEN;
 const SLOTS: u32 = 0x400;
 
@@ -99,7 +94,9 @@ pub fn draw_race_scene() -> Result<(), Refused> {
         .map(|l| &l.lit)
         .enumerate()
     {
-        if extra.get() != u32::MAX && KIND_TEXTURES.kind_first_slots[220 + k].get() >= SLOTS {
+        if extra.get() != u32::MAX
+            && crate::scene::owner::scene().textures.kinds.kind_first_slots[220 + k].get() >= SLOTS
+        {
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
@@ -139,10 +136,14 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     }
     race.frame.frame_work.cars_drawn.set(0); // g_carsDrawn
     race.frame.frame_work.cars_culled.set(0); // g_carsCulled
-    LIGHT_WORK
+    crate::scene::owner::scene()
+        .lights
+        .work
         .marks_mask
         .set((race.course.stage_prefs.refresh_flags_a.get() & 2) >> 1);
-    LIGHT_WORK
+    crate::scene::owner::scene()
+        .lights
+        .work
         .lamps_mask
         .set(race.course.stage_prefs.refresh_flags_b.get() & 1);
     race.frame
@@ -160,7 +161,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
                 .get(),
         );
     }
-    OBJECT_TABLES.has_3d.set(1);
+    crate::scene::owner::scene().objects.tables.has_3d.set(1);
     race_sound_tick(frame)?; // 0xA
     race.course
         .course
@@ -200,9 +201,20 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     {
         let texture = extra.get();
         if texture != u32::MAX {
-            let slot = KIND_TEXTURES.kind_first_slots[220 + k].get();
-            crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.slot_wanted[0], slot)
-                .set(texture.wrapping_add(KIND_TEXTURES.kind_first_textures[220].get()));
+            let slot = crate::scene::owner::scene().textures.kinds.kind_first_slots[220 + k].get();
+            crate::scene::texture_places_store::cell_at(
+                &crate::scene::owner::scene().textures.places.slot_wanted[0],
+                slot,
+            )
+            .set(
+                texture.wrapping_add(
+                    crate::scene::owner::scene()
+                        .textures
+                        .kinds
+                        .kind_first_textures[220]
+                        .get(),
+                ),
+            );
         }
     }
     crate::scene::map_texture_places::map_texture_places();
@@ -221,17 +233,29 @@ pub fn draw_race_scene() -> Result<(), Refused> {
             let (w, h) = (SCREEN.width.get(), SCREEN.height.get());
             // (width, x, height, y).
             if side_by_side {
-                DRAW.view_size[0].set_bits(w >> 1);
-                DRAW.view_offset[0].set_bits(if view == 0 { 0 } else { w >> 1 });
-                DRAW.view_size[1].set_bits(h);
-                DRAW.view_offset[1].set_bits(0);
+                crate::scene::owner::scene().drawing.scene.view_size[0].set_bits(w >> 1);
+                crate::scene::owner::scene().drawing.scene.view_offset[0].set_bits(if view == 0 {
+                    0
+                } else {
+                    w >> 1
+                });
+                crate::scene::owner::scene().drawing.scene.view_size[1].set_bits(h);
+                crate::scene::owner::scene().drawing.scene.view_offset[1].set_bits(0);
             } else {
-                DRAW.view_size[0].set_bits(w);
-                DRAW.view_offset[0].set_bits(0);
-                DRAW.view_size[1].set_bits(h >> 1);
-                DRAW.view_offset[1].set_bits(if view == 0 { 0 } else { h >> 1 });
+                crate::scene::owner::scene().drawing.scene.view_size[0].set_bits(w);
+                crate::scene::owner::scene().drawing.scene.view_offset[0].set_bits(0);
+                crate::scene::owner::scene().drawing.scene.view_size[1].set_bits(h >> 1);
+                crate::scene::owner::scene().drawing.scene.view_offset[1].set_bits(if view == 0 {
+                    0
+                } else {
+                    h >> 1
+                });
             }
-            DRAW.view_zoom.set_bits(0x100);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .view_zoom
+                .set_bits(0x100);
             crate::scene::set_view_window::set_view_window_plain(race);
             draw_view(race, view as usize, view as usize, false)?;
         }

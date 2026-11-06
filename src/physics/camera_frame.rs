@@ -24,26 +24,58 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_store::LIGHT_STATE;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
 fn steps(race: &Race) -> Result<(), Refused> {
-    LIGHT_STATE.listener_camera.set_bits(0);
-    LIGHT_STATE.camera_frame_a.set(0);
-    LIGHT_STATE.camera_frame_b.set(0);
-    LIGHT_STATE.camera_frame_c.set(0);
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .listener_camera
+        .set_bits(0);
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .camera_frame_a
+        .set(0);
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .camera_frame_b
+        .set(0);
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .camera_frame_c
+        .set(0);
     if rc2k_core::physics::camera_view::shakes(CAR.camera_view.get(), CAR.all_wheels_off.get()) {
         x87_1();
-        hold_high(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
+        hold_high(
+            &crate::scene::owner::scene().lights.state.camera_frame_b,
+            &PHYSICS.camera_frame_limit,
+        );
         negate(&PHYSICS.camera_frame_limit);
-        hold_low(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
+        hold_low(
+            &crate::scene::owner::scene().lights.state.camera_frame_b,
+            &PHYSICS.camera_frame_limit,
+        );
         negate(&PHYSICS.camera_frame_limit);
-        DRAW.scratch.set(crate::math::next_random::next_random());
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(crate::math::next_random::next_random());
         x87_2(&race.course);
         if race.physics.split_tables.still.get() != 0 {
-            LIGHT_STATE.camera_frame_b.set(0);
-            LIGHT_STATE.listener_camera.set_bits(0);
+            crate::scene::owner::scene()
+                .lights
+                .state
+                .camera_frame_b
+                .set(0);
+            crate::scene::owner::scene()
+                .lights
+                .state
+                .listener_camera
+                .set_bits(0);
         }
     }
     crate::physics::update_camera::steps(race)
@@ -65,23 +97,35 @@ fn x87_1() {
     let t0 = ld(CAR.unknown_90c.bits());
     let t1 = ld(PHYSICS.camera_frame_scale.bits());
     let t2 = t0 * t1;
-    LIGHT_STATE.camera_frame_b.set_bits(st(t2));
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .camera_frame_b
+        .set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x237644] = (((int [rc + 0x22400C] / [rc + 0x1C5D98]) / [rc + 0x1C5E28]) * [rc + 0x1C5D40]) * [rc + 0x23763C]`
 fn x87_2(course: &Course) {
-    let t0 = int(DRAW.scratch.bits() as i32);
+    let t0 = int(crate::scene::owner::scene().drawing.scene.scratch.bits() as i32);
     let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 / t1;
     let t3 = ld(course.numbers.k4096.bits());
     let t4 = t2 / t3;
     let t5 = ld(course.numbers.three.bits());
     let t6 = t4 * t5;
-    let t7 = ld(LIGHT_STATE.camera_frame_b.bits());
+    let t7 = ld(crate::scene::owner::scene()
+        .lights
+        .state
+        .camera_frame_b
+        .bits());
     let t8 = t6 * t7;
-    LIGHT_STATE.listener_camera.set_bits(st(t8));
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .listener_camera
+        .set_bits(st(t8));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

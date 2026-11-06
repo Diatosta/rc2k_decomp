@@ -10,7 +10,6 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 
@@ -21,8 +20,14 @@ pub fn jitter_point(inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
     let mut moved = [d, c, b];
     let mut last = 0;
     for v in moved.iter_mut() {
-        let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-        MARKS_WORK.seed.set(s);
+        let s = crate::effects::owner::effects()
+            .setup
+            .work
+            .seed
+            .get()
+            .wrapping_mul(0x9D)
+            .wrapping_add(0x47);
+        crate::effects::owner::effects().setup.work.seed.set(s);
         last = ((s as i32) >> 12) as u32;
         *v = x87::prem_plus(last as i32, spread, *v);
     }

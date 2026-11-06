@@ -24,7 +24,6 @@ use crate::physics::car_store::CAR;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 use crate::session::Cell32;
 use std::cmp::Ordering;
@@ -75,7 +74,11 @@ pub fn limit_motion() {
         hold(&CAR.velocity[k], &PHYSICS.velocity_limit);
     }
     let length = rounded(vector_length(&CAR.velocity));
-    DRAW.motion_length.set_bits(length);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .motion_length
+        .set_bits(length);
     let top = PHYSICS.top_speed.bits();
     let past = matches!(
         f32::from_bits(top).partial_cmp(&f32::from_bits(length)),
@@ -86,7 +89,11 @@ pub fn limit_motion() {
         let factor = crate::math::x87_run::div_80(top, length);
         scale_vector(&CAR.velocity, factor);
         scale_vector(&CAR.local_velocity, factor);
-        DRAW.scratch.set(rounded(factor));
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(rounded(factor));
     }
 }
 

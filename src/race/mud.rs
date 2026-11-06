@@ -6,11 +6,9 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 pub const MUD_LEN: u32 = 0x1_0000;
 
@@ -27,7 +25,9 @@ pub fn car_file_number(car: u32) -> u32 {
 /// is the row's address's, and that is what the conversion gets.
 pub fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
     let (_, pixel) = raw_pixel(x, y)?;
-    let format = crate::gfx::pixel_format::layout(DRAW_SURFACE.format.get())?;
+    let format = crate::gfx::pixel_format::layout(
+        crate::gfx::owner::gfx().drawing.draw_surface.format.get(),
+    )?;
     Ok(crate::gfx::pixel_to_components::pixel_to_components(
         &format, pixel,
     ))
@@ -37,12 +37,18 @@ pub fn read_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
 /// both: a second copy of this compiled without the row's upper half, 2026-10-16).
 pub fn raw_pixel(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
     let rows = crate::gfx::rows::Rows::new(
-        DRAW_SURFACE.pixels.get(),
-        DRAW_SURFACE.pitch.get(),
-        DRAW_SURFACE.height.get(),
+        crate::gfx::owner::gfx().drawing.draw_surface.pixels.get(),
+        crate::gfx::owner::gfx().drawing.draw_surface.pitch.get(),
+        crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
     );
     let row = rows.at(y, 0)?;
-    let pixel = if DRAW_SURFACE.bits_per_pixel.get() == 0x10 {
+    let pixel = if crate::gfx::owner::gfx()
+        .drawing
+        .draw_surface
+        .bits_per_pixel
+        .get()
+        == 0x10
+    {
         // As the original: eax the row's address, then `mov ax` of the pixel: the
         // upper half of the result is the row's address's.
         // A pixel of the surface's row: bytes of a picture, not a record.
@@ -60,7 +66,12 @@ pub fn raw_pixel(x: u32, y: u32) -> Result<(u32, u32), BadInput> {
 /// `race::mud_pixel` (0x44A58A): `read_pixel` inside the surface (unsigned), else 0.
 pub fn mud_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::mud::inside`.
-    if !rc2k_core::race::mud::inside(x, y, DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get()) {
+    if !rc2k_core::race::mud::inside(
+        x,
+        y,
+        crate::gfx::owner::gfx().drawing.draw_surface.width.get(),
+        crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
+    ) {
         return Ok(0);
     }
     read_pixel(x, y)
@@ -105,13 +116,25 @@ pub fn clear_mud_state() {
 /// `mud_pixel`, unlocked (`d3d::unlock_texture`).
 pub fn sample_mud_colours() -> Result<(), Refused> {
     // dword_5D0DEC (`g_kindFirstTextures` + 0x304): the surface sampled.
-    crate::d3d::lock_texture::lock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
+    crate::d3d::lock_texture::lock_texture(
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[193]
+            .get(),
+    )?;
     // Converted: `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
         let (x, y) = rc2k_core::race::mud::sample_place(n);
         RACE_VARS.mud_colours[n as usize].set(mud_pixel(x, y)?);
     }
-    crate::d3d::unlock_texture::unlock_texture(KIND_TEXTURES.kind_first_textures[193].get())?;
+    crate::d3d::unlock_texture::unlock_texture(
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[193]
+            .get(),
+    )?;
     Ok(())
 }
 

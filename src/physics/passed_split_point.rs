@@ -26,7 +26,6 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
 
@@ -37,11 +36,19 @@ use std::cmp::Ordering;
 fn distance(race: &Race, point: [u32; 3]) {
     let word = |k: usize| point[k] as i32;
     let dx = word(0).wrapping_sub(race.physics.ground.ground_x.get() as i32);
-    DRAW.scratch.set_bits(dx as u32);
-    let first = int(DRAW.scratch.bits() as i32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(dx as u32);
+    let first = int(crate::scene::owner::scene().drawing.scene.scratch.bits() as i32);
     let dz = word(2).wrapping_sub(race.physics.ground.ground_z.get() as i32);
-    DRAW.scratch.set_bits(dz as u32);
-    let second = int(DRAW.scratch.bits() as i32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(dz as u32);
+    let second = int(crate::scene::owner::scene().drawing.scene.scratch.bits() as i32);
     PHYSICS
         .split_point_distance
         .set_bits(st((first * first + second * second).sqrt()
@@ -54,16 +61,32 @@ fn distance(race: &Race, point: [u32; 3]) {
 fn angle(race: &Race, point: [u32; 3]) {
     let word = |k: usize| point[k] as i32;
     let dx = (race.physics.ground.ground_x.get() as i32).wrapping_sub(word(0));
-    DRAW.scratch.set_bits(dx as u32);
-    let y = int(DRAW.scratch.bits() as i32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(dx as u32);
+    let y = int(crate::scene::owner::scene().drawing.scene.scratch.bits() as i32);
     let dz = (race.physics.ground.ground_z.get() as i32).wrapping_sub(word(2));
-    DRAW.scratch.set_bits(dz as u32);
-    let x = int(DRAW.scratch.bits() as i32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(dz as u32);
+    let x = int(crate::scene::owner::scene().drawing.scene.scratch.bits() as i32);
     let turns = y.atan2_over_pi(x)
         * ld(race.course.numbers.half.bits())
         * ld(race.course.numbers.k65536.bits());
-    DRAW.scratch.set_bits(to_int(turns) as u32);
-    DRAW.scratch.set_bits(DRAW.scratch.bits() & 0xFFFF);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(to_int(turns) as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(crate::scene::owner::scene().drawing.scene.scratch.bits() & 0xFFFF);
 }
 
 /// The split's checkpoint and its face's first point's number, refused or fatal as said.
@@ -126,7 +149,7 @@ pub fn passed_split_point(race: &Race) -> Result<bool, Refused> {
         return Ok(false);
     }
     angle(race, pt);
-    let car_angle = DRAW.scratch.get() << 16;
+    let car_angle = crate::scene::owner::scene().drawing.scene.scratch.get() << 16;
     PHYSICS.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle(cp as usize).get();
     PHYSICS.split_heading.set(heading);

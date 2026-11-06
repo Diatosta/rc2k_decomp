@@ -10,7 +10,6 @@ use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
 
 /// The edges' offset for an angle (`math::turn_point_xz` of (0x1555, y, 0) by angle << 16).
@@ -174,14 +173,14 @@ pub fn lay_skidmarks(frame: &Frame) -> Result<(), Refused> {
             } else {
                 0xFFFF_EAAB
             };
-            DRAW.scratch.set(side);
+            crate::scene::owner::scene().drawing.scene.scratch.set(side);
             let t = crate::scene::rotate_point::rotate_point(
                 &car.crash_matrix,
                 [int_80(side), zero, zero],
             );
             for (i, v) in t.into_iter().enumerate() {
                 let n = crate::math::x87_load::tbyte_to_int(v);
-                DRAW.scratch.set(n);
+                crate::scene::owner::scene().drawing.scene.scratch.set(n);
                 frame.shadow_skids.skid_place[i]
                     .set(frame.shadow_skids.skid_place[i].get().wrapping_add(n));
             }

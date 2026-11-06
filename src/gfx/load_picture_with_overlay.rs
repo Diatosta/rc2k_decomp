@@ -15,10 +15,8 @@
 //! 32 bits), and what its parts refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::decoder::DECODER;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::picture::{Buffer, take, with_buffer};
-use crate::gfx::picture_store::PICTURE;
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::memory::free_list::free_list;
 use crate::strings::compile_lexicon::LEXICON;
@@ -44,17 +42,33 @@ pub fn load_picture_with_overlay(
     };
     let overlay = take(Buffer::Overlay, list, MEMORY)?;
     let kept: [u32; 4] = [
-        PICTURE.width.get(),
-        PICTURE.height.get(),
-        PICTURE.row_bytes.get(),
-        PICTURE.buffer.get(),
+        crate::gfx::owner::gfx().pictures.picture.width.get(),
+        crate::gfx::owner::gfx().pictures.picture.height.get(),
+        crate::gfx::owner::gfx().pictures.picture.row_bytes.get(),
+        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
     ];
-    PICTURE.buffer.set(overlay);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .buffer
+        .set(overlay);
     let read = read_picture_file(overlay_path);
-    PICTURE.width.set(kept[0]);
-    PICTURE.height.set(kept[1]);
-    PICTURE.row_bytes.set(kept[2]);
-    PICTURE.buffer.set(kept[3]);
+    crate::gfx::owner::gfx().pictures.picture.width.set(kept[0]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .height
+        .set(kept[1]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(kept[2]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .buffer
+        .set(kept[3]);
     let read = match read {
         Ok(read) => read,
         Err(e) => {
@@ -65,8 +79,14 @@ pub fn load_picture_with_overlay(
     if read {
         // Converted: `rc2k_core::gfx::loading::lay_over`; both buffers 0x1D4C00 + 0xC80
         // bytes (the picture buffer's room, `gfx::allocate_picture_buffer`).
-        let (width, height): (u32, u32) = (DECODER.width.get(), DECODER.height.get());
-        let (stride, row): (u32, u32) = (DECODER.stride.get(), PICTURE.row_bytes.get());
+        let (width, height): (u32, u32) = (
+            crate::gfx::owner::gfx().pictures.decoder.width.get(),
+            crate::gfx::owner::gfx().pictures.decoder.height.get(),
+        );
+        let (stride, row): (u32, u32) = (
+            crate::gfx::owner::gfx().pictures.decoder.stride.get(),
+            crate::gfx::owner::gfx().pictures.picture.row_bytes.get(),
+        );
         let laid = with_buffer(overlay, |from| {
             with_buffer(kept[3], |to| {
                 match (to.get_mut(..MEMORY as usize), from.get(..MEMORY as usize)) {

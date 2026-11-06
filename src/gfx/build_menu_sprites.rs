@@ -12,9 +12,8 @@
 
 use crate::errors::Refused;
 use crate::gfx::build_glyphs::{SheetVars, build_glyphs};
-use crate::gfx::decoder::DECODER;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
-use crate::gfx::glyph_tables::{TABLES, begin_glyph_table, begin_glyph_tables, end_glyph_tables};
+use crate::gfx::glyph_tables::{begin_glyph_table, begin_glyph_tables, end_glyph_tables};
 use crate::menu::owner::menus;
 
 // ---- game data ----
@@ -26,9 +25,13 @@ pub fn build_menu_sprites(
     vars: &SheetVars,
     sprite_table: &crate::session::Dword,
 ) -> Result<(), Refused> {
-    let list = crate::pointers::GamePtr::to(&TABLES.memory);
+    let list = crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().fonts.glyph_tables.memory);
     begin_glyph_tables(vars)?;
-    DECODER.builder_flags.set(RUN_LENGTHS);
+    crate::gfx::owner::gfx()
+        .pictures
+        .decoder
+        .builder_flags
+        .set(RUN_LENGTHS);
     begin_glyph_table(vars, list)?;
     build_glyphs(vars, &crate::gfx::texts::MBUTS, list)?;
     sprite_table.set(vars.table.get());

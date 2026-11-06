@@ -19,7 +19,6 @@ use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
 /// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF.
@@ -52,7 +51,11 @@ pub fn surface_noise(course: &Course) -> Result<(), crate::errors::BadInput> {
         );
         CAR.surface_noise_second.set(second);
         let floor = rough_floor(second, course.stage_prefs.surface_floor.get());
-        DRAW.scratch.set(floor);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(floor);
         CAR.surface_blend.set_bits(ext_div2(
             int_80(floor as i32, false),
             course.numbers.k256.bits(),

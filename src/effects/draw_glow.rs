@@ -10,10 +10,8 @@
 //!
 //! Caller: `effects::run_frame` (0x4D1693).
 
-use crate::effects::clip::GLOW;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::matrix3::extended;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
@@ -22,20 +20,28 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// texture (`scene::set_texture`), `draw_turned_sprite`.
 pub fn draw_glow() -> Result<(), Refused> {
     {
-        if GLOW.off.get() == 1 {
+        if crate::effects::owner::effects().clipping.glow.off.get() == 1 {
             return Ok(());
         }
         for (value, state) in STATES {
             crate::scene::set_render_state::set_render_state(value, state);
         }
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[211].bits());
+        crate::scene::set_texture::set_texture(
+            crate::scene::owner::scene().textures.kinds.kind_first_slots[211].bits(),
+        );
         let place = [
-            x87::add_80(GLOW.place[2].bits(), GLOW.offset[0].bits()),
-            x87::add_80(GLOW.place[1].bits(), GLOW.offset[1].bits()),
-            extended(GLOW.place[0].bits()),
+            x87::add_80(
+                crate::effects::owner::effects().clipping.glow.place[2].bits(),
+                crate::effects::owner::effects().clipping.glow.offset[0].bits(),
+            ),
+            x87::add_80(
+                crate::effects::owner::effects().clipping.glow.place[1].bits(),
+                crate::effects::owner::effects().clipping.glow.offset[1].bits(),
+            ),
+            extended(crate::effects::owner::effects().clipping.glow.place[0].bits()),
         ];
         crate::effects::draw_turned_sprite::draw_turned_sprite(
-            GLOW.angle.get(),
+            crate::effects::owner::effects().clipping.glow.angle.get(),
             0xFFFF_FFFF,
             0x1_0000,
             place,

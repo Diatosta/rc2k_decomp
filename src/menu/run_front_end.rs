@@ -14,7 +14,6 @@
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::log;
-use crate::gfx::fonts_store::FONTS;
 use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
@@ -46,8 +45,8 @@ pub fn run_front_end() -> Result<(), Refused> {
         crate::logfile::log_write::log_nul(line, true, 1);
     })?;
     crate::gfx::free_fonts::free_fonts(
-        crate::pointers::GamePtr::to(&crate::gfx::glyph_tables::TABLES.memory),
-        &FONTS.palettes,
+        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().fonts.glyph_tables.memory),
+        &crate::gfx::owner::gfx().fonts.menu_fonts.palettes,
     )?;
     crate::saves::list_car_numbers::list_car_numbers()?;
     log("menu::run_front_end: the Rust version has come back");

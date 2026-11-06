@@ -18,12 +18,7 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::ViewVars;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::matrix::multiply_matrices;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::Float;
 
 fn view_matrix(frame: &Frame) -> &'_ [Float] {
@@ -86,7 +81,11 @@ pub fn car_body_matrix(frame: &Frame) {
 /// marks: number, digits, plates) 0. (The original leaves eax 0, ecx 0, edi past them;
 /// its one caller reads none.)
 pub fn clear_car_marks() {
-    for mark in &OBJECT_TABLES.car_mark_textures[..0x40] {
+    for mark in &crate::scene::owner::scene()
+        .objects
+        .tables
+        .car_mark_textures[..0x40]
+    {
         mark.set(0);
     }
 }
@@ -112,30 +111,73 @@ pub fn car_number_textures(race: &Race, car: u32) -> Result<(), BadInput> {
     {
         let limit = f32::from_bits(race.frame.frame_work.decal_limit.bits());
         let side = lamp_side(float(&block.drive_speed_a), limit);
-        OBJECT_TABLES.car_mark_textures[1].set(side);
-        OBJECT_TABLES.car_mark_textures[4].set(side);
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_mark_textures[1]
+            .set(side);
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_mark_textures[4]
+            .set(side);
         let side = lamp_side(float(&block.drive_speed_b), limit);
-        OBJECT_TABLES.car_mark_textures[2].set(side);
-        OBJECT_TABLES.car_mark_textures[3].set(side);
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_mark_textures[2]
+            .set(side);
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_mark_textures[3]
+            .set(side);
         // Unbounded: 34 kinds of 0x30 bytes, the table holds 32.
         let name = GamePtr::to(&RACE_WORK.number_texture_names)
             .unbounded()
             .offset(car_at(car)?.car_kind.bits().wrapping_mul(0x30));
         let n = crate::math::x87::to_int(car_at(car)?.shown_engine_speed.bits());
-        DRAW.scratch.set(n as u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(n as u32);
         let (place, _) = letter_place(n);
         let letter = letter_number(
             name.offset(place)
                 .read::<u8>("a car's number texture name")?,
         ) as u32;
-        OBJECT_TABLES.car_mark_textures[5].set(letter);
-        OBJECT_TABLES.car_letter_b.set(letter);
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_mark_textures[5]
+            .set(letter);
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_letter_b
+            .set(letter);
         let d = number_digits(car_at(car)?.start_slot_value.bits());
-        OBJECT_TABLES.car_mark_textures[6].set(d.tens);
-        OBJECT_TABLES.car_mark_textures[7].set(d.units);
-        OBJECT_TABLES.car_mark_textures[9].set(d.alone);
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_mark_textures[6]
+            .set(d.tens);
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_mark_textures[7]
+            .set(d.units);
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_mark_textures[9]
+            .set(d.alone);
         let (tens, _) = stage_plate(RACE_VARS.stage_number.bits());
-        OBJECT_TABLES.car_mark_textures[8]
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .car_mark_textures[8]
             .set(RACE_WORK.number_tens_textures[tens as usize].bits());
         if decals_shown(
             float(&block.electrics_damage),
@@ -145,7 +187,10 @@ pub fn car_number_textures(race: &Race, car: u32) -> Result<(), BadInput> {
                 let byte = block.part_switches.get(k as usize) as u32;
                 let to: u32 = race.frame.frame_work.car_decal_places[k as usize].bits();
                 crate::scene::texture_places_store::cell_at(
-                    &OBJECT_TABLES.car_mark_textures[0],
+                    &crate::scene::owner::scene()
+                        .objects
+                        .tables
+                        .car_mark_textures[0],
                     to,
                 )
                 .set(byte);
@@ -397,33 +442,63 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
             .group_mask
             .set(u32::MAX);
     }
-    OBJECT_WORK.light_lowest.set(0);
-    OBJECT_WORK.light_highest.set(0xFF);
-    OBJECT_WORK
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .light_lowest
+        .set(0);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .light_highest
+        .set(0xFF);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
         .light_level
         .set(race.course.stage_prefs.light_level.bits());
-    OBJECT_WORK
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
         .light_strength
         .set(race.course.stage_prefs.light_strength.bits());
-    OBJECT_WORK.light_turns[0].set(race.course.stage_prefs.sun_turn.bits().wrapping_neg());
-    OBJECT_WORK.light_turns[1].set(race.course.stage_prefs.sun_height.bits());
-    LIGHT_STATE.view_kind.set(1);
-    LIGHT_WORK.light_kind.set(3);
+    crate::scene::owner::scene().drawing.object_work.light_turns[0]
+        .set(race.course.stage_prefs.sun_turn.bits().wrapping_neg());
+    crate::scene::owner::scene().drawing.object_work.light_turns[1]
+        .set(race.course.stage_prefs.sun_height.bits());
+    crate::scene::owner::scene().lights.state.view_kind.set(1);
+    crate::scene::owner::scene().lights.work.light_kind.set(3);
     let this_car = car_at(car)?;
     let place = || {
-        OBJECT_WORK.place[0].set(this_car.position[0].bits());
-        OBJECT_WORK.place[1].set(this_car.position[1].bits());
-        OBJECT_WORK.place[2].set(this_car.position[2].bits());
+        crate::scene::owner::scene().drawing.object_work.place[0].set(this_car.position[0].bits());
+        crate::scene::owner::scene().drawing.object_work.place[1].set(this_car.position[1].bits());
+        crate::scene::owner::scene().drawing.object_work.place[2].set(this_car.position[2].bits());
     };
     place();
-    OBJECT_WORK.size.set(0x10);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .size
+        .set(0x10);
     crate::scene::matrix::set_light_direction();
     place();
-    OBJECT_WORK.car_switches.set(switches);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .car_switches
+        .set(switches);
     race.physics.camera.drawing_car.set(1);
-    OBJECT_WORK.other_light.set(0);
-    LIGHT_WORK.light_kind.set(3);
-    LIGHT_WORK.light_kind_extra.set(0);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .other_light
+        .set(0);
+    crate::scene::owner::scene().lights.work.light_kind.set(3);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .light_kind_extra
+        .set(0);
     FRAME_SWITCHES.object_number.set(
         race.frame
             .view_and_records
@@ -437,7 +512,11 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
     crate::race::frame_draw::start_kept_reflections(&race.physics)?;
     crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(&race.frame)))?;
     crate::race::frame_draw::end_kept_reflections();
-    LIGHT_WORK.light_kind_extra.set(1);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .light_kind_extra
+        .set(1);
     if below(race.frame.frame_work.car_depth.bits(), 0x3C_0000) {
         for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100]
             .into_iter()
@@ -446,7 +525,14 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
             FRAME_SWITCHES
                 .object_number
                 .set(FRAME_SWITCHES.object_number.bits().wrapping_add(1));
-            if OBJECT_WORK.car_switches.bits() & bit != 0 {
+            if crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .car_switches
+                .bits()
+                & bit
+                != 0
+            {
                 car_part_matrix(&race.frame, matrix);
                 crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(
                     &race.frame,
@@ -467,9 +553,17 @@ fn nearness(race: &Race) {
     use crate::math::x87_float::{ONE, int, ld, st, to_int};
     use crate::math::x87_load::below_or_unordered;
     {
-        DRAW.scratch.set(0xA_0000u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(0xA_0000u32);
         let depth = int(race.frame.frame_work.car_depth.get() as i32);
-        DRAW.scratch.set(0x14_0000u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(0x14_0000u32);
         RACE_WORK
             .car_nearness
             .set_bits(st((depth - int(0xA_0000)) / int(0x14_0000)));
@@ -500,7 +594,11 @@ fn near_size() -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
     {
         let size = to_int(int(0x90) * ld(RACE_WORK.car_nearness.bits()));
-        DRAW.scratch.set(size as u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(size as u32);
         size as u32
     }
 }
@@ -541,7 +639,9 @@ pub fn draw_car_entry(race: &Race, entry: u32) -> Result<(), Refused> {
         return Err(BadInput("a car without its block").into());
     }
     frame.view_and_records.view_vars.drawn_car.set(n);
-    LIGHT_WORK
+    crate::scene::owner::scene()
+        .lights
+        .work
         .view_light_base
         .set(car_at(car)?.light_colour.bits());
     let t = crate::scene::rotate_point::rotate_point(
@@ -594,7 +694,11 @@ mod asm_reference {
         let course = &race().course;
         use crate::math::x87_load::below_or_unordered;
         unsafe {
-            DRAW.scratch.set(0xA_0000u32);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set(0xA_0000u32);
             let old = crate::race::store::OldPlaces::lay(&[0x62400c, 0x6415a4, 0x71ba08]);
             core::arch::asm!(
                 "fild dword ptr [{rc} + 0x2415A4]",
@@ -637,7 +741,11 @@ mod asm_reference {
     /// `dword_62400C`).
     pub(super) unsafe fn near_size_asm() -> u32 {
         unsafe {
-            DRAW.scratch.set(0x90u32);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set(0x90u32);
             let old = crate::race::store::OldPlaces::lay(&[0x62400c, 0x71ba08]);
             core::arch::asm!(
                 "fild dword ptr [{rc} + 0x22400C]",
@@ -649,7 +757,7 @@ mod asm_reference {
                 options(nostack),
             );
             drop(old);
-            DRAW.scratch.bits()
+            crate::scene::owner::scene().drawing.scene.scratch.bits()
         }
     }
 
@@ -663,7 +771,11 @@ mod asm_reference {
 
     fn fill(r: &mut Rng) {
         let race = race();
-        DRAW.scratch.set(0xAAAA_AAAAu32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(0xAAAA_AAAAu32);
         // the depth is a whole number around the view's reach
         race.frame
             .frame_work

@@ -105,27 +105,32 @@ pub struct DrawSurface {
     pub _tail: Bytes<8>,
 }
 
-pub static DRAW_SURFACE: DrawSurface = DrawSurface {
-    _lead: Bytes::new([0; 4]),
-    present_pitch: Dword::new(0x0),
-    present_pixels: Dword::new(0x0),
-    present_gap: Dword::new(0x0),
-    flipped: Dword::new(0x0),
-    frames: Dword::new(0x0),
-    x: Dword::new(0x0),
-    y: Dword::new(0x0),
-    width: Dword::new(0x0),
-    height: Dword::new(0x0),
-    bits_per_pixel: Dword::new(0x0),
-    bytes_per_pixel: Dword::new(0x0),
-    row_bytes: Dword::new(0x0),
-    row_dwords: Dword::new(0x0),
-    format: Dword::new(0x4f496c),
-    pitch: Dword::new(0x0),
-    pixels: Dword::new(0x0),
-    row_gap: Dword::new(0x0),
-    _tail: Bytes::new([0; 8]),
-};
+impl DrawSurface {
+    /// The first values are the image's.
+    pub const fn new() -> Self {
+        DrawSurface {
+            _lead: Bytes::new([0; 4]),
+            present_pitch: Dword::new(0x0),
+            present_pixels: Dword::new(0x0),
+            present_gap: Dword::new(0x0),
+            flipped: Dword::new(0x0),
+            frames: Dword::new(0x0),
+            x: Dword::new(0x0),
+            y: Dword::new(0x0),
+            width: Dword::new(0x0),
+            height: Dword::new(0x0),
+            bits_per_pixel: Dword::new(0x0),
+            bytes_per_pixel: Dword::new(0x0),
+            row_bytes: Dword::new(0x0),
+            row_dwords: Dword::new(0x0),
+            format: Dword::new(0x4f496c),
+            pitch: Dword::new(0x0),
+            pixels: Dword::new(0x0),
+            row_gap: Dword::new(0x0),
+            _tail: Bytes::new([0; 8]),
+        }
+    }
+}
 
 impl DrawSurface {
     pub const START: usize = 0x4F4984;
@@ -133,7 +138,8 @@ impl DrawSurface {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const DRAW_SURFACE) + 4) as usize
+        (crate::pointers::game_address(&raw const crate::gfx::owner::gfx().drawing.draw_surface)
+            + 4) as usize
     }
 }
 

@@ -13,12 +13,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::session::SCREEN;
 
-use crate::gfx::front::SURFACES;
-use crate::gfx::screen_state::DRAW_SURFACE;
-
 /// The Rust version (see the header).
 pub fn clear_back_surface() -> Result<(), Refused> {
-    if SURFACES.front.get() == 0 {
+    if crate::gfx::owner::gfx().drawing.surfaces.front.get() == 0 {
         return Ok(());
     }
     if SCREEN.height.get() == 0 {
@@ -31,8 +28,18 @@ pub fn clear_back_surface() -> Result<(), Refused> {
     // Each row's dwords, then the gap to the next (the original's step).
     let dwords = SCREEN.row_dwords.get();
     let rows = crate::gfx::rows::Rows::new(
-        DRAW_SURFACE.present_pixels.get(),
-        (4 * dwords).wrapping_add(DRAW_SURFACE.present_gap.get()),
+        crate::gfx::owner::gfx()
+            .drawing
+            .draw_surface
+            .present_pixels
+            .get(),
+        (4 * dwords).wrapping_add(
+            crate::gfx::owner::gfx()
+                .drawing
+                .draw_surface
+                .present_gap
+                .get(),
+        ),
         SCREEN.height.get(),
     );
     for y in 0..rows.count() {

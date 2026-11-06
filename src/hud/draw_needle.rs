@@ -70,7 +70,9 @@ pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         let point = [extended(y), extended(x)].map(to_f64);
         crate::hud::turned_vertex::turned_vertex(hud, vertex, angle, point);
     }
-    crate::scene::draw_store::DRAW
+    crate::scene::owner::scene()
+        .drawing
+        .scene
         .polygon_vertex_count
         .set_bits(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud)

@@ -17,7 +17,6 @@ use crate::physics::car_store::CAR;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
 use crate::session::Float;
 use std::cmp::Ordering;
 
@@ -31,17 +30,34 @@ fn below(s: u32, zero: u32) -> bool {
 
 /// One half: `speed` (None with the switch set) held, scaled, added to the four at `to`.
 fn add_turn(course: &Course, speed: Option<u32>, f1: &Float, f2: &Float, to: &[Float; 4]) {
-    DRAW.scratch.set(0);
+    crate::scene::owner::scene().drawing.scene.scratch.set(0);
     if let Some(s) = speed {
-        DRAW.scratch.set(s);
-        if below(DRAW.scratch.get(), course.numbers.zero.bits()) {
-            DRAW.scratch.set(x87::loaded(course.numbers.zero.bits()));
+        crate::scene::owner::scene().drawing.scene.scratch.set(s);
+        if below(
+            crate::scene::owner::scene().drawing.scene.scratch.get(),
+            course.numbers.zero.bits(),
+        ) {
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set(x87::loaded(course.numbers.zero.bits()));
         }
     }
-    DRAW.scratch
-        .set(x87::mul2(DRAW.scratch.get(), f1.bits(), f2.bits()));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set(x87::mul2(
+            crate::scene::owner::scene().drawing.scene.scratch.get(),
+            f1.bits(),
+            f2.bits(),
+        ));
     for cell in to {
-        cell.set_bits(x87::add(cell.bits(), DRAW.scratch.get()));
+        cell.set_bits(x87::add(
+            cell.bits(),
+            crate::scene::owner::scene().drawing.scene.scratch.get(),
+        ));
     }
 }
 

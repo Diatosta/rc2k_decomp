@@ -30,7 +30,6 @@ use crate::race::car_specs_store::CarSpec;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
-use crate::scene::draw_store::DRAW;
 use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
 use std::cmp::Ordering;
@@ -103,7 +102,11 @@ pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
     PHYSICS.spec_wheel.set_bits(PHYSICS.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
     scale_record_grips(spec);
-    DRAW.scratch.set(spec.scratch_value.get());
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set(spec.scratch_value.get());
     PHYSICS.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
     set_rev_limits(&race.course, drive as usize);

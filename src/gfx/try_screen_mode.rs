@@ -17,7 +17,6 @@
 use crate::errors::Refused;
 use crate::framework::Flags;
 use crate::gfx::owner::Display;
-use crate::gfx::upload::UPLOAD;
 
 // ---- Rust version ----
 
@@ -25,7 +24,7 @@ use crate::gfx::upload::UPLOAD;
 pub fn try_screen_mode(display: &Display, mode: u32) -> Result<Flags, Refused> {
     let reports: u32 = crate::gfx::owner::gfx().reports.on.get();
     crate::gfx::owner::gfx().reports.on.set(0);
-    UPLOAD.trying.set(1);
+    crate::gfx::owner::gfx().card.upload.trying.set(1);
     // Err(zero): it does not work, with the zero flag the failing step left (`stc` keeps
     // it); Ok(eax): it works, with the eax it leaves.
     let tried = (|| -> Result<Result<u32, bool>, Refused> {
@@ -51,7 +50,7 @@ pub fn try_screen_mode(display: &Display, mode: u32) -> Result<Flags, Refused> {
         crate::platform_3d::release_all_textures();
         Ok(Ok(video))
     })()?;
-    UPLOAD.trying.set(0);
+    crate::gfx::owner::gfx().card.upload.trying.set(0);
     crate::gfx::owner::gfx().reports.on.set(reports);
     Ok(match tried {
         Ok(eax) => Flags {

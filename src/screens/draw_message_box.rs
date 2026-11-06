@@ -12,8 +12,6 @@
 //! `gfx::fill_rect` refuses (a surface of neither 16 nor 32 bits), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::fonts_store::FONTS;
-use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 
@@ -39,7 +37,10 @@ pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> 
         x,
         canvas,
     )?;
-    let (sw, sh) = (DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get());
+    let (sw, sh) = (
+        crate::gfx::owner::gfx().drawing.draw_surface.width.get(),
+        crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
+    );
     let font = crate::gfx::typefaces::fonts::BOX_TEXT.game_ptr();
     let b = layout(
         m.width,
@@ -56,7 +57,7 @@ pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> 
     BOX[0].set(b.rect[0]);
     BOX[1].set(b.rect[1]);
     let rect = crate::gfx::rect::rect_of(&BOX);
-    let palettes = Palette::Held(FONTS.palettes.get());
+    let palettes = Palette::Held(crate::gfx::owner::gfx().fonts.menu_fonts.palettes.get());
     fill_rect(rect, FILL, palettes)?;
     frame_rect(rect, 0, 0, FRAME, palettes);
     draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;

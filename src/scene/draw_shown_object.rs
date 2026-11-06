@@ -27,9 +27,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 
 // ---- game data ----
 use crate::race::owner::race;
@@ -51,7 +48,10 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         RACE_VARS.run_kind.bits()
     }
     fn kind(&self, object: u32) -> u32 {
-        OBJECT_TABLES.object_kind(object)
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .object_kind(object)
     }
     fn other_way(&self) -> u32 {
         FRAME_SWITCHES.other_way.bits()
@@ -63,10 +63,14 @@ impl rc2k_core::scene::shown::RaceObject for Game {
         RACE_WORK.stage_direction.bits()
     }
     fn only(&self) -> u32 {
-        OBJECT_WORK.only_object.bits()
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .only_object
+            .bits()
     }
     fn faces(&self, object: u32) -> u32 {
-        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get()
+        crate::scene::owner::scene().objects.slots.face_counts[object as usize].get()
     }
 }
 
@@ -81,11 +85,17 @@ pub fn draw_shown_object(
     if race && FRAME_SWITCHES.object_number.bits() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }
-    LIGHT_WORK.drawing_object.set_bits(1u32);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .drawing_object
+        .set_bits(1u32);
     let show = if race {
         rc2k_core::scene::shown::race_shown(&Game)
     } else {
-        for (cell, byte) in OBJECT_TABLES
+        for (cell, byte) in crate::scene::owner::scene()
+            .objects
+            .tables
             .car_mark_textures
             .iter()
             .zip(rc2k_core::scene::shown::kind_bytes())
@@ -97,6 +107,10 @@ pub fn draw_shown_object(
     if show {
         draw()?;
     }
-    LIGHT_WORK.drawing_object.set_bits(0u32);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .drawing_object
+        .set_bits(0u32);
     Ok(show)
 }

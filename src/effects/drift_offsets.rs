@@ -15,14 +15,19 @@
 //! stays the x87's).
 
 use crate::effects::rain::Weather;
-use crate::effects::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 
 /// The marks' random: times 0x9D plus 0x47.
 fn next_seed() -> u32 {
-    let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-    MARKS_WORK.seed.set(s);
+    let s = crate::effects::owner::effects()
+        .setup
+        .work
+        .seed
+        .get()
+        .wrapping_mul(0x9D)
+        .wrapping_add(0x47);
+    crate::effects::owner::effects().setup.work.seed.set(s);
     s
 }
 

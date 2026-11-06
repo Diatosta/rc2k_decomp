@@ -100,13 +100,12 @@ static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 
 /// The first view's scene has been drawn.
 pub fn note_view(frame: &Frame) {
-    use crate::scene::draw_store::DRAW;
     let view = (
         std::array::from_fn(|n| frame.matrices.view_matrix[n].get()),
-        DRAW.view_scale.get(),
+        crate::scene::owner::scene().drawing.scene.view_scale.get(),
         [
-            f32::from_bits(DRAW.view_centre[0].bits()),
-            f32::from_bits(DRAW.view_centre[1].bits()),
+            f32::from_bits(crate::scene::owner::scene().drawing.scene.view_centre[0].bits()),
+            f32::from_bits(crate::scene::owner::scene().drawing.scene.view_centre[1].bits()),
         ],
     );
     *VIEW

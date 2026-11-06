@@ -1,5 +1,5 @@
 //! The marks' settings (IDA 0x5C2F84 .. 0x5C56EC): the record the race hands the effects
-//! (`effects::init_marks`, now flagged in `g_marksSettings`, `effects::setup::SETTINGS`)
+//! (`effects::init_marks`, now flagged in `g_marksSettings`, `SETTINGS`)
 //! and the effects read every frame: a head the race's views and `drive::set_listener` write,
 //! the eight cars' records (`effects::init_mark_step` copies them), and a tail of the
 //! listener's figures and switches. One record in the original, between the replay viewer's

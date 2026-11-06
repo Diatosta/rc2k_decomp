@@ -9,7 +9,6 @@
 //! Also leaves the fill's end x in `seconds` (0x7559AC), a work variable.
 
 use crate::errors::{FatalError, Refused};
-use crate::gfx::bar_store::BAR;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::surface::clip;
 use crate::menu::owner::menus;
@@ -32,22 +31,38 @@ pub struct Bar {
 impl Bar {
     pub fn read() -> Self {
         Self {
-            x: BAR.x.get() as i32,
-            y: BAR.y.get() as i32,
-            width: BAR.width.get() as i32,
-            fill_glyph: BAR.fill_glyph.get(),
-            end_glyph: BAR.end_glyph.get(),
-            percent: BAR.percent.get() as i32,
+            x: crate::gfx::owner::gfx().drawing.bar.x.get() as i32,
+            y: crate::gfx::owner::gfx().drawing.bar.y.get() as i32,
+            width: crate::gfx::owner::gfx().drawing.bar.width.get() as i32,
+            fill_glyph: crate::gfx::owner::gfx().drawing.bar.fill_glyph.get(),
+            end_glyph: crate::gfx::owner::gfx().drawing.bar.end_glyph.get(),
+            percent: crate::gfx::owner::gfx().drawing.bar.percent.get() as i32,
         }
     }
 
     pub fn write(&self) {
-        BAR.x.set(self.x as u32);
-        BAR.y.set(self.y as u32);
-        BAR.width.set(self.width as u32);
-        BAR.fill_glyph.set(self.fill_glyph);
-        BAR.end_glyph.set(self.end_glyph);
-        BAR.percent.set(self.percent as u32);
+        crate::gfx::owner::gfx().drawing.bar.x.set(self.x as u32);
+        crate::gfx::owner::gfx().drawing.bar.y.set(self.y as u32);
+        crate::gfx::owner::gfx()
+            .drawing
+            .bar
+            .width
+            .set(self.width as u32);
+        crate::gfx::owner::gfx()
+            .drawing
+            .bar
+            .fill_glyph
+            .set(self.fill_glyph);
+        crate::gfx::owner::gfx()
+            .drawing
+            .bar
+            .end_glyph
+            .set(self.end_glyph);
+        crate::gfx::owner::gfx()
+            .drawing
+            .bar
+            .percent
+            .set(self.percent as u32);
     }
 }
 
@@ -58,7 +73,7 @@ pub const BAR_HAS_NO_LENGTH: FatalError = FatalError {
 };
 
 pub fn set_bar_x(x: i32) {
-    BAR.x.set(x as u32);
+    crate::gfx::owner::gfx().drawing.bar.x.set(x as u32);
 }
 
 // ---- Rust version ----
@@ -78,7 +93,12 @@ impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
         clip().right
     }
     fn set_clip_right(&mut self, x: i32) {
-        crate::gfx::blit::BLIT.clip.right.set(x as u32);
+        crate::gfx::owner::gfx()
+            .drawing
+            .blit
+            .clip
+            .right
+            .set(x as u32);
     }
     fn keep_fill_end(&mut self, x: i32) {
         menus().screens.draw_work.seconds.set(x as u32);

@@ -23,9 +23,8 @@
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::rain::Weather;
 use crate::effects::snow::{SnowLight, SnowState, SnowTables};
-use crate::effects::tuning::{MARKS_FLOATS, MARKS_KIND_FLOATS, MarksFloats};
+use crate::effects::tuning::MarksFloats;
 use crate::errors::{BadInput, Refused};
-use crate::scene::draw_store::DRAW;
 
 const MOST: i32 = 0x800;
 const CURVE: u32 = 4095;
@@ -38,7 +37,11 @@ fn turn(weather: &Weather, v: &[u32; 3]) {
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
 fn fade(weather: &Weather) {
-    fade_x87(&weather.snow, &weather.snow_light, &MARKS_FLOATS);
+    fade_x87(
+        &weather.snow,
+        &weather.snow_light,
+        &crate::effects::owner::effects().setup.floats,
+    );
 }
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
@@ -98,7 +101,7 @@ fn refusal(weather: &Weather) -> Option<&'static str> {
     if n > MOST {
         return Some("more than 0x800 snowflakes");
     }
-    if n > 0 && SETTINGS.is_set.get() == 0 {
+    if n > 0 && crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
         return Some("no marks settings");
     }
     None
@@ -124,7 +127,13 @@ pub fn draw_snow(weather: &Weather) -> Result<(), Refused> {
             }
             turn(weather, &[ebx, eax, ecx]);
             if snow.depth.get() as i32 > 0x1_0000 {
-                if MARKS_KIND_FLOATS.fading.bits() != 0 {
+                if crate::effects::owner::effects()
+                    .setup
+                    .kind_floats
+                    .fading
+                    .bits()
+                    != 0
+                {
                     fade(weather);
                     let mut index = snow_light.fade_index.get();
                     if (snow_light.dot.bits() as i32) < 0 {
@@ -151,7 +160,11 @@ pub fn draw_snow(weather: &Weather) -> Result<(), Refused> {
                 if !clip_quad()? {
                     draw_fan();
                     snow.drawn.set(snow.drawn.get().wrapping_add(1));
-                    DRAW.polygon_vertex_count.set_bits(4u32);
+                    crate::scene::owner::scene()
+                        .drawing
+                        .scene
+                        .polygon_vertex_count
+                        .set_bits(4u32);
                 }
             }
         }
@@ -159,7 +172,6 @@ pub fn draw_snow(weather: &Weather) -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
 use crate::scene::x87_mem::{Base, fild as ldi, fld as ld, fstp as st};
 
@@ -232,15 +244,23 @@ fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
 /// `square`'s x87 block as plain Rust on the x87 model (38 instructions), same order and memory places.
 fn square_x87(vt: impl Base, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
     let t0 = bh::ld(s.turned[2].bits());
-    let t1 = crate::math::x87_float::ld(DRAW.view_scale.bits()) / t0;
+    let t1 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits())
+            / t0;
     s.depth.set(bh::st(t1));
     let t2 = bh::ld(s.turned[1].bits());
     let t3 = t2 * t1;
     let t4 = t1 * bh::ld(s.turned[0].bits());
     let t5 = -t3;
-    let t6 = t5 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t6 = t5
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     st(vt, 0x4, t6);
-    let t7 = t4 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t7 = t4
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     st(vt, 0x0, t7);
     let t8 = bh::ld(l.side.bits());
     let t9 = t8 * bh::ld(s.depth.get());

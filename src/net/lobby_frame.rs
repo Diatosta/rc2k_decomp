@@ -17,7 +17,6 @@
 //! `screens::run_frame` for `net::lobby_loop`.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::fonts_store::FONTS;
 use crate::net::lobby::{Cursor, FONT, blit, copy_picture, lock_surface};
 use crate::net::store::NET;
 use crate::strings::text_buffer::TEXT_BUFFER;
@@ -187,7 +186,9 @@ pub fn lobby_frame() -> Result<(), Refused> {
             line_y,
             0x320,
             7,
-            crate::gfx::rect::Palette::Held(FONTS.palettes.get()),
+            crate::gfx::rect::Palette::Held(
+                crate::gfx::owner::gfx().fonts.menu_fonts.palettes.get(),
+            ),
         );
     }
     crate::platform::unlock_surface();

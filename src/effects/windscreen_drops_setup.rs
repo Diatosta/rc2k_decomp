@@ -16,8 +16,6 @@
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::scene::draw_store::DRAW;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 8] = [
@@ -43,12 +41,18 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops) {
         axes(drops);
         crate::scene::depth_buffer_on::depth_buffer(true);
         // `dword_5D5A24`, entry 1999 of the places' slots.
-        crate::scene::set_texture::set_texture(TEXTURE_PLACES.place_slot[1999].get());
+        crate::scene::set_texture::set_texture(
+            crate::scene::owner::scene().textures.places.place_slot[1999].get(),
+        );
         for (value, state) in STATES {
             set_render_state(value, state);
         }
         for n in 0..6 {
-            DRAW.scratch.set_bits(0x100u32);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set_bits(0x100u32);
             VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
         }
         for n in 0..6 {
@@ -63,11 +67,14 @@ pub fn windscreen_drops_setup(drops: &WindscreenDrops) {
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
-        DRAW.polygon_vertex_count.set_bits(6u32);
-        drops
-            .work
-            .inverse
-            .set_bits(x87::reciprocal(DRAW.farthest.bits()));
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .set_bits(6u32);
+        drops.work.inverse.set_bits(x87::reciprocal(
+            crate::scene::owner::scene().drawing.scene.farthest.bits(),
+        ));
     }
 }
 

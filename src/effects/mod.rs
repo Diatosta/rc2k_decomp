@@ -83,6 +83,7 @@ pub mod morph_object_points;
 pub mod move_pong_ball;
 pub mod move_pong_bat;
 pub mod owner;
+pub mod owner_groups;
 pub mod paths;
 pub mod pick_shapes;
 pub mod pick_windscreen_drop;

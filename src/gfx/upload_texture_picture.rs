@@ -31,7 +31,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, fatal, halvings_apart, ready_picture};
-use crate::gfx::upload::UPLOAD;
 use rc2k_core::gfx::uploads::{self};
 
 // ---- game data ----
@@ -50,10 +49,18 @@ pub struct GameSurfaces;
 
 impl Surfaces for GameSurfaces {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
-        match crate::platform_3d::lock_surface(surface, UPLOAD.description.addr()) {
+        match crate::platform_3d::lock_surface(
+            surface,
+            crate::gfx::owner::gfx().card.upload.description.addr(),
+        ) {
             0 => Ok((
-                UPLOAD.description.pixels.get(),
-                UPLOAD.description.pitch.get(),
+                crate::gfx::owner::gfx()
+                    .card
+                    .upload
+                    .description
+                    .pixels
+                    .get(),
+                crate::gfx::owner::gfx().card.upload.description.pitch.get(),
             )),
             e => Err(e),
         }

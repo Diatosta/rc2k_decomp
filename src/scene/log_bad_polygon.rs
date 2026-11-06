@@ -20,8 +20,6 @@ use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_work_store::LIGHT_WORK;
 
 const HEX8: u32 = 1;
 /// The value column: what the line shows.
@@ -37,17 +35,55 @@ const HEAD: [(&std::ffi::CStr, u32, Value); 10] = [
     (c"videox", HEX8, || crate::session::SCREEN.width.get()), // "videox" g_screenWidth
     (c"videoy", HEX8, || crate::session::SCREEN.height.get()), // "videoy" g_screenHeight
     (c"videoy", HEX8, || crate::session::SCREEN.height.get()), // "videoy" g_screenHeight
-    (c"r", FLOAT, || DRAW.clip_screen[3].bits()),             // "r" g_clipScreenRight
-    (c"l", FLOAT, || DRAW.clip_screen[2].bits()),             // "l" g_clipScreenLeft
-    (c"b", FLOAT, || DRAW.clip_screen[1].bits()),             // "b" g_clipScreenBottom
-    (c"t", FLOAT, || DRAW.clip_screen[0].bits()),             // "t" g_clipScreenTop
-    (c"donezcut", INT, || DRAW.depth_clipped.bits()),         // "donezcut"
-    (c"donesuth", INT, || DRAW.screen_clipped.bits()),        // "donesuth"
-    (c"cuttest", INT_NL, || DRAW.polygon_clip_mask.bits()),   // "cuttest" g_polygonClipMask
+    (c"r", FLOAT, || {
+        crate::scene::owner::scene().drawing.scene.clip_screen[3].bits()
+    }), // "r" g_clipScreenRight
+    (c"l", FLOAT, || {
+        crate::scene::owner::scene().drawing.scene.clip_screen[2].bits()
+    }), // "l" g_clipScreenLeft
+    (c"b", FLOAT, || {
+        crate::scene::owner::scene().drawing.scene.clip_screen[1].bits()
+    }), // "b" g_clipScreenBottom
+    (c"t", FLOAT, || {
+        crate::scene::owner::scene().drawing.scene.clip_screen[0].bits()
+    }), // "t" g_clipScreenTop
+    (c"donezcut", INT, || {
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .depth_clipped
+            .bits()
+    }), // "donezcut"
+    (c"donesuth", INT, || {
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .screen_clipped
+            .bits()
+    }), // "donesuth"
+    (c"cuttest", INT_NL, || {
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_clip_mask
+            .bits()
+    }), // "cuttest" g_polygonClipMask
 ];
 const AFTER: [(&std::ffi::CStr, u32, Value); 2] = [
-    (c"tpage", HEX8, || DRAW.texture_page.bits()), // "tpage"
-    (c"points", INT, || DRAW.polygon_vertex_count.bits()), // "points" g_polygonVertexCount
+    (c"tpage", HEX8, || {
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .texture_page
+            .bits()
+    }), // "tpage"
+    (c"points", INT, || {
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .bits()
+    }), // "points" g_polygonVertexCount
 ];
 const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] = [(c"polynum", INT, || {
     race().course.course.current_course_face.bits()
@@ -72,7 +108,11 @@ const PT: &std::ffi::CStr = c"pt"; // "pt"
 /// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices` (at most 64,
 /// held to the vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
 pub fn log_bad_polygon(vertices: GamePtr) -> Result<(), BadInput> {
-    let count: u32 = DRAW.polygon_vertex_count.bits();
+    let count: u32 = crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .bits();
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));
     }
@@ -80,8 +120,17 @@ pub fn log_bad_polygon(vertices: GamePtr) -> Result<(), BadInput> {
         write(label);
         log(kind, at());
     }
-    DRAW.polygon_clip_mask.set_bits(0u32);
-    let object = LIGHT_WORK.drawing_object.bits() == 1;
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_clip_mask
+        .set_bits(0u32);
+    let object = crate::scene::owner::scene()
+        .lights
+        .work
+        .drawing_object
+        .bits()
+        == 1;
     let tail: &[(&std::ffi::CStr, u32, Value)] = if object { &OBJECT } else { &POLYGON_NUMBER };
     for &(label, kind, at) in AFTER.iter().chain(tail) {
         write(label);

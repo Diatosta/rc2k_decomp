@@ -16,7 +16,6 @@ use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
-use crate::scene::draw_store::DRAW;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -32,10 +31,10 @@ pub fn below(a: u32, b: u32) -> bool {
 pub fn engine_torque() {
     let course = &race().course;
     let s = x87::div(CAR.engine_speed.bits(), CAR.engine_speed_limit.bits());
-    DRAW.scratch.set(s);
+    crate::scene::owner::scene().drawing.scene.scratch.set(s);
     if below(s, course.numbers.one.bits()) && !below(s, course.numbers.zero.bits()) {
         let i = trunc_mul_to_int(s, course.numbers.eight.bits()) as u32;
-        DRAW.work_dword.set(i);
+        crate::scene::owner::scene().drawing.scene.work_dword.set(i);
         let k = i as usize;
         PHYSICS.engine_force.set_bits(lerp_table(
             s,

@@ -146,7 +146,7 @@ fn state(course: &Course) -> String {
     let near = (at + LOOK_NEAR).min(CHECKPOINTS.map_x.len() - 1);
     format!(
         "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
-        crate::gfx::screen_state::DRAW_SURFACE.frames.get(),
+        crate::gfx::owner::gfx().drawing.draw_surface.frames.get(),
         screen_frames(),
         course.numbers.in_race.get(),
         screens.loop_flags.menu.get().ok(),
@@ -325,7 +325,7 @@ fn screen_now(course: &Course) -> (Option<crate::menu::menus_store::MenuId>, u32
 /// A change of screen noted at its first frame.
 fn note_screen(course: &Course) {
     let (menu, race) = screen_now(course);
-    let frames = crate::gfx::screen_state::DRAW_SURFACE.frames.get();
+    let frames = crate::gfx::owner::gfx().drawing.draw_surface.frames.get();
     let mut s = SCREEN
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -340,7 +340,9 @@ fn screen_frames() -> u32 {
     let s = SCREEN
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    crate::gfx::screen_state::DRAW_SURFACE
+    crate::gfx::owner::gfx()
+        .drawing
+        .draw_surface
         .frames
         .get()
         .wrapping_sub(s.2)
@@ -417,7 +419,11 @@ pub fn shots_loading() {
 /// Both random generators (the game's and the effects' `g_marksSeed`) from one state.
 fn reseed() {
     crate::math::next_random::with_random(|r| r.state = 0x1234_5678);
-    crate::effects::work_store::MARKS_WORK.seed.set(0x8765_4321);
+    crate::effects::owner::effects()
+        .setup
+        .work
+        .seed
+        .set(0x8765_4321);
 }
 
 /// A race frame drawn (`drive::race_frame`): the held clock 10 ms on, unless the game is

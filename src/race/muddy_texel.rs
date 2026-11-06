@@ -20,7 +20,6 @@ use crate::race::owner_course::Course;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
 
 // g_surface.format
 
@@ -62,15 +61,23 @@ pub fn muddy_texel(course: &Course, number: u32) -> Result<(), Refused> {
     let n = texture_and_mud()?;
     let (x, y) = shuffled_place(number);
     let strength = strength_at(n, x, y)?;
-    let kept: u32 = DRAW.scratch.bits();
-    DRAW.scratch.set_bits(strength);
+    let kept: u32 = crate::scene::owner::scene().drawing.scene.scratch.bits();
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(strength);
     let texel = { mud_texel(strength_row(y), x, y) }?;
     if !muddy(texel) {
         return Ok(());
     }
     let tinted = tint_to_mud_colour(course, texel, tint_amount(strength));
     if let Err(e) = { put_mud_texel(tinted | MUD_TOP, x, y) } {
-        DRAW.scratch.set_bits(kept);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set_bits(kept);
         return Err(e);
     }
     Ok(())

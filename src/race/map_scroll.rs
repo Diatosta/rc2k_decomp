@@ -15,7 +15,6 @@ use crate::race::owner_frame::Frame;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 /// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar`
 /// unless `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4)
@@ -26,7 +25,11 @@ pub fn map_tiles(frame: &Frame) -> Result<(), Refused> {
     let one_view = NET.session.get() != 0;
     // The car is read only for both views.
     let slot = picture_slot(
-        KIND_TEXTURES.kind_first_textures[198].get(),
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[198]
+            .get(),
         one_view,
         if one_view {
             0

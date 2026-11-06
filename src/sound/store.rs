@@ -25,7 +25,7 @@ use crate::session::{Dword, Float, Word};
 /// `g_wheelSurfaceA`, `g_wheelSurfaceB` (IDA 0x4F66F1, 0x4F66F5): the surfaces of the wheels
 /// the first and the second of a car's two sounds follow (`sound::surface_sounds`). Split
 /// 2026-10-25 from the dwords around them: the save file's four before
-/// (`saves::load_options::KEPT`), the race record's seal key after (`race::replay::SEAL_KEY`).
+/// (`saves::owner::Files::options_kept`), the race record's seal key after (`race::replay::SEAL_KEY`).
 pub static WHEEL_SURFACES: [Dword; 2] = [Dword::new(0), Dword::new(0)];
 
 /// One cue of a car's queue: eight dwords.

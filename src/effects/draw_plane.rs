@@ -18,11 +18,8 @@
 //! game's variables; the vector helpers and `scale_axes` their Rust versions. Refuses null
 //! settings and a corner past `g_marksCorners`, before anything.
 
-use crate::effects::blocks::MARK_CORNERS;
-use crate::effects::frame_state::DRAW_WORK;
-use crate::effects::kind_store::{QUAD_3, QuadWork};
+use crate::effects::kind_store::QuadWork;
 use crate::effects::plain::ldi_cell;
-use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
@@ -30,7 +27,6 @@ use crate::math::x87;
 use crate::race::marks_settings_store::MarksSettings;
 use crate::race::owner::Race;
 use crate::scene::cross_product3::cross;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::vector3::normalise;
 
 use crate::d3d::vertices_store::VERTICES;
@@ -93,12 +89,12 @@ fn plane_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
 
 /// The original's 0x4C915A .. 0x4C9244: the plane's centre and corners (`flt_934C98` .. `flt_934CC4`) from the axes.
 fn plane_corners(fl: &WindscreenFlakes) {
-    plane_corners_x87(&fl.tables, &QUAD_3);
+    plane_corners_x87(&fl.tables, &crate::effects::owner::effects().kinds.quad_3);
 }
 
 /// The original's 0x4C93FA .. 0x4C94CA: the four corners projected.
 fn plane_projected() {
-    plane_projected_x87(&QUAD_3);
+    plane_projected_x87(&crate::effects::owner::effects().kinds.quad_3);
 }
 
 /// The Rust version (see the header).
@@ -109,7 +105,7 @@ pub fn draw_plane(
 ) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let m = crate::effects::setup::marks()?;
-    let corner: u32 = QUAD_3.corner.get();
+    let corner: u32 = crate::effects::owner::effects().kinds.quad_3.corner.get();
     plane_axes(fl, m);
     let [a0, a1, a2] = [0, 1, 2].map(|n| &fl.tables.axes[n]);
     normalise(a0);
@@ -135,11 +131,13 @@ pub fn draw_plane(
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
-    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
+    crate::scene::set_texture::set_texture(
+        crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
+    );
     plane_corners(fl);
-    let entry = &MARK_CORNERS.corners[corner as usize];
+    let entry = &crate::effects::owner::effects().blocks.corners.corners[corner as usize];
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-    let uv_k: u32 = DRAW_WORK.uv_k.bits();
+    let uv_k: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
         let vertex = &VERTICES.vertices[n];
         vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
@@ -159,14 +157,23 @@ pub fn draw_plane(
         VERTICES.vertices[n].colour.set(light);
     }
     for n in 0..4 {
-        if (QUAD_3.corners[n][2].bits() as i32) <= (race.course.numbers.k4096_a.bits() as i32) {
+        if (crate::effects::owner::effects().kinds.quad_3.corners[n][2].bits() as i32)
+            <= (race.course.numbers.k4096_a.bits() as i32)
+        {
             return Ok(());
         }
     }
     plane_projected();
-    let [kind, z_k]: [u32; 2] = [MARKS_KIND_FLOATS.kind_float.bits(), DRAW_WORK.z_k.bits()];
+    let [kind, z_k]: [u32; 2] = [
+        crate::effects::owner::effects()
+            .setup
+            .kind_floats
+            .kind_float
+            .bits(),
+        crate::effects::owner::effects().frame.draw_work.z_k.bits(),
+    ];
     for n in 0..4 {
-        let c = &QUAD_3.corners[n];
+        let c = &crate::effects::owner::effects().kinds.quad_3.corners[n];
         let vertex = &VERTICES.vertices[n];
         vertex.x.set_bits(c[0].bits());
         vertex.y.set_bits(c[1].bits());
@@ -179,7 +186,7 @@ pub fn draw_plane(
         ));
     }
     for n in 0..4 {
-        let depth: u32 = QUAD_3.corners[n][2].bits();
+        let depth: u32 = crate::effects::owner::effects().kinds.quad_3.corners[n][2].bits();
         VERTICES.vertices[n].rhw.set_bits(x87::reciprocal_times(
             depth,
             PLANE_TUNING.rhw_k[n].to_bits(),
@@ -193,7 +200,6 @@ pub fn draw_plane(
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;
-use crate::scene::draw_store::DRAW;
 
 /// `plane_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.
 fn plane_axes_x87(
@@ -326,41 +332,69 @@ fn plane_corners_x87(sq: &WindscreenFlakeTables, q: &QuadWork) {
 
 /// `plane_projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
 fn plane_projected_x87(q: &QuadWork) {
-    let t0 = crate::math::x87_float::ld(DRAW.view_scale.bits());
+    let t0 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t1 = t0 / bh::ld(q.corners[0][2].bits());
     let t2 = t1 * bh::ld(q.corners[0][0].bits());
-    let t3 = t2 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t3 = t2
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     q.corners[0][0].set_bits(bh::st(t3));
     let t4 = t1 * bh::ld(q.corners[0][1].bits());
     let t5 = -t4;
-    let t6 = t5 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t6 = t5
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     q.corners[0][1].set_bits(bh::st(t6));
-    let t7 = crate::math::x87_float::ld(DRAW.view_scale.bits());
+    let t7 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t8 = t7 / bh::ld(q.corners[1][2].bits());
     let t9 = t8 * bh::ld(q.corners[1][0].bits());
-    let t10 = t9 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t10 = t9
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     q.corners[1][0].set_bits(bh::st(t10));
     let t11 = t8 * bh::ld(q.corners[1][1].bits());
     let t12 = -t11;
-    let t13 = t12 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t13 = t12
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     q.corners[1][1].set_bits(bh::st(t13));
-    let t14 = crate::math::x87_float::ld(DRAW.view_scale.bits());
+    let t14 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t15 = t14 / bh::ld(q.corners[2][2].bits());
     let t16 = t15 * bh::ld(q.corners[2][0].bits());
-    let t17 = t16 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t17 = t16
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     q.corners[2][0].set_bits(bh::st(t17));
     let t18 = t15 * bh::ld(q.corners[2][1].bits());
     let t19 = -t18;
-    let t20 = t19 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t20 = t19
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     q.corners[2][1].set_bits(bh::st(t20));
-    let t21 = crate::math::x87_float::ld(DRAW.view_scale.bits());
+    let t21 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t22 = t21 / bh::ld(q.corners[3][2].bits());
     let t23 = t22 * bh::ld(q.corners[3][0].bits());
-    let t24 = t23 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t24 = t23
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     q.corners[3][0].set_bits(bh::st(t24));
     let t25 = t22 * bh::ld(q.corners[3][1].bits());
     let t26 = -t25;
-    let t27 = t26 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t27 = t26
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     q.corners[3][1].set_bits(bh::st(t27));
 }
 

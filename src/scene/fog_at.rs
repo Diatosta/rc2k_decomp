@@ -9,7 +9,6 @@
 //! table length of 0 or past the table's 0x1000 bytes (the original reads past it).
 
 use crate::errors::Refused;
-use crate::scene::light_store::LIGHT_STATE;
 
 /// The Rust version (see the header).
 pub fn fog_at(depth: u32) -> Result<u32, Refused> {
@@ -17,12 +16,16 @@ pub fn fog_at(depth: u32) -> Result<u32, Refused> {
     let reading = crate::scene::reading::Reading::new();
     let answer = rc2k_core::scene::fog::fog_at(
         depth,
-        LIGHT_STATE.fog_table_length.bits() as i32,
+        crate::scene::owner::scene()
+            .lights
+            .state
+            .fog_table_length
+            .bits() as i32,
         // A byte of the table (the store types it in dwords).
         |n| {
             let dword = reading.keep(crate::session::read_on_in(
-                &LIGHT_STATE,
-                &LIGHT_STATE.fog_table,
+                &crate::scene::owner::scene().lights.state,
+                &crate::scene::owner::scene().lights.state.fog_table,
                 n / 4,
                 "the fog table",
             ));

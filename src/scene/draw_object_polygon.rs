@@ -19,7 +19,6 @@
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
 
 use crate::errors::{BadInput, Refused};
-use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
 
@@ -42,8 +41,8 @@ fn needs_clipping(
     }
     let edges = Edges {
         least: course.numbers.zero.get(),
-        right: DRAW.clip_screen[3].get(),
-        bottom: DRAW.clip_screen[1].get(),
+        right: crate::scene::owner::scene().drawing.scene.clip_screen[3].get(),
+        bottom: crate::scene::owner::scene().drawing.scene.clip_screen[1].get(),
     };
     rc2k_core::scene::polygons::needs_clipping(count, &edges, |n| {
         let record = crate::scene::polygon::entry(n)?.record.get();
@@ -66,16 +65,27 @@ pub fn draw_object_polygon(
 ) -> Result<(), Refused> {
     let physics = &race.physics;
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
-    let count: u32 = DRAW.polygon_vertex_count.bits();
+    let count: u32 = crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .bits();
     if !fits(count) {
         return Err(BadInput("a polygon of no vertices, or of more than 64").into());
     }
-    DRAW.polygon_next_record
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_next_record
         .set_bits(crate::scene::polygon::pool_start());
     for (n, number) in first_list(count).into_iter().enumerate() {
         crate::scene::polygon::list_cell(n).set(number);
     }
-    DRAW.polygon_next_entry.set_bits(count);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_next_entry
+        .set_bits(count);
     step(Step::Project)?;
     if drawn_whole(count, needs_clipping(&race.course, count)?) {
         physics
@@ -95,14 +105,26 @@ pub fn draw_object_polygon(
     for (to, from) in kept.iter().zip(&entries[..count as usize]) {
         to.copy_from(from);
     }
-    DRAW.polygon_vertex_count.set_bits(3u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set_bits(3u32);
     step(Step::Draw)?;
-    DRAW.polygon_vertex_count.set_bits(count);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set_bits(count);
     for triangle in fan(count) {
         for (to, from) in triangle.into_iter().enumerate() {
             entries[to].copy_from(&kept[from]);
         }
-        DRAW.polygon_vertex_count.set_bits(3u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .set_bits(3u32);
         step(Step::Draw)?;
     }
     Ok(())

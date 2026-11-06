@@ -24,12 +24,9 @@
 //! settings' +8), before anything.
 
 use crate::effects::rain::{RainRules, RainState, Weather};
-use crate::effects::tuning::MARKS_KIND_FLOATS;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::{x87, x87_run};
 use crate::physics::tables_store::PHYSICS;
-use crate::scene::draw_store::DRAW;
 
 const MOST_DROPS: i32 = 0x100;
 use crate::d3d::vertices_store::VERTICES;
@@ -93,35 +90,66 @@ pub fn run_rain(weather: &Weather) -> Result<(), Refused> {
         let rhw = weather.rain_rules.rhw;
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = &VERTICES.vertices[n];
-            DRAW.scratch.set_bits(rhw);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set_bits(rhw);
             v.rhw.set_bits(x87::int_to_float(rhw as i32));
             v.colour.set(colour);
             v.specular.set(0);
             v.u.set_bits(0);
             v.v.set_bits(0);
         }
-        DRAW.polygon_vertex_count.set_bits(4u32);
-        if MARKS_KIND_FLOATS.running.bits() != 0 {
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .set_bits(4u32);
+        if crate::effects::owner::effects()
+            .setup
+            .kind_floats
+            .running
+            .bits()
+            != 0
+        {
             crate::effects::drift_offsets::drift_offsets(weather);
         }
         let marks = crate::effects::setup::marks()?;
         let e = marks.marks_layout.get() as usize;
-        if marks.own_marks_shown.get() != 0 || MARKS_KIND_FLOATS.running.bits() != 0 {
+        if marks.own_marks_shown.get() != 0
+            || crate::effects::owner::effects()
+                .setup
+                .kind_floats
+                .running
+                .bits()
+                != 0
+        {
             box_moved(weather, e);
         }
         for n in 0..3 {
             r.motion[n].set_bits(r.moves[e][n].bits());
         }
         move_length(weather);
-        let status = MARKS_WORK.fpu_status.get() & 0x700;
-        MARKS_WORK.fpu_status.set(status);
+        let status = crate::effects::owner::effects().setup.work.fpu_status.get() & 0x700;
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .fpu_status
+            .set(status);
         if status != 0x100 {
             move_held(weather);
         }
         r.last_views[e][0].set(r.view[0].get());
         keep_y(weather, e);
         r.last_views[e][2].set(r.view[2].get());
-        if MARKS_KIND_FLOATS.running.bits() != 0 {
+        if crate::effects::owner::effects()
+            .setup
+            .kind_floats
+            .running
+            .bits()
+            != 0
+        {
             let clock = PHYSICS.scene_clock.get() & 0xF_FFFF;
             r.drift.set(
                 x87::int_times_to_int(clock as i32, weather.rain_rules.drift_k.to_bits()) as u32,

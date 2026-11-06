@@ -11,7 +11,6 @@
 
 use crate::errors::Refused;
 use crate::gfx::picture::{Buffer, take};
-use crate::gfx::picture_store::PICTURE;
 
 // ---- game data ----
 
@@ -22,11 +21,15 @@ const SPARE: u32 = 0xC80;
 
 /// The Rust version (see the header).
 pub fn allocate_picture_buffer() -> Result<(), Refused> {
-    PICTURE.size.set(BUFFER_LEN);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .size
+        .set(BUFFER_LEN);
     // Rust's since phase 12 (`gfx::picture`), counted on the list as the game's block was.
-    PICTURE.buffer.set(take(
+    crate::gfx::owner::gfx().pictures.picture.buffer.set(take(
         Buffer::Main,
-        crate::pointers::GamePtr::to(&PICTURE.list),
+        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().pictures.picture.list),
         BUFFER_LEN + SPARE,
     )?);
     Ok(())

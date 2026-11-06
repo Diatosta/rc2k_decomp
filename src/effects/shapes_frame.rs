@@ -14,7 +14,7 @@ use crate::errors::{BadInput, Refused};
 
 /// The Rust version (see the header).
 pub fn shapes_frame(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
-    if crate::effects::setup::SETTINGS.is_set.get() == 0 {
+    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     {

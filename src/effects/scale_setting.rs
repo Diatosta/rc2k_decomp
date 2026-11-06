@@ -16,7 +16,7 @@ use crate::math::x87;
 /// The Rust version (see the header).
 pub fn scale_setting(masks: &Masks, fl: &WindscreenFlakes) -> Result<(), Refused> {
     {
-        let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
+        let settings: u32 = crate::effects::owner::effects().setup.settings.is_set.get();
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }

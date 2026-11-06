@@ -288,23 +288,27 @@ pub const fn format_ref(ida: u32) -> u32 {
     FORMAT_TAG | ((ida - DESCRIPTIONS_IDA) / 0x40)
 }
 
-/// The 3D card's tables; the first values are the image's (the kinds by handle).
-pub static TEXTURE_TABLES: Textures = Textures {
-    alpha_kind: Dword::new(0),
-    first_video: Dword::new(0),
-    first_system: Dword::new(0),
-    sizes: crate::gfx::dwords([0, 0x100, 1, 0x80, 2, 0x40, 3, 0x20, 4, 0x400]),
-    kinds: crate::gfx::dwords([
-        format_ref(0),
-        format_ref(0x5ABAD4),
-        format_ref(0x5ABB14),
-        format_ref(0x5ABB54),
-        format_ref(0x5ABBD4),
-    ]),
-    descriptions: [const { FormatCell::new(NO_FORMAT) }; 5],
-    video: pool(),
-    system: pool(),
-};
+impl Textures {
+    /// The 3D card's tables; the first values are the image's (the kinds by handle).
+    pub const fn new() -> Self {
+        Textures {
+            alpha_kind: Dword::new(0),
+            first_video: Dword::new(0),
+            first_system: Dword::new(0),
+            sizes: crate::gfx::dwords([0, 0x100, 1, 0x80, 2, 0x40, 3, 0x20, 4, 0x400]),
+            kinds: crate::gfx::dwords([
+                format_ref(0),
+                format_ref(0x5ABAD4),
+                format_ref(0x5ABB14),
+                format_ref(0x5ABB54),
+                format_ref(0x5ABBD4),
+            ]),
+            descriptions: [const { FormatCell::new(NO_FORMAT) }; 5],
+            video: pool(),
+            system: pool(),
+        }
+    }
+}
 
 impl Textures {
     /// A pool: 0 the system's, 1 the video's.
@@ -369,7 +373,8 @@ impl Record {
         if texture >= TEXTURES {
             return Err(BadInput("a texture past the records").into());
         }
-        let record = Record(&TEXTURE_TABLES.system.records[texture as usize]);
+        let record =
+            Record(&crate::gfx::owner::gfx().card.texture_tables.system.records[texture as usize]);
         if record.get().format == 0 {
             return Err(BadInput("a texture's record without its format").into());
         }
@@ -386,7 +391,9 @@ impl Record {
 
     fn texture_format(&self) -> Result<TextureFormat, BadInput> {
         let at = self.get().format;
-        TEXTURE_TABLES
+        crate::gfx::owner::gfx()
+            .card
+            .texture_tables
             .descriptions
             .iter()
             .find(|d| d.addr() == at)
@@ -446,8 +453,8 @@ pub fn ready_picture(record: &Record, pixels: u32, width: u32, height: u32) -> R
 fn halvings(size: u32) -> Option<u32> {
     (0..5).find_map(|n| {
         let (number, of) = (
-            TEXTURE_TABLES.sizes[2 * n].get(),
-            TEXTURE_TABLES.sizes[2 * n + 1].get(),
+            crate::gfx::owner::gfx().card.texture_tables.sizes[2 * n].get(),
+            crate::gfx::owner::gfx().card.texture_tables.sizes[2 * n + 1].get(),
         );
         (of == size).then_some(number)
     })
@@ -511,13 +518,18 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games_but(&TEXTURE_TABLES, START, START + LEN, |image| {
-            for k in 0..5 {
-                let o = KINDS_IDA - START + 4 * k;
-                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                image[o..o + 4].copy_from_slice(&format_ref(v).to_le_bytes());
-            }
-        });
+        crate::gfx::first_values_are_the_games_but(
+            &crate::gfx::owner::gfx().card.texture_tables,
+            START,
+            START + LEN,
+            |image| {
+                for k in 0..5 {
+                    let o = KINDS_IDA - START + 4 * k;
+                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                    image[o..o + 4].copy_from_slice(&format_ref(v).to_le_bytes());
+                }
+            },
+        );
     }
 
     #[test]
@@ -530,11 +542,22 @@ mod block_tests {
         assert_eq!(offset_of!(Pool, records), 4);
         assert_eq!(
             crate::moved::place(START),
-            TEXTURE_TABLES.alpha_kind.addr() as usize
+            crate::gfx::owner::gfx()
+                .card
+                .texture_tables
+                .alpha_kind
+                .addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5B521C),
-            (crate::pointers::game_address(TEXTURE_TABLES.system.records.as_ptr())) as usize
+            (crate::pointers::game_address(
+                crate::gfx::owner::gfx()
+                    .card
+                    .texture_tables
+                    .system
+                    .records
+                    .as_ptr()
+            )) as usize
         );
     }
 }

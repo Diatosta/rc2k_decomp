@@ -24,7 +24,6 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::MACHINE;
 use rc2k_core::physics::lighting;
 
@@ -61,8 +60,16 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
         .course
         .light_kept
         .set(CAR.light_level.get());
-    LIGHT_WORK.car_light_colour.set(0);
-    LIGHT_WORK.lamp_a_colour.set(0);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .car_light_colour
+        .set(0);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .lamp_a_colour
+        .set(0);
     race_owner
         .course
         .course
@@ -85,10 +92,14 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
         race_owner.physics.ground.share_s.set(s);
         race_owner.physics.ground.share_t.set(t);
     }
-    LIGHT_WORK
+    crate::scene::owner::scene()
+        .lights
+        .work
         .ground_texture_s
         .set(race_owner.physics.ground.share_s.get());
-    LIGHT_WORK
+    crate::scene::owner::scene()
+        .lights
+        .work
         .ground_texture_t
         .set(race_owner.physics.ground.share_t.get());
     let face_byte = |offset| -> Result<u32, BadInput> {
@@ -123,7 +134,11 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
         return Err(BadInput("a light index past 0xFF").into());
     }
     let colour = crate::scene::owner::scene().light_tables.light_table[light as usize].get();
-    LIGHT_WORK.car_light_colour.set(colour);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .car_light_colour
+        .set(colour);
     CAR.light_colour.set(colour);
     if face_byte(2)? & 4 == 0 {
         return Ok(());
@@ -132,12 +147,12 @@ pub fn car_lighting(race: &Race) -> Result<(), Refused> {
         (
             0x28u32,
             &crate::scene::owner::scene().light_tables.lamp_table_a,
-            &LIGHT_WORK.lamp_a_colour,
+            &crate::scene::owner::scene().lights.work.lamp_a_colour,
         ),
         (
             0x2C,
             &crate::scene::owner::scene().light_tables.lamp_table_b,
-            &LIGHT_WORK.lamp_b_colour,
+            &crate::scene::owner::scene().lights.work.lamp_b_colour,
         ),
     ] {
         for k in 0..4u32 {

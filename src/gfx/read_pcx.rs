@@ -9,7 +9,7 @@
 //! Refuses what `read_file` and the readers refuse. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::pcx::{PCX, read_header};
+use crate::gfx::pcx::read_header;
 use crate::gfx::read_pcx_8bit::read_pcx_8bit;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;
 
@@ -22,7 +22,7 @@ pub fn read_pcx(path: &[u8]) -> Result<bool, BadInput> {
     }
     // Converted: `rc2k_core::gfx::pcx::kind`.
     use rc2k_core::gfx::pcx::{Kind, kind};
-    match kind(&PCX.header.read()) {
+    match kind(&crate::gfx::owner::gfx().pictures.pcx.header.read()) {
         Some(Kind::Palette) => read_pcx_8bit(path),
         Some(Kind::Planes) => read_pcx_24bit(path),
         None => Ok(false),

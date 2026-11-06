@@ -14,11 +14,8 @@
 use crate::effects::load_mask_pictures::{lock, put_pixel};
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
-use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
-use crate::gfx::picture_store::PICTURE;
 use crate::math::x87;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::{Bytes, Dword};
 
 const MASK_BYTES: u32 = 0x4_0000;
@@ -29,23 +26,46 @@ const CELLS: u32 = 0x40;
 /// was read.
 fn read(path: &Bytes<21>) -> Result<bool, Refused> {
     let sizes: [u32; 3] = [
-        PICTURE.width.get(),
-        PICTURE.height.get(),
-        PICTURE.row_bytes.get(),
+        crate::gfx::owner::gfx().pictures.picture.width.get(),
+        crate::gfx::owner::gfx().pictures.picture.height.get(),
+        crate::gfx::owner::gfx().pictures.picture.row_bytes.get(),
     ];
-    PICTURE.width.set(SIDE);
-    PICTURE.height.set(SIDE);
-    PICTURE.row_bytes.set(0xFFFF_FFFEu32);
+    crate::gfx::owner::gfx().pictures.picture.width.set(SIDE);
+    crate::gfx::owner::gfx().pictures.picture.height.set(SIDE);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(0xFFFF_FFFEu32);
     let read = crate::gfx::read_picture_file::read_picture_file(path);
-    PICTURE.width.set(sizes[0]);
-    PICTURE.height.set(sizes[1]);
-    PICTURE.row_bytes.set(sizes[2]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .width
+        .set(sizes[0]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .height
+        .set(sizes[1]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(sizes[2]);
     read
 }
 
 /// Unlocks the surface and refuses with `why`.
 fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
-    lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)?;
+    lock(
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[211]
+            .bits(),
+        false,
+    )?;
     Err(BadInput(why).into())
 }
 
@@ -57,9 +77,16 @@ pub fn set_up_surface(ring: &Ring, masks: &Masks) -> Result<(), Refused> {
     // block was.
     let mut mask =
         crate::memory::owned::counted(crate::pointers::GamePtr::to(&masks.list.list), MASK_BYTES)?;
-    lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
-    if crate::gfx::screen_state::DRAW_SURFACE.width.get() < SIDE
-        || crate::gfx::screen_state::DRAW_SURFACE.height.get() < SIDE
+    lock(
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[211]
+            .bits(),
+        true,
+    )?;
+    if crate::gfx::owner::gfx().drawing.draw_surface.width.get() < SIDE
+        || crate::gfx::owner::gfx().drawing.draw_surface.height.get() < SIDE
     {
         return unlock_refusing("a surface under 256 x 256");
     }
@@ -67,14 +94,18 @@ pub fn set_up_surface(ring: &Ring, masks: &Masks) -> Result<(), Refused> {
         return unlock_refusing("surfmask.pcx was not read");
     }
     mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
-        PICTURE.buffer.get(),
+        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
         0,
         4 * PIXELS as usize,
     )?);
     if !read(&ring.names.surfdata)? {
         return unlock_refusing("surfdata.pcx was not read");
     }
-    let picture = crate::gfx::picture::read_bytes(PICTURE.buffer.get(), 0, 4 * PIXELS as usize)?;
+    let picture = crate::gfx::picture::read_bytes(
+        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
+        0,
+        4 * PIXELS as usize,
+    )?;
     for n in 0..PIXELS {
         let at = 4 * n as usize;
         let data = u32::from_le_bytes(picture[at..at + 4].try_into().expect("four bytes"));
@@ -82,9 +113,16 @@ pub fn set_up_surface(ring: &Ring, masks: &Masks) -> Result<(), Refused> {
         let alpha = ((mask << 8) & 0xFF00_0000) ^ 0xFF00_0000;
         put_pixel((data & 0xFF_FFFF) | alpha, n & 0xFF, n >> 8)?;
     }
-    lock(KIND_TEXTURES.kind_first_textures[211].bits(), false)?;
+    lock(
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[211]
+            .bits(),
+        false,
+    )?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        KIND_TEXTURES.kind_first_slots[211].bits(),
+        crate::scene::owner::scene().textures.kinds.kind_first_slots[211].bits(),
     )?;
     crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&masks.list.list))?;
 
@@ -94,10 +132,18 @@ pub fn set_up_surface(ring: &Ring, masks: &Masks) -> Result<(), Refused> {
     ring.work.count.set(0);
 
     let [eighth, edge, pixel, step]: [u32; 4] = [
-        MARKS_FLOATS.eighth.bits(),
-        MARKS_FLOATS.over_512.bits(),
-        MARKS_FLOATS.over_256.bits(),
-        MARKS_FLOATS.over_32.bits(),
+        crate::effects::owner::effects().setup.floats.eighth.bits(),
+        crate::effects::owner::effects()
+            .setup
+            .floats
+            .over_512
+            .bits(),
+        crate::effects::owner::effects()
+            .setup
+            .floats
+            .over_256
+            .bits(),
+        crate::effects::owner::effects().setup.floats.over_32.bits(),
     ];
     let places = &masks.surface.places;
     let end = size_of_val(places);

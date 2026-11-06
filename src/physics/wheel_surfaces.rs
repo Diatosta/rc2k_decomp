@@ -44,7 +44,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
 use std::cmp::Ordering;
 
@@ -58,7 +57,7 @@ fn info_byte(n: u32, offset: u32) -> Result<u32, Refused> {
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` one of the probe shares).
 fn share_bit(course: &Course, v: &[Dword; 64], c: u32) -> u32 {
     x87_1(course, v, c as usize);
-    DRAW.scratch.get()
+    crate::scene::owner::scene().drawing.scene.scratch.get()
 }
 
 /// Everything the function reads that the checks need, refused as said.
@@ -127,9 +126,9 @@ fn steps(race: &Race) -> Result<(), Refused> {
                 } else {
                     (face_byte(0x22)?, face_byte(0x23)?, face_byte(0x24)?)
                 };
-                DRAW.surface_point[0].set(x);
-                DRAW.surface_point[1].set(y.wrapping_sub(x));
-                DRAW.surface_point[2].set(z.wrapping_sub(x));
+                crate::scene::owner::scene().drawing.scene.surface_point[0].set(x);
+                crate::scene::owner::scene().drawing.scene.surface_point[1].set(y.wrapping_sub(x));
+                crate::scene::owner::scene().drawing.scene.surface_point[2].set(z.wrapping_sub(x));
                 x87_2(race, c as usize);
             }
             if crate::race::course_places::face_number(f, "a wheel's face")?.switches() & 0x1000
@@ -217,20 +216,24 @@ fn x87_1(course: &Course, t: &[Dword; 64], c: usize) {
     let t0 = ld(t[c].bits());
     let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 * t1;
-    DRAW.scratch.set_bits(to_int(t2) as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(to_int(t2) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn x87_2(race: &Race, c: usize) {
-    let t0 = int(DRAW.surface_point[1].bits() as i32);
+    let t0 = int(crate::scene::owner::scene().drawing.scene.surface_point[1].bits() as i32);
     let t1 = ld(race.physics.contact.probe_share_u[c].bits());
     let t2 = t0 * t1;
-    let t3 = int(DRAW.surface_point[2].bits() as i32);
+    let t3 = int(crate::scene::owner::scene().drawing.scene.surface_point[2].bits() as i32);
     let t4 = ld(race.physics.contact.probe_share_v[c].bits());
     let t5 = t3 * t4;
-    let t6 = int(DRAW.surface_point[0].bits() as i32);
+    let t6 = int(crate::scene::owner::scene().drawing.scene.surface_point[0].bits() as i32);
     let t7 = t5 + t6;
     let t8 = t2 + t7;
     let t9 = ld(race.course.numbers.k256.bits());
@@ -401,7 +404,7 @@ fn x87_7(course: &Course) {
     let t7 = t5 * t6;
     let t8 = ld(PHYSICS.surface_blend[2].bits());
     let t9 = t7 + t8;
-    DRAW.surface_point[0].set_bits(st(t9));
+    crate::scene::owner::scene().drawing.scene.surface_point[0].set_bits(st(t9));
     let t10 = ld(PHYSICS.surface_blend[1].bits());
     let t11 = ld(PHYSICS.surface_blend[3].bits());
     let t12 = t10 - t11;
@@ -409,15 +412,15 @@ fn x87_7(course: &Course) {
     let t14 = t12 * t13;
     let t15 = ld(PHYSICS.surface_blend[3].bits());
     let t16 = t14 + t15;
-    DRAW.surface_point[1].set_bits(st(t16));
-    let t17 = ld(DRAW.surface_point[1].bits());
-    let t18 = ld(DRAW.surface_point[0].bits());
+    crate::scene::owner::scene().drawing.scene.surface_point[1].set_bits(st(t16));
+    let t17 = ld(crate::scene::owner::scene().drawing.scene.surface_point[1].bits());
+    let t18 = ld(crate::scene::owner::scene().drawing.scene.surface_point[0].bits());
     let t19 = t17 - t18;
     let t20 = int(CAR.suspension_stiffness.bits() as i32);
     let t21 = ld(course.numbers.k256.bits());
     let t22 = t20 / t21;
     let t23 = t19 * t22;
-    let t24 = ld(DRAW.surface_point[0].bits());
+    let t24 = ld(crate::scene::owner::scene().drawing.scene.surface_point[0].bits());
     let t25 = t23 + t24;
     PHYSICS.surface_softness.set_bits(st(t25));
     let t26 = ld(PHYSICS.surface_blends[4].bits());

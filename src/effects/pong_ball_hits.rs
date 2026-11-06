@@ -13,7 +13,6 @@
 //! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::effects::pong::{self, Pong, PongRules, PongState};
-use crate::effects::tuning::MARKS_FLOATS;
 use crate::math::x87;
 
 /// The original's 0x4B8105 .. 0x4B8189: the centres and their difference.
@@ -23,7 +22,11 @@ fn centres(pong: &Pong) {
 
 /// The original's 0x4B81A4 .. 0x4B81FE: the difference made one long, scaled.
 fn new_way(pong: &Pong) {
-    new_way_x87(&pong.state, &pong.rules, MARKS_FLOATS.one.bits());
+    new_way_x87(
+        &pong.state,
+        &pong.rules,
+        crate::effects::owner::effects().setup.floats.one.bits(),
+    );
 }
 
 /// The Rust version (see the header).

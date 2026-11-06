@@ -9,8 +9,6 @@ use crate::errors::Refused;
 use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::session::Dword;
 
 /// A kind's block: its first-texture variable (an index in `kind_first_textures`; only its place in `g_textureWantedPictures`
@@ -66,7 +64,12 @@ const BLOCKS: [Block; 26] = [
 ];
 
 fn other() -> bool {
-    OBJECT_TABLES.other_levels.get() != 0
+    crate::scene::owner::scene()
+        .objects
+        .tables
+        .other_levels
+        .get()
+        != 0
 }
 
 const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "; // "NUM DIFFERENT CARS/OBJECTS/TEXTURE SETS "
@@ -90,7 +93,11 @@ pub fn init_texture_levels() -> Result<(), Refused> {
     crate::scene::reset_texture_tables::reset_texture_tables();
     crate::logfile::log_write::log_nul(&COUNT_TEXT_RVA, false, 1);
     log_int(cars as i32, true, 1);
-    OBJECT_TABLES.other_levels.set(0);
+    crate::scene::owner::scene()
+        .objects
+        .tables
+        .other_levels
+        .set(0);
     crate::input::keys::update_input(&mut crate::input::keys::game_screenshot);
     let kinds: Vec<(KindSlots, Vec<u32>)> = BLOCKS
         .iter()
@@ -113,9 +120,9 @@ pub fn init_texture_levels() -> Result<(), Refused> {
         .collect();
     let set = with_cells(
         [
-            &OBJECT_TABLES.texture_tags,
-            &OBJECT_TABLES.system_levels,
-            &OBJECT_TABLES.video_levels,
+            &crate::scene::owner::scene().objects.tables.texture_tags,
+            &crate::scene::owner::scene().objects.tables.system_levels,
+            &crate::scene::owner::scene().objects.tables.video_levels,
         ],
         |[tags, system, video]| {
             set_levels(
@@ -138,11 +145,17 @@ pub fn init_texture_levels() -> Result<(), Refused> {
         },
     )?;
     // `g_kindSlotBytes`: + 4 (or 1) a kind's slot.
-    TEXTURE_PLACES.kind_slot_bytes.set(
-        TEXTURE_PLACES
-            .kind_slot_bytes
-            .get()
-            .wrapping_add(set.kind_slots_added),
-    );
+    crate::scene::owner::scene()
+        .textures
+        .places
+        .kind_slot_bytes
+        .set(
+            crate::scene::owner::scene()
+                .textures
+                .places
+                .kind_slot_bytes
+                .get()
+                .wrapping_add(set.kind_slots_added),
+        );
     Ok(())
 }

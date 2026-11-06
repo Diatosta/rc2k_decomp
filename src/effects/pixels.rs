@@ -3,13 +3,11 @@
 //! -> 0x82E3FE) worked out, shaken by the marks' seed, and kept as four bytes in a table
 //! of 0x400 a row (`dword_8445D2`).
 
-use crate::effects::mask_constants::MASK_CONSTANTS;
 use crate::effects::mask_store::Masks;
 use crate::effects::mask_vars::Shape;
 use crate::effects::spans::run_get;
 use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
@@ -72,7 +70,7 @@ pub fn map_pixel(masks: &Masks, drops: &WindscreenDrops, row: u32, x: u32) -> Re
     let f = |o: usize| -> Result<_, Refused> { Ok(masks.vars.lines[o].get()) };
     masks.vars.pixel[0].set(x);
     let pixel: [u32; 2] = read_bits(&masks.vars.pixel);
-    let shake: u32 = MARKS_WORK.shake.get();
+    let shake: u32 = crate::effects::owner::effects().setup.work.shake.get();
     for half in HALVES {
         write_bits(&masks.vars.work_pixel, pixel);
         crate::scene::matrix3::identity_matrix3(&masks.vars.turn);
@@ -109,21 +107,37 @@ pub fn map_pixel(masks: &Masks, drops: &WindscreenDrops, row: u32, x: u32) -> Re
             masks.vars.slope[0].set_bits(span);
         }
         let status = x87::sub_compare(px, ends[0], negative, span);
-        MARKS_WORK.fpu_status.set(status as u32);
-        let mut seed = next_seed(MARKS_WORK.seed.get());
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .fpu_status
+            .set(status as u32);
+        let mut seed = next_seed(crate::effects::owner::effects().setup.work.seed.get());
         let (mut r, mut c) = (
             seed & 0x3FFF,
-            MASK_CONSTANTS.pixel_constants[half.constants].bits(),
+            crate::effects::owner::effects()
+                .setup
+                .mask_constants
+                .pixel_constants[half.constants]
+                .bits(),
         );
         if status != 0x100 {
             seed = next_seed(seed);
             (r, c) = (
                 seed & 0xFFFF,
-                MASK_CONSTANTS.pixel_constants[half.constants + 1].bits(),
+                crate::effects::owner::effects()
+                    .setup
+                    .mask_constants
+                    .pixel_constants[half.constants + 1]
+                    .bits(),
             );
         }
-        MARKS_WORK.seed.set(seed);
-        let k: u32 = MASK_CONSTANTS.pixel_constants[half.constants + 2].bits();
+        crate::effects::owner::effects().setup.work.seed.set(seed);
+        let k: u32 = crate::effects::owner::effects()
+            .setup
+            .mask_constants
+            .pixel_constants[half.constants + 2]
+            .bits();
         let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
         masks.vars.work_pixel[1].set(y);
         set_line_turn(masks, line(masks, half.line), true);
@@ -193,7 +207,11 @@ pub fn map_shape_rows(
             let y: u32 = masks.vars.pixel[1].get();
             masks.vars.row_distance.set_bits(x87::int_plus_less_squared(
                 y as i32,
-                MASK_CONSTANTS.row_add.bits(),
+                crate::effects::owner::effects()
+                    .setup
+                    .mask_constants
+                    .row_add
+                    .bits(),
                 masks.vars.middle[1].bits(),
             ));
             for n in 0..(len as i32).max(0) as u32 {

@@ -29,8 +29,8 @@ use crate::effects::ring_entries::field;
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
-use crate::effects::setup::{CLOCK, MarksClock};
-use crate::effects::tuning::{MARKS_FLOATS, MarksFloats};
+use crate::effects::setup::MarksClock;
+use crate::effects::tuning::MarksFloats;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarksSettings, car_or_none};
@@ -68,7 +68,11 @@ fn whole_of(car: &MarkCar) -> Result<&'static [Float; 16], BadInput> {
 
 /// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
 fn facing(ring: &Ring, car: &MarkCar) {
-    facing_x87(car, &MARKS_FLOATS, &ring.work);
+    facing_x87(
+        car,
+        &crate::effects::owner::effects().setup.floats,
+        &ring.work,
+    );
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
@@ -78,12 +82,25 @@ fn pull_length(ring: &Ring, e: u32, whole: &[Float; 16], length: &mut [u8; 10]) 
 
 /// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
 fn pull_facing(ring: &Ring, car: &MarkCar, length: &[u8; 10]) {
-    pull_facing_x87(car, length, &MARKS_FLOATS, &ring.work);
+    pull_facing_x87(
+        car,
+        length,
+        &crate::effects::owner::effects().setup.floats,
+        &ring.work,
+    );
 }
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
 fn pull_strength(ring: &Ring, e: u32, car: &MarkCar) {
-    pull_strength_x87(ring, e, car, &CLOCK, &MARKS_FLOATS, &ring.work, &ring.kinds);
+    pull_strength_x87(
+        ring,
+        e,
+        car,
+        &crate::effects::owner::effects().setup.clock,
+        &crate::effects::owner::effects().setup.floats,
+        &ring.work,
+        &ring.kinds,
+    );
 }
 
 /// The original's 0x4CF65C .. 0x4CF6B7 (and 0x4CF7C4 ..): the place turned by the object's matrix (`m`), |x| and |z| into `dword_935680` / `dword_935684`.
@@ -215,7 +232,11 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
 /// The life and the ground: whether the entry dies.
 fn aged(ring: &Ring, e: u32, ground: bool) -> Result<bool, Refused> {
     Ok({
-        let t: u32 = CLOCK.frame_ticks.get();
+        let t: u32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get();
         let life = eg(ring, e, field::LIFE)?;
         ep(ring, e, field::LIFE, life.wrapping_sub(t))?;
         if life < t {
@@ -272,11 +293,19 @@ fn whole(ring: &Ring, v: i32) -> u32 {
 /// The angle on and the place moved.
 fn spin_and_move(ring: &Ring, e: u32, spin: bool) -> Result<(), Refused> {
     {
-        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        let t: i32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get() as i32;
         if spin {
             let turn = x87::int_times_to_int(
                 eg(ring, e, field::ANGLE_RATE)? as i32,
-                CLOCK.ticks_scaled.bits(),
+                crate::effects::owner::effects()
+                    .setup
+                    .clock
+                    .ticks_scaled
+                    .bits(),
             ) as u32;
             ep(
                 ring,
@@ -304,7 +333,11 @@ fn spin_and_move(ring: &Ring, e: u32, spin: bool) -> Result<(), Refused> {
 
 fn gain_y(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
     {
-        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        let t: i32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get() as i32;
         ep(
             ring,
             e,
@@ -318,7 +351,11 @@ fn gain_y(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
 /// The three dampings (a part that changes sign stops at 0).
 fn damp3(ring: &Ring, e: u32, ks: [&f32; 3]) -> Result<(), Refused> {
     {
-        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        let t: i32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get() as i32;
         for (o, kk) in [field::MOTION_X, field::MOTION_Y, field::MOTION_Z]
             .into_iter()
             .zip(ks)
@@ -338,7 +375,11 @@ fn damp3(ring: &Ring, e: u32, ks: [&f32; 3]) -> Result<(), Refused> {
 /// The size pulled toward +0x70.
 fn pull_size(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
     {
-        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        let t: i32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get() as i32;
         let (w, f) = x87::approach(
             eg(ring, e, field::SIZE_GOAL)? as i32,
             eg(ring, e, field::SIZE)?,
@@ -361,7 +402,11 @@ fn pull_size(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
 
 fn fade(ring: &Ring, e: u32) -> Result<(), Refused> {
     {
-        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        let t: i32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get() as i32;
         ep(
             ring,
             e,
@@ -463,7 +508,11 @@ fn drift_kind(
         }
         spin_and_move(ring, e, true)?;
         gain_y(ring, e, ks[0])?;
-        let t: i32 = CLOCK.frame_ticks.get() as i32;
+        let t: i32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get() as i32;
         ep(
             ring,
             e,
@@ -553,7 +602,11 @@ fn fading_kind(
             }
             _ => {
                 fade(ring, e)?;
-                let t: i32 = CLOCK.frame_ticks.get() as i32;
+                let t: i32 = crate::effects::owner::effects()
+                    .setup
+                    .clock
+                    .frame_ticks
+                    .get() as i32;
                 ep(
                     ring,
                     e,
@@ -580,8 +633,25 @@ fn pull_toward(ring: &Ring, e: u32) -> Result<(), Refused> {
             return Ok(());
         }
         pull_strength(ring, e, car);
-        if (ring.work.whole.get() as i32) > (MARKS_FLOATS.pull_limit.bits() as i32) {
-            ep(ring, e, 0x64, x87::loaded(MARKS_FLOATS.two_pow_16.bits()))?;
+        if (ring.work.whole.get() as i32)
+            > (crate::effects::owner::effects()
+                .setup
+                .floats
+                .pull_limit
+                .bits() as i32)
+        {
+            ep(
+                ring,
+                e,
+                0x64,
+                x87::loaded(
+                    crate::effects::owner::effects()
+                        .setup
+                        .floats
+                        .two_pow_16
+                        .bits(),
+                ),
+            )?;
         }
     }
     Ok(())
@@ -606,7 +676,11 @@ fn boxed_kind(
         let size = eg(ring, e, field::SIZE)?;
         let f = x87::int_times_times_to_int(
             eg(ring, e, field::LIFE)? as i32,
-            MARKS_FLOATS.twentieth.bits(),
+            crate::effects::owner::effects()
+                .setup
+                .floats
+                .twentieth
+                .bits(),
             eg(ring, e, 0x5C)?,
         );
         ring.work.whole.set(f as u32);

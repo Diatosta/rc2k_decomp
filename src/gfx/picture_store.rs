@@ -39,23 +39,27 @@ pub struct Picture {
     pub _gap_2c: [Dword; 12],
 }
 
-/// The picture's variables; the first values are the image's.
-pub static PICTURE: Picture = Picture {
-    name: Dword::new(0),
-    flags: Dword::new(0),
-    width: Dword::new(0),
-    height: Dword::new(0),
-    row_bytes: Dword::new(0),
-    buffer: Dword::new(0),
-    size: Dword::new(0),
-    list: crate::memory::ListCells::new(MemoryList {
-        head: 0,
-        total: 0,
-        cursor: 0,
-        remaining: 0,
-    }),
-    _gap_2c: [const { Dword::new(0) }; 12],
-};
+impl Picture {
+    /// The picture's variables; the first values are the image's.
+    pub const fn new() -> Self {
+        Picture {
+            name: Dword::new(0),
+            flags: Dword::new(0),
+            width: Dword::new(0),
+            height: Dword::new(0),
+            row_bytes: Dword::new(0),
+            buffer: Dword::new(0),
+            size: Dword::new(0),
+            list: crate::memory::ListCells::new(MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            }),
+            _gap_2c: [const { Dword::new(0) }; 12],
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -64,7 +68,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&PICTURE, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().pictures.picture,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -72,11 +80,17 @@ mod tests {
         assert_eq!(offset_of!(Picture, flags), 0x4F49CC - START);
         assert_eq!(offset_of!(Picture, buffer), 0x4F49DC - START);
         assert_eq!(offset_of!(Picture, list), 0x4F49E4 - START);
-        assert_eq!(crate::moved::place(START), PICTURE.name.addr() as usize);
-        assert_eq!(crate::moved::place(0x4F49E4), PICTURE.list.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::gfx().pictures.picture.name.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x4F49E4),
+            crate::gfx::owner::gfx().pictures.picture.list.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x4F49DC),
-            PICTURE.buffer.addr() as usize
+            crate::gfx::owner::gfx().pictures.picture.buffer.addr() as usize
         );
     }
 }

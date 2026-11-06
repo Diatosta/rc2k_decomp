@@ -12,7 +12,6 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, quitting,
 };
-use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -35,9 +34,13 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.state.carousel.front.set(0x0u32);
     screens.event.shown_car.set(0x0u32);
     crate::menu::car_choice::find_player_car(menus)?;
-    DRAW.view_offset[0].set(0x7u32);
-    DRAW.view_offset[1].set(0xFFFFFFCEu32);
-    DRAW.view_zoom.set(0x100u32);
+    crate::scene::owner::scene().drawing.scene.view_offset[0].set(0x7u32);
+    crate::scene::owner::scene().drawing.scene.view_offset[1].set(0xFFFFFFCEu32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .view_zoom
+        .set(0x100u32);
     prepare_scene();
     Ok(())
 }

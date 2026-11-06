@@ -8,7 +8,6 @@
 //! works out its pitch its own way (`row_dwords` x 4 + the gap) passes that pitch.
 
 use crate::errors::BadInput;
-use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::pointers::GamePtr;
 
 /// The rows of a locked surface or texture.
@@ -35,8 +34,8 @@ impl Rows {
     pub fn surface() -> Result<Self, BadInput> {
         Ok(Self::new(
             crate::gfx::surface::address()?,
-            DRAW_SURFACE.pitch.get(),
-            DRAW_SURFACE.height.get(),
+            crate::gfx::owner::gfx().drawing.draw_surface.pitch.get(),
+            crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
         ))
     }
 
@@ -81,11 +80,15 @@ impl Rows {
 /// `rows` rows of the drawing surface (a locked texture) cleared from byte `start` of its
 /// first (`rep stosd` of the row's dwords, then the row's gap, as the original steps).
 pub fn clear_surface_rows(start: u32, rows: u32) -> Result<(), BadInput> {
-    let dwords = DRAW_SURFACE.row_dwords.get();
+    let dwords = crate::gfx::owner::gfx()
+        .drawing
+        .draw_surface
+        .row_dwords
+        .get();
     let surface = Rows::new(
         crate::gfx::surface::address()?,
-        (4 * dwords).wrapping_add(DRAW_SURFACE.row_gap.get()),
-        DRAW_SURFACE.height.get(),
+        (4 * dwords).wrapping_add(crate::gfx::owner::gfx().drawing.draw_surface.row_gap.get()),
+        crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
     );
     for y in 0..rows {
         surface.fill(y, start, 0, 4 * dwords as usize, "the surface's rows")?;

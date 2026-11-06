@@ -3,7 +3,6 @@
 //! overlays, the first car loaded.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::Race;
@@ -14,12 +13,6 @@ use crate::race::trap::{Trap, car_at};
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::SCREEN;
 
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
@@ -28,14 +21,18 @@ use crate::session::SCREEN;
 /// first also `dword_6365C4` 0. Its callers (`race::draw_race_scene`,
 /// `race::draw_mirror_view`) read no register it leaves.
 pub fn full_view_window(physics: &Physics, first: bool) {
-    DRAW.view_size[0].set(SCREEN.width.get());
-    DRAW.view_size[1].set(SCREEN.height.get());
-    DRAW.view_offset[0].set(0);
-    DRAW.view_offset[1].set(0);
-    DRAW.view_zoom.set(0x100);
+    crate::scene::owner::scene().drawing.scene.view_size[0].set(SCREEN.width.get());
+    crate::scene::owner::scene().drawing.scene.view_size[1].set(SCREEN.height.get());
+    crate::scene::owner::scene().drawing.scene.view_offset[0].set(0);
+    crate::scene::owner::scene().drawing.scene.view_offset[1].set(0);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .view_zoom
+        .set(0x100);
     crate::scene::set_view_window::set_view_window();
     if first {
-        LIGHT_STATE.draw_mode.set(0);
+        crate::scene::owner::scene().lights.state.draw_mode.set(0);
     }
     physics.ground.view_mirrored.set(0);
 }
@@ -83,18 +80,22 @@ pub fn mirror_view_window(race: &Race) -> Result<(), Refused> {
         return Err(BadInput("a mirror place whose scaling overflows").into());
     };
     trap.finish()?;
-    DRAW.view_offset[0].set(x);
-    DRAW.view_offset[1].set(y);
-    DRAW.view_size[0].set(sx);
-    DRAW.view_size[1].set(sy);
-    DRAW.cleared_rectangle[0].set(x);
-    DRAW.cleared_rectangle[1].set(y);
-    DRAW.cleared_rectangle[2].set(x.wrapping_add(sx));
-    DRAW.cleared_rectangle[3].set(y.wrapping_add(sy));
-    DRAW.view_zoom.set(0x100);
+    crate::scene::owner::scene().drawing.scene.view_offset[0].set(x);
+    crate::scene::owner::scene().drawing.scene.view_offset[1].set(y);
+    crate::scene::owner::scene().drawing.scene.view_size[0].set(sx);
+    crate::scene::owner::scene().drawing.scene.view_size[1].set(sy);
+    crate::scene::owner::scene().drawing.scene.cleared_rectangle[0].set(x);
+    crate::scene::owner::scene().drawing.scene.cleared_rectangle[1].set(y);
+    crate::scene::owner::scene().drawing.scene.cleared_rectangle[2].set(x.wrapping_add(sx));
+    crate::scene::owner::scene().drawing.scene.cleared_rectangle[3].set(y.wrapping_add(sy));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .view_zoom
+        .set(0x100);
     crate::scene::set_view_window::set_view_window();
     crate::race::frame_draw::set_up_fog()?;
-    LIGHT_STATE.draw_mode.set(0);
+    crate::scene::owner::scene().lights.state.draw_mode.set(0);
     race.physics.ground.view_mirrored.set(1);
     Ok(())
 }
@@ -114,7 +115,11 @@ pub fn draw_flat_triangle() {
         vertex.rhw.set_bits(0);
         vertex.specular.set(0);
     }
-    DRAW.polygon_vertex_count.set(3);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set(3);
     crate::scene::draw_fan::draw_fan();
 }
 
@@ -128,7 +133,7 @@ fn shadow_refuses(sh: &crate::effects::draw_shadow::Shadow<'_>) -> Result<(), Re
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if crate::effects::setup::SETTINGS.is_set.get() == 0 {
+    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     match sh.angle_refuses() {
@@ -179,19 +184,27 @@ pub fn copy_mirror_picture(frame: &Frame) -> Result<(), Refused> {
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     use rc2k_core::race::view_steps::{PictureCopy, copy_picture};
     let (from, to) = (
-        DRAW.mirror_picture.get(),
-        KIND_TEXTURES.kind_first_textures[200].get(),
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .mirror_picture
+            .get(),
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[200]
+            .get(),
     );
     if lock_texture(from)?.carry {
         return Ok(());
     }
     let esi = crate::gfx::surface::address()?;
     frame.frame_work.view_kept[0].set(esi);
-    let ebp = DRAW_SURFACE.pitch.get();
+    let ebp = crate::gfx::owner::gfx().drawing.draw_surface.pitch.get();
     if !lock_texture(to)?.carry {
         let edi = crate::gfx::surface::address()?;
         frame.frame_work.view_kept[1].set(edi);
-        let format = DRAW_SURFACE.format.get();
+        let format = crate::gfx::owner::gfx().drawing.draw_surface.format.get();
         if format == 0 {
             return Err(BadInput("a surface without its format").into());
         }
@@ -199,12 +212,17 @@ pub fn copy_mirror_picture(frame: &Frame) -> Result<(), Refused> {
         let format = &format;
         let screen = crate::gfx::pixel_format::surface_format()?;
         let copy = PictureCopy {
-            width: DRAW_SURFACE.width.get(),
-            height: DRAW_SURFACE.height.get(),
+            width: crate::gfx::owner::gfx().drawing.draw_surface.width.get(),
+            height: crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
             from_pitch: ebp,
-            to_pitch: DRAW_SURFACE.pitch.get(),
+            to_pitch: crate::gfx::owner::gfx().drawing.draw_surface.pitch.get(),
             from_16: SCREEN.bits.get() == 0x10,
-            to_16: DRAW_SURFACE.bits_per_pixel.get() == 0x10,
+            to_16: crate::gfx::owner::gfx()
+                .drawing
+                .draw_surface
+                .bits_per_pixel
+                .get()
+                == 0x10,
         };
         let mut surfaces = GameSurfaces {
             screen: &screen,
@@ -276,7 +294,7 @@ pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
     let trap = Trap::new();
     let field = |b: u32, o: u32| trap.read::<u32>(b + o, "a view car block's word");
     // (the switch, the slot's variable) of each.
-    let slot_of = |n: usize| &KIND_TEXTURES.kind_first_slots[n];
+    let slot_of = |n: usize| &crate::scene::owner::scene().textures.kinds.kind_first_slots[n];
     let source = |f: Forget| match f {
         Forget::Changing(v) => (field(blocks[v], 0xADC), slot_of(198 + v)),
         Forget::Counted(v) => (field(blocks[v], 0x720), slot_of(196 + v)),
@@ -301,7 +319,13 @@ pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
         .map(|(_, slot)| slot.get())
         .collect();
     if mirror {
-        slots.push(KIND_TEXTURES.kind_first_textures[200].get());
+        slots.push(
+            crate::scene::owner::scene()
+                .textures
+                .kinds
+                .kind_first_textures[200]
+                .get(),
+        );
     }
     trap.finish()?;
     check_slots(&slots)?;
@@ -338,7 +362,13 @@ pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
         .set(frame.frame_work.view_textures_forgotten.get() | MIRROR_BIT);
     if !uploaded {
         copy_mirror_picture(frame)?;
-        forget_slot_texture(KIND_TEXTURES.kind_first_textures[200].get())?;
+        forget_slot_texture(
+            crate::scene::owner::scene()
+                .textures
+                .kinds
+                .kind_first_textures[200]
+                .get(),
+        )?;
     } else {
         // `sub_44E828`, the platform's upload (then the slot forgotten): through the
         // game, esi the picture, eax the slot (the only registers it reads).
@@ -359,8 +389,8 @@ pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
 fn window_corners() {
     RACE_VARS.quad_corners[0].set(0);
     RACE_VARS.quad_corners[4].set(0);
-    RACE_VARS.quad_corners[1].set(DRAW.view_size[0].get());
-    RACE_VARS.quad_corners[5].set(DRAW.view_size[1].get());
+    RACE_VARS.quad_corners[1].set(crate::scene::owner::scene().drawing.scene.view_size[0].get());
+    RACE_VARS.quad_corners[5].set(crate::scene::owner::scene().drawing.scene.view_size[1].get());
 }
 
 /// `race::draw_screen_tint` (0x455A11): a tinted quad over the view window
@@ -378,7 +408,7 @@ pub fn draw_screen_tint(race: &Race) -> Result<(), Refused> {
         return crate::scene::draw_tinted_quad::draw_tinted_quad();
     }
     let sun = race.frame.frame_work.sun_on_screen.get();
-    let a = glare_alpha(LIGHT_STATE.fog_far.get());
+    let a = glare_alpha(crate::scene::owner::scene().lights.state.fog_far.get());
     RACE_VARS.quad_colour[1].set(a);
     let mut done = Ok(());
     if a != 0 {
@@ -400,13 +430,13 @@ pub fn draw_screen_tint(race: &Race) -> Result<(), Refused> {
 /// rectangle (`dword_624138` ..) the whole screen and the depth cleared there
 /// (`d3d::clear_viewport_unless_held`, the platform's `Clear`).
 pub fn clear_view_depth() {
-    if OBJECT_TABLES.has_3d.get() == 0 {
+    if crate::scene::owner::scene().objects.tables.has_3d.get() == 0 {
         return;
     }
-    DRAW.cleared_rectangle[0].set(0);
-    DRAW.cleared_rectangle[1].set(0);
-    DRAW.cleared_rectangle[2].set(SCREEN.width.get());
-    DRAW.cleared_rectangle[3].set(SCREEN.height.get());
+    crate::scene::owner::scene().drawing.scene.cleared_rectangle[0].set(0);
+    crate::scene::owner::scene().drawing.scene.cleared_rectangle[1].set(0);
+    crate::scene::owner::scene().drawing.scene.cleared_rectangle[2].set(SCREEN.width.get());
+    crate::scene::owner::scene().drawing.scene.cleared_rectangle[3].set(SCREEN.height.get());
     clear_viewport_unless_held();
 }
 
@@ -434,11 +464,21 @@ pub fn draw_own_car(race: &Race) -> Result<(), Refused> {
     if !seen_inside(block.state_bits.get()) {
         return Ok(());
     }
-    LIGHT_WORK.view_light_base.set(block.light_colour.get());
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .view_light_base
+        .set(block.light_colour.get());
     let clears = clears_depth(
         block.surface_noise_a.get(),
         || block.surface_noise_b.get(),
-        || OBJECT_WORK.view_cleared[0].get(),
+        || {
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .view_cleared[0]
+                .get()
+        },
     );
     if clears {
         clear_view_depth();
@@ -447,9 +487,15 @@ pub fn draw_own_car(race: &Race) -> Result<(), Refused> {
     // `race::draw_car_shined` reads only esi, the car's block.
     crate::race::car_draw::draw_car_shined(race, car)?;
     frame.view_and_records.view_vars.group_mask.set(u32::MAX);
-    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].get());
+    crate::scene::set_texture::set_texture(
+        crate::scene::owner::scene().textures.kinds.kind_first_slots[202].get(),
+    );
     crate::scene::set_render_state::set_render_state(2, 0x14);
-    DRAW.polygon_vertex_count.set(4);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set(4);
     draw_marks_overlays(race)
 }
 
@@ -483,7 +529,7 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
     check_view_marks(
         block,
         |b| GamePtr::to(records[b as usize]).addr(),
-        || crate::effects::setup::SETTINGS.is_set.get(),
+        || crate::effects::owner::effects().setup.settings.is_set.get(),
     )?;
     let (other, own) = marks_shown(
         view,
@@ -512,14 +558,17 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
         .car_record(view as usize)?
         .at(0)
         .write(1u32, "a car record's first word")?;
-    let centre = (DRAW.view_centre[0].bits(), DRAW.view_centre[1].bits());
+    let centre = (
+        crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+    );
     let n = race.frame.frame_work.view_layouts[layout_at as usize].get() as usize;
-    DRAW.view_centre[0].set_bits(int_over_times(
+    crate::scene::owner::scene().drawing.scene.view_centre[0].set_bits(int_over_times(
         SCREEN.width.get(),
         race.course.numbers.k800.bits(),
         race.frame.frame_work.view_scale_x[n].bits(),
     ));
-    DRAW.view_centre[1].set_bits(int_over_times(
+    crate::scene::owner::scene().drawing.scene.view_centre[1].set_bits(int_over_times(
         SCREEN.height.get(),
         race.course.numbers.k600.bits(),
         race.frame.frame_work.view_scale_y[n].bits(),
@@ -533,8 +582,8 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
                 Ok(())
             }
         });
-    DRAW.view_centre[1].set_bits(centre.1);
-    DRAW.view_centre[0].set_bits(centre.0);
+    crate::scene::owner::scene().drawing.scene.view_centre[1].set_bits(centre.1);
+    crate::scene::owner::scene().drawing.scene.view_centre[0].set_bits(centre.0);
     done
 }
 
@@ -542,7 +591,13 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
 /// game's was called before): `d3d::clear_viewport` (0x44E9D9, the same `Clear` of
 /// `dword_624138` with flag 2) unless `dword_624238` is not 0.
 pub fn clear_viewport_unless_held() {
-    if crate::scene::draw_store::DRAW.v3_driver_fix.get() == 0 {
+    if crate::scene::owner::scene()
+        .drawing
+        .scene
+        .v3_driver_fix
+        .get()
+        == 0
+    {
         crate::platform_3d::clear_viewport();
     }
 }

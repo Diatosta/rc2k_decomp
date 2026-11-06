@@ -12,7 +12,6 @@
 
 use crate::errors::Refused;
 use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
-use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
 
@@ -27,8 +26,16 @@ use crate::scene::draw_store::DRAW;
 /// `race::loadlevel_init` after it), the carry the register-threaded callers set.
 pub fn set_up_textures() -> Result<(), Refused> {
     build_texture_catalogue_in_game()?;
-    DRAW.mirror_picture.set_bits(0u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .mirror_picture
+        .set_bits(0u32);
     let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
-    DRAW.mirror_picture.set_bits(system);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .mirror_picture
+        .set_bits(system);
     Ok(())
 }

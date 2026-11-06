@@ -9,16 +9,17 @@
 
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 /// The Rust version (see the header): `scene::set_texture`, `scene::depth_test_off`, and
 /// with the settings' +0x2754 `draw_lens_flare`.
 pub fn flare_frame(paths: &Paths) -> Result<(), Refused> {
     {
-        if crate::effects::setup::SETTINGS.is_set.get() == 0 {
+        if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
+        crate::scene::set_texture::set_texture(
+            crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
+        );
         crate::scene::depth_test_off::depth_test_off();
         let marks = crate::effects::setup::marks()?;
         if marks.listener_figures[0].get() != 0 {

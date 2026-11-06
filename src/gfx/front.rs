@@ -19,11 +19,15 @@ pub struct Surfaces {
     pub back: Dword,
 }
 
-/// The handles; the first values are the image's.
-pub static SURFACES: Surfaces = Surfaces {
-    front: Dword::new(0),
-    back: Dword::new(0),
-};
+impl Surfaces {
+    /// The handles; the first values are the image's.
+    pub const fn new() -> Self {
+        Surfaces {
+            front: Dword::new(0),
+            back: Dword::new(0),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -31,15 +35,22 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&SURFACES, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().drawing.surfaces,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), SURFACES.front.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::gfx().drawing.surfaces.front.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(START + 4),
-            SURFACES.back.addr() as usize
+            crate::gfx::owner::gfx().drawing.surfaces.back.addr() as usize
         );
     }
 }

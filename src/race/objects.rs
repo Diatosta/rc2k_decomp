@@ -10,9 +10,6 @@ use crate::race::owner::Race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::car_at;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::draw_store::DRAW;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::Dword;
 
 const LIFT: u32 = 0x5_0000;
@@ -82,10 +79,9 @@ fn log_number(value: u32, newline: bool) {
 }
 
 pub fn set_up_car_points(race: &Race, slot: u32, block: u32) -> Result<(), Refused> {
-    use crate::scene::object_slots_store::OBJECT_SLOTS;
     let slot = 11 + slot as usize;
     {
-        let count = OBJECT_SLOTS.point_counts[slot].get();
+        let count = crate::scene::owner::scene().objects.slots.point_counts[slot].get();
         if count != 0 {
             if count > MOST_CONVERTED {
                 return Err(BadInput("more than 0x40 collision points").into());
@@ -96,7 +92,7 @@ pub fn set_up_car_points(race: &Race, slot: u32, block: u32) -> Result<(), Refus
                     BadInput("one collision point: the original returns through edi").into(),
                 );
             }
-            let first = OBJECT_SLOTS.first_point[slot].get();
+            let first = crate::scene::owner::scene().objects.slots.first_point[slot].get();
             let points = first
                 .wrapping_mul(12)
                 .wrapping_add(race.course.lists.object_points.get());
@@ -134,7 +130,7 @@ pub fn set_up_car_points(race: &Race, slot: u32, block: u32) -> Result<(), Refus
                 for (k, list) in lists.into_iter().enumerate() {
                     // The original goes through `dword_62400C` for each `fild`.
                     let c = crate::scene::object_points::word(p + 4 * k as u32)?;
-                    DRAW.scratch.set(c);
+                    crate::scene::owner::scene().drawing.scene.scratch.set(c);
                     list[n as usize].set_bits(rc2k_core::race::cars::point_float(c, scale));
                 }
             }
@@ -181,10 +177,10 @@ pub fn set_object_kinds(race: &Race) -> Result<(), Refused> {
             Some(cell) => cell.get(),
             None => course.stage_prefs.fixed_kinds[n as usize - n_defaults].get(),
         };
-        OBJECT_TABLES.slot_kinds[n as usize].set(default);
+        crate::scene::owner::scene().objects.tables.slot_kinds[n as usize].set(default);
     }
     // `dword_5CCF7C` = `dword_621844`.
-    OBJECT_TABLES.slot_kinds[64].set(FRAME_SWITCHES.kept_kind.bits());
+    crate::scene::owner::scene().objects.tables.slot_kinds[64].set(FRAME_SWITCHES.kept_kind.bits());
     let cars: u32 = RACE_VIEW.race_cars.bits();
     if cars == 0 {
         return Ok(());
@@ -200,7 +196,7 @@ pub fn set_object_kinds(race: &Race) -> Result<(), Refused> {
                 CarKind::Table11 => car_table(&KIND_TABLES.kind_11_table, car),
                 CarKind::Table10 => car_table(&KIND_TABLES.kind_10_table, car),
             };
-            OBJECT_TABLES.slot_kinds[(slots + slot) as usize].set(k);
+            crate::scene::owner::scene().objects.tables.slot_kinds[(slots + slot) as usize].set(k);
         }
         slots += CAR_SLOT_STEP;
     }
@@ -222,11 +218,28 @@ pub fn reload_objects(race: &Race) -> Result<(), Refused> {
     log(c"LOAD OBJECTS - START", true);
     set_object_kinds(race)?;
     log(c"total points", false);
-    log_number(OBJECT_TABLES.point_count.get(), false);
+    log_number(
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .point_count
+            .get(),
+        false,
+    );
     log(c"total polys", false);
-    log_number(OBJECT_TABLES.face_count.get(), false);
+    log_number(
+        crate::scene::owner::scene().objects.tables.face_count.get(),
+        false,
+    );
     log(c"facemem used", false);
-    log_number(OBJECT_WORK.face_cursor.bits(), true);
+    log_number(
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .face_cursor
+            .bits(),
+        true,
+    );
     log(c"LOAD OBJECTS - FINIS", true);
     log(c"-------------------------------------", true);
     Ok(())

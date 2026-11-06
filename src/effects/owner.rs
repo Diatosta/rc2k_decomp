@@ -7,6 +7,7 @@
 //! it (`notes/memory_layer_plan.md`, step 11).
 
 use crate::effects::mask_store::Masks;
+use crate::effects::owner_groups::{Blocks, Clipping, FrameState, Kinds, Setup};
 use crate::effects::paths::Paths;
 use crate::effects::pong::Pong;
 use crate::effects::rain::Weather;
@@ -25,6 +26,11 @@ pub struct Effects {
     pub windscreen_drops: WindscreenDrops,
     pub paths: Paths,
     pub masks: Masks,
+    pub clipping: Clipping,
+    pub blocks: Blocks,
+    pub frame: FrameState,
+    pub kinds: Kinds,
+    pub setup: Setup,
 }
 
 /// The one instance. Reached through `effects()`; `moved` registers its stores' places.
@@ -37,6 +43,11 @@ pub static EFFECTS: Effects = Effects {
     windscreen_drops: WindscreenDrops::new(),
     paths: Paths::new(),
     masks: Masks::new(),
+    clipping: Clipping::new(),
+    blocks: Blocks::new(),
+    frame: FrameState::new(),
+    kinds: Kinds::new(),
+    setup: Setup::new(),
 };
 
 /// The effects' state, for a caller that does not take it as a parameter yet.

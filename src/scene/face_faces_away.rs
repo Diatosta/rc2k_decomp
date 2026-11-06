@@ -18,7 +18,6 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::{X, compare};
-use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp};
 
 // ---- game data ----
@@ -107,7 +106,11 @@ pub fn face_faces_away(race: &crate::race::owner::Race, face: usize) -> Result<b
         return Err(BadInput("no face or no records").into());
     }
     let count: u32 = crate::scene::object_faces::word(face as u32)?;
-    DRAW.polygon_vertex_count.set_bits(count);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set_bits(count);
     if count < 3 {
         return Ok(true);
     }

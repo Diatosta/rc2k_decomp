@@ -26,7 +26,6 @@
 //! are the original's.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::blit::BLIT;
 use crate::install::installer::{copy_picture, draw_text, lock, show, unlock};
 use crate::strings::text_buffer::TEXT_BUFFER;
 
@@ -62,8 +61,13 @@ pub fn progress_frame(g: &'static crate::install::owner::Install) -> Result<bool
             )),
         )?;
         let x = g.pages.bar.get_u32(0);
-        let kept_clip: u32 = BLIT.clip.right.get();
-        BLIT.clip.right.set(width.wrapping_add(x).wrapping_add(1));
+        let kept_clip: u32 = crate::gfx::owner::gfx().drawing.blit.clip.right.get();
+        crate::gfx::owner::gfx()
+            .drawing
+            .blit
+            .clip
+            .right
+            .set(width.wrapping_add(x).wrapping_add(1));
         crate::install::blit_glyph_list::blit_glyph_list(
             2,
             &g.pages.bar_glyphs_list,
@@ -71,7 +75,12 @@ pub fn progress_frame(g: &'static crate::install::owner::Install) -> Result<bool
             0,
             g.run.bar_glyphs.get(),
         )?;
-        BLIT.clip.right.set(kept_clip);
+        crate::gfx::owner::gfx()
+            .drawing
+            .blit
+            .clip
+            .right
+            .set(kept_clip);
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
         text.push(0);
         TEXT_BUFFER.text.write_at(0, &text, "the text buffer")?;

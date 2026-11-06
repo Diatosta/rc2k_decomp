@@ -41,7 +41,6 @@ use crate::physics::lower_free_gear::lower_free_gear;
 use crate::physics::pick_start_gear::pick_start_gear;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C340).
@@ -116,21 +115,39 @@ fn start_line() -> Result<Shift, Refused> {
     if shifts::forward(gear) {
         let kept = CAR.engine_speed.bits();
         revs_speed()?;
-        DRAW.scratch.set(over_top());
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(over_top());
         CAR.engine_speed.set_bits(kept);
-        if !below(DRAW.scratch.get(), GEAR.shift_up_point.bits()) {
+        if !below(
+            crate::scene::owner::scene().drawing.scene.scratch.get(),
+            GEAR.shift_up_point.bits(),
+        ) {
             return Ok(Shift::Up);
         }
     }
     if !shifts::above_first(gear) {
         return Ok(Shift::Done);
     }
-    DRAW.scratch.set(over_top());
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set(over_top());
     let Some(lower) = { lower_free_gear(gear) }? else {
         return Ok(Shift::Done);
     };
     let (rb, rc) = (ratio(gear)?, ratio(lower)?);
-    if mul_div_status(DRAW.scratch.get(), rb, rc, GEAR.shift_ratio_figure.bits()) & 0x100 == 0 {
+    if mul_div_status(
+        crate::scene::owner::scene().drawing.scene.scratch.get(),
+        rb,
+        rc,
+        GEAR.shift_ratio_figure.bits(),
+    ) & 0x100
+        == 0
+    {
         return Ok(Shift::Done);
     }
     let point = if shifts::down_point_clutch(CAR.brake.get()) {
@@ -138,7 +155,10 @@ fn start_line() -> Result<Shift, Refused> {
     } else {
         GEAR.shift_down_point.bits()
     };
-    if !below(DRAW.scratch.get(), point) {
+    if !below(
+        crate::scene::owner::scene().drawing.scene.scratch.get(),
+        point,
+    ) {
         return Ok(Shift::Done);
     }
     Ok(Shift::Down)

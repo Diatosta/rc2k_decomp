@@ -43,7 +43,7 @@ pub fn object_hits_car(race: &Race, point: u32, face: u32) -> Result<bool, Refus
             .get()
             .wrapping_add(1),
     );
-    let count = crate::scene::object_slots_store::OBJECT_SLOTS.point_counts[number as usize].get();
+    let count = crate::scene::owner::scene().objects.slots.point_counts[number as usize].get();
     // With no points the original skips to `clc` before it sets edx (0x45E779); the
     // points' table is read only when there are some.
     let points = if count == 0 {
@@ -53,7 +53,7 @@ pub fn object_hits_car(race: &Race, point: u32, face: u32) -> Result<bool, Refus
     };
     let refused = std::cell::Cell::new(None::<Refused>);
     let walk = contacts::walk_points(
-        crate::scene::object_slots_store::OBJECT_SLOTS.first_point[number as usize].get(),
+        crate::scene::owner::scene().objects.slots.first_point[number as usize].get(),
         count,
         points,
         0,

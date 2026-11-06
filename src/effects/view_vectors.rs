@@ -21,28 +21,32 @@ pub struct ViewSources {
     pub sources: [VectorSource; 2],
 }
 
-pub static SOURCES: ViewSources = ViewSources {
-    sources: [
-        VectorSource {
-            factor: Dword::new(0x40A00000),
-            vector: [Dword::new(0x0), Dword::new(0xBF800000), Dword::new(0x0)],
-            scaled: [
-                Float::from_bits(0x0),
-                Float::from_bits(0xBF800000),
-                Float::from_bits(0x0),
+impl ViewSources {
+    pub const fn new() -> Self {
+        Self {
+            sources: [
+                VectorSource {
+                    factor: Dword::new(0x40A00000),
+                    vector: [Dword::new(0x0), Dword::new(0xBF800000), Dword::new(0x0)],
+                    scaled: [
+                        Float::from_bits(0x0),
+                        Float::from_bits(0xBF800000),
+                        Float::from_bits(0x0),
+                    ],
+                },
+                VectorSource {
+                    factor: Dword::new(0x0),
+                    vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0xBF800000)],
+                    scaled: [
+                        Float::from_bits(0x0),
+                        Float::from_bits(0x0),
+                        Float::from_bits(0xBF800000),
+                    ],
+                },
             ],
-        },
-        VectorSource {
-            factor: Dword::new(0x0),
-            vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0xBF800000)],
-            scaled: [
-                Float::from_bits(0x0),
-                Float::from_bits(0x0),
-                Float::from_bits(0xBF800000),
-            ],
-        },
-    ],
-};
+        }
+    }
+}
 
 impl ViewSources {
     pub const START: usize = 0x764F90;
@@ -87,77 +91,81 @@ pub struct KeptView {
     pub vector: [Float; 3],
 }
 
-pub static KEPT: KeptView = KeptView {
-    first_sine_cosine: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    first_angle: Float::from_bits(0x0),
-    second_sine_cosine: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    second_angle: Float::from_bits(0x0),
-    pushed: [
-        Dword::new(0x41800000),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x3F800000),
-    ],
-    _gap_76925e: Bytes::new([
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
-    ]),
-    kept_a: VectorSource {
-        factor: Dword::new(0x0),
-        vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-        scaled: [
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-    },
-    _gap_769286: Bytes::new([
-        0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00,
-    ]),
-    last: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    kept_b: VectorSource {
-        factor: Dword::new(0x3F800000),
-        vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-        scaled: [
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-    },
-    kept_c: VectorSource {
-        factor: Dword::new(0x3F800000),
-        vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-        scaled: [
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-    },
-    _gap_7692da: Bytes::new([
-        0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00,
-    ]),
-    step: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    length: Dword::new(0x3F800000),
-    unit: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    vector: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-};
+impl KeptView {
+    pub const fn new() -> Self {
+        Self {
+            first_sine_cosine: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            first_angle: Float::from_bits(0x0),
+            second_sine_cosine: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            second_angle: Float::from_bits(0x0),
+            pushed: [
+                Dword::new(0x41800000),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x3F800000),
+            ],
+            _gap_76925e: Bytes::new([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
+            ]),
+            kept_a: VectorSource {
+                factor: Dword::new(0x0),
+                vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+                scaled: [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+            },
+            _gap_769286: Bytes::new([
+                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00,
+            ]),
+            last: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            kept_b: VectorSource {
+                factor: Dword::new(0x3F800000),
+                vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+                scaled: [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+            },
+            kept_c: VectorSource {
+                factor: Dword::new(0x3F800000),
+                vector: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+                scaled: [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+            },
+            _gap_7692da: Bytes::new([
+                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00,
+            ]),
+            step: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            length: Dword::new(0x3F800000),
+            unit: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            vector: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+        }
+    }
+}
 
 impl KeptView {
     pub const START: usize = 0x769236;
@@ -183,11 +191,13 @@ mod tests {
         assert_eq!(size_of::<KeptView>(), KeptView::LEN);
         let image = crate::moved::image_bytes;
         assert!(
-            bytes(&SOURCES) == image(ViewSources::START, ViewSources::LEN),
+            bytes(&crate::effects::owner::effects().frame.view_sources)
+                == image(ViewSources::START, ViewSources::LEN),
             "SOURCES starts differently from the image"
         );
         assert!(
-            bytes(&KEPT) == image(KeptView::START, KeptView::LEN),
+            bytes(&crate::effects::owner::effects().frame.kept_view)
+                == image(KeptView::START, KeptView::LEN),
             "KEPT starts differently from the image"
         );
         let k = KeptView::START;

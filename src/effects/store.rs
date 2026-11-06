@@ -2,7 +2,7 @@
 //! 0x764F40 .. 0x93CCC8, the whole of it the marks' (the weather and surface effects: their
 //! settings, floats, work areas, the spline, shape, square, windscreen drop, ring and particle
 //! tables). Nothing outside `marks` reads or writes it but the one setting `race::frame_views`
-//! asks (`effects::setup::SETTINGS`, typed).
+//! asks (`SETTINGS`, typed).
 //!
 //! Phase 7 (typed state) takes the block apart: each piece that has its typed struct and
 //! static (`CARVED`: pong, clock, rain, waves, clip, glow, mark slots, view vectors, snow, the

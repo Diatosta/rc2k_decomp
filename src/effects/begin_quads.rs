@@ -12,9 +12,6 @@
 //! Caller: `sub_4C3EEE`.
 
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::frame_state::{DRAW_FRAME, DRAW_WORK};
-use crate::scene::draw_store::DRAW;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::read_bits;
 
 /// The render states set (value, state).
@@ -24,14 +21,21 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 /// `scene::depth_test_off`, the render states (`scene::set_render_state`).
 pub fn begin_quads() {
     {
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
+        crate::scene::set_texture::set_texture(
+            crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
+        );
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();
         for (value, state) in STATES {
             crate::scene::set_render_state::set_render_state(value, state);
         }
-        let colour: u32 = DRAW_FRAME.colour.get();
-        let [a, b, c, d]: [u32; 4] = read_bits(&DRAW_FRAME.places);
+        let colour: u32 = crate::effects::owner::effects()
+            .frame
+            .draw_frame
+            .colour
+            .get();
+        let [a, b, c, d]: [u32; 4] =
+            read_bits(&crate::effects::owner::effects().frame.draw_frame.places);
         let uv = [(a, b), (c, b), (c, d), (a, d)];
         for (k, (u, v)) in uv.into_iter().enumerate() {
             let at = &VERTICES.vertices[k];
@@ -41,10 +45,22 @@ pub fn begin_quads() {
             at.u.set_bits(u);
             at.v.set_bits(v);
         }
-        DRAW.polygon_vertex_count.set_bits(4u32);
-        DRAW_WORK
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .set_bits(4u32);
+        crate::effects::owner::effects()
+            .frame
+            .draw_work
             .z_k
-            .set_bits(crate::math::x87::reciprocal(DRAW.farthest.bits()));
-        DRAW_FRAME.cleared.set(0);
+            .set_bits(crate::math::x87::reciprocal(
+                crate::scene::owner::scene().drawing.scene.farthest.bits(),
+            ));
+        crate::effects::owner::effects()
+            .frame
+            .draw_frame
+            .cleared
+            .set(0);
     }
 }

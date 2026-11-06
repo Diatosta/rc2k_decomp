@@ -27,7 +27,6 @@ use crate::race::owner::Race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 
 /// The gates' variables (each must be 0; the last is "1000 or more").
@@ -57,7 +56,11 @@ pub fn pace_notes_step(race: &Race) -> Result<(), Refused> {
         race.course.numbers.eight.bits(),
         ONE_F32,
     );
-    DRAW.scratch.set(ahead as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set(ahead as u32);
     let target = call_target(
         CAR.reset_checkpoint.get(),
         ahead,

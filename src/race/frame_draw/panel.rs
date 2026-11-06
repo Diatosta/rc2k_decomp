@@ -13,12 +13,8 @@ use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
 use crate::scene::faces_store::FACES;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::polygon_store::POLYGON_WORK;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::session::Dword;
 
 /// `race::car_label` (0x45B1B7): the panel's seven-byte label " CAR nn" for the neighbouring
@@ -181,7 +177,8 @@ pub fn share_sound_spots() -> Result<(), Refused> {
 /// `g_useSse` set each first 16 bytes `LIGHT_WORK.sse_fill` (`movntps`).
 pub fn clear_point_records() -> Result<(), BadInput> {
     race().course.lists.clear_count.set(0u32);
-    let pattern: [u32; 4] = crate::session::read_bits(&LIGHT_WORK.sse_fill);
+    let pattern: [u32; 4] =
+        crate::session::read_bits(&crate::scene::owner::scene().lights.work.sse_fill);
     let sse = crate::scene::owner::scene().draw_switches.use_sse.get() != 0;
     for record in crate::scene::point_records::first_records(0x1000)? {
         if sse {
@@ -204,7 +201,9 @@ pub fn clear_point_records() -> Result<(), BadInput> {
 pub fn object_bytes(course: &Course) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::frame::object_bytes`.
     let kind = |n: u32| -> Result<u32, BadInput> {
-        TEXTURE_PLACES
+        crate::scene::owner::scene()
+            .textures
+            .places
             .place_slot
             .get(n as usize)
             .map(crate::session::Dword::get)
@@ -215,8 +214,8 @@ pub fn object_bytes(course: &Course) -> Result<(), BadInput> {
         let record = &POLYGON_WORK.texture_infos[n].words[8..];
         let flags = record[3].get().to_le_bytes()[2];
         let record_kind = kind(record[0].get())?;
-        let face_kind = if OBJECT_SLOTS.face_counts[n].get() != 0 {
-            let first = OBJECT_SLOTS.first_face[n].get() as usize;
+        let face_kind = if crate::scene::owner::scene().objects.slots.face_counts[n].get() != 0 {
+            let first = crate::scene::owner::scene().objects.slots.first_face[n].get() as usize;
             let face = FACES
                 .faces
                 .get(first)
@@ -272,7 +271,11 @@ pub(super) fn panel_half(race: &Race, car: u32, first: bool) -> Result<(), BadIn
         |n: u32| crate::race::checkpoints_store::cell_in(&CHECKPOINTS.distances, n as usize).get();
     let from: u32 = race.physics.split_tables.checkpoints[0].get();
     let d = travelled(at(car.checkpoint.bits()), at(from));
-    DRAW.scratch.set_bits(d);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(d);
     let (unit, miles): (u32, u32) = (
         race.course.numbers.k65536.bits(),
         race.course.numbers.metres_in_mile.bits(),
@@ -462,14 +465,22 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
             out[1]
                 .set(motion(car_at(b)?.map_picture_place[1].bits() as i32, half, small).to_bits());
             let turn = heading_turn(car_at(b)?.car_heading.bits());
-            DRAW.scratch.set_bits(turn);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set_bits(turn);
             out[2].set(heading(turn as i32, half, big).to_bits());
         }
         let shown = shown_for(
             PHYSICS.scene_clock.bits(),
             race.frame.panel_clock.shown_since.get(),
         );
-        DRAW.scratch.set_bits(shown);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set_bits(shown);
     }
     Ok(())
 }

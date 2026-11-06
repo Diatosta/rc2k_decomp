@@ -29,7 +29,6 @@ use crate::physics::flow::c0;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
 use crate::session::Float;
 
 pub const STEPS: u32 = 0x1388;
@@ -121,7 +120,11 @@ fn x87_2(course: &Course) {
     let t6 = ld(PHYSICS.rolling_drag.bits());
     let t7 = t5 + t6;
     let t8 = -t7;
-    DRAW.scratch.set_bits(st(t8));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(st(t8));
     let t9 = ld(PHYSICS.drive_torque.bits());
     let t10 = t8 + t9;
     let t11 = ld(PHYSICS.step_time.bits());

@@ -2,7 +2,6 @@
 //! entries of a corner table (`dword_82E422`, here the table's number: 0x18 bytes an entry), spanned into the mask's
 //! runs; its angles kept in a second table at esi.
 
-use crate::effects::mask_constants::MASK_CONSTANTS;
 use crate::effects::mask_store::Masks;
 use crate::effects::mask_vars::Shape;
 use crate::effects::spans::{span_quad, spans_fit, triangle_rows};
@@ -123,7 +122,12 @@ pub fn span_ring(masks: &Masks, s: &Shape, angles: &Bytes<1032>) -> Result<(), R
             .run_count
             .set(masks.vars.run_count.get().wrapping_add(1));
         s.rows.set(masks.vars.runs.get());
-        let scales: [u32; 3] = read_bits(&MASK_CONSTANTS.ring_scales);
+        let scales: [u32; 3] = read_bits(
+            &crate::effects::owner::effects()
+                .setup
+                .mask_constants
+                .ring_scales,
+        );
         let ends = [
             x87::mul(s.angle_ends[0].bits(), scales[0]),
             x87::mul(s.angle_ends[1].bits(), scales[1]),

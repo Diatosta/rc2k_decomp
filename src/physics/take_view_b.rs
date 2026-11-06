@@ -18,7 +18,6 @@ use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
-use crate::scene::light_store::LIGHT_STATE;
 use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
@@ -66,15 +65,27 @@ fn copies(physics: &Physics) -> [&'_ dyn Cell32; 11] {
 /// `[rc + 0x208BB8] = [s + 0xC] + [rc + 0x237640]`
 fn x87_1(physics: &Physics, offset: [u32; 3]) {
     let t0 = ld(offset[0]);
-    let t1 = ld(LIGHT_STATE.camera_frame_a.bits());
+    let t1 = ld(crate::scene::owner::scene()
+        .lights
+        .state
+        .camera_frame_a
+        .bits());
     let t2 = t0 + t1;
     physics.camera.view_b_offset[0].set_bits(st(t2));
     let t3 = ld(offset[1]);
-    let t4 = ld(LIGHT_STATE.camera_frame_b.bits());
+    let t4 = ld(crate::scene::owner::scene()
+        .lights
+        .state
+        .camera_frame_b
+        .bits());
     let t5 = t3 + t4;
     physics.camera.view_b_offset[1].set_bits(st(t5));
     let t6 = ld(offset[2]);
-    let t7 = ld(LIGHT_STATE.camera_frame_c.bits());
+    let t7 = ld(crate::scene::owner::scene()
+        .lights
+        .state
+        .camera_frame_c
+        .bits());
     let t8 = t6 + t7;
     physics.camera.view_b_offset[2].set_bits(st(t8));
 }

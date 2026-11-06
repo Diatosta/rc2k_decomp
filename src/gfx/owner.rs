@@ -5,22 +5,39 @@
 //! `gfx()` is the boundary: the callers outside the module that do not take the owner yet
 //! fetch it there and pass it down (`notes/memory_layer_plan.md`, step 11).
 
+use crate::gfx::bar_store::BarVars;
+use crate::gfx::blit::Blitter;
+use crate::gfx::build_game_fonts::GameFontsMemory;
 use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::cards::Cards;
 use crate::gfx::choices_store::ScreenChoices;
 use crate::gfx::converters::Converters;
+use crate::gfx::decoder::Decoder;
+use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
+use crate::gfx::fill_thirds_table::TABLE_LEN;
+use crate::gfx::fonts_store::Fonts as MenuFonts;
 use crate::gfx::formats::Formats;
+use crate::gfx::front::Surfaces;
+use crate::gfx::glyph_tables::GlyphTables;
+use crate::gfx::jade_store::JadeFont;
 use crate::gfx::locked::Locked;
 use crate::gfx::modes::Modes;
+use crate::gfx::pcx::Pcx;
+use crate::gfx::pcx_planes::LEN as PLANES_LEN;
+use crate::gfx::picture_store::Picture;
 use crate::gfx::png_file::PngFile;
 use crate::gfx::png_header::PngHeader;
 use crate::gfx::reports::Reports;
 use crate::gfx::rescale_picture::Rescaler;
-use crate::gfx::screen_state::ScreenMode;
+use crate::gfx::screen_state::{DrawSurface, ScreenMode};
 use crate::gfx::shots::Shots;
 use crate::gfx::strips::Strips;
 use crate::gfx::texture_pixels::Grading;
-use crate::session::Dword;
+use crate::gfx::texture_upload::Textures;
+use crate::gfx::typefaces::Fonts as Typefaces;
+use crate::gfx::upload::Upload;
+use crate::gfx::windscreen_drop_batch::WindscreenDrops;
+use crate::session::{Bytes, Dword};
 
 /// The PNG reader's state: the file being decoded, its header and the setting that turns
 /// PNG files off.
@@ -77,6 +94,97 @@ impl Pixel {
     }
 }
 
+/// The picture loader and the decoders: the picture being loaded, the decoded picture,
+/// the PCX file, the row of planes a screenshot writes and the showing switch.
+pub struct Pictures {
+    pub picture: Picture,
+    pub decoder: Decoder,
+    pub pcx: Pcx,
+    /// The planes of the row being written (a buffer, zero at the start).
+    pub planes: Bytes<PLANES_LEN>,
+    /// `g_showingPicture` (`dword_51B9C4`): 1 while a picture is being shown.
+    pub showing: Dword,
+}
+
+impl Pictures {
+    pub const fn new() -> Self {
+        Pictures {
+            picture: Picture::new(),
+            decoder: Decoder::new(),
+            pcx: Pcx::new(),
+            planes: Bytes::new([0; PLANES_LEN]),
+            showing: Dword::new(0),
+        }
+    }
+}
+
+/// The fonts: the menu fonts, the font objects, the jade font, the game fonts' memory and
+/// the glyph tables.
+pub struct FontStores {
+    pub menu_fonts: MenuFonts,
+    pub typefaces: Typefaces,
+    pub jade: JadeFont,
+    pub game_fonts: GameFontsMemory,
+    pub glyph_tables: GlyphTables,
+}
+
+impl FontStores {
+    pub const fn new() -> Self {
+        FontStores {
+            menu_fonts: MenuFonts::new(),
+            typefaces: Typefaces::new(),
+            jade: JadeFont::new(),
+            game_fonts: GameFontsMemory::new(),
+            glyph_tables: GlyphTables::new(),
+        }
+    }
+}
+
+/// The drawing target: the blitters' variables, the loading bar, the draw surface, the
+/// surface handles and the row and thirds tables.
+pub struct Drawing {
+    pub blit: Blitter,
+    pub bar: BarVars,
+    pub draw_surface: DrawSurface,
+    pub surfaces: Surfaces,
+    /// `dword_4F3FC4`: each row of a picture (602 of them), zero at the start: its offset in
+    /// the decoded buffer since phase 12 (the original's addresses).
+    pub row_table: [Dword; ROW_TABLE_ROOM as usize],
+    /// `byte_4F4B30`: n / 3 for the sums of three components (zero until filled).
+    pub thirds: Bytes<TABLE_LEN>,
+}
+
+impl Drawing {
+    pub const fn new() -> Self {
+        Drawing {
+            blit: Blitter::new(),
+            bar: BarVars::new(),
+            draw_surface: DrawSurface::new(),
+            surfaces: Surfaces::new(),
+            row_table: [const { Dword::new(0) }; ROW_TABLE_ROOM as usize],
+            thirds: Bytes::new([0; TABLE_LEN]),
+        }
+    }
+}
+
+/// The 3D card's textures: the upload's variables, the card's tables and the windscreen
+/// drops' batch.
+pub struct Card3d {
+    pub upload: Upload,
+    pub texture_tables: Textures,
+    pub windscreen_drop_batch: WindscreenDrops,
+}
+
+impl Card3d {
+    pub const fn new() -> Self {
+        Card3d {
+            upload: Upload::new(),
+            texture_tables: Textures::new(),
+            windscreen_drop_batch: WindscreenDrops::new(),
+        }
+    }
+}
+
 /// Module gfx's state.
 pub struct Gfx {
     pub display: Display,
@@ -96,6 +204,10 @@ pub struct Gfx {
     pub png: Png,
     /// The picture rescaler's variables.
     pub rescale: Rescaler,
+    pub pictures: Pictures,
+    pub fonts: FontStores,
+    pub drawing: Drawing,
+    pub card: Card3d,
 }
 
 /// The one instance. Reached through `gfx()`; `moved` registers its stores' places.
@@ -110,6 +222,10 @@ pub static GFX: Gfx = Gfx {
     grading: Grading::new(),
     png: Png::new(),
     rescale: Rescaler::new(),
+    pictures: Pictures::new(),
+    fonts: FontStores::new(),
+    drawing: Drawing::new(),
+    card: Card3d::new(),
 };
 
 /// The module's state, for a caller that does not take it as a parameter yet.

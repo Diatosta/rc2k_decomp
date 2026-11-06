@@ -15,7 +15,6 @@ use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::light_store::LIGHT_STATE;
 use crate::session::Dword;
 
 /// The most cars `g_carBlocks` has.
@@ -199,11 +198,23 @@ pub fn start_car() -> Result<(), Refused> {
             mode,
             crate::race::work_store::RACE_WORK.current_car.get(),
         );
-        LIGHT_STATE.line_place.set(place);
-        LIGHT_STATE.line_fraction.set(0);
+        crate::scene::owner::scene()
+            .lights
+            .state
+            .line_place
+            .set(place);
+        crate::scene::owner::scene()
+            .lights
+            .state
+            .line_fraction
+            .set(0);
         if replay.finish.no_place.get() != 0 {
-            LIGHT_STATE.line_place.set(0);
-            LIGHT_STATE.line_fraction.set(0);
+            crate::scene::owner::scene().lights.state.line_place.set(0);
+            crate::scene::owner::scene()
+                .lights
+                .state
+                .line_fraction
+                .set(0);
         }
         crate::race::start_place::place_car_on_line(course)?;
         if replay.finish.no_place.get() == 0 {

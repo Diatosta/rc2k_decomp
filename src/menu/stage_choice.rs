@@ -3,7 +3,6 @@
 //! drawing the map again.
 
 use crate::errors::{FatalError, Refused};
-use crate::gfx::picture_store::PICTURE;
 use crate::menu::owner::Menus;
 use crate::screens::draw_stage_records::selection;
 use crate::session::Dword;
@@ -60,7 +59,9 @@ pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
         return Err(NO_MAP.into());
     }
     convert_picture_now()?;
-    PICTURE
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
         .flags
         .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
     picture_as_surface()?;

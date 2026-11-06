@@ -164,10 +164,13 @@ pub struct SceneDraw {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static DRAW: SceneDraw =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl SceneDraw {
+    /// The piece with the image's first values (a static of its own since 2026-10-29: it left
+    /// the race block, phase 13, `race::store::LEFT`; the owner `scene::owner::Scene` holds it).
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x623F80, the first byte of the piece.
 pub const START: usize = 0x623F80;
@@ -179,7 +182,9 @@ const _: () = assert!(END - START == core::mem::size_of::<SceneDraw>());
 /// Where IDA 0x623F80 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&DRAW))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::scene::owner::scene().drawing.scene,
+    ))
 }
 
 #[cfg(test)]
@@ -189,7 +194,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&DRAW, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::scene::owner::scene().drawing.scene,
+            START,
+            END,
+        );
     }
 
     #[test]

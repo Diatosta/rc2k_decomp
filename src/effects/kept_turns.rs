@@ -2,16 +2,27 @@
 //! `dword_7692A6` ..) by two angles: `effects::turn_kept_vectors` (0x4C13CA) and its two
 //! steps `effects::turn_kept_xz` (0x4C1411) and `effects::turn_kept_zy` (0x4C14D2).
 
-use crate::effects::view_vectors::KEPT;
 use crate::math::x87;
 use crate::session::{Dword, Float};
 
 /// The kept vectors, in the original's order.
 fn vectors() -> [&'static [Dword; 3]; 3] {
     [
-        &KEPT.kept_a.vector,
-        &KEPT.kept_c.vector,
-        &KEPT.kept_b.vector,
+        &crate::effects::owner::effects()
+            .frame
+            .kept_view
+            .kept_a
+            .vector,
+        &crate::effects::owner::effects()
+            .frame
+            .kept_view
+            .kept_c
+            .vector,
+        &crate::effects::owner::effects()
+            .frame
+            .kept_view
+            .kept_b
+            .vector,
     ]
 }
 
@@ -28,19 +39,48 @@ fn turn_kept(a: usize, b: usize, sc: &[Float; 2]) {
 
 /// `effects::turn_kept_xz`: x and z by the second angle.
 pub fn turn_kept_xz() {
-    turn_kept(0, 2, &KEPT.second_sine_cosine);
+    turn_kept(
+        0,
+        2,
+        &crate::effects::owner::effects()
+            .frame
+            .kept_view
+            .second_sine_cosine,
+    );
 }
 
 /// `effects::turn_kept_zy`: z and y by the first angle.
 pub fn turn_kept_zy() {
-    turn_kept(2, 1, &KEPT.first_sine_cosine);
+    turn_kept(
+        2,
+        1,
+        &crate::effects::owner::effects()
+            .frame
+            .kept_view
+            .first_sine_cosine,
+    );
 }
 
 /// `effects::turn_kept_vectors`: the sines and cosines, then both turns.
 pub fn turn_kept_vectors() {
     for (angle, to) in [
-        (&KEPT.first_angle, &KEPT.first_sine_cosine),
-        (&KEPT.second_angle, &KEPT.second_sine_cosine),
+        (
+            &crate::effects::owner::effects().frame.kept_view.first_angle,
+            &crate::effects::owner::effects()
+                .frame
+                .kept_view
+                .first_sine_cosine,
+        ),
+        (
+            &crate::effects::owner::effects()
+                .frame
+                .kept_view
+                .second_angle,
+            &crate::effects::owner::effects()
+                .frame
+                .kept_view
+                .second_sine_cosine,
+        ),
     ] {
         let (s, c) = x87::sine_and_cosine(angle.bits());
         to[0].set_bits(s);

@@ -21,13 +21,18 @@ pub struct JadeFont {
     pub _tail: Bytes<3>,
 }
 
-pub static JADE_FONT: JadeFont = JadeFont {
-    _lead: Bytes::new([0; 4]),
-    glyphs: Bytes::new([0; 5120]),
-    colour: Dword::new(0x1234),
-    name: Bytes::new(with_runs::<21>(&[(0, b"files\\d\\gfx\\jade.bun")])),
-    _tail: Bytes::new([0; 3]),
-};
+impl JadeFont {
+    /// The first values are the image's.
+    pub const fn new() -> Self {
+        JadeFont {
+            _lead: Bytes::new([0; 4]),
+            glyphs: Bytes::new([0; 5120]),
+            colour: Dword::new(0x1234),
+            name: Bytes::new(with_runs::<21>(&[(0, b"files\\d\\gfx\\jade.bun")])),
+            _tail: Bytes::new([0; 3]),
+        }
+    }
+}
 
 impl JadeFont {
     pub const START: usize = 0x4F52C4;
@@ -35,7 +40,7 @@ impl JadeFont {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const JADE_FONT) + 4) as usize
+        (crate::pointers::game_address(&raw const crate::gfx::owner::gfx().fonts.jade) + 4) as usize
     }
 }
 

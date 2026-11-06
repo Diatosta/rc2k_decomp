@@ -31,7 +31,6 @@ use crate::physics::flow::copy_cells;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::walls;
 
 /// The four corners (scene point numbers) of face `face`.
@@ -62,8 +61,13 @@ pub fn edge_normal(race: &Race, first: u32, second: u32) -> Result<[u32; 4], Ref
         .wrapping_sub(PHYSICS.edge_points[1].get());
     let d = [dx, dz];
     x87_1(&race.course, d);
-    DRAW.scratch.set(DRAW.scratch.get() & 0xFFFF);
-    let heading = (DRAW.scratch.get() << 16).wrapping_add(0x4000_0000);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set(crate::scene::owner::scene().drawing.scene.scratch.get() & 0xFFFF);
+    let heading =
+        (crate::scene::owner::scene().drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
     PHYSICS.wall_heading.set(heading);
     let out = {
         turn_float_point_xz(
@@ -124,7 +128,11 @@ fn x87_1(course: &Course, d: [u32; 2]) {
     let t4 = t2 * t3;
     let t5 = ld(course.numbers.k65536.bits());
     let t6 = t4 * t5;
-    DRAW.scratch.set_bits(to_int(t6) as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(to_int(t6) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

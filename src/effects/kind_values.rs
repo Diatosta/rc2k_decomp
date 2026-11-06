@@ -3,9 +3,7 @@
 //! tables: the values of the marks' kind (`g_marksKind`) from tables of 0x22 floats and
 //! of 0x22 three-float entries.
 
-use crate::effects::kind_store::{
-    CONSTS_1, CONSTS_2, EXTRA_2, EXTRAS_1, KindConsts, QUAD_1, QUAD_2, QuadWork, TABLES_1, TABLES_2,
-};
+use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork, TABLES_1, TABLES_2};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::session::{Dword, Float};
@@ -47,9 +45,9 @@ pub static FIRST: KindSet = KindSet {
     ],
     count: &TABLES_1.count,
     consts: &CONSTS_1,
-    quad: &QUAD_1,
-    extra: &EXTRAS_1.extra,
-    divisor_copy: Some(&EXTRAS_1.divisor_copy),
+    quad: &crate::effects::owner::EFFECTS.kinds.quad_1,
+    extra: &crate::effects::owner::EFFECTS.kinds.extras_1.extra,
+    divisor_copy: Some(&crate::effects::owner::EFFECTS.kinds.extras_1.divisor_copy),
 };
 
 pub static SECOND: KindSet = KindSet {
@@ -67,14 +65,18 @@ pub static SECOND: KindSet = KindSet {
     ],
     count: &TABLES_2.count,
     consts: &CONSTS_2,
-    quad: &QUAD_2,
-    extra: &EXTRA_2.extra,
+    quad: &crate::effects::owner::EFFECTS.kinds.quad_2,
+    extra: &crate::effects::owner::EFFECTS.kinds.extra_2.extra,
     divisor_copy: None,
 };
 
 /// The kind's values of one set. Refuses a kind past the tables (0x22).
 pub fn set_kind_values(k: &KindSet) -> Result<(), Refused> {
-    let kind: u32 = MARKS_KIND.kind.bits();
+    let kind: u32 = crate::effects::owner::effects()
+        .kinds
+        .marks_kind
+        .kind
+        .bits();
     if kind >= KINDS {
         return Err(BadInput("the marks' kind is past the tables (0x22)").into());
     }
@@ -138,9 +140,13 @@ pub struct MarksKind {
     pub kind: Dword,
 }
 
-pub static MARKS_KIND: MarksKind = MarksKind {
-    kind: Dword::new(0x0),
-};
+impl MarksKind {
+    pub const fn new() -> Self {
+        Self {
+            kind: Dword::new(0x0),
+        }
+    }
+}
 
 impl MarksKind {
     pub const START: usize = 0x769232;
@@ -155,7 +161,7 @@ mod marks_kind_tests {
     fn marks_kind_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksKind>(), MarksKind::LEN);
-        let p = (&raw const MARKS_KIND).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().kinds.marks_kind).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksKind>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

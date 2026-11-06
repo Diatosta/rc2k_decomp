@@ -31,10 +31,7 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::race::switches_store::FRAME_SWITCHES;
-use crate::scene::draw_store::DRAW;
 use crate::scene::light_dot::light_dot;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_store::OBJECT_WORK;
 use crate::session::MACHINE;
 
 // ---- game data ----
@@ -68,22 +65,37 @@ fn set_normal(number: u32) -> Result<(), BadInput> {
         return Err(BadInput("no records for the points"));
     }
     let place = crate::scene::reading::PointRecords::new()?.place(number)?;
-    LIGHT_WORK.light_colour.set_bits(0u32);
-    crate::session::write_bits(&LIGHT_WORK.light_dot_point, place);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .light_colour
+        .set_bits(0u32);
+    crate::session::write_bits(
+        &crate::scene::owner::scene().lights.work.light_dot_point,
+        place,
+    );
     Ok(())
 }
 
 /// The start of `sub_4511F1` and of `sub_451296`: the light on the normal as a number.
 fn light() -> i32 {
-    let strength = OBJECT_WORK.light_strength.bits() as i32;
+    let strength = crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .light_strength
+        .bits() as i32;
     if strength == 0 {
         return 0;
     }
     crate::session::write_bits(
-        &LIGHT_WORK.light_dot_light,
-        crate::session::read_bits::<_, 3>(&DRAW.light_direction),
+        &crate::scene::owner::scene().lights.work.light_dot_light,
+        crate::session::read_bits::<_, 3>(
+            &crate::scene::owner::scene().drawing.scene.light_direction,
+        ),
     );
-    LIGHT_WORK
+    crate::scene::owner::scene()
+        .lights
+        .work
         .light_dot_factor
         .set_bits(x87::from_int(strength));
     light_dot()
@@ -92,9 +104,23 @@ fn light() -> i32 {
 /// Where `sub_4511F1` would look in the table, checked.
 fn table_place() -> Result<usize, BadInput> {
     let place = held(
-        light().wrapping_add(OBJECT_WORK.light_level.bits() as i32),
-        OBJECT_WORK.light_lowest.bits() as i32,
-        OBJECT_WORK.light_highest.bits() as i32,
+        light().wrapping_add(
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .light_level
+                .bits() as i32,
+        ),
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .light_lowest
+            .bits() as i32,
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .light_highest
+            .bits() as i32,
     );
     if !(0..TABLE_LEN as i32).contains(&place) {
         return Err(BadInput("a place outside the light table"));
@@ -109,10 +135,14 @@ fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
     let place = place?;
     let colour = plus(
         crate::scene::owner::scene().light_tables.light_table[place].get(),
-        LIGHT_WORK.light_colour.bits(),
+        crate::scene::owner::scene().lights.work.light_colour.bits(),
         mmx,
     );
-    LIGHT_WORK.light_colour.set_bits(colour);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .light_colour
+        .set_bits(colour);
     Ok(colour)
 }
 
@@ -125,7 +155,7 @@ fn blend(course: &crate::race::owner_course::Course) {
         (amount, &course.stage_prefs.lit_colour)
     };
     let towards = crate::session::read_bits::<_, 3>(towards).map(|bits| bits as i32);
-    let mut colour: u32 = LIGHT_WORK.light_colour.bits();
+    let mut colour: u32 = crate::scene::owner::scene().lights.work.light_colour.bits();
     // The third byte first, towards the first of the three.
     for (n, to) in towards.into_iter().enumerate() {
         let at = (2 - n) * 8;
@@ -133,14 +163,18 @@ fn blend(course: &crate::race::owner_course::Course) {
         let moved = (amount.wrapping_mul(to.wrapping_sub(byte)) >> 8).wrapping_add(byte);
         colour = colour & !(0xFF << at) | (moved.clamp(0, 0xFF) as u32) << at;
     }
-    LIGHT_WORK.light_colour.set_bits(colour);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .light_colour
+        .set_bits(colour);
 }
 
 pub fn vertex_light(
     course: &crate::race::owner_course::Course,
     number: u32,
 ) -> Result<u32, BadInput> {
-    let kind: u32 = LIGHT_WORK.light_kind.bits();
+    let kind: u32 = crate::scene::owner::scene().lights.work.light_kind.bits();
     let mmx = MACHINE.has_mmx.get() != 0;
     if kind == 4 {
         // 0 plus the lit colour.
@@ -150,11 +184,19 @@ pub fn vertex_light(
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }
-    let added: u32 = OBJECT_WORK.light_added.bits();
+    let added: u32 = crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .light_added
+        .bits();
     match kind {
         2 | 5 => Ok(plus(plus(0, lit(number, mmx)?, mmx), added, mmx)),
         1 => {
-            let level: u32 = OBJECT_WORK.light_level.bits();
+            let level: u32 = crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .light_level
+                .bits();
             if level >= TABLE_LEN {
                 return Err(BadInput("a place outside the light table"));
             }
@@ -167,10 +209,26 @@ pub fn vertex_light(
         3 => {
             set_normal(number)?;
             // The colour was just set to 0.
-            let colour = plus(plus(LIGHT_WORK.view_light_base.bits(), 0, mmx), added, mmx);
-            LIGHT_WORK.light_colour.set_bits(colour);
+            let colour = plus(
+                plus(
+                    crate::scene::owner::scene()
+                        .lights
+                        .work
+                        .view_light_base
+                        .bits(),
+                    0,
+                    mmx,
+                ),
+                added,
+                mmx,
+            );
+            crate::scene::owner::scene()
+                .lights
+                .work
+                .light_colour
+                .set_bits(colour);
             blend(course);
-            Ok(LIGHT_WORK.light_colour.bits())
+            Ok(crate::scene::owner::scene().lights.work.light_colour.bits())
         }
         _ => Ok(number),
     }

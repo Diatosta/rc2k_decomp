@@ -13,26 +13,24 @@
 //! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC).
 
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::frame_state::DRAW_WORK;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
-use crate::scene::draw_store::DRAW;
 
 /// The Rust version (see the header): `colour` (ecx), `size` (edx).
 pub fn draw_particle(frame: &Frame, place: [[u8; 10]; 3], colour: u32, size: u32) {
     let turned = x87::column_turn(&place, &frame.matrices.view_matrix);
     for (n, v) in turned.into_iter().enumerate() {
-        DRAW_WORK.turned[n].set_bits(v);
+        crate::effects::owner::effects().frame.draw_work.turned[n].set_bits(v);
     }
     let [a, b, c] = turned;
-    if (c as i32) <= DRAW_WORK.near.bits() as i32 {
+    if (c as i32) <= crate::effects::owner::effects().frame.draw_work.near.bits() as i32 {
         return;
     }
     let k = [
-        DRAW.view_scale.bits(),
-        DRAW.view_centre[0].bits(),
-        DRAW.view_centre[1].bits(),
-        DRAW_WORK.z_k.bits(),
+        crate::scene::owner::scene().drawing.scene.view_scale.bits(),
+        crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        crate::effects::owner::effects().frame.draw_work.z_k.bits(),
     ];
     let sq = x87::particle_square(a, b, c, k, size as i32);
     for n in 0..4 {
@@ -42,7 +40,7 @@ pub fn draw_particle(frame: &Frame, place: [[u8; 10]; 3], colour: u32, size: u32
         v.x.set_bits(sq[6 + n]);
         v.y.set_bits(sq[2 + n]);
     }
-    DRAW_WORK.half[0].set_bits(sq[0]);
-    DRAW_WORK.half[1].set_bits(sq[0]);
+    crate::effects::owner::effects().frame.draw_work.half[0].set_bits(sq[0]);
+    crate::effects::owner::effects().frame.draw_work.half[1].set_bits(sq[0]);
     crate::effects::clip_quad::draw_fan();
 }

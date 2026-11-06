@@ -4,7 +4,6 @@
 //! object's faces of one kind, centred, turned, graded by height and ordered. These are the
 //! leaves; every function takes the record in ebp.
 
-use crate::effects::kind_values::MARKS_KIND;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -268,15 +267,14 @@ pub fn gather_spline_points(
     object: u32,
     kind: u32,
 ) -> Result<(), Refused> {
-    use crate::scene::object_slots_store::OBJECT_SLOTS;
     use crate::scene::objects::FACES;
     {
         let object = object as usize;
         if object >= 0x100 {
             return Err(BadInput("an object past 0xFF").into());
         }
-        let first: u32 = OBJECT_SLOTS.first_face[object].get();
-        let faces: u32 = OBJECT_SLOTS.face_counts[object].get();
+        let first: u32 = crate::scene::owner::scene().objects.slots.first_face[object].get();
+        let faces: u32 = crate::scene::owner::scene().objects.slots.face_counts[object].get();
         if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
             return Err(BadInput("an object's faces past g_faces").into());
         }
@@ -540,13 +538,12 @@ pub fn bound_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 /// What `make_spline` refuses for an object: past 0xFF, a negative face count or faces past
 /// `g_faces`, an angle of its tables `fsincos` cannot take.
 fn spline_checks(paths: &Paths, object: u32) -> Result<(), Refused> {
-    use crate::scene::object_slots_store::OBJECT_SLOTS;
     use crate::scene::objects::FACES;
     if object >= 0x100 {
         return Err(BadInput("an object past 0xFF").into());
     }
-    let first: u32 = OBJECT_SLOTS.first_face[object as usize].get();
-    let faces: u32 = OBJECT_SLOTS.face_counts[object as usize].get();
+    let first: u32 = crate::scene::owner::scene().objects.slots.first_face[object as usize].get();
+    let faces: u32 = crate::scene::owner::scene().objects.slots.face_counts[object as usize].get();
     if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
         return Err(BadInput("an object's faces past g_faces").into());
     }
@@ -640,7 +637,11 @@ pub fn load_splines(course: &Course, paths: &Paths, resume: u32) -> Result<(), R
     if loaded != 0 && loaded != resume {
         return Err(BadInput("the splines' mark is neither 0 nor loc_4B9706").into());
     }
-    let kind: u32 = MARKS_KIND.kind.bits();
+    let kind: u32 = crate::effects::owner::effects()
+        .kinds
+        .marks_kind
+        .kind
+        .bits();
     if kind >= KINDS {
         return Err(BadInput("a marks' kind of 0x22 or more").into());
     }

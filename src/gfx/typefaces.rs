@@ -134,81 +134,85 @@ pub struct Fonts {
     pub objects: [FontObject; COUNT],
 }
 
-/// The font objects; the first values are the image's (the glyph tables and palettes come
-/// with `gfx::build_fonts`; the loading font's palette is the image's `unk_51DEC4`, made a
-/// home at start).
-pub static FONTS: Fonts = Fonts {
-    objects: [
-        FontObject::new(4, 10, 0),
-        FontObject::new(3, 10, 0),
-        FontObject::new(0, 10, 0),
-        FontObject::new(2, 10, 0),
-        FontObject::new(4, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-        FontObject::new(4, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(3, 23, 0),
-        FontObject::new(0, 23, 0),
-        FontObject::new(2, 23, 0),
-        FontObject::new(4, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(3, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0),
-        FontObject::new(0, 27, 0),
-        FontObject::new(2, 27, 0x51dec4),
-        FontObject::new(3, 13, 0),
-        FontObject::new(0, 13, 0),
-        FontObject::new(2, 13, 0),
-        FontObject::new(3, 21, 0),
-        FontObject::new(0, 21, 0),
-        FontObject::new(2, 21, 0),
-    ],
-};
+impl Fonts {
+    /// The font objects; the first values are the image's (the glyph tables and palettes come
+    /// with `gfx::build_fonts`; the loading font's palette is the image's `unk_51DEC4`, made a
+    /// home at start).
+    pub const fn new() -> Self {
+        Fonts {
+            objects: [
+                FontObject::new(4, 10, 0),
+                FontObject::new(3, 10, 0),
+                FontObject::new(0, 10, 0),
+                FontObject::new(2, 10, 0),
+                FontObject::new(4, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+                FontObject::new(4, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(3, 23, 0),
+                FontObject::new(0, 23, 0),
+                FontObject::new(2, 23, 0),
+                FontObject::new(4, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(3, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0),
+                FontObject::new(0, 27, 0),
+                FontObject::new(2, 27, 0x51dec4),
+                FontObject::new(3, 13, 0),
+                FontObject::new(0, 13, 0),
+                FontObject::new(2, 13, 0),
+                FontObject::new(3, 21, 0),
+                FontObject::new(0, 21, 0),
+                FontObject::new(2, 21, 0),
+            ],
+        }
+    }
+}
 
 #[cfg(test)]
 /// Where the block is (`moved::MOVED`'s home for IDA 0x51E3A4).
 pub fn home() -> usize {
-    crate::pointers::game_address(&raw const FONTS) as usize
+    crate::pointers::game_address(&raw const crate::gfx::owner::gfx().fonts.typefaces) as usize
 }
 
 /// A font of the block: its number (the object's place less the first's, in 0x20s).
@@ -234,7 +238,7 @@ impl FontId {
     }
 
     pub fn object(self) -> &'static FontObject {
-        &FONTS.objects[self.0]
+        &crate::gfx::owner::gfx().fonts.typefaces.objects[self.0]
     }
 
     /// Where the object is.
@@ -368,7 +372,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FONTS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().fonts.typefaces,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -379,7 +387,9 @@ mod tests {
         assert_eq!(crate::moved::place(START), home());
         assert_eq!(
             crate::moved::place(0x51EAB8),
-            FONTS.objects[56].palette.addr() as usize
+            crate::gfx::owner::gfx().fonts.typefaces.objects[56]
+                .palette
+                .addr() as usize
         );
         assert_eq!(fonts::MEASURE.addr() as usize, home() + 0x51E824 - START);
     }

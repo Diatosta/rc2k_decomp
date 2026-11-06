@@ -4,8 +4,6 @@
 
 use crate::effects::paths::Paths;
 use crate::effects::rain::Weather;
-use crate::effects::tuning::MARKS_FLOATS;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
@@ -41,20 +39,24 @@ pub struct MarksClock {
     pub _gap_764ff8: Bytes<4>,
 }
 
-pub static CLOCK: MarksClock = MarksClock {
-    started: Dword::new(0x0),
-    last: Dword::new(0x0),
-    frame_ticks: Dword::new(0x0),
-    ticks_scaled: Float::from_bits(0x0),
-    sixteenth: Dword::new(0x0),
-    quarter: Dword::new(0x0),
-    reciprocal: Float::from_bits(0x0),
-    reciprocal_scaled: Float::from_bits(0x0),
-    now: Dword::new(0x0),
-    before: Dword::new(0x0),
-    settings_copies: [Dword::new(0x0), Dword::new(0x0)],
-    _gap_764ff8: Bytes::new([0; 4]),
-};
+impl MarksClock {
+    pub const fn new() -> Self {
+        Self {
+            started: Dword::new(0x0),
+            last: Dword::new(0x0),
+            frame_ticks: Dword::new(0x0),
+            ticks_scaled: Float::from_bits(0x0),
+            sixteenth: Dword::new(0x0),
+            quarter: Dword::new(0x0),
+            reciprocal: Float::from_bits(0x0),
+            reciprocal_scaled: Float::from_bits(0x0),
+            now: Dword::new(0x0),
+            before: Dword::new(0x0),
+            settings_copies: [Dword::new(0x0), Dword::new(0x0)],
+            _gap_764ff8: Bytes::new([0; 4]),
+        }
+    }
+}
 
 impl MarksClock {
     pub const START: usize = 0x764FC8;
@@ -63,7 +65,8 @@ impl MarksClock {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const CLOCK) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::effects().setup.clock)
+            as usize
     }
 }
 
@@ -87,13 +90,15 @@ pub fn clock_at(mk: usize) -> &'static MarksClock {
 /// turned right 10 and turned right 20; `dword_8BC405` 0.
 pub fn seed_noise(weather: &Weather) {
     // Converted: `rc2k_core::effects::noise::seed_noise`.
-    let (tables, seed) = rc2k_core::effects::noise::seed_noise(MARKS_WORK.seed.get());
+    let (tables, seed) = rc2k_core::effects::noise::seed_noise(
+        crate::effects::owner::effects().setup.work.seed.get(),
+    );
     for (table, values) in weather.rain.noise.iter().zip(tables) {
         for (cell, v) in table.iter().zip(values) {
             cell.set(v);
         }
     }
-    MARKS_WORK.seed.set(seed);
+    crate::effects::owner::effects().setup.work.seed.set(seed);
     weather.rain.drawn.set(0);
 }
 
@@ -132,7 +137,7 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
 
 /// `effects::clear_slots` (0x4C967B): the first dword of the 0x20 slots 0.
 pub fn clear_slots() {
-    for slot in &crate::effects::mark_slots::SLOTS.slots {
+    for slot in &crate::effects::owner::effects().blocks.slots.slots {
         slot.life.set(0);
     }
 }
@@ -144,7 +149,7 @@ pub fn clear_slots() {
 /// reciprocal one over them (`fidiv`) and that times `flt_7651BC`, and the ticks' bits
 /// taken as a float (section 16) times `flt_93CC14`.
 pub fn tick_clock() -> Result<(), Refused> {
-    let c = &CLOCK;
+    let c = &crate::effects::owner::effects().setup.clock;
     {
         let clock: u32 = PHYSICS.scene_clock.bits();
         if c.started.get() == 0 {
@@ -153,8 +158,13 @@ pub fn tick_clock() -> Result<(), Refused> {
                 r.set(clock);
             }
             c.frame_ticks.set(0);
-            c.reciprocal
-                .set_bits(x87::loaded(CLOCK_K.first_reciprocal.bits()));
+            c.reciprocal.set_bits(x87::loaded(
+                crate::effects::owner::effects()
+                    .setup
+                    .clock_k
+                    .first_reciprocal
+                    .bits(),
+            ));
             return Ok(());
         }
         c.now.set(clock);
@@ -170,12 +180,20 @@ pub fn tick_clock() -> Result<(), Refused> {
         c.frame_ticks.set(ticks);
         c.quarter.set(ticks >> 2);
         c.sixteenth.set(ticks >> 4);
-        let (reciprocal, scaled) =
-            x87::reciprocal_int_and_times(ticks as i32, MARKS_FLOATS.quarter.bits());
+        let (reciprocal, scaled) = x87::reciprocal_int_and_times(
+            ticks as i32,
+            crate::effects::owner::effects().setup.floats.quarter.bits(),
+        );
         c.reciprocal.set_bits(reciprocal);
         c.reciprocal_scaled.set_bits(scaled);
-        c.ticks_scaled
-            .set_bits(x87::mul(ticks, CLOCK_K.ticks_scale.bits()));
+        c.ticks_scaled.set_bits(x87::mul(
+            ticks,
+            crate::effects::owner::effects()
+                .setup
+                .clock_k
+                .ticks_scale
+                .bits(),
+        ));
     }
     Ok(())
 }
@@ -284,7 +302,7 @@ pub fn make_noise_curve(weather: &Weather) -> Result<(), Refused> {
             cell.set(*v);
         }
     }
-    MARKS_WORK.seed.set(t.seed);
+    crate::effects::owner::effects().setup.work.seed.set(t.seed);
     weather.snow.flag.set(0);
     let values = weather
         .snow_light
@@ -302,7 +320,7 @@ pub fn make_noise_curve(weather: &Weather) -> Result<(), Refused> {
         cell.set_bits(first);
     }
     // The view's centre (`dword_62409C`, `dword_6240A0`).
-    let centre = &crate::scene::draw_store::DRAW.view_centre;
+    let centre = &crate::scene::owner::scene().drawing.scene.view_centre;
     for (quad, from) in [
         (&weather.snow.quad_b, &centre[0]),
         (&weather.snow.quad_c, &centre[1]),
@@ -326,15 +344,19 @@ pub struct SettingsPointer {
     pub is_set: Dword,
 }
 
-pub static SETTINGS: SettingsPointer = SettingsPointer {
-    is_set: Dword::new(0),
-};
+impl SettingsPointer {
+    pub const fn new() -> Self {
+        Self {
+            is_set: Dword::new(0),
+        }
+    }
+}
 
 /// The marks' settings the race handed `effects::init_marks` (`race::marks_settings_store`,
 /// the one record `g_marksSettings` points at); refused while it points at none, where the
 /// original's reads through it would fault.
 pub fn marks() -> Result<&'static crate::race::marks_settings_store::MarksSettings, BadInput> {
-    if SETTINGS.is_set.get() == 0 {
+    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings"));
     }
     Ok(&crate::race::marks_settings_store::MARKS_SETTINGS)
@@ -355,11 +377,15 @@ pub struct ClockK {
     pub ticks_scale: Float,
 }
 
-/// ClockK's first values.
-pub static CLOCK_K: ClockK = ClockK {
-    first_reciprocal: Float::from_bits(0x358637BD),
-    ticks_scale: Float::from_bits(0x3DCCCCCD),
-};
+impl ClockK {
+    /// ClockK's first values.
+    pub const fn new() -> Self {
+        Self {
+            first_reciprocal: Float::from_bits(0x358637BD),
+            ticks_scale: Float::from_bits(0x3DCCCCCD),
+        }
+    }
+}
 
 impl ClockK {
     pub const START: usize = 0x93CC10;
@@ -382,7 +408,8 @@ mod clock_k_tests {
     fn clock_k_starts_as_the_games() {
         assert_eq!(size_of::<ClockK>(), ClockK::LEN);
         assert!(
-            bytes(&CLOCK_K) == crate::moved::image_bytes(ClockK::START, ClockK::LEN),
+            bytes(&crate::effects::owner::effects().setup.clock_k)
+                == crate::moved::image_bytes(ClockK::START, ClockK::LEN),
             "CLOCK_K starts differently from the image"
         );
         assert_eq!(
@@ -419,7 +446,11 @@ mod clock_tests {
         assert_eq!(size_of::<SettingsPointer>(), SettingsPointer::LEN);
         assert_eq!(
             crate::moved::place(SettingsPointer::START),
-            SETTINGS.is_set.addr() as usize
+            crate::effects::owner::effects()
+                .setup
+                .settings
+                .is_set
+                .addr() as usize
         );
     }
 }

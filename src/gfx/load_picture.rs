@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::gfx::clear_picture::clear_picture;
-use crate::gfx::decoder::DECODER;
 use crate::gfx::picture::has_picture;
 use crate::gfx::picture::set_size;
 use crate::gfx::read_picture_file::read_picture_file;
@@ -40,7 +39,10 @@ pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refuse
     if !read? {
         return Ok(false);
     }
-    if sizes::rescaled(DECODER.width.get(), screen_width) {
+    if sizes::rescaled(
+        crate::gfx::owner::gfx().pictures.decoder.width.get(),
+        screen_width,
+    ) {
         rescale_picture(&crate::gfx::owner::gfx().rescale)?;
     }
     Ok(true)

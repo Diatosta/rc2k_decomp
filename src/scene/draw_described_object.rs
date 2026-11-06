@@ -23,10 +23,6 @@ use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
 /// (0x50 ..) without its block.
@@ -80,8 +76,16 @@ fn draw_description(
     }
     FRAME_SWITCHES.object_number.set_bits(object);
     let end = || {
-        OBJECT_WORK.only_object.set(0u32);
-        OBJECT_WORK.object_place.set_bits(u32::MAX);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .only_object
+            .set(0u32);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .object_place
+            .set_bits(u32::MAX);
     };
     if object > 0x64 {
         end();
@@ -91,7 +95,11 @@ fn draw_description(
         end();
         return Ok(());
     }
-    OBJECT_WORK.object_place.set_bits(place);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .object_place
+        .set_bits(place);
     if !shown {
         end();
         return Ok(());
@@ -101,69 +109,158 @@ fn draw_description(
     let byte = |o: u32| desc[o as usize] as u32;
     let get = |o: usize| u32::from_le_bytes(desc[o..o + 4].try_into().unwrap());
     let at: [u32; 3] = crate::race::scene_points::point_number(place)?;
-    OBJECT_WORK.place[0].set(at[0].wrapping_add(get(0x30)));
-    OBJECT_WORK.place[1].set(at[1].wrapping_add(get(0x34)));
-    OBJECT_WORK.place[2].set(at[2].wrapping_add(get(0x38)));
-    OBJECT_WORK.angles[0].set((byte(8) << 8) & 0xFFFF);
-    OBJECT_WORK.angles[1].set(byte(0xC) << 8);
-    OBJECT_WORK.angles[2].set(byte(0x10) << 8);
-    OBJECT_WORK.described_cleared[1].set(0u32);
-    OBJECT_WORK.described_cleared[0].set(0u32);
-    OBJECT_WORK.described_cleared[2].set(0u32);
+    crate::scene::owner::scene().drawing.object_work.place[0].set(at[0].wrapping_add(get(0x30)));
+    crate::scene::owner::scene().drawing.object_work.place[1].set(at[1].wrapping_add(get(0x34)));
+    crate::scene::owner::scene().drawing.object_work.place[2].set(at[2].wrapping_add(get(0x38)));
+    crate::scene::owner::scene().drawing.object_work.angles[0].set((byte(8) << 8) & 0xFFFF);
+    crate::scene::owner::scene().drawing.object_work.angles[1].set(byte(0xC) << 8);
+    crate::scene::owner::scene().drawing.object_work.angles[2].set(byte(0x10) << 8);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .described_cleared[1]
+        .set(0u32);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .described_cleared[0]
+        .set(0u32);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .described_cleared[2]
+        .set(0u32);
     if byte(0x11) != 0 {
-        OBJECT_WORK.described_cleared[2].set(byte(9) << 8);
-        OBJECT_WORK.described_cleared[0].set(byte(0x12) << 8);
-        OBJECT_WORK.described_cleared[1].set(byte(0x13) << 8);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .described_cleared[2]
+            .set(byte(9) << 8);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .described_cleared[0]
+            .set(byte(0x12) << 8);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .described_cleared[1]
+            .set(byte(0x13) << 8);
     }
-    OBJECT_WORK.other_light.set(get(0x2C));
-    OBJECT_WORK.only_object.set((byte(0x25) >> 1) & 3);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .other_light
+        .set(get(0x2C));
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .only_object
+        .set((byte(0x25) >> 1) & 3);
     let light = |lowest: u32, highest: u32, level: u32, strength: u32| {
-        OBJECT_WORK.light_lowest.set(lowest);
-        OBJECT_WORK.light_highest.set(highest);
-        OBJECT_WORK.light_level.set(level);
-        OBJECT_WORK.light_strength.set(strength);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .light_lowest
+            .set(lowest);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .light_highest
+            .set(highest);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .light_level
+            .set(level);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .light_strength
+            .set(strength);
     };
     if object == 0x38 || (0x3A..0x40).contains(&object) {
-        OBJECT_WORK.angles[0].set(0x2000u32);
-        OBJECT_WORK.angles[1].set(0u32);
-        OBJECT_WORK.angles[2].set(0u32);
-        OBJECT_WORK.size.set(byte(0x18));
+        crate::scene::owner::scene().drawing.object_work.angles[0].set(0x2000u32);
+        crate::scene::owner::scene().drawing.object_work.angles[1].set(0u32);
+        crate::scene::owner::scene().drawing.object_work.angles[2].set(0u32);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .size
+            .set(byte(0x18));
         light(0xFF, 0xFF, 0xFF, 0);
-        OBJECT_WORK.light_turns[0].set(0u32);
-        OBJECT_WORK.light_turns[1].set(0u32);
+        crate::scene::owner::scene().drawing.object_work.light_turns[0].set(0u32);
+        crate::scene::owner::scene().drawing.object_work.light_turns[1].set(0u32);
         if (object == 0x3E || object == 0x3D)
             && [0x28u32, 0x29, 0x2A, 0x2B, 0x19, 0x1A, 0x1B, 0x20]
                 .iter()
                 .any(|&o| byte(o) != 0)
         {
-            OBJECT_WORK.light_highest.set(0x80u32);
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .light_highest
+                .set(0x80u32);
         }
     } else {
-        OBJECT_WORK.size.set(byte(0x18));
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .size
+            .set(byte(0x18));
         light(byte(0x14), byte(0x15), byte(0x16), byte(0x17));
-        OBJECT_WORK.light_turns[0].set(byte(0x22));
-        OBJECT_WORK.light_turns[1].set(byte(0x23));
+        crate::scene::owner::scene().drawing.object_work.light_turns[0].set(byte(0x22));
+        crate::scene::owner::scene().drawing.object_work.light_turns[1].set(byte(0x23));
         if byte(0x24) != 0 {
-            OBJECT_WORK.light_turns[0].set(course.stage_prefs.sun_turn.get().wrapping_neg());
-            OBJECT_WORK.light_turns[1].set(course.stage_prefs.sun_height.get());
-            OBJECT_WORK
+            crate::scene::owner::scene().drawing.object_work.light_turns[0]
+                .set(course.stage_prefs.sun_turn.get().wrapping_neg());
+            crate::scene::owner::scene().drawing.object_work.light_turns[1]
+                .set(course.stage_prefs.sun_height.get());
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
                 .light_level
                 .set(course.stage_prefs.light_level.get());
-            OBJECT_WORK
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
                 .light_strength
                 .set(course.stage_prefs.light_strength_kept.get());
-            OBJECT_WORK.light_lowest.set(0u32);
-            OBJECT_WORK.light_highest.set(0xFFu32);
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .light_lowest
+                .set(0u32);
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .light_highest
+                .set(0xFFu32);
         }
     }
-    LIGHT_STATE.view_kind.set(2u32);
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .view_kind
+        .set(2u32);
     crate::race::frame_draw::place_object_matrix()?;
-    LIGHT_WORK.light_kind.set(2u32);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .light_kind
+        .set(2u32);
     let object: u32 = FRAME_SWITCHES.object_number.bits();
-    let kind: u32 = OBJECT_TABLES.object_kind(object);
+    let kind: u32 = crate::scene::owner::scene()
+        .objects
+        .tables
+        .object_kind(object);
     let record = crate::scene::polygon::materials_ptr().offset(kind.wrapping_mul(0x80));
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {
-        LIGHT_WORK.light_kind.set(1u32);
+        crate::scene::owner::scene()
+            .lights
+            .work
+            .light_kind
+            .set(1u32);
     }
     crate::scene::draw_scene_object::draw_scene_object_in_game(Some(record))?;
     end();

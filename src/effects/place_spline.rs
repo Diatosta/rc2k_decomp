@@ -16,7 +16,6 @@
 use crate::effects::paths::Paths;
 use crate::effects::place_graded_points::place_graded_points;
 use crate::effects::splines::{SPLINE_LEN, Spline, place_shape_points as place_shape};
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 
@@ -36,7 +35,7 @@ fn sizes(a: u32, k: u32, k2: u32) -> (u32, u32) {
 
 /// The Rust version (see the header).
 pub fn place_spline(paths: &Paths, n: u32) -> Result<(), Refused> {
-    let settings: u32 = crate::effects::setup::SETTINGS.is_set.get();
+    let settings: u32 = crate::effects::owner::effects().setup.settings.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -61,13 +60,21 @@ pub fn place_spline(paths: &Paths, n: u32) -> Result<(), Refused> {
             place_shape(paths, r)?;
         }
         let status = x87::compare_status(b.get(paths, 0x24)?, k[2]);
-        MARKS_WORK.fpu_status.set(status as u32);
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .fpu_status
+            .set(status as u32);
         let f = if status == 0x100 { k[4] } else { k[3] };
         b.put(paths, 0x2C, x87::mul(b.get(paths, 0x24)?, f))?;
         paths.spline_head.switch.set(0);
         place_graded_points(paths, b)?;
         let status = x87::compare_status(c.get(paths, 0x24)?, k[5]);
-        MARKS_WORK.fpu_status.set(status as u32);
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .fpu_status
+            .set(status as u32);
         let f = if status == 0 { k[7] } else { k[6] };
         c.put(paths, 0x2C, x87::mul(c.get(paths, 0x24)?, f))?;
         paths.spline_head.switch.set(1);

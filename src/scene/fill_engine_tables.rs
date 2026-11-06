@@ -31,7 +31,6 @@
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::scene::angle_between::angle_of;
-use crate::scene::draw_store::DRAW;
 use crate::scene::next_noise::next_noise;
 
 // ---- game data ----
@@ -47,7 +46,11 @@ const SEED: u32 = 0x0012_D687;
 fn tangent(frame: &crate::race::owner_frame::Frame, angle: u32) -> u32 {
     {
         let place = (angle >> 4) as usize;
-        DRAW.scratch.set_bits(0x8000u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set_bits(0x8000u32);
         let tangent = (x87::ratio_scaled_to_int(
             crate::scene::engine_tables_store::ENGINE_TABLES.sines[place].bits(),
             crate::scene::engine_tables_store::ENGINE_TABLES.sines[place + 0x400].bits(),

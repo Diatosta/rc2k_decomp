@@ -6,15 +6,17 @@
 //! `dword_636610` = 0 and the 0x1000 bytes of `g_fogTable` = 0. (The original clears the table
 //! first; the result is the same.) One caller.
 
-use crate::scene::light_store::LIGHT_STATE;
-
 // ---- game data ----
 
 // ---- Rust version ----
 
 pub fn clear_fog() {
-    LIGHT_STATE.fog_next.set_bits(0u32);
-    for cell in &LIGHT_STATE.fog_table {
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .fog_next
+        .set_bits(0u32);
+    for cell in &crate::scene::owner::scene().lights.state.fog_table {
         cell.set(0);
     }
 }

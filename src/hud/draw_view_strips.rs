@@ -15,7 +15,6 @@ use crate::hud::overlay_pass::shown_layout;
 use crate::race::owner_frame::Frame;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::draw_store::DRAW;
 
 /// Whether the strip of the view block `handle` names is shown (see the header).
 fn flashing(handle: u32) -> Result<bool, BadInput> {
@@ -38,11 +37,13 @@ pub fn draw_view_strips(frame: &Frame) -> Result<(), Refused> {
     {
         if REPLAY_FILE.hold_car_revs.bits() == 0 {
             if flashing(RACE_VIEW.view_blocks[0].get())? {
-                DRAW.polygon_textures[0].set_bits(TEXTURES[0]);
+                crate::scene::owner::scene().drawing.scene.polygon_textures[0]
+                    .set_bits(TEXTURES[0]);
                 draw_view_strip(frame, shown_layout())?;
             }
             if shown_layout() != 0 && flashing(RACE_VIEW.view_blocks[1].get())? {
-                DRAW.polygon_textures[0].set_bits(TEXTURES[1]);
+                crate::scene::owner::scene().drawing.scene.polygon_textures[0]
+                    .set_bits(TEXTURES[1]);
                 draw_view_strip(frame, shown_layout().wrapping_add(SECOND_VIEW))?;
             }
         }

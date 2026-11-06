@@ -16,7 +16,6 @@
 //! (the original's loop runs until it meets the count), and the game's own heap with a list
 //! that holds blocks (`free_list`'s refusal).
 
-use crate::effects::blocks::{MARK_LINKS, PLACES_BLOCK};
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::effects::ring_store::Ring;
@@ -35,8 +34,8 @@ fn lists(ring: &Ring, masks: &Masks) -> [GamePtr; 6] {
         GamePtr::to(&ring.work.list),      // stru_935620
         GamePtr::to(&masks.blocks.list_b), // g_marksBMaskList
         GamePtr::to(&masks.blocks.list_a), // stru_934D76
-        GamePtr::to(&PLACES_BLOCK.list),   // g_marksPlacesList
-        GamePtr::to(&MARK_LINKS.list),     // g_marksLinksList
+        GamePtr::to(&crate::effects::owner::effects().blocks.places.list), // g_marksPlacesList
+        GamePtr::to(&crate::effects::owner::effects().blocks.links.list), // g_marksLinksList
     ]
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).

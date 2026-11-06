@@ -15,10 +15,8 @@
 //! is to be taken), before anything.
 
 use crate::effects::blocks::{particle, set_particle};
-use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
-use crate::effects::work_store::MARKS_WORK;
+use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 
@@ -28,8 +26,14 @@ const LIFE: u32 = 0xBB8;
 
 /// The marks' random: times 0x9D plus 0x47.
 fn next_seed() -> u32 {
-    let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-    MARKS_WORK.seed.set(s);
+    let s = crate::effects::owner::effects()
+        .setup
+        .work
+        .seed
+        .get()
+        .wrapping_mul(0x9D)
+        .wrapping_add(0x47);
+    crate::effects::owner::effects().setup.work.seed.set(s);
     s
 }
 
@@ -69,8 +73,10 @@ pub fn burst_particles(particles: &Particles, ring: &Ring, record: u32) -> Resul
         crate::sound::owner::sound().race.stage.random[1].set(1);
         let s = next_seed();
         let r = s & 0xFFFF;
-        let m = DRAW_WORK.uv_k.bits();
-        let [c, k] = PARTICLE_TUNING
+        let m = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
+        let [c, k] = crate::effects::owner::effects()
+            .kinds
+            .particle_tuning
             .burst_scale
             .each_ref()
             .map(super::super::session::Float::bits);
@@ -113,7 +119,14 @@ pub fn burst_particles(particles: &Particles, ring: &Ring, record: u32) -> Resul
             put(0x44, LIFE)?;
             put(
                 0x40,
-                x87::over_int(PARTICLE_TUNING.burst_life.bits(), LIFE as i32),
+                x87::over_int(
+                    crate::effects::owner::effects()
+                        .kinds
+                        .particle_tuning
+                        .burst_life
+                        .bits(),
+                    LIFE as i32,
+                ),
             )?;
         }
     }

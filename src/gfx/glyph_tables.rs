@@ -6,9 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::decoder::DECODER;
 use crate::gfx::glyph_builder::DIRECT_COLOUR;
-use crate::gfx::picture_store::PICTURE;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
@@ -35,25 +33,37 @@ pub struct GlyphTables {
     pub _gap_14: [Dword; 12],
 }
 
-/// The glyph tables' variables; the first values are the image's.
-pub static TABLES: GlyphTables = GlyphTables {
-    units: Dword::new(0x15E),
-    memory: crate::memory::ListCells::new(MemoryList {
-        head: 0,
-        total: 0,
-        cursor: 0,
-        remaining: 0,
-    }),
-    _gap_14: [const { Dword::new(0) }; 12],
-};
+impl GlyphTables {
+    /// The glyph tables' variables; the first values are the image's.
+    pub const fn new() -> Self {
+        GlyphTables {
+            units: Dword::new(0x15E),
+            memory: crate::memory::ListCells::new(MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            }),
+            _gap_14: [const { Dword::new(0) }; 12],
+        }
+    }
+}
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the
 /// surface's, and no table yet.
 pub fn begin_glyph_tables(vars: &SheetVars) -> Result<(), Refused> {
-    PICTURE.width.set(800u32);
-    PICTURE.height.set(600u32);
-    PICTURE.row_bytes.set(0xFFFF_FFFDu32);
-    DECODER.format.set(crate::gfx::pixel_format::SCREEN_FORMAT);
+    crate::gfx::owner::gfx().pictures.picture.width.set(800u32);
+    crate::gfx::owner::gfx().pictures.picture.height.set(600u32);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(0xFFFF_FFFDu32);
+    crate::gfx::owner::gfx()
+        .pictures
+        .decoder
+        .format
+        .set(crate::gfx::pixel_format::SCREEN_FORMAT);
     let bytes = LEXICON
         .kilobytes
         .get()
@@ -86,17 +96,25 @@ pub fn end_glyph_tables() -> Result<(), BadInput> {
 /// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to`
 /// is 0 or the last sheet was one of components.
 pub fn palette_to_pixels(to: u32) -> Result<(), BadInput> {
-    if to == 0 || DECODER.builder_flags.get() & DIRECT_COLOUR != 0 {
+    if to == 0
+        || crate::gfx::owner::gfx()
+            .pictures
+            .decoder
+            .builder_flags
+            .get()
+            & DIRECT_COLOUR
+            != 0
+    {
         return Ok(());
     }
-    let format = DECODER.format.get();
+    let format = crate::gfx::owner::gfx().pictures.decoder.format.get();
     if format == 0 {
         return Err(BadInput("no pixel layout for the palette"));
     }
     let format = crate::gfx::pixel_format::layout(format)?;
     let mut pixels = Vec::with_capacity(256 * 4);
     for entry in 0..256 {
-        let components: u32 = DECODER.palette[entry].get();
+        let components: u32 = crate::gfx::owner::gfx().pictures.decoder.palette[entry].get();
         pixels.extend_from_slice(&components_to_pixel(&format, components).to_le_bytes());
     }
     crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "a palette's pixels")
@@ -106,7 +124,7 @@ pub fn palette_to_pixels(to: u32) -> Result<(), BadInput> {
 /// in the top four: entry 0 becomes 0, every entry the colour of its low four bits'
 /// entry, and its fourth byte the alpha, the four bits twice.
 pub fn alpha_palette() {
-    let palette = &DECODER.palette;
+    let palette = &crate::gfx::owner::gfx().pictures.decoder.palette;
     palette[0].set(0);
     for entry in 0..256usize {
         let colour = palette[entry & 0x0F].get();
@@ -121,12 +139,22 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&TABLES, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().fonts.glyph_tables,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), TABLES.units.addr() as usize);
-        assert_eq!(crate::moved::place(0x51B984), TABLES.memory.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::gfx().fonts.glyph_tables.units.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x51B984),
+            crate::gfx::owner::gfx().fonts.glyph_tables.memory.addr() as usize
+        );
     }
 }

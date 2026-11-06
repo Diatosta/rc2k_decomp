@@ -11,7 +11,6 @@
 use crate::errors::BadInput;
 use crate::race::owner::race;
 use crate::scene::load_slot_texture::load_slot_texture_in_game;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- Rust version ----
 
@@ -21,7 +20,9 @@ use crate::scene::texture_places_store::TEXTURE_PLACES;
 pub fn load_slot_textures(
     load: &mut dyn FnMut(u32) -> Result<(), BadInput>,
 ) -> Result<u32, BadInput> {
-    let count = rc2k_core::scene::textures::slots_in_use(TEXTURE_PLACES.totals[2].get())?;
+    let count = rc2k_core::scene::textures::slots_in_use(
+        crate::scene::owner::scene().textures.places.totals[2].get(),
+    )?;
     for slot in 0..count {
         load(slot)?;
     }

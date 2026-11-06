@@ -7,7 +7,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::scene::object_store::OBJECT_WORK;
 
 /// The grid and what lies past it that the original may read (as `race::course_grid`).
 const GRID_DWORDS: u32 = 0x1084 / 4;
@@ -101,7 +100,10 @@ pub fn face_sound_spot(race: &Race, face_number: u32) -> Result<(), BadInput> {
             crate::race::scene_points::point_number(point)?,
             [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],
         );
-        crate::session::write_bits(&OBJECT_WORK.place, place);
+        crate::session::write_bits(
+            &crate::scene::owner::scene().drawing.object_work.place,
+            place,
+        );
         let t = {
             crate::scene::rotate_point::rotate_point(
                 &race.frame.matrices.view_matrix,

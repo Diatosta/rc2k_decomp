@@ -15,7 +15,6 @@ use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
 use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
-use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
@@ -46,9 +45,16 @@ pub fn ease_view_turn(race: &Race) {
             &race.physics.camera.view_share_roll,
         ),
     ] {
-        DRAW.scratch.set(target.get().wrapping_sub(turn.get()));
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(target.get().wrapping_sub(turn.get()));
         x87_1(share);
-        turn.set(turn.get().wrapping_add(DRAW.scratch.get()));
+        turn.set(
+            turn.get()
+                .wrapping_add(crate::scene::owner::scene().drawing.scene.scratch.get()),
+        );
     }
 }
 
@@ -58,10 +64,14 @@ pub fn ease_view_turn(race: &Race) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = int [rc + 0x22400C] * [s + 0]`
 fn x87_1(s: &impl Cell32) {
-    let t0 = int(DRAW.scratch.bits() as i32);
+    let t0 = int(crate::scene::owner::scene().drawing.scene.scratch.bits() as i32);
     let t1 = ld(s.bits());
     let t2 = t0 * t1;
-    DRAW.scratch.set_bits(to_int(t2) as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(to_int(t2) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -5,7 +5,6 @@
 //! `g_blitVisibleWidth`, `g_blitTopSkip`, `g_blitRowsLeft`.
 
 use crate::errors::Refused;
-use crate::gfx::blit::BLIT;
 use crate::gfx::surface::{clip, surface};
 use crate::session::Dword;
 
@@ -64,10 +63,16 @@ impl Palette {
 fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette) {
     let w = plan.work;
     for (at, value) in [
-        (&BLIT.left_skip, w.left_skip),
-        (&BLIT.visible_width, w.width),
-        (&BLIT.top_skip, w.top_skip),
-        (&BLIT.rows_left, w.rows),
+        (
+            &crate::gfx::owner::gfx().drawing.blit.left_skip,
+            w.left_skip,
+        ),
+        (
+            &crate::gfx::owner::gfx().drawing.blit.visible_width,
+            w.width,
+        ),
+        (&crate::gfx::owner::gfx().drawing.blit.top_skip, w.top_skip),
+        (&crate::gfx::owner::gfx().drawing.blit.rows_left, w.rows),
     ] {
         if let Some(v) = value {
             set(at, v);

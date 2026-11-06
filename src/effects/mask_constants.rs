@@ -38,55 +38,59 @@ pub struct MaskConstants {
     pub row_lengths: [Float; 3],
 }
 
-pub static MASK_CONSTANTS: MaskConstants = MaskConstants {
-    time_random: Dword::new(0x0),
-    move_random: Dword::new(0x0),
-    rates: [Float::from_bits(0x46348400), Float::from_bits(0x46348400)],
-    ones: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F800000),
-    ],
-    ring_scales: [
-        Float::from_bits(0x3C8EFA35),
-        Float::from_bits(0x3C8EFA35),
-        Float::from_bits(0x3F000000),
-    ],
-    row_add: Float::from_bits(0x3F000000),
-    ease: Float::from_bits(0x3F000000),
-    steps: [Dword::new(0x80), Dword::new(0x80)],
-    corner_angles: [
-        Float::from_bits(0x0),
-        Float::from_bits(0xBFC90FDB),
-        Float::from_bits(0x0),
-        Float::from_bits(0xBFC90FDB),
-        Float::from_bits(0x0),
-        Float::from_bits(0xBFC90FDB),
-        Float::from_bits(0x0),
-        Float::from_bits(0xBFC90FDB),
-    ],
-    divisors: [Dword::new(0x100), Dword::new(0x80)],
-    flips: [Dword::new(0x80), Dword::new(0x80)],
-    pair_scales: [
-        Float::from_bits(0x43800000),
-        Float::from_bits(0x43800000),
-        Float::from_bits(0x43800000),
-        Float::from_bits(0x43800000),
-    ],
-    pixel_constants: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F99999A),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F99999A),
-    ],
-    row_lengths: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F800000),
-    ],
-};
+impl MaskConstants {
+    pub const fn new() -> Self {
+        Self {
+            time_random: Dword::new(0x0),
+            move_random: Dword::new(0x0),
+            rates: [Float::from_bits(0x46348400), Float::from_bits(0x46348400)],
+            ones: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F800000),
+            ],
+            ring_scales: [
+                Float::from_bits(0x3C8EFA35),
+                Float::from_bits(0x3C8EFA35),
+                Float::from_bits(0x3F000000),
+            ],
+            row_add: Float::from_bits(0x3F000000),
+            ease: Float::from_bits(0x3F000000),
+            steps: [Dword::new(0x80), Dword::new(0x80)],
+            corner_angles: [
+                Float::from_bits(0x0),
+                Float::from_bits(0xBFC90FDB),
+                Float::from_bits(0x0),
+                Float::from_bits(0xBFC90FDB),
+                Float::from_bits(0x0),
+                Float::from_bits(0xBFC90FDB),
+                Float::from_bits(0x0),
+                Float::from_bits(0xBFC90FDB),
+            ],
+            divisors: [Dword::new(0x100), Dword::new(0x80)],
+            flips: [Dword::new(0x80), Dword::new(0x80)],
+            pair_scales: [
+                Float::from_bits(0x43800000),
+                Float::from_bits(0x43800000),
+                Float::from_bits(0x43800000),
+                Float::from_bits(0x43800000),
+            ],
+            pixel_constants: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F99999A),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F99999A),
+            ],
+            row_lengths: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F800000),
+            ],
+        }
+    }
+}
 
 impl MaskConstants {
     pub const START: usize = 0x89C994;
@@ -95,7 +99,9 @@ impl MaskConstants {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const MASK_CONSTANTS) as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::effects().setup.mask_constants,
+        ) as usize
     }
 }
 

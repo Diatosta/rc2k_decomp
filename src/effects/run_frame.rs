@@ -12,16 +12,15 @@
 //!
 //! Caller: the race's frame (0x456464 ..). Its calls the Rust versions, in the order above.
 
-use crate::effects::tuning::MARKS_FRAME;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::race;
 use crate::session::Float;
 /// Where the share goes (its factor is `FRAME_K.times`): the draw, the ring, the whole.
 static SHARES: [&Float; 3] = [
-    &MARKS_FRAME.draw_share,
-    &MARKS_FRAME.ring_share,
-    &MARKS_FRAME.whole_share,
+    &crate::effects::owner::EFFECTS.setup.frame.draw_share,
+    &crate::effects::owner::EFFECTS.setup.frame.ring_share,
+    &crate::effects::owner::EFFECTS.setup.frame.whole_share,
 ];
 const STATES: [(u32, u32); 6] = [
     (4, 0x15),
@@ -41,7 +40,11 @@ fn share(at: usize, start: u32) {
     let took = rdtsc().wrapping_sub(start) as i32;
     to.set_bits(x87::int_over_int_times(
         took,
-        MARKS_FRAME.frame_cycles.bits() as i32,
+        crate::effects::owner::effects()
+            .setup
+            .frame
+            .frame_cycles
+            .bits() as i32,
         FRAME_K.times[at].to_bits(),
     ));
 }

@@ -13,7 +13,6 @@
 
 use crate::effects::pick_windscreen_drop::pick_windscreen_drop;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::Refused;
 use crate::math::x87;
 
@@ -21,7 +20,7 @@ const MOST: i32 = 0x80;
 
 /// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
 fn rate(drops: &WindscreenDrops) {
-    rate_x87(drops, &KEPT);
+    rate_x87(drops, &crate::effects::owner::effects().frame.kept_view);
 }
 
 /// The Rust version (see the header).
@@ -33,8 +32,12 @@ pub fn windscreen_drops_spawn(drops: &WindscreenDrops) -> Result<(), Refused> {
             .set(drops.state.frames.get().wrapping_add(1));
         let old = x87::set_chop();
         rate(drops);
-        let status = MARKS_WORK.fpu_status.get() & 0x700;
-        MARKS_WORK.fpu_status.set(status);
+        let status = crate::effects::owner::effects().setup.work.fpu_status.get() & 0x700;
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .fpu_status
+            .set(status);
         if status != 0x100 {
             let v: u32 = drops.state.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
@@ -42,8 +45,14 @@ pub fn windscreen_drops_spawn(drops: &WindscreenDrops) -> Result<(), Refused> {
                 pick_windscreen_drop(drops)?;
             }
             let share = x87::fraction_times_to_int(v, drops.hex.share_k.bits());
-            let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-            MARKS_WORK.seed.set(s);
+            let s = crate::effects::owner::effects()
+                .setup
+                .work
+                .seed
+                .get()
+                .wrapping_mul(0x9D)
+                .wrapping_add(0x47);
+            crate::effects::owner::effects().setup.work.seed.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
                 pick_windscreen_drop(drops)?;
             }
@@ -54,7 +63,7 @@ pub fn windscreen_drops_spawn(drops: &WindscreenDrops) -> Result<(), Refused> {
 }
 
 use crate::effects::plain::ld_cell;
-use crate::effects::view_vectors::{KEPT, KeptView};
+use crate::effects::view_vectors::KeptView;
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.

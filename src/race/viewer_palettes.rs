@@ -11,9 +11,7 @@
 //! Caller: `race::viewer_load_stage`.
 
 use crate::errors::BadInput;
-use crate::gfx::fonts_store::FONTS;
 use crate::race::replay_file_store::REPLAY_FILE;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 /// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
 /// original's order.
@@ -28,19 +26,25 @@ pub fn viewer_palettes() -> Result<(), BadInput> {
     for (to, from) in [
         (
             &REPLAY_FILE.viewer_first_texture_a,
-            &KIND_TEXTURES.kind_first_textures[212],
+            &crate::scene::owner::scene()
+                .textures
+                .kinds
+                .kind_first_textures[212],
         ), // g_kindFirstTextures + 0x350
         (
             &REPLAY_FILE.viewer_list_texture,
-            &KIND_TEXTURES.kind_first_slots[212],
+            &crate::scene::owner::scene().textures.kinds.kind_first_slots[212],
         ), // g_kindFirstSlots + 0x350
         (
             &REPLAY_FILE.viewer_panel_texture,
-            &KIND_TEXTURES.kind_first_textures[201],
+            &crate::scene::owner::scene()
+                .textures
+                .kinds
+                .kind_first_textures[201],
         ), // g_kindFirstTextures + 0x324
         (
             &REPLAY_FILE.viewer_device_texture,
-            &KIND_TEXTURES.kind_first_slots[201],
+            &crate::scene::owner::scene().textures.kinds.kind_first_slots[201],
         ), // g_kindFirstSlots + 0x324
     ] {
         to.set(from.get());
@@ -57,7 +61,7 @@ pub fn viewer_palettes() -> Result<(), BadInput> {
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
-        let from = FONTS.palettes.get();
+        let from = crate::gfx::owner::gfx().fonts.menu_fonts.palettes.get();
         let to = &crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours;
         for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(

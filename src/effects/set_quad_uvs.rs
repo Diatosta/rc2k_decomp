@@ -10,7 +10,6 @@
 //! One caller, `sub_4CFB49` (the marks' frame).
 
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::blocks::CORNER_SLOPES;
 
 /// The record of `g_marksCornerSlopes` whose eight values are the set (0xC60 bytes on).
 const SET_RECORD: usize = 0xC60 / 0x24;
@@ -20,7 +19,8 @@ pub fn set_quad_uvs() {
     {
         crate::scene::depth_test_off::depth_test_off();
         for n in 0..4 {
-            let values = &CORNER_SLOPES.slopes[SET_RECORD].values;
+            let values =
+                &crate::effects::owner::effects().blocks.corner_slopes.slopes[SET_RECORD].values;
             let uv: [u32; 2] = [values[2 * n].bits(), values[2 * n + 1].bits()];
             VERTICES.vertices[n].u.set_bits(uv[0]);
             VERTICES.vertices[n].v.set_bits(uv[1]);

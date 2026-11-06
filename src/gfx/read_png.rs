@@ -19,11 +19,9 @@
 
 use crate::errors::Refused;
 use crate::gfx::decode_png::decode_png;
-use crate::gfx::decoder::DECODER;
 use crate::gfx::lay_out_png::lay_out_png;
 use crate::gfx::owner::Png;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
-use crate::gfx::picture_store::PICTURE;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
 use crate::memory::free_list::free_list;
 
@@ -58,12 +56,33 @@ fn read_held(png: &Png, path: &[u8], size: u32) -> Result<bool, Refused> {
     if !read.ok || read.bytes_read != Some(size) {
         return Ok(false);
     }
-    decode_png(png, file, PICTURE.buffer.get(), crate::gfx::png::info_ptr())?;
-    PICTURE.flags.set(0x802u32);
+    decode_png(
+        png,
+        file,
+        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
+        crate::gfx::png::info_ptr(),
+    )?;
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .flags
+        .set(0x802u32);
     lay_out_png()?;
-    PICTURE.width.set(DECODER.width.get());
-    PICTURE.height.set(DECODER.height.get());
-    PICTURE.row_bytes.set(DECODER.stride.get());
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .width
+        .set(crate::gfx::owner::gfx().pictures.decoder.width.get());
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .height
+        .set(crate::gfx::owner::gfx().pictures.decoder.height.get());
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(crate::gfx::owner::gfx().pictures.decoder.stride.get());
     if crate::gfx::png::info_byte(core::mem::offset_of!(crate::gfx::png::PngInfo, has_palette)) == 1
     {
         palette_pixels_to_dwords()?;

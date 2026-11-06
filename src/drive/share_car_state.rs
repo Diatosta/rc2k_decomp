@@ -34,7 +34,6 @@ use crate::race::marks_settings_store::MarkCar;
 use crate::race::mud::car_file_number;
 use crate::race::owner_course::Course;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
 use crate::sound::store::SoundObject;
 use rc2k_core::drive::sharing;
@@ -259,7 +258,7 @@ pub fn share_car_state(
         block,
         record,
         sound,
-        &DRAW.scratch, /* dword_62400C */
+        &crate::scene::owner::scene().drawing.scene.scratch, /* dword_62400C */
     )
 }
 

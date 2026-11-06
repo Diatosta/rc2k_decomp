@@ -17,14 +17,16 @@
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
-use crate::scene::draw_store::DRAW;
 
 use crate::d3d::vertices_store::VERTICES;
 const CELLS: u32 = 0x41;
 
 /// The original's 0x4C5EF7 .. 0x4C60E9: the two projected and the ribbon's corners.
 fn ribbon() {
-    ribbon_x87(&DRAW_WORK, &VIEW_VARS);
+    ribbon_x87(
+        &crate::effects::owner::effects().frame.draw_work,
+        &crate::effects::owner::effects().frame.view_vars,
+    );
 }
 
 /// The Rust version (see the header): `cell` (eax), `alpha` (ecx), `width` (edx),
@@ -40,10 +42,10 @@ pub fn draw_ribbon(
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
     {
-        if SETTINGS.is_set.get() == 0 {
+        if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
-        DRAW_WORK.half[0].set_bits(width >> 1);
+        crate::effects::owner::effects().frame.draw_work.half[0].set_bits(width >> 1);
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
             VERTICES.vertices[n].colour.set(colour);
@@ -58,8 +60,11 @@ pub fn draw_ribbon(
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
-        for depth in [DRAW_WORK.turned[2].bits(), DRAW_WORK.second[2].bits()] {
-            if depth as i32 <= DRAW_WORK.near.bits() as i32 {
+        for depth in [
+            crate::effects::owner::effects().frame.draw_work.turned[2].bits(),
+            crate::effects::owner::effects().frame.draw_work.second[2].bits(),
+        ] {
+            if depth as i32 <= crate::effects::owner::effects().frame.draw_work.near.bits() as i32 {
                 return Ok(());
             }
         }
@@ -68,37 +73,40 @@ pub fn draw_ribbon(
             return Ok(());
         }
         draw_fan();
-        DRAW.polygon_vertex_count.set_bits(4u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .set_bits(4u32);
     }
     Ok(())
 }
 
-use crate::effects::frame_state::{DRAW_WORK, DrawWork, VIEW_VARS, ViewVars};
+use crate::effects::frame_state::{DrawWork, ViewVars};
 use crate::effects::plain::st_cell;
-use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `ribbon`'s x87 block as plain Rust on the x87 model (93 instructions), same order and memory places.
 fn ribbon_x87(dw: &DrawWork, vv: &ViewVars) {
-    let t0 = ld(DRAW.view_scale.bits());
+    let t0 = ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = t1 * bh::ld(dw.turned[0].bits());
     let t3 = t1 * bh::ld(dw.turned[1].bits());
     let t4 = -t3;
-    let t5 = t4 + ld(DRAW.view_centre[1].bits());
+    let t5 = t4 + ld(crate::scene::owner::scene().drawing.scene.view_centre[1].bits());
     dw.turned[1].set_bits(bh::st(t5));
-    let t6 = t2 + ld(DRAW.view_centre[0].bits());
+    let t6 = t2 + ld(crate::scene::owner::scene().drawing.scene.view_centre[0].bits());
     dw.turned[0].set_bits(bh::st(t6));
     dw.ends_scale[0].set_bits(bh::st(t1));
-    let t7 = ld(DRAW.view_scale.bits());
+    let t7 = ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t8 = t7 / bh::ld(dw.second[2].bits());
     let t9 = t8 * bh::ld(dw.second[0].bits());
     let t10 = t8 * bh::ld(dw.second[1].bits());
     let t11 = -t10;
-    let t12 = t11 + ld(DRAW.view_centre[1].bits());
+    let t12 = t11 + ld(crate::scene::owner::scene().drawing.scene.view_centre[1].bits());
     dw.second[1].set_bits(bh::st(t12));
-    let t13 = t9 + ld(DRAW.view_centre[0].bits());
+    let t13 = t9 + ld(crate::scene::owner::scene().drawing.scene.view_centre[0].bits());
     dw.second[0].set_bits(bh::st(t13));
     dw.ends_scale[1].set_bits(bh::st(t8));
     let t14 = bh::ld(dw.second[0].bits());

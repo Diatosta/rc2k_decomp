@@ -11,9 +11,7 @@
 //! `gfx::read_png`. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::decoder::DECODER;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
-use crate::gfx::picture_store::PICTURE;
 use crate::gfx::png::{PngInfo, info_dword};
 
 // ---- Rust version ----
@@ -24,29 +22,33 @@ pub fn lay_out_png() -> Result<(), BadInput> {
     let layout = rc2k_core::gfx::png::layout(
         info_dword(offset_of!(PngInfo, width)),
         info_dword(offset_of!(PngInfo, height)),
-        PICTURE.flags.get(),
+        crate::gfx::owner::gfx().pictures.picture.flags.get(),
     );
     for (at, value) in [
-        &DECODER.width,
-        &DECODER.height,
-        &DECODER.pixel_bits,
-        &DECODER.pixel_bytes,
-        &DECODER.row_bytes,
-        &DECODER.row_dwords,
-        &DECODER.stride,
-        &DECODER.row_gap,
+        &crate::gfx::owner::gfx().pictures.decoder.width,
+        &crate::gfx::owner::gfx().pictures.decoder.height,
+        &crate::gfx::owner::gfx().pictures.decoder.pixel_bits,
+        &crate::gfx::owner::gfx().pictures.decoder.pixel_bytes,
+        &crate::gfx::owner::gfx().pictures.decoder.row_bytes,
+        &crate::gfx::owner::gfx().pictures.decoder.row_dwords,
+        &crate::gfx::owner::gfx().pictures.decoder.stride,
+        &crate::gfx::owner::gfx().pictures.decoder.row_gap,
     ]
     .into_iter()
     .zip(layout)
     {
         at.set(value);
     }
-    DECODER.pixels.set(PICTURE.buffer.get());
+    crate::gfx::owner::gfx()
+        .pictures
+        .decoder
+        .pixels
+        .set(crate::gfx::owner::gfx().pictures.picture.buffer.get());
     // Neither is null: both are the game's own tables.
     palette_to_dwords(
         crate::pointers::GamePtr::to(&crate::files::scratch::SCRATCH.buffer)
             .offset(offset_of!(PngInfo, palette) as u32),
-        crate::pointers::GamePtr::to(&DECODER.palette),
+        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().pictures.decoder.palette),
     )?;
     Ok(())
 }

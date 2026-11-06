@@ -16,10 +16,8 @@
 //! before anything.
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
-use crate::effects::frame_state::DRAW_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 
 use crate::d3d::vertices_store::VERTICES;
@@ -39,23 +37,23 @@ pub fn draw_turned_sprite(
     {
         let [a, b, c] = place.map(rounded);
         // clip_quad's refusal (no settings) before anything is written.
-        if (c as i32) > DRAW_WORK.near.bits() as i32
-            && crate::effects::setup::SETTINGS.is_set.get() == 0
+        if (c as i32) > crate::effects::owner::effects().frame.draw_work.near.bits() as i32
+            && crate::effects::owner::effects().setup.settings.is_set.get() == 0
         {
             return Err(BadInput("no marks settings").into());
         }
         for (n, v) in [a, b, c].into_iter().enumerate() {
-            DRAW_WORK.turned[n].set_bits(v);
+            crate::effects::owner::effects().frame.draw_work.turned[n].set_bits(v);
         }
-        if (c as i32) <= DRAW_WORK.near.bits() as i32 {
+        if (c as i32) <= crate::effects::owner::effects().frame.draw_work.near.bits() as i32 {
             return Ok(());
         }
         let colour = colour | 0xFF_FFFF;
         let k = [
-            DRAW.view_scale.bits(),
-            DRAW.view_centre[0].bits(),
-            DRAW.view_centre[1].bits(),
-            DRAW_WORK.z_k.bits(),
+            crate::scene::owner::scene().drawing.scene.view_scale.bits(),
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+            crate::effects::owner::effects().frame.draw_work.z_k.bits(),
         ];
         let sin = crate::scene::engine_tables_store::sine(angle as usize).bits();
         let cos = crate::scene::engine_tables_store::cosine(angle as usize).bits();
@@ -70,13 +68,17 @@ pub fn draw_turned_sprite(
             v.y.set_bits(sq[6 + n]);
         }
         for (n, v) in sq[2..6].iter().enumerate() {
-            DRAW_WORK.sprite_half[n].set_bits(*v);
+            crate::effects::owner::effects().frame.draw_work.sprite_half[n].set_bits(*v);
         }
         if clip_quad()? {
             return Ok(());
         }
         draw_fan();
-        DRAW.polygon_vertex_count.set_bits(4u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .set_bits(4u32);
     }
     Ok(())
 }

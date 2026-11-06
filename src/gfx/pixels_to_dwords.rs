@@ -4,13 +4,17 @@
 
 use crate::errors::BadInput;
 use crate::gfx::picture::has_picture;
-use crate::gfx::picture_store::PICTURE;
 
 /// The number of pixels, `g_pictureWidth` * `g_pictureHeight`.
 /// Refuses none (the original then writes before the buffer) and more than a signed number
 /// holds (it then does one pixel and stops), and a null buffer.
 pub fn pixel_count() -> Result<usize, BadInput> {
-    let count = PICTURE.width.get().wrapping_mul(PICTURE.height.get());
+    let count = crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .width
+        .get()
+        .wrapping_mul(crate::gfx::owner::gfx().pictures.picture.height.get());
     if !has_picture() {
         return Err(BadInput("no picture buffer"));
     }

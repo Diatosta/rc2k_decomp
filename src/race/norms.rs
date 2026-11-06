@@ -9,7 +9,6 @@ use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::draw_store::DRAW;
 
 /// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit
 /// length (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts
@@ -29,7 +28,11 @@ pub fn normalise_work_vector() {
     for (cell, &bits) in race.frame.scratch.work_vector[..3].iter().zip(&v) {
         cell.set_bits(bits);
     }
-    DRAW.scratch.set_bits(length);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(length);
     for part in &race.frame.scratch.work_vector[..3] {
         if zero || part.bits() == 0x8000_0000 {
             part.set_bits(0u32);

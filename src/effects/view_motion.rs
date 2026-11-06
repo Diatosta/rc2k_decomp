@@ -13,8 +13,6 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::frame_state::{DRAW_FRAME, DRAW_WORK, VIEW_VARS};
-use crate::effects::setup::CLOCK;
 use crate::errors::Refused;
 use crate::math::cells::load;
 use crate::math::x87;
@@ -35,21 +33,30 @@ pub fn view_motion(frame: &Frame) -> Result<(), Refused> {
     let zero = [extended(0); 3];
     let place = rotate_point(m, zero);
     for k in 0..3 {
-        let step = x87::ext_less(place[k], DRAW_FRAME.last[k].bits());
-        DRAW_WORK.step[k].set_bits(step);
+        let step = x87::ext_less(
+            place[k],
+            crate::effects::owner::effects().frame.draw_frame.last[k].bits(),
+        );
+        crate::effects::owner::effects().frame.draw_work.step[k].set_bits(step);
         local[3 + k].set(step);
     }
     normalise(&local[3..]);
-    VIEW_VARS
+    crate::effects::owner::effects()
+        .frame
+        .view_vars
         .facing
         .set_bits(rounded(dot_product3(load(&local[..3]), load(&local[3..]))));
     let place = rotate_point(m, zero);
     for (k, p) in place.iter().enumerate() {
-        DRAW_FRAME.last[k].set_bits(rounded(*p));
+        crate::effects::owner::effects().frame.draw_frame.last[k].set_bits(rounded(*p));
     }
-    let ticks: i32 = CLOCK.frame_ticks.get() as i32;
+    let ticks: i32 = crate::effects::owner::effects()
+        .setup
+        .clock
+        .frame_ticks
+        .get() as i32;
     for k in 0..3 {
-        let a = &DRAW_WORK.step[k];
+        let a = &crate::effects::owner::effects().frame.draw_work.step[k];
         a.set_bits(x87::over_int(a.bits(), ticks));
     }
     Ok(())

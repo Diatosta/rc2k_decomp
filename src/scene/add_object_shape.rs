@@ -39,12 +39,7 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::object_slots_store::OBJECT_SLOTS;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::objects::{FACES, FILE_ROOM, SLOTS};
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
@@ -119,7 +114,11 @@ fn shape() -> Result<Result<Shape, Option<u32>>, BadInput> {
         .draw_switches
         .loading_group_mask
         .bits();
-    let slot: u32 = OBJECT_WORK.loading_slot.bits();
+    let slot: u32 = crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .loading_slot
+        .bits();
     let mut point_marks = vec![0u32; MARKS];
     let mut normal_marks = vec![0u32; MARKS];
     let mut faces = Vec::with_capacity(face_count);
@@ -164,7 +163,7 @@ fn shape() -> Result<Result<Shape, Option<u32>>, BadInput> {
     if at + normals * 12 > FILE_ROOM {
         return Err(PAST);
     }
-    if slot < 0x50 || OBJECT_WORK.loading_car[1].get() == 0xB {
+    if slot < 0x50 || crate::scene::owner::scene().drawing.object_work.loading_car[1].get() == 0xB {
         point_marks[..points].fill(1);
     }
     numbered(&mut point_marks);
@@ -200,12 +199,24 @@ struct Room {
 
 fn room(course: &crate::race::owner_course::Course, shape: &Shape) -> Result<Room, BadInput> {
     let room = Room {
-        slot: OBJECT_WORK.loading_slot.bits(),
+        slot: crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .loading_slot
+            .bits(),
         points: course.lists.object_points.bits(),
-        point_count: OBJECT_TABLES.point_count.get(),
+        point_count: crate::scene::owner::scene()
+            .objects
+            .tables
+            .point_count
+            .get(),
         face_memory: course.lists.face_memory.bits(),
-        face_cursor: OBJECT_WORK.face_cursor.bits(),
-        face_count: OBJECT_TABLES.face_count.get(),
+        face_cursor: crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .face_cursor
+            .bits(),
+        face_count: crate::scene::owner::scene().objects.tables.face_count.get(),
     };
     if room.slot >= SLOTS || room.points == 0 || room.face_memory == 0 {
         return Err(BadInput(
@@ -227,9 +238,19 @@ pub fn add_object_shape(course: &crate::race::owner_course::Course) -> Result<()
     let shape = match shape()? {
         Ok(shape) => shape,
         Err(points) => {
-            crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[u32::MAX, 0]);
+            crate::session::write_first(
+                &crate::scene::owner::scene()
+                    .drawing
+                    .object_work
+                    .shape_counts[5..7],
+                &[u32::MAX, 0],
+            );
             if let Some(points) = points {
-                OBJECT_WORK.shape_counts[1].set_bits(points);
+                crate::scene::owner::scene()
+                    .drawing
+                    .object_work
+                    .shape_counts[1]
+                    .set_bits(points);
             }
             return Ok(());
         }
@@ -245,23 +266,51 @@ pub fn add_object_shape(course: &crate::race::owner_course::Course) -> Result<()
         ))
     };
 
-    crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[u32::MAX, 0]);
-    OBJECT_WORK.shape_counts[1].set_bits(shape.points as u32);
-    OBJECT_WORK.shape_counts[0].set_bits(shape.faces.len() as u32);
-    OBJECT_WORK.shape_counts[3].set_bits(shape.normals as u32);
+    crate::session::write_first(
+        &crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .shape_counts[5..7],
+        &[u32::MAX, 0],
+    );
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .shape_counts[1]
+        .set_bits(shape.points as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .shape_counts[0]
+        .set_bits(shape.faces.len() as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .shape_counts[3]
+        .set_bits(shape.normals as u32);
     for n in 0..MARKS {
         let taken = shape.faces.get(n).is_some_and(|face| face.taken);
-        TEXTURE_PLACES.face_marks[n].set(taken as u32);
-        TEXTURE_PLACES.point_marks[n].set(shape.point_marks[n]);
-        TEXTURE_PLACES.normal_marks[n].set(shape.normal_marks[n]);
+        crate::scene::owner::scene().textures.places.face_marks[n].set(taken as u32);
+        crate::scene::owner::scene().textures.places.point_marks[n].set(shape.point_marks[n]);
+        crate::scene::owner::scene().textures.places.normal_marks[n].set(shape.normal_marks[n]);
     }
 
     // The points.
     let (first_point, first_face) = (room.point_count, room.face_count);
-    crate::session::write_prefix(&OBJECT_WORK.shape_firsts, &[first_point, first_face]);
-    OBJECT_SLOTS.first_point[slot].set(first_point);
-    OBJECT_SLOTS.first_face[slot].set(first_face);
-    let kind: u32 = OBJECT_WORK.loading_kind.bits();
+    crate::session::write_prefix(
+        &crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .shape_firsts,
+        &[first_point, first_face],
+    );
+    crate::scene::owner::scene().objects.slots.first_point[slot].set(first_point);
+    crate::scene::owner::scene().objects.slots.first_face[slot].set(first_face);
+    let kind: u32 = crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .loading_kind
+        .bits();
     let turned = (0x190..0x258).contains(&kind);
     let drop: u32 = PHYSICS.ground_drop.bits();
     let mut radius = 0u32;
@@ -282,7 +331,11 @@ pub fn add_object_shape(course: &crate::race::owner_course::Course) -> Result<()
         }
         crate::scene::object_points::set_point(to, point)?;
         let reach = x87::int_hypot(point[0] as i32, point[2] as i32) as u32;
-        DRAW.scratch.set_bits(reach);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set_bits(reach);
         if (reach.wrapping_sub(radius) as i32) >= 0 {
             radius = reach;
         }
@@ -290,14 +343,18 @@ pub fn add_object_shape(course: &crate::race::owner_course::Course) -> Result<()
         to = to.wrapping_add(12);
     }
     course.course.shape_radius.set_bits(radius);
-    OBJECT_SLOTS.radii[slot].set(radius);
-    OBJECT_SLOTS.point_counts[slot].set(count - first_point);
+    crate::scene::owner::scene().objects.slots.radii[slot].set(radius);
+    crate::scene::owner::scene().objects.slots.point_counts[slot].set(count - first_point);
     let first_normal = count;
-    OBJECT_WORK.shape_firsts[2].set_bits(first_normal);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .shape_firsts[2]
+        .set_bits(first_normal);
 
     // The faces.
     let no_normals = shape.normals == 0;
-    let mut without: u32 = OBJECT_SLOTS.no_normals.get();
+    let mut without: u32 = crate::scene::owner::scene().objects.slots.no_normals.get();
     let (mut lowest, mut highest) = (u32::MAX, 0u32);
     let mut face_number = first_face;
     let mut out = (room.face_memory + room.face_cursor) as usize;
@@ -340,10 +397,26 @@ pub fn add_object_shape(course: &crate::race::owner_course::Course) -> Result<()
         out += 0x10 + face.vertices * 0x10;
         face_number += 1;
     }
-    crate::session::write_first(&OBJECT_WORK.shape_counts[5..7], &[lowest, highest]);
-    OBJECT_SLOTS.no_normals.set(without);
-    OBJECT_TABLES.face_count.set(face_number);
-    OBJECT_WORK
+    crate::session::write_first(
+        &crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .shape_counts[5..7],
+        &[lowest, highest],
+    );
+    crate::scene::owner::scene()
+        .objects
+        .slots
+        .no_normals
+        .set(without);
+    crate::scene::owner::scene()
+        .objects
+        .tables
+        .face_count
+        .set(face_number);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
         .face_cursor
         .set_bits(out as u32 - room.face_memory);
 
@@ -357,8 +430,12 @@ pub fn add_object_shape(course: &crate::race::owner_course::Course) -> Result<()
         count += 1;
         to = to.wrapping_add(12);
     }
-    OBJECT_TABLES.point_count.set(count);
-    OBJECT_SLOTS.normal_counts[slot].set(count - first_normal);
-    OBJECT_SLOTS.face_counts[slot].set(face_number - first_face);
+    crate::scene::owner::scene()
+        .objects
+        .tables
+        .point_count
+        .set(count);
+    crate::scene::owner::scene().objects.slots.normal_counts[slot].set(count - first_normal);
+    crate::scene::owner::scene().objects.slots.face_counts[slot].set(face_number - first_face);
     Ok(())
 }

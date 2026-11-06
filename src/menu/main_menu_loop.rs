@@ -30,8 +30,6 @@ use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene,
 };
 use crate::menu::update_blink::update_blink;
-use crate::scene::draw_store::DRAW;
-use crate::scene::object_store::OBJECT_WORK;
 use crate::session::CLOCKS;
 
 // ---- game data ----
@@ -43,9 +41,13 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
     menus.screens.event.event_done.set(0u32);
     // menu::load_background (whether it failed is not looked at)
     Callee::LoadBackground(|| &crate::menu::owner::menus().tables.texts.main_menu_picture).run()?;
-    DRAW.view_offset[0].set(7u32);
-    DRAW.view_offset[1].set(0xAu32);
-    DRAW.view_zoom.set(0x100u32);
+    crate::scene::owner::scene().drawing.scene.view_offset[0].set(7u32);
+    crate::scene::owner::scene().drawing.scene.view_offset[1].set(0xAu32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .view_zoom
+        .set(0x100u32);
     prepare_scene(); // scene::prepare_menu_scene
     menus.screens.loop_flags.ended_a.set(0u32);
     Callee::TakeKey.run()?; // input::take_key
@@ -137,12 +139,45 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::SetUpEngine),
         Step::Call(Callee::SetUpFrontEndScene),
         Step::Call(Callee::SetUpEngine),
-        Step::Write(|| &OBJECT_WORK.light_lowest, 0x50),
-        Step::Write(|| &OBJECT_WORK.light_highest, 0xFF),
-        Step::Write(|| &OBJECT_WORK.light_level, 0),
-        Step::Write(|| &OBJECT_WORK.light_strength, 0xFF),
-        Step::Write(|| &OBJECT_WORK.light_turns[0], 0x6E),
-        Step::Write(|| &OBJECT_WORK.light_turns[1], 0x1E),
+        Step::Write(
+            || {
+                &crate::scene::owner::scene()
+                    .drawing
+                    .object_work
+                    .light_lowest
+            },
+            0x50,
+        ),
+        Step::Write(
+            || {
+                &crate::scene::owner::scene()
+                    .drawing
+                    .object_work
+                    .light_highest
+            },
+            0xFF,
+        ),
+        Step::Write(
+            || &crate::scene::owner::scene().drawing.object_work.light_level,
+            0,
+        ),
+        Step::Write(
+            || {
+                &crate::scene::owner::scene()
+                    .drawing
+                    .object_work
+                    .light_strength
+            },
+            0xFF,
+        ),
+        Step::Write(
+            || &crate::scene::owner::scene().drawing.object_work.light_turns[0],
+            0x6E,
+        ),
+        Step::Write(
+            || &crate::scene::owner::scene().drawing.object_work.light_turns[1],
+            0x1E,
+        ),
         Step::Call(Callee::PlayTune4),
     ],
     set_up_first: &[Step::Do(set_up_first)],

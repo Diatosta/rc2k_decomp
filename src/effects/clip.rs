@@ -27,15 +27,19 @@ const fn zero_vertex() -> Vertex {
     }
 }
 
-pub static CLIP: ClipScreen = ClipScreen {
-    edges: [
-        Float::from_bits(0x43C80000),
-        Float::from_bits(0x43C78000),
-        Float::from_bits(0x43960000),
-        Float::from_bits(0x43958000),
-    ],
-    vertices: [const { zero_vertex() }; 6],
-};
+impl ClipScreen {
+    pub const fn new() -> Self {
+        Self {
+            edges: [
+                Float::from_bits(0x43C80000),
+                Float::from_bits(0x43C78000),
+                Float::from_bits(0x43960000),
+                Float::from_bits(0x43958000),
+            ],
+            vertices: [const { zero_vertex() }; 6],
+        }
+    }
+}
 
 impl ClipScreen {
     pub const START: usize = 0x7687E4;
@@ -62,19 +66,23 @@ pub struct GlowState {
     pub offset: [Float; 2],
 }
 
-pub static GLOW: GlowState = GlowState {
-    off: Dword::new(0x1),
-    place: [
-        Float::from_bits(0x48800000),
-        Float::from_bits(0xC7800000),
-        Float::from_bits(0xC7800000),
-    ],
-    _gap_93cc80: Bytes::new([0; 20]),
-    clip_count: Dword::new(0x0),
-    _gap_93cc98: Bytes::new([0; 12]),
-    angle: Dword::new(0x0),
-    offset: [Float::from_bits(0x0), Float::from_bits(0x0)],
-};
+impl GlowState {
+    pub const fn new() -> Self {
+        Self {
+            off: Dword::new(0x1),
+            place: [
+                Float::from_bits(0x48800000),
+                Float::from_bits(0xC7800000),
+                Float::from_bits(0xC7800000),
+            ],
+            _gap_93cc80: Bytes::new([0; 20]),
+            clip_count: Dword::new(0x0),
+            _gap_93cc98: Bytes::new([0; 12]),
+            angle: Dword::new(0x0),
+            offset: [Float::from_bits(0x0), Float::from_bits(0x0)],
+        }
+    }
+}
 
 impl GlowState {
     pub const START: usize = 0x93CC70;
@@ -98,11 +106,13 @@ mod tests {
         assert_eq!(size_of::<GlowState>(), GlowState::LEN);
         let image = crate::moved::image_bytes;
         assert!(
-            bytes(&CLIP) == image(ClipScreen::START, ClipScreen::LEN),
+            bytes(&crate::effects::owner::effects().clipping.clip)
+                == image(ClipScreen::START, ClipScreen::LEN),
             "CLIP starts differently from the image"
         );
         assert!(
-            bytes(&GLOW) == image(GlowState::START, GlowState::LEN),
+            bytes(&crate::effects::owner::effects().clipping.glow)
+                == image(GlowState::START, GlowState::LEN),
             "GLOW starts differently from the image"
         );
         assert_eq!(

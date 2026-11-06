@@ -4,14 +4,13 @@
 //! apart) by the face's kind, and then made shares of what they were.
 
 use crate::effects::paths::Paths;
-use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::memory::owned::Owned;
 use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::{MarkCar, MarksSettings};
 use crate::race::owner_course::Course;
-use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
+use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::FACES;
 use crate::session::{Bytes, Dword, Float};
 use rc2k_core::effects::lines as core;
@@ -163,10 +162,16 @@ impl core::Blocks for GameBlocks {
         [self.1.take(self.word(k, 0)), self.1.take(self.word(k, 4))]
     }
     fn face_count(&self, object: u32) -> u32 {
-        ObjectTables::slot_value(&OBJECT_SLOTS.face_counts, object as usize)
+        ObjectTables::slot_value(
+            &crate::scene::owner::scene().objects.slots.face_counts,
+            object as usize,
+        )
     }
     fn first_face(&self, object: u32) -> u32 {
-        ObjectTables::slot_value(&OBJECT_SLOTS.first_face, object as usize)
+        ObjectTables::slot_value(
+            &crate::scene::owner::scene().objects.slots.first_face,
+            object as usize,
+        )
     }
 }
 
@@ -239,7 +244,7 @@ pub fn measure_lines(course: &Course, paths: &Paths) -> Result<(), Refused> {
                 measure_kind_lines(course, paths, from, to, block)?;
             }
             if paths.lines_work.shares.get() == 1 {
-                let hundred: u32 = MARKS_FLOATS.hundred.bits();
+                let hundred: u32 = crate::effects::owner::effects().setup.floats.hundred.bits();
                 let share = |at: GamePtr, of: GamePtr| -> Result<_, Refused> {
                     put(
                         at,
@@ -333,8 +338,10 @@ pub fn copy_block_points(course: &Course, paths: &Paths, block: &MarkCar) -> Res
         let object = block.word(BLOCK)?;
         core::check_object(object)?;
         let to = block_points(paths, block.word(BLOCK + 0x8C)?)?;
-        let count = OBJECT_SLOTS.point_counts[object as usize].get() as i32;
-        let first: u32 = OBJECT_SLOTS.first_point[object as usize].get();
+        let count =
+            crate::scene::owner::scene().objects.slots.point_counts[object as usize].get() as i32;
+        let first: u32 =
+            crate::scene::owner::scene().objects.slots.first_point[object as usize].get();
         let mut from = first
             .wrapping_mul(12)
             .wrapping_add(course.lists.object_points.bits());
@@ -364,8 +371,10 @@ pub fn set_up_blocks(course: &Course, paths: &Paths) -> Result<(), Refused> {
         for o in (0x90..=0xCC).step_by(4) {
             block.put(BLOCK + o, u32::MAX)?;
         }
-        let points: u32 =
-            ObjectTables::slot_value(&OBJECT_SLOTS.point_counts, block.word(BLOCK)? as usize);
+        let points: u32 = ObjectTables::slot_value(
+            &crate::scene::owner::scene().objects.slots.point_counts,
+            block.word(BLOCK)? as usize,
+        );
         let bytes = points
             .checked_mul(12)
             .ok_or(BadInput("a block's point count that wraps"))?;

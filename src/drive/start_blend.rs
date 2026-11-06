@@ -15,7 +15,6 @@ use crate::physics::car_store::CAR;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner_course::Course;
 use crate::race::tables_store::RACE_TABLES;
-use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 
 fn get(v: &[&dyn Cell32], k: usize) -> u32 {
@@ -56,7 +55,7 @@ fn game() -> Vec<&'static dyn Cell32> {
     vec![
         &CAR.checkpoint,
         &CAR_BLOCKS.cars[0].checkpoint,
-        &DRAW.scratch,
+        &crate::scene::owner::scene().drawing.scene.scratch,
         &CAR.start_blend_share,
         &CAR.start_share,
         &CAR.pace_push,

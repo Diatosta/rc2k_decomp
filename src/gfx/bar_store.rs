@@ -27,15 +27,19 @@ pub struct BarVars {
     pub percent: Dword,
 }
 
-/// The bar; the first values are the image's.
-pub static BAR: BarVars = BarVars {
-    x: Dword::new(0),
-    y: Dword::new(0),
-    width: Dword::new(0),
-    fill_glyph: Dword::new(0),
-    end_glyph: Dword::new(0),
-    percent: Dword::new(0),
-};
+impl BarVars {
+    /// The bar; the first values are the image's.
+    pub const fn new() -> Self {
+        BarVars {
+            x: Dword::new(0),
+            y: Dword::new(0),
+            width: Dword::new(0),
+            fill_glyph: Dword::new(0),
+            end_glyph: Dword::new(0),
+            percent: Dword::new(0),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -43,12 +47,22 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&BAR, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().drawing.bar,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
-        assert_eq!(crate::moved::place(START), BAR.x.addr() as usize);
-        assert_eq!(crate::moved::place(0x755238), BAR.percent.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::gfx().drawing.bar.x.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x755238),
+            crate::gfx::owner::gfx().drawing.bar.percent.addr() as usize
+        );
     }
 }

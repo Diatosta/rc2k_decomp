@@ -11,7 +11,6 @@
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 //! One caller, `sub_45198C` (the reflection's texture coordinates).
-use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{Base, cells, fld, fstp};
 
 // ---- Rust version ----
@@ -31,7 +30,11 @@ pub fn reflect_vector(frame: &crate::race::owner_frame::Frame) {
         .map(super::super::session::Float::bits);
     reflect(cells(&mut w), &m[..]);
     crate::session::write_bits(&frame.matrices.reflect_vector, [w[0], w[1], w[2]]);
-    DRAW.scratch.set_bits(w[6]);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(w[6]);
 }
 
 /// The block's arithmetic: `w` the vector, the normal, d; `m` the matrix.

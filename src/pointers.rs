@@ -1634,7 +1634,7 @@ mod tests {
 
     #[test]
     fn moved_stores_are_regions() {
-        let font = crate::gfx::typefaces::FONTS.objects[0].addr();
+        let font = crate::gfx::owner::gfx().fonts.typefaces.objects[0].addr();
         assert!(GamePtr::new(font).read::<[u8; 0x20]>("test").is_ok());
     }
 

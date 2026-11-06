@@ -48,7 +48,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewVars;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
 
 use crate::session::Cell32;
@@ -95,7 +94,7 @@ fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput
         .set((CAR.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
     x87_2(race, w);
-    DRAW.scratch.set(dz);
+    crate::scene::owner::scene().drawing.scene.scratch.set(dz);
     race_owner
         .frame
         .view_and_records

@@ -17,7 +17,6 @@
 //! the pixels are copied as they are, whatever the surface depth.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::gfx::blit::BLIT;
 use crate::gfx::glyph_store::{self, Glyphs};
 use crate::gfx::surface::{Clip, Surface, Target, clip, surface};
 use rc2k_core::strings::bytes::Bytes as _;
@@ -40,18 +39,34 @@ pub struct Scratch {
 
 fn read_scratch() -> Scratch {
     Scratch {
-        left_skip: BLIT.left_skip.get() as i32,
-        visible_w: BLIT.visible_width.get() as i32,
-        top_skip: BLIT.top_skip.get() as i32,
-        rows_left: BLIT.rows_left.get() as i32,
+        left_skip: crate::gfx::owner::gfx().drawing.blit.left_skip.get() as i32,
+        visible_w: crate::gfx::owner::gfx().drawing.blit.visible_width.get() as i32,
+        top_skip: crate::gfx::owner::gfx().drawing.blit.top_skip.get() as i32,
+        rows_left: crate::gfx::owner::gfx().drawing.blit.rows_left.get() as i32,
     }
 }
 
 fn write_scratch(s: &Scratch) {
-    BLIT.left_skip.set(s.left_skip as u32);
-    BLIT.visible_width.set(s.visible_w as u32);
-    BLIT.top_skip.set(s.top_skip as u32);
-    BLIT.rows_left.set(s.rows_left as u32);
+    crate::gfx::owner::gfx()
+        .drawing
+        .blit
+        .left_skip
+        .set(s.left_skip as u32);
+    crate::gfx::owner::gfx()
+        .drawing
+        .blit
+        .visible_width
+        .set(s.visible_w as u32);
+    crate::gfx::owner::gfx()
+        .drawing
+        .blit
+        .top_skip
+        .set(s.top_skip as u32);
+    crate::gfx::owner::gfx()
+        .drawing
+        .blit
+        .rows_left
+        .set(s.rows_left as u32);
 }
 
 /// The three conditions the original reports as fatal errors, each with a null message.

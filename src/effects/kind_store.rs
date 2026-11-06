@@ -63,158 +63,170 @@ pub struct QuadWork {
     pub corners: [[Float; 3]; 4],
 }
 
-/// The second shadow's (`draw_shadow::SECOND`) quad (IDA 0x9331B4 .. 0x9332AC); the first values are the image's.
-pub static QUAD_1: QuadWork = QuadWork {
-    place: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x47F53000),
-        Float::from_bits(0x0),
-    ],
-    _gap_c: Bytes::new([0; 4]),
-    light_turned: [const { Float::from_bits(0x0) }; 3],
-    matrix: [const { Float::from_bits(0x0) }; 9],
-    _gap_40: Bytes::new([0; 12]),
-    sides: [
-        [
-            Float::from_bits(0x3F800000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0xBF800000),
-            Float::from_bits(0xBF800000),
-        ],
-    ],
-    _gap_64: Bytes::new([0; 12]),
-    frame: [
-        [
-            Float::from_bits(0x3F800000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0xBF800000),
-            Float::from_bits(0xBF800000),
-        ],
-        [const { Float::from_bits(0x0) }; 3],
-    ],
-    corner: Dword::new(0x4),
-    ratio: Float::from_bits(0x47000000),
-    size: Float::from_bits(0x47800000),
-    start: Float::from_bits(0x0),
-    step: Float::from_bits(0x0),
-    low: Float::from_bits(0x0),
-    high: Float::from_bits(0x0),
-    middle: Float::from_bits(0x0),
-    slope: Float::from_bits(0x0),
-    spread: Float::from_bits(0x0),
-    way: [const { Float::from_bits(0x0) }; 3],
-    corners: [const { [const { Float::from_bits(0x0) }; 3] }; 4],
-};
+impl QuadWork {
+    /// The second shadow's (`draw_shadow::SECOND`) quad (IDA 0x9331B4 .. 0x9332AC); the first values are the image's.
+    pub const fn new_1() -> Self {
+        Self {
+            place: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x47F53000),
+                Float::from_bits(0x0),
+            ],
+            _gap_c: Bytes::new([0; 4]),
+            light_turned: [const { Float::from_bits(0x0) }; 3],
+            matrix: [const { Float::from_bits(0x0) }; 9],
+            _gap_40: Bytes::new([0; 12]),
+            sides: [
+                [
+                    Float::from_bits(0x3F800000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0xBF800000),
+                    Float::from_bits(0xBF800000),
+                ],
+            ],
+            _gap_64: Bytes::new([0; 12]),
+            frame: [
+                [
+                    Float::from_bits(0x3F800000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0xBF800000),
+                    Float::from_bits(0xBF800000),
+                ],
+                [const { Float::from_bits(0x0) }; 3],
+            ],
+            corner: Dword::new(0x4),
+            ratio: Float::from_bits(0x47000000),
+            size: Float::from_bits(0x47800000),
+            start: Float::from_bits(0x0),
+            step: Float::from_bits(0x0),
+            low: Float::from_bits(0x0),
+            high: Float::from_bits(0x0),
+            middle: Float::from_bits(0x0),
+            slope: Float::from_bits(0x0),
+            spread: Float::from_bits(0x0),
+            way: [const { Float::from_bits(0x0) }; 3],
+            corners: [const { [const { Float::from_bits(0x0) }; 3] }; 4],
+        }
+    }
+}
 
-/// The first shadow's (`draw_shadow::FIRST`) quad (IDA 0x933ED0 .. 0x933FC8); the first values are the image's.
-pub static QUAD_2: QuadWork = QuadWork {
-    place: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x47F53000),
-        Float::from_bits(0x0),
-    ],
-    _gap_c: Bytes::new([0; 4]),
-    light_turned: [const { Float::from_bits(0x0) }; 3],
-    matrix: [const { Float::from_bits(0x0) }; 9],
-    _gap_40: Bytes::new([0; 12]),
-    sides: [
-        [
-            Float::from_bits(0x3F800000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0xBF800000),
-            Float::from_bits(0xBF800000),
-        ],
-    ],
-    _gap_64: Bytes::new([0; 12]),
-    frame: [
-        [
-            Float::from_bits(0x3F800000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0xBF800000),
-            Float::from_bits(0xBF800000),
-        ],
-        [const { Float::from_bits(0x0) }; 3],
-    ],
-    corner: Dword::new(0x4),
-    ratio: Float::from_bits(0x47000000),
-    size: Float::from_bits(0x47800000),
-    start: Float::from_bits(0x0),
-    step: Float::from_bits(0x0),
-    low: Float::from_bits(0x0),
-    high: Float::from_bits(0x0),
-    middle: Float::from_bits(0x0),
-    slope: Float::from_bits(0x0),
-    spread: Float::from_bits(0x0),
-    way: [const { Float::from_bits(0x0) }; 3],
-    corners: [const { [const { Float::from_bits(0x0) }; 3] }; 4],
-};
+impl QuadWork {
+    /// The first shadow's (`draw_shadow::FIRST`) quad (IDA 0x933ED0 .. 0x933FC8); the first values are the image's.
+    pub const fn new_2() -> Self {
+        Self {
+            place: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x47F53000),
+                Float::from_bits(0x0),
+            ],
+            _gap_c: Bytes::new([0; 4]),
+            light_turned: [const { Float::from_bits(0x0) }; 3],
+            matrix: [const { Float::from_bits(0x0) }; 9],
+            _gap_40: Bytes::new([0; 12]),
+            sides: [
+                [
+                    Float::from_bits(0x3F800000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0xBF800000),
+                    Float::from_bits(0xBF800000),
+                ],
+            ],
+            _gap_64: Bytes::new([0; 12]),
+            frame: [
+                [
+                    Float::from_bits(0x3F800000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0xBF800000),
+                    Float::from_bits(0xBF800000),
+                ],
+                [const { Float::from_bits(0x0) }; 3],
+            ],
+            corner: Dword::new(0x4),
+            ratio: Float::from_bits(0x47000000),
+            size: Float::from_bits(0x47800000),
+            start: Float::from_bits(0x0),
+            step: Float::from_bits(0x0),
+            low: Float::from_bits(0x0),
+            high: Float::from_bits(0x0),
+            middle: Float::from_bits(0x0),
+            slope: Float::from_bits(0x0),
+            spread: Float::from_bits(0x0),
+            way: [const { Float::from_bits(0x0) }; 3],
+            corners: [const { [const { Float::from_bits(0x0) }; 3] }; 4],
+        }
+    }
+}
 
-/// The plane's (`draw_plane`) quad (IDA 0x934BD0 .. 0x934CC8); the first values are the image's.
-pub static QUAD_3: QuadWork = QuadWork {
-    place: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x47F53000),
-        Float::from_bits(0x0),
-    ],
-    _gap_c: Bytes::new([0; 4]),
-    light_turned: [const { Float::from_bits(0x0) }; 3],
-    matrix: [const { Float::from_bits(0x0) }; 9],
-    _gap_40: Bytes::new([0; 12]),
-    sides: [
-        [
-            Float::from_bits(0x3F800000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0xBF800000),
-            Float::from_bits(0xBF800000),
-        ],
-    ],
-    _gap_64: Bytes::new([0; 12]),
-    frame: [
-        [
-            Float::from_bits(0x3F800000),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ],
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0xBF800000),
-            Float::from_bits(0xBF800000),
-        ],
-        [const { Float::from_bits(0x0) }; 3],
-    ],
-    corner: Dword::new(0x4),
-    ratio: Float::from_bits(0x47000000),
-    size: Float::from_bits(0x47800000),
-    start: Float::from_bits(0x0),
-    step: Float::from_bits(0x0),
-    low: Float::from_bits(0x0),
-    high: Float::from_bits(0x0),
-    middle: Float::from_bits(0x0),
-    slope: Float::from_bits(0x0),
-    spread: Float::from_bits(0x0),
-    way: [const { Float::from_bits(0x0) }; 3],
-    corners: [const { [const { Float::from_bits(0x0) }; 3] }; 4],
-};
+impl QuadWork {
+    /// The plane's (`draw_plane`) quad (IDA 0x934BD0 .. 0x934CC8); the first values are the image's.
+    pub const fn new_3() -> Self {
+        Self {
+            place: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x47F53000),
+                Float::from_bits(0x0),
+            ],
+            _gap_c: Bytes::new([0; 4]),
+            light_turned: [const { Float::from_bits(0x0) }; 3],
+            matrix: [const { Float::from_bits(0x0) }; 9],
+            _gap_40: Bytes::new([0; 12]),
+            sides: [
+                [
+                    Float::from_bits(0x3F800000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0xBF800000),
+                    Float::from_bits(0xBF800000),
+                ],
+            ],
+            _gap_64: Bytes::new([0; 12]),
+            frame: [
+                [
+                    Float::from_bits(0x3F800000),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ],
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0xBF800000),
+                    Float::from_bits(0xBF800000),
+                ],
+                [const { Float::from_bits(0x0) }; 3],
+            ],
+            corner: Dword::new(0x4),
+            ratio: Float::from_bits(0x47000000),
+            size: Float::from_bits(0x47800000),
+            start: Float::from_bits(0x0),
+            step: Float::from_bits(0x0),
+            low: Float::from_bits(0x0),
+            high: Float::from_bits(0x0),
+            middle: Float::from_bits(0x0),
+            slope: Float::from_bits(0x0),
+            spread: Float::from_bits(0x0),
+            way: [const { Float::from_bits(0x0) }; 3],
+            corners: [const { [const { Float::from_bits(0x0) }; 3] }; 4],
+        }
+    }
+}
 
 /// `QUAD_1`'s place in the image (IDA 0x9331B4).
 pub struct Quad1;
@@ -1737,12 +1749,16 @@ pub struct KindExtras1 {
     pub _gap_8: Bytes<4>,
 }
 
-/// Set 1's outs; the first values are the image's.
-pub static EXTRAS_1: KindExtras1 = KindExtras1 {
-    extra: Float::from_bits(0x0),
-    divisor_copy: Dword::new(0x0),
-    _gap_8: Bytes::new([0x00, 0x00, 0x80, 0x47]),
-};
+impl KindExtras1 {
+    /// Set 1's outs; the first values are the image's.
+    pub const fn new() -> Self {
+        Self {
+            extra: Float::from_bits(0x0),
+            divisor_copy: Dword::new(0x0),
+            _gap_8: Bytes::new([0x00, 0x00, 0x80, 0x47]),
+        }
+    }
+}
 
 impl KindExtras1 {
     pub const START: usize = 0x933E70;
@@ -1757,10 +1773,14 @@ pub struct KindExtra2 {
     pub extra: Float,
 }
 
-/// Set 2's out; the first values are the image's.
-pub static EXTRA_2: KindExtra2 = KindExtra2 {
-    extra: Float::from_bits(0x0),
-};
+impl KindExtra2 {
+    /// Set 2's out; the first values are the image's.
+    pub const fn new() -> Self {
+        Self {
+            extra: Float::from_bits(0x0),
+        }
+    }
+}
 
 impl KindExtra2 {
     pub const START: usize = 0x934B78;
@@ -1882,9 +1902,21 @@ mod tests {
     fn the_statics_start_as_the_games() {
         let image = crate::moved::image_bytes;
         assert_eq!(size_of::<QuadWork>(), 0xF8);
-        assert!(bytes(&QUAD_1) == image(Quad1::START, Quad1::LEN), "QUAD_1");
-        assert!(bytes(&QUAD_2) == image(Quad2::START, Quad2::LEN), "QUAD_2");
-        assert!(bytes(&QUAD_3) == image(Quad3::START, Quad3::LEN), "QUAD_3");
+        assert!(
+            bytes(&crate::effects::owner::effects().kinds.quad_1)
+                == image(Quad1::START, Quad1::LEN),
+            "QUAD_1"
+        );
+        assert!(
+            bytes(&crate::effects::owner::effects().kinds.quad_2)
+                == image(Quad2::START, Quad2::LEN),
+            "QUAD_2"
+        );
+        assert!(
+            bytes(&crate::effects::owner::effects().kinds.quad_3)
+                == image(Quad3::START, Quad3::LEN),
+            "QUAD_3"
+        );
         assert_eq!(size_of::<KindTables<0x1AC>>(), Tables1::LEN);
         assert_eq!(size_of::<KindTables<0x198>>(), Tables2::LEN);
         assert!(
@@ -1898,11 +1930,13 @@ mod tests {
         assert_eq!(size_of::<KindExtras1>(), KindExtras1::LEN);
         assert_eq!(size_of::<KindExtra2>(), KindExtra2::LEN);
         assert!(
-            bytes(&EXTRAS_1) == image(KindExtras1::START, KindExtras1::LEN),
+            bytes(&crate::effects::owner::effects().kinds.extras_1)
+                == image(KindExtras1::START, KindExtras1::LEN),
             "EXTRAS_1"
         );
         assert!(
-            bytes(&EXTRA_2) == image(KindExtra2::START, KindExtra2::LEN),
+            bytes(&crate::effects::owner::effects().kinds.extra_2)
+                == image(KindExtra2::START, KindExtra2::LEN),
             "EXTRA_2"
         );
         assert_eq!(size_of::<KindConsts>(), Consts1::LEN);

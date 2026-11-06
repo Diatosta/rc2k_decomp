@@ -1,8 +1,8 @@
 //! The picture decoders' and glyph builder's variables (the builder's flags, the decoded
 //! picture's layout, the glyph pixel format, the decoded palette), out of RAL.EXE's image
 //! (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x519118 .. 0x519554. The PCX
-//! decoding's own variables (`gfx::pcx::PCX`), the sheet table's (`gfx::build_glyphs::SHEET`)
-//! and the glyph tables' (`gfx::glyph_tables::TABLES`) follow in the image; the glyph
+//! decoding's own variables (`PCX`), the sheet table's (`gfx::build_glyphs::SHEET`)
+//! and the glyph tables' (`TABLES`) follow in the image; the glyph
 //! builder reads and writes this block's too, so it is one block (they are one subsystem:
 //! the sheets of glyphs are PCX pictures).
 
@@ -53,25 +53,29 @@ pub struct Decoder {
     pub palette: [Dword; 256],
 }
 
-/// The decoder's variables; the first values are the image's (all zero).
-pub static DECODER: Decoder = Decoder {
-    builder_flags: Dword::new(0),
-    template: Dword::new(0),
-    number: Dword::new(0),
-    width: Dword::new(0),
-    height: Dword::new(0),
-    pixel_bits: Dword::new(0),
-    pixel_bytes: Dword::new(0),
-    row_bytes: Dword::new(0),
-    row_dwords: Dword::new(0),
-    stride: Dword::new(0),
-    pixels: Dword::new(0),
-    row_gap: Dword::new(0),
-    format: Dword::new(0),
-    backdrop: Dword::new(0),
-    transparent: Dword::new(0),
-    palette: [const { Dword::new(0) }; 256],
-};
+impl Decoder {
+    /// The decoder's variables; the first values are the image's (all zero).
+    pub const fn new() -> Self {
+        Decoder {
+            builder_flags: Dword::new(0),
+            template: Dword::new(0),
+            number: Dword::new(0),
+            width: Dword::new(0),
+            height: Dword::new(0),
+            pixel_bits: Dword::new(0),
+            pixel_bytes: Dword::new(0),
+            row_bytes: Dword::new(0),
+            row_dwords: Dword::new(0),
+            stride: Dword::new(0),
+            pixels: Dword::new(0),
+            row_gap: Dword::new(0),
+            format: Dword::new(0),
+            backdrop: Dword::new(0),
+            transparent: Dword::new(0),
+            palette: [const { Dword::new(0) }; 256],
+        }
+    }
+}
 
 impl Decoder {
     /// The decoded palette's 256 entries.
@@ -87,7 +91,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&DECODER, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().pictures.decoder,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -97,15 +105,21 @@ mod tests {
         assert_eq!(offset_of!(Decoder, palette), 0x519154 - START);
         assert_eq!(
             crate::moved::place(START),
-            DECODER.builder_flags.addr() as usize
+            crate::gfx::owner::gfx()
+                .pictures
+                .decoder
+                .builder_flags
+                .addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x519154),
-            (crate::pointers::game_address(DECODER.palette.as_ptr())) as usize
+            (crate::pointers::game_address(
+                crate::gfx::owner::gfx().pictures.decoder.palette.as_ptr()
+            )) as usize
         );
         assert_eq!(
             crate::moved::place(0x519140),
-            DECODER.pixels.addr() as usize
+            crate::gfx::owner::gfx().pictures.decoder.pixels.addr() as usize
         );
     }
 }

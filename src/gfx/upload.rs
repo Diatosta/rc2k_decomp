@@ -54,23 +54,27 @@ const fn zeros<const N: usize>() -> [Dword; N] {
     [const { Dword::new(0) }; N]
 }
 
-/// The upload's variables; the first values are the image's.
-pub static UPLOAD: Upload = Upload {
-    description: SurfaceDesc {
-        size: Dword::new(0),
-        flags: Dword::new(0),
-        height: Dword::new(0),
-        width: Dword::new(0),
-        pitch: Dword::new(0),
-        counts: zeros(),
-        pixels: Dword::new(0),
-        colour_keys: zeros(),
-        pixel_format: zeros(),
-        caps: Dword::new(0),
-    },
-    _gap_6c: Dword::new(0),
-    trying: Dword::new(0),
-};
+impl Upload {
+    /// The upload's variables; the first values are the image's.
+    pub const fn new() -> Self {
+        Upload {
+            description: SurfaceDesc {
+                size: Dword::new(0),
+                flags: Dword::new(0),
+                height: Dword::new(0),
+                width: Dword::new(0),
+                pitch: Dword::new(0),
+                counts: zeros(),
+                pixels: Dword::new(0),
+                colour_keys: zeros(),
+                pixel_format: zeros(),
+                caps: Dword::new(0),
+            },
+            _gap_6c: Dword::new(0),
+            trying: Dword::new(0),
+        }
+    }
+}
 
 impl SurfaceDesc {
     /// Where the description is, for the surface's `Lock`.
@@ -87,7 +91,11 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         assert_eq!(size_of::<SurfaceDesc>(), 0x6C);
-        crate::gfx::first_values_are_the_games(&UPLOAD, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().card.upload,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -97,16 +105,29 @@ mod tests {
         assert_eq!(offset_of!(Upload, trying), 0x5ABA88 - START);
         assert_eq!(
             crate::moved::place(START),
-            UPLOAD.description.addr() as usize
+            crate::gfx::owner::gfx().card.upload.description.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5ABA28),
-            UPLOAD.description.pitch.addr() as usize
+            crate::gfx::owner::gfx()
+                .card
+                .upload
+                .description
+                .pitch
+                .addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5ABA3C),
-            UPLOAD.description.pixels.addr() as usize
+            crate::gfx::owner::gfx()
+                .card
+                .upload
+                .description
+                .pixels
+                .addr() as usize
         );
-        assert_eq!(crate::moved::place(0x5ABA88), UPLOAD.trying.addr() as usize);
+        assert_eq!(
+            crate::moved::place(0x5ABA88),
+            crate::gfx::owner::gfx().card.upload.trying.addr() as usize
+        );
     }
 }

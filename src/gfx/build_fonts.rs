@@ -23,13 +23,10 @@
 use crate::errors::{FatalError, Refused};
 use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::build_glyphs::build_glyphs;
-use crate::gfx::decoder::DECODER;
-use crate::gfx::fonts_store::FONTS as MENU_FONTS;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{
-    TABLES, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
+    begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
-use crate::gfx::typefaces::FONTS;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::pointers::GamePtr;
 use crate::session::{Dword, SCREEN};
@@ -50,11 +47,11 @@ enum Source {
 impl Source {
     fn cell(self) -> &'static Dword {
         match self {
-            Source::Palettes => &MENU_FONTS.palettes,
-            Source::Font13 => &MENU_FONTS.font13_glyphs,
-            Source::Font21 => &MENU_FONTS.font21_glyphs,
-            Source::Font23 => &MENU_FONTS.font23_glyphs,
-            Source::Font27 => &MENU_FONTS.font27_glyphs,
+            Source::Palettes => &crate::gfx::owner::gfx().fonts.menu_fonts.palettes,
+            Source::Font13 => &crate::gfx::owner::gfx().fonts.menu_fonts.font13_glyphs,
+            Source::Font21 => &crate::gfx::owner::gfx().fonts.menu_fonts.font21_glyphs,
+            Source::Font23 => &crate::gfx::owner::gfx().fonts.menu_fonts.font23_glyphs,
+            Source::Font27 => &crate::gfx::owner::gfx().fonts.menu_fonts.font27_glyphs,
         }
     }
 }
@@ -63,10 +60,22 @@ const PALETTE_BYTES: usize = 0x400;
 fn font_sheets() -> [(&'static [u8], &'static Dword); 4] {
     use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27};
     [
-        (&FNT13, &MENU_FONTS.font13_glyphs), // fnt13_00.pcx
-        (&FNT21, &MENU_FONTS.font21_glyphs), // fnt21_00.pcx
-        (&FNT23, &MENU_FONTS.font23_glyphs), // fnt23_00.pcx
-        (&FNT27, &MENU_FONTS.font27_glyphs), // fnt27_00.pcx
+        (
+            &FNT13,
+            &crate::gfx::owner::gfx().fonts.menu_fonts.font13_glyphs,
+        ), // fnt13_00.pcx
+        (
+            &FNT21,
+            &crate::gfx::owner::gfx().fonts.menu_fonts.font21_glyphs,
+        ), // fnt21_00.pcx
+        (
+            &FNT23,
+            &crate::gfx::owner::gfx().fonts.menu_fonts.font23_glyphs,
+        ), // fnt23_00.pcx
+        (
+            &FNT27,
+            &crate::gfx::owner::gfx().fonts.menu_fonts.font27_glyphs,
+        ), // fnt27_00.pcx
     ]
 }
 
@@ -220,8 +229,10 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
 /// reports its own.)
 fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
-    let list = crate::pointers::GamePtr::to(&TABLES.memory);
-    let bytes = TABLES
+    let list = crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().fonts.glyph_tables.memory);
+    let bytes = crate::gfx::owner::gfx()
+        .fonts
+        .glyph_tables
         .units
         .get()
         .wrapping_mul(0x400)
@@ -229,14 +240,22 @@ fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
     begin_glyph_tables(vars)?;
-    DECODER.builder_flags.set(RUN_LENGTHS);
+    crate::gfx::owner::gfx()
+        .pictures
+        .decoder
+        .builder_flags
+        .set(RUN_LENGTHS);
     palettes.set(palette_place(list)?);
     begin_glyph_table(vars, list)?;
     build_glyphs(vars, &crate::gfx::texts::PAL_00, list)?;
-    MENU_FONTS.font27_glyphs.set(vars.table.get());
+    crate::gfx::owner::gfx()
+        .fonts
+        .menu_fonts
+        .font27_glyphs
+        .set(vars.table.get());
     palette_to_pixels(palettes.get())?;
-    GamePtr::to(&DECODER.palette).copy_to(
-        GamePtr::to(&MENU_FONTS.palette_sheet),
+    GamePtr::to(&crate::gfx::owner::gfx().pictures.decoder.palette).copy_to(
+        GamePtr::to(&crate::gfx::owner::gfx().fonts.menu_fonts.palette_sheet),
         PALETTE_BYTES,
         "the fonts' palette sheet",
     )?;
@@ -264,16 +283,19 @@ fn hung_value(variable: Source, plus: u32) -> u32 {
 }
 
 pub fn build_fonts() -> Result<(), Refused> {
-    if MENU_FONTS.palettes.get() != 0 {
+    if crate::gfx::owner::gfx().fonts.menu_fonts.palettes.get() != 0 {
         return Err(FatalError {
             code: 0x80A4_8020,
             message: "",
         }
         .into());
     }
-    tables(&crate::gfx::owner::gfx().sheet, &MENU_FONTS.palettes)?;
+    tables(
+        &crate::gfx::owner::gfx().sheet,
+        &crate::gfx::owner::gfx().fonts.menu_fonts.palettes,
+    )?;
     for (font, field, variable, plus) in HUNG {
-        let object = &FONTS.objects[font];
+        let object = &crate::gfx::owner::gfx().fonts.typefaces.objects[font];
         let value = hung_value(variable, plus);
         match field {
             Palette => object.palette.set(value),

@@ -7,22 +7,25 @@
 //! `dword_5CEAE0`) and their first slots and first textures (`g_kindFirstSlots`,
 //! `g_kindFirstTextures`), 0x400 dwords each. Four callers.
 
-use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::object_tables_store::OBJECT_TABLES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
-
 // ---- game data ----
 
 // ---- Rust version ----
 
 pub fn reset_texture_tables() {
-    TEXTURE_PLACES.kind_slot_bytes.set(0); // dword_5DC978, cleared first
+    crate::scene::owner::scene()
+        .textures
+        .places
+        .kind_slot_bytes
+        .set(0); // dword_5DC978, cleared first
     // dword_5CFAE0, dword_5CEAE0, g_kindFirstSlots, g_kindFirstTextures: 0x1000 bytes each.
     for table in [
-        &OBJECT_TABLES.video_levels,
-        &OBJECT_TABLES.system_levels,
-        &KIND_TEXTURES.kind_first_slots,
-        &KIND_TEXTURES.kind_first_textures,
+        &crate::scene::owner::scene().objects.tables.video_levels,
+        &crate::scene::owner::scene().objects.tables.system_levels,
+        &crate::scene::owner::scene().textures.kinds.kind_first_slots,
+        &crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures,
     ] {
         for cell in table {
             cell.set(u32::MAX);

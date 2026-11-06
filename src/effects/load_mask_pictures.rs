@@ -12,11 +12,8 @@
 //! surface wider than 256 (after the lock, unlocked again; the three blocks are left
 //! taken), memory or a picture not had, as its steps do.
 
-use crate::effects::kind_values::MARKS_KIND;
 use crate::effects::mask_store::{KIND_PICTURES, MASK_PIXELS, Mask, Masks};
 use crate::errors::{BadInput, Refused};
-use crate::gfx::picture_store::PICTURE;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 const NAMES: i32 = 6;
 /// The mask blocks' bytes (each `MASK_PIXELS` dwords) and the picture copy's.
@@ -50,17 +47,41 @@ fn read(path: crate::pointers::GamePtr) -> Result<(), Refused> {
     }
     // SAFETY: the path's NUL lies in its region (checked above).
     let sizes: [u32; 3] = [
-        PICTURE.width.get(),
-        PICTURE.height.get(),
-        PICTURE.row_bytes.get(),
+        crate::gfx::owner::gfx().pictures.picture.width.get(),
+        crate::gfx::owner::gfx().pictures.picture.height.get(),
+        crate::gfx::owner::gfx().pictures.picture.row_bytes.get(),
     ];
-    PICTURE.width.set(0x100u32);
-    PICTURE.height.set(0x80u32);
-    PICTURE.row_bytes.set(0xFFFF_FFFEu32);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .width
+        .set(0x100u32);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .height
+        .set(0x80u32);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(0xFFFF_FFFEu32);
     let read = crate::gfx::read_picture_file::read_picture_file(&path);
-    PICTURE.width.set(sizes[0]);
-    PICTURE.height.set(sizes[1]);
-    PICTURE.row_bytes.set(sizes[2]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .width
+        .set(sizes[0]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .height
+        .set(sizes[1]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(sizes[2]);
     if !read? {
         return Err(BadInput("a mask picture was not read").into());
     }
@@ -91,7 +112,7 @@ fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Re
         // A file path (text up to its NUL) at a byte offset in the paths.
         read(crate::pointers::GamePtr::to(&masks.picture_copy.paths).offset(path as u32))?;
         copy[..4 * COPIED as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
-            PICTURE.buffer.get(),
+            crate::gfx::owner::gfx().pictures.picture.buffer.get(),
             0,
             4 * COPIED as usize,
         )?);
@@ -158,13 +179,32 @@ pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
         crate::pointers::GamePtr::to(&masks.picture_copy.list),
         COPY_BYTES,
     )?;
-    lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
-    let width: u32 = crate::gfx::screen_state::DRAW_SURFACE.width.get();
+    lock(
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[202]
+            .bits(),
+        true,
+    )?;
+    let width: u32 = crate::gfx::owner::gfx().drawing.draw_surface.width.get();
     if width > MOST_WIDTH {
-        lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
+        lock(
+            crate::scene::owner::scene()
+                .textures
+                .kinds
+                .kind_first_textures[202]
+                .bits(),
+            false,
+        )?;
         return Err(BadInput("a mask surface wider than 256").into());
     }
-    let kind = (MARKS_KIND.kind.bits() as i32).clamp(0, MOST_KIND) as u32;
+    let kind = (crate::effects::owner::effects()
+        .kinds
+        .marks_kind
+        .kind
+        .bits() as i32)
+        .clamp(0, MOST_KIND) as u32;
     let number: u32 = KIND_PICTURES.numbers[kind as usize];
     let digits = [
         ((number / 10) as u8).wrapping_add(b'0'),
@@ -176,9 +216,16 @@ pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
     }
     mask(masks, MASK_PATH_AT, Mask::Plain, &mut copy, width)?;
     mask(masks, BMASK_PATH_AT, Mask::Bordered, &mut copy, width)?;
-    lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
+    lock(
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[202]
+            .bits(),
+        false,
+    )?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        KIND_TEXTURES.kind_first_slots[202].bits(),
+        crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
     )?;
     crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&masks.picture_copy.list))?;
     masks.blocks.seen.set(u32::MAX);

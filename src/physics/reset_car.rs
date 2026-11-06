@@ -21,7 +21,6 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::light_store::LIGHT_STATE;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
 
 const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a second"; // "cant reset car anywhere - waiting a sec"
@@ -29,7 +28,9 @@ const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a seco
 /// One try: the candidate set; true when a block is in the way (CF).
 fn blocked() -> bool {
     PHYSICS.reset_candidate.set(
-        LIGHT_STATE
+        crate::scene::owner::scene()
+            .lights
+            .state
             .line_place
             .get()
             .wrapping_add(PHYSICS.reset_offset.get()),
@@ -45,8 +46,16 @@ fn blocked() -> bool {
 /// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
 pub fn reset_car(race: &Race) -> Result<(), Refused> {
-    LIGHT_STATE.line_place.set(CAR.reset_checkpoint.get());
-    LIGHT_STATE.line_fraction.set(0);
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .line_place
+        .set(CAR.reset_checkpoint.get());
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .line_fraction
+        .set(0);
     if RACE_VARS.run_kind.get() == 2 {
         let mut free = false;
         for offset in reset_offsets() {
@@ -63,7 +72,11 @@ pub fn reset_car(race: &Race) -> Result<(), Refused> {
             CAR.stuck_count.set(CAR.stuck_count.get().wrapping_sub(100));
             return Ok(());
         }
-        LIGHT_STATE.line_place.set(PHYSICS.reset_candidate.get());
+        crate::scene::owner::scene()
+            .lights
+            .state
+            .line_place
+            .set(PHYSICS.reset_candidate.get());
     }
     crate::race::start_place::place_car_on_line(&race.course)?;
     crate::physics::reset_car_on_line::reset_car_on_line(race)?;

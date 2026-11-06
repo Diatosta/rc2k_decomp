@@ -10,12 +10,11 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::view_vectors::KEPT;
 use crate::math::x87;
 
 /// The Rust version (see the header).
 pub fn aim_vector() {
-    let k = &KEPT;
+    let k = &crate::effects::owner::effects().frame.kept_view;
     let v: [u32; 3] = std::array::from_fn(|n| {
         // Per axis: (negated, less, plus, plus).
         x87::negated_less_plus_plus(

@@ -16,11 +16,9 @@
 //! particle or ring (an entry to take), before anything.
 
 use crate::effects::blocks::{particle, set_particle};
-use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::ring_store::Ring;
-use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
-use crate::effects::work_store::MARKS_WORK;
+use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
@@ -81,10 +79,20 @@ pub fn trail_particles(
             ring.pool.used.set(used.wrapping_add(1));
             let put = |o: u32, v: u32| set_particle(particles, e, o, v);
             put(8, 4)?;
-            let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
-            MARKS_WORK.seed.set(s);
-            let k1 = DRAW_WORK.uv_k.bits();
-            let k2 = PARTICLE_TUNING.trail_random_k.bits();
+            let s = crate::effects::owner::effects()
+                .setup
+                .work
+                .seed
+                .get()
+                .wrapping_mul(0x9D)
+                .wrapping_add(0x47);
+            crate::effects::owner::effects().setup.work.seed.set(s);
+            let k1 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
+            let k2 = crate::effects::owner::effects()
+                .kinds
+                .particle_tuning
+                .trail_random_k
+                .bits();
             ring.pool
                 .burst_radius
                 .set_bits(x87::int_times_times((s & 0xFFFF) as i32, k1, k2));
@@ -105,14 +113,28 @@ pub fn trail_particles(
                     x87::diff_times_plus_times(
                         particle(particles, p, last)?,
                         particle(particles, p, place)?,
-                        PARTICLE_TUNING.trail_axes[2 * n].bits(),
+                        crate::effects::owner::effects()
+                            .kinds
+                            .particle_tuning
+                            .trail_axes[2 * n]
+                            .bits(),
                         particle(particles, p, motion)?,
-                        PARTICLE_TUNING.trail_axes[2 * n + 1].bits(),
+                        crate::effects::owner::effects()
+                            .kinds
+                            .particle_tuning
+                            .trail_axes[2 * n + 1]
+                            .bits(),
                     ),
                 )?;
             }
             let (moved, _) = jitter_point([
-                extended(PARTICLE_TUNING.trail_spread.bits()),
+                extended(
+                    crate::effects::owner::effects()
+                        .kinds
+                        .particle_tuning
+                        .trail_spread
+                        .bits(),
+                ),
                 extended(particle(particles, e, 0x34)?),
                 extended(particle(particles, e, 0x2C)?),
                 extended(particle(particles, e, 0x28)?),
@@ -120,7 +142,9 @@ pub fn trail_particles(
             put(0x34, rounded(moved[0]))?;
             put(0x2C, rounded(moved[1]))?;
             put(0x28, rounded(moved[2]))?;
-            let [a, b] = PARTICLE_TUNING
+            let [a, b] = crate::effects::owner::effects()
+                .kinds
+                .particle_tuning
                 .trail_size_k
                 .each_ref()
                 .map(super::super::session::Float::bits);
@@ -132,7 +156,14 @@ pub fn trail_particles(
             put(0x44, LIFE)?;
             put(
                 0x40,
-                x87::over_int(PARTICLE_TUNING.trail_life_k.bits(), LIFE as i32),
+                x87::over_int(
+                    crate::effects::owner::effects()
+                        .kinds
+                        .particle_tuning
+                        .trail_life_k
+                        .bits(),
+                    LIFE as i32,
+                ),
             )?;
             put(0x24, x87::loaded(frame.matrices.view_place[13].bits()))?;
         }

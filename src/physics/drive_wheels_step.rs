@@ -28,7 +28,6 @@ use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
 use crate::session::{Cell32, Float};
 
@@ -113,9 +112,16 @@ fn steps(course: &Course) -> Result<(), Refused> {
             PHYSICS.wheels_driven.set(1);
         }
         drive_forces_from_grips(grips);
-        DRAW.scratch.set(CAR.throttle.get().wrapping_add(0x100));
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(CAR.throttle.get().wrapping_add(0x100));
         throttle_drive_limit(course);
-        hold_high(&PHYSICS.drive_limits[1], &DRAW.scratch);
+        hold_high(
+            &PHYSICS.drive_limits[1],
+            &crate::scene::owner::scene().drawing.scene.scratch,
+        );
         let pick = if abs_below(
             PHYSICS.drive_limits[1].bits(),
             PHYSICS.drive_limits[0].bits(),
@@ -197,8 +203,15 @@ fn steps(course: &Course) -> Result<(), Refused> {
             &PHYSICS.forces[18].force[2],
         );
         // 0x43E707: the car-frame side speed eased by the side grip.
-        DRAW.scratch.set(CAR.local_velocity[0].bits());
-        ease_zero(&DRAW.scratch, &PHYSICS.drive_limits[2]);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(CAR.local_velocity[0].bits());
+        ease_zero(
+            &crate::scene::owner::scene().drawing.scene.scratch,
+            &PHYSICS.drive_limits[2],
+        );
         side_slip_forces(course);
         store_loaded(&PHYSICS.slip_limit, &PHYSICS.drive_limits[0]);
         store_loaded(&PHYSICS.wheel_spin_push[0], &PHYSICS.handling[4]);
@@ -224,9 +237,15 @@ fn steps(course: &Course) -> Result<(), Refused> {
     }
     // 0x43E957: the wheels' slip figures.
     slip_figure_a();
-    hold_low(&DRAW.work_float_a, &course.numbers.zero);
+    hold_low(
+        &crate::scene::owner::scene().drawing.scene.work_float_a,
+        &course.numbers.zero,
+    );
     slip_figure_b();
-    hold_low(&DRAW.work_float_b, &course.numbers.zero);
+    hold_low(
+        &crate::scene::owner::scene().drawing.scene.work_float_b,
+        &course.numbers.zero,
+    );
     slip_lengths();
     Ok(())
 }
@@ -394,7 +413,7 @@ fn drive_forces_from_grips(grips: &[Float; 5]) {
 /// `[rc + 0x214240] = ((int [rc + 0x22400C] / [rc + 0x1C5E2C]) * |([rc + 0x31A17C] * [rc + 0x214268])|) * [rc + 0x214170]`
 /// `[rc + 0x22400C] = [rc + 0x21423C] * [rc + 0x213EC4]`
 fn throttle_drive_limit(course: &Course) {
-    let t0 = int(DRAW.scratch.bits() as i32);
+    let t0 = int(crate::scene::owner::scene().drawing.scene.scratch.bits() as i32);
     let t1 = ld(course.numbers.k256.bits());
     let t2 = t0 / t1;
     let t3 = ld(CAR.local_velocity[0].bits());
@@ -408,7 +427,11 @@ fn throttle_drive_limit(course: &Course) {
     let t10 = ld(PHYSICS.drive_limits[0].bits());
     let t11 = ld(PHYSICS.drive_speed_scale.bits());
     let t12 = t10 * t11;
-    DRAW.scratch.set_bits(st(t12));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(st(t12));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -569,7 +592,7 @@ fn scale_axle_forces() {
 /// `[rc + 0x214910] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
 /// `[rc + 0x214930] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
 fn side_slip_forces(course: &Course) {
-    let t0 = ld(DRAW.scratch.bits());
+    let t0 = ld(crate::scene::owner::scene().drawing.scene.scratch.bits());
     let t1 = ld(CAR.local_velocity[0].bits());
     let t2 = t0 - t1;
     PHYSICS.drive_slip[0].set_bits(st(t2));
@@ -627,7 +650,11 @@ fn speed_over_ground() -> u16 {
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
-    DRAW.scratch.set_bits(st(t5));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(st(t5));
     let t6 = ld(PHYSICS.wheel_drag[1].bits());
     compare(t5, t6)
 }
@@ -638,14 +665,14 @@ fn speed_over_ground() -> u16 {
 /// `[rc + 0x2148B8] = -(([rc + 0x214760] / [rc + 0x22400C]) * [rc + 0x31A184])`
 fn rolling_drag_forces() {
     let t0 = ld(PHYSICS.wheel_drag[0].bits());
-    let t1 = ld(DRAW.scratch.bits());
+    let t1 = ld(crate::scene::owner::scene().drawing.scene.scratch.bits());
     let t2 = t0 / t1;
     let t3 = ld(CAR.local_velocity[0].bits());
     let t4 = t2 * t3;
     let t5 = -t4;
     PHYSICS.forces[10].force[0].set_bits(st(t5));
     let t6 = ld(PHYSICS.wheel_drag[0].bits());
-    let t7 = ld(DRAW.scratch.bits());
+    let t7 = ld(crate::scene::owner::scene().drawing.scene.scratch.bits());
     let t8 = t6 / t7;
     let t9 = ld(CAR.local_velocity[2].bits());
     let t10 = t8 * t9;
@@ -698,7 +725,11 @@ fn slip_figure_a() {
     let t3 = t2.abs();
     let t4 = ld(PHYSICS.wheel_speed_gap.bits());
     let t5 = t3 - t4;
-    DRAW.work_float_a.set_bits(st(t5));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_a
+        .set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -709,7 +740,11 @@ fn slip_figure_b() {
     let t1 = t0.abs();
     let t2 = ld(PHYSICS.wheel_speed_margin.bits());
     let t3 = t1 - t2;
-    DRAW.work_float_b.set_bits(st(t3));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_b
+        .set_bits(st(t3));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -721,24 +756,48 @@ fn slip_figure_b() {
 /// `[rc + 0x22401C] = |([rc + 0x31A194] - [rc + 0x31A184])|`
 /// `[rc + 0x31AF1C] = sqrt((([rc + 0x22401C] * [rc + 0x22401C]) + ([rc + 0x224020] * [rc + 0x224020])))`
 fn slip_lengths() {
-    let t0 = ld(DRAW.work_float_a.bits());
+    let t0 = ld(crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_a
+        .bits());
     let t1 = t0 * t0;
-    let t2 = ld(DRAW.work_float_b.bits());
+    let t2 = ld(crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_b
+        .bits());
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
     CAR.slip_speed.set_bits(st(t5));
     let t6 = ld(CAR.local_velocity[0].bits());
     let t7 = t6.abs();
-    DRAW.work_float_b.set_bits(st(t7));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_b
+        .set_bits(st(t7));
     let t8 = ld(CAR.drive_speed_a.bits());
     let t9 = ld(CAR.local_velocity[2].bits());
     let t10 = t8 - t9;
     let t11 = t10.abs();
-    DRAW.work_float_a.set_bits(st(t11));
-    let t12 = ld(DRAW.work_float_a.bits());
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_a
+        .set_bits(st(t11));
+    let t12 = ld(crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_a
+        .bits());
     let t13 = t12 * t12;
-    let t14 = ld(DRAW.work_float_b.bits());
+    let t14 = ld(crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_b
+        .bits());
     let t15 = t14 * t14;
     let t16 = t13 + t15;
     let t17 = t16.sqrt();
@@ -747,10 +806,22 @@ fn slip_lengths() {
     let t19 = ld(CAR.local_velocity[2].bits());
     let t20 = t18 - t19;
     let t21 = t20.abs();
-    DRAW.work_float_a.set_bits(st(t21));
-    let t22 = ld(DRAW.work_float_a.bits());
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_a
+        .set_bits(st(t21));
+    let t22 = ld(crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_a
+        .bits());
     let t23 = t22 * t22;
-    let t24 = ld(DRAW.work_float_b.bits());
+    let t24 = ld(crate::scene::owner::scene()
+        .drawing
+        .scene
+        .work_float_b
+        .bits());
     let t25 = t24 * t24;
     let t26 = t23 + t25;
     let t27 = t26.sqrt();

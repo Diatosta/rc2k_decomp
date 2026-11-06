@@ -17,7 +17,6 @@ use crate::menu::fn_list::ListCell;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed, run_listed};
 use crate::menu::owner::Menus;
 use crate::platform::{show_frame_now, unlock_surface};
-use crate::scene::light_store::LIGHT_STATE;
 
 const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.draw_list; // g_drawList
 const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.scene_list; // g_sceneList
@@ -34,7 +33,11 @@ pub fn inspection_frame(
     copy_picture()?;
     run_listed(menus, DRAW_LIST)?;
     unlock_surface();
-    LIGHT_STATE.scene_state.set_bits(4u32);
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .scene_state
+        .set_bits(4u32);
     crate::scene::begin_scene::begin_scene();
     run_listed(menus, SCENE_LIST)?;
     crate::scene::end_scene::end_scene();

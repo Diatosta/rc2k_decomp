@@ -3,7 +3,6 @@
 //! matrices into `g_marksTurnedA` / `B` and, offset, into the points their targets name;
 //! and the two farthest apart of each list on one face.
 
-use crate::effects::kind_values::MARKS_KIND;
 use crate::effects::mask_store::Masks;
 use crate::effects::masks::PointList;
 use crate::effects::shape_work::MarkShapes;
@@ -252,7 +251,6 @@ const SETS_HELD: u32 = 33;
 /// What `make_shape_set` refuses for object `object`: a set count past 0x22 (or below 0),
 /// an object past 0xFF or its faces past `g_faces`, a tilt `fsincos` cannot take.
 fn shape_set_checks(drops: &WindscreenDrops, object: u32) -> Result<(), Refused> {
-    use crate::scene::object_slots_store::OBJECT_SLOTS;
     use crate::scene::objects::FACES;
     let made = drops.shape_work.sets_made.get();
     if made > SETS {
@@ -264,8 +262,8 @@ fn shape_set_checks(drops: &WindscreenDrops, object: u32) -> Result<(), Refused>
     if object >= 0x100 {
         return Err(BadInput("an object past 0xFF").into());
     }
-    let first: u32 = OBJECT_SLOTS.first_face[object as usize].get();
-    let faces: u32 = OBJECT_SLOTS.face_counts[object as usize].get();
+    let first: u32 = crate::scene::owner::scene().objects.slots.first_face[object as usize].get();
+    let faces: u32 = crate::scene::owner::scene().objects.slots.face_counts[object as usize].get();
     if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
         return Err(BadInput("an object's faces past g_faces").into());
     }
@@ -293,7 +291,6 @@ pub fn make_shape_set(
     object: u32,
 ) -> Result<(), Refused> {
     use crate::effects::masks::collect_points;
-    use crate::scene::object_slots_store::OBJECT_SLOTS;
     shape_set_checks(drops, object)?;
     let made: u32 = drops.shape_work.sets_made.get();
     if made == SETS {
@@ -328,12 +325,12 @@ pub fn make_shape_set(
         list.count.set(0);
     }
     let object = object as usize;
-    let first: u32 = OBJECT_SLOTS.first_face[object].get();
+    let first: u32 = crate::scene::owner::scene().objects.slots.first_face[object].get();
     drops
         .shape_work
         .first_point
-        .set(OBJECT_SLOTS.first_point[object].get());
-    let faces: u32 = OBJECT_SLOTS.face_counts[object].get();
+        .set(crate::scene::owner::scene().objects.slots.first_point[object].get());
+    let faces: u32 = crate::scene::owner::scene().objects.slots.face_counts[object].get();
     let kinds: [u32; 2] = read_bits(&drops.tuning.face_kinds);
     for f in first..first + faces {
         let face: u32 = crate::scene::objects::face_cell(f as usize).get();
@@ -408,7 +405,11 @@ pub fn make_shape_set(
 /// objects, what `make_shape_set` refuses for any of them, before writing.
 pub fn make_shape_sets(course: &Course, drops: &WindscreenDrops) -> Result<(), Refused> {
     {
-        let kind: u32 = MARKS_KIND.kind.bits();
+        let kind: u32 = crate::effects::owner::effects()
+            .kinds
+            .marks_kind
+            .kind
+            .bits();
         if kind >= SETS {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }

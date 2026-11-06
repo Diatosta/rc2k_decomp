@@ -14,7 +14,6 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::owner_frame::Frame;
 
-use crate::scene::draw_store::DRAW;
 use rc2k_core::hud::quads;
 
 /// The Rust version (see the header). What the original leaves in the registers is read
@@ -32,6 +31,10 @@ pub fn add_quad(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
         at.u.set_bits(v.u.to_bits());
         at.v.set_bits(v.v.to_bits());
     }
-    DRAW.polygon_vertex_count.set_bits(4u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set_bits(4u32);
     crate::hud::add_polygon::add_polygon(frame, hud)
 }

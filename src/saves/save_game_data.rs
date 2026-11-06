@@ -29,7 +29,7 @@ pub fn save_in_game() -> Result<bool, Refused> {
     save_game_data(
         &mut || {
             crate::saves::save_options::save_options(crate::pointers::GamePtr::to(
-                &crate::saves::load_options::PATH,
+                &crate::saves::owner::saves().files.options_path,
             ))
         },
         &mut || crate::saves::save_best_times::in_game(),

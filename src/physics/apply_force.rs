@@ -16,7 +16,6 @@ use crate::physics::car_store::Car;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::tables_store::{ForceRecord, PHYSICS};
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
@@ -29,7 +28,11 @@ pub fn apply_force(rec: &ForceRecord, car: &Car) {
     }
     let dt = extended(PHYSICS.step_time.bits());
     scale_vector(work, dt);
-    DRAW.scratch.set(rounded(dt));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set(rounded(dt));
     // The work car's matrix (`g_crashMatrix`), whichever block it is: the original's.
     turn_by_car_matrix(work);
     for (v, w) in car.velocity.iter().zip(work) {

@@ -17,11 +17,8 @@
 
 use crate::effects::expire_windscreen_drops::{ITEM_LEN, ITEMS};
 use crate::effects::mask_store::Masks;
-use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
-use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
 /// `unk_628A44`, past the 0x40 records of 0xC0 bytes.
@@ -101,7 +98,13 @@ pub fn windscreen_drops_frame(
         return Err(BadInput(why).into());
     }
     {
-        if MARKS_KIND_FLOATS.running.bits() != 0 {
+        if crate::effects::owner::effects()
+            .setup
+            .kind_floats
+            .running
+            .bits()
+            != 0
+        {
             crate::effects::windscreen_drops_drift::windscreen_drops_drift(frame, drops)?;
         }
         crate::effects::windscreen_drops_setup::windscreen_drops_setup(drops);
@@ -112,9 +115,19 @@ pub fn windscreen_drops_frame(
                 continue;
             }
             drops.state.live.set(drops.state.live.get().wrapping_add(1));
-            if MARKS_KIND_FLOATS.running.bits() != 0 {
+            if crate::effects::owner::effects()
+                .setup
+                .kind_floats
+                .running
+                .bits()
+                != 0
+            {
                 let x = x87::to_int(get(drops, e + ITEM_X));
-                MARKS_WORK.scratch.set(x as u32);
+                crate::effects::owner::effects()
+                    .setup
+                    .work
+                    .scratch
+                    .set(x as u32);
                 drift_cell(drops, 4 * (((x as u32) >> 3) & 0xFF));
                 drift_move(drops, 4 * get(drops, e + ITEM_KIND), e);
             }
@@ -142,15 +155,28 @@ pub fn windscreen_drops_frame(
             drops.hex.buffer.set(next);
             if next as usize == BUFFER_BYTES {
                 drops.hex.buffer.set(0);
-                WINDSCREEN_DROP_BATCH.index_count.set(0x300);
-                WINDSCREEN_DROP_BATCH.vertex_count.set(0x180);
+                crate::gfx::owner::gfx()
+                    .card
+                    .windscreen_drop_batch
+                    .index_count
+                    .set(0x300);
+                crate::gfx::owner::gfx()
+                    .card
+                    .windscreen_drop_batch
+                    .vertex_count
+                    .set(0x180);
                 draw_batch()?;
             }
         }
         let marks = crate::effects::setup::marks()?;
         let live: u32 = drops.state.live.bits();
         if (live as i32) < marks.listener_switch_2.get() as i32
-            && MARKS_KIND_FLOATS.running.bits() != 0
+            && crate::effects::owner::effects()
+                .setup
+                .kind_floats
+                .running
+                .bits()
+                != 0
         {
             crate::effects::windscreen_drops_spawn::windscreen_drops_spawn(drops)?;
         }
@@ -160,7 +186,6 @@ pub fn windscreen_drops_frame(
 
 use crate::effects::plain::{ld_at, ld_cell, st_at};
 use crate::math::x87_float as bh;
-use crate::scene::draw_store::DRAW;
 
 /// `drift_cell`: the drift at the item's cell (`curve[k / 4]`) into `drift`: x from the
 /// shape tilt's point, y its second coordinate.
@@ -191,7 +216,10 @@ fn drift_move_x87(drops: &WindscreenDrops, k: usize, s: usize) {
 
 /// The dword at `offset` of the record batch, as the x87 loads it.
 fn ld_record(offset: usize) -> bh::X {
-    ld_at(&WINDSCREEN_DROP_BATCH.records, offset)
+    ld_at(
+        &crate::gfx::owner::gfx().card.windscreen_drop_batch.records,
+        offset,
+    )
 }
 
 /// `sprite_depth`: the item's whole-number place turned by the view into `cell` (and the
@@ -226,7 +254,8 @@ fn sprite_depth_x87(drops: &WindscreenDrops) {
 /// takes (`view_scale / cell[2]`).
 fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
     let work = &drops.work;
-    let inverse_depth = bh::ld(DRAW.view_scale.bits()) / bh::ld(work.cell[2].bits());
+    let inverse_depth = bh::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits())
+        / bh::ld(work.cell[2].bits());
     // Axis by axis (x, y, z), each of the six corners.
     for axis in 0..3 {
         for corner in 0..6 {
@@ -243,8 +272,9 @@ fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
 /// being `view_scale / depth`. Same order and rounding as the original's x87 block.
 fn sprite_project_x87(drops: &WindscreenDrops, e: usize, inverse_depth: bh::X) {
     let work = &drops.work;
-    let records = &WINDSCREEN_DROP_BATCH.records;
-    let centre = |axis: usize| bh::ld(DRAW.view_centre[axis].bits());
+    let records = &crate::gfx::owner::gfx().card.windscreen_drop_batch.records;
+    let centre =
+        |axis: usize| bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[axis].bits());
     work.cell[2].set_bits(bh::st(inverse_depth));
     // The centre.
     let up = -(bh::ld(work.cell[1].bits()) * bh::ld(work.cell[2].bits()));
@@ -278,7 +308,14 @@ fn sprite_project_x87(drops: &WindscreenDrops, e: usize, inverse_depth: bh::X) {
         st_at(records, at + 0x1C, y);
     }
     // Every vertex's depth.
-    let depth = (bh::ld(drops.state.depth.bits()) + bh::ld(MARKS_KIND_FLOATS.kind_float.bits()))
+    let depth = (bh::ld(drops.state.depth.bits())
+        + bh::ld(
+            crate::effects::owner::effects()
+                .setup
+                .kind_floats
+                .kind_float
+                .bits(),
+        ))
         * bh::ld(work.inverse.bits());
     for v in 0..6 {
         st_at(records, e + 0x20 * v + 0x8, depth);
@@ -621,10 +658,9 @@ mod asm_reference {
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
-    use super::WINDSCREEN_DROP_BATCH;
     use super::asm_reference as reference;
     use crate::effects::tilt_shape::ShapeTilt;
-    use crate::effects::tuning::{MARKS_KIND_FLOATS, MarksKindFloats};
+    use crate::effects::tuning::MarksKindFloats;
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::windscreen_drop_state::{WindscreenDropState, WindscreenDropWork};
 
@@ -1058,16 +1094,25 @@ mod asm_differential {
                 windscreen_drops(b[1], || {
                     with_overlays(
                         b[1],
-                        &[overlay(&MARKS_KIND_FLOATS, MarksKindFloats::START)],
+                        &[overlay(
+                            &crate::effects::owner::effects().setup.kind_floats,
+                            MarksKindFloats::START,
+                        )],
                         || {
                             hex(b[1], || {
-                                staged(b[2], 0, 0xC0, &WINDSCREEN_DROP_BATCH.records, || {
-                                    super::sprite_project_x87(
-                                        &crate::effects::owner::EFFECTS.windscreen_drops,
-                                        0,
-                                        super::bh::ld(b[3] as u32),
-                                    );
-                                });
+                                staged(
+                                    b[2],
+                                    0,
+                                    0xC0,
+                                    &crate::gfx::owner::gfx().card.windscreen_drop_batch.records,
+                                    || {
+                                        super::sprite_project_x87(
+                                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                                            0,
+                                            super::bh::ld(b[3] as u32),
+                                        );
+                                    },
+                                );
                             });
                         },
                     );

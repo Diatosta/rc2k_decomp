@@ -16,7 +16,6 @@
 use crate::effects::pick_windscreen_flake::pick_windscreen_flake;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::Refused;
 use crate::math::x87;
 
@@ -24,7 +23,12 @@ const MOST: i32 = 0x80;
 
 /// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
 fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
-    rate_x87(drops, &KEPT, &fl.timing, &fl.state);
+    rate_x87(
+        drops,
+        &crate::effects::owner::effects().frame.kept_view,
+        &fl.timing,
+        &fl.state,
+    );
 }
 
 /// The Rust version (see the header).
@@ -36,8 +40,12 @@ pub fn windscreen_flakes_spawn(
         fl.timing.frames.set(fl.timing.frames.get().wrapping_add(1));
         let old = x87::set_chop();
         rate(drops, fl);
-        let status = MARKS_WORK.fpu_status.get() & 0x700;
-        MARKS_WORK.fpu_status.set(status);
+        let status = crate::effects::owner::effects().setup.work.fpu_status.get() & 0x700;
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .fpu_status
+            .set(status);
         if status != 0x100 {
             let v: u32 = fl.timing.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
@@ -61,7 +69,7 @@ pub fn windscreen_flakes_spawn(
     Ok(())
 }
 
-use crate::effects::view_vectors::{KEPT, KeptView};
+use crate::effects::view_vectors::KeptView;
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;
 

@@ -23,9 +23,6 @@
 //! Takes the car's block as a typed reference.
 
 use crate::physics::car_store::Car;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::light_work_store::LIGHT_WORK;
 use crate::scene::vertex_light::plus;
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};
 use crate::session::MACHINE;
@@ -130,20 +127,27 @@ pub fn add_car_light(course: &crate::race::owner_course::Course, car: &Car) {
     if car.lights_on.get() == 0 {
         return;
     }
-    let place: [u32; 3] = crate::session::read_bits(&LIGHT_STATE.lit_place);
+    let place: [u32; 3] =
+        crate::session::read_bits(&crate::scene::owner::scene().lights.state.lit_place);
     let mut from = [0u32; 3];
     for k in 0..3 {
         from[k] = place[k].wrapping_sub(car.position[k].bits());
     }
     let matrix = crate::session::read_bits(&car.car_inverse_matrix);
     let seen = turned(from, &matrix);
-    crate::session::write_bits(&LIGHT_STATE.turned_light, seen);
+    crate::session::write_bits(
+        &crate::scene::owner::scene().lights.state.turned_light,
+        seen,
+    );
     let [x, y, z] = seen;
     let factor: u32 = course.numbers.one_over_65536.bits();
     let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
     let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
     // Worked out and not used; its rounding is what `dword_62400C` is left with.
-    DRAW.scratch
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
         .set(squares(z.wrapping_sub(0x10_0000), x, factor, false));
     let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
@@ -152,9 +156,15 @@ pub fn add_car_light(course: &crate::race::owner_course::Course, car: &Car) {
         [held(amount as i32) as usize]
         .get();
     let mmx = MACHINE.has_mmx.get() != 0;
-    LIGHT_WORK
+    crate::scene::owner::scene()
+        .lights
+        .work
         .light_colour
-        .set(plus(colour, LIGHT_WORK.light_colour.bits(), mmx));
+        .set(plus(
+            colour,
+            crate::scene::owner::scene().lights.work.light_colour.bits(),
+            mmx,
+        ));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -2,12 +2,10 @@
 //! records scaled once, the kind's edge picture (`files\m\edgeNN.pcx`, 256 x 128) packed to
 //! a byte a pixel, the shape tilt of the kind, then the masks and the two item kinds.
 
-use crate::effects::kind_values::MARKS_KIND;
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
-use crate::gfx::picture_store::PICTURE;
 use crate::math::x87;
 use crate::pointers::GamePtr;
 use crate::race::owner_course::Course;
@@ -62,7 +60,13 @@ pub fn load_edges(
     }
     let marks = crate::effects::setup::marks()?;
     marks.listener_point_a_negated[0].set(SETTING_VALUE);
-    let kind = clamped(MARKS_KIND.kind.bits());
+    let kind = clamped(
+        crate::effects::owner::effects()
+            .kinds
+            .marks_kind
+            .kind
+            .bits(),
+    );
     masks
         .edge_settings
         .path
@@ -72,22 +76,50 @@ pub fn load_edges(
         .path
         .set(DIGITS as usize + 1, (kind % 10) as u8 + b'0');
     let sizes: [u32; 3] = [
-        PICTURE.width.get(),
-        PICTURE.height.get(),
-        PICTURE.row_bytes.get(),
+        crate::gfx::owner::gfx().pictures.picture.width.get(),
+        crate::gfx::owner::gfx().pictures.picture.height.get(),
+        crate::gfx::owner::gfx().pictures.picture.row_bytes.get(),
     ];
-    PICTURE.width.set(0x100u32);
-    PICTURE.height.set(0x80u32);
-    PICTURE.row_bytes.set(0xFFFF_FFFEu32);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .width
+        .set(0x100u32);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .height
+        .set(0x80u32);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(0xFFFF_FFFEu32);
     let read =
         crate::gfx::read_picture_file::read_picture_file(&GamePtr::to(&masks.edge_settings.path));
-    PICTURE.width.set(sizes[0]);
-    PICTURE.height.set(sizes[1]);
-    PICTURE.row_bytes.set(sizes[2]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .width
+        .set(sizes[0]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .height
+        .set(sizes[1]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(sizes[2]);
     if !read? {
         return Err(BadInput("the edge picture was not read").into());
     }
-    let pixels = crate::gfx::picture::read_bytes(PICTURE.buffer.get(), 0, 4 * EDGE_LEN as usize)?;
+    let pixels = crate::gfx::picture::read_bytes(
+        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
+        0,
+        4 * EDGE_LEN as usize,
+    )?;
     for (k, p) in pixels.as_chunks::<4>().0.iter().enumerate() {
         masks.edge_mask.mask.set(k, !(p[0] | p[1] | p[2] | p[3]));
     }
@@ -117,7 +149,11 @@ pub fn load_kind_data(course: &Course, effects: &Effects) -> Result<(), Refused>
     {
         let marks = crate::effects::setup::marks()?;
         let kind = marks.mark_car_file_number.get();
-        MARKS_KIND.kind.set_bits(kind);
+        crate::effects::owner::effects()
+            .kinds
+            .marks_kind
+            .kind
+            .set_bits(kind);
         load_edges(course, masks, drops, RESUME)?;
         crate::effects::splines::load_splines(
             course,

@@ -10,7 +10,6 @@
 
 use crate::math::x87;
 use crate::race::owner::race;
-use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
 
@@ -27,7 +26,11 @@ pub fn angle_of(first: u32, second: u32) -> u32 {
             course.numbers.k65536.bits(),
         ) as u32
             & 0xFFFF;
-        DRAW.scratch.set_bits(angle);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set_bits(angle);
         angle
     }
 }

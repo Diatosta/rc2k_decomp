@@ -5,7 +5,6 @@
 //! (the surface's particle kind); the patched EXE some owners use turns it into a `ret`
 //! (section 16).
 
-use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -59,7 +58,7 @@ pub fn take_entry(ring: &Ring, tag: u32, kind: u32) -> Result<u32, Refused> {
         ring.work.cursor.set(e);
         ring.work.count.set(ring.work.count.get().wrapping_add(1));
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-        put(8, EMITTER.tag.get())?;
+        put(8, crate::effects::owner::effects().kinds.emitter.tag.get())?;
         put(0x90, tag)?;
         put(0xC, kind)?;
         e
@@ -77,13 +76,17 @@ pub fn matrix_cell(matrix: &[Float], offset: u32) -> Result<u32, Refused> {
 
 /// The car the emitters are on (`EMITTER.car`, a handle); refused when none is set.
 pub fn emitting_car() -> Result<&'static MarkCar, BadInput> {
-    crate::race::marks_settings_store::car_or_none(EMITTER.car.get())
-        .ok_or(BadInput("no car for the emitters"))
+    crate::race::marks_settings_store::car_or_none(
+        crate::effects::owner::effects().kinds.emitter.car.get(),
+    )
+    .ok_or(BadInput("no car for the emitters"))
 }
 
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
 pub fn car_with_matrix() -> Result<bool, Refused> {
-    match crate::race::marks_settings_store::car_or_none(EMITTER.car.get()) {
+    match crate::race::marks_settings_store::car_or_none(
+        crate::effects::owner::effects().kinds.emitter.car.get(),
+    ) {
         Some(car) => Ok(car.has_block(0x24)?),
         None => Ok(false),
     }
@@ -112,7 +115,15 @@ pub fn gate(
 ) -> Result<Gate, Refused> {
     Ok({
         let [k1, k2, k3, k4] = k.each_ref().map(super::super::session::Float::bits);
-        let rate = x87::rate_to_int(a.bits(), b.bits(), k1, k2, k3, MARKS_FLOATS.one.bits(), k4);
+        let rate = x87::rate_to_int(
+            a.bits(),
+            b.bits(),
+            k1,
+            k2,
+            k3,
+            crate::effects::owner::effects().setup.floats.one.bits(),
+            k4,
+        );
         gate_with(wheel, object, rate)?
     })
 }
@@ -200,61 +211,65 @@ pub struct EmitterVars {
     pub strength: Float,
 }
 
-pub static EMITTER: EmitterVars = EmitterVars {
-    record: Dword::new(0x0),
-    _gap_93541a: Bytes::new([
-        0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x80,
-        0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    ]),
-    sign: Dword::new(0x0),
-    car: Dword::new(0x0),
-    side_b: [const { Float::from_bits(0x0) }; 3],
-    up: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-    ],
-    across: [const { Float::from_bits(0x0) }; 3],
-    side_a: [const { Float::from_bits(0x0) }; 3],
-    motion: [const { Float::from_bits(0x0) }; 3],
-    looks: [const { Dword::new(0x0) }; 2],
-    tag: Dword::new(0x0),
-    _gap_935482: Bytes::new([0; 68]),
-    settings_start: [const { Float::from_bits(0x0) }; 6],
-    tag_k: Dword::new(0x4C8),
-    rate_k: [
-        Float::from_bits(0x37A7C5AC),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x48400000),
-    ],
-    place_k: [
-        Float::from_bits(0x4283126F),
-        Float::from_bits(0xC283126F),
-        Float::from_bits(0x4283126F),
-        Float::from_bits(0x46000000),
-        Float::from_bits(0x4283126F),
-        Float::from_bits(0x469E9666),
-        Float::from_bits(0x4732A700),
-    ],
-    body_k: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0xBF800000),
-    ],
-    wheel_random: Dword::new(0x0),
-    body_random: Dword::new(0x0),
-    _gap_93552a: Bytes::new([
-        0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x80, 0x42, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x80,
-        0xC1, 0x00, 0x00, 0x80, 0xC1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00,
-    ]),
-    sides: [const { Dword::new(0x0) }; 2],
-    _gap_935552: Bytes::new([0; 12]),
-    strength: Float::from_bits(0x0),
-};
+impl EmitterVars {
+    pub const fn new() -> Self {
+        Self {
+            record: Dword::new(0x0),
+            _gap_93541a: Bytes::new([
+                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x80, 0xBF, 0x00, 0x00,
+                0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ]),
+            sign: Dword::new(0x0),
+            car: Dword::new(0x0),
+            side_b: [const { Float::from_bits(0x0) }; 3],
+            up: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+            ],
+            across: [const { Float::from_bits(0x0) }; 3],
+            side_a: [const { Float::from_bits(0x0) }; 3],
+            motion: [const { Float::from_bits(0x0) }; 3],
+            looks: [const { Dword::new(0x0) }; 2],
+            tag: Dword::new(0x0),
+            _gap_935482: Bytes::new([0; 68]),
+            settings_start: [const { Float::from_bits(0x0) }; 6],
+            tag_k: Dword::new(0x4C8),
+            rate_k: [
+                Float::from_bits(0x37A7C5AC),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x48400000),
+            ],
+            place_k: [
+                Float::from_bits(0x4283126F),
+                Float::from_bits(0xC283126F),
+                Float::from_bits(0x4283126F),
+                Float::from_bits(0x46000000),
+                Float::from_bits(0x4283126F),
+                Float::from_bits(0x469E9666),
+                Float::from_bits(0x4732A700),
+            ],
+            body_k: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0xBF800000),
+            ],
+            wheel_random: Dword::new(0x0),
+            body_random: Dword::new(0x0),
+            _gap_93552a: Bytes::new([
+                0x00, 0x00, 0x00, 0x43, 0x00, 0x00, 0x80, 0x42, 0x00, 0x00, 0x00, 0x43, 0x00, 0x00,
+                0x80, 0xC1, 0x00, 0x00, 0x80, 0xC1, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00,
+            ]),
+            sides: [const { Dword::new(0x0) }; 2],
+            _gap_935552: Bytes::new([0; 12]),
+            strength: Float::from_bits(0x0),
+        }
+    }
+}
 
 impl EmitterVars {
     pub const START: usize = 0x935416;
@@ -269,7 +284,7 @@ mod tests {
     #[test]
     fn the_emitters_vars_starts_as_the_games() {
         assert_eq!(size_of::<EmitterVars>(), EmitterVars::LEN);
-        let p = (&raw const EMITTER).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().kinds.emitter).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<EmitterVars>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

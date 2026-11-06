@@ -24,7 +24,11 @@ pub fn blend_corner(block: &MarkCar, to: u32, from: u32, base: [u32; 3]) -> Resu
         let src = crate::scene::object_points::point(from)?;
         let signs = src.iter().fold(0, |b, &v| (b << 1) | (v >> 31));
         let f = x87::loaded(block.word(BLOCK + 0x90 + 4 * signs)?);
-        BLEND_WORK.factor.set_bits(f);
+        crate::effects::owner::effects()
+            .clipping
+            .blend_work
+            .factor
+            .set_bits(f);
         for (c, &s) in src.iter().enumerate() {
             let v = x87::int_lerp_to_int(s as i32, base[c] as i32, f);
             let c = 4 * c as u32;
@@ -42,10 +46,14 @@ pub struct BlendWork {
     pub factor: Float,
 }
 
-/// BlendWork's first values.
-pub static BLEND_WORK: BlendWork = BlendWork {
-    factor: Float::from_bits(0x0),
-};
+impl BlendWork {
+    /// BlendWork's first values.
+    pub const fn new() -> Self {
+        Self {
+            factor: Float::from_bits(0x0),
+        }
+    }
+}
 
 impl BlendWork {
     pub const START: usize = 0x93C6C8;
@@ -68,7 +76,8 @@ mod blend_work_tests {
     fn blend_work_starts_as_the_games() {
         assert_eq!(size_of::<BlendWork>(), BlendWork::LEN);
         assert!(
-            bytes(&BLEND_WORK) == crate::moved::image_bytes(BlendWork::START, BlendWork::LEN),
+            bytes(&crate::effects::owner::effects().clipping.blend_work)
+                == crate::moved::image_bytes(BlendWork::START, BlendWork::LEN),
             "BLEND_WORK starts differently from the image"
         );
         assert_eq!(offset_of!(BlendWork, factor), 0x93C6C8 - BlendWork::START);

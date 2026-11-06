@@ -20,7 +20,6 @@ use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::field;
 use crate::effects::ring_store::Ring;
-use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
@@ -33,8 +32,16 @@ const ONE: u32 = 0x3F80_0000; // fld1
 fn count(record: &MarkRecord) -> Result<(i32, i32), Refused> {
     Ok({
         let n = ((record.flags.get() >> 6) << 2) as i32;
-        let (size, k) = (record.size.bits(), MARKS_FLOATS.over_32.bits());
-        let under = x87::times_compare(size, k, MARKS_FLOATS.one.bits()) & 0x700 == 0x100;
+        let (size, k) = (
+            record.size.bits(),
+            crate::effects::owner::effects().setup.floats.over_32.bits(),
+        );
+        let under = x87::times_compare(
+            size,
+            k,
+            crate::effects::owner::effects().setup.floats.one.bits(),
+        ) & 0x700
+            == 0x100;
         let count = if under {
             x87::times_int_to_int(size, k, n)
         } else {
@@ -73,9 +80,20 @@ pub fn emit_particle_18(
             let e = take_entry(ring, tag & 0xFF_FFFF, 0x12)?;
             before = Some(e);
             let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-            let m = EMITTER.motion.each_ref().map(|r| extended(r.bits()));
+            let m = crate::effects::owner::effects()
+                .kinds
+                .emitter
+                .motion
+                .each_ref()
+                .map(|r| extended(r.bits()));
             let (moved, _) = jitter_point([
-                extended(MARKS_FLOATS.hundred_twenty_eight.bits()),
+                extended(
+                    crate::effects::owner::effects()
+                        .setup
+                        .floats
+                        .hundred_twenty_eight
+                        .bits(),
+                ),
                 m[2],
                 m[1],
                 m[0],
@@ -87,7 +105,14 @@ pub fn emit_particle_18(
             put(field::PLACE_Y, x87::loaded(record.place[1].bits()))?;
             put(
                 field::GROUND_Y,
-                x87::sub(record.place[1].bits(), MARKS_FLOATS.two_pow_16.bits()),
+                x87::sub(
+                    record.place[1].bits(),
+                    crate::effects::owner::effects()
+                        .setup
+                        .floats
+                        .two_pow_16
+                        .bits(),
+                ),
             )?;
             put(field::PLACE_Z, x87::loaded(record.place[2].bits()))?;
             for o in [
@@ -98,10 +123,20 @@ pub fn emit_particle_18(
                 put(o, 0)?;
             }
             put(field::LIFE, LIFE)?;
-            put(field::CAR, EMITTER.car.get())?;
+            put(
+                field::CAR,
+                crate::effects::owner::effects().kinds.emitter.car.get(),
+            )?;
             put(
                 field::ALPHA_FADE,
-                x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), LIFE as i32),
+                x87::over_int(
+                    crate::effects::owner::effects()
+                        .setup
+                        .floats
+                        .two_fifty_seven
+                        .bits(),
+                    LIFE as i32,
+                ),
             )?;
         }
     }

@@ -13,8 +13,6 @@
 //! their memory.
 
 use crate::errors::BadInput;
-use crate::scene::object_slots_store::OBJECT_SLOTS;
-use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::objects::SLOTS;
 
 // ---- game data ----
@@ -31,12 +29,12 @@ fn points_of(
     if slot >= SLOTS {
         return Err(BadInput("an object's slot past the tables"));
     }
-    let count = OBJECT_SLOTS.point_counts[slot as usize].get();
+    let count = crate::scene::owner::scene().objects.slots.point_counts[slot as usize].get();
     let memory: u32 = course.lists.object_points.bits();
     if count > MOST || (count != 0 && memory == 0) {
         return Err(BadInput("points without their memory, or too many"));
     }
-    let first = OBJECT_SLOTS.first_point[slot as usize].get();
+    let first = crate::scene::owner::scene().objects.slots.first_point[slot as usize].get();
     Ok((memory.wrapping_add(first.wrapping_mul(12)) as usize, count))
 }
 
@@ -44,7 +42,11 @@ fn points_of(
 pub fn measure_object(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
     {
-        let slot: u32 = OBJECT_WORK.loading_slot.bits();
+        let slot: u32 = crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .loading_slot
+            .bits();
         let (at, count) = points_of(course, slot)?;
         let mut points: Vec<[u32; 3]> = if count == 0 {
             Vec::new()
@@ -55,9 +57,12 @@ pub fn measure_object(course: &crate::race::owner_course::Course) -> Result<(), 
         };
         let Some(m) = measure(&mut points) else {
             // The half extents are not touched for an object of no points.
-            crate::session::write_first(&OBJECT_SLOTS.measures[..3], &[0u32; 3]);
             crate::session::write_first(
-                &OBJECT_SLOTS.measures[6..],
+                &crate::scene::owner::scene().objects.slots.measures[..3],
+                &[0u32; 3],
+            );
+            crate::session::write_first(
+                &crate::scene::owner::scene().objects.slots.measures[6..],
                 &[[LOWEST_START; 3], [HIGHEST_START; 3]].concat(),
             );
             return Ok(());
@@ -66,7 +71,7 @@ pub fn measure_object(course: &crate::race::owner_course::Course) -> Result<(), 
             crate::scene::object_points::set_point(at as u32 + 12 * n as u32, *p)?;
         }
         crate::session::write_first(
-            &OBJECT_SLOTS.measures,
+            &crate::scene::owner::scene().objects.slots.measures,
             &[m.middle, m.half, m.lowest, m.highest].concat(),
         );
         Ok(())

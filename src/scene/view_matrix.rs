@@ -9,7 +9,6 @@ use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix;
 use crate::session::Float;
 
@@ -25,7 +24,11 @@ pub enum Axis {
 /// `scene::set_turn_z` (0x42715D).
 pub fn set_fine_turn(axis: Axis, angle: u32) {
     let race = race();
-    DRAW.scratch.set_bits(angle);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(angle);
     let (sine, cosine) = x87::sine_cosine(
         angle as i32,
         race.course.numbers.k65536.bits(),
@@ -36,17 +39,17 @@ pub fn set_fine_turn(axis: Axis, angle: u32) {
     // cosine go in the matrix.
     let (work, rows, places): (&[Float; 2], &[Float; 16], [usize; 4]) = match axis {
         Axis::X => (
-            &DRAW.turn_x_work,
+            &crate::scene::owner::scene().drawing.scene.turn_x_work,
             &race.frame.matrices.turn_x_matrix,
             [5, 6, 9, 10],
         ),
         Axis::Y => (
-            &DRAW.turn_y_work,
+            &crate::scene::owner::scene().drawing.scene.turn_y_work,
             &race.frame.matrices.turn_y_matrix,
             [0, 8, 2, 10],
         ),
         Axis::Z => (
-            &DRAW.turn_z_work,
+            &crate::scene::owner::scene().drawing.scene.turn_z_work,
             &race.frame.matrices.turn_z_matrix,
             [0, 1, 4, 5],
         ),
@@ -68,7 +71,11 @@ pub fn unit_vector(course: &Course, from: &(impl Cells + ?Sized), out: &(impl Ce
         bh::ld(from.bits(2)),
     );
     let length = bh::st((x * x + (y * y + z * z)).sqrt());
-    DRAW.scratch.set_bits(length);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(length);
     if x87::equal_or_unordered(length, course.numbers.zero.bits()) {
         for n in 0..3 {
             out.set_bits(n, 0);

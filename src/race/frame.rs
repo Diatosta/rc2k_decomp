@@ -206,12 +206,16 @@ pub fn tyre_change() -> Result<(), Refused> {
     use crate::race::blocks_store::CAR_BLOCKS;
     use crate::race::tyre_change_gauge::tyre_change_gauge;
     use crate::race::tyre_store::TYRE_CHANGE as TYRE;
-    use crate::scene::kind_texture_store::KIND_TEXTURES;
     let car = &CAR_BLOCKS.cars[0];
-    TYRE.texture
-        .set(KIND_TEXTURES.kind_first_textures[599].get());
+    TYRE.texture.set(
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[599]
+            .get(),
+    );
     TYRE.device_texture
-        .set(KIND_TEXTURES.kind_first_slots[599].get());
+        .set(crate::scene::owner::scene().textures.kinds.kind_first_slots[599].get());
     if car.parts_present.get() & 0x1E != 0x1E
         && car.tyre_change_state.get() == 0
         && car.stopped_steps.get() >= 0x12C

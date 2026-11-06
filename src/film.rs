@@ -35,7 +35,6 @@
 #![allow(unsafe_code)]
 
 use crate::framework::log;
-use crate::gfx::screen_state::DRAW_SURFACE;
 use std::ffi::{CStr, c_char, c_void};
 
 /// IDA's address of the `nofmv` switch.
@@ -598,7 +597,7 @@ fn pack(value: u32, mask: u32) -> u32 {
 /// The picture stretched over the locked surface (`g_surface`), a checked row at a time.
 fn blit(p: &Picture) {
     let (rgb, w, h) = (&p.rgb, p.width, p.height);
-    let s = &DRAW_SURFACE;
+    let s = &crate::gfx::owner::gfx().drawing.draw_surface;
     let (sw, sh) = (s.width.get() as usize, s.height.get() as usize);
     let bytes = s.bytes_per_pixel.get() as usize;
     let pitch = s.pitch.get();

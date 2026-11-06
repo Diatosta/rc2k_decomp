@@ -13,8 +13,6 @@
 //! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::setup::CLOCK;
-use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_spawn::windscreen_flakes_spawn;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
@@ -59,15 +57,33 @@ fn run(
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
-        if MARKS_KIND_FLOATS.running.bits() != 0 {
+        if crate::effects::owner::effects()
+            .setup
+            .kind_floats
+            .running
+            .bits()
+            != 0
+        {
             windscreen_flakes_spawn(drops, fl)?;
         }
         for item in &fl.items.items {
             if item.live.get() != 1 {
                 continue;
             }
-            if MARKS_KIND_FLOATS.running.bits() != 0 {
-                let age = item.age.get().wrapping_add(CLOCK.frame_ticks.get());
+            if crate::effects::owner::effects()
+                .setup
+                .kind_floats
+                .running
+                .bits()
+                != 0
+            {
+                let age = item.age.get().wrapping_add(
+                    crate::effects::owner::effects()
+                        .setup
+                        .clock
+                        .frame_ticks
+                        .get(),
+                );
                 item.age.set(age);
                 if age as i32 >= LIFE {
                     item.live.set(0);

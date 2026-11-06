@@ -4,7 +4,6 @@
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
 
-use crate::effects::work_store::MARKS_WORK;
 use crate::math::cells::{Cells, load};
 use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp80};
@@ -67,15 +66,35 @@ fn cosine(a: impl Base, b: impl Base, s: impl Base) {
 /// is unordered); the last compare's C0 .. C2 in `dword_71C814`. Every register kept.
 /// Returns the angle (a float, loaded).
 pub fn angle_between_vectors(a: &(impl Cells + ?Sized), b: &(impl Cells + ?Sized)) -> [u8; 10] {
-    let mut angle = crate::math::x87::loaded(MARKS_WORK.cosine_start.get());
-    let mut step = crate::math::x87::loaded(MARKS_WORK.cosine_step.get());
+    let mut angle = crate::math::x87::loaded(
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .cosine_start
+            .get(),
+    );
+    let mut step = crate::math::x87::loaded(
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .cosine_step
+            .get(),
+    );
     normalise(b);
     normalise(a);
     let dot = crate::scene::matrix3::rounded(dot_product3(load(a), load(b)));
-    let half: u32 = MARKS_WORK.cosine_half.get();
+    let half: u32 = crate::effects::owner::effects()
+        .setup
+        .work
+        .cosine_half
+        .get();
     for _ in 0..16 {
         let status = cosine_against(angle, dot);
-        MARKS_WORK.fpu_status.set(status);
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .fpu_status
+            .set(status);
         match status {
             0x400 => break,
             0x100 => angle = crate::math::x87::sub(angle, step),

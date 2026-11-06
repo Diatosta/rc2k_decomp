@@ -21,7 +21,6 @@ use crate::scene::clip_polygon_by_depth::clip_polygon_by_depth;
 use crate::scene::clip_polygon_to_screen::clip_polygon_to_screen;
 use crate::scene::draw_marked_polygon::draw_marked_polygon;
 use crate::scene::draw_polygon::{Game, draw_polygon};
-use crate::scene::draw_store::DRAW;
 use crate::scene::fog_polygon::{fog_entries, fog_polygon};
 use crate::scene::polygon::MOST;
 use crate::scene::project_polygon::project_entries;
@@ -46,39 +45,94 @@ pub fn draw_clipped_polygon(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     {
-        let count: u32 = DRAW.polygon_vertex_count.bits();
+        let count: u32 = crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .bits();
         if count == 0 || count > MOST {
             return Err(BadInput("a polygon of no vertices, or of more than 256").into());
         }
-        DRAW.screen_clipped.set_bits(0u32);
-        DRAW.depth_clipped.set_bits(0u32);
-        DRAW.polygon_drawn.set_bits(0u32);
-        DRAW.polygon_next_record
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .screen_clipped
+            .set_bits(0u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .depth_clipped
+            .set_bits(0u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_drawn
+            .set_bits(0u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_next_record
             .set_bits(crate::scene::polygon::pool_start());
         for n in 0..count {
             crate::scene::polygon::list_cell(n as usize).set(n);
         }
         crate::scene::polygon::list_cell(count as usize).set(0u32);
-        DRAW.polygon_next_entry.set_bits(count);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_next_entry
+            .set_bits(count);
         step(Step::Project)?;
-        let outside: u32 = DRAW.polygon_outside_count.bits();
-        if outside == DRAW.polygon_vertex_count.bits() {
+        let outside: u32 = crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_outside_count
+            .bits();
+        if outside
+            == crate::scene::owner::scene()
+                .drawing
+                .scene
+                .polygon_vertex_count
+                .bits()
+        {
             return Ok(());
         }
         step(Step::ScaleTextureCoordinates)?;
         step(Step::Fog)?;
-        if DRAW.polygon_outside_count.bits() != 0 {
+        if crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_outside_count
+            .bits()
+            != 0
+        {
             step(Step::ClipByDepth)?;
-            if DRAW.polygon_vertex_count.bits() < 3 {
+            if crate::scene::owner::scene()
+                .drawing
+                .scene
+                .polygon_vertex_count
+                .bits()
+                < 3
+            {
                 return Ok(());
             }
         }
         step(Step::ClipToScreen)?;
-        if DRAW.polygon_vertex_count.bits() < 3 {
+        if crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .bits()
+            < 3
+        {
             return Ok(());
         }
         step(Step::Draw)?;
-        DRAW.polygon_drawn.set_bits(1u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_drawn
+            .set_bits(1u32);
         Ok(())
     }
 }

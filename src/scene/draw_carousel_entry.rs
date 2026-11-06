@@ -29,8 +29,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::{Menus, Tables};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::switches_store::FRAME_SWITCHES;
-use crate::scene::draw_store::DRAW;
-use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
@@ -120,13 +118,23 @@ pub fn draw_carousel_entry(
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let set = settings(menus, entry, row)?;
-    crate::session::write_bits(&OBJECT_WORK.place, set.place);
+    crate::session::write_bits(
+        &crate::scene::owner::scene().drawing.object_work.place,
+        set.place,
+    );
     if let Some(size) = set.size {
-        OBJECT_WORK.size.set_bits(size);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .size
+            .set_bits(size);
     }
-    OBJECT_WORK.angles[0].set_bits(set.angle_x);
-    OBJECT_WORK.angles[1].set_bits(set.angle_y);
-    crate::session::write_bits(&DRAW.view_offset, [0u32; 2]);
+    crate::scene::owner::scene().drawing.object_work.angles[0].set_bits(set.angle_x);
+    crate::scene::owner::scene().drawing.object_work.angles[1].set_bits(set.angle_y);
+    crate::session::write_bits(
+        &crate::scene::owner::scene().drawing.scene.view_offset,
+        [0u32; 2],
+    );
     menus.screens.state.carousel.kind.set(set.kind);
     FRAME_SWITCHES.object_number.set_bits(set.object);
     draw()

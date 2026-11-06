@@ -41,7 +41,6 @@ use crate::physics::ground::*;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::ground;
@@ -73,7 +72,11 @@ fn probe_points(race: &Race, n: u32) -> Result<(), Refused> {
         let z = CAR.probe_point_z[b as usize].bits();
         let y = CAR.probe_point_y[b as usize].bits();
         let y = if b < 4 {
-            DRAW.scratch.set(x87::loaded(y));
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set(x87::loaded(y));
             let add;
             (add, _) = ground::wheel_lifted(CAR.parts_present.get(), b);
             less_plus_less_product_80(
@@ -146,14 +149,18 @@ fn probe_points(race: &Race, n: u32) -> Result<(), Refused> {
         race.physics.contact.ground_noise_mix[1].set(n58);
         race.physics.contact.ground_noise_mix[0].set(n54);
         race.physics.contact.ground_noise_mix[2].set(n5c);
-        DRAW.scratch.set(n5c);
+        crate::scene::owner::scene().drawing.scene.scratch.set(n5c);
         let bump = int_times_times_over_to_int(
             n5c as i32,
             CAR.ground_bump_scale.bits(),
             race.course.numbers.k256.bits(),
             race.course.numbers.hundred.bits(),
         );
-        DRAW.scratch.set(bump as u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(bump as u32);
         work.probe_ground_height[i]
             .set(work.probe_ground_height[i].get().wrapping_add(bump as u32));
         work.probe_face_flip[i].set(race.course.course.ground_half.get());
@@ -164,14 +171,28 @@ fn probe_points(race: &Race, n: u32) -> Result<(), Refused> {
             .wrapping_sub(work.probe_ground_height[i].get());
         work.probe_height[i].set(d);
         if b < 4 {
-            DRAW.scratch.set(x87::loaded(CAR.crash_matrix[5].bits()));
-            if x87::compare_status(DRAW.scratch.get(), race.course.numbers.zero.bits()) & 0x100 != 0
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set(x87::loaded(CAR.crash_matrix[5].bits()));
+            if x87::compare_status(
+                crate::scene::owner::scene().drawing.scene.scratch.get(),
+                race.course.numbers.zero.bits(),
+            ) & 0x100
+                != 0
             {
-                DRAW.scratch
+                crate::scene::owner::scene()
+                    .drawing
+                    .scene
+                    .scratch
                     .set(x87::loaded(race.course.numbers.zero.bits()));
             }
             work.wheel_height_raw[i].set(d);
-            work.probe_height[i].set(x87::int_times_to_int(d as i32, DRAW.scratch.get()) as u32);
+            work.probe_height[i].set(x87::int_times_to_int(
+                d as i32,
+                crate::scene::owner::scene().drawing.scene.scratch.get(),
+            ) as u32);
         }
         CAR.probe_point_face[b as usize].set(race.course.course.ground_slot.get());
     }

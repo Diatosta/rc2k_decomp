@@ -12,7 +12,6 @@ use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::draw_store::DRAW;
 
 /// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
 #[cfg(all(test, target_arch = "x86"))]
@@ -40,15 +39,19 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 pub(crate) fn project_record(course: &Course, v: &mut crate::scene::point_records::Record) {
     use crate::math::x87_float::{ONE, int, ld, st};
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
-    let reach = ld(DRAW.view_scale.bits());
+    let reach = ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let scale = if course.stage_prefs.flat_depth.get() != 0 {
-        DRAW.scratch.set(st(z));
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set(st(z));
         reach / (int(course.course.flat_depth.get() as i32) + ONE)
     } else {
         reach / z
     };
-    v[3] = st(x * scale + ld(DRAW.view_centre[0].bits()));
-    v[7] = st(-(y * scale) + ld(DRAW.view_centre[1].bits()));
+    v[3] = st(x * scale + ld(crate::scene::owner::scene().drawing.scene.view_centre[0].bits()));
+    v[7] = st(-(y * scale) + ld(crate::scene::owner::scene().drawing.scene.view_centre[1].bits()));
 }
 
 /// A skidmark point turned and projected: its vertex record's +0xC .. +0x20, and what the
@@ -71,7 +74,11 @@ fn skid_vertex(race: &Race, matrix: &[u32; 15], n: u32, v: u32) -> Result<Turned
 /// A point as `skid_vertex` turns it, put into the vertex record `v` again.
 fn put_turned(v: u32, turned: Turned) -> Result<(), BadInput> {
     if let Some(z) = turned.scratch {
-        DRAW.scratch.set_bits(z);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set_bits(z);
     }
     let mut made = crate::scene::point_records::get(v)?;
     made[3..8].copy_from_slice(&turned.words);
@@ -101,7 +108,7 @@ fn turn_skid_point(race: &Race, matrix: &[u32; 15], n: u32) -> Result<Turned, Ba
         if !crate::math::x87_load::below_or_unordered(made[6], race.course.numbers.k4096_a.bits()) {
             project_record(&race.course, &mut made);
             if race.course.stage_prefs.flat_depth.get() != 0 {
-                scratch = Some(DRAW.scratch.bits());
+                scratch = Some(crate::scene::owner::scene().drawing.scene.scratch.bits());
             }
         }
         Ok(Turned {
@@ -142,8 +149,8 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
         e.amount.set(0x60);
         e.fog.set(0);
     }
-    DRAW.polygon_textures[0].set(0xC0u32);
-    DRAW.polygon_textures[1].set(0xC0u32);
+    crate::scene::owner::scene().drawing.scene.polygon_textures[0].set(0xC0u32);
+    crate::scene::owner::scene().drawing.scene.polygon_textures[1].set(0xC0u32);
     let links = GamePtr::to(&frame.shadow_skids.skid_links);
     let matrix: [u32; 15] = crate::math::cells::load(&frame.matrices.view_matrix);
     // The last quad's two points (its link's number and the points as turned): a skidmark's
@@ -188,35 +195,70 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
             }
         }
         last = Some((n, first, second));
-        DRAW.polygon_vertex_count.set(4u32);
-        DRAW.polygon_next_record
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .set(4u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_next_record
             .set(crate::scene::polygon::pool_start());
         let list = &crate::scene::polygon_store::POLYGON_WORK.list;
         for k in 0..4u32 {
             list[k as usize].set(k);
         }
         list[4].set(0);
-        DRAW.polygon_next_entry.set(4u32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_next_entry
+            .set(4u32);
         crate::scene::fog_polygon::fog_polygon()?;
         crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
         // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
         // and the polygon's drawing read no register.
-        if DRAW.polygon_vertex_count.get() < 3 {
+        if crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .get()
+            < 3
+        {
             continue;
         }
         crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
-        if DRAW.polygon_vertex_count.get() >= 3 {
-            DRAW.polygon_colour.set(0u32);
+        if crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .get()
+            >= 3
+        {
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .polygon_colour
+                .set(0u32);
             crate::scene::depth_test_off::depth_test_off();
             RACE_VIEW.polygon_mode.set(3u32);
-            DRAW.polygon_sides[0].set(0u32);
-            DRAW.polygon_sides[1].set(1u32);
+            crate::scene::owner::scene().drawing.scene.polygon_sides[0].set(0u32);
+            crate::scene::owner::scene().drawing.scene.polygon_sides[1].set(1u32);
             crate::scene::draw_polygon::draw_polygon_in_game()?;
             RACE_VIEW.polygon_mode.set(0u32);
-            DRAW.polygon_drawn.set(1u32);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .polygon_drawn
+                .set(1u32);
             crate::scene::depth_test_on::depth_test_on();
         }
-        DRAW.polygon_colour.set(0x00FF_FFFFu32);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_colour
+            .set(0x00FF_FFFFu32);
     }
     Ok(())
 }
@@ -367,10 +409,18 @@ mod asm_reference {
                 {
                     course.stage_prefs.flat_depth.set(flat as u32);
                     course.course.flat_depth.set(r.int() as u32);
-                    DRAW.view_scale.set_bits(r.float());
-                    DRAW.view_centre[1].set_bits(r.float());
-                    DRAW.view_centre[0].set_bits(r.float());
-                    DRAW.scratch.set(0xAAAA_AAAAu32);
+                    crate::scene::owner::scene()
+                        .drawing
+                        .scene
+                        .view_scale
+                        .set_bits(r.float());
+                    crate::scene::owner::scene().drawing.scene.view_centre[1].set_bits(r.float());
+                    crate::scene::owner::scene().drawing.scene.view_centre[0].set_bits(r.float());
+                    crate::scene::owner::scene()
+                        .drawing
+                        .scene
+                        .scratch
+                        .set(0xAAAA_AAAAu32);
                 }
                 let mut a = [0xAAAA_AAAAu32; 8];
                 for q in a.iter_mut().skip(4).take(3) {
@@ -379,10 +429,14 @@ mod asm_reference {
                 let mut b = a;
                 let _r = crate::race::trap::test_region(&a);
                 unsafe { project_vertex_asm(crate::pointers::game_address(a.as_mut_ptr()), flat) };
-                let kept = DRAW.scratch.get();
-                DRAW.scratch.set_bits(0xAAAA_AAAAu32);
+                let kept = crate::scene::owner::scene().drawing.scene.scratch.get();
+                crate::scene::owner::scene()
+                    .drawing
+                    .scene
+                    .scratch
+                    .set_bits(0xAAAA_AAAAu32);
                 project_record(course, &mut b);
-                let now = DRAW.scratch.get();
+                let now = crate::scene::owner::scene().drawing.scene.scratch.get();
                 for k in 0..8 {
                     assert!(
                         same_bits(a[k], b[k]),

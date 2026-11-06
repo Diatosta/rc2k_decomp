@@ -23,8 +23,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::field;
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
 use crate::effects::ring_store::Ring;
-use crate::effects::setup::{CLOCK, MarksClock};
-use crate::effects::tuning::MARKS_KIND_FLOATS;
+use crate::effects::setup::MarksClock;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
@@ -69,23 +68,45 @@ impl Colours257 {
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
 fn first_frame(frame: &Frame, ring: &Ring, e: u32) {
-    first_frame_x87(frame, ring, e, &CLOCK, ring.kinds.ribbon_a);
+    first_frame_x87(
+        frame,
+        ring,
+        e,
+        &crate::effects::owner::effects().setup.clock,
+        ring.kinds.ribbon_a,
+    );
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
 fn move_(ring: &Ring, e: u32) {
-    move_x87(ring, e, &CLOCK, ring.kinds.ribbon_b);
+    move_x87(
+        ring,
+        e,
+        &crate::effects::owner::effects().setup.clock,
+        ring.kinds.ribbon_b,
+    );
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
 fn turn_place(frame: &Frame, ring: &Ring, e: u32) {
-    turn_place_x87(frame, ring, e, &DRAW_WORK);
+    turn_place_x87(
+        frame,
+        ring,
+        e,
+        &crate::effects::owner::effects().frame.draw_work,
+    );
 }
 
 /// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
 /// `MARKS_KIND_FLOATS.other` is not 0, else the 257 at 0x939DB2.
 fn colour_count() -> i32 {
-    if MARKS_KIND_FLOATS.other.bits() != 0 {
+    if crate::effects::owner::effects()
+        .setup
+        .kind_floats
+        .other
+        .bits()
+        != 0
+    {
         128
     } else {
         257
@@ -94,7 +115,13 @@ fn colour_count() -> i32 {
 
 /// The colour `i` of the table in use (`i` below `colour_count`).
 fn colour_at(masks: &Masks, ring: &Ring, i: usize) -> u32 {
-    if MARKS_KIND_FLOATS.other.bits() != 0 {
+    if crate::effects::owner::effects()
+        .setup
+        .kind_floats
+        .other
+        .bits()
+        != 0
+    {
         masks.surface.colours[i].get()
     } else {
         ring.colours.colours[i]
@@ -107,7 +134,11 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
         let Ok(marks) = crate::effects::setup::marks() else {
             return Ok(Some("no marks settings"));
         };
-        let ticks: u32 = CLOCK.frame_ticks.get();
+        let ticks: u32 = crate::effects::owner::effects()
+            .setup
+            .clock
+            .frame_ticks
+            .get();
         let mut e: u32 = ring.work.cursor.get();
         let count = ring.work.count.get() as i32;
         if count > 0 && (e == 0 || eg(ring, e, 0)? == 0) {
@@ -145,7 +176,11 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
 
 /// The streak step at e (see the header): whether the entry dies.
 fn streak(frame: &Frame, ring: &Ring, e: u32) -> Result<bool, Refused> {
-    let t: u32 = CLOCK.frame_ticks.get();
+    let t: u32 = crate::effects::owner::effects()
+        .setup
+        .clock
+        .frame_ticks
+        .get();
     let life = eg(ring, e, field::LIFE)?;
     ep(ring, e, field::LIFE, life.wrapping_sub(t))?;
     if life < t {
@@ -158,15 +193,42 @@ fn streak(frame: &Frame, ring: &Ring, e: u32) -> Result<bool, Refused> {
         first_frame(frame, ring, e);
     }
     move_on(ring, e);
-    DRAW_WORK.second[0].set_bits(eg(ring, e, field::LAST_PLACE_X)?);
-    DRAW_WORK.second[1].set_bits(eg(ring, e, field::LAST_PLACE_Y)?);
-    DRAW_WORK.second[2].set_bits(eg(ring, e, field::LAST_PLACE_Z)?);
+    crate::effects::owner::effects().frame.draw_work.second[0].set_bits(eg(
+        ring,
+        e,
+        field::LAST_PLACE_X,
+    )?);
+    crate::effects::owner::effects().frame.draw_work.second[1].set_bits(eg(
+        ring,
+        e,
+        field::LAST_PLACE_Y,
+    )?);
+    crate::effects::owner::effects().frame.draw_work.second[2].set_bits(eg(
+        ring,
+        e,
+        field::LAST_PLACE_Z,
+    )?);
     turn_place(frame, ring, e);
     let marks = crate::effects::setup::marks()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
-        ep(ring, e, field::LAST_PLACE_X, DRAW_WORK.turned[0].bits())?;
-        ep(ring, e, field::LAST_PLACE_Y, DRAW_WORK.turned[1].bits())?;
-        ep(ring, e, field::LAST_PLACE_Z, DRAW_WORK.turned[2].bits())?;
+        ep(
+            ring,
+            e,
+            field::LAST_PLACE_X,
+            crate::effects::owner::effects().frame.draw_work.turned[0].bits(),
+        )?;
+        ep(
+            ring,
+            e,
+            field::LAST_PLACE_Y,
+            crate::effects::owner::effects().frame.draw_work.turned[1].bits(),
+        )?;
+        ep(
+            ring,
+            e,
+            field::LAST_PLACE_Z,
+            crate::effects::owner::effects().frame.draw_work.turned[2].bits(),
+        )?;
     }
     VERTICES.vertices[0]
         .specular
@@ -232,7 +294,7 @@ pub fn run_ribbons(frame: &Frame, ring: &Ring) -> Result<(), Refused> {
 }
 
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::frame_state::{DRAW_WORK, DrawWork};
+use crate::effects::frame_state::DrawWork;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::int;
 

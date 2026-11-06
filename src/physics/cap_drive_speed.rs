@@ -13,7 +13,6 @@ use crate::math::x87_run::over_abs_plus_minus;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
@@ -61,7 +60,7 @@ fn game() -> CapPlaces {
     [
         &PHYSICS.drive_speed_figure,
         &CAR.local_velocity[2],
-        &DRAW.scratch,
+        &crate::scene::owner::scene().drawing.scene.scratch,
         &CAR.drive_speed_a,
     ]
 }

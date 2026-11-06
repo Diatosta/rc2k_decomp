@@ -185,13 +185,12 @@ fn font_of(f: impl GameFont) -> GamePtr {
 
 /// Where a clip edge is kept.
 fn clip_edge_cell(edge: rc2k_core::screens::screen::Edge) -> &'static crate::session::Dword {
-    use crate::gfx::blit::BLIT;
     use rc2k_core::screens::screen::Edge;
     match edge {
-        Edge::Left => &BLIT.clip.left,
-        Edge::Right => &BLIT.clip.right,
-        Edge::Top => &BLIT.clip.top,
-        Edge::Bottom => &BLIT.clip.bottom,
+        Edge::Left => &crate::gfx::owner::gfx().drawing.blit.clip.left,
+        Edge::Right => &crate::gfx::owner::gfx().drawing.blit.clip.right,
+        Edge::Top => &crate::gfx::owner::gfx().drawing.blit.clip.top,
+        Edge::Bottom => &crate::gfx::owner::gfx().drawing.blit.clip.bottom,
     }
 }
 

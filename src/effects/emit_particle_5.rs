@@ -122,25 +122,38 @@ pub fn emit_particle_5_with(
             return Err(BadInput(why).into());
         }
         let strength = x87::loaded(wheel.speed_18.bits()) & 0x7FFF_FFFF;
-        EMITTER.strength.set_bits(strength);
+        crate::effects::owner::effects()
+            .kinds
+            .emitter
+            .strength
+            .set_bits(strength);
         if !emits(set, wheel)? || next_entry(ring)?.is_none() {
             return Ok(());
         }
         let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-        let (sign, strength) = if EMITTER.record.get() & 1 == 0 {
-            (-1i32, x87::sub(strength, wheel.speed_10.bits()))
-        } else {
-            (1, x87::add(strength, wheel.speed_10.bits()))
-        };
-        EMITTER.sign.set(sign as u32);
-        EMITTER.strength.set_bits(strength);
+        let (sign, strength) =
+            if crate::effects::owner::effects().kinds.emitter.record.get() & 1 == 0 {
+                (-1i32, x87::sub(strength, wheel.speed_10.bits()))
+            } else {
+                (1, x87::add(strength, wheel.speed_10.bits()))
+            };
+        crate::effects::owner::effects()
+            .kinds
+            .emitter
+            .sign
+            .set(sign as u32);
+        crate::effects::owner::effects()
+            .kinds
+            .emitter
+            .strength
+            .set_bits(strength);
         let car = emitting_car()?;
         let m = car.whole()?;
         let r = next_c5(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
-        EMITTER.sides[0].set(a as u32);
-        EMITTER.sides[1].set(b as u32);
+        crate::effects::owner::effects().kinds.emitter.sides[0].set(a as u32);
+        crate::effects::owner::effects().kinds.emitter.sides[1].set(b as u32);
         let place: [u32; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k = 4 * k as u32;
@@ -191,7 +204,10 @@ pub fn emit_particle_5_with(
         put(field::SIZE, ((last >> 2) & 0xFFF) + 0x7800)?;
         put(field::ALPHA, 0xFF00_0000)?;
         put(field::LIFE, set.life)?;
-        put(field::CAR, EMITTER.car.get())?;
+        put(
+            field::CAR,
+            crate::effects::owner::effects().kinds.emitter.car.get(),
+        )?;
     }
     Ok(())
 }

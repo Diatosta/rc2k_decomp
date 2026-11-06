@@ -13,7 +13,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::load_texture_picture::load_texture_picture_in_game;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- game data ----
 
@@ -33,13 +32,13 @@ pub fn load_changed_texture_picture(
     }
     let at = texture as usize;
     let Some(wanted) = rc2k_core::scene::pictures::changed_picture(
-        TEXTURE_PLACES.wanted_pictures[at].get(),
-        || TEXTURE_PLACES.loaded_pictures[at].get(),
+        crate::scene::owner::scene().textures.places.wanted_pictures[at].get(),
+        || crate::scene::owner::scene().textures.places.loaded_pictures[at].get(),
     ) else {
         return Ok(());
     };
     load(wanted, texture)?;
-    TEXTURE_PLACES.loaded_pictures[at].set(wanted);
+    crate::scene::owner::scene().textures.places.loaded_pictures[at].set(wanted);
     Ok(())
 }
 

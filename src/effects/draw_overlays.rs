@@ -28,7 +28,7 @@ fn shadow_refuses() -> Option<Refused> {
     if corner >= 0x100 {
         return Some(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if crate::effects::setup::SETTINGS.is_set.get() == 0 {
+    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
         return Some(BadInput("no marks settings").into());
     }
     SECOND.angle_refuses()

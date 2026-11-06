@@ -11,12 +11,7 @@
 //! before anything. Kinds 0x17 .. 0x21 are past `g_marksKindFloatTable`'s 0x17 entries:
 //! fixed (section 16, 2026-10-23), they get 18240.0.
 
-use crate::effects::clip::CLIP;
-use crate::effects::kind_values::MARKS_KIND;
 use crate::effects::owner::Effects;
-use crate::effects::setup::CLOCK;
-use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME, MARKS_KIND_FLOATS};
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_course::Course;
@@ -42,9 +37,13 @@ pub fn init_marks(course: &Course, effects: &Effects, seed: u32) -> Result<(), R
         if marks.mark_car_file_number.get() >= KINDS {
             return Err(BadInput("a marks kind of 0x22 or more").into());
         }
-        crate::effects::setup::SETTINGS.is_set.set(1);
-        MARKS_WORK.seed.set(seed);
-        CLOCK.started.set(0);
+        crate::effects::owner::effects()
+            .setup
+            .settings
+            .is_set
+            .set(1);
+        crate::effects::owner::effects().setup.work.seed.set(seed);
+        crate::effects::owner::effects().setup.clock.started.set(0);
         edges::load_kind_data(course, effects)?;
         setup::make_wave_tables(paths)?;
         profiles::make_profiles(course, paths, profiles::RESUME)?;
@@ -59,28 +58,46 @@ pub fn init_marks(course: &Course, effects: &Effects, seed: u32) -> Result<(), R
         blocks::allocate_ring(&effects.particles, ring)?;
         lines::set_up_blocks(course, paths)?;
         marks.unknown_67c[1].set(1);
-        for r in &CLOCK.settings_copies {
+        for r in &crate::effects::owner::effects().setup.clock.settings_copies {
             r.set(1);
         }
         setup::tick_clock()?;
-        MARKS_FRAME.steps.set_bits(0u32);
-        let less: u32 = MARKS_FLOATS.one.bits();
+        crate::effects::owner::effects()
+            .setup
+            .frame
+            .steps
+            .set_bits(0u32);
+        let less: u32 = crate::effects::owner::effects().setup.floats.one.bits();
         for (n, side) in [&SCREEN.width, &SCREEN.height].into_iter().enumerate() {
             let half = side.get() >> 1;
             // The screen's middle x, it less `flt_76516C`, the same for y.
-            CLIP.edges[2 * n].set_bits(x87::from_int(half as i32));
-            CLIP.edges[2 * n + 1].set_bits(x87::int_less(half as i32, less));
+            crate::effects::owner::effects().clipping.clip.edges[2 * n]
+                .set_bits(x87::from_int(half as i32));
+            crate::effects::owner::effects().clipping.clip.edges[2 * n + 1]
+                .set_bits(x87::int_less(half as i32, less));
         }
-        let kind: u32 = MARKS_KIND.kind.bits();
+        let kind: u32 = crate::effects::owner::effects()
+            .kinds
+            .marks_kind
+            .kind
+            .bits();
         // Fixed (section 16, 2026-10-23): the original reads past the table for kinds
         // 0x17 .. 0x21 (the next variables: `g_marksKindFloat` itself, a 0/1 flag, 9, ..),
         // so those cars' marks lose their depth bias.
         let float = if kind < KIND_FLOATS {
-            MARKS_KIND_FLOATS.kind_floats[kind as usize].bits()
+            crate::effects::owner::effects()
+                .setup
+                .kind_floats
+                .kind_floats[kind as usize]
+                .bits()
         } else {
             KIND_FLOAT_PAST
         };
-        MARKS_KIND_FLOATS.kind_float.set_bits(float);
+        crate::effects::owner::effects()
+            .setup
+            .kind_floats
+            .kind_float
+            .set_bits(float);
     }
     Ok(())
 }

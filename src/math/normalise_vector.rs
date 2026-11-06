@@ -26,7 +26,6 @@
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
 use crate::race::owner::Race;
-use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
 
@@ -98,7 +97,11 @@ pub fn normalise(race: &Race, sse: bool) -> Result<Option<u32>, BadInput> {
     let (scaled, inverse) = scaled_by_inverse([v[0], v[1], v[2]], root, exponent_root);
     let unsigned_zero = |bits: u32| if bits == 0x8000_0000 { 0 } else { bits };
     crate::session::write_first(&race.frame.scratch.work_vector, &scaled.map(unsigned_zero));
-    DRAW.scratch.set_bits(inverse);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(inverse);
     Ok(Some(sum))
 }
 

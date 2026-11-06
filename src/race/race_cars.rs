@@ -17,7 +17,6 @@ use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
 use crate::session::{Cell32, Dword};
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
@@ -422,7 +421,11 @@ pub fn set_car_times(race: &Race) -> Result<(), Refused> {
         )?;
         text(w(2), false);
         number(percentage, false);
-        DRAW.scratch.set_bits(percentage);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set_bits(percentage);
         let total: i32 = race.physics.split_tables.stage_car_total.get() as i32;
         let extra = crate::math::x87_load::int_times_int_over_to_int(
             percentage as i32,

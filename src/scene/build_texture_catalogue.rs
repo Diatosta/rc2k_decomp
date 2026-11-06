@@ -25,7 +25,6 @@ use crate::errors::{FatalError, Refused};
 use crate::logfile::log_int::log_int;
 use crate::scene::count_texture_needs::count_texture_needs_in_game;
 use crate::scene::raise_texture_needs::raise_texture_needs;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::texture_steps::{DONE, FAILED, STEPS};
 use crate::scene::try_allocate_textures::try_allocate_textures_in_game;
 use std::ffi::CStr;
@@ -89,8 +88,10 @@ fn run(
                 call(Call::Raise { level, tag })?;
             }
             Step::Count(index) => {
-                let counter =
-                    crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.counters[0], index);
+                let counter = crate::scene::texture_places_store::cell_at(
+                    &crate::scene::owner::scene().textures.places.counters[0],
+                    index,
+                );
                 counter.set(counter.get().wrapping_add(1));
             }
             Step::Try => {
@@ -105,7 +106,9 @@ fn run(
                 call(Call::CountNeeds)?;
             }
             Step::Unless(flag, inner) => {
-                if TEXTURE_PLACES.step_flags[flag].get() == 0 && run(inner, call)? {
+                if crate::scene::owner::scene().textures.places.step_flags[flag].get() == 0
+                    && run(inner, call)?
+                {
                     return Ok(true);
                 }
             }
@@ -119,10 +122,16 @@ pub fn build_texture_catalogue(
 ) -> Result<(), Refused> {
     // The original does this after the first two log lines and the count, which
     // touch neither.
-    for counter in &TEXTURE_PLACES.counters {
+    for counter in &crate::scene::owner::scene().textures.places.counters {
         counter.set(0);
     }
-    for (n, flag) in TEXTURE_PLACES.step_flags.iter().enumerate() {
+    for (n, flag) in crate::scene::owner::scene()
+        .textures
+        .places
+        .step_flags
+        .iter()
+        .enumerate()
+    {
         flag.set((n == 0) as u32);
     }
     if run(&STEPS, call)? {

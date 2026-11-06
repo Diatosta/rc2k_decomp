@@ -2,7 +2,6 @@
 //! (Rust's since phase 12, counted on their lists), the corner table
 //! scaled, and the eight settings blocks reset.
 
-use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -23,7 +22,10 @@ pub const SETTINGS_BLOCKS: u32 = 8;
 /// reaches reads the block (0x4C3908, 0x4C396A, `sub_4C39D5`: `notes/reference.md`), so
 /// since phase 12 it is only counted on its list (the memory figures) and not kept.
 pub fn allocate_places() -> Result<(), Refused> {
-    crate::memory::owned::count_on(crate::pointers::GamePtr::to(&PLACES_BLOCK.list), PLACES_LEN)
+    crate::memory::owned::count_on(
+        crate::pointers::GamePtr::to(&crate::effects::owner::effects().blocks.places.list),
+        PLACES_LEN,
+    )
 }
 
 /// A particle of the ring (`g_marksRing`'s 0x4C-byte entries), its dwords by their
@@ -99,7 +101,10 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
 /// (0x4C5446 .. 0x4C5DEA, `sub_4C6242`: `notes/reference.md`), so since phase 12 it is
 /// only counted on its list (the memory figures) and not kept.
 pub fn allocate_links() -> Result<(), Refused> {
-    crate::memory::owned::count_on(crate::pointers::GamePtr::to(&MARK_LINKS.list), LINKS_LEN)?;
+    crate::memory::owned::count_on(
+        crate::pointers::GamePtr::to(&crate::effects::owner::effects().blocks.links.list),
+        LINKS_LEN,
+    )?;
     scale_corners();
     Ok(())
 }
@@ -113,9 +118,9 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// |+4 - +0| (sixteen-bit differences; `dword_8EB8B5`, `dword_8EB8B9`).
 pub fn scale_corners() {
     {
-        let scale: u32 = DRAW_WORK.uv_k.bits();
+        let scale: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
         for n in (0..CORNERS).rev() {
-            let record = &MARK_CORNERS.corners[n as usize];
+            let record = &crate::effects::owner::effects().blocks.corners.corners[n as usize];
             let word = |o: u32| record.words[o as usize / 2].get();
             let mut values = [0u32; 8];
             for (k, &o) in CORNER_PAIRS.iter().enumerate() {
@@ -135,8 +140,11 @@ pub fn scale_corners() {
                 (if (d as i16) < 0 { d.wrapping_neg() } else { d }) as u32
             };
             let (across, along) = (side(4, 0), side(0xA, 2));
-            write_bits(&DRAW_WORK.half, [across, along]);
-            let slope = &CORNER_SLOPES.slopes[n as usize];
+            write_bits(
+                &crate::effects::owner::effects().frame.draw_work.half,
+                [across, along],
+            );
+            let slope = &crate::effects::owner::effects().blocks.corner_slopes.slopes[n as usize];
             slope
                 .slope
                 .set_bits(x87::int_ratio(along as i32, across as i32));
@@ -155,7 +163,11 @@ pub fn reset_settings_blocks() -> Result<(), Refused> {
             let at = |o: u32| marks.cars[n as usize].at(o);
             for k in 0..6u32 {
                 let v = x87::loaded(
-                    crate::effects::emitters::EMITTER.settings_start[k as usize].bits(),
+                    crate::effects::owner::effects()
+                        .kinds
+                        .emitter
+                        .settings_start[k as usize]
+                        .bits(),
                 );
                 at(0x4C + 4 * k).write(v, "a settings block")?;
             }
@@ -189,21 +201,25 @@ pub struct PlacesBlock {
     pub start: [Float; 3],
 }
 
-pub static PLACES_BLOCK: PlacesBlock = PlacesBlock {
-    list: [
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-    ],
-    _gap_8db580: Bytes::new([0; 48]),
-    places: Dword::new(0x0),
-    start: [
-        Float::from_bits(0x0),
-        Float::from_bits(0xC8800000),
-        Float::from_bits(0x499C3E80),
-    ],
-};
+impl PlacesBlock {
+    pub const fn new() -> Self {
+        Self {
+            list: [
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+            ],
+            _gap_8db580: Bytes::new([0; 48]),
+            places: Dword::new(0x0),
+            start: [
+                Float::from_bits(0x0),
+                Float::from_bits(0xC8800000),
+                Float::from_bits(0x499C3E80),
+            ],
+        }
+    }
+}
 
 impl PlacesBlock {
     pub const START: usize = 0x8DB570;
@@ -211,7 +227,8 @@ impl PlacesBlock {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const PLACES_BLOCK) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::effects().blocks.places)
+            as usize
     }
 }
 
@@ -228,16 +245,20 @@ pub struct MarkLinks {
     pub links: Dword,
 }
 
-pub static MARK_LINKS: MarkLinks = MarkLinks {
-    list: [
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-    ],
-    _gap_920700: Bytes::new([0; 48]),
-    links: Dword::new(0x0),
-};
+impl MarkLinks {
+    pub const fn new() -> Self {
+        Self {
+            list: [
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+            ],
+            _gap_920700: Bytes::new([0; 48]),
+            links: Dword::new(0x0),
+        }
+    }
+}
 
 impl MarkLinks {
     pub const START: usize = 0x9206F0;
@@ -245,7 +266,8 @@ impl MarkLinks {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const MARK_LINKS) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::effects().blocks.links)
+            as usize
     }
 }
 
@@ -280,9 +302,13 @@ pub struct CornerSlopes {
     pub slopes: [Slope; 0x100],
 }
 
-pub static CORNER_SLOPES: CornerSlopes = CornerSlopes {
-    slopes: [const { Slope::new() }; 0x100],
-};
+impl CornerSlopes {
+    pub const fn new() -> Self {
+        Self {
+            slopes: [const { Slope::new() }; 0x100],
+        }
+    }
+}
 
 impl CornerSlopes {
     pub const START: usize = 0x920734;
@@ -290,7 +316,9 @@ impl CornerSlopes {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const CORNER_SLOPES) as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::effects().blocks.corner_slopes,
+        ) as usize
     }
 }
 
@@ -320,9 +348,13 @@ pub struct MarkCorners {
     pub corners: [Corner; 0x100],
 }
 
-pub static MARK_CORNERS: MarkCorners = MarkCorners {
-    corners: [const { Corner::new() }; 0x100],
-};
+impl MarkCorners {
+    pub const fn new() -> Self {
+        Self {
+            corners: [const { Corner::new() }; 0x100],
+        }
+    }
+}
 
 impl MarkCorners {
     pub const START: usize = 0x8EB971;
@@ -330,7 +362,8 @@ impl MarkCorners {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const MARK_CORNERS) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::effects().blocks.corners)
+            as usize
     }
 }
 

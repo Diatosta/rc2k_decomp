@@ -123,7 +123,7 @@ fn resolved(place: u32) -> GamePtr {
     let jade = crate::gfx::jade_store::JadeFont::START;
     if (jade..jade + crate::gfx::jade_store::JadeFont::LEN).contains(&ida) {
         // The block starts 4 bytes into the store (`JadeFont::home`).
-        GamePtr::to(&crate::gfx::jade_store::JADE_FONT).offset((4 + ida - jade) as u32)
+        GamePtr::to(&crate::gfx::owner::gfx().fonts.jade).offset((4 + ida - jade) as u32)
     } else {
         GamePtr::new(place)
     }
@@ -215,13 +215,24 @@ mod tests {
 
     #[test]
     fn the_jade_fonts_image_numbers_resolve_to_its_block() {
-        use crate::gfx::jade_store::{JADE_FONT, JadeFont};
+        use crate::gfx::jade_store::JadeFont;
         let _lock = crate::store::test_lock();
         // The glyph table and the palette (the colour), as the menu fonts name them.
         let table = bytes(0x4F52C4, "the jade glyphs").unwrap();
         let colour = read_bytes(0x4F66C4, 0, 4, "the jade colour").unwrap();
-        assert_eq!(colour, JADE_FONT.colour.get().to_le_bytes());
-        assert_eq!(table.byte(0), Some(JADE_FONT.glyphs.get(0)));
+        assert_eq!(
+            colour,
+            crate::gfx::owner::gfx()
+                .fonts
+                .jade
+                .colour
+                .get()
+                .to_le_bytes()
+        );
+        assert_eq!(
+            table.byte(0),
+            Some(crate::gfx::owner::gfx().fonts.jade.glyphs.get(0))
+        );
         assert_eq!(
             resolved(0x4F66C4).addr() as usize,
             JadeFont::home() + 0x1400

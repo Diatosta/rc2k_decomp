@@ -16,9 +16,7 @@
 //! Caller: `effects::draw_lens_flare` (0x4C4FEA). Refuses a corner past `g_marksCorners`
 //! (0x100 or more) and null marks settings (`clip_quad`'s refusal), before anything.
 
-use crate::effects::blocks::MARK_CORNERS;
 use crate::effects::clip_quad::{clip_quad, draw_fan};
-use crate::effects::frame_state::{DRAW_WORK, FLARE_SCALES, VIEW_VARS};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::matrix3::rounded;
@@ -48,19 +46,21 @@ pub fn draw_flare_part(
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
     {
-        if crate::effects::setup::SETTINGS.is_set.get() == 0 {
+        if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
             return Err(BadInput("no marks settings").into());
         }
         for n in 0..2 {
-            DRAW_WORK.sides[n].set_bits(x87::loaded(FLARE_SCALES.scale[n].bits()));
+            crate::effects::owner::effects().frame.draw_work.sides[n].set_bits(x87::loaded(
+                crate::effects::owner::effects().frame.flare_scales.scale[n].bits(),
+            ));
         }
         let colour = (alpha << 24) | colour;
         for n in 0..4 {
             VERTICES.vertices[n].colour.set(colour);
         }
-        let entry = &MARK_CORNERS.corners[corner as usize];
+        let entry = &crate::effects::owner::effects().blocks.corners.corners[corner as usize];
         let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-        let uv_k: u32 = DRAW_WORK.uv_k.bits();
+        let uv_k: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
@@ -74,13 +74,19 @@ pub fn draw_flare_part(
         let ratio = x87::int_over_int(along as i32, across as i32);
         let width = x87::int_to_float(size as i32);
         let height = x87::int_times(size as i32, ratio);
-        DRAW_WORK.half[0].set_bits(width);
-        DRAW_WORK.half[1].set_bits(height);
+        crate::effects::owner::effects().frame.draw_work.half[0].set_bits(width);
+        crate::effects::owner::effects().frame.draw_work.half[1].set_bits(height);
         let turn = angle >> 20;
-        let sw = x87::mul(width, DRAW_WORK.sides[0].bits());
-        let sh = x87::mul(height, DRAW_WORK.sides[1].bits());
-        DRAW_WORK.sides[0].set_bits(sw);
-        DRAW_WORK.sides[1].set_bits(sh);
+        let sw = x87::mul(
+            width,
+            crate::effects::owner::effects().frame.draw_work.sides[0].bits(),
+        );
+        let sh = x87::mul(
+            height,
+            crate::effects::owner::effects().frame.draw_work.sides[1].bits(),
+        );
+        crate::effects::owner::effects().frame.draw_work.sides[0].set_bits(sw);
+        crate::effects::owner::effects().frame.draw_work.sides[1].set_bits(sh);
         let corners = [
             (x87::sub(0, sw), x87::sub(0, sh)),
             (x87::sub(width, sw), x87::sub(0, sh)),
@@ -89,7 +95,10 @@ pub fn draw_flare_part(
         ];
         let sin: u32 = crate::scene::engine_tables_store::sine(turn as usize).bits();
         let cos: u32 = crate::scene::engine_tables_store::cosine(turn as usize).bits();
-        let depth = x87::mul(DRAW_WORK.near.bits(), DRAW_WORK.z_k.bits());
+        let depth = x87::mul(
+            crate::effects::owner::effects().frame.draw_work.near.bits(),
+            crate::effects::owner::effects().frame.draw_work.z_k.bits(),
+        );
         for (n, (x, y)) in corners.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             let [tx, ty] = x87::turn_about(x, y, sin, cos, cx, cy);
@@ -97,9 +106,18 @@ pub fn draw_flare_part(
             vertex.y.set_bits(ty);
             vertex.z.set_bits(depth);
         }
-        VIEW_VARS
+        crate::effects::owner::effects()
+            .frame
+            .view_vars
             .cleared
-            .set(VIEW_VARS.cleared.get().wrapping_add(1));
+            .set(
+                crate::effects::owner::effects()
+                    .frame
+                    .view_vars
+                    .cleared
+                    .get()
+                    .wrapping_add(1),
+            );
         if clip_quad()? {
             return Ok(());
         }

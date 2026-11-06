@@ -9,12 +9,11 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::view_vectors::KEPT;
 use crate::math::x87;
 
 /// The Rust version (see the header).
 pub fn view_step() {
-    let k = &KEPT;
+    let k = &crate::effects::owner::effects().frame.kept_view;
     // now: `kept_a`'s scaled vector (`flt_76927A` ..)
     for n in 0..3 {
         k.step[n].set_bits(x87::negated_sub(

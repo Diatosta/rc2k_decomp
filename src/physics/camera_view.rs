@@ -12,7 +12,6 @@ use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
-use crate::scene::draw_store::DRAW;
 
 /// esi as the original leaves it: the mode's record.
 pub fn record() -> Result<&'static ViewRecord, crate::errors::BadInput> {
@@ -33,7 +32,7 @@ pub fn share_done(record: &ViewRecord) -> u32 {
     if eax >= change_time {
         eax = change_time;
     }
-    DRAW.scratch.set(eax);
+    crate::scene::owner::scene().drawing.scene.scratch.set(eax);
     x87_1(change_time);
     eax
 }
@@ -45,7 +44,7 @@ pub fn share_done(record: &ViewRecord) -> u32 {
 /// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]` (`s + 0x3C` the record's
 /// `change_time`, passed by value)
 fn x87_1(change_time: u32) {
-    let t0 = int(DRAW.scratch.bits() as i32);
+    let t0 = int(crate::scene::owner::scene().drawing.scene.scratch.bits() as i32);
     let t1 = int(change_time as i32);
     let t2 = t0 / t1;
     RACE_TABLES.view_share.set_bits(st(t2));

@@ -13,7 +13,6 @@ use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::file_numbers_store::texts;
-use crate::scene::light_work_store::LIGHT_WORK;
 const BAR: u32 = 0x4467C7; // sub_4467C7: the loading bar's 3D frame
 const BAR_DONE: u32 = 0x4467C6; // nullsub_8
 
@@ -236,11 +235,17 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.indent(3);
     level::reset_refresh(&race.course);
     let flags: u32 = race.course.stage_prefs.refresh_flags_a.bits();
-    LIGHT_WORK.marks_mask.set_bits((flags & 2) >> 1);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .marks_mask
+        .set_bits((flags & 2) >> 1);
     for car in &CAR_BLOCKS.cars[..8] {
         car.lights_on.set(flags & 1);
     }
-    LIGHT_WORK
+    crate::scene::owner::scene()
+        .lights
+        .work
         .lamps_mask
         .set_bits(race.course.stage_prefs.refresh_flags_b.bits() & 1);
     s.indent(-3);

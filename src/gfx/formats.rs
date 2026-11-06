@@ -1,6 +1,6 @@
 //! The pixel formats' work variables (format numbers, scratch bytes, component format), out
 //! of RAL.EXE's image (phase 5; typed in phase 7, `notes/conversion.md`): IDA 0x4F3F78 ..
-//! 0x4F3FC4. The row table follows (`gfx::fill_row_table::ROW_TABLE`).
+//! 0x4F3FC4. The row table follows (`ROW_TABLE`).
 
 use crate::session::{Bytes, Dword};
 

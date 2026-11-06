@@ -39,19 +39,23 @@ pub struct Blitter {
     pub rows_left: Dword,
 }
 
-/// The blitters' variables; the first values are the image's (a screen of 800 x 600).
-pub static BLIT: Blitter = Blitter {
-    clip: ClipRect {
-        left: Dword::new(0),
-        right: Dword::new(0x31F),
-        top: Dword::new(0),
-        bottom: Dword::new(0x257),
-    },
-    left_skip: Dword::new(0),
-    visible_width: Dword::new(0),
-    top_skip: Dword::new(0),
-    rows_left: Dword::new(0),
-};
+impl Blitter {
+    /// The blitters' variables; the first values are the image's (a screen of 800 x 600).
+    pub const fn new() -> Self {
+        Blitter {
+            clip: ClipRect {
+                left: Dword::new(0),
+                right: Dword::new(0x31F),
+                top: Dword::new(0),
+                bottom: Dword::new(0x257),
+            },
+            left_skip: Dword::new(0),
+            visible_width: Dword::new(0),
+            top_skip: Dword::new(0),
+            rows_left: Dword::new(0),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -60,17 +64,24 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&BLIT, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().drawing.blit,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(Blitter, left_skip), 0x4F504C - START);
         assert_eq!(offset_of!(Blitter, rows_left), 0x4F5058 - START);
-        assert_eq!(crate::moved::place(START), BLIT.clip.left.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::gfx::owner::gfx().drawing.blit.clip.left.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x4F5058),
-            BLIT.rows_left.addr() as usize
+            crate::gfx::owner::gfx().drawing.blit.rows_left.addr() as usize
         );
     }
 }

@@ -3,8 +3,6 @@
 //! tables (0x100 whole numbers and their 0x100 differences each), then the corners from
 //! the course and `allocate_links`, `reset_settings_blocks`.
 
-use crate::effects::blocks::MARK_CORNERS;
-use crate::effects::frame_state::{DRAW_FRAME, DRAW_WORK};
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -30,7 +28,11 @@ fn ida_table(paths: &Paths, ida: u32) -> &ProfileTable {
 
 /// The profiles' work, `flt_8EB871` .. `flt_8EB899`.
 fn work(n: usize, v: u32) {
-    DRAW_WORK.profile_work[n].set_bits(v);
+    crate::effects::owner::effects()
+        .frame
+        .draw_work
+        .profile_work[n]
+        .set_bits(v);
 }
 
 /// A table's second half: each the next less this (whole numbers, so the last reads the
@@ -53,7 +55,11 @@ fn make_tables(paths: &Paths) -> Result<(), Refused> {
             let step = x87::int_less_int_over(
                 t[1].get() as i32,
                 t[0].get() as i32,
-                DRAW_FRAME.profile_steps[0].bits(),
+                crate::effects::owner::effects()
+                    .frame
+                    .draw_frame
+                    .profile_steps[0]
+                    .bits(),
             );
             work(2, step);
             let mut v = x87::from_int(t[0].get() as i32);
@@ -83,7 +89,15 @@ fn make_tables(paths: &Paths) -> Result<(), Refused> {
             let t = ida_table(paths, paths.profile_lists.curves[k].get());
             let mut x = x87::loaded(t[0].get());
             work(7, x);
-            let step = x87::sub_div(t[1].get(), t[0].get(), DRAW_FRAME.profile_steps[1].bits());
+            let step = x87::sub_div(
+                t[1].get(),
+                t[0].get(),
+                crate::effects::owner::effects()
+                    .frame
+                    .draw_frame
+                    .profile_steps[1]
+                    .bits(),
+            );
             work(8, step);
             let (scale, top) = (x87::loaded(t[2].get()), x87::loaded(t[3].get()));
             work(9, scale);
@@ -108,7 +122,11 @@ fn make_tables(paths: &Paths) -> Result<(), Refused> {
 /// `resume` (the original jumps to it). `resume` is `loc_4C3EA6`.
 pub fn make_profiles(course: &Course, paths: &Paths, resume: u32) -> Result<(), Refused> {
     {
-        let done: u32 = DRAW_FRAME.profiles_done.get();
+        let done: u32 = crate::effects::owner::effects()
+            .frame
+            .draw_frame
+            .profiles_done
+            .get();
         if done != 0 && done != resume {
             return Err(BadInput("the profiles' mark is neither 0 nor loc_4C3EA6").into());
         }
@@ -119,7 +137,11 @@ pub fn make_profiles(course: &Course, paths: &Paths, resume: u32) -> Result<(), 
         }
         if done == 0 {
             make_tables(paths)?;
-            DRAW_FRAME.profiles_done.set(resume);
+            crate::effects::owner::effects()
+                .frame
+                .draw_frame
+                .profiles_done
+                .set(resume);
         }
         if course.lists.course_info.bits() == 0 {
             return Err(BadInput("no course info (g_courseInfo 0)").into());
@@ -129,7 +151,8 @@ pub fn make_profiles(course: &Course, paths: &Paths, resume: u32) -> Result<(), 
             CORNERS_LEN,
             "the course corners",
         )?;
-        GamePtr::to(&MARK_CORNERS.corners).write_bytes(&corners, "the course corners")?;
+        GamePtr::to(&crate::effects::owner::effects().blocks.corners.corners)
+            .write_bytes(&corners, "the course corners")?;
         crate::effects::blocks::allocate_links()?;
         crate::effects::blocks::reset_settings_blocks()?;
     }

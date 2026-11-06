@@ -19,25 +19,10 @@ use crate::pointers::GamePtr;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::settings::TEXT_ROOM;
 
-/// `unk_4F66DD`, `unk_4F66E1`, `unk_4F66E5` (-1 at start), `unk_4F66E9`: four dwords the
-/// options file keeps (here and in `saves::save_options`, by address); nothing else of the
-/// game reads them (a table of the developers' variables names the first). The fifth
-/// (0x4F66ED) is a gap. Split 2026-10-25 from sound's wheel surfaces after them.
-pub static KEPT: [crate::session::Dword; 5] = [
-    crate::session::Dword::new(0),
-    crate::session::Dword::new(0),
-    crate::session::Dword::new(0xFFFF_FFFF),
-    crate::session::Dword::new(0),
-    crate::session::Dword::new(0),
-];
-
 // ---- game data ----
 
 /// IDA's address of the options file's name.
 pub const PATH_START: usize = 0x5295D8;
-
-/// `aVarRalDat`: the options file's name.
-pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\ral.dat\0");
 
 #[cfg(test)]
 mod path_tests {
@@ -45,8 +30,15 @@ mod path_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&PATH, PATH_START, PATH_START + 12);
-        assert_eq!(crate::moved::place(PATH_START), PATH.addr() as usize);
+        crate::gfx::first_values_are_the_games(
+            &crate::saves::owner::SAVES.files.options_path,
+            PATH_START,
+            PATH_START + 12,
+        );
+        assert_eq!(
+            crate::moved::place(PATH_START),
+            crate::saves::owner::saves().files.options_path.addr() as usize
+        );
     }
 }
 
@@ -89,10 +81,10 @@ let menus = menus();
         (GamePtr::to(&SET_UPS.kept), 0x4),                              // a car set-ups word, not worked out
         (GamePtr::to(&TYRE_CHANGE.record_name), 0x20),                  // the tyre change record holder's name
         (GamePtr::to(&TYRE_CHANGE.record), 0x4),                        // the tyre change record time
-        (GamePtr::to(&KEPT[0]), 0x4),                                   // four dwords nothing else reads
-        (GamePtr::to(&KEPT[1]), 0x4),
-        (GamePtr::to(&KEPT[2]), 0x4),
-        (GamePtr::to(&KEPT[3]), 0x4),
+        (GamePtr::to(&crate::saves::owner::saves().files.options_kept[0]), 0x4),                                   // four dwords nothing else reads
+        (GamePtr::to(&crate::saves::owner::saves().files.options_kept[1]), 0x4),
+        (GamePtr::to(&crate::saves::owner::saves().files.options_kept[2]), 0x4),
+        (GamePtr::to(&crate::saves::owner::saves().files.options_kept[3]), 0x4),
         (GamePtr::to(&menus.play.players.players[0]), 0x28C),                 // the four players' records
         (GamePtr::to(&menus.play.players.players[1]), 0x28C),
         (GamePtr::to(&menus.play.players.players[2]), 0x28C),
@@ -178,7 +170,7 @@ pub fn load_options(path: crate::pointers::GamePtr, places: &mut Places) -> Resu
 pub fn load_game_options() -> Result<bool, Refused> {
     let pieces = pieces();
     load_options(
-        crate::pointers::GamePtr::to(&PATH),
+        crate::pointers::GamePtr::to(&crate::saves::owner::saves().files.options_path),
         &mut Places {
             loaded: &menus().screens.loop_flags.options_loaded,
             pieces: &pieces,
@@ -192,7 +184,16 @@ mod tests {
     #[test]
     fn kept_starts_as_the_games() {
         let image = crate::moved::image_bytes(0x4F66DD, 20);
-        let mine = unsafe { std::slice::from_raw_parts(super::KEPT.as_ptr().cast::<u8>(), 20) };
+        let mine = unsafe {
+            std::slice::from_raw_parts(
+                crate::saves::owner::saves()
+                    .files
+                    .options_kept
+                    .as_ptr()
+                    .cast::<u8>(),
+                20,
+            )
+        };
         assert_eq!(mine, &image[..]);
     }
 

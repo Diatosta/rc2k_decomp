@@ -26,8 +26,6 @@ use crate::errors::Refused;
 use crate::files::stream::{Stream, with_stream};
 use crate::files::write_stream_block::write_stream_all;
 use crate::files::write_stream_byte::write_stream_byte;
-use crate::gfx::pcx::PCX;
-use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::shots::Shots;
 
 /// The header's first 0x80 bytes for a surface `width` x `height` (converted:
@@ -49,8 +47,15 @@ fn next_shot_name(shots: &Shots) {
 /// The Rust version: whether it worked (carry clear). `name` the file's path (without its
 /// NUL), or None for the next numbered screenshot.
 pub fn write_screen_pcx(shots: &Shots, name: Option<&[u8]>) -> Result<bool, Refused> {
-    let header_bytes = header(DRAW_SURFACE.width.get(), DRAW_SURFACE.height.get());
-    PCX.header.write(&header_bytes);
+    let header_bytes = header(
+        crate::gfx::owner::gfx().drawing.draw_surface.width.get(),
+        crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
+    );
+    crate::gfx::owner::gfx()
+        .pictures
+        .pcx
+        .header
+        .write(&header_bytes);
     let path = match name {
         Some(name) => name.to_vec(),
         None => {
@@ -75,12 +80,18 @@ fn rows(stream: &mut Stream) -> Result<bool, Refused> {
     let rows = crate::gfx::rows::Rows::surface()?;
     // eax as the original has it: the block's byte count after the header (0x80).
     let mut eax: u32 = 0x80;
-    let width = DRAW_SURFACE.width.get();
+    let width = crate::gfx::owner::gfx().drawing.draw_surface.width.get();
     let mut y = 0u32;
     loop {
-        let format = crate::gfx::pixel_format::layout(DRAW_SURFACE.format.get())?;
+        let format = crate::gfx::pixel_format::layout(
+            crate::gfx::owner::gfx().drawing.draw_surface.format.get(),
+        )?;
         // The row's pixels, as the original reads them (none for other sizes).
-        let bits = DRAW_SURFACE.bits_per_pixel.get();
+        let bits = crate::gfx::owner::gfx()
+            .drawing
+            .draw_surface
+            .bits_per_pixel
+            .get();
         let pixels = match bits {
             0x10 => rows.read(y, 0, 2 * width as usize, "the surface")?,
             0x20 => rows.read(y, 0, 4 * width as usize, "the surface")?,
@@ -106,7 +117,11 @@ fn rows(stream: &mut Stream) -> Result<bool, Refused> {
                 _ => eax,
             }
         });
-        crate::gfx::pcx_planes::PLANES.write_at(0, &planes, "a screenshot row's planes")?;
+        crate::gfx::owner::gfx().pictures.planes.write_at(
+            0,
+            &planes,
+            "a screenshot row's planes",
+        )?;
         for byte in rc2k_core::gfx::pcx::encode_line(&planes, &mut eax) {
             if !write_stream_byte(stream, byte as u32)? {
                 return Ok(false);

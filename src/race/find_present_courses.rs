@@ -20,7 +20,6 @@ use crate::race::level_init::set_course_number;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::switches_store::FRAME_SWITCHES;
-use crate::scene::draw_store::DRAW;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 fn paths(course: &Course) -> [crate::pointers::GamePtr; 2] {
@@ -46,7 +45,9 @@ pub fn find_present_courses() -> Result<(), Refused> {
             let path = paths(course)[file as usize];
             read_whole_file(
                 path,
-                crate::pointers::GamePtr::to(&DRAW.work_dword),
+                crate::pointers::GamePtr::to(
+                    &crate::scene::owner::scene().drawing.scene.work_dword,
+                ),
                 PROBE_BYTES,
             )?;
             Ok::<u32, Refused>(BYTES_READ.get())

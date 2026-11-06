@@ -19,7 +19,6 @@
 
 use crate::errors::BadInput;
 use crate::gfx::picture::{has_picture, with_picture};
-use crate::gfx::screen_state::DRAW_SURFACE;
 
 // ---- game data ----
 
@@ -60,13 +59,17 @@ impl PictureSurface for GameSurface {
             .unwrap_or_else(|e| crate::fatal::raise::end("gfx::copy_picture_to_surface", e))
     }
     fn rows(&self) -> u32 {
-        DRAW_SURFACE.height.get()
+        crate::gfx::owner::gfx().drawing.draw_surface.height.get()
     }
     fn row_dwords(&self) -> u32 {
-        DRAW_SURFACE.row_dwords.get()
+        crate::gfx::owner::gfx()
+            .drawing
+            .draw_surface
+            .row_dwords
+            .get()
     }
     fn row_gap(&self) -> u32 {
-        DRAW_SURFACE.row_gap.get()
+        crate::gfx::owner::gfx().drawing.draw_surface.row_gap.get()
     }
 }
 

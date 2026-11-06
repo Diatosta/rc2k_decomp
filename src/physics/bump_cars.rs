@@ -22,7 +22,6 @@ use crate::physics::car_store::{CAR, Car};
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
 use crate::session::{Dword, Float};
 
 use crate::math::x87::loaded;
@@ -88,7 +87,11 @@ fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
     push_apart(race, &other.position);
     let factor = extended(race_owner.course.numbers.three.bits());
     scale_vector(&race_owner.physics.contact.bump_push, factor);
-    DRAW.scratch.set(rounded(factor));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set(rounded(factor));
     add_push(&race.physics, &other.velocity);
     turn_speed(met_car);
     turn_speed(&CAR);

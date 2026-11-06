@@ -11,7 +11,6 @@
 use crate::errors::Refused;
 use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 
 /// The Rust version (see the header).
@@ -26,7 +25,11 @@ pub fn loading_bar_quad(course: &Course) -> Result<(), Refused> {
     RACE_VARS.quad_corners[4].set(bar.top);
     RACE_VARS.quad_corners[5].set(bar.bottom);
     RACE_VARS.quad_corners[1].set(bar.right);
-    DRAW.texture_page.set_bits(0xFFFF_FFFFu32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .texture_page
+        .set_bits(0xFFFF_FFFFu32);
     // `draw_screen_quad` reads no register it is given.
     crate::race::frame_draw::draw_screen_quad(course)
 }

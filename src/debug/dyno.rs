@@ -19,7 +19,6 @@ use crate::physics::tables_store::PHYSICS;
 #[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use dear_imgui_rs::Ui;
 use std::sync::Mutex;
@@ -93,10 +92,10 @@ fn places() -> [&'static dyn Cell32; 15] {
         &PHYSICS.engine_force,
         &PHYSICS.engine_torque,
         &PHYSICS.torque_share,
-        &DRAW.scratch,
-        &DRAW.work_dword,
-        &DRAW.work_float_a,
-        &DRAW.work_float_b,
+        &crate::scene::owner::scene().drawing.scene.scratch,
+        &crate::scene::owner::scene().drawing.scene.work_dword,
+        &crate::scene::owner::scene().drawing.scene.work_float_a,
+        &crate::scene::owner::scene().drawing.scene.work_float_b,
     ]
 }
 

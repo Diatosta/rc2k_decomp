@@ -23,16 +23,11 @@
 //! live slot with a null matrix.
 
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::blocks::MARK_CORNERS;
-use crate::effects::frame_state::DRAW_WORK;
-use crate::effects::mark_slots::{SLOTS, TUNING, slot_matrix};
+use crate::effects::mark_slots::slot_matrix;
 use crate::effects::paths::Paths;
-use crate::effects::setup::CLOCK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::scene::draw_store::DRAW;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::read_on_in;
@@ -42,10 +37,10 @@ const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 /// Why it refuses, if it does, worked out before anything is written.
 fn refusal() -> Option<&'static str> {
     {
-        if crate::effects::setup::SETTINGS.is_set.get() == 0 {
+        if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
             return Some("no marks settings");
         }
-        for slot in &SLOTS.slots {
+        for slot in &crate::effects::owner::effects().blocks.slots.slots {
             if (slot.life.get() as i32) > 0 && slot.matrix.get() == 0 {
                 return Some("a live mark slot with a null matrix");
             }
@@ -68,13 +63,28 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
             crate::effects::mark_slots::VIEW_PLACE_MATRIX,
         );
     }
-    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
-    for s in SLOTS.slots.iter().rev() {
+    crate::scene::set_texture::set_texture(
+        crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
+    );
+    for s in crate::effects::owner::effects()
+        .blocks
+        .slots
+        .slots
+        .iter()
+        .rev()
+    {
         if (s.life.get() as i32) <= 0 {
             continue;
         }
-        s.life
-            .set(s.life.get().wrapping_sub(CLOCK.frame_ticks.get()));
+        s.life.set(
+            s.life.get().wrapping_sub(
+                crate::effects::owner::effects()
+                    .setup
+                    .clock
+                    .frame_ticks
+                    .get(),
+            ),
+        );
         let p = s.point.get() as usize * 3;
         let at = |n: usize| {
             read_on_in(
@@ -85,7 +95,9 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
             )
         };
         let [a, b, c] = [at(0)? ^ 0x8000_0000, at(1)?, at(2)?];
-        let k4 = TUNING
+        let k4 = crate::effects::owner::effects()
+            .blocks
+            .slot_tuning
             .place_k
             .each_ref()
             .map(super::super::session::Float::bits);
@@ -99,17 +111,24 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
         let twice = rotate_point(&race.frame.matrices.view_matrix, once);
         let [z, y, x] = twice.map(rounded);
         for (n, v) in [z, y, x].into_iter().enumerate() {
-            SLOTS.work[n].set(v);
+            crate::effects::owner::effects().blocks.slots.work[n].set(v);
         }
-        let r = TUNING
+        let r = crate::effects::owner::effects()
+            .blocks
+            .slot_tuning
             .draw_random
             .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
-        TUNING.draw_random.set(r);
-        let corner = &MARK_CORNERS.corners[((r & 7) + 0x50) as usize];
+        crate::effects::owner::effects()
+            .blocks
+            .slot_tuning
+            .draw_random
+            .set(r);
+        let corner =
+            &crate::effects::owner::effects().blocks.corners.corners[((r & 7) + 0x50) as usize];
         let word = |off: u32| u32::from(corner.words[off as usize / 2].get());
-        let uv_k: u32 = DRAW_WORK.uv_k.bits();
+        let uv_k: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
         for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
@@ -122,25 +141,41 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
             continue;
         }
         let [px, py, half] = x87::slot_project(
-            DRAW.view_scale.bits(),
+            crate::scene::owner::scene().drawing.scene.view_scale.bits(),
             x,
             z,
-            DRAW.view_centre[0].bits(),
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
             y,
-            DRAW.view_centre[1].bits(),
-            SLOTS.slots[0].size.bits(),
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+            crate::effects::owner::effects().blocks.slots.slots[0]
+                .size
+                .bits(),
         );
-        SLOTS.work[0].set(px);
-        SLOTS.work[1].set(py);
-        TUNING.half.set_bits(half);
+        crate::effects::owner::effects().blocks.slots.work[0].set(px);
+        crate::effects::owner::effects().blocks.slots.work[1].set(py);
+        crate::effects::owner::effects()
+            .blocks
+            .slot_tuning
+            .half
+            .set_bits(half);
         let corners = [
             (x87::sub(px, half), x87::sub(py, half)),
             (x87::add(px, half), x87::sub(py, half)),
             (x87::add(px, half), x87::add(py, half)),
             (x87::sub(px, half), x87::add(py, half)),
         ];
-        let depth = x87::mul(x, DRAW_WORK.z_k.bits());
-        let rhw = x87::reciprocal_times(x, TUNING.rhw_k.bits());
+        let depth = x87::mul(
+            x,
+            crate::effects::owner::effects().frame.draw_work.z_k.bits(),
+        );
+        let rhw = x87::reciprocal_times(
+            x,
+            crate::effects::owner::effects()
+                .blocks
+                .slot_tuning
+                .rhw_k
+                .bits(),
+        );
         for (n, (vx, vy)) in corners.into_iter().enumerate() {
             let vertex = &VERTICES.vertices[n];
             vertex.x.set_bits(vx);

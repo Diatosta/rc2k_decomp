@@ -14,7 +14,6 @@
 
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::light_tables::{fill_light_ramp, fill_light_scale};
-use crate::scene::light_work_store::LIGHT_WORK;
 
 // ---- Rust version ----
 
@@ -40,7 +39,7 @@ pub fn fill_light_tables(
         course.stage_prefs.lit_b.bits()
     });
     // `unk_62DB10`: two colours; `dword_6092B4`: two colours (the dark one and the lit).
-    let p = &LIGHT_WORK.plain_light_colours;
+    let p = &scene.lights.work.plain_light_colours;
     let ramp: [u32; 6] = if plain {
         std::array::from_fn(|k| p[k].get())
     } else {

@@ -6,8 +6,6 @@
 //! `gfx::picture_as_surface`, by its number (`ON_PICTURE`, `DRAW_SURFACE.pixels` 0 then).
 
 use crate::errors::BadInput;
-use crate::gfx::blit::BLIT;
-use crate::gfx::screen_state::DRAW_SURFACE;
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
 
 /// The picture buffer's number while it is the surface (`gfx::picture_as_surface`), else 0.
@@ -24,7 +22,10 @@ pub enum Target {
 
 /// The surface now; `None` for none (the original's null `g_surface.pixels`).
 pub fn target() -> Option<Target> {
-    match (ON_PICTURE.load(Relaxed), DRAW_SURFACE.pixels.get()) {
+    match (
+        ON_PICTURE.load(Relaxed),
+        crate::gfx::owner::gfx().drawing.draw_surface.pixels.get(),
+    ) {
         (0, 0) => None,
         (0, a) => Some(Target::Address(a)),
         (n, _) => Some(Target::Picture(n)),
@@ -52,11 +53,13 @@ pub fn on_address() {
 /// or its memory.
 pub fn write(target: Target, offset: u32, bytes: &[u8]) -> Result<(), BadInput> {
     match target {
-        Target::Address(a) => {
-            crate::gfx::rows::Rows::new(a, DRAW_SURFACE.pitch.get(), DRAW_SURFACE.height.get())
-                .byte(offset)
-                .write_bytes(bytes, "the surface")
-        }
+        Target::Address(a) => crate::gfx::rows::Rows::new(
+            a,
+            crate::gfx::owner::gfx().drawing.draw_surface.pitch.get(),
+            crate::gfx::owner::gfx().drawing.draw_surface.height.get(),
+        )
+        .byte(offset)
+        .write_bytes(bytes, "the surface"),
         Target::Picture(n) => crate::gfx::picture::write_bytes(n, offset as usize, bytes),
     }
 }
@@ -83,18 +86,26 @@ pub struct Clip {
 pub fn surface() -> Surface {
     Surface {
         target: target(),
-        pitch: DRAW_SURFACE.pitch.get() as i32,
-        bytes_per_pixel: DRAW_SURFACE.bytes_per_pixel.get() as i32,
-        bits_per_pixel: DRAW_SURFACE.bits_per_pixel.get(),
+        pitch: crate::gfx::owner::gfx().drawing.draw_surface.pitch.get() as i32,
+        bytes_per_pixel: crate::gfx::owner::gfx()
+            .drawing
+            .draw_surface
+            .bytes_per_pixel
+            .get() as i32,
+        bits_per_pixel: crate::gfx::owner::gfx()
+            .drawing
+            .draw_surface
+            .bits_per_pixel
+            .get(),
     }
 }
 
 pub fn clip() -> Clip {
     Clip {
-        left: BLIT.clip.left.get() as i32,
-        right: BLIT.clip.right.get() as i32,
-        top: BLIT.clip.top.get() as i32,
-        bottom: BLIT.clip.bottom.get() as i32,
+        left: crate::gfx::owner::gfx().drawing.blit.clip.left.get() as i32,
+        right: crate::gfx::owner::gfx().drawing.blit.clip.right.get() as i32,
+        top: crate::gfx::owner::gfx().drawing.blit.clip.top.get() as i32,
+        bottom: crate::gfx::owner::gfx().drawing.blit.clip.bottom.get() as i32,
     }
 }
 
@@ -107,14 +118,17 @@ mod target_tests {
     fn the_picture_is_a_target_by_number() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let kept = (ON_PICTURE.load(Relaxed), DRAW_SURFACE.pixels.get());
+        let kept = (
+            ON_PICTURE.load(Relaxed),
+            crate::gfx::owner::gfx().drawing.draw_surface.pixels.get(),
+        );
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
         let list =
             crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
         let n = take(Buffer::Overlay, list, 0x100).unwrap();
         ON_PICTURE.store(n, Relaxed);
-        DRAW_SURFACE.pixels.set(0);
+        crate::gfx::owner::gfx().drawing.draw_surface.pixels.set(0);
         assert_eq!(target(), Some(Target::Picture(n)));
         assert!(address().is_err(), "screen-only code refuses the picture");
         write(target().unwrap(), 8, &[9, 8, 7]).unwrap();
@@ -123,7 +137,11 @@ mod target_tests {
         assert_eq!(target(), None);
         give_back(Buffer::Overlay);
         ON_PICTURE.store(kept.0, Relaxed);
-        DRAW_SURFACE.pixels.set(kept.1);
+        crate::gfx::owner::gfx()
+            .drawing
+            .draw_surface
+            .pixels
+            .set(kept.1);
         crate::memory::with_figures(|f| *f = figures);
     }
 }

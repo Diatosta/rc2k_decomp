@@ -3,13 +3,10 @@
 //! taken as an entry's two corners, ordered, scaled into the kind's box, flipped and held
 //! (`clamp_pair`); `span_ring` makes the rings of them.
 
-use crate::effects::kind_values::MARKS_KIND;
-use crate::effects::mask_constants::MASK_CONSTANTS;
 use crate::effects::mask_store::Masks;
 use crate::effects::shape_points::{farthest_pair, turn_shape_checks, turn_shape_points, turned};
 use crate::effects::turns::{clamp_pair, smooth_pair, smooth_steps};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
@@ -61,8 +58,26 @@ fn turns(drops: &WindscreenDrops, n: usize, k: u32) -> (u32, u32) {
     let (starts, end) = steps(drops)[n];
     let b: u32 = end.get();
     (
-        smooth_pair(k, MASK_CONSTANTS.corner_angles[starts[0]].bits(), b).1,
-        smooth_pair(k, MASK_CONSTANTS.corner_angles[starts[1]].bits(), b).1,
+        smooth_pair(
+            k,
+            crate::effects::owner::effects()
+                .setup
+                .mask_constants
+                .corner_angles[starts[0]]
+                .bits(),
+            b,
+        )
+        .1,
+        smooth_pair(
+            k,
+            crate::effects::owner::effects()
+                .setup
+                .mask_constants
+                .corner_angles[starts[1]]
+                .bits(),
+            b,
+        )
+        .1,
     )
 }
 
@@ -77,7 +92,11 @@ fn turns(drops: &WindscreenDrops, n: usize, k: u32) -> (u32, u32) {
 /// before writing.
 pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     {
-        let kind: u32 = MARKS_KIND.kind.bits();
+        let kind: u32 = crate::effects::owner::effects()
+            .kinds
+            .marks_kind
+            .kind
+            .bits();
         if kind >= 0x22 {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
@@ -98,14 +117,22 @@ pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refuse
                 let first = smooth_steps(
                     drops,
                     k,
-                    MASK_CONSTANTS.corner_angles[starts[0]].bits(),
+                    crate::effects::owner::effects()
+                        .setup
+                        .mask_constants
+                        .corner_angles[starts[0]]
+                        .bits(),
                     end.get(),
                 )
                 .1;
                 let second = smooth_steps(
                     drops,
                     k,
-                    MASK_CONSTANTS.corner_angles[starts[1]].bits(),
+                    crate::effects::owner::effects()
+                        .setup
+                        .mask_constants
+                        .corner_angles[starts[1]]
+                        .bits(),
                     end.get(),
                 )
                 .1;
@@ -129,7 +156,11 @@ pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refuse
                 let e = k * ENTRY;
                 let c = |o: u32| -> Result<_, Refused> { Ok(get(table, e + o)? as i32) };
                 let status = x87::compare_squares(c(0)?, c(4)?, c(0xC)?, c(0x10)?);
-                MARKS_WORK.fpu_status.set(status as u32);
+                crate::effects::owner::effects()
+                    .setup
+                    .work
+                    .fpu_status
+                    .set(status as u32);
                 if status != 0 {
                     for (a, b) in [(0, 0xC), (4, 0x10)] {
                         let (x, y) = (get(table, e + a)?, get(table, e + b)?);
@@ -143,7 +174,12 @@ pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refuse
         let bx = |o: usize| -> Result<_, Refused> {
             Ok(masks.kind_boxes.boxes.get_u32(bx_at + o) as i32)
         };
-        let divisors: [i32; 2] = MASK_CONSTANTS.divisors.each_ref().map(|c| c.get() as i32);
+        let divisors: [i32; 2] = crate::effects::owner::effects()
+            .setup
+            .mask_constants
+            .divisors
+            .each_ref()
+            .map(|c| c.get() as i32);
         let scales = [
             x87::int_div_int(bx(0x24)?.wrapping_sub(bx(0x18)?), divisors[0]),
             x87::int_div_int(bx(4)?.wrapping_sub(bx(0x1C)?), divisors[1]),
@@ -165,7 +201,12 @@ pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refuse
                 put(table, e, x87::int_over(x as i32, scales[0]))?;
             }
         }
-        let flips: [i32; 2] = MASK_CONSTANTS.flips.each_ref().map(|c| c.get() as i32);
+        let flips: [i32; 2] = crate::effects::owner::effects()
+            .setup
+            .mask_constants
+            .flips
+            .each_ref()
+            .map(|c| c.get() as i32);
         for k in 0..corners {
             for (n, &flip) in flips.iter().enumerate() {
                 let table = tables(masks)[n];

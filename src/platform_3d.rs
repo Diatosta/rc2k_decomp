@@ -34,12 +34,9 @@
 use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::FatalError;
 use crate::framework::{Regs, log};
-use crate::gfx::screen_state::DRAW_SURFACE;
-use crate::gfx::texture_upload::TEXTURE_TABLES;
 use crate::gfx::texture_upload::TextureFormat;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::render::{Command, STATES, Target, TextureNote};
-use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 use crate::system::find_entry::find_entry;
 use std::sync::Mutex;
@@ -93,7 +90,13 @@ pub fn describe_texture_formats(bits: u32) {
         (16, [0x000F, 0x00F0, 0x0F00, 0xF000]),
         (32, [0xFF, 0xFF00, 0xFF_0000, 0xFF00_0000]),
     ];
-    for (cell, (format_bits, masks)) in TEXTURE_TABLES.descriptions.iter().zip(formats) {
+    for (cell, (format_bits, masks)) in crate::gfx::owner::gfx()
+        .card
+        .texture_tables
+        .descriptions
+        .iter()
+        .zip(formats)
+    {
         let (layout, number) = crate::gfx::describe_format::describe_masks(
             &crate::gfx::owner::gfx().pixel.formats,
             masks,
@@ -125,7 +128,7 @@ pub fn describe_texture_formats(bits: u32) {
         [at(0), at(1), at(2)]
     };
     for (n, kind) in kinds.into_iter().enumerate() {
-        TEXTURE_TABLES.kinds[1 + n].set(kind);
+        crate::gfx::owner::gfx().card.texture_tables.kinds[1 + n].set(kind);
     }
 }
 
@@ -133,7 +136,11 @@ pub fn describe_texture_formats(bits: u32) {
 
 /// A record of a pool (0 system, 1 video).
 fn record_at(pool: usize, number: u32) -> &'static crate::gfx::texture_upload::RecordCell {
-    &TEXTURE_TABLES.pool(pool).records[number as usize]
+    &crate::gfx::owner::gfx()
+        .card
+        .texture_tables
+        .pool(pool)
+        .records[number as usize]
 }
 
 struct Level {
@@ -271,10 +278,18 @@ fn reads_texture(pixels: crate::pointers::GamePtr) -> bool {
 
 /// The screen as the game has it now.
 pub fn screen() -> Option<Target> {
-    let pixels: u32 = DRAW_SURFACE.present_pixels.get();
+    let pixels: u32 = crate::gfx::owner::gfx()
+        .drawing
+        .draw_surface
+        .present_pixels
+        .get();
     (pixels != 0).then(|| Target {
         pixels: pixels as usize,
-        pitch: DRAW_SURFACE.present_pitch.get() as usize,
+        pitch: crate::gfx::owner::gfx()
+            .drawing
+            .draw_surface
+            .present_pitch
+            .get() as usize,
         width: SCREEN.width.get() as usize,
         height: SCREEN.height.get() as usize,
         bits: SCREEN.bits.get(),
@@ -428,7 +443,9 @@ fn level_of(
 /// The texture format at `format`: one of the card's descriptions read in place, else
 /// through the game's memory.
 fn format_at(format: u32) -> TextureFormat {
-    match TEXTURE_TABLES
+    match crate::gfx::owner::gfx()
+        .card
+        .texture_tables
         .descriptions
         .iter()
         .find(|d| d.addr() == format)
@@ -587,7 +604,12 @@ fn fatal(code: u32) -> FatalError {
 
 /// A size by its number in `dword_5ABA98`.
 fn size_of(code: u32) -> Option<u32> {
-    let entry = find_entry(code, crate::pointers::GamePtr::to(&TEXTURE_TABLES.sizes), 5).ok()??;
+    let entry = find_entry(
+        code,
+        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().card.texture_tables.sizes),
+        5,
+    )
+    .ok()??;
     Some(
         entry
             .offset(4)
@@ -605,7 +627,7 @@ fn make_texture(
     levels: u32,
 ) -> Result<u32, FatalError> {
     let full = if pool == 0 { 0x80D1_8501 } else { 0x80D1_8601 };
-    let pool_vars = TEXTURE_TABLES.pool(pool);
+    let pool_vars = crate::gfx::owner::gfx().card.texture_tables.pool(pool);
     let number: u32 = pool_vars.count.get();
     if number >= MOST {
         return Err(fatal(full));
@@ -660,25 +682,55 @@ fn allocate_textures(
     } else {
         width
     };
-    let description: u32 = TEXTURE_TABLES.kind_entry(kind as usize & 0xFF);
-    TEXTURE_TABLES.alpha_kind.set((kind == 3) as u32);
+    let description: u32 = crate::gfx::owner::gfx()
+        .card
+        .texture_tables
+        .kind_entry(kind as usize & 0xFF);
+    crate::gfx::owner::gfx()
+        .card
+        .texture_tables
+        .alpha_kind
+        .set((kind == 3) as u32);
     let levels = if CARDS_3D.mips.get() == 1 { mips } else { 0 }.wrapping_add(1);
     if levels > LEVELS {
         return Err(fatal(0x80A1_8643));
     }
-    TEXTURE_TABLES
+    crate::gfx::owner::gfx()
+        .card
+        .texture_tables
         .first_video
-        .set(TEXTURE_TABLES.video.count.get());
-    TEXTURE_TABLES
+        .set(
+            crate::gfx::owner::gfx()
+                .card
+                .texture_tables
+                .video
+                .count
+                .get(),
+        );
+    crate::gfx::owner::gfx()
+        .card
+        .texture_tables
         .first_system
-        .set(TEXTURE_TABLES.system.count.get());
+        .set(
+            crate::gfx::owner::gfx()
+                .card
+                .texture_tables
+                .system
+                .count
+                .get(),
+        );
     for _ in 0..video {
         make_texture(1, description, width, height, levels)?;
     }
-    let alpha: u32 = TEXTURE_TABLES.alpha_kind.get();
+    let alpha: u32 = crate::gfx::owner::gfx()
+        .card
+        .texture_tables
+        .alpha_kind
+        .get();
     for _ in 0..system {
         let number = make_texture(0, description, width, height, levels)?;
-        TEXTURE_TABLES.system.records[number as usize].update(|r| r.keeps_alpha = alpha);
+        crate::gfx::owner::gfx().card.texture_tables.system.records[number as usize]
+            .update(|r| r.keeps_alpha = alpha);
     }
     Ok(())
 }
@@ -729,8 +781,16 @@ pub fn allocate_textures_now(
     crate::gfx::owner::gfx().reports.on.set(reports);
     done?;
     Ok((
-        TEXTURE_TABLES.first_video.get(),
-        TEXTURE_TABLES.first_system.get(),
+        crate::gfx::owner::gfx()
+            .card
+            .texture_tables
+            .first_video
+            .get(),
+        crate::gfx::owner::gfx()
+            .card
+            .texture_tables
+            .first_system
+            .get(),
     ))
 }
 
@@ -738,7 +798,7 @@ pub fn allocate_textures_now(
 
 /// `sub_41A3B2` for every texture of a pool, and the count 0.
 fn release_pool(pool: usize) {
-    let pool_vars = TEXTURE_TABLES.pool(pool);
+    let pool_vars = crate::gfx::owner::gfx().card.texture_tables.pool(pool);
     let count: u32 = pool_vars.count.get();
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     levels_changed();
@@ -872,7 +932,8 @@ pub fn end_layer() -> bool {
 /// `DRAW.cleared_rectangle` holds (the original leaves eax 0).
 pub fn clear_viewport() {
     let [left, top, right, bottom] =
-        crate::session::read_bits(&DRAW.cleared_rectangle).map(|v| v as i32);
+        crate::session::read_bits(&crate::scene::owner::scene().drawing.scene.cleared_rectangle)
+            .map(|v| v as i32);
     let c = |v: i32| v.max(0) as usize;
     note(|_| Command::Clear([c(left), c(top), c(right), c(bottom)]));
 }

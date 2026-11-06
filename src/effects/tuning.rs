@@ -32,19 +32,23 @@ pub struct MarksFrame {
     pub steps: Dword,
 }
 
-pub static MARKS_FRAME: MarksFrame = MarksFrame {
-    last_count: Dword::new(0x0),
-    frame_cycles: Dword::new(0x0),
-    empty_share: Float::from_bits(0x0),
-    ring_share: Float::from_bits(0x0),
-    whole_share: Float::from_bits(0x0),
-    quads_share: Float::from_bits(0x0),
-    step_share: Float::from_bits(0x0),
-    _gap_76512c: Bytes::new([0; 8]),
-    draw_share: Float::from_bits(0x0),
-    emit_side: Dword::new(0x0),
-    steps: Dword::new(0x0),
-};
+impl MarksFrame {
+    pub const fn new() -> Self {
+        Self {
+            last_count: Dword::new(0x0),
+            frame_cycles: Dword::new(0x0),
+            empty_share: Float::from_bits(0x0),
+            ring_share: Float::from_bits(0x0),
+            whole_share: Float::from_bits(0x0),
+            quads_share: Float::from_bits(0x0),
+            step_share: Float::from_bits(0x0),
+            _gap_76512c: Bytes::new([0; 8]),
+            draw_share: Float::from_bits(0x0),
+            emit_side: Dword::new(0x0),
+            steps: Dword::new(0x0),
+        }
+    }
+}
 
 impl MarksFrame {
     pub const START: usize = 0x765110;
@@ -59,7 +63,7 @@ mod marks_frame_tests {
     fn marks_frame_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksFrame>(), MarksFrame::LEN);
-        let p = (&raw const MARKS_FRAME).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().setup.frame).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksFrame>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -195,62 +199,66 @@ pub struct MarksFloats {
     pub _gap_765224: Bytes<20>,
 }
 
-pub static MARKS_FLOATS: MarksFloats = MarksFloats {
-    pull_limit: Dword::new(0x10000),
-    _gap_765144: Bytes::new([0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x80, 0xC7]),
-    minus_65_536: Float::from_bits(0xC283126F),
-    minus_eighth: Float::from_bits(0xBE000000),
-    _gap_765154: Bytes::new([0x00, 0x00, 0x80, 0x3E]),
-    half: Float::from_bits(0x3F000000),
-    twentieth: Float::from_bits(0x3D4CCCCD),
-    _gap_765160: Bytes::new([0xCD, 0xCC, 0xCC, 0x3D]),
-    fifth: Float::from_bits(0x3E4CCCCD),
-    three_tenths: Float::from_bits(0x3E99999A),
-    one: Float::from_bits(0x3F800000),
-    _gap_765170: Bytes::new([0x00, 0x00, 0x00, 0x40]),
-    three: Float::from_bits(0x40400000),
-    _gap_765178: Bytes::new([
-        0x00, 0x00, 0x80, 0x40, 0x00, 0x00, 0xA0, 0x40, 0x00, 0x00, 0xC0, 0x40, 0x00, 0x00, 0xE0,
-        0x40, 0x00, 0x00, 0x00, 0x41,
-    ]),
-    sixteen: Float::from_bits(0x41800000),
-    thirty_two: Float::from_bits(0x42000000),
-    _gap_765194: Bytes::new([0x00, 0x00, 0x80, 0x42]),
-    hundred_twenty_eight: Float::from_bits(0x43000000),
-    two_fifty_five: Float::from_bits(0x437F0000),
-    two_fifty_six: Float::from_bits(0x43800000),
-    two_fifty_seven: Float::from_bits(0x43808000),
-    _gap_7651a8: Bytes::new([
-        0x00, 0x00, 0x00, 0x44, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x02, 0x42, 0x00, 0x00, 0x7A,
-        0x42, 0x00, 0x00, 0xFA, 0x42,
-    ]),
-    quarter: Float::from_bits(0x3E800000),
-    eighth: Float::from_bits(0x3E000000),
-    sixteenth: Float::from_bits(0x3D800000),
-    over_512: Float::from_bits(0x3B000000),
-    over_256: Float::from_bits(0x3B800000),
-    over_32: Float::from_bits(0x3D000000),
-    plus_65_536: Float::from_bits(0x4283126F),
-    _gap_7651d8: Bytes::new([0x0A, 0xD7, 0x23, 0x44]),
-    two_pow_16: Float::from_bits(0x47800000),
-    _gap_7651e0: Bytes::new([0x00, 0x00, 0x00, 0x47]),
-    seven_hundred: Float::from_bits(0x442F0000),
-    hundred: Float::from_bits(0x42C80000),
-    _gap_7651ec: Bytes::new([0x00, 0x00, 0xFA, 0x43]),
-    two_thousand: Float::from_bits(0x44FA0000),
-    _gap_7651f4: Bytes::new([
-        0xF1, 0xF0, 0x70, 0x3D, 0x00, 0x00, 0x00, 0x3B, 0x39, 0xFE, 0x7F, 0x3A, 0xF7, 0xFF, 0xFF,
-        0x39, 0x0D, 0x00, 0x80, 0x39, 0xD5, 0xFF, 0xFF, 0x38, 0xD5, 0xFF, 0x7F, 0x38, 0x74, 0x00,
-        0x00, 0x38,
-    ]),
-    over_65536: Float::from_bits(0x37800074),
-    _gap_765218: Bytes::new([0x00, 0x00, 0x00, 0x4F]),
-    spread_scale: Bytes::new([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3E]),
-    _gap_765224: Bytes::new([
-        0x00, 0x00, 0x80, 0x50, 0x00, 0x00, 0x80, 0x4F, 0x00, 0x00, 0x80, 0x4E, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00,
-    ]),
-};
+impl MarksFloats {
+    pub const fn new() -> Self {
+        Self {
+            pull_limit: Dword::new(0x10000),
+            _gap_765144: Bytes::new([0x00, 0x00, 0x80, 0xBF, 0x00, 0x00, 0x80, 0xC7]),
+            minus_65_536: Float::from_bits(0xC283126F),
+            minus_eighth: Float::from_bits(0xBE000000),
+            _gap_765154: Bytes::new([0x00, 0x00, 0x80, 0x3E]),
+            half: Float::from_bits(0x3F000000),
+            twentieth: Float::from_bits(0x3D4CCCCD),
+            _gap_765160: Bytes::new([0xCD, 0xCC, 0xCC, 0x3D]),
+            fifth: Float::from_bits(0x3E4CCCCD),
+            three_tenths: Float::from_bits(0x3E99999A),
+            one: Float::from_bits(0x3F800000),
+            _gap_765170: Bytes::new([0x00, 0x00, 0x00, 0x40]),
+            three: Float::from_bits(0x40400000),
+            _gap_765178: Bytes::new([
+                0x00, 0x00, 0x80, 0x40, 0x00, 0x00, 0xA0, 0x40, 0x00, 0x00, 0xC0, 0x40, 0x00, 0x00,
+                0xE0, 0x40, 0x00, 0x00, 0x00, 0x41,
+            ]),
+            sixteen: Float::from_bits(0x41800000),
+            thirty_two: Float::from_bits(0x42000000),
+            _gap_765194: Bytes::new([0x00, 0x00, 0x80, 0x42]),
+            hundred_twenty_eight: Float::from_bits(0x43000000),
+            two_fifty_five: Float::from_bits(0x437F0000),
+            two_fifty_six: Float::from_bits(0x43800000),
+            two_fifty_seven: Float::from_bits(0x43808000),
+            _gap_7651a8: Bytes::new([
+                0x00, 0x00, 0x00, 0x44, 0x00, 0x00, 0x80, 0x44, 0x00, 0x00, 0x02, 0x42, 0x00, 0x00,
+                0x7A, 0x42, 0x00, 0x00, 0xFA, 0x42,
+            ]),
+            quarter: Float::from_bits(0x3E800000),
+            eighth: Float::from_bits(0x3E000000),
+            sixteenth: Float::from_bits(0x3D800000),
+            over_512: Float::from_bits(0x3B000000),
+            over_256: Float::from_bits(0x3B800000),
+            over_32: Float::from_bits(0x3D000000),
+            plus_65_536: Float::from_bits(0x4283126F),
+            _gap_7651d8: Bytes::new([0x0A, 0xD7, 0x23, 0x44]),
+            two_pow_16: Float::from_bits(0x47800000),
+            _gap_7651e0: Bytes::new([0x00, 0x00, 0x00, 0x47]),
+            seven_hundred: Float::from_bits(0x442F0000),
+            hundred: Float::from_bits(0x42C80000),
+            _gap_7651ec: Bytes::new([0x00, 0x00, 0xFA, 0x43]),
+            two_thousand: Float::from_bits(0x44FA0000),
+            _gap_7651f4: Bytes::new([
+                0xF1, 0xF0, 0x70, 0x3D, 0x00, 0x00, 0x00, 0x3B, 0x39, 0xFE, 0x7F, 0x3A, 0xF7, 0xFF,
+                0xFF, 0x39, 0x0D, 0x00, 0x80, 0x39, 0xD5, 0xFF, 0xFF, 0x38, 0xD5, 0xFF, 0x7F, 0x38,
+                0x74, 0x00, 0x00, 0x38,
+            ]),
+            over_65536: Float::from_bits(0x37800074),
+            _gap_765218: Bytes::new([0x00, 0x00, 0x00, 0x4F]),
+            spread_scale: Bytes::new([0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3E]),
+            _gap_765224: Bytes::new([
+                0x00, 0x00, 0x80, 0x50, 0x00, 0x00, 0x80, 0x4F, 0x00, 0x00, 0x80, 0x4E, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ]),
+        }
+    }
+}
 
 impl MarksFloats {
     pub const START: usize = 0x765140;
@@ -265,7 +273,7 @@ mod marks_floats_tests {
     fn marks_floats_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksFloats>(), MarksFloats::LEN);
-        let p = (&raw const MARKS_FLOATS).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().setup.floats).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksFloats>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -398,37 +406,41 @@ pub struct MarksKindFloats {
     pub running: Dword,
 }
 
-pub static MARKS_KIND_FLOATS: MarksKindFloats = MarksKindFloats {
-    other: Dword::new(0x1),
-    fading: Dword::new(0x1),
-    kind_floats: [
-        Float::from_bits(0x467DC000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x4686B000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x4686B000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x46C53000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x466E2000),
-        Float::from_bits(0x464EE000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x467DC000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-        Float::from_bits(0x468E8000),
-    ],
-    kind_float: Float::from_bits(0x0),
-    running: Dword::new(0x0),
-};
+impl MarksKindFloats {
+    pub const fn new() -> Self {
+        Self {
+            other: Dword::new(0x1),
+            fading: Dword::new(0x1),
+            kind_floats: [
+                Float::from_bits(0x467DC000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x4686B000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x4686B000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x46C53000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x466E2000),
+                Float::from_bits(0x464EE000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x467DC000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+                Float::from_bits(0x468E8000),
+            ],
+            kind_float: Float::from_bits(0x0),
+            running: Dword::new(0x0),
+        }
+    }
+}
 
 impl MarksKindFloats {
     pub const START: usize = 0x765238;
@@ -443,7 +455,7 @@ mod marks_kind_floats_tests {
     fn marks_kind_floats_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<MarksKindFloats>(), MarksKindFloats::LEN);
-        let p = (&raw const MARKS_KIND_FLOATS).cast::<u8>();
+        let p = (&raw const crate::effects::owner::effects().setup.kind_floats).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<MarksKindFloats>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

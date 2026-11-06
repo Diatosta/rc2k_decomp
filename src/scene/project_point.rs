@@ -31,9 +31,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
 use crate::math::x87_float::ONE;
 use crate::race::owner::race;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::point_records;
 use crate::scene::x87_mem::{Base, cells, fild, fld, fstp};
 
@@ -162,7 +159,11 @@ pub fn record_offset(
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
-        OBJECT_TABLES.point_count.get(),
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .point_count
+            .get(),
         course.course.scene_point_count.bits(),
     )
     .map_err(|e| match e {
@@ -204,17 +205,26 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<(), BadInput>
     r[7] = 0;
     if f32::from_bits(r[6]) >= NEAR {
         let v = [
-            DRAW.view_scale.bits(),
-            DRAW.view_centre[0].bits(),
-            DRAW.view_centre[1].bits(),
+            crate::scene::owner::scene().drawing.scene.view_scale.bits(),
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
             race.course.course.flat_depth.bits(),
         ];
         let flat = race.course.stage_prefs.flat_depth.bits() != 0;
-        to_screen(&mut r, &v, flat, &DRAW.scratch);
+        to_screen(
+            &mut r,
+            &v,
+            flat,
+            &crate::scene::owner::scene().drawing.scene.scratch,
+        );
     }
-    if LIGHT_STATE.draw_mode.bits() == 1 {
+    if crate::scene::owner::scene().lights.state.draw_mode.bits() == 1 {
         r[6] = x87::sub(r[6], LOWERED_BY.to_bits());
-        DRAW.scratch.set_bits(LOWERED_BY.to_bits());
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set_bits(LOWERED_BY.to_bits());
     }
     point_records::set(record, r)?;
     Ok(())

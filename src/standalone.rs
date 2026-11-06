@@ -385,13 +385,15 @@ fn start() {
     let r = Regs::default();
     crate::menu::players_store::point_players();
     // Font 56's palette: the image names the palette sheet (`gfx::build_fonts` hangs the rest).
-    crate::gfx::typefaces::FONTS.objects[56]
+    crate::gfx::owner::gfx().fonts.typefaces.objects[56]
         .palette
-        .set(crate::gfx::fonts_store::FONTS.palette_sheet[0].addr());
+        .set(crate::gfx::owner::gfx().fonts.menu_fonts.palette_sheet[0].addr());
     // `g_surface.format` (0x4F49B8): the image points it at the format record; the
     // record is `session::SCREEN`'s, named by its handle (the platform sets it again at
     // every lock).
-    crate::gfx::screen_state::DRAW_SURFACE
+    crate::gfx::owner::gfx()
+        .drawing
+        .draw_surface
         .format
         .set(crate::gfx::pixel_format::SCREEN_FORMAT);
     rust("system::keep_start_time");

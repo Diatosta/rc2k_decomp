@@ -9,12 +9,15 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::view_vectors::{SOURCES, VectorSource};
+use crate::effects::view_vectors::VectorSource;
 use crate::math::x87;
 
 /// The Rust version (see the header).
 pub fn scale_vectors_by() {
-    scale_triples(&[&SOURCES.sources[0], &SOURCES.sources[1]]);
+    scale_triples(&[
+        &crate::effects::owner::effects().frame.view_sources.sources[0],
+        &crate::effects::owner::effects().frame.view_sources.sources[1],
+    ]);
 }
 
 /// Each record: its vector's three floats by its factor (`fld; fmul`) into its scaled vector.

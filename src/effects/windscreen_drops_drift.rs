@@ -16,7 +16,7 @@
 //! as 80 bits); the calls their Rust versions. Refuses null settings, before anything.
 
 use crate::effects::adjugate3::adjugate3;
-use crate::effects::setup::{CLOCK, MarksClock};
+use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::race::marks_settings_store::MarksSettings;
@@ -26,12 +26,12 @@ use crate::session::{Bytes, Float};
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
 fn view_moved(drops: &WindscreenDrops, m: &MarksSettings) {
-    view_moved_x87(drops, m, &CLOCK);
+    view_moved_x87(drops, m, &crate::effects::owner::effects().setup.clock);
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
 fn move_kept(drops: &WindscreenDrops, m: &MarksSettings) {
-    move_kept_x87(drops, m, &CLOCK);
+    move_kept_x87(drops, m, &crate::effects::owner::effects().setup.clock);
 }
 
 /// The Rust version (see the header).

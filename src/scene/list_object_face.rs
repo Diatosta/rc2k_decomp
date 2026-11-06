@@ -41,11 +41,8 @@ use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
-use crate::scene::draw_store::DRAW;
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::face_sort_key;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::scene::face_tests::{Face, FaceWorld, dropped, listed_key};
 
 // ---- game data ----
@@ -66,7 +63,10 @@ impl FaceWorld for GameFace {
         FRAME_SWITCHES.object_number.bits()
     }
     fn object_kind(&self, object: u32) -> u32 {
-        OBJECT_TABLES.object_kind(object)
+        crate::scene::owner::scene()
+            .objects
+            .tables
+            .object_kind(object)
     }
     fn known_kind(&self, place: usize) -> u32 {
         KIND_TABLES.known_object_kinds[place].get()
@@ -114,7 +114,7 @@ impl FaceWorld for GameFace {
         race().course.course.group_masks[17].bits()
     }
     fn lone_group_on(&self) -> u32 {
-        LIGHT_WORK.marks_mask.bits()
+        crate::scene::owner::scene().lights.work.marks_mask.bits()
     }
     fn groups_which(&self) -> u32 {
         race().frame.sound_spots.groups_which.bits()
@@ -149,8 +149,11 @@ impl FaceWorld for GameFace {
     }
     fn kind_byte(&self, kind: u32) -> u32 {
         self.0.keep(crate::session::read_on_in(
-            &OBJECT_TABLES,
-            &OBJECT_TABLES.car_mark_textures,
+            &crate::scene::owner::scene().objects.tables,
+            &crate::scene::owner::scene()
+                .objects
+                .tables
+                .car_mark_textures,
             kind as usize,
             "the car marks' textures",
         ))
@@ -174,7 +177,11 @@ pub fn list_object_face(race: &crate::race::owner::Race, face: usize) -> Result<
     if face == 0 {
         return Err(BadInput("no face").into());
     }
-    let listed: u32 = LIGHT_WORK.listed_face_count.bits();
+    let listed: u32 = crate::scene::owner::scene()
+        .lights
+        .work
+        .listed_face_count
+        .bits();
     if listed >= LIST_ROOM {
         return Err(BadInput("no room in the list of faces").into());
     }
@@ -195,29 +202,52 @@ pub fn list_object_face(race: &crate::race::owner::Race, face: usize) -> Result<
     if count as i32 <= 0 {
         return Ok(());
     }
-    DRAW.polygon_vertex_count.set_bits(count);
-    DRAW.face_sort_key.set_bits(0u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set_bits(count);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .face_sort_key
+        .set_bits(0u32);
     face_sort_key(&race.course, face, count)?;
     // The room is 0x1000 entries but 0x400 lie before the next table (a slip, kept).
     let entry = listed as usize * 4;
-    let key = listed_key(bytes, DRAW.face_sort_key.bits());
+    let key = listed_key(
+        bytes,
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .face_sort_key
+            .bits(),
+    );
     for (k, v) in [
         RACE_VARS.face_number.bits(),
         key,
-        DRAW.entry_third.bits(),
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .entry_third
+            .bits(),
         physics.ground.object_see_through.bits(),
     ]
     .into_iter()
     .enumerate()
     {
         crate::session::write_on_in(
-            &crate::scene::object_slots_store::OBJECT_SLOTS,
-            &crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces,
+            &crate::scene::owner::scene().objects.slots,
+            &crate::scene::owner::scene().objects.slots.listed_faces,
             entry + k,
             v,
             "the list of faces",
         )?;
     }
-    LIGHT_WORK.listed_face_count.set_bits(listed + 1);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .listed_face_count
+        .set_bits(listed + 1);
     Ok(())
 }

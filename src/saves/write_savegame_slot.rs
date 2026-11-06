@@ -58,9 +58,6 @@ impl SaveGames {
 /// IDA's address of the file name's template.
 pub const TEMPLATE_START: usize = 0x5296FB;
 
-/// `aSavedataSavega`: the saved game's file name, the number's two digits last.
-pub static TEMPLATE: Bytes<27> = Bytes::new(*b"savedata\\savegame\\svgame00\0");
-
 // "R5SG"
 pub fn slot_name(slot: u32) -> crate::place::Place {
     crate::place::Place::In(
@@ -89,7 +86,7 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
             &slot_name(slot).read_array::<NAME_LEN>("a savegame's name")?,
         );
         file.write_at(0, &head, "the savegame's file")?;
-        let template = TEMPLATE.read();
+        let template = crate::saves::owner::saves().files.savegame_template.read();
         let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
         Ok(write_file_from(&path[..], &file.read()[..FILE_LEN])?.ok)
     }
@@ -107,7 +104,11 @@ mod block_tests {
             START,
             START + LEN,
         );
-        crate::gfx::first_values_are_the_games(&TEMPLATE, TEMPLATE_START, TEMPLATE_START + 27);
+        crate::gfx::first_values_are_the_games(
+            &crate::saves::owner::SAVES.files.savegame_template,
+            TEMPLATE_START,
+            TEMPLATE_START + 27,
+        );
     }
 
     #[test]
@@ -126,7 +127,7 @@ mod block_tests {
         );
         assert_eq!(
             crate::moved::place(TEMPLATE_START),
-            TEMPLATE.addr() as usize
+            crate::saves::owner::saves().files.savegame_template.addr() as usize
         );
     }
 }

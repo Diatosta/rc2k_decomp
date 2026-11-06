@@ -13,9 +13,7 @@ use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::draw_store::DRAW;
 use crate::scene::faces_store::FACES;
-use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::polygon_store::POLYGON_WORK;
 
 // FACES.sort_entries: 0x1000 of 8 bytes
@@ -116,12 +114,20 @@ pub fn face_hidden(race: &Race, face: &rc2k_core::race::faces::Face) -> Result<b
     points_there(&race.course)?;
     let record = point_record(face.point(0))?;
     let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
-    OBJECT_WORK.object_position[0].set_bits(x as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .object_position[0]
+        .set_bits(x as u32);
     let depth = crate::math::x87_load::add_to_int(
         crate::scene::point_records::field(record, 0x18)?,
         race.course.level_grid.depth_shift.bits(),
     );
-    OBJECT_WORK.face_depth.set_bits(depth as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .face_depth
+        .set_bits(depth as u32);
     Ok(hidden_by_depth(depth as u32, x as u32))
 }
 
@@ -165,7 +171,11 @@ pub fn face_depth(course: &Course, face: u32) -> Result<(), Refused> {
             let mut key = to_int(depth(0)?) as u32;
             for k in 1..4 {
                 let d = to_int(depth(k)?) as u32;
-                DRAW.scratch.set_bits(d);
+                crate::scene::owner::scene()
+                    .drawing
+                    .scene
+                    .scratch
+                    .set_bits(d);
                 key = deeper(key, d);
             }
             key
@@ -383,9 +393,17 @@ pub fn mark_far_cells(race: &Race) -> Result<(), BadInput> {
         race.course.level_grid.turned_x.set_bits(x);
         race.course.level_grid.turned_z.set_bits(z);
         let length = float_hypot(x, z);
-        DRAW.scratch.set_bits(length);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .scratch
+            .set_bits(length);
         let limit = crate::math::x87::from_int(race.course.level_grid.far_cell_limit.get() as i32);
-        DRAW.work_float_b.set_bits(limit);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .work_float_b
+            .set_bits(limit);
         if below_or_unordered(length, two) {
             continue;
         }

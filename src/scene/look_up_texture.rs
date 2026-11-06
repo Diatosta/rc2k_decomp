@@ -8,19 +8,23 @@
 //!
 //! Callers: 0x44CCB8, `race::flush_texture_batch`.
 
-use crate::scene::draw_store::DRAW;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
-
 /// The Rust version: what it leaves in eax.
 pub fn look_up_texture() -> u32 {
     // Converted: `rc2k_core::scene::textures::look_up`.
     let found = rc2k_core::scene::textures::look_up(
-        DRAW.texture_page.bits(),
-        |p| TEXTURE_PLACES.place_slot[p].get(),
-        |k| KIND_TEXTURES.kind_first_slots[k].get(),
-        || TEXTURE_PLACES.totals[2].get(),
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .texture_page
+            .bits(),
+        |p| crate::scene::owner::scene().textures.places.place_slot[p].get(),
+        |k| crate::scene::owner::scene().textures.kinds.kind_first_slots[k].get(),
+        || crate::scene::owner::scene().textures.places.totals[2].get(),
     );
-    DRAW.polygon_texture.set_bits(found.texture);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_texture
+        .set_bits(found.texture);
     found.eax
 }

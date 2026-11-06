@@ -10,8 +10,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Tables;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::session::read_all;
 
 // ---- game data ----
@@ -23,12 +21,19 @@ pub fn assign_menu_textures(tables: &Tables) -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::textures::menu_textures`.
     let wanted = rc2k_core::scene::textures::menu_textures(
         read_all(&tables.lists.carousel_textures),
-        KIND_TEXTURES.kind_first_slots[KIND].get(),
-        KIND_TEXTURES.kind_first_textures[KIND].get(),
+        crate::scene::owner::scene().textures.kinds.kind_first_slots[KIND].get(),
+        crate::scene::owner::scene()
+            .textures
+            .kinds
+            .kind_first_textures[KIND]
+            .get(),
     )?;
     for (slot, texture) in wanted {
-        crate::scene::texture_places_store::cell_at(&TEXTURE_PLACES.slot_wanted[0], slot)
-            .set(texture);
+        crate::scene::texture_places_store::cell_at(
+            &crate::scene::owner::scene().textures.places.slot_wanted[0],
+            slot,
+        )
+        .set(texture);
     }
     Ok(())
 }

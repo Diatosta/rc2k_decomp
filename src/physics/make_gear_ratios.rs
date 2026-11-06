@@ -21,7 +21,6 @@ use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::Cell32;
 
@@ -84,7 +83,7 @@ fn game() -> Vec<&'static dyn Cell32> {
         &PHYSICS.gear_ratios[6],
         &PHYSICS.gear_ratios[7],
         &PHYSICS.gear_ratios[8],
-        &DRAW.scratch,
+        &crate::scene::owner::scene().drawing.scene.scratch,
         &PHYSICS.gear_ratio_step,
     ]
 }

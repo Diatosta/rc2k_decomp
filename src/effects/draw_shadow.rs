@@ -19,11 +19,7 @@
 //! over the game's variables; the vector helpers their Rust versions. Refuses, before
 //! anything, a corner past `g_marksCorners` and an angle `fsincos` cannot take.
 
-use crate::effects::blocks::MARK_CORNERS;
-use crate::effects::frame_state::DRAW_WORK;
-use crate::effects::kind_store::{
-    CONSTS_1, CONSTS_2, EXTRA_2, EXTRAS_1, KindConsts, QUAD_1, QUAD_2, QuadWork,
-};
+use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork};
 use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
 use crate::math::{x87, x87_run};
@@ -49,17 +45,17 @@ pub struct Shadow<'a> {
 
 /// `draw_shadow`'s.
 pub static FIRST: Shadow<'static> = Shadow {
-    quad: &QUAD_2,
+    quad: &crate::effects::owner::EFFECTS.kinds.quad_2,
     consts: &CONSTS_2,
-    up: &EXTRA_2.extra,
+    up: &crate::effects::owner::EFFECTS.kinds.extra_2.extra,
     field: |marks| &marks.listener_float_b,
 };
 
 /// `sub_4C74DA`'s.
 pub static SECOND: Shadow<'static> = Shadow {
-    quad: &QUAD_1,
+    quad: &crate::effects::owner::EFFECTS.kinds.quad_1,
     consts: &CONSTS_1,
-    up: &EXTRAS_1.extra,
+    up: &crate::effects::owner::EFFECTS.kinds.extras_1.extra,
     field: |marks| &marks.listener_float_a,
 };
 
@@ -162,9 +158,9 @@ pub fn draw_shadow_with(
             q.corners[n][k].set_bits(rounded(v));
         }
     }
-    let entry = &MARK_CORNERS.corners[corner as usize]; // under 0x100, checked before
+    let entry = &crate::effects::owner::effects().blocks.corners.corners[corner as usize]; // under 0x100, checked before
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());
-    let uv_k: u32 = DRAW_WORK.uv_k.bits();
+    let uv_k: u32 = crate::effects::owner::effects().frame.draw_work.uv_k.bits();
     for (n, (u, v)) in UV_WORDS.into_iter().enumerate() {
         let vertex = &VERTICES.vertices[n];
         vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
@@ -183,7 +179,7 @@ pub fn draw_shadow_with(
         }
     }
     projected_x87(sh);
-    let z_k: u32 = DRAW_WORK.z_k.bits();
+    let z_k: u32 = crate::effects::owner::effects().frame.draw_work.z_k.bits();
     for n in 0..4 {
         let vertex = &VERTICES.vertices[n];
         vertex.x.set_bits(q.corners[n][0].bits());
@@ -198,7 +194,6 @@ pub fn draw_shadow_with(
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
 use crate::race::marks_settings_store::MarksSettings;
-use crate::scene::draw_store::DRAW;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
 fn light_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
@@ -430,41 +425,69 @@ fn corners_in_x87(s: &Shadow) {
 
 /// `projected`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places, on either shadow's variables.
 fn projected_x87(s: &Shadow) {
-    let t0 = crate::math::x87_float::ld(DRAW.view_scale.bits());
+    let t0 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t1 = t0 / bh::ld(s.quad.corners[0][2].bits());
     let t2 = t1 * bh::ld(s.quad.corners[0][0].bits());
-    let t3 = t2 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t3 = t2
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     s.quad.corners[0][0].set_bits(bh::st(t3));
     let t4 = t1 * bh::ld(s.quad.corners[0][1].bits());
     let t5 = -t4;
-    let t6 = t5 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t6 = t5
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     s.quad.corners[0][1].set_bits(bh::st(t6));
-    let t7 = crate::math::x87_float::ld(DRAW.view_scale.bits());
+    let t7 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t8 = t7 / bh::ld(s.quad.corners[1][2].bits());
     let t9 = t8 * bh::ld(s.quad.corners[1][0].bits());
-    let t10 = t9 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t10 = t9
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     s.quad.corners[1][0].set_bits(bh::st(t10));
     let t11 = t8 * bh::ld(s.quad.corners[1][1].bits());
     let t12 = -t11;
-    let t13 = t12 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t13 = t12
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     s.quad.corners[1][1].set_bits(bh::st(t13));
-    let t14 = crate::math::x87_float::ld(DRAW.view_scale.bits());
+    let t14 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t15 = t14 / bh::ld(s.quad.corners[2][2].bits());
     let t16 = t15 * bh::ld(s.quad.corners[2][0].bits());
-    let t17 = t16 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t17 = t16
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     s.quad.corners[2][0].set_bits(bh::st(t17));
     let t18 = t15 * bh::ld(s.quad.corners[2][1].bits());
     let t19 = -t18;
-    let t20 = t19 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t20 = t19
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     s.quad.corners[2][1].set_bits(bh::st(t20));
-    let t21 = crate::math::x87_float::ld(DRAW.view_scale.bits());
+    let t21 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t22 = t21 / bh::ld(s.quad.corners[3][2].bits());
     let t23 = t22 * bh::ld(s.quad.corners[3][0].bits());
-    let t24 = t23 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t24 = t23
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     s.quad.corners[3][0].set_bits(bh::st(t24));
     let t25 = t22 * bh::ld(s.quad.corners[3][1].bits());
     let t26 = -t25;
-    let t27 = t26 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t27 = t26
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     s.quad.corners[3][1].set_bits(bh::st(t27));
 }
 

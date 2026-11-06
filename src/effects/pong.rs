@@ -330,7 +330,7 @@ pub fn rules(pong: &Pong) -> rc2k_core::effects::pong::Rules {
         centre: r.centre.each_ref().map(Float::get),
         nudge: r.nudge.get(),
         way_scale: pair(&r.way_scale),
-        length: f32::from_bits(MARKS_FLOATS.one.bits()),
+        length: f32::from_bits(crate::effects::owner::effects().setup.floats.one.bits()),
         walls: r.walls.each_ref().map(Float::get),
         start: r.start.each_ref().map(Float::bits),
     }
@@ -369,7 +369,6 @@ pub fn overlap(pong: &Pong) -> (bool, u32) {
     (true, s)
 }
 
-use crate::effects::tuning::MARKS_FLOATS;
 use crate::math::x87_float as bh;
 
 #[cfg(all(test, target_arch = "x86"))]

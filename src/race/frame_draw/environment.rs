@@ -8,7 +8,6 @@ use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
-use crate::scene::draw_store::DRAW;
 
 /// The game's table root of a float (`sqrt` by `g_rootTable` x `g_exponentRootTable`),
 /// times 1/65536 (`race().course.numbers.one_over_65536`), as stored.
@@ -38,7 +37,11 @@ pub(super) fn add_eax_weight(race: &Race, v: u32) {
     } else {
         sixteen
     };
-    DRAW.scratch.set_bits(w);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(w);
     ENVIRONMENT.set(crate::math::x87::add(w, ENVIRONMENT.get()));
     race.frame
         .sound_spots
@@ -69,7 +72,11 @@ pub fn eax_face_weight(race: &Race, face: u32) -> Result<(), BadInput> {
             let distance = table_root(&race.course, int_square_sum(x as i32, z as i32));
             race.physics.contact.eax_distance.set_bits(distance);
             let strength = face_field::<u8>(face, 0x18)? as u32;
-            DRAW.scratch.set_bits(strength);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set_bits(strength);
             add_eax_weight(race, int_over_float(strength as i32, distance));
             return Ok(());
         }

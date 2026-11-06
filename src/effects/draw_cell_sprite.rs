@@ -23,7 +23,6 @@ use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_frame::Frame;
-use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
 
 use crate::d3d::vertices_store::VERTICES;
@@ -33,14 +32,24 @@ const ANGLES: u32 = 0x1000;
 
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
 fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3]) {
-    turn_x87(frame, p, &ring.work, &DRAW_WORK);
+    turn_x87(
+        frame,
+        p,
+        &ring.work,
+        &crate::effects::owner::effects().frame.draw_work,
+    );
 }
 
 /// The original's 0x4CB84C .. 0x4CBA37 (its integer moves done before but those it does
 /// between the x87 steps): the square, turned, about the projected place. Gives what the
 /// original loads into edi at +0x17B: `flt_8EB8C1` between its two stores.
 fn square(k: u32, angle: u32) -> u32 {
-    square_x87(k as usize, angle as usize, &DRAW_WORK, &CORNER_SLOPES)
+    square_x87(
+        k as usize,
+        angle as usize,
+        &crate::effects::owner::effects().frame.draw_work,
+        &crate::effects::owner::effects().blocks.corner_slopes,
+    )
 }
 
 /// The Rust version (see the header): `cell` (eax), `angle` (ebx), `alpha` (ecx, its top
@@ -71,11 +80,13 @@ pub fn draw_cell_sprite(
     }
     // The fog's and the clip's refusals, before anything.
     fog_at(0)?;
-    if SETTINGS.is_set.get() == 0 {
+    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     turn(frame, ring, &place);
-    if DRAW_WORK.turned[2].bits() as i32 <= DRAW_WORK.near.bits() as i32 {
+    if crate::effects::owner::effects().frame.draw_work.turned[2].bits() as i32
+        <= crate::effects::owner::effects().frame.draw_work.near.bits() as i32
+    {
         return Ok(());
     }
     let fog = fog_at(ring.work.whole.get())?;
@@ -84,7 +95,7 @@ pub fn draw_cell_sprite(
         VERTICES.vertices[n].specular.set(fog);
         VERTICES.vertices[n].colour.set(colour);
     }
-    DRAW_WORK.sprite_half[0].set_bits(size);
+    crate::effects::owner::effects().frame.draw_work.sprite_half[0].set_bits(size);
     let at = cell << 4;
     let place = |n: usize| masks.surface.places.get_u32(at as usize + 4 * n);
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
@@ -100,14 +111,17 @@ pub fn draw_cell_sprite(
         return Ok(());
     }
     draw_fan();
-    DRAW.polygon_vertex_count.set_bits(4u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set_bits(4u32);
     Ok(())
 }
 
-use crate::effects::blocks::{CORNER_SLOPES, CornerSlopes};
-use crate::effects::frame_state::{DRAW_WORK, DrawWork};
+use crate::effects::blocks::CornerSlopes;
+use crate::effects::frame_state::DrawWork;
 use crate::effects::plain::{ld_cell, st_cell};
-use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
 use crate::scene::engine_tables_store::{cosine, sine};
 use crate::session::Float;
@@ -165,7 +179,8 @@ fn slope_at(cs: &CornerSlopes, k: usize) -> &Float {
 /// field it falls on: section 16), so that read goes through `slope_at`. `angle` is the
 /// sine table's cell (the original's `s` is four times it; the cosine is the cell 0x400 on).
 fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
-    let t0 = crate::math::x87_float::ld(DRAW.view_scale.bits());
+    let t0 =
+        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = bh::ld(dw.turned[2].bits());
     let t3 = t2 * bh::ld(dw.z_k.bits());
@@ -208,7 +223,10 @@ fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
     let t28 = t1 * bh::ld(dw.turned[0].bits());
     let t29 = t1 * bh::ld(dw.turned[1].bits());
     let t30 = -t29;
-    let t31 = t30 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
+    let t31 = t30
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        );
     let t32 = t31 - bh::ld(dw.sprite_half[1].bits());
     st_cell(&VERTICES.vertices[0].y, t32);
     let t33 = t31 - bh::ld(dw.sprite_half[3].bits());
@@ -217,7 +235,10 @@ fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
     st_cell(&VERTICES.vertices[2].y, t34);
     let t35 = t31 + bh::ld(dw.sprite_half[3].bits());
     st_cell(&VERTICES.vertices[3].y, t35);
-    let t36 = t28 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
+    let t36 = t28
+        + crate::math::x87_float::ld(
+            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+        );
     let t37 = t36 - bh::ld(dw.sprite_half[0].bits());
     st_cell(&VERTICES.vertices[0].x, t37);
     let t38 = t36 - bh::ld(dw.sprite_half[2].bits());

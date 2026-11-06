@@ -11,7 +11,6 @@
 //! table.
 
 use crate::errors::BadInput;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 
 // ---- Rust version ----
 
@@ -24,8 +23,8 @@ pub fn load_slot_texture(
 ) -> Result<(), BadInput> {
     let Some(wanted) = rc2k_core::scene::textures::slot_load(
         slot,
-        || TEXTURE_PLACES.slot_wanted[slot as usize].get(),
-        || TEXTURE_PLACES.slot_loaded[slot as usize].get(),
+        || crate::scene::owner::scene().textures.places.slot_wanted[slot as usize].get(),
+        || crate::scene::owner::scene().textures.places.slot_loaded[slot as usize].get(),
     )?
     else {
         return Ok(());
@@ -35,7 +34,7 @@ pub fn load_slot_texture(
         .frame_work
         .kind_textures_done
         .set_bits(frame.frame_work.kind_textures_done.bits().wrapping_add(1));
-    TEXTURE_PLACES.slot_loaded[slot as usize].set(wanted);
+    crate::scene::owner::scene().textures.places.slot_loaded[slot as usize].set(wanted);
     Ok(())
 }
 

@@ -14,11 +14,7 @@
 //! Refuses (before anything) a null `g_courseInfo`, and `cars_particles`' refusals (what it
 //! wrote before is put back first).
 
-use crate::effects::blocks::MARK_CORNERS;
-use crate::effects::frame_state::{DRAW_FRAME, VIEW_VARS};
 use crate::effects::owner::Effects;
-use crate::effects::tuning::MARKS_FRAME;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner::Race;
@@ -29,8 +25,14 @@ const CORNERS_FROM: u32 = 0x1C_2000;
 const CORNERS_LEN: u32 = 0x8000;
 /// (the time kept, where it goes).
 static TIMES: [(&Float, &Float); 2] = [
-    (&DRAW_FRAME.times[0], &MARKS_FRAME.quads_share),
-    (&DRAW_FRAME.times[1], &MARKS_FRAME.empty_share),
+    (
+        &crate::effects::owner::EFFECTS.frame.draw_frame.times[0],
+        &crate::effects::owner::EFFECTS.setup.frame.quads_share,
+    ),
+    (
+        &crate::effects::owner::EFFECTS.frame.draw_frame.times[1],
+        &crate::effects::owner::EFFECTS.setup.frame.empty_share,
+    ),
 ];
 
 fn rdtsc() -> u32 {
@@ -47,17 +49,27 @@ pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
     }
     let m = &race.frame.matrices.view_place;
     for n in 0..3 {
-        let p: [u32; 3] = read_bits(&DRAW_FRAME.points[n]);
+        let p: [u32; 3] = read_bits(&crate::effects::owner::effects().frame.draw_frame.points[n]);
         let turned = rotate_point(m, [extended(p[2]), extended(p[1]), extended(p[0])]);
         for (k, v) in turned.iter().enumerate() {
-            VIEW_VARS.turned_points[n][k].set_bits(rounded(*v));
+            crate::effects::owner::effects()
+                .frame
+                .view_vars
+                .turned_points[n][k]
+                .set_bits(rounded(*v));
         }
     }
     let what = "a stage record's corners";
     let corners = crate::race::course_places::info_bytes(CORNERS_FROM, CORNERS_LEN as usize, what)?;
     // 0x80 bytes of 16-bit little-endian words for each corner record.
     let (records, _) = corners.as_chunks::<0x80>();
-    for (record, bytes) in MARK_CORNERS.corners.iter().zip(records) {
+    for (record, bytes) in crate::effects::owner::effects()
+        .blocks
+        .corners
+        .corners
+        .iter()
+        .zip(records)
+    {
         let (pairs, _) = bytes.as_chunks::<2>();
         for (word, pair) in record.words.iter().zip(pairs) {
             word.set(u16::from_le_bytes(*pair));
@@ -67,19 +79,53 @@ pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
         .draw_switches
         .marks_source
         .bits();
-    if source != DRAW_FRAME.last_source.get() {
-        VIEW_VARS.step.set(VIEW_VARS.step.get().wrapping_add(1) & 7);
+    if source
+        != crate::effects::owner::effects()
+            .frame
+            .draw_frame
+            .last_source
+            .get()
+    {
+        crate::effects::owner::effects().frame.view_vars.step.set(
+            crate::effects::owner::effects()
+                .frame
+                .view_vars
+                .step
+                .get()
+                .wrapping_add(1)
+                & 7,
+        );
     }
-    DRAW_FRAME.last_source.set(source);
-    MARKS_WORK.sound_source.set(source);
-    MARKS_WORK.sound_zero.set(0);
-    VIEW_VARS.cleared.set(0);
+    crate::effects::owner::effects()
+        .frame
+        .draw_frame
+        .last_source
+        .set(source);
+    crate::effects::owner::effects()
+        .setup
+        .work
+        .sound_source
+        .set(source);
+    crate::effects::owner::effects()
+        .setup
+        .work
+        .sound_zero
+        .set(0);
+    crate::effects::owner::effects()
+        .frame
+        .view_vars
+        .cleared
+        .set(0);
     cars_particles::cars_particles(effects)?;
     view_heading::view_heading(&race.frame);
     view_motion::view_motion(&race.frame)?;
     let start = rdtsc();
     begin_quads::begin_quads();
-    let frame = MARKS_FRAME.frame_cycles.bits() as i32;
+    let frame = crate::effects::owner::effects()
+        .setup
+        .frame
+        .frame_cycles
+        .bits() as i32;
     let took = rdtsc().wrapping_sub(start) as i32;
     TIMES[0]
         .1

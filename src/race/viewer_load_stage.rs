@@ -22,7 +22,6 @@
 //! read none.
 
 use crate::errors::Refused;
-use crate::gfx::fonts_store::FONTS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
@@ -90,7 +89,7 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
 
         sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
         crate::sound::set_up_race_sounds::set_up_race_sounds()?;
-        if FONTS.palettes.get() == 0 {
+        if crate::gfx::owner::gfx().fonts.menu_fonts.palettes.get() == 0 {
             { crate::gfx::build_fonts::build_fonts() }?;
             REPLAY_FILE.viewer_fonts_built.set(1);
         }

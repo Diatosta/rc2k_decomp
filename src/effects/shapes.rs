@@ -3,11 +3,9 @@
 //! 0x800 items, makes a quarter-circle curve of 0x100 floats and 8 circles of points (by
 //! the radii after the curve), and sets up what follows.
 
-use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
-use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
 use crate::session::{Bytes, Dword, Float, write_bits};
 
@@ -277,25 +275,29 @@ fn windscreen_drops_with(drops: &WindscreenDrops, resume: u32, plain: bool) -> R
         for n in 0..FANS {
             for triangle in rc2k_core::effects::shapes::fan(n) {
                 for (k, v) in triangle.into_iter().enumerate() {
-                    WINDSCREEN_DROP_BATCH.fans.write_at(
-                        at + 2 * k,
-                        &v.to_le_bytes(),
-                        "a mark's field",
-                    )?;
+                    crate::gfx::owner::gfx()
+                        .card
+                        .windscreen_drop_batch
+                        .fans
+                        .write_at(at + 2 * k, &v.to_le_bytes(), "a mark's field")?;
                 }
                 at += 6;
             }
         }
-        let value: u32 = MARKS_FLOATS.two_fifty_six.bits();
+        let value: u32 = crate::effects::owner::effects()
+            .setup
+            .floats
+            .two_fifty_six
+            .bits();
         for n in 0..FANS as usize {
             for part in 0..6 {
                 let p = 0xC0 * n + 0x20 * part;
                 for (o, v) in [(0xC, value), (0x10, u32::MAX), (0x14, 0xFF00_0000)] {
-                    WINDSCREEN_DROP_BATCH.records.write_at(
-                        p + o,
-                        &v.to_le_bytes(),
-                        "a mark's field",
-                    )?;
+                    crate::gfx::owner::gfx()
+                        .card
+                        .windscreen_drop_batch
+                        .records
+                        .write_at(p + o, &v.to_le_bytes(), "a mark's field")?;
                 }
             }
         }

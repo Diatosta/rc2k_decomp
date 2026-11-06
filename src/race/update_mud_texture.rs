@@ -29,7 +29,6 @@ use crate::race::owner_course::Course;
 use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::{Cell32, Dword, Float};
 
 /// `fld dword [f]; fistp dword [t]`.
@@ -64,7 +63,9 @@ pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
     let n = texture_and_mud()?;
     let k = n as usize;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        KIND_TEXTURES.kind_first_slots[256].bits().wrapping_add(n),
+        crate::scene::owner::scene().textures.kinds.kind_first_slots[256]
+            .bits()
+            .wrapping_add(n),
     )?;
     frame.panel_and_overlay.panel.texture_changes.set(
         frame
@@ -74,7 +75,10 @@ pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
             .get()
             .wrapping_add(0x1_0000),
     );
-    let texture = KIND_TEXTURES.kind_first_textures[256]
+    let texture = crate::scene::owner::scene()
+        .textures
+        .kinds
+        .kind_first_textures[256]
         .bits()
         .wrapping_add(n);
     RACE_VARS.mud_locked.set_bits(texture);

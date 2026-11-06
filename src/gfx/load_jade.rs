@@ -15,7 +15,6 @@
 use crate::errors::{FatalError, Refused};
 use crate::files::read_file::read_file;
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::jade_store::JADE_FONT;
 use crate::gfx::pixel_format::surface_format;
 
 // ---- game data ----
@@ -29,12 +28,14 @@ pub fn load_jade(path: impl crate::files::handle::GamePath) -> Result<(), Refuse
     use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
     let read = read_file(
         path,
-        crate::pointers::GamePtr::to(&JADE_FONT.glyphs),
+        crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().fonts.jade.glyphs),
         ROOM,
         0,
     )?;
     jade_read(read.ok, read.bytes_read).map_err(|code| FatalError { code, message: "" })?;
-    JADE_FONT
+    crate::gfx::owner::gfx()
+        .fonts
+        .jade
         .colour
         .set(components_to_pixel(&surface_format()?, JADE_COLOUR));
     Ok(())

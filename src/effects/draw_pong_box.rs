@@ -13,7 +13,7 @@
 //! (`math::x87_float`), in the original's order, over the game's variables.
 
 use crate::effects::pong::{Pong, PongState};
-use crate::effects::tuning::{MARKS_FLOATS, MarksFloats};
+use crate::effects::tuning::MarksFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::math::x87;
 
@@ -22,7 +22,12 @@ use crate::d3d::vertices_store::VERTICES;
 /// The original's 0x4B8599 .. 0x4B8659 on the four values: the sides; the place's two
 /// values (left untouched) popped after.
 fn sides(pong: &Pong, fl: &WindscreenFlakes, v: &[[u8; 10]; 4]) {
-    sides_x87(v, &pong.state, &MARKS_FLOATS, &fl.tables);
+    sides_x87(
+        v,
+        &pong.state,
+        &crate::effects::owner::effects().setup.floats,
+        &fl.tables,
+    );
 }
 
 /// The original's 0x4B868E .. 0x4B8786 on the place: the corners.
@@ -64,7 +69,6 @@ pub fn draw_pong_box(pong: &Pong, fl: &WindscreenFlakes, v: [[u8; 10]; 4]) {
 use crate::effects::plain::st_cell;
 use crate::effects::windscreen_flakes_store::WindscreenFlakeTables;
 use crate::math::x87_float as bh;
-use crate::scene::draw_store::DRAW;
 
 /// `sides`'s x87 block as plain Rust on the x87 model (42 instructions), same order and memory places.
 fn sides_x87(v: &[[u8; 10]; 4], p: &PongState, f: &MarksFloats, sq: &WindscreenFlakeTables) {
@@ -159,45 +163,45 @@ fn corners_x87(v: &[[u8; 10]; 4], p: &PongState, sq: &WindscreenFlakeTables) {
 
 /// `projected`'s x87 block as plain Rust on the x87 model (60 instructions), same order and memory places.
 fn projected_x87(sq: &WindscreenFlakeTables) {
-    let t0 = bh::ld(DRAW.view_scale.bits());
+    let t0 = bh::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t1 = t0 / bh::ld(sq.corners[3][2].bits());
-    let t2 = bh::ld(DRAW.view_scale.bits());
+    let t2 = bh::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t3 = t2 / bh::ld(sq.corners[2][2].bits());
-    let t4 = bh::ld(DRAW.view_scale.bits());
+    let t4 = bh::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t5 = t4 / bh::ld(sq.corners[1][2].bits());
-    let t6 = bh::ld(DRAW.view_scale.bits());
+    let t6 = bh::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t7 = t6 / bh::ld(sq.corners[0][2].bits());
     let t8 = bh::ld(sq.corners[0][1].bits());
     let t9 = t8 * t7;
     let t10 = t7 * bh::ld(sq.corners[0][0].bits());
     let t11 = -t9;
-    let t12 = t11 + bh::ld(DRAW.view_centre[1].bits());
+    let t12 = t11 + bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[1].bits());
     st_cell(&VERTICES.vertices[0].y, t12);
-    let t13 = t10 + bh::ld(DRAW.view_centre[0].bits());
+    let t13 = t10 + bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[0].bits());
     st_cell(&VERTICES.vertices[0].x, t13);
     let t14 = bh::ld(sq.corners[1][1].bits());
     let t15 = t14 * t5;
     let t16 = t5 * bh::ld(sq.corners[1][0].bits());
     let t17 = -t15;
-    let t18 = t17 + bh::ld(DRAW.view_centre[1].bits());
+    let t18 = t17 + bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[1].bits());
     st_cell(&VERTICES.vertices[1].y, t18);
-    let t19 = t16 + bh::ld(DRAW.view_centre[0].bits());
+    let t19 = t16 + bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[0].bits());
     st_cell(&VERTICES.vertices[1].x, t19);
     let t20 = bh::ld(sq.corners[2][1].bits());
     let t21 = t20 * t3;
     let t22 = t3 * bh::ld(sq.corners[2][0].bits());
     let t23 = -t21;
-    let t24 = t23 + bh::ld(DRAW.view_centre[1].bits());
+    let t24 = t23 + bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[1].bits());
     st_cell(&VERTICES.vertices[2].y, t24);
-    let t25 = t22 + bh::ld(DRAW.view_centre[0].bits());
+    let t25 = t22 + bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[0].bits());
     st_cell(&VERTICES.vertices[2].x, t25);
     let t26 = bh::ld(sq.corners[3][1].bits());
     let t27 = t26 * t1;
     let t28 = t1 * bh::ld(sq.corners[3][0].bits());
     let t29 = -t27;
-    let t30 = t29 + bh::ld(DRAW.view_centre[1].bits());
+    let t30 = t29 + bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[1].bits());
     st_cell(&VERTICES.vertices[3].y, t30);
-    let t31 = t28 + bh::ld(DRAW.view_centre[0].bits());
+    let t31 = t28 + bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[0].bits());
     st_cell(&VERTICES.vertices[3].x, t31);
     let t32 = bh::ld(sq.corners[0][2].bits());
     let t33 = t32 * bh::ld(sq.inverse.bits());

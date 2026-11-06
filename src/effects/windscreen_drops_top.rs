@@ -21,18 +21,14 @@
 
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::{ld_cell, ldi_cell, st_cell};
-use crate::effects::setup::{CLOCK, MarksClock};
-use crate::effects::tuning::MARKS_KIND_FLOATS;
+use crate::effects::setup::MarksClock;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
-use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::marks_settings_store::MarksSettings;
 use crate::race::owner_frame::Frame;
 use crate::scene::cross_product3::cross;
-use crate::scene::draw_store::DRAW;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::vector3::normalise;
 use crate::session::Float;
 
@@ -40,7 +36,7 @@ const POINTS: u32 = 0x30;
 
 /// The original's 0x4BAC91 .. 0x4BAD3F: `flt_81622A` (the ease by the ticks), `flt_814728` (the rate), the place (`flt_814C0E` ..) and the first axis (`flt_814C1A` ..) from the settings, its length over `flt_82E272` into `flt_814C06`.
 fn frame_axes(drops: &WindscreenDrops, m: &MarksSettings) {
-    frame_axes_x87(drops, m, &CLOCK);
+    frame_axes_x87(drops, m, &crate::effects::owner::effects().setup.clock);
 }
 
 /// The original's 0x4BAD4C .. 0x4BADAC: the second axis (`flt_814C26` ..) from the settings, its length over `flt_82E276` into `flt_814C0A`.
@@ -107,21 +103,38 @@ pub fn windscreen_drops_top(
             let quads =
                 x87::int_over_int_to_int(at_now as i32, drops.hex.per_vertex.get() as i32) as u32;
             drops.hex.buffer.set(0);
-            WINDSCREEN_DROP_BATCH
+            crate::gfx::owner::gfx()
+                .card
+                .windscreen_drop_batch
                 .index_count
                 .set(quads.wrapping_mul(12));
-            WINDSCREEN_DROP_BATCH
+            crate::gfx::owner::gfx()
+                .card
+                .windscreen_drop_batch
                 .vertex_count
                 .set(quads.wrapping_mul(6));
             crate::effects::windscreen_drops_frame::draw_batch()?;
         }
         let marks = crate::effects::setup::marks()?;
-        if marks.listener_switch_6.get() != 0 && MARKS_KIND_FLOATS.running.bits() != 0 {
+        if marks.listener_switch_6.get() != 0
+            && crate::effects::owner::effects()
+                .setup
+                .kind_floats
+                .running
+                .bits()
+                != 0
+        {
             crate::effects::windscreen_drops_step::windscreen_drops_step(masks, drops)?;
         }
     }
-    crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
-    DRAW.polygon_vertex_count.set_bits(4u32);
+    crate::scene::set_texture::set_texture(
+        crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
+    );
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set_bits(4u32);
     Ok(())
 }
 

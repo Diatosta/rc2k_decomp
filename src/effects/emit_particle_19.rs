@@ -24,8 +24,6 @@ use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
-use crate::effects::setup::CLOCK;
-use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::marks_settings_store::MarkCar;
@@ -139,7 +137,11 @@ pub fn emit_twin(
             .map(|(a, k)| x87::mul_80(a, k.bits()))
             .collect::<Vec<_>>();
     let (moved, _) = jitter_point([extended(set.tuning.spread.bits()), row[2], row[1], row[0]]);
-    let step: u32 = CLOCK.reciprocal.bits();
+    let step: u32 = crate::effects::owner::effects()
+        .setup
+        .clock
+        .reciprocal
+        .bits();
     for n in 0..3 {
         put(
             field::MOTION_X + 4 * n as u32,
@@ -162,10 +164,27 @@ pub fn emit_twin(
     put(field::LIFE, life)?;
     put(
         field::ALPHA_FADE,
-        x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), life as i32),
+        x87::over_int(
+            crate::effects::owner::effects()
+                .setup
+                .floats
+                .two_fifty_seven
+                .bits(),
+            life as i32,
+        ),
     )?;
-    put(field::ALPHA, MARKS_FLOATS.two_fifty_five.bits())?;
-    put(field::CAR, EMITTER.car.get())?;
+    put(
+        field::ALPHA,
+        crate::effects::owner::effects()
+            .setup
+            .floats
+            .two_fifty_five
+            .bits(),
+    )?;
+    put(
+        field::CAR,
+        crate::effects::owner::effects().kinds.emitter.car.get(),
+    )?;
     Ok(())
 }
 

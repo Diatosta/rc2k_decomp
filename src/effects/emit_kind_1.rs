@@ -28,7 +28,6 @@ use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
 use crate::effects::run_particles::Particles;
-use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
@@ -37,12 +36,15 @@ use crate::session::{Dword, Float};
 
 /// flt_765168, flt_7651D0, flt_765164: the strength's factors and its least.
 static STRENGTH_K: [&Float; 3] = [
-    &MARKS_FLOATS.three_tenths,
-    &MARKS_FLOATS.over_32,
-    &MARKS_FLOATS.fifth,
+    &crate::effects::owner::EFFECTS.setup.floats.three_tenths,
+    &crate::effects::owner::EFFECTS.setup.floats.over_32,
+    &crate::effects::owner::EFFECTS.setup.floats.fifth,
 ];
 /// flt_7651F0, flt_7651E8: the life's factor and base.
-static LIFE_K: [&Float; 2] = [&MARKS_FLOATS.two_thousand, &MARKS_FLOATS.hundred];
+static LIFE_K: [&Float; 2] = [
+    &crate::effects::owner::EFFECTS.setup.floats.two_thousand,
+    &crate::effects::owner::EFFECTS.setup.floats.hundred,
+];
 const SIZE: u32 = 0x1_0000;
 const STEP: i32 = 0x18;
 
@@ -127,14 +129,21 @@ pub fn emit_particle_1(
         if under {
             return Ok(());
         }
-        let one: u32 = MARKS_FLOATS.one.bits();
+        let one: u32 = crate::effects::owner::effects().setup.floats.one.bits();
         if x87::compare_status(kept, one) != 0x100 {
             ring.work.whole.set(one);
         }
         let strength: u32 = ring.work.whole.get();
         let life = x87::times_plus_to_int(strength, LIFE_K[0].bits(), LIFE_K[1].bits());
         ring.work.life.set(life as u32);
-        let fade = x87::mul(strength, MARKS_FLOATS.two_fifty_five.bits());
+        let fade = x87::mul(
+            strength,
+            crate::effects::owner::effects()
+                .setup
+                .floats
+                .two_fifty_five
+                .bits(),
+        );
         ring.work.fade.set_bits(fade);
         if next_entry(ring)?.is_none() {
             return Ok(());
@@ -144,11 +153,15 @@ pub fn emit_particle_1(
         let car = emitting_car()?;
         let m = car.whole()?;
         let side = (next_c5(&particles.kind1_set.side_random) & 0x3FFF) as i32 - 0x2000;
-        MARKS_FRAME.emit_side.set_bits(side as u32);
+        crate::effects::owner::effects()
+            .setup
+            .frame
+            .emit_side
+            .set_bits(side as u32);
         let place: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok(x87::plus_int_times_80(
                 wheel.place[k].bits(),
-                EMITTER.side_b[k].bits(),
+                crate::effects::owner::effects().kinds.emitter.side_b[k].bits(),
                 side,
             ))
         })?;
@@ -156,7 +169,14 @@ pub fn emit_particle_1(
         put(0x14, rounded(place[1]))?;
         put(
             0x28,
-            x87::ext_less(place[1], MARKS_FLOATS.two_pow_16.bits()),
+            x87::ext_less(
+                place[1],
+                crate::effects::owner::effects()
+                    .setup
+                    .floats
+                    .two_pow_16
+                    .bits(),
+            ),
         )?;
         put(0x18, rounded(place[2]))?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
@@ -166,7 +186,11 @@ pub fn emit_particle_1(
                 x87::three_products_80([
                     [matrix_cell(m, k4)?, wheel.speed_10.bits(), f[0]],
                     [matrix_cell(m, 0x20 + k4)?, wheel.speed_18.bits(), f[1]],
-                    [EMITTER.side_b[k].bits(), wheel.speed_c.bits(), f[2]],
+                    [
+                        crate::effects::owner::effects().kinds.emitter.side_b[k].bits(),
+                        wheel.speed_c.bits(),
+                        f[2],
+                    ],
                 ])
             })
         })?;
@@ -189,7 +213,10 @@ pub fn emit_particle_1(
         put(0x84, life as u32)?;
         put(0x78, x87::over_int(fade, life))?;
         put(0x74, fade)?;
-        put(0x68, EMITTER.car.get())?;
+        put(
+            0x68,
+            crate::effects::owner::effects().kinds.emitter.car.get(),
+        )?;
         put(0x70, SIZE)?;
         put(0x6C, car.word(0x88)?)?;
         put(

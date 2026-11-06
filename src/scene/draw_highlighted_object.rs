@@ -33,10 +33,8 @@ use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
 use crate::scene::draw_carousel_entry::{ENTRIES, OWN, find_object_of_kind, own_place};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
-use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
-use crate::scene::object_store::OBJECT_WORK;
 
 // ---- game data ----
 
@@ -58,17 +56,21 @@ pub fn draw_highlighted(
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
     let clock: u32 = PHYSICS.scene_clock.bits();
-    OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
-    OBJECT_WORK.place[2].set(screens.state.carousel.z.get());
-    OBJECT_WORK.place[0].set_bits(0u32);
+    crate::scene::owner::scene().drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
+    crate::scene::owner::scene().drawing.object_work.place[2].set(screens.state.carousel.z.get());
+    crate::scene::owner::scene().drawing.object_work.place[0].set_bits(0u32);
     if let Some(own) = own {
         let [size, y, angle] = own_place(&menus.tables, own)?;
-        OBJECT_WORK.size.set_bits(size);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .size
+            .set_bits(size);
         if y != u32::MAX {
-            OBJECT_WORK.place[1].set(y);
+            crate::scene::owner::scene().drawing.object_work.place[1].set(y);
         }
         if angle != u32::MAX {
-            OBJECT_WORK.angles[0].set_bits(angle);
+            crate::scene::owner::scene().drawing.object_work.angles[0].set_bits(angle);
         }
     }
     screens.state.carousel.kind.set(kind);
@@ -88,6 +90,10 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     assign_menu_textures(&menus.tables)?;
     map_texture_places();
     load_slot_textures_in_game()?;
-    LIGHT_STATE.draw_mode.set_bits(0u32);
+    crate::scene::owner::scene()
+        .lights
+        .state
+        .draw_mode
+        .set_bits(0u32);
     draw_highlighted(menus, &mut || draw_menu_object_in_game(race))
 }

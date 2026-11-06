@@ -34,7 +34,6 @@ use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::work_store::{RACE_WORK, RaceSlot};
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
@@ -77,7 +76,7 @@ pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
     }
     for k in [1, 0, 2] {
         let d = mul2_to_int(s.motion[k].bits(), dt, k65536) as u32;
-        DRAW.scratch.set(d);
+        crate::scene::owner::scene().drawing.scene.scratch.set(d);
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
     s.motion[1].set_bits(neg_product_plus(
@@ -119,6 +118,10 @@ pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
             return Ok(());
         }
     }
-    DRAW.scratch.set(abs_of(s.motion[1].bits()));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set(abs_of(s.motion[1].bits()));
     Ok(())
 }

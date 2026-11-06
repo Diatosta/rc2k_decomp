@@ -336,7 +336,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::decoder::START, // The picture decoders' and glyph builder's variables (decoded picture, palette)
         len: crate::gfx::decoder::LEN,
-        home: Home::Store(&crate::gfx::decoder::DECODER),
+        home: Home::Store(&crate::gfx::owner::GFX.pictures.decoder),
     },
     Moved {
         ida: crate::strings::compile_lexicon::MEMORY_START, // The lexicon's memory (kilobytes, the list)
@@ -351,7 +351,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::pcx::START, // The PCX file being decoded (header, palette, stream, limits)
         len: crate::gfx::pcx::LEN,
-        home: Home::Store(&crate::gfx::pcx::PCX),
+        home: Home::Store(&crate::gfx::owner::GFX.pictures.pcx),
     },
     Moved {
         ida: crate::gfx::read_picture_file::PNG_SETTING_START, // `nopngdecode`
@@ -361,17 +361,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::glyph_tables::START, // The glyph tables' variables (`bundleheapsize`, the list)
         len: crate::gfx::glyph_tables::LEN,
-        home: Home::Store(&crate::gfx::glyph_tables::TABLES),
+        home: Home::Store(&crate::gfx::owner::GFX.fonts.glyph_tables),
     },
     Moved {
         ida: crate::gfx::show_picture_file::SHOWING_START, // g_showingPicture
         len: 4,
-        home: Home::Store(&crate::gfx::show_picture_file::SHOWING),
+        home: Home::Store(&crate::gfx::owner::GFX.pictures.showing),
     },
     Moved {
         ida: crate::gfx::blit::START, // The blitters' variables (the clip rectangle, the skips of the visible part)
         len: crate::gfx::blit::LEN,
-        home: Home::Store(&crate::gfx::blit::BLIT),
+        home: Home::Store(&crate::gfx::owner::GFX.drawing.blit),
     },
     Moved {
         ida: crate::gfx::rescale_picture::START, // The rescaler's variables (the copy's memory, steps, weights, the pixel's parts)
@@ -386,7 +386,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::fill_row_table::START, // The row table (the address of each row of a picture)
         len: crate::gfx::fill_row_table::LEN,
-        home: Home::Store(&crate::gfx::fill_row_table::ROW_TABLE),
+        home: Home::Store(&crate::gfx::owner::GFX.drawing.row_table),
     },
     Moved {
         ida: crate::gfx::formats::START, // The pixel formats' work variables (format numbers, scratch bytes, component format)
@@ -396,7 +396,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::fill_thirds_table::START, // The thirds table (n / 3 for the sums of three components)
         len: 0x300,
-        home: Home::Store(&crate::gfx::fill_thirds_table::THIRDS),
+        home: Home::Store(&crate::gfx::owner::GFX.drawing.thirds),
     },
     Moved {
         ida: crate::gfx::modes::START, // The screen mode tables (pixel kinds, sizes, the modes listed)
@@ -421,7 +421,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::picture_store::START, // The picture loader's variables (the name, flags, size, rows and buffer of the picture, the list)
         len: crate::gfx::picture_store::LEN,
-        home: Home::Store(&crate::gfx::picture_store::PICTURE),
+        home: Home::Store(&crate::gfx::owner::GFX.pictures.picture),
     },
     Moved {
         ida: crate::gfx::texture_pixels::START, // The texture grading (reading switch, scale, saturation, the grades table)
@@ -431,7 +431,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::bar_store::START, // The progress bar's variables (position, width, glyphs, percent)
         len: crate::gfx::bar_store::LEN,
-        home: Home::Store(&crate::gfx::bar_store::BAR),
+        home: Home::Store(&crate::gfx::owner::GFX.drawing.bar),
     },
     Moved {
         ida: crate::gfx::png_file::START, // The PNG decoder's file (pointer, length, memory list)
@@ -446,7 +446,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::pcx_planes::START, // The screenshot writer's plane buffer (3 * width bytes, up to 1920 wide)
         len: crate::gfx::pcx_planes::LEN,
-        home: Home::Store(&crate::gfx::pcx_planes::PLANES),
+        home: Home::Store(&crate::gfx::owner::GFX.pictures.planes),
     },
     Moved {
         ida: crate::gfx::cards::START, // The 3D primary and secondary card switches
@@ -456,7 +456,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::upload::START, // The texture upload's surface description (DDSURFACEDESC) and the mode-trial switch
         len: crate::gfx::upload::LEN,
-        home: Home::Store(&crate::gfx::upload::UPLOAD),
+        home: Home::Store(&crate::gfx::owner::GFX.card.upload),
     },
     Moved {
         ida: crate::install::store::InstallVars::START, // InstallVars
@@ -489,7 +489,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::typefaces::START, // The fonts (63 font objects)
         len: crate::gfx::typefaces::LEN,
-        home: Home::Store(&crate::gfx::typefaces::FONTS),
+        home: Home::Store(&crate::gfx::owner::GFX.fonts.typefaces),
     },
     Moved {
         ida: crate::saves::write_savegame_slot::START, // The saved games' file buffer and names
@@ -514,12 +514,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::saves::load_options::PATH_START, // var\ral.dat
         len: 12,
-        home: Home::Store(&crate::saves::load_options::PATH),
+        home: Home::Store(&crate::saves::owner::SAVES.files.options_path),
     },
     Moved {
         ida: crate::saves::write_savegame_slot::TEMPLATE_START, // The saved game file name's template
         len: 27,
-        home: Home::Store(&crate::saves::write_savegame_slot::TEMPLATE),
+        home: Home::Store(&crate::saves::owner::SAVES.files.savegame_template),
     },
     Moved {
         ida: crate::service::read_setup_slot::TEMPLATE_START, // The set-up file name's template
@@ -554,7 +554,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::texture_upload::START, // The 3D card's tables and the textures' records
         len: crate::gfx::texture_upload::LEN,
-        home: Home::Store(&crate::gfx::texture_upload::TEXTURE_TABLES),
+        home: Home::Store(&crate::gfx::owner::GFX.card.texture_tables),
     },
     Moved {
         ida: crate::film::NO_FMV_START, // g_noFmv
@@ -564,7 +564,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::build_game_fonts::START, // The game fonts' memory (`gamegfxheapsize`, the list)
         len: crate::gfx::build_game_fonts::LEN,
-        home: Home::Store(&crate::gfx::build_game_fonts::GAME_FONTS),
+        home: Home::Store(&crate::gfx::owner::GFX.fonts.game_fonts),
     },
     Moved {
         ida: crate::scene::upload_car_icon::START, // The car icon upload's record
@@ -579,7 +579,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::front::START, // The DirectDraw front and back surface handles
         len: crate::gfx::front::LEN,
-        home: Home::Store(&crate::gfx::front::SURFACES),
+        home: Home::Store(&crate::gfx::owner::GFX.drawing.surfaces),
     },
     Moved {
         ida: crate::gfx::locked::START, // The surface-locked switch
@@ -589,7 +589,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::windscreen_drop_batch::START, // The marks' windscreen drop batch drawn by d3d (the index and vertex counts, the fans, the records)
         len: crate::gfx::windscreen_drop_batch::LEN,
-        home: Home::Store(&crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH),
+        home: Home::Store(&crate::gfx::owner::GFX.card.windscreen_drop_batch),
     },
     // session: the screen, the window's flags, the machine, the clocks (`session`)
     Moved {
@@ -637,7 +637,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F66DD, // the options file's four kept dwords and a gap (`saves::load_options::KEPT`)
         len: 0x14,
-        home: Home::Store(&crate::saves::load_options::KEPT),
+        home: Home::Store(&crate::saves::owner::SAVES.files.options_kept),
     },
     Moved {
         ida: 0x4F66F1, // the wheel surfaces (`sound::store::WHEEL_SURFACES`)
@@ -1019,7 +1019,7 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::gfx::screen_state::DrawSurface::START,
         len: crate::gfx::screen_state::DrawSurface::LEN,
         home: Home::Store(&crate::race::store::Window::new(
-            &crate::gfx::screen_state::DRAW_SURFACE,
+            &crate::gfx::owner::GFX.drawing.draw_surface,
             4,
         )),
     },
@@ -1034,7 +1034,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::fonts_store::Fonts::START,
         len: crate::gfx::fonts_store::Fonts::LEN,
-        home: Home::Store(&crate::gfx::fonts_store::FONTS),
+        home: Home::Store(&crate::gfx::owner::GFX.fonts.menu_fonts),
     },
     Moved {
         ida: crate::audio::names_store::SampleNames::START,
@@ -1053,7 +1053,7 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::gfx::jade_store::JadeFont::START,
         len: crate::gfx::jade_store::JadeFont::LEN,
         home: Home::Store(&crate::race::store::Window::new(
-            &crate::gfx::jade_store::JADE_FONT,
+            &crate::gfx::owner::GFX.fonts.jade,
             4,
         )),
     },
@@ -1243,7 +1243,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::object_slots_store::START,
         len: crate::scene::object_slots_store::END - crate::scene::object_slots_store::START,
-        home: Home::Store(&crate::scene::object_slots_store::OBJECT_SLOTS),
+        home: Home::Store(&crate::scene::owner::SCENE.objects.slots),
     },
     Moved {
         ida: crate::scene::light_tables_store::START,
@@ -1308,12 +1308,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::object_tables_store::START,
         len: crate::scene::object_tables_store::END - crate::scene::object_tables_store::START,
-        home: Home::Store(&crate::scene::object_tables_store::OBJECT_TABLES),
+        home: Home::Store(&crate::scene::owner::SCENE.objects.tables),
     },
     Moved {
         ida: crate::scene::texture_places_store::START,
         len: crate::scene::texture_places_store::END - crate::scene::texture_places_store::START,
-        home: Home::Store(&crate::scene::texture_places_store::TEXTURE_PLACES),
+        home: Home::Store(&crate::scene::owner::SCENE.textures.places),
     },
     Moved {
         ida: crate::race::matrices_store::START,
@@ -1359,12 +1359,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::draw_store::START,
         len: crate::scene::draw_store::END - crate::scene::draw_store::START,
-        home: Home::Store(&crate::scene::draw_store::DRAW),
+        home: Home::Store(&crate::scene::owner::SCENE.drawing.scene),
     },
     Moved {
         ida: crate::scene::light_store::START,
         len: crate::scene::light_store::END - crate::scene::light_store::START,
-        home: Home::Store(&crate::scene::light_store::LIGHT_STATE),
+        home: Home::Store(&crate::scene::owner::SCENE.lights.state),
     },
     Moved {
         ida: crate::race::view_store::START,
@@ -1424,7 +1424,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::kind_texture_store::START,
         len: crate::scene::kind_texture_store::END - crate::scene::kind_texture_store::START,
-        home: Home::Store(&crate::scene::kind_texture_store::KIND_TEXTURES),
+        home: Home::Store(&crate::scene::owner::SCENE.textures.kinds),
     },
     Moved {
         ida: crate::race::frame_counter_store::START,
@@ -1444,12 +1444,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::scene::light_work_store::START,
         len: crate::scene::light_work_store::END - crate::scene::light_work_store::START,
-        home: Home::Store(&crate::scene::light_work_store::LIGHT_WORK),
+        home: Home::Store(&crate::scene::owner::SCENE.lights.work),
     },
     Moved {
         ida: crate::scene::object_store::START,
         len: crate::scene::object_store::END - crate::scene::object_store::START,
-        home: Home::Store(&crate::scene::object_store::OBJECT_WORK),
+        home: Home::Store(&crate::scene::owner::SCENE.drawing.object_work),
     },
     Moved {
         ida: crate::physics::ground_store::START,
@@ -1464,7 +1464,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::work_store::START,
         len: crate::effects::work_store::END - crate::effects::work_store::START,
-        home: Home::Store(&crate::effects::work_store::MARKS_WORK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.setup.work),
     },
     // the menus' lists, the menus' working variables, the race's settings and results and
     // the damage model (`menu::lists_store`, `menu::state_store`, `race::state_store`,
@@ -1699,32 +1699,32 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::view_vectors::ViewSources::START,
         len: crate::effects::view_vectors::ViewSources::LEN,
-        home: Home::Store(&crate::effects::view_vectors::SOURCES),
+        home: Home::Store(&crate::effects::owner::EFFECTS.frame.view_sources),
     },
     Moved {
         ida: crate::effects::setup::MarksClock::START,
         len: crate::effects::setup::MarksClock::LEN,
-        home: Home::Store(&crate::effects::setup::CLOCK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.setup.clock),
     },
     Moved {
         ida: crate::effects::tuning::MarksFrame::START,
         len: crate::effects::tuning::MarksFrame::LEN,
-        home: Home::Store(&crate::effects::tuning::MARKS_FRAME),
+        home: Home::Store(&crate::effects::owner::EFFECTS.setup.frame),
     },
     Moved {
         ida: crate::effects::tuning::MarksFloats::START,
         len: crate::effects::tuning::MarksFloats::LEN,
-        home: Home::Store(&crate::effects::tuning::MARKS_FLOATS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.setup.floats),
     },
     Moved {
         ida: crate::effects::tuning::MarksKindFloats::START,
         len: crate::effects::tuning::MarksKindFloats::LEN,
-        home: Home::Store(&crate::effects::tuning::MARKS_KIND_FLOATS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.setup.kind_floats),
     },
     Moved {
         ida: crate::effects::setup::SettingsPointer::START,
         len: crate::effects::setup::SettingsPointer::LEN,
-        home: Home::Store(&crate::effects::setup::SETTINGS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.setup.settings),
     },
     Moved {
         ida: crate::effects::pong::PongState::START,
@@ -1734,7 +1734,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::clip::ClipScreen::START,
         len: crate::effects::clip::ClipScreen::LEN,
-        home: Home::Store(&crate::effects::clip::CLIP),
+        home: Home::Store(&crate::effects::owner::EFFECTS.clipping.clip),
     },
     Moved {
         ida: crate::effects::pong::PongRules::START,
@@ -1744,12 +1744,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::kind_values::MarksKind::START,
         len: crate::effects::kind_values::MarksKind::LEN,
-        home: Home::Store(&crate::effects::kind_values::MARKS_KIND),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.marks_kind),
     },
     Moved {
         ida: crate::effects::view_vectors::KeptView::START,
         len: crate::effects::view_vectors::KeptView::LEN,
-        home: Home::Store(&crate::effects::view_vectors::KEPT),
+        home: Home::Store(&crate::effects::owner::EFFECTS.frame.kept_view),
     },
     Moved {
         ida: crate::effects::splines::SplineHead::START,
@@ -1834,7 +1834,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::mask_constants::MaskConstants::START,
         len: crate::effects::mask_constants::MaskConstants::LEN,
-        home: Home::Store(&crate::effects::mask_constants::MASK_CONSTANTS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.setup.mask_constants),
     },
     Moved {
         ida: crate::effects::windscreen_flakes_store::WindscreenFlakeTiming::START,
@@ -1894,7 +1894,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::blocks::PlacesBlock::START,
         len: crate::effects::blocks::PlacesBlock::LEN,
-        home: Home::Store(&crate::effects::blocks::PLACES_BLOCK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.places),
     },
     Moved {
         ida: crate::effects::profiles::ProfileRings::START,
@@ -1909,17 +1909,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::frame_state::DrawWork::START,
         len: crate::effects::frame_state::DrawWork::LEN,
-        home: Home::Store(&crate::effects::frame_state::DRAW_WORK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.frame.draw_work),
     },
     Moved {
         ida: crate::effects::blocks::MarkCorners::START,
         len: crate::effects::blocks::MarkCorners::LEN,
-        home: Home::Store(&crate::effects::blocks::MARK_CORNERS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.corners),
     },
     Moved {
         ida: crate::effects::frame_state::ViewVars::START,
         len: crate::effects::frame_state::ViewVars::LEN,
-        home: Home::Store(&crate::effects::frame_state::VIEW_VARS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.frame.view_vars),
     },
     Moved {
         ida: crate::effects::profiles::ProfileLists::START,
@@ -1929,7 +1929,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::frame_state::DrawFrame::START,
         len: crate::effects::frame_state::DrawFrame::LEN,
-        home: Home::Store(&crate::effects::frame_state::DRAW_FRAME),
+        home: Home::Store(&crate::effects::owner::EFFECTS.frame.draw_frame),
     },
     Moved {
         ida: crate::effects::waves::MarksSines::START,
@@ -1939,7 +1939,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::frame_state::FlareParts::START,
         len: crate::effects::frame_state::FlareParts::LEN,
-        home: Home::Store(&crate::effects::frame_state::FLARE_PARTS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.frame.flare_parts),
     },
     Moved {
         ida: crate::effects::waves::WaveLevels::START,
@@ -1954,17 +1954,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::frame_state::FlareScales::START,
         len: crate::effects::frame_state::FlareScales::LEN,
-        home: Home::Store(&crate::effects::frame_state::FLARE_SCALES),
+        home: Home::Store(&crate::effects::owner::EFFECTS.frame.flare_scales),
     },
     Moved {
         ida: crate::effects::blocks::MarkLinks::START,
         len: crate::effects::blocks::MarkLinks::LEN,
-        home: Home::Store(&crate::effects::blocks::MARK_LINKS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.links),
     },
     Moved {
         ida: crate::effects::blocks::CornerSlopes::START,
         len: crate::effects::blocks::CornerSlopes::LEN,
-        home: Home::Store(&crate::effects::blocks::CORNER_SLOPES),
+        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.corner_slopes),
     },
     Moved {
         ida: crate::effects::spread_point::SpreadRandom::START,
@@ -1974,27 +1974,27 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::kind_store::Quad1::START,
         len: crate::effects::kind_store::Quad1::LEN,
-        home: Home::Store(&crate::effects::kind_store::QUAD_1),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.quad_1),
     },
     Moved {
         ida: crate::effects::kind_store::KindExtras1::START,
         len: crate::effects::kind_store::KindExtras1::LEN,
-        home: Home::Store(&crate::effects::kind_store::EXTRAS_1),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.extras_1),
     },
     Moved {
         ida: crate::effects::kind_store::Quad2::START,
         len: crate::effects::kind_store::Quad2::LEN,
-        home: Home::Store(&crate::effects::kind_store::QUAD_2),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.quad_2),
     },
     Moved {
         ida: crate::effects::kind_store::KindExtra2::START,
         len: crate::effects::kind_store::KindExtra2::LEN,
-        home: Home::Store(&crate::effects::kind_store::EXTRA_2),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.extra_2),
     },
     Moved {
         ida: crate::effects::kind_store::Quad3::START,
         len: crate::effects::kind_store::Quad3::LEN,
-        home: Home::Store(&crate::effects::kind_store::QUAD_3),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.quad_3),
     },
     Moved {
         ida: crate::effects::mask_store::GroundNames::START,
@@ -2014,17 +2014,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::mark_slots::MarkSlots::START,
         len: crate::effects::mark_slots::MarkSlots::LEN,
-        home: Home::Store(&crate::effects::mark_slots::SLOTS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.slots),
     },
     Moved {
         ida: crate::effects::mark_slots::SlotTuning::START,
         len: crate::effects::mark_slots::SlotTuning::LEN,
-        home: Home::Store(&crate::effects::mark_slots::TUNING),
+        home: Home::Store(&crate::effects::owner::EFFECTS.blocks.slot_tuning),
     },
     Moved {
         ida: crate::effects::emitters::EmitterVars::START,
         len: crate::effects::emitters::EmitterVars::LEN,
-        home: Home::Store(&crate::effects::emitters::EMITTER),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.emitter),
     },
     Moved {
         ida: crate::effects::ring_store::RingWork::START,
@@ -2123,17 +2123,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::run_particles::BurstColours::START,
         len: crate::effects::run_particles::BurstColours::LEN,
-        home: Home::Store(&crate::effects::run_particles::BURST_COLOURS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.burst_colours),
     },
     Moved {
         ida: crate::effects::run_particles::ParticleTuning::START,
         len: crate::effects::run_particles::ParticleTuning::LEN,
-        home: Home::Store(&crate::effects::run_particles::PARTICLE_TUNING),
+        home: Home::Store(&crate::effects::owner::EFFECTS.kinds.particle_tuning),
     },
     Moved {
         ida: crate::effects::blend_corner::BlendWork::START,
         len: crate::effects::blend_corner::BlendWork::LEN,
-        home: Home::Store(&crate::effects::blend_corner::BLEND_WORK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.clipping.blend_work),
     },
     Moved {
         ida: crate::effects::morph_object_points::MorphWork::START,
@@ -2148,12 +2148,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::setup::ClockK::START,
         len: crate::effects::setup::ClockK::LEN,
-        home: Home::Store(&crate::effects::setup::CLOCK_K),
+        home: Home::Store(&crate::effects::owner::EFFECTS.setup.clock_k),
     },
     Moved {
         ida: crate::effects::clip::GlowState::START,
         len: crate::effects::clip::GlowState::LEN,
-        home: Home::Store(&crate::effects::clip::GLOW),
+        home: Home::Store(&crate::effects::owner::EFFECTS.clipping.glow),
     },
 ];
 

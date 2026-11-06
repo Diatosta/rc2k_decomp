@@ -32,10 +32,6 @@ use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
-use crate::scene::draw_store::DRAW;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 
 // ---- game data ----
 const OBJECTS: u32 = 0xFF;
@@ -64,7 +60,10 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
     let [last, mut time, mut length, mut phase]: [u32; 4] = std::array::from_fn(|k| {
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
     });
-    crate::session::write_bits(&LIGHT_WORK.phase_lengths, LENGTHS);
+    crate::session::write_bits(
+        &crate::scene::owner::scene().lights.work.phase_lengths,
+        LENGTHS,
+    );
     let clock: u32 = PHYSICS.scene_clock.bits();
     time = time.wrapping_add(clock.wrapping_sub(last).min(100));
     while time >= length {
@@ -80,9 +79,13 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
         _ => 0f32.to_bits(),
     };
     RACE_VARS.move_fraction.set_bits(fraction);
-    LIGHT_WORK.phase_clock.set_bits(clock);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .phase_clock
+        .set_bits(clock);
     crate::session::write_first(
-        &crate::scene::object_slots_store::OBJECT_SLOTS.phase_work,
+        &crate::scene::owner::scene().objects.slots.phase_work,
         &[length, time, phase],
     );
     let mut b = [0u8; 16];
@@ -98,7 +101,10 @@ pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
-    let kind: u32 = OBJECT_TABLES.object_kind(object);
+    let kind: u32 = crate::scene::owner::scene()
+        .objects
+        .tables
+        .object_kind(object);
     let material = crate::scene::polygon::materials_ptr()
         .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
     let way = material.offset(0x20).read::<u8>("an object's material")? as u32;
@@ -107,23 +113,31 @@ pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result
         return Err(BadInput("a moving object without its state"));
     }
     RACE_VARS.move_by.set_bits(0u32);
-    DRAW.polygon_colour.set_bits(0x00FF_FFFFu32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_colour
+        .set_bits(0x00FF_FFFFu32);
     FRAME_SWITCHES.other_way_kind.set_bits(way);
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [
-            crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize].get(),
-            crate::scene::object_slots_store::OBJECT_SLOTS.first_point[object as usize + 1].get(),
+            crate::scene::owner::scene().objects.slots.first_point[object as usize].get(),
+            crate::scene::owner::scene().objects.slots.first_point[object as usize + 1].get(),
         ];
         RACE_VARS
             .move_by
             .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
         step_shape(state)?;
     }
-    OBJECT_WORK
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
         .object_first_face
-        .set_bits(crate::scene::object_slots_store::OBJECT_SLOTS.first_face[object as usize].get());
-    OBJECT_WORK.object_face_count.set_bits(
-        crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get(),
-    );
+        .set_bits(crate::scene::owner::scene().objects.slots.first_face[object as usize].get());
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .object_face_count
+        .set_bits(crate::scene::owner::scene().objects.slots.face_counts[object as usize].get());
     Ok(())
 }

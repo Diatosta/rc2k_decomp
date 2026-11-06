@@ -5,12 +5,10 @@
 //!
 //! 21 callers, none reading flags. `d3d::set_texture` is the platform's.
 
-use crate::scene::object_tables_store::OBJECT_TABLES;
-
 /// `d3d::set_texture` with the texture, unless the switch is 0. What it leaves in the
 /// registers is read by none of its callers (register liveness, 2026-10-23).
 pub fn set_texture(texture: u32) {
-    if OBJECT_TABLES.has_3d.get() != 0 {
+    if crate::scene::owner::scene().objects.tables.has_3d.get() != 0 {
         crate::d3d::set_texture::set_texture(texture);
     }
 }

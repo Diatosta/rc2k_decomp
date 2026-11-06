@@ -10,7 +10,6 @@
 //! stays. Six callers. The registers above are the original's; a call by address goes through
 //! `routes.rs`, which maps them.
 
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::with_cells;
 
 // ---- Rust version ----
@@ -21,9 +20,9 @@ pub fn map_texture_places() {
     // Converted: `rc2k_core::scene::textures::map_places`.
     with_cells(
         [
-            &TEXTURE_PLACES.slot_wanted,
-            &TEXTURE_PLACES.wanted_pictures,
-            &TEXTURE_PLACES.place_slot,
+            &crate::scene::owner::scene().textures.places.slot_wanted,
+            &crate::scene::owner::scene().textures.places.wanted_pictures,
+            &crate::scene::owner::scene().textures.places.place_slot,
         ],
         |[wanted, pictures, places]| {
             rc2k_core::scene::textures::map_places(wanted, pictures, places)

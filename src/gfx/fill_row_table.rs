@@ -11,7 +11,6 @@
 //! table holds each row's offset in it: its callers give 0 for the first row.
 
 use crate::errors::BadInput;
-use crate::session::Dword;
 
 // ---- game data ----
 
@@ -21,20 +20,15 @@ pub const ROW_TABLE_ROOM: u32 = 602;
 /// The table's length.
 pub const LEN: usize = 4 * ROW_TABLE_ROOM as usize;
 
-/// `dword_4F3FC4`: each row of a picture (602 of them), zero at the start: its offset in the
-/// decoded buffer since phase 12 (the original's addresses).
-pub static ROW_TABLE: [Dword; ROW_TABLE_ROOM as usize] =
-    [const { Dword::new(0) }; ROW_TABLE_ROOM as usize];
-
 /// Where the table is (`moved::MOVED`'s home for IDA 0x4F3FC4).
 #[cfg(test)]
 pub fn home() -> usize {
-    (crate::pointers::game_address(ROW_TABLE.as_ptr())) as usize
+    (crate::pointers::game_address(crate::gfx::owner::gfx().drawing.row_table.as_ptr())) as usize
 }
 
 /// The address the table holds for a row.
 pub fn row_address(row: u32) -> u32 {
-    match ROW_TABLE.get(row as usize) {
+    match crate::gfx::owner::gfx().drawing.row_table.get(row as usize) {
         Some(cell) => cell.get(),
         None => crate::fatal::raise::end(
             "gfx::row_address",
@@ -50,11 +44,17 @@ pub fn fill_row_table(first: u32, step: u32, rows: u32) -> Result<(), BadInput> 
         return Err(BadInput("a row count the row table has no room for"));
     }
     // Converted: `rc2k_core::gfx::pixels::row_table`.
-    for (cell, address) in ROW_TABLE.iter().zip(rc2k_core::gfx::pixels::row_table(
-        first,
-        step,
-        rows as usize,
-    )) {
+    for (cell, address) in
+        crate::gfx::owner::gfx()
+            .drawing
+            .row_table
+            .iter()
+            .zip(rc2k_core::gfx::pixels::row_table(
+                first,
+                step,
+                rows as usize,
+            ))
+    {
         cell.set(address);
     }
     Ok(())
@@ -66,7 +66,11 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&ROW_TABLE, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().drawing.row_table,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -74,7 +78,7 @@ mod block_tests {
         assert_eq!(crate::moved::place(START), home());
         assert_eq!(
             crate::moved::place(START + LEN - 4),
-            ROW_TABLE[601].addr() as usize
+            crate::gfx::owner::gfx().drawing.row_table[601].addr() as usize
         );
     }
 }

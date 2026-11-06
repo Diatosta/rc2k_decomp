@@ -18,7 +18,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
-use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 use rc2k_core::hud::strips;
 
@@ -50,12 +49,16 @@ fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Re
         quad_input(o).set_bits(v);
     }
     if let Some(t) = texture {
-        DRAW.polygon_textures[0].set_bits(t);
+        crate::scene::owner::scene().drawing.scene.polygon_textures[0].set_bits(t);
     }
-    DRAW.polygon_alpha.set_bits(0xFF);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_alpha
+        .set_bits(0xFF);
     quad_input(0).set_bits(0xFFFF_FFFF);
-    DRAW.polygon_sides[0].set_bits(1);
-    DRAW.polygon_sides[1].set_bits(0);
+    crate::scene::owner::scene().drawing.scene.polygon_sides[0].set_bits(1);
+    crate::scene::owner::scene().drawing.scene.polygon_sides[1].set_bits(0);
     crate::scene::draw_flat_quad::draw_flat_quad(course)
 }
 

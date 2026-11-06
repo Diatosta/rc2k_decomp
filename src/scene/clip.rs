@@ -24,7 +24,6 @@ use crate::scene::clip_asm::{
     BYTES_A, BYTES_B, CHECKED, ENTRY_A, ENTRY_B, OUT_1, OUT_2, PLANE, RECORD_A, RECORD_B, Work,
     cut_at_depth, cut_at_x, cut_at_y,
 };
-use crate::scene::draw_store::DRAW;
 use crate::scene::polygon::{ENTRIES, ENTRY_LEN, listed};
 use crate::scene::polygon_store::PolygonEntry;
 use crate::scene::project_point::{RECORD_LEN, to_screen};
@@ -90,12 +89,20 @@ fn cut(
     b: &PolygonEntry,
     mask: u32,
 ) -> Result<u32, BadInput> {
-    let number: u32 = DRAW.polygon_next_entry.bits();
+    let number: u32 = crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_next_entry
+        .bits();
     if number >= ENTRIES {
         return Err(BadInput("no entry left for a new vertex"));
     }
     // the pool's next record (its number: `scene::point_records::of_pool`)
-    let record: u32 = DRAW.polygon_next_record.bits();
+    let record: u32 = crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_next_record
+        .bits();
     if record == 0 {
         return Err(BadInput("no pool of records"));
     }
@@ -113,20 +120,28 @@ fn cut(
             w[bytes_at / 4 + k] = u32::from(entry.byte(at));
         }
     }
-    let out_1 = crate::session::read_bits(&DRAW.clip_work);
-    let out_2 = crate::session::read_bits(&DRAW.clip_work_2);
+    let out_1 = crate::session::read_bits(&crate::scene::owner::scene().drawing.scene.clip_work);
+    let out_2 = crate::session::read_bits(&crate::scene::owner::scene().drawing.scene.clip_work_2);
     w[OUT_1 / 4..OUT_1 / 4 + 12].copy_from_slice(&out_1);
     w[OUT_2 / 4..OUT_2 / 4 + 5].copy_from_slice(&out_2);
-    w[CHECKED / 4] = DRAW.scratch.bits();
-    w[PLANE / 4] = DRAW.clip_plane.bits();
+    w[CHECKED / 4] = crate::scene::owner::scene().drawing.scene.scratch.bits();
+    w[PLANE / 4] = crate::scene::owner::scene().drawing.scene.clip_plane.bits();
     match edge {
         Edge::X(at) => {
-            DRAW.clip_kept_mask.set_bits(mask);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .clip_kept_mask
+                .set_bits(mask);
             w[OUT_1 / 4] = at;
             cut_at_x(&mut w);
         }
         Edge::Y(at) => {
-            DRAW.clip_kept_mask.set_bits(mask);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .clip_kept_mask
+                .set_bits(mask);
             w[OUT_1 / 4 + 1] = at;
             cut_at_y(&mut w);
         }
@@ -136,9 +151,9 @@ fn cut(
             let mut point = [0u32; 8];
             point[4..7].copy_from_slice(&w[OUT_1 / 4 + 2..OUT_1 / 4 + 5]);
             let v = [
-                DRAW.view_scale.bits(),
-                DRAW.view_centre[0].bits(),
-                DRAW.view_centre[1].bits(),
+                crate::scene::owner::scene().drawing.scene.view_scale.bits(),
+                crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+                crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
                 course.course.flat_depth.bits(),
             ];
             let flat = course.stage_prefs.flat_depth.bits() != 0;
@@ -153,11 +168,22 @@ fn cut(
     }
     let out_1: [u32; 12] = w[OUT_1 / 4..OUT_1 / 4 + 12].try_into().expect("12 dwords");
     let out_2: [u32; 5] = w[OUT_2 / 4..OUT_2 / 4 + 5].try_into().expect("5 dwords");
-    crate::session::write_bits(&DRAW.clip_work, out_1);
-    crate::session::write_bits(&DRAW.clip_work_2, out_2);
-    DRAW.scratch.set_bits(w[CHECKED / 4]);
+    crate::session::write_bits(&crate::scene::owner::scene().drawing.scene.clip_work, out_1);
+    crate::session::write_bits(
+        &crate::scene::owner::scene().drawing.scene.clip_work_2,
+        out_2,
+    );
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .scratch
+        .set_bits(w[CHECKED / 4]);
 
-    DRAW.polygon_next_record.set_bits(record.wrapping_add(1));
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_next_record
+        .set_bits(record.wrapping_add(1));
     new.record.set(record);
     if !matches!(edge, Edge::Depth(_)) {
         made[..3].copy_from_slice(&out_1[5..8]);
@@ -228,11 +254,19 @@ pub fn clip_pass(
         if a_inside != b_inside {
             let number = cut(course, edge, a, b, mask)?;
             crate::scene::polygon::list_cell(out).set(number);
-            DRAW.polygon_next_entry.set_bits(number + 1);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .polygon_next_entry
+                .set_bits(number + 1);
             out += 1;
         }
     }
-    DRAW.polygon_vertex_count.set_bits(out as u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set_bits(out as u32);
     Ok(None)
 }
 

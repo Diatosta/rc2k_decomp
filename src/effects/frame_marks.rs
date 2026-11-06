@@ -14,8 +14,6 @@
 
 use crate::effects::owner::Effects;
 use crate::effects::run_frame::FRAME_K;
-use crate::effects::setup::CLOCK;
-use crate::effects::tuning::{MARKS_FRAME, MARKS_KIND_FLOATS};
 use crate::effects::{morph_object_points, scale_vectors_by, view_frame};
 use crate::errors::Refused;
 use crate::math::x87;
@@ -25,9 +23,18 @@ use crate::session::Dword;
 /// (the settings' field, the copy): +0x50, +0x4C and +0x10.
 fn copies(marks: &MarksSettings) -> [(&Dword, &Dword); 3] {
     [
-        (&marks.listener_near, &MARKS_KIND_FLOATS.fading),
-        (&marks.after_loading_copy, &MARKS_KIND_FLOATS.other),
-        (&marks.other_marks_shown, &MARKS_KIND_FLOATS.running),
+        (
+            &marks.listener_near,
+            &crate::effects::owner::effects().setup.kind_floats.fading,
+        ),
+        (
+            &marks.after_loading_copy,
+            &crate::effects::owner::effects().setup.kind_floats.other,
+        ),
+        (
+            &marks.other_marks_shown,
+            &crate::effects::owner::effects().setup.kind_floats.running,
+        ),
     ]
 }
 
@@ -43,27 +50,53 @@ pub fn frame_marks(effects: &Effects) -> Result<(), Refused> {
     {
         let (start, _) = rdtsc();
         let (now, _) = rdtsc();
-        let last: u32 = MARKS_FRAME.last_count.bits();
-        MARKS_FRAME.last_count.set_bits(now);
-        MARKS_FRAME.frame_cycles.set_bits(now.wrapping_sub(last));
+        let last: u32 = crate::effects::owner::effects()
+            .setup
+            .frame
+            .last_count
+            .bits();
+        crate::effects::owner::effects()
+            .setup
+            .frame
+            .last_count
+            .set_bits(now);
+        crate::effects::owner::effects()
+            .setup
+            .frame
+            .frame_cycles
+            .set_bits(now.wrapping_sub(last));
         for (from, to) in copies(marks) {
             to.set(from.get());
         }
-        CLOCK.settings_copies[0].set(marks.unknown_67c[1].get());
+        crate::effects::owner::effects().setup.clock.settings_copies[0]
+            .set(marks.unknown_67c[1].get());
         scale_vectors_by::scale_vectors_by();
         morph_object_points::morph_object_points(course, &effects.paths)?;
         view_frame::view_frame(effects)?;
         marks.unknown_67c[1].set(0);
-        MARKS_FRAME
-            .steps
-            .set(MARKS_FRAME.steps.get().wrapping_add(1));
+        crate::effects::owner::effects().setup.frame.steps.set(
+            crate::effects::owner::effects()
+                .setup
+                .frame
+                .steps
+                .get()
+                .wrapping_add(1),
+        );
         let (end, _) = rdtsc();
         let share = x87::int_over_int_times(
             end.wrapping_sub(start) as i32,
-            MARKS_FRAME.frame_cycles.bits() as i32,
+            crate::effects::owner::effects()
+                .setup
+                .frame
+                .frame_cycles
+                .bits() as i32,
             FRAME_K.share_k.to_bits(),
         );
-        MARKS_FRAME.step_share.set_bits(share);
+        crate::effects::owner::effects()
+            .setup
+            .frame
+            .step_share
+            .set_bits(share);
     }
     Ok(())
 }

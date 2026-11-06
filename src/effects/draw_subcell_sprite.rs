@@ -23,7 +23,6 @@ use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_frame::Frame;
-use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
 
 use crate::d3d::vertices_store::VERTICES;
@@ -31,13 +30,18 @@ const SUBCELLS: u32 = 0x410;
 
 /// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
 fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3]) {
-    turn_x87(frame, p, &ring.work, &DRAW_WORK);
+    turn_x87(
+        frame,
+        p,
+        &ring.work,
+        &crate::effects::owner::effects().frame.draw_work,
+    );
 }
 
 /// The original's 0x4CC009 .. 0x4CC140 (its integer moves done before): the square about
 /// the projected place.
 fn square() {
-    square_x87(&DRAW_WORK);
+    square_x87(&crate::effects::owner::effects().frame.draw_work);
 }
 
 /// The Rust version (see the header): `subcell` (eax), `size` (edx, a float's bits),
@@ -58,11 +62,13 @@ pub fn draw_subcell_sprite(
         return Err(BadInput("a null ring entry").into());
     }
     fog_at(0)?;
-    if SETTINGS.is_set.get() == 0 {
+    if crate::effects::owner::effects().setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     turn(frame, ring, &place);
-    if DRAW_WORK.turned[2].bits() as i32 <= DRAW_WORK.near.bits() as i32 {
+    if crate::effects::owner::effects().frame.draw_work.turned[2].bits() as i32
+        <= crate::effects::owner::effects().frame.draw_work.near.bits() as i32
+    {
         return Ok(());
     }
     let fog = fog_at(ring.work.whole.get())?;
@@ -71,7 +77,7 @@ pub fn draw_subcell_sprite(
         VERTICES.vertices[n].specular.set(fog);
         VERTICES.vertices[n].colour.set(colour);
     }
-    DRAW_WORK.half[0].set_bits(size);
+    crate::effects::owner::effects().frame.draw_work.half[0].set_bits(size);
     let at = subcell << 4;
     let place = |n: usize| masks.surface.word(0x400 + at as usize + 4 * n);
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
@@ -87,13 +93,16 @@ pub fn draw_subcell_sprite(
         return Ok(());
     }
     draw_fan();
-    DRAW.polygon_vertex_count.set_bits(4u32);
+    crate::scene::owner::scene()
+        .drawing
+        .scene
+        .polygon_vertex_count
+        .set_bits(4u32);
     Ok(())
 }
 
-use crate::effects::frame_state::{DRAW_WORK, DrawWork};
+use crate::effects::frame_state::DrawWork;
 use crate::effects::plain::st_cell;
-use crate::effects::setup::SETTINGS;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
@@ -137,7 +146,7 @@ fn turn_x87(frame: &Frame, p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
 
 /// `square`'s x87 block as plain Rust on the x87 model (41 instructions), same order and memory places.
 fn square_x87(dw: &DrawWork) {
-    let t0 = ld(DRAW.view_scale.bits());
+    let t0 = ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = bh::ld(dw.turned[2].bits());
     let t3 = t2 * bh::ld(dw.z_k.bits());
@@ -152,7 +161,7 @@ fn square_x87(dw: &DrawWork) {
     let t6 = t1 * bh::ld(dw.turned[0].bits());
     let t7 = t1 * bh::ld(dw.turned[1].bits());
     let t8 = -t7;
-    let t9 = t8 + ld(DRAW.view_centre[1].bits());
+    let t9 = t8 + ld(crate::scene::owner::scene().drawing.scene.view_centre[1].bits());
     let t10 = t9 - bh::ld(dw.half[1].bits());
     st_cell(&VERTICES.vertices[0].y, t10);
     let t11 = t9 - bh::ld(dw.half[1].bits());
@@ -161,7 +170,7 @@ fn square_x87(dw: &DrawWork) {
     st_cell(&VERTICES.vertices[2].y, t12);
     let t13 = t9 + bh::ld(dw.half[1].bits());
     st_cell(&VERTICES.vertices[3].y, t13);
-    let t14 = t6 + ld(DRAW.view_centre[0].bits());
+    let t14 = t6 + ld(crate::scene::owner::scene().drawing.scene.view_centre[0].bits());
     let t15 = t14 - bh::ld(dw.half[0].bits());
     st_cell(&VERTICES.vertices[0].x, t15);
     let t16 = t14 + bh::ld(dw.half[0].bits());

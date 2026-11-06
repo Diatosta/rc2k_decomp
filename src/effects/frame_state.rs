@@ -43,44 +43,48 @@ pub struct DrawWork {
     pub z_k: Float,
 }
 
-pub static DRAW_WORK: DrawWork = DrawWork {
-    profile_work: [const { Float::from_bits(0x0) }; 11],
-    _gap_8eb89d: Bytes::new([0; 24]),
-    half: [Dword::new(0x0), Dword::new(0x0)],
-    sprite_half: [
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-    ],
-    ends_scale: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    turned: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
-    _gap_8eb8ed: Bytes::new([
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
-    ]),
-    sides: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_8eb949: Bytes::new([0; 8]),
-    step: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    _gap_8eb95d: Bytes::new([0; 4]),
-    near: Dword::new(0x47800000),
-    _gap_8eb965: Bytes::new([0x00, 0x00, 0x80, 0x3B]),
-    uv_k: Float::from_bits(0x37800000),
-    z_k: Float::from_bits(0x0),
-};
+impl DrawWork {
+    pub const fn new() -> Self {
+        Self {
+            profile_work: [const { Float::from_bits(0x0) }; 11],
+            _gap_8eb89d: Bytes::new([0; 24]),
+            half: [Dword::new(0x0), Dword::new(0x0)],
+            sprite_half: [
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+            ],
+            ends_scale: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            turned: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            second: [Dword::new(0x0), Dword::new(0x0), Dword::new(0x0)],
+            _gap_8eb8ed: Bytes::new([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
+            ]),
+            sides: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_8eb949: Bytes::new([0; 8]),
+            step: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            _gap_8eb95d: Bytes::new([0; 4]),
+            near: Dword::new(0x47800000),
+            _gap_8eb965: Bytes::new([0x00, 0x00, 0x80, 0x3B]),
+            uv_k: Float::from_bits(0x37800000),
+            z_k: Float::from_bits(0x0),
+        }
+    }
+}
 
 impl DrawWork {
     pub const START: usize = 0x8EB871;
@@ -89,7 +93,8 @@ impl DrawWork {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const DRAW_WORK) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::effects().frame.draw_work)
+            as usize
     }
 }
 
@@ -121,25 +126,29 @@ pub struct ViewVars {
     pub turned_points: [[Float; 3]; 3],
 }
 
-pub static VIEW_VARS: ViewVars = ViewVars {
-    heading: Float::from_bits(0x0),
-    step: Dword::new(0x0),
-    facing: Float::from_bits(0x0),
-    cleared: Dword::new(0x0),
-    ribbon_way: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_8f398d: Bytes::new([0; 4]),
-    ribbon_sides: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_8f3999: Bytes::new([0; 4]),
-    ribbon_sides_2: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_8f39a5: Bytes::new([0; 4]),
-    turned_points: [const {
-        [
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-            Float::from_bits(0x0),
-        ]
-    }; 3],
-};
+impl ViewVars {
+    pub const fn new() -> Self {
+        Self {
+            heading: Float::from_bits(0x0),
+            step: Dword::new(0x0),
+            facing: Float::from_bits(0x0),
+            cleared: Dword::new(0x0),
+            ribbon_way: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_8f398d: Bytes::new([0; 4]),
+            ribbon_sides: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_8f3999: Bytes::new([0; 4]),
+            ribbon_sides_2: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_8f39a5: Bytes::new([0; 4]),
+            turned_points: [const {
+                [
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                    Float::from_bits(0x0),
+                ]
+            }; 3],
+        }
+    }
+}
 
 impl ViewVars {
     pub const START: usize = 0x8F3975;
@@ -148,7 +157,8 @@ impl ViewVars {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const VIEW_VARS) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::effects().frame.view_vars)
+            as usize
     }
 }
 
@@ -192,62 +202,66 @@ pub struct DrawFrame {
     pub flare_way: [Float; 2],
 }
 
-pub static DRAW_FRAME: DrawFrame = DrawFrame {
-    profiles_done: Dword::new(0x0),
-    profile_steps: [Float::from_bits(0x43800000), Float::from_bits(0x43800000)],
-    points: [
-        [
-            Float::from_bits(0xC7BF6800),
-            Float::from_bits(0xC7333333),
-            Float::from_bits(0xC7475C00),
-        ],
-        [
-            Float::from_bits(0xC7BF6800),
-            Float::from_bits(0xC7333333),
-            Float::from_bits(0x47475C00),
-        ],
-        [
-            Float::from_bits(0xC7BF6800),
-            Float::from_bits(0xC7333333),
-            Float::from_bits(0x0),
-        ],
-    ],
-    last_source: Dword::new(0x0),
-    _gap_91ff72: Bytes::new([
-        0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00,
-    ]),
-    level: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    other: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-    ],
-    _gap_91ff96: Bytes::new([0; 4]),
-    times: [Float::from_bits(0x42C80000), Float::from_bits(0x42C80000)],
-    _gap_91ffa2: Bytes::new([0; 4]),
-    colour: Dword::new(0x43800000),
-    places: [
-        Dword::new(0x3B000000),
-        Dword::new(0x3B000000),
-        Dword::new(0x3EEDCCCD),
-        Dword::new(0x3EEDCCCD),
-    ],
-    cleared: Dword::new(0x0),
-    last: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    _gap_91ffca: Bytes::new([
-        0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0xA0, 0x41, 0x1A, 0x00, 0x48, 0x42,
-    ]),
-    flare_length: Float::from_bits(0x0),
-    flare_way: [Float::from_bits(0x0), Float::from_bits(0x0)],
-};
+impl DrawFrame {
+    pub const fn new() -> Self {
+        Self {
+            profiles_done: Dword::new(0x0),
+            profile_steps: [Float::from_bits(0x43800000), Float::from_bits(0x43800000)],
+            points: [
+                [
+                    Float::from_bits(0xC7BF6800),
+                    Float::from_bits(0xC7333333),
+                    Float::from_bits(0xC7475C00),
+                ],
+                [
+                    Float::from_bits(0xC7BF6800),
+                    Float::from_bits(0xC7333333),
+                    Float::from_bits(0x47475C00),
+                ],
+                [
+                    Float::from_bits(0xC7BF6800),
+                    Float::from_bits(0xC7333333),
+                    Float::from_bits(0x0),
+                ],
+            ],
+            last_source: Dword::new(0x0),
+            _gap_91ff72: Bytes::new([
+                0x00, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00, 0x06, 0x00, 0x00, 0x00,
+            ]),
+            level: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            other: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+            ],
+            _gap_91ff96: Bytes::new([0; 4]),
+            times: [Float::from_bits(0x42C80000), Float::from_bits(0x42C80000)],
+            _gap_91ffa2: Bytes::new([0; 4]),
+            colour: Dword::new(0x43800000),
+            places: [
+                Dword::new(0x3B000000),
+                Dword::new(0x3B000000),
+                Dword::new(0x3EEDCCCD),
+                Dword::new(0x3EEDCCCD),
+            ],
+            cleared: Dword::new(0x0),
+            last: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            _gap_91ffca: Bytes::new([
+                0x00, 0x00, 0x00, 0x00, 0xCD, 0xCC, 0xA0, 0x41, 0x1A, 0x00, 0x48, 0x42,
+            ]),
+            flare_length: Float::from_bits(0x0),
+            flare_way: [Float::from_bits(0x0), Float::from_bits(0x0)],
+        }
+    }
+}
 
 impl DrawFrame {
     pub const START: usize = 0x91FF3E;
@@ -256,7 +270,8 @@ impl DrawFrame {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const DRAW_FRAME) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::effects().frame.draw_frame)
+            as usize
     }
 }
 
@@ -274,70 +289,74 @@ pub struct FlareParts {
     pub size: [Dword; 17],
 }
 
-pub static FLARE_PARTS: FlareParts = FlareParts {
-    unit: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    corner: [
-        Dword::new(0x40),
-        Dword::new(0x41),
-        Dword::new(0x42),
-        Dword::new(0x45),
-        Dword::new(0x43),
-        Dword::new(0x43),
-        Dword::new(0x43),
-        Dword::new(0x44),
-        Dword::new(0x45),
-        Dword::new(0x45),
-        Dword::new(0x46),
-        Dword::new(0x46),
-        Dword::new(0x46),
-        Dword::new(0x47),
-        Dword::new(0x45),
-        Dword::new(0x48),
-        Dword::new(0x49),
-    ],
-    unread: [
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xF0FFF),
-        Dword::new(0xFFFFFF),
-        Dword::new(0xFFFFFF),
-    ],
-    size: [
-        Dword::new(0x85),
-        Dword::new(0xBA),
-        Dword::new(0x31),
-        Dword::new(0x50),
-        Dword::new(0x16),
-        Dword::new(0x47),
-        Dword::new(0x26),
-        Dword::new(0x18),
-        Dword::new(0x6),
-        Dword::new(0x8),
-        Dword::new(0x30),
-        Dword::new(0x57),
-        Dword::new(0x16),
-        Dword::new(0x24),
-        Dword::new(0x11),
-        Dword::new(0x7E),
-        Dword::new(0xFB),
-    ],
-};
+impl FlareParts {
+    pub const fn new() -> Self {
+        Self {
+            unit: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            corner: [
+                Dword::new(0x40),
+                Dword::new(0x41),
+                Dword::new(0x42),
+                Dword::new(0x45),
+                Dword::new(0x43),
+                Dword::new(0x43),
+                Dword::new(0x43),
+                Dword::new(0x44),
+                Dword::new(0x45),
+                Dword::new(0x45),
+                Dword::new(0x46),
+                Dword::new(0x46),
+                Dword::new(0x46),
+                Dword::new(0x47),
+                Dword::new(0x45),
+                Dword::new(0x48),
+                Dword::new(0x49),
+            ],
+            unread: [
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xF0FFF),
+                Dword::new(0xFFFFFF),
+                Dword::new(0xFFFFFF),
+            ],
+            size: [
+                Dword::new(0x85),
+                Dword::new(0xBA),
+                Dword::new(0x31),
+                Dword::new(0x50),
+                Dword::new(0x16),
+                Dword::new(0x47),
+                Dword::new(0x26),
+                Dword::new(0x18),
+                Dword::new(0x6),
+                Dword::new(0x8),
+                Dword::new(0x30),
+                Dword::new(0x57),
+                Dword::new(0x16),
+                Dword::new(0x24),
+                Dword::new(0x11),
+                Dword::new(0x7E),
+                Dword::new(0xFB),
+            ],
+        }
+    }
+}
 
 impl FlareParts {
     pub const START: usize = 0x92051E;
@@ -346,7 +365,8 @@ impl FlareParts {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const FLARE_PARTS) as usize
+        crate::pointers::game_address(&raw const crate::effects::owner::effects().frame.flare_parts)
+            as usize
     }
 }
 
@@ -362,11 +382,15 @@ pub struct FlareScales {
     pub scale: [Float; 2],
 }
 
-pub static FLARE_SCALES: FlareScales = FlareScales {
-    fade: [Float::from_bits(0x3F000000), Float::from_bits(0x437F0000)],
-    size_k: Float::from_bits(0x3FC00000),
-    scale: [Float::from_bits(0x3F000000), Float::from_bits(0x3F000000)],
-};
+impl FlareScales {
+    pub const fn new() -> Self {
+        Self {
+            fade: [Float::from_bits(0x3F000000), Float::from_bits(0x437F0000)],
+            size_k: Float::from_bits(0x3FC00000),
+            scale: [Float::from_bits(0x3F000000), Float::from_bits(0x3F000000)],
+        }
+    }
+}
 
 impl FlareScales {
     pub const START: usize = 0x9206D2;
@@ -375,7 +399,9 @@ impl FlareScales {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const FLARE_SCALES) as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::effects().frame.flare_scales,
+        ) as usize
     }
 }
 

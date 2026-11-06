@@ -27,9 +27,6 @@ use crate::input::store::DEVICES;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::add_car_lights;
 use crate::scene::add_point_lights::add_point_lights;
-use crate::scene::light_store::LIGHT_STATE;
-use crate::scene::light_work_store::LIGHT_WORK;
-use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::vertex_light::plus;
 use crate::session::MACHINE;
 
@@ -44,12 +41,23 @@ pub fn set_object_light(
     gather: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
-    OBJECT_WORK.light_added.set_bits(0u32);
-    let (clear_strength, own_car) = match object_light(LIGHT_WORK.light_kind.bits(), || {
-        DEVICES.keys_now.get(0x18) != 0 // byte_4F6B74
-    }) {
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .light_added
+        .set_bits(0u32);
+    let (clear_strength, own_car) = match object_light(
+        crate::scene::owner::scene().lights.work.light_kind.bits(),
+        || {
+            DEVICES.keys_now.get(0x18) != 0 // byte_4F6B74
+        },
+    ) {
         ObjectLight::White => {
-            OBJECT_WORK.light_added.set_bits(WHITE);
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .light_added
+                .set_bits(WHITE);
             return Ok(());
         }
         ObjectLight::Gathered {
@@ -59,11 +67,15 @@ pub fn set_object_light(
         ObjectLight::Nothing => return Ok(()),
     };
     if clear_strength {
-        OBJECT_WORK.light_strength.set_bits(0u32);
+        crate::scene::owner::scene()
+            .drawing
+            .object_work
+            .light_strength
+            .set_bits(0u32);
     }
     crate::session::write_bits(
-        &LIGHT_STATE.lit_place,
-        crate::session::read_bits::<_, 3>(&OBJECT_WORK.place),
+        &crate::scene::owner::scene().lights.state.lit_place,
+        crate::session::read_bits::<_, 3>(&crate::scene::owner::scene().drawing.object_work.place),
     );
     if own_car {
         race.physics
@@ -71,17 +83,29 @@ pub fn set_object_light(
             .drawn_car_light
             .set_bits(race.frame.view_and_records.view_vars.drawn_car.bits());
     }
-    LIGHT_WORK.light_colour.set_bits(0u32);
+    crate::scene::owner::scene()
+        .lights
+        .work
+        .light_colour
+        .set_bits(0u32);
     gather()?;
     if own_car {
         race.physics.ground.drawn_car_light.set_bits(u32::MAX);
     }
     let mmx = MACHINE.has_mmx.get() != 0;
-    OBJECT_WORK.light_added.set_bits(plus(
-        LIGHT_WORK.light_colour.bits(),
-        OBJECT_WORK.other_light.bits(),
-        mmx,
-    ));
+    crate::scene::owner::scene()
+        .drawing
+        .object_work
+        .light_added
+        .set_bits(plus(
+            crate::scene::owner::scene().lights.work.light_colour.bits(),
+            crate::scene::owner::scene()
+                .drawing
+                .object_work
+                .other_light
+                .bits(),
+            mmx,
+        ));
     Ok(())
 }
 

@@ -28,7 +28,6 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
 use std::cmp::Ordering;
 
@@ -47,10 +46,14 @@ pub fn wheel_springs(race: &Race) {
         let q = &c.wheel_squeeze[k];
         let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);
         let old = x87::loaded(q.bits());
-        DRAW.work_dword.set(old);
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .work_dword
+            .set(old);
         c.wheel_squeeze_last[k].set_bits(old);
         let eax = race.physics.contact.probe_height[k].get().wrapping_neg();
-        DRAW.scratch.set(eax);
+        crate::scene::owner::scene().drawing.scene.scratch.set(eax);
         q.set_bits(ext_div2(
             int_80(eax as i32, false),
             race.course.numbers.k65536.bits(),
@@ -69,7 +72,7 @@ pub fn wheel_springs(race: &Race) {
         ));
         damping.set_bits(sub_mul(
             q.bits(),
-            DRAW.work_dword.get(),
+            crate::scene::owner::scene().drawing.scene.work_dword.get(),
             ph.handling[5].bits(),
         ));
         if below(damping.bits(), race.course.numbers.zero.bits()) {

@@ -11,8 +11,6 @@
 //! a first slot past the table.
 
 use crate::errors::BadInput;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::with_cells;
 
 // ---- Rust version ----
@@ -23,9 +21,12 @@ pub fn assign_kind_textures() -> Result<(), BadInput> {
     // Converted: `rc2k_core::scene::textures::assign_kind_textures`.
     with_cells(
         [
-            &KIND_TEXTURES.kind_first_slots,
-            &KIND_TEXTURES.kind_first_textures,
-            &TEXTURE_PLACES.slot_wanted,
+            &crate::scene::owner::scene().textures.kinds.kind_first_slots,
+            &crate::scene::owner::scene()
+                .textures
+                .kinds
+                .kind_first_textures,
+            &crate::scene::owner::scene().textures.places.slot_wanted,
         ],
         |[slots, textures, wanted]| {
             rc2k_core::scene::textures::assign_kind_textures(slots, textures, wanted)

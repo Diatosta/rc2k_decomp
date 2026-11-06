@@ -13,8 +13,6 @@
 use crate::errors::Refused;
 use crate::race::owner::race;
 use crate::scene::load_object::load_object;
-use crate::scene::object_store::OBJECT_WORK;
-use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::scene::objects::SLOTS;
 use crate::scene::reset_objects::reset_objects;
 
@@ -29,22 +27,20 @@ pub fn load_front_end_objects(scene: &crate::scene::owner::Scene) -> Result<(), 
     let race = race();
     let course = &race.course;
     reset_objects(course)?;
-    crate::scene::object_slots_store::OBJECT_SLOTS
-        .texture_count
-        .set(0);
-    crate::scene::object_slots_store::OBJECT_SLOTS
-        .no_normals
-        .set(0);
+    scene.objects.slots.texture_count.set(0);
+    scene.objects.slots.no_normals.set(0);
     for slot in 0..SLOTS {
-        let kind: u32 = OBJECT_TABLES.slot_kinds[slot as usize].get();
-        OBJECT_WORK.loading_kind.set_bits(kind);
-        OBJECT_WORK.loading_slot.set_bits(slot);
+        let kind: u32 = scene.objects.tables.slot_kinds[slot as usize].get();
+        scene.drawing.object_work.loading_kind.set_bits(kind);
+        scene.drawing.object_work.loading_slot.set_bits(slot);
         load_object(scene, race)?;
     }
-    let cursor: u32 = OBJECT_WORK.face_cursor.bits();
-    OBJECT_WORK
+    let cursor: u32 = scene.drawing.object_work.face_cursor.bits();
+    scene
+        .drawing
+        .object_work
         .point_memory_total
-        .set_bits(OBJECT_TABLES.point_count.get().wrapping_mul(12));
-    OBJECT_WORK.face_memory_total.set_bits(cursor);
+        .set_bits(scene.objects.tables.point_count.get().wrapping_mul(12));
+    scene.drawing.object_work.face_memory_total.set_bits(cursor);
     Ok(())
 }

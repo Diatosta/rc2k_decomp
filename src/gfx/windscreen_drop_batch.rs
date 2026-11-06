@@ -32,13 +32,17 @@ pub struct WindscreenDrops {
     pub records: Bytes<RECORDS_LEN>,
 }
 
-/// The batch; the first values are the image's (all zero).
-pub static WINDSCREEN_DROP_BATCH: WindscreenDrops = WindscreenDrops {
-    index_count: Dword::new(0),
-    fans: Bytes::new([0; FANS_LEN]),
-    vertex_count: Dword::new(0),
-    records: Bytes::new([0; RECORDS_LEN]),
-};
+impl WindscreenDrops {
+    /// The batch; the first values are the image's (all zero).
+    pub const fn new() -> Self {
+        WindscreenDrops {
+            index_count: Dword::new(0),
+            fans: Bytes::new([0; FANS_LEN]),
+            vertex_count: Dword::new(0),
+            records: Bytes::new([0; RECORDS_LEN]),
+        }
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -47,7 +51,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&WINDSCREEN_DROP_BATCH, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::gfx::owner::gfx().card.windscreen_drop_batch,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
@@ -57,15 +65,27 @@ mod tests {
         assert_eq!(offset_of!(WindscreenDrops, records), 0x625A44 - START);
         assert_eq!(
             crate::moved::place(START),
-            WINDSCREEN_DROP_BATCH.index_count.addr() as usize
+            crate::gfx::owner::gfx()
+                .card
+                .windscreen_drop_batch
+                .index_count
+                .addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x624240),
-            WINDSCREEN_DROP_BATCH.fans.addr() as usize
+            crate::gfx::owner::gfx()
+                .card
+                .windscreen_drop_batch
+                .fans
+                .addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x625A44),
-            WINDSCREEN_DROP_BATCH.records.addr() as usize
+            crate::gfx::owner::gfx()
+                .card
+                .windscreen_drop_batch
+                .records
+                .addr() as usize
         );
     }
 }

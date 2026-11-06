@@ -4,8 +4,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
-use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::SLOTS;
 use crate::session::{read_all, write_all};
 
@@ -36,11 +34,15 @@ pub fn update(menus: &Menus, entries: [u32; 4]) -> Result<(), BadInput> {
         }
         wanted[n] = crate::menu::cars_store::description(record)?.get().car;
     }
-    let first_slot: u32 = KIND_TEXTURES.kind_first_slots[KIND].get();
+    let first_slot: u32 = crate::scene::owner::scene().textures.kinds.kind_first_slots[KIND].get();
     if first_slot.checked_add(32).is_none_or(|end| end > SLOTS) {
         return Err(BadInput("the pictures' slots lie past the table"));
     }
-    let first_texture: u32 = KIND_TEXTURES.kind_first_textures[KIND].get();
+    let first_texture: u32 = crate::scene::owner::scene()
+        .textures
+        .kinds
+        .kind_first_textures[KIND]
+        .get();
     write_all(&menus.screens.state.carousel_pictures.shown, wanted);
 
     // Converted: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
@@ -52,7 +54,8 @@ pub fn update(menus: &Menus, entries: [u32; 4]) -> Result<(), BadInput> {
     write_all(&menus.screens.state.carousel_pictures.held, held);
     let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
     for (n, texture) in textures.into_iter().enumerate() {
-        TEXTURE_PLACES.slot_wanted[first_slot as usize + n].set(texture);
+        crate::scene::owner::scene().textures.places.slot_wanted[first_slot as usize + n]
+            .set(texture);
     }
     // What the original leaves in eax, ebx, ecx, esi and edi its callers' later calls
     // overwrite or never read (the carousel takes ebx and ecx anew).

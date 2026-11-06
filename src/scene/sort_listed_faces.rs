@@ -16,7 +16,6 @@
 //! in the core's tests), before changing anything.
 
 use crate::errors::BadInput;
-use crate::scene::light_work_store::LIGHT_WORK;
 
 const MOST: u32 = 0x1000;
 
@@ -24,15 +23,19 @@ const MOST: u32 = 0x1000;
 
 /// Converted: `rc2k_core::scene::face_order::sort_listed_faces`.
 pub fn sort_listed_faces() -> Result<(), BadInput> {
-    let listed: u32 = LIGHT_WORK.listed_face_count.bits();
+    let listed: u32 = crate::scene::owner::scene()
+        .lights
+        .work
+        .listed_face_count
+        .bits();
     if listed > MOST {
         return Err(BadInput("more faces listed than the list holds"));
     }
     // The list runs on past `listed_faces` into the store's next fields, as
     // `scene::list_object_face` writes it.
     let (slots, cells) = (
-        &crate::scene::object_slots_store::OBJECT_SLOTS,
-        &crate::scene::object_slots_store::OBJECT_SLOTS.listed_faces,
+        &crate::scene::owner::scene().objects.slots,
+        &crate::scene::owner::scene().objects.slots.listed_faces,
     );
     let mut list = Vec::with_capacity(listed as usize);
     for n in 0..listed as usize {
@@ -54,7 +57,6 @@ pub fn sort_listed_faces() -> Result<(), BadInput> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::scene::object_slots_store::OBJECT_SLOTS;
     use crate::session::{read_on_in, write_on_in};
 
     /// A list longer than `listed_faces`' 0x400 entries runs on into the store's next fields.
@@ -62,22 +64,51 @@ mod tests {
     fn sorts_a_list_past_the_field() {
         let _lock = crate::store::test_lock();
         const LISTED: usize = 0x408;
-        let cells = &OBJECT_SLOTS.listed_faces;
-        let word = |n: usize| read_on_in(&OBJECT_SLOTS, cells, n, "a test").unwrap();
-        let put = |n: usize, v: u32| write_on_in(&OBJECT_SLOTS, cells, n, v, "a test").unwrap();
+        let cells = &crate::scene::owner::scene().objects.slots.listed_faces;
+        let word = |n: usize| {
+            read_on_in(
+                &crate::scene::owner::scene().objects.slots,
+                cells,
+                n,
+                "a test",
+            )
+            .unwrap()
+        };
+        let put = |n: usize, v: u32| {
+            write_on_in(
+                &crate::scene::owner::scene().objects.slots,
+                cells,
+                n,
+                v,
+                "a test",
+            )
+            .unwrap();
+        };
         let kept: Vec<u32> = (0..4 * LISTED).map(word).collect();
-        let count = LIGHT_WORK.listed_face_count.bits();
+        let count = crate::scene::owner::scene()
+            .lights
+            .work
+            .listed_face_count
+            .bits();
         for n in 0..LISTED {
             put(4 * n, n as u32);
             put(4 * n + 1, n as u32);
         }
-        LIGHT_WORK.listed_face_count.set_bits(LISTED as u32);
+        crate::scene::owner::scene()
+            .lights
+            .work
+            .listed_face_count
+            .set_bits(LISTED as u32);
         let sorted = sort_listed_faces();
         let keys: Vec<u32> = (0..LISTED).map(|n| word(4 * n + 1)).collect();
         for (n, &v) in kept.iter().enumerate() {
             put(n, v);
         }
-        LIGHT_WORK.listed_face_count.set_bits(count);
+        crate::scene::owner::scene()
+            .lights
+            .work
+            .listed_face_count
+            .set_bits(count);
         sorted.unwrap();
         assert!(keys.windows(2).all(|k| k[0] >= k[1]), "largest key first");
     }

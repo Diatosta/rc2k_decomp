@@ -4,9 +4,7 @@
 //! first row, count) for `draw_mask`. The triangle sets the x87 to round toward zero for
 //! all of it.
 
-use crate::effects::mask_constants::MASK_CONSTANTS;
 use crate::effects::mask_store::Masks;
-use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::session::{Float, read_bits, write_bits};
@@ -38,7 +36,7 @@ fn run_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 /// The rows the edge pair's loop runs (its check: the row rounded below y1 rounded, the
 /// row counting up by `flt_89C9AC`), or `None` past `MOST_ROWS`.
 pub fn edge_rows(edge: &[u32; 6]) -> Option<u32> {
-    let one: u32 = MASK_CONSTANTS.ones[2].bits();
+    let one: u32 = crate::effects::owner::effects().setup.mask_constants.ones[2].bits();
     let mut row = x87::round_float(edge[0]);
     let end = x87::to_int(edge[1]);
     let mut rows = 0;
@@ -77,7 +75,7 @@ pub fn span_edges(masks: &Masks, to: u32) -> Result<u32, Refused> {
         let e: [u32; 6] = read_bits(&masks.vars.edge);
         room(to, edge_rows(&e))?;
         let [y0, y1, xa0, xb0, xa1, xb1] = e;
-        let ones: [u32; 3] = read_bits(&MASK_CONSTANTS.ones);
+        let ones: [u32; 3] = read_bits(&crate::effects::owner::effects().setup.mask_constants.ones);
         let height = x87::sub(y1, y0);
         masks.vars.height.set_bits(height);
         let slopes = [
@@ -93,7 +91,11 @@ pub fn span_edges(masks: &Masks, to: u32) -> Result<u32, Refused> {
         loop {
             let r = x87::to_int(row);
             let end = x87::to_int(y1);
-            MARKS_WORK.scratch.set(end as u32);
+            crate::effects::owner::effects()
+                .setup
+                .work
+                .scratch
+                .set(end as u32);
             row = x87::add(row, ones[2]);
             if r >= end {
                 break;
@@ -219,7 +221,11 @@ pub fn span_triangle(masks: &Masks, at: &[Float; 6]) -> Result<(), Refused> {
         let count = (to - cursor) >> 3;
         // Through `dword_71C880`, as the original's `fistp`.
         let first = x87::to_int(y0) as u32;
-        MARKS_WORK.scratch.set(first);
+        crate::effects::owner::effects()
+            .setup
+            .work
+            .scratch
+            .set(first);
         run_put(masks, runs + 4, first)?;
         run_put(masks, runs + 8, count)?;
         masks

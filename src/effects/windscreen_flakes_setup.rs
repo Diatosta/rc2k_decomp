@@ -14,8 +14,6 @@ use crate::d3d::vertices_store::VERTICES;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 use crate::math::x87;
-use crate::scene::draw_store::DRAW;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::session::read_bits;
 const STATES: [(u32, u32); 7] = [
     (2, 0x11),
@@ -37,12 +35,18 @@ pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4]) {
     use crate::scene::set_render_state::set_render_state;
     {
         crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
+        crate::scene::set_texture::set_texture(
+            crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
+        );
         for (value, state) in STATES {
             set_render_state(value, state);
         }
         for n in 0..4 {
-            DRAW.scratch.set_bits(0x100u32);
+            crate::scene::owner::scene()
+                .drawing
+                .scene
+                .scratch
+                .set_bits(0x100u32);
             VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
         }
         for n in 0..4 {
@@ -54,9 +58,13 @@ pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4]) {
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
-        DRAW.polygon_vertex_count.set_bits(4u32);
-        fl.tables
-            .inverse
-            .set_bits(x87::reciprocal(DRAW.farthest.bits()));
+        crate::scene::owner::scene()
+            .drawing
+            .scene
+            .polygon_vertex_count
+            .set_bits(4u32);
+        fl.tables.inverse.set_bits(x87::reciprocal(
+            crate::scene::owner::scene().drawing.scene.farthest.bits(),
+        ));
     }
 }

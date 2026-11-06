@@ -17,7 +17,6 @@
 
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::ldi_cell;
-use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_step::windscreen_flakes_step;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
@@ -82,7 +81,13 @@ pub fn windscreen_flakes_frame(
     if marks.listener_switch_6.get() == 0 {
         return Ok(());
     }
-    if MARKS_KIND_FLOATS.running.bits() == 0 {
+    if crate::effects::owner::effects()
+        .setup
+        .kind_floats
+        .running
+        .bits()
+        == 0
+    {
         return Ok(());
     }
     windscreen_flakes_step(masks, drops, fl)?;

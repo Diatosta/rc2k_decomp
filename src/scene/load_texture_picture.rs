@@ -30,7 +30,6 @@ use crate::logfile::log_int::log_int;
 use crate::place::Place;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 // ---- game data ----
 
@@ -105,7 +104,13 @@ pub fn load_texture_picture(
         let car = picture_car(
             number,
             texture,
-            || KIND_TEXTURES.kind_first_textures[0x100].get(), // dword_5D0EE8,
+            || {
+                crate::scene::owner::scene()
+                    .textures
+                    .kinds
+                    .kind_first_textures[0x100]
+                    .get()
+            }, // dword_5D0EE8,
             || RACE_VIEW.race_cars.bits(),
         );
         if let Some(car) = car {

@@ -16,7 +16,6 @@ use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::Refused;
 use crate::race::owner_frame::Frame;
-use crate::scene::kind_texture_store::KIND_TEXTURES;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
 
@@ -35,7 +34,9 @@ pub fn ring_frame(
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[211].bits());
+        crate::scene::set_texture::set_texture(
+            crate::scene::owner::scene().textures.kinds.kind_first_slots[211].bits(),
+        );
         crate::scene::depth_test_off::depth_test_off();
         // dword_939BA6: the ninth of `lives_by_level`.
         // The settings' +0x7C: the first car record's +0x1C.

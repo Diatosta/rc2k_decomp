@@ -12,8 +12,8 @@ pub const RECORD: u32 = 0x78;
 /// Record `slot`; `slot` is unchecked (as the original's), the pointer bounded to the
 /// texture tables as a whole.
 pub fn record(slot: u32) -> crate::pointers::GamePtr {
-    use crate::gfx::texture_upload::{Pool, TEXTURE_TABLES, Textures};
-    crate::pointers::GamePtr::to(&TEXTURE_TABLES).offset(
+    use crate::gfx::texture_upload::{Pool, Textures};
+    crate::pointers::GamePtr::to(&crate::gfx::owner::gfx().card.texture_tables).offset(
         ((core::mem::offset_of!(Textures, system) + core::mem::offset_of!(Pool, records)) as u32)
             .wrapping_add(slot.wrapping_mul(RECORD)),
     )

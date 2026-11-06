@@ -13,8 +13,6 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::scratch::SCRATCH;
-use crate::gfx::pcx::PCX;
-use crate::gfx::picture_store::PICTURE;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
@@ -111,10 +109,12 @@ fn list(bytes: &Bytes<16>) -> crate::pointers::GamePtr {
 
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.
 fn take_format(frame: &Frame) -> Result<(u32, PixelFormat), BadInput> {
-    let kind = crate::gfx::texture_upload::TEXTURE_TABLES
+    let kind = crate::gfx::owner::gfx()
+        .card
+        .texture_tables
         .kind_index(3)
         .ok_or(BadInput("the map's pixel kind has no description"))?;
-    let description = crate::gfx::texture_upload::TEXTURE_TABLES.descriptions[kind].get();
+    let description = crate::gfx::owner::gfx().card.texture_tables.descriptions[kind].get();
     let bytes = description.bytes_per_pixel;
     frame.map.pixel_bytes.set(bytes);
     frame
@@ -324,16 +324,36 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
     )?;
     frame.map.key_pixels.set(key);
     let kept: [u32; 3] = [
-        PCX.width_limit.get(),
-        PCX.height_limit.get(),
-        PICTURE.buffer.get(),
+        crate::gfx::owner::gfx().pictures.pcx.width_limit.get(),
+        crate::gfx::owner::gfx().pictures.pcx.height_limit.get(),
+        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
     ];
-    PCX.width_limit.set(KEY_SIDE);
-    PCX.height_limit.set(KEY_SIDE);
-    PICTURE.width.set(KEY_SIDE);
-    PICTURE.height.set(KEY_SIDE);
-    PICTURE.row_bytes.set(KEY_ROW_BYTES);
-    PICTURE.buffer.set(key);
+    crate::gfx::owner::gfx()
+        .pictures
+        .pcx
+        .width_limit
+        .set(KEY_SIDE);
+    crate::gfx::owner::gfx()
+        .pictures
+        .pcx
+        .height_limit
+        .set(KEY_SIDE);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .width
+        .set(KEY_SIDE);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .height
+        .set(KEY_SIDE);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .row_bytes
+        .set(KEY_ROW_BYTES);
+    crate::gfx::owner::gfx().pictures.picture.buffer.set(key);
     let built = (|| -> Result<(), Refused> {
         if !crate::gfx::read_sheet::read_sheet(&crate::files::cstring(
             key_path,
@@ -341,10 +361,10 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
         )?)? {
             return Ok(());
         }
-        if PICTURE.flags.get() & 0x100 == 0 {
+        if crate::gfx::owner::gfx().pictures.picture.flags.get() & 0x100 == 0 {
             return Err(NOT_8BIT.into());
         }
-        let row: u32 = PICTURE.row_bytes.get();
+        let row: u32 = crate::gfx::owner::gfx().pictures.picture.row_bytes.get();
         // The key sheet, read in its buffer (offsets from its start).
         let dword = |sheet: &[u8], at: u32| -> Result<u32, BadInput> {
             sheet
@@ -391,7 +411,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
             return Ok(());
         }
         frame.map.tile_count.set(0u32);
-        let row: u32 = PICTURE.row_bytes.get();
+        let row: u32 = crate::gfx::owner::gfx().pictures.picture.row_bytes.get();
         // The marked tiles' pixels made from the picture (read into the key's buffer), then
         // put in the map's pixels in one go.
         let pixels =
@@ -433,9 +453,21 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
     })();
     // A fatal error or a refusal leaves everything as it stood.
     built?;
-    PICTURE.buffer.set(kept[2]);
-    PCX.height_limit.set(kept[1]);
-    PCX.width_limit.set(kept[0]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .picture
+        .buffer
+        .set(kept[2]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .pcx
+        .height_limit
+        .set(kept[1]);
+    crate::gfx::owner::gfx()
+        .pictures
+        .pcx
+        .width_limit
+        .set(kept[0]);
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
     crate::memory::free_list::free_list(list(&frame.map.key_list))?;
     frame.map.key_pixels.set(0u32);
