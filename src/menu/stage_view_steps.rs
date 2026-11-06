@@ -30,14 +30,15 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::records::find_record::{find_record_in, has_section};
 use crate::records::stages_store::RecordRef;
 use rc2k_core::menu::stage_screens;
 
 /// The record `index` / `section` pick.
-fn stage_record() -> Result<RecordRef, Refused> {
-    let screens = &menus().screens;
+fn stage_record(screens: &Screens) -> Result<RecordRef, Refused> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section = screens.event.section.get();
     if !has_section(table, section, 600)? {
@@ -60,21 +61,20 @@ fn small_section() -> Result<u32, Refused> {
     )?)
 }
 
-pub fn count_stage_pages() -> Result<(), Refused> {
-    let record = stage_record()?;
+pub fn count_stage_pages(screens: &Screens) -> Result<(), Refused> {
+    let record = stage_record(screens)?;
     // Converted: `rc2k_core::menu::event::stage_pages`.
     let fault = Fault::default();
     let n = rc2k_core::menu::event::stage_pages(|k| fault.ok(record.offset(k).map(RecordRef::tag)));
     fault.check()?;
     let n = n.ok_or(BadInput("more than 256 stage pages"))?;
-    menus().screens.event.stage_pages.set(n);
+    screens.event.stage_pages.set(n);
     Ok(())
 }
 
 /// `menu::play_stage_speech`.
-pub fn play_stage_speech() -> Result<(), Refused> {
-    let menus = menus();
-    let record = stage_record()?;
+pub fn play_stage_speech(menus: &Menus) -> Result<(), Refused> {
+    let record = stage_record(&menus.screens)?;
     if championship() {
         // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
         let fault = std::cell::Cell::new(None);
@@ -106,8 +106,7 @@ pub fn play_stage_speech() -> Result<(), Refused> {
 }
 
 /// `menu::play_rally_speech`: a key taken (and dropped), then the rally's speech.
-pub fn play_rally_speech() -> Result<(), Refused> {
-    let menus = menus();
+pub fn play_rally_speech(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::rally_speech`.
     let section = stage_screens::rally_speech(menus.play.champ_view.event_mode.get(), || {
         menus.screens.event.section.get()
@@ -130,8 +129,7 @@ pub fn play_rally_speech() -> Result<(), Refused> {
 
 /// `menu::load_welcome_picture`: the section's welcome picture under the title bar,
 /// converted; not loaded: the fatal error 0x80712345.
-pub fn load_welcome_picture() -> Result<(), Refused> {
-    let menus = menus();
+pub fn load_welcome_picture(menus: &Menus) -> Result<(), Refused> {
     let section = small_section()?;
     // Converted: `rc2k_core::menu::stage_screens::welcome`.
     let table: &[crate::session::Dword] =
@@ -161,8 +159,8 @@ pub fn load_welcome_picture() -> Result<(), Refused> {
 
 /// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the page stepped, the
 /// stage's map drawn and its speech played.
-pub fn step_stage_page(up: bool) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn step_stage_page(menus: &Menus, up: bool) -> Result<(), Refused> {
+    let screens = &menus.screens;
     let (page, pages) = (
         screens.event.stage_page.get(),
         screens.event.stage_pages.get(),
@@ -174,14 +172,14 @@ pub fn step_stage_page(up: bool) -> Result<(), Refused> {
         .event
         .index
         .set(screens.event.first_page_stage.get().wrapping_add(page));
-    crate::menu::stage_choice::draw_stage_map()?;
-    play_stage_speech()
+    crate::menu::stage_choice::draw_stage_map(menus)?;
+    play_stage_speech(menus)
 }
 
 /// The stage item's two looks: (+0x1C, +0x20, +0x50).
-pub fn style_stage_item(b: bool) -> Result<(), Refused> {
+pub fn style_stage_item(screens: &Screens, b: bool) -> Result<(), Refused> {
     use crate::menu::item_sprites_store::ItemSprite;
-    let item = crate::menu::item_at::item_at(1)?;
+    let item = crate::menu::item_at::item_at(screens, 1)?;
     let (a, c, font) = if b {
         (
             0xFFFF_FFA7,

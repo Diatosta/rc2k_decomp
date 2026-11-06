@@ -14,5 +14,5 @@ use crate::service::pages::{GEAR_RATIO, change_page};
 // ---- Rust version ----
 
 pub fn edit_gear_ratio(confirm: bool) -> Result<(), Refused> {
-    change_page(GEAR_RATIO, confirm)
+    change_page(crate::menu::owner::menus(), GEAR_RATIO, confirm)
 }

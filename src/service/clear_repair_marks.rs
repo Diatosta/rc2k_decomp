@@ -10,14 +10,15 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Tables;
 use crate::service::state::{marks, store_marks};
 
 // ---- Rust version ----
 
-pub fn clear_repair_marks() -> Result<(), BadInput> {
+pub fn clear_repair_marks(tables: &Tables) -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::repairs::clear`.
-    let mut t = marks();
+    let mut t = marks(tables);
     rc2k_core::service::repairs::clear(&mut t)?;
-    store_marks(&t);
+    store_marks(tables, &t);
     Ok(())
 }

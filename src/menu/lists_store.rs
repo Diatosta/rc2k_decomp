@@ -5,6 +5,7 @@
 //! last field is a 22-byte string: the struct is padded to a multiple of 4.
 
 use crate::menu::cars_store::car_cell;
+use crate::menu::owner::Tables;
 use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
@@ -177,8 +178,7 @@ const fn repair_ref(ida: u32) -> Dword {
 
 /// The car pages' pictures by page (the original's `page_picture_lists`, in its order; a car
 /// past a list reads on into the next, as there).
-pub fn page_pictures(page: u32) -> Result<&'static [Dword], crate::errors::BadInput> {
-    let tables = &menus().tables;
+pub fn page_pictures(tables: &Tables, page: u32) -> Result<&'_ [Dword], crate::errors::BadInput> {
     Ok(match page {
         0 => &tables.lists.page_pictures_a,
         1 => &tables.lists.page_pictures_c,

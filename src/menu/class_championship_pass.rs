@@ -12,14 +12,14 @@
 //! 0x100), before anything; what the steps refuse.
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::menu::standings_steps::number_standings;
 use rc2k_core::menu::class_pages;
 
 /// The first class (see the header).
-fn first_class() -> u32 {
-    let menus = menus();
+fn first_class(menus: &Menus) -> u32 {
     class_pages::first_championship_class(menus.screens.state.menus.class_mode.get(), || {
         menus.play.champ_view.event_mode.get()
     })
@@ -28,7 +28,7 @@ fn first_class() -> u32 {
 /// The Rust version (see the header).
 pub fn class_championship_pass() -> Result<(), Refused> {
     let menus = menus();
-    let first = first_class();
+    let first = first_class(menus);
     // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
     let classes = class_pages::classes(first, menus.screens.event.classes.get())?;
     let all: Vec<(u32, u32)> = walked_entries_b()?
@@ -44,7 +44,9 @@ pub fn class_championship_pass() -> Result<(), Refused> {
         menus.screens.loop_flags.ended_b.set(1u32);
         let numbered = number_standings(Which::B, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
-        crate::menu::show_class_championship_standings::show_class_championship_standings(class)?;
+        crate::menu::show_class_championship_standings::show_class_championship_standings(
+            menus, class,
+        )?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             break;
         }

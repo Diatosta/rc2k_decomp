@@ -16,7 +16,7 @@
 
 use crate::errors::Refused;
 use crate::menu::fn_list::ListCell;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::table_calls::call_listed;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 use crate::scene::light_store::LIGHT_STATE;
@@ -35,7 +35,7 @@ const END: u32 = u32::MAX;
 
 /// Runs the functions of the list `list` points at (the original keeps the registers
 /// around each of the scene list's; its functions take none either way).
-pub fn run_listed(list: &ListCell) -> Result<(), Refused> {
+pub fn run_listed(menus: &Menus, list: &ListCell) -> Result<(), Refused> {
     let entries = list.get()?.entries();
     let Some(end) = entries.iter().position(|e| e.get() == END) else {
         return Err(
@@ -43,7 +43,7 @@ pub fn run_listed(list: &ListCell) -> Result<(), Refused> {
         );
     };
     for e in &entries[..end] {
-        call_listed(e.get())?;
+        call_listed(menus, e.get())?;
     }
     Ok(())
 }
@@ -70,23 +70,26 @@ pub fn draw_menu(menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> 
 
 /// `menu` is edi at entry. Returns whether the
 /// frame was made (the original's clear carry).
-pub fn frame_callback(menu: crate::menu::menus_store::MenuId) -> Result<bool, Refused> {
-    let play = &menus().play;
+pub fn frame_callback(
+    menus: &Menus,
+    menu: crate::menu::menus_store::MenuId,
+) -> Result<bool, Refused> {
+    let play = &menus.play;
     if lock_failed() {
         return Ok(false);
     }
     copy_picture()?;
     draw_menu(menu)?;
-    run_listed(DRAW_LIST)?;
+    run_listed(menus, DRAW_LIST)?;
     unlock_surface();
     LIGHT_STATE.scene_state.set_bits(4u32);
     crate::scene::begin_scene::begin_scene();
-    run_listed(SCENE_LIST)?;
+    run_listed(menus, SCENE_LIST)?;
     crate::scene::end_scene::end_scene();
     if lock_failed() {
         return Ok(false);
     }
-    run_listed(OVERLAY_LIST)?;
+    run_listed(menus, OVERLAY_LIST)?;
     // Converted: `rc2k_core::menu::notice::drawn_now`.
     if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
         play.cheats.notice_due.get()

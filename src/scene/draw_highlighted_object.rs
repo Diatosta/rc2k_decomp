@@ -24,7 +24,7 @@
 //! `run` (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, menus};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -43,8 +43,11 @@ use crate::scene::object_store::OBJECT_WORK;
 // ---- Rust version ----
 
 /// `sub_49007F`: the highlighted item's object set up and drawn by `draw`.
-pub fn draw_highlighted(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn draw_highlighted(
+    menus: &Menus,
+    draw: &mut dyn FnMut() -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let screens = &menus.screens;
     let item = screens.loop_flags.item.get().wrapping_sub(1);
     if item >= ENTRIES {
         return Err(BadInput("a highlighted item of 0 or past the carousel's kinds").into());
@@ -59,7 +62,7 @@ pub fn draw_highlighted(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     OBJECT_WORK.place[2].set(screens.state.carousel.z.get());
     OBJECT_WORK.place[0].set_bits(0u32);
     if let Some(own) = own {
-        let [size, y, angle] = own_place(own)?;
+        let [size, y, angle] = own_place(&menus.tables, own)?;
         OBJECT_WORK.size.set_bits(size);
         if y != u32::MAX {
             OBJECT_WORK.place[1].set(y);
@@ -79,11 +82,12 @@ pub fn draw_highlighted(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 /// calls before it leave (the eax and ebx `sub_49007F` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
     let race = race();
+    let menus = menus();
     clear_depth_buffer();
     assign_kind_textures()?;
-    assign_menu_textures()?;
+    assign_menu_textures(&menus.tables)?;
     map_texture_places();
     load_slot_textures_in_game()?;
     LIGHT_STATE.draw_mode.set_bits(0u32);
-    draw_highlighted(&mut || draw_menu_object_in_game(race))
+    draw_highlighted(menus, &mut || draw_menu_object_in_game(race))
 }

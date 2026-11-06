@@ -11,7 +11,7 @@
 //! Caller: `screens::draw_two_column_panel`.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::screens::service_boxes::{quad, rd, set};
 use crate::session::Dword;
 
@@ -20,8 +20,7 @@ const MARKER_X: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_x; 
 const MARKER_Y: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_y; // g_markerY
 
 /// The Rust version: every register kept.
-pub fn draw_column_boxes() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn draw_column_boxes(screens: &Screens) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
     // are left as the original leaves them.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};

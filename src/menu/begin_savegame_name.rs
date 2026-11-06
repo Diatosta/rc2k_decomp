@@ -10,13 +10,14 @@
 
 use crate::errors::BadInput;
 use crate::menu::name_lists::savegame_name;
+use crate::menu::owner::Menus;
 use crate::menu::text_entry::begin_logged;
 
 // ---- Rust version ----
 
 /// `log` = false leaves the log lines out.
-pub fn begin_savegame_name(log: bool) -> Result<(), BadInput> {
+pub fn begin_savegame_name(menus: &Menus, log: bool) -> Result<(), BadInput> {
     let name = savegame_name()?;
     // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
-    begin_logged(name, log)
+    begin_logged(menus, name, log)
 }

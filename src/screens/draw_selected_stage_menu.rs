@@ -19,6 +19,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Play;
 use crate::menu::owner::menus;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
@@ -31,12 +32,12 @@ use crate::text::draw_text::Canvas;
 // ---- Rust version ----
 
 /// The string ids this function gives menu items 0 and 1: the group's and the table's titles.
-pub fn menu_titles() -> Result<Option<(u32, u32)>, BadInput> {
+pub fn menu_titles(play: &Play) -> Result<Option<(u32, u32)>, BadInput> {
     let Some(sel) = selection()? else {
         return Ok(None);
     };
     Ok(Some((
-        table_dword_at(&menus().play.results, GROUP_TITLES, sel.group)?,
+        table_dword_at(&play.results, GROUP_TITLES, sel.group)?,
         sel.table.title()?,
     )))
 }
@@ -44,12 +45,15 @@ pub fn menu_titles() -> Result<Option<(u32, u32)>, BadInput> {
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
 pub fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles()?) else {
+    let play = &menus().play;
+    let screens = &menus().screens;
+    let tables = &menus().tables;
+    let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles(play)?) else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );
     };
-    let (Some(item_0), Some(item_1)) = (menu_item_id(0), menu_item_id(1)) else {
+    let (Some(item_0), Some(item_1)) = (menu_item_id(screens, 0), menu_item_id(screens, 1)) else {
         return Err(BadInput("there is no current menu: the original writes through null").into());
     };
     item_0.set(group_title);
@@ -57,7 +61,7 @@ pub fn draw_selected_stage_menu(canvas: &mut dyn Canvas) -> Result<bool, Refused
     item_1.set(table_title);
 
     build_second_heading(sel.record)?;
-    draw_stage_body(sel.record, true, canvas)?;
+    draw_stage_body(tables, sel.record, true, canvas)?;
     draw_records_for_group(sel.group, sel.record, canvas)
 }
 

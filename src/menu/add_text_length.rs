@@ -7,12 +7,14 @@
 //! Refuses a text with no NUL in its first 0x1000 bytes.
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::menu::text_entry::with_entry;
 use rc2k_core::menu::text_entry::text_length;
 
 // ---- Rust version ----
 
 pub fn add_text_length(text: impl Into<crate::place::Place>) -> Result<(), BadInput> {
+    let menus = menus();
     // Converted: `rc2k_core::menu::text_entry::{text_length, Entry::add_length}`.
     let text = text.into();
     let fault = crate::menu::event_flow::Fault::default();
@@ -25,6 +27,6 @@ pub fn add_text_length(text: impl Into<crate::place::Place>) -> Result<(), BadIn
     });
     fault.check()?;
     let len = len?;
-    with_entry(|e| e.add_length(len));
+    with_entry(menus, |e| e.add_length(len));
     Ok(())
 }

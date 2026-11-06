@@ -13,12 +13,11 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::menu::screen_items_store::slot;
 
 /// The Rust version. (The original keeps every register of its caller.)
-pub fn apply_screen_mode() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn apply_screen_mode(screens: &Screens) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps::applied_mode`.
     use rc2k_core::menu::steps::{BACK_TO_MODE, TRY_CHOSEN_MODE, applied_mode};
     let display = &crate::gfx::owner::gfx().display;

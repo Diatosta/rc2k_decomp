@@ -26,7 +26,7 @@
 //! of 0x100 or more and a kind past the records.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, Tables};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
@@ -58,9 +58,8 @@ pub(crate) use crate::scene::find_object_of_kind::find_object_of_kind;
 
 /// A kind's own place: its size, y and angle (`unk_75950E`, 12 bytes each). The original
 /// reads on past the table's 73 for a kind below `OWN` (fixed: refused).
-pub(crate) fn own_place(own: u32) -> Result<[u32; 3], BadInput> {
-    let place = menus()
-        .tables
+pub(crate) fn own_place(tables: &Tables, own: u32) -> Result<[u32; 3], BadInput> {
+    let place = tables
         .lists
         .own_places
         .get(own as usize)
@@ -69,8 +68,8 @@ pub(crate) fn own_place(own: u32) -> Result<[u32; 3], BadInput> {
 }
 
 /// Reads only.
-fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
-    let screens = &menus().screens;
+fn settings(menus: &Menus, entry: u32, row: u32) -> Result<Settings, BadInput> {
+    let screens = &menus.screens;
     if entry >= ENTRIES {
         return Err(BadInput("a carousel entry past the table"));
     }
@@ -103,7 +102,7 @@ fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
         if own >= OWN {
             return Err(BadInput("a kind past the records of the kinds' own places"));
         }
-        let [size, y, angle] = own_place(own)?;
+        let [size, y, angle] = own_place(&menus.tables, own)?;
         set.size = Some(size);
         set.place[1] = y;
         set.angle_x = angle;
@@ -115,11 +114,12 @@ fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
 /// Carousel entry `entry` in row place `row` (ebx and ecx at the original's entry) set
 /// up and drawn by `draw`.
 pub fn draw_carousel_entry(
+    menus: &Menus,
     entry: u32,
     row: u32,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let set = settings(entry, row)?;
+    let set = settings(menus, entry, row)?;
     crate::session::write_bits(&OBJECT_WORK.place, set.place);
     if let Some(size) = set.size {
         OBJECT_WORK.size.set_bits(size);
@@ -127,7 +127,7 @@ pub fn draw_carousel_entry(
     OBJECT_WORK.angles[0].set_bits(set.angle_x);
     OBJECT_WORK.angles[1].set_bits(set.angle_y);
     crate::session::write_bits(&DRAW.view_offset, [0u32; 2]);
-    menus().screens.state.carousel.kind.set(set.kind);
+    menus.screens.state.carousel.kind.set(set.kind);
     FRAME_SWITCHES.object_number.set_bits(set.object);
     draw()
 }

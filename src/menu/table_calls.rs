@@ -14,6 +14,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::framework::{Regs, log};
 use crate::menu::menus_store::{MenuId, MenuItem};
+use crate::menu::owner::Menus;
 use crate::menu::table_routes::{item_fn, screen_fn};
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
@@ -21,9 +22,9 @@ use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 /// screen function of the typed tables, which takes no register. The lists the screens
 /// put in place are all the tables' (`rc2k_core::menu::tables::LISTS`, every one a list
 /// of screen functions); anything else in one is refused.
-pub fn call_listed(function: u32) -> Result<(), Refused> {
+pub fn call_listed(menus: &Menus, function: u32) -> Result<(), Refused> {
     match ScreenFn::from_ral(function) {
-        Some(f) => screen_fn(f),
+        Some(f) => screen_fn(menus, f),
         None => Err(BadInput("a listed function that is none of the screens'").into()),
     }
 }
@@ -32,13 +33,13 @@ pub fn call_listed(function: u32) -> Result<(), Refused> {
 /// typed tables. Of those the tables name as key callbacks only
 /// `RaiseControllerSensitivity` reads a register: edi, which is the item here; the rest
 /// get none (2026-10-24, `tables_data.rs`' `on_key` against `item_fn`'s reads).
-pub fn call_key(function: u32, item: &MenuItem) -> Result<(), Refused> {
+pub fn call_key(menus: &Menus, function: u32, item: &MenuItem) -> Result<(), Refused> {
     match ItemFn::from_ral(function) {
         // edi the item: its +0x2C, the left link.
         Some(ItemFn::RaiseControllerSensitivity) => {
             crate::menu::controller_items::raise_controller_sensitivity(item.links[2].get())
         }
-        Some(f) => item_fn(f, &ItemCall::default()),
+        Some(f) => item_fn(menus, f, &ItemCall::default()),
         None => Err(BadInput("a key callback that is none of the items' functions").into()),
     }
 }
@@ -65,16 +66,16 @@ impl ItemCall {
 
 /// A menu item's action (`menu::run_item_action`): the item's function with the value,
 /// the item and the menu. A refusal ends the program here, as `call`'s.
-pub fn call_action(function: u32, value: u32, _item: &MenuItem, menu: MenuId) {
+pub fn call_action(menus: &Menus, function: u32, value: u32, _item: &MenuItem, menu: MenuId) {
     let given = ItemCall {
         value,
         menu: Some(menu),
     };
     let ral = function;
     let result = if let Some(f) = ItemFn::from_ral(ral) {
-        Some((Named::Item(f), item_fn(f, &given)))
+        Some((Named::Item(f), item_fn(menus, f, &given)))
     } else {
-        ScreenFn::from_ral(ral).map(|f| (Named::Screen(f), screen_fn(f)))
+        ScreenFn::from_ral(ral).map(|f| (Named::Screen(f), screen_fn(menus, f)))
     };
     match result {
         Some((_, Ok(()))) => {}

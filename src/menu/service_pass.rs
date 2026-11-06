@@ -28,10 +28,11 @@ use crate::menu::standings::*;
 /// The Rust version (see the header).
 pub fn service_pass() -> Result<(), Refused> {
     let menus = menus();
+    let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
     // pauses, `goes_on`).
     use rc2k_core::menu::passes;
-    let players = counted_players()?;
+    let players = counted_players(screens)?;
     let due = { menus.screens.event.service_due.get() } == 1;
     for &p in &players {
         if due && passes::takes_part(p.get().entry) {
@@ -56,10 +57,10 @@ pub fn service_pass() -> Result<(), Refused> {
             }
             crate::menu::inspection_screen::inspection_screen()?;
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
-            crate::menu::fade_in::fade_in()?;
+            crate::menu::fade_in::fade_in(screens)?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
             menus.screens.state.driver_stats.repair_time.set(0);
-            crate::menu::driver_stats::driver_stats()?;
+            crate::menu::driver_stats::driver_stats(screens)?;
             menus.screens.state.menus.service_flag.set(0);
             crate::menu::reset_driver_condition::reset_driver_condition()?;
             crate::service::clear_repair_flags::clear_repair_flags()?;
@@ -74,9 +75,9 @@ pub fn service_pass() -> Result<(), Refused> {
                 break 'all;
             }
             crate::service::apply_repairs::apply_repairs_in_game()?;
-            crate::menu::set_player_entry_kind::set_player_entry_kind()?;
+            crate::menu::set_player_entry_kind::set_player_entry_kind(screens)?;
             if passes::is_out(p.get().entry) {
-                crate::menu::inspection_faults::inspection_faults()?;
+                crate::menu::inspection_faults::inspection_faults(menus)?;
                 run_screen(
                     &crate::menu::inspection_area_loop::SCREEN,
                     &Entry::default(),

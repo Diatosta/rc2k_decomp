@@ -29,7 +29,8 @@ fn current_record() -> Result<RecordRef, BadInput> {
 }
 /// The Rust version (see the header): the registers it leaves.
 pub fn keep_record_best() -> Result<(), Refused> {
-    let players = counted_players()?;
+    let screens = &menus().screens;
+    let players = counted_players(screens)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }

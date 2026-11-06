@@ -15,5 +15,5 @@ use crate::service::pages::{RIDE_HEIGHT, change_page};
 // ---- Rust version ----
 
 pub fn edit_ride_height(confirm: bool) -> Result<(), Refused> {
-    change_page(RIDE_HEIGHT, confirm)
+    change_page(crate::menu::owner::menus(), RIDE_HEIGHT, confirm)
 }

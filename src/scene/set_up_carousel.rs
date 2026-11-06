@@ -40,7 +40,7 @@ use crate::session::{Dword, write_all, write_prefix};
 
 // ---- game data ----
 const MENUS: u32 = 0x15;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, Tables, menus};
 use rc2k_core::scene::carousel;
 
 /// One step of a carousel's set-up.
@@ -96,9 +96,13 @@ fn run_op(op: Op) {
 /// Runs `f` with a reader of the list's entries (by number) that answers the list's end
 /// where an entry is past the lists, and refuses afterwards: the core's checks take
 /// readers that cannot fail.
-fn reading<R>(list: CarList, f: impl FnOnce(&dyn Fn(usize) -> u32) -> R) -> Result<R, BadInput> {
+fn reading<R>(
+    tables: &Tables,
+    list: CarList,
+    f: impl FnOnce(&dyn Fn(usize) -> u32) -> R,
+) -> Result<R, BadInput> {
     let failed = std::cell::Cell::new(None);
-    let read = |n: usize| match list_entry(list, n) {
+    let read = |n: usize| match list_entry(tables, list, n) {
         Ok(word) => word,
         Err(e) => {
             failed.set(Some(e));
@@ -112,9 +116,8 @@ fn reading<R>(list: CarList, f: impl FnOnce(&dyn Fn(usize) -> u32) -> R) -> Resu
     }
 }
 
-fn list_entry(list: CarList, n: usize) -> Result<u32, BadInput> {
-    menus()
-        .tables
+fn list_entry(tables: &Tables, list: CarList, n: usize) -> Result<u32, BadInput> {
+    tables
         .lists
         .cars(list)
         .offset(4 * n as u32)
@@ -123,8 +126,8 @@ fn list_entry(list: CarList, n: usize) -> Result<u32, BadInput> {
 
 /// The checks of a list of cars, before anything is written (see
 /// `rc2k_core::scene::carousel::check_cars`).
-fn check_cars(list: CarList, from_second: bool) -> Result<(), Refused> {
-    reading(list, |read| {
+fn check_cars(tables: &Tables, list: CarList, from_second: bool) -> Result<(), Refused> {
+    reading(tables, list, |read| {
         let failed = std::cell::Cell::new(None);
         // A car's number: the first dword of the description its handle names.
         let number = |car: u32| match crate::menu::cars_store::description(car).map(|d| d.get().car)
@@ -142,14 +145,13 @@ fn check_cars(list: CarList, from_second: bool) -> Result<(), Refused> {
 }
 
 /// The cars' carousels, from the list; `size` the object's size.
-fn cars(list: CarList, size: u32) -> Result<(), BadInput> {
-    let menus = menus();
+fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
     {
         menus.screens.state.carousel.set_up.set(1);
         menus.screens.state.carousel.set_list(list);
         let mut n = 0;
         loop {
-            let car = list_entry(list, n)?;
+            let car = list_entry(&menus.tables, list, n)?;
             if car == u32::MAX {
                 break;
             }
@@ -191,8 +193,8 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
         }
         match menu {
             0xB => {
-                check_cars(CarList::First, false)?;
-                cars(CarList::First, 0xF)?;
+                check_cars(&menus.tables, CarList::First, false)?;
+                cars(menus, CarList::First, 0xF)?;
             }
             0xC => {
                 menus.screens.state.carousel.set_up.set(1);
@@ -207,16 +209,18 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
             }
             0xD => {
                 let list = given()?;
-                check_cars(list, false)?;
-                cars(list, 0xC)?;
+                check_cars(&menus.tables, list, false)?;
+                cars(menus, list, 0xC)?;
             }
             0xE => {
                 let list = given()?;
-                check_cars(list, true)?;
+                check_cars(&menus.tables, list, true)?;
                 menus.screens.state.carousel.set_up.set(1);
-                let count = reading(list, |read| carousel::list_end(read, 1).unwrap_or(0))?;
+                let count = reading(&menus.tables, list, |read| {
+                    carousel::list_end(read, 1).unwrap_or(0)
+                })?;
                 if count == 1 {
-                    let first = list_entry(list, 0)?;
+                    let first = list_entry(&menus.tables, list, 0)?;
                     menus
                         .tables
                         .lists
@@ -224,7 +228,7 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
                         .offset(4)
                         .write(first, "a list of cars")?;
                 }
-                cars(list, 0xC)?;
+                cars(menus, list, 0xC)?;
             }
             _ => {
                 let ops = PLAIN[menu as usize].ok_or(BadInput("a menu without its list"))?;

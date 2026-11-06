@@ -8,7 +8,7 @@
 //! Callers: `sub_4A14CB`, `sub_4A9439`.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 
 /// What `find_section_player` finds, as the original leaves it in the registers: ecx the player's index (`u32::MAX` for none), edi its record (player 4's for
@@ -20,9 +20,9 @@ pub struct SectionPlayer {
 }
 
 /// The Rust version (see the header).
-pub fn find_section_player() -> Result<SectionPlayer, Refused> {
+pub fn find_section_player(screens: &Screens) -> Result<SectionPlayer, Refused> {
     // Converted: `rc2k_core::menu::points::section_player`.
-    let section: u32 = menus().screens.event.section.get();
+    let section: u32 = screens.event.section.get();
     let done: [u32; 4] =
         std::array::from_fn(|n| player(n as u32).get().overall_points[section as usize]);
     let found = rc2k_core::menu::points::section_player(done);

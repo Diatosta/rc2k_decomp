@@ -21,6 +21,7 @@ const TABLES: usize = 6;
 // ---- Rust version ----
 
 pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
+    let screens = &crate::menu::owner::menus().screens;
     // Converted: `rc2k_core::saves::defaults::stage_times`.
     {
         let table = &crate::saves::best_times::COURSE_TIMES;
@@ -42,9 +43,9 @@ pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
             &mut GameSource { log },
             &tables,
             Some(ebp),
-            with_checkpoints(),
+            with_checkpoints(screens),
         )?;
-        apply(&filled, &[Target::Stages(table)])?;
+        apply(screens, &filled, &[Target::Stages(table)])?;
         Ok(())
     }
 }

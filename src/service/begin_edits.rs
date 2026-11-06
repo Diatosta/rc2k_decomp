@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
-use crate::service::state::{flagged_item, repair_flag};
+use crate::service::state::{flagged_item, repair_flag_in};
 use crate::session::Dword;
 
 /// One page's own variables.
@@ -31,12 +31,13 @@ pub struct Edit {
 
 /// The Rust version (see the header).
 pub fn begin_edit(e: Edit) -> Result<(), Refused> {
-    let screens = &menus().screens;
-    let item = flagged_item()?;
+    let menus = menus();
+    let screens = &menus.screens;
+    let item = flagged_item(screens)?;
 
     // Converted: `rc2k_core::service::repairs::may_edit`.
     if rc2k_core::service::repairs::may_edit(
-        repair_flag(item),
+        repair_flag_in(&menus.tables, item),
         screens.state.driver_stats.repair_time.get() as i32,
         e.time.get() as i32,
         screens.event.service_minutes.get() as i32,

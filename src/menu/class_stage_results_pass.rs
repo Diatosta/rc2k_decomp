@@ -12,6 +12,7 @@
 //! anything; what the steps refuse.
 
 use crate::errors::Refused;
+use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::menu::standings_steps::number_standings;
@@ -20,15 +21,16 @@ use rc2k_core::menu::class_pages;
 // g_eventMode
 
 /// The first class (see the header).
-fn first_class() -> u32 {
-    class_pages::first_stage_class(menus().screens.state.menus.class_mode.get())
+fn first_class(screens: &Screens) -> u32 {
+    class_pages::first_stage_class(screens.state.menus.class_mode.get())
 }
 
 /// The Rust version (see the header).
 pub fn class_stage_results_pass() -> Result<(), Refused> {
     let menus = menus();
-    crate::menu::sort_standings_by_time::sort_standings_by_time()?;
-    let first = first_class();
+    let screens = &menus.screens;
+    crate::menu::sort_standings_by_time::sort_standings_by_time(menus)?;
+    let first = first_class(screens);
     // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
     let classes = class_pages::classes(first, menus.screens.event.classes.get())?;
     let all: Vec<(u32, u32)> = walked_entries_a()?
@@ -44,7 +46,7 @@ pub fn class_stage_results_pass() -> Result<(), Refused> {
         menus.screens.loop_flags.ended_b.set(1u32);
         let numbered = number_standings(Which::A, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
-        crate::menu::show_class_stage_results::show_class_stage_results(class)?;
+        crate::menu::show_class_stage_results::show_class_stage_results(menus, class)?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             break;
         }

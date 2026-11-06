@@ -17,6 +17,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::records::find_record::find_record_in;
 use crate::records::stages_store::RecordRef;
@@ -34,8 +36,7 @@ pub const TITLE_Y: i32 = 0x77;
 // ---- Rust version ----
 
 /// The record of the event's stage, and its section.
-pub fn event_stage() -> Result<(RecordRef, u32), crate::errors::BadInput> {
-    let screens = &menus().screens;
+pub fn event_stage(screens: &Screens) -> Result<(RecordRef, u32), crate::errors::BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
@@ -44,8 +45,7 @@ pub fn event_stage() -> Result<(RecordRef, u32), crate::errors::BadInput> {
 
 /// The title string of the event's section: from a table in mode 0x13, otherwise from the
 /// section's first record.
-pub fn event_title() -> Result<u32, crate::errors::BadInput> {
-    let menus = menus();
+pub fn event_title(menus: &Menus) -> Result<u32, crate::errors::BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = menus.screens.event.section.get();
     let first = find_record_in(table, 0, section)?;
@@ -63,10 +63,13 @@ pub fn event_title() -> Result<u32, crate::errors::BadInput> {
 /// Returns the carry flag of `draw_stage_records`. The errors are those of the functions it
 /// uses: the track pack lookup, the blitter, the formatters and the record rows.
 pub fn draw_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    label(canvas, event_title()?, TITLE_FONT, TITLE_X, TITLE_Y)?;
-    let (record, _) = event_stage()?;
+    let menus = menus();
+    let screens = &menus.screens;
+    let tables = &menus.tables;
+    label(canvas, event_title(menus)?, TITLE_FONT, TITLE_X, TITLE_Y)?;
+    let (record, _) = event_stage(screens)?;
     draw_stage_heading(record, canvas)?;
-    draw_stage_body(record, false, canvas)?;
+    draw_stage_body(tables, record, false, canvas)?;
     draw_records_from(&crate::saves::best_times::STAGE_TIMES, record, canvas)
 }
 

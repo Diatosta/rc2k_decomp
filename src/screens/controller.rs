@@ -4,6 +4,7 @@
 //! direction the player moves, into the player's +0x50 table.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::screens::controls_store::CONTROLS_SCREEN as C;
 
@@ -13,7 +14,7 @@ use crate::screens::controls_store::CONTROLS_SCREEN as C;
 /// (`dword_7551E4` ..: a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls
 /// while the others were not (its history empty) gives 0x400 / 0x800 / 0x100 / 0x200 with the
 /// button, else 0; into `dword_7559EC`. Every register kept.
-pub fn classify_controller(z: u32, buttons: u32, x: u32, y: u32) {
+pub fn classify_controller(screens: &Screens, z: u32, buttons: u32, x: u32, y: u32) {
     // Converted: `rc2k_core::input::devices::classify`.
     let (history, found) = rc2k_core::input::devices::classify(
         buttons,
@@ -25,7 +26,7 @@ pub fn classify_controller(z: u32, buttons: u32, x: u32, y: u32) {
     for (cell, v) in C.history.iter().zip(history) {
         cell.set(v);
     }
-    menus().screens.draw_work.figure.set(found);
+    screens.draw_work.figure.set(found);
 }
 
 /// `screens::learn_axis` (0x46B131): see the header. With 3 s gone the learning stops
@@ -83,7 +84,7 @@ pub fn learn_axis() -> Result<(), Refused> {
         }
     } else {
         let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state()?;
-        classify_controller(eax, ebx, ecx, edx);
+        classify_controller(screens, eax, ebx, ecx, edx);
     }
     if take {
         if crate::input::take_key::take_key() == l::CANCEL_KEY {
@@ -102,9 +103,10 @@ pub fn learn_axis() -> Result<(), Refused> {
 }
 
 /// What the controller page reads: refused before anything.
-pub fn controller_page_refuses() -> Result<crate::menu::standings::PlayerCell, Refused> {
-    let Some(player) = crate::menu::player::player(menus().screens.event.current_player.get())
-    else {
+pub fn controller_page_refuses(
+    screens: &Screens,
+) -> Result<crate::menu::standings::PlayerCell, Refused> {
+    let Some(player) = crate::menu::player::player(screens.event.current_player.get()) else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
     let device = player.get().controller;
@@ -128,10 +130,11 @@ pub fn controller_page_refuses() -> Result<crate::menu::standings::PlayerCell, R
 pub fn draw_controller_page(
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
     {
-        let player = controller_page_refuses()?;
+        let player = controller_page_refuses(screens)?;
         let p = player.get();
         let device = p.controller;
         use crate::screens::game_screen::HeldText;

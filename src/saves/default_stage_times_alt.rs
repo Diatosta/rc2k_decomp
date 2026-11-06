@@ -22,6 +22,7 @@ const TABLES: usize = 6;
 
 /// `ebp` is not used: the stage comes from the record.
 pub fn default_stage_times_alt(_ebp: u32, log: Log) -> Result<(), Refused> {
+    let screens = &crate::menu::owner::menus().screens;
     // Converted: `rc2k_core::saves::defaults::stage_times`.
     {
         let table = &crate::saves::best_times::STAGE_TIMES_ALT;
@@ -39,8 +40,13 @@ pub fn default_stage_times_alt(_ebp: u32, log: Log) -> Result<(), Refused> {
                     .map_err(|_| BadInput("a table of other than six records"))?,
             );
         }
-        let filled = stage_times(&mut GameSource { log }, &tables, None, with_checkpoints())?;
-        apply(&filled, &[Target::Stages(table)])?;
+        let filled = stage_times(
+            &mut GameSource { log },
+            &tables,
+            None,
+            with_checkpoints(screens),
+        )?;
+        apply(screens, &filled, &[Target::Stages(table)])?;
         Ok(())
     }
 }

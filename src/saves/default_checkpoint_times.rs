@@ -24,6 +24,7 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 /// `ebp` is not used: the stage comes from the record.
 pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
+    let screens = &crate::menu::owner::menus().screens;
     // Converted: `rc2k_core::saves::defaults::championship_times`.
     {
         let records_at = crate::records::stages_store::STAGE_TABLES.championship();
@@ -42,9 +43,9 @@ pub fn default_checkpoint_times(_ebp: u32, log: Log) -> Result<(), Refused> {
             &records,
             Championship::Checkpoints,
             [false; RALLIES],
-            crate::saves::default_times::with_checkpoints(),
+            crate::saves::default_times::with_checkpoints(screens),
         )?;
-        apply(&filled, &tables)?;
+        apply(screens, &filled, &tables)?;
         Ok(())
     }
 }

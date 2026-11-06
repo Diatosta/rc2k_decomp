@@ -13,12 +13,14 @@
 //! entries, a name past the entry, a player count of 0 or past 4, a player missing or without a
 //! name, before anything.
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Screens;
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`, ebx the player's index).
-fn players_by_group(firsts: [usize; 4]) -> Result<(), Refused> {
-    let players = counted_players()?;
+fn players_by_group(screens: &Screens, firsts: [usize; 4]) -> Result<(), Refused> {
+    let players = counted_players(screens)?;
     let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
     // Converted: `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
@@ -29,11 +31,12 @@ fn players_by_group(firsts: [usize; 4]) -> Result<(), Refused> {
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn standings_b_from_all() -> Result<(), Refused> {
+    let screens = &menus().screens;
     let drivers = walked_drivers()?;
     if drivers.len() > 200 {
         return Err(BadInput("more drivers than the standings table holds").into());
     }
-    let players = counted_players()?;
+    let players = counted_players(screens)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
     }
@@ -57,6 +60,6 @@ pub fn standings_b_from_all() -> Result<(), Refused> {
         }
     })?;
     use rc2k_core::menu::standings::B_GROUP_FIRSTS;
-    players_by_group(B_GROUP_FIRSTS)?;
+    players_by_group(screens, B_GROUP_FIRSTS)?;
     Ok(())
 }

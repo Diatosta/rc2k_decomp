@@ -4,7 +4,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::picture_store::PICTURE;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::screens::draw_stage_records::selection;
 use crate::session::Dword;
 
@@ -24,8 +24,7 @@ const NO_MAP: FatalError = FatalError {
 /// `off_7598AE[+0x3C]`; `ukmap.png` loaded with it (the carry: fatal error 0x80712345),
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
-pub fn draw_stage_map() -> Result<(), Refused> {
-    let menus = menus();
+pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
     use crate::gfx::blit_glyph::blit_glyph_on_surface;
     use crate::gfx::convert_picture::convert_picture_now;
     use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;

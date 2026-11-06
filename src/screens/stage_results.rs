@@ -2,6 +2,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Play;
 use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
@@ -11,8 +13,7 @@ use crate::text::draw_text::Canvas;
 
 /// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
 /// `dword_758812`), none: 0.
-fn records() -> Result<(RecordTable, RecordRef), BadInput> {
-    let menus = menus();
+fn records(menus: &Menus) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES.group_event_table(
         menus.play.champ_view.switch_f8.get(),
         menus.tables.captions.shown_group.get(),
@@ -27,8 +28,7 @@ fn records() -> Result<(RecordTable, RecordRef), BadInput> {
 /// variable that holds it (the list's four: `g_stageBestTimes`, `g_courseBestTimes`,
 /// `dword_7556E8`, `g_stageBestTimesAlt`; their tables are typed now,
 /// `saves::best_times`), or None. Refuses a list entry that names none of them.
-fn times_table() -> Result<Option<&'static StageTable>, BadInput> {
-    let play = &menus().play;
+fn times_table(play: &Play) -> Result<Option<&'_ StageTable>, BadInput> {
     let mut n = play.champ_view.switch_f8.get();
     if play.champ_view.switch_fc.get() == 1 {
         n += 2;
@@ -84,9 +84,10 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 /// slot), and what the strings refuse.
 pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menus = menus();
+    let play = &menus.play;
     let menu = menus.screens.loop_flags.menu.get().ok();
-    let (base, record) = records()?;
-    let table = times_table()?;
+    let (base, record) = records(menus)?;
+    let table = times_table(play)?;
     let (Some(table), Some(menu)) = (table, menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());
     };

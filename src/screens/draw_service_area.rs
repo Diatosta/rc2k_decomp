@@ -94,7 +94,7 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let (x, y) = AREA_TITLE_AT;
     draw_text_at(font_of(AreaFont::Title).game_ptr(), text_at(), x, y, canvas)?;
 
-    draw_service_time(canvas)?;
+    draw_service_time(screens, canvas)?;
 
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original reads through null").into());
@@ -138,7 +138,7 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     draw_string_by_id_at(setting, font_of(AreaFont::Small).game_ptr(), x, y, canvas)?;
 
     // The markers get the car in edi.
-    draw_repair_times(canvas)?;
+    draw_repair_times(screens, canvas)?;
     for marker in [
         draw_brake_balance_marker::MARKER,
         draw_steering_sensitivity_marker::MARKER,
@@ -149,5 +149,5 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     ] {
         draw_marker(marker, player, canvas)?;
     }
-    draw_inspection_status(canvas)
+    draw_inspection_status(screens, canvas)
 }

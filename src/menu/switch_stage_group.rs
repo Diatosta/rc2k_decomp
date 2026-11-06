@@ -8,9 +8,11 @@
 //! reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::stage_choice::{draw_stage_map, switch_stage_group};
 
 /// The Rust version the typed tables run.
 pub fn run() -> Result<(), Refused> {
-    switch_stage_group(&mut || draw_stage_map())
+    let menus = menus();
+    switch_stage_group(&mut || draw_stage_map(menus))
 }

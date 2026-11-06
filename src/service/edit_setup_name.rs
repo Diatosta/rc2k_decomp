@@ -26,12 +26,12 @@ use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::clear_text::clear_text;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Screens, menus};
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::set_length;
 use crate::service::backspace_setup_name::{backspace_setup_name, entry};
 use crate::service::load_setup_slot::highlighted_slot;
-use crate::service::state::current_player;
+use crate::service::state::current_player_of;
 use crate::service::write_setup_slot::write_setup_slot;
 use crate::strings::append_string_by_id::push_string;
 use crate::text::draw_text::Canvas;
@@ -45,11 +45,11 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 // ---- Rust version ----
 
 /// Writes the cursor and a NUL after the name's `len` characters.
-fn put_cursor(name: crate::place::Place) -> Result<(), BadInput> {
+fn put_cursor(screens: &Screens, name: crate::place::Place) -> Result<(), BadInput> {
     let mut tail = Vec::new();
     push_string(&mut tail, CURSOR_STRING)?;
     tail.push(0);
-    let len = menus().screens.loop_flags.text_length.get() as i32;
+    let len = screens.loop_flags.text_length.get() as i32;
     name.add(len as u32).write(&tail, "the setup name")?;
     Ok(())
 }
@@ -60,16 +60,17 @@ fn put_char(name: crate::place::Place, at: i32, c: u8) -> Result<(), BadInput> {
 }
 
 /// The name cut at its length.
-fn end_name(name: crate::place::Place) -> Result<(), BadInput> {
-    put_char(name, menus().screens.loop_flags.text_length.get() as i32, 0)
+fn end_name(screens: &Screens, name: crate::place::Place) -> Result<(), BadInput> {
+    put_char(name, screens.loop_flags.text_length.get() as i32, 0)
 }
 
 pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let screens = &menus().screens;
+    let menus = menus();
+    let screens = &menus.screens;
     // Everything that could be refused, before the key is taken.
-    let (name, _) = entry()?;
-    let slot = highlighted_slot();
-    if current_player().is_none() {
+    let (name, _) = entry(menus)?;
+    let slot = highlighted_slot(menus);
+    if current_player_of(screens).is_none() {
         return Err(BadInput("no current player object").into());
     }
     if !has_layout() {
@@ -92,14 +93,14 @@ pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 add_text_length(name)?;
             }
             screens.option_work.typing.set(0u32);
-            end_name(name)?;
+            end_name(screens, name)?;
             write_setup_slot(slot)?;
-            end_name(name)?;
+            end_name(screens, name)?;
             screens.option_work.typing.set(0u32);
             return Ok(());
         }
         Key::Clear => clear_text(name)?,
-        Key::Backspace => backspace_setup_name()?,
+        Key::Backspace => backspace_setup_name(menus)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             let len = screens.loop_flags.text_length.get() as i32;
@@ -110,11 +111,11 @@ pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
                 let measured =
                     measure_text_at(MEASURING_FONT.game_ptr(), name.game_ptr(), len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
-                    backspace_setup_name()?;
+                    backspace_setup_name(menus)?;
                 }
             }
         }
     }
-    put_cursor(name)?;
+    put_cursor(screens, name)?;
     Ok(())
 }

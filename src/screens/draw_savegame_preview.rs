@@ -28,6 +28,7 @@ use crate::text::draw_text::Canvas;
 
 /// Returns the carry flag of the panel drawn.
 pub fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let tables = &menus().tables;
     // Converted: `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
@@ -73,6 +74,6 @@ pub fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     {
         draw_empty_savegame(canvas)
     } else {
-        draw_savegame_details(canvas)
+        draw_savegame_details(tables, canvas)
     }
 }

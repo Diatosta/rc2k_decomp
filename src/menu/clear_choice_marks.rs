@@ -7,10 +7,10 @@
 //! (0x759406, 0x759412: the car choice's). The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 
-pub fn clear_choice_marks() -> Result<(), crate::errors::BadInput> {
-    for held in &menus().screens.state.carousel_pictures.held {
+pub fn clear_choice_marks(screens: &Screens) -> Result<(), crate::errors::BadInput> {
+    for held in &screens.state.carousel_pictures.held {
         held.set(u32::MAX);
     }
     Ok(())

@@ -6,6 +6,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::menu::option_steps::{SOUNDS_B_RVA, Then, Volume, volume_step};
+use crate::menu::owner::menus;
 
 const STEP: Volume = Volume {
     value: SOUNDS_B_RVA,
@@ -15,5 +16,6 @@ const STEP: Volume = Volume {
 
 /// The Rust version the typed tables run.
 pub fn run() {
-    volume_step(STEP);
+    let screens = &menus().screens;
+    volume_step(screens, STEP);
 }

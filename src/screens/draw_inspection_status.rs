@@ -18,7 +18,7 @@
 //! `draw_car_condition` before the screenshot.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::service::state::{current_player, repair_flag};
 use crate::text::draw_text::Canvas;
 
@@ -32,10 +32,10 @@ use crate::text::draw_text::Canvas;
 /// The percentage and the item of the last damaged part looked at (its repair flag's address
 /// is what the original leaves in esi). Converted: `rc2k_core::screens::inspection::status`.
 pub fn inspection_status(
+    screens: &Screens,
     player: crate::menu::standings::PlayerCell,
 ) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
     use rc2k_core::screens::inspection::{PARTS, Part, status};
-    let screens = &menus().screens;
     let parts: [Part; 13] = std::array::from_fn(|n| {
         let item = PARTS[n];
         Part {
@@ -52,11 +52,11 @@ pub fn inspection_status(
 /// Refuses a missing player. The carry of
 /// the text (too wide): what the one caller, `screens::draw_service_area`, reads of what
 /// the original leaves.
-pub fn draw_inspection_status(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_inspection_status(screens: &Screens, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original reads through null").into());
     };
-    let (condition, _) = inspection_status(player)?;
+    let (condition, _) = inspection_status(screens, player)?;
     // Converted: `rc2k_core::screens::inspection::inspection_status`.
     let out = rc2k_core::screens::inspection::inspection_status(
         &mut crate::screens::game_screen::GameScreen::<

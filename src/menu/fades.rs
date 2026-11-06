@@ -4,7 +4,7 @@
 //! (out) with the time gone (`dword_75AB4C`, from `dword_75AB48`).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 
 // system::tick_count
 const DIVIDE_BY_ZERO: FatalError = FatalError {
@@ -22,8 +22,7 @@ fn frame() -> Result<(), Refused> {
 }
 
 /// A fade: `out` the way. Every register kept (`pusha` .. `popa`).
-pub fn fade(out: bool) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn fade(screens: &Screens, out: bool) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::fades` (`too_short`, `first_see`, `step`, `over`).
     use rc2k_core::menu::fades::{self, Stop};
     let length: u32 = screens.state.menus.fade_length.get();

@@ -8,12 +8,11 @@
 //! anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn set_player_entry_kind() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn set_player_entry_kind(screens: &Screens) -> Result<(), Refused> {
     let n: u32 = screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());

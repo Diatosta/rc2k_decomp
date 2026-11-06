@@ -32,7 +32,7 @@
 //! of a pair is (position and points, say) has not been worked out.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Tables;
 use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::screens::stage_panel::table_dword_at;
@@ -45,8 +45,7 @@ const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4
 // ---- Rust version ----
 
 /// Returns the carry flag of the last text drawn.
-pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let tables = &menus().tables;
+pub fn draw_savegame_details(tables: &Tables, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::savegame_preview::details`; the saved game's dwords copied
     // into the preview's variables first (the original after the frame, which reads none).
     use rc2k_core::screens::savegame_preview::{Car, Title, details};

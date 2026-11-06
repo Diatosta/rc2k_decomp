@@ -2,7 +2,7 @@
 //! quads (`scene::draw_tinted_quad`), and the outlines and frames built from them.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::session::Dword;
 
 /// A variable of the game.
@@ -104,6 +104,7 @@ pub fn cell_frame(first_x: u32, step: u32, index: u32, colour: u32) -> Result<()
 /// service box is turned over and the cursor is on it (when it blinks on), or else when the
 /// chosen part differs from the installed one or the row's inspection flag is set.
 pub fn chosen_frame(
+    screens: &Screens,
     item: u32,
     setup: &crate::menu::state_store::SetupItem,
     flag: &Dword,
@@ -111,7 +112,6 @@ pub fn chosen_frame(
     step: u32,
     cells: u32,
 ) -> Result<(), Refused> {
-    let screens = &menus().screens;
     let blinking = screens.draw_work.blink.get() == 1;
     let wanted =
         if screens.state.service_ui.box_shown.get() == 1 && screens.loop_flags.item.get() == item {

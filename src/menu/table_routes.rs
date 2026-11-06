@@ -74,6 +74,7 @@ use crate::menu::option_items::toggle_ds3d;
 use crate::menu::option_items::toggle_eax;
 use crate::menu::option_steps::{COLOUR_A, COLOUR_B, next_screen_mode, step_texture_setting};
 use crate::menu::options_loop;
+use crate::menu::owner::Menus;
 use crate::menu::player;
 use crate::menu::player_actions;
 use crate::menu::player_details_loop;
@@ -228,7 +229,7 @@ use rc2k_core::menu::player::Setting;
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
-pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
+pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
     match f {
         ItemFn::NextNationality => step_items::player_setting(Setting::Nationality, true),
         ItemFn::PreviousNationality => step_items::player_setting(Setting::Nationality, false),
@@ -237,7 +238,7 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
         ItemFn::NextSecondView => step_items::player_setting(Setting::SecondView, true),
         ItemFn::PreviousSecondView => step_items::player_setting(Setting::SecondView, false),
         ItemFn::FlipCodriver => flip_codriver::flip_codriver().map(|_| ()),
-        ItemFn::BeginPlayerName => begin_player_name::begin_player_name().map(|_| ()),
+        ItemFn::BeginPlayerName => begin_player_name::begin_player_name(menus).map(|_| ()),
         ItemFn::ToggleMapArea => toggle_map_area::toggle_map_area().map(|_| ()),
         ItemFn::ToggleRearMirror => toggle_rear_mirror::toggle_rear_mirror().map(|_| ()),
         ItemFn::ToggleRevCounter => toggle_rev_counter::toggle_rev_counter().map(|_| ()),
@@ -297,63 +298,63 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
         ItemFn::Previous758812 => previous_758812::run(),
         ItemFn::Next758812 => next_758812::run(),
         ItemFn::ChooseKey0 => {
-            choose_key::choose_key(0);
+            choose_key::choose_key(&menus.screens, 0);
             Ok(())
         }
         ItemFn::ChooseKey1 => {
-            choose_key::choose_key(1);
+            choose_key::choose_key(&menus.screens, 1);
             Ok(())
         }
         ItemFn::ChooseKey2 => {
-            choose_key::choose_key(2);
+            choose_key::choose_key(&menus.screens, 2);
             Ok(())
         }
         ItemFn::ChooseKey3 => {
-            choose_key::choose_key(3);
+            choose_key::choose_key(&menus.screens, 3);
             Ok(())
         }
         ItemFn::ChooseKey4 => {
-            choose_key::choose_key(4);
+            choose_key::choose_key(&menus.screens, 4);
             Ok(())
         }
         ItemFn::ChooseKey5 => {
-            choose_key::choose_key(5);
+            choose_key::choose_key(&menus.screens, 5);
             Ok(())
         }
         ItemFn::ChooseKey6 => {
-            choose_key::choose_key(6);
+            choose_key::choose_key(&menus.screens, 6);
             Ok(())
         }
         ItemFn::ChooseKey7 => {
-            choose_key::choose_key(7);
+            choose_key::choose_key(&menus.screens, 7);
             Ok(())
         }
         ItemFn::ChooseKey9 => {
-            choose_key::choose_key(9);
+            choose_key::choose_key(&menus.screens, 9);
             Ok(())
         }
         ItemFn::ChooseKey10 => {
-            choose_key::choose_key(10);
+            choose_key::choose_key(&menus.screens, 10);
             Ok(())
         }
         ItemFn::ChooseKey11 => {
-            choose_key::choose_key(11);
+            choose_key::choose_key(&menus.screens, 11);
             Ok(())
         }
-        ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing()?),
+        ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(&menus.screens)?),
         ItemFn::NextGearing => gearing_text::step_gearing(true),
         ItemFn::PreviousGearing => gearing_text::step_gearing(false),
-        ItemFn::PreviousCar => step_items::car_button(Which::PreviousCar),
-        ItemFn::NextCar => step_items::car_button(Which::NextCar),
-        ItemFn::PreviousSlideshowCar => step_items::car_button(Which::PreviousSlideshowCar),
-        ItemFn::NextSlideshowCar => step_items::car_button(Which::NextSlideshowCar),
-        ItemFn::PreviousCarPage => step_items::car_button(Which::PreviousPage),
-        ItemFn::NextCarPage => step_items::car_button(Which::NextPage),
-        ItemFn::PreviousSlideshowPicture => step_items::car_button(Which::PreviousPicture),
-        ItemFn::NextSlideshowPicture => step_items::car_button(Which::NextPicture),
+        ItemFn::PreviousCar => step_items::car_button(menus, Which::PreviousCar),
+        ItemFn::NextCar => step_items::car_button(menus, Which::NextCar),
+        ItemFn::PreviousSlideshowCar => step_items::car_button(menus, Which::PreviousSlideshowCar),
+        ItemFn::NextSlideshowCar => step_items::car_button(menus, Which::NextSlideshowCar),
+        ItemFn::PreviousCarPage => step_items::car_button(menus, Which::PreviousPage),
+        ItemFn::NextCarPage => step_items::car_button(menus, Which::NextPage),
+        ItemFn::PreviousSlideshowPicture => step_items::car_button(menus, Which::PreviousPicture),
+        ItemFn::NextSlideshowPicture => step_items::car_button(menus, Which::NextPicture),
         ItemFn::NextController => controller_items::next_controller().map(|_| ()),
         ItemFn::PreviousController => controller_items::previous_controller().map(|_| ()),
-        ItemFn::KeepPlayerKeys => player_actions::keep_player_keys(),
+        ItemFn::KeepPlayerKeys => player_actions::keep_player_keys(menus),
         ItemFn::LearnBinding1 => {
             learn_bindings::learn_binding(1);
             Ok(())
@@ -394,9 +395,9 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
             learn_bindings::learn_binding(10);
             Ok(())
         }
-        ItemFn::LowerPlayer40 => player_actions::lower_dead_zone_1(),
+        ItemFn::LowerPlayer40 => player_actions::lower_dead_zone_1(&menus.screens),
         ItemFn::RaiseDeadZoneA => controller_items::raise_dead_zone(false),
-        ItemFn::LowerPlayer44 => player_actions::lower_dead_zone_2(),
+        ItemFn::LowerPlayer44 => player_actions::lower_dead_zone_2(&menus.screens),
         ItemFn::RaiseDeadZoneB => controller_items::raise_dead_zone(true),
         ItemFn::LowerControllerSensitivity => {
             controller_items::lower_controller_sensitivity().map(|_| ())
@@ -408,16 +409,16 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
                 .links[1]
                 .get(),
         ),
-        ItemFn::RaisePlayer48 => player_actions::raise_strength(),
-        ItemFn::LowerPlayer48 => player_actions::lower_strength(),
+        ItemFn::RaisePlayer48 => player_actions::raise_strength(&menus.screens),
+        ItemFn::LowerPlayer48 => player_actions::lower_strength(&menus.screens),
         ItemFn::BeginGearRatioEdit => begin_edits::begin_edit(begin_edits::GEAR_RATIO),
         ItemFn::BeginTyreEdit => begin_edits::begin_edit(begin_edits::TYRE),
         ItemFn::OpenSteeringBox => {
-            item_actions::open_service_box(3);
+            item_actions::open_service_box(&menus.screens, 3);
             Ok(())
         }
         ItemFn::OpenBrakeBox => {
-            item_actions::open_service_box(4);
+            item_actions::open_service_box(&menus.screens, 4);
             Ok(())
         }
         ItemFn::BeginRideHeightEdit => begin_edits::begin_edit(begin_edits::RIDE_HEIGHT),
@@ -426,24 +427,28 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
         }
         ItemFn::ToggleRepairChoice => toggle_repair_choice::toggle_repair_choice().map(|_| ()),
         ItemFn::NextScoresPage => {
-            player_actions::next_scores_page();
+            player_actions::next_scores_page(&menus.tables);
             Ok(())
         }
         ItemFn::PreviousScoresPage => {
-            player_actions::previous_scores_page();
+            player_actions::previous_scores_page(&menus.tables);
             Ok(())
         }
         ItemFn::PreviousSavePage => {
-            item_actions::previous_save_page();
+            item_actions::previous_save_page(&menus.tables);
             Ok(())
         }
         ItemFn::NextSavegamePage => {
-            step_items::next_savegame_page();
+            step_items::next_savegame_page(&menus.tables);
             Ok(())
         }
-        ItemFn::PreviousReplayRange => player_actions::previous_replay_range().map_err(Into::into),
-        ItemFn::NextReplayRange => player_actions::next_replay_range().map_err(Into::into),
-        ItemFn::BeginSavegameName => Ok(begin_savegame_name::begin_savegame_name(true)?),
+        ItemFn::PreviousReplayRange => {
+            player_actions::previous_replay_range(&menus.tables).map_err(Into::into)
+        }
+        ItemFn::NextReplayRange => {
+            player_actions::next_replay_range(&menus.tables).map_err(Into::into)
+        }
+        ItemFn::BeginSavegameName => Ok(begin_savegame_name::begin_savegame_name(menus, true)?),
         ItemFn::LoadSavegame => load_savegame::load_savegame(),
         ItemFn::LoadChampionship46e899Loop => load_championship_46e899_loop::run(),
         ItemFn::SaveSetupLoop => save_setup_loop::run(),
@@ -453,22 +458,22 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
             next_setup_page::next_setup_page();
             Ok(())
         }
-        ItemFn::BeginReplayName => Ok(begin_replay_name::begin_replay_name(true)?),
+        ItemFn::BeginReplayName => Ok(begin_replay_name::begin_replay_name(menus, true)?),
         ItemFn::FlipYesNo => {
-            flip_yes_no::flip_yes_no();
+            flip_yes_no::flip_yes_no(&menus.tables);
             Ok(())
         }
-        ItemFn::PreviousStagePage => stage_view_steps::step_stage_page(false),
-        ItemFn::NextStagePage => stage_view_steps::step_stage_page(true),
-        ItemFn::Player0CarSpecs => player_actions::player_car_specs(0),
-        ItemFn::Player1CarSpecs => player_actions::player_car_specs(1),
-        ItemFn::Player2CarSpecs => player_actions::player_car_specs(2),
-        ItemFn::Player3CarSpecs => player_actions::player_car_specs(3),
+        ItemFn::PreviousStagePage => stage_view_steps::step_stage_page(menus, false),
+        ItemFn::NextStagePage => stage_view_steps::step_stage_page(menus, true),
+        ItemFn::Player0CarSpecs => player_actions::player_car_specs(menus, 0),
+        ItemFn::Player1CarSpecs => player_actions::player_car_specs(menus, 1),
+        ItemFn::Player2CarSpecs => player_actions::player_car_specs(menus, 2),
+        ItemFn::Player3CarSpecs => player_actions::player_car_specs(menus, 3),
         ItemFn::Toggle755640 => toggle_755640::run(),
         ItemFn::Toggle755644 => toggle_755644::run(),
         ItemFn::PreviousScreenMode => previous_screen_mode::run(),
         ItemFn::NextScreenMode => {
-            next_screen_mode();
+            next_screen_mode(&menus.screens);
             Ok(())
         }
         ItemFn::Toggle75564c => toggle_75564c::run(),
@@ -476,11 +481,11 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
         ItemFn::Toggle75565c => toggle_75565c::run(),
         ItemFn::Toggle755660 => toggle_755660::run(),
         ItemFn::PreviousTextureSetting => {
-            step_texture_setting(false);
+            step_texture_setting(&menus.screens, false);
             Ok(())
         }
         ItemFn::NextTextureSetting => {
-            step_texture_setting(true);
+            step_texture_setting(&menus.screens, true);
             Ok(())
         }
         ItemFn::Toggle755668 => toggle_755668::run(),
@@ -491,22 +496,24 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
         ItemFn::ToggleA3d => toggle_a3d::run(),
         ItemFn::ToggleDolby => toggle_dolby::run(),
         ItemFn::ToggleChannels => toggle_channels::run(),
-        ItemFn::ViewStageDetails => item_actions::view_stage_details(),
-        ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(),
-        ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(),
+        ItemFn::ViewStageDetails => item_actions::view_stage_details(&menus.screens),
+        ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(&menus.screens),
+        ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(&menus.screens),
         ItemFn::ReplayItemC => replay_items::replay_item_c(),
         ItemFn::ReplayItemB => replay_items::replay_item_b(),
         ItemFn::ReplayItemA => replay_items::replay_item_a(),
-        ItemFn::ToggleCaptionChoice => player_actions::toggle_caption_choice().map_err(Into::into),
+        ItemFn::ToggleCaptionChoice => {
+            player_actions::toggle_caption_choice(&menus.screens).map_err(Into::into)
+        }
         ItemFn::ShowIntro => item_actions::show_intro(),
         ItemFn::NextCarNumber => step_items::player_setting(Setting::RaceNumber, true),
         ItemFn::PreviousCarNumber => step_items::player_setting(Setting::RaceNumber, false),
         ItemFn::RaiseSensitivity => raise_sensitivity::raise_sensitivity().map(|_| ()),
         ItemFn::LowerSensitivity => lower_sensitivity::lower_sensitivity().map(|_| ()),
-        ItemFn::NextColourA => step_items::colour(COLOUR_A, true),
-        ItemFn::PreviousColourA => step_items::colour(COLOUR_A, false),
-        ItemFn::NextColourB => step_items::colour(COLOUR_B, true),
-        ItemFn::PreviousColourB => step_items::colour(COLOUR_B, false),
+        ItemFn::NextColourA => step_items::colour(&menus.tables, COLOUR_A, true),
+        ItemFn::PreviousColourA => step_items::colour(&menus.tables, COLOUR_A, false),
+        ItemFn::NextColourB => step_items::colour(&menus.tables, COLOUR_B, true),
+        ItemFn::PreviousColourB => step_items::colour(&menus.tables, COLOUR_B, false),
         ItemFn::Nothing => Ok(()),
         ItemFn::GoBack => {
             go_back::go_back();
@@ -543,11 +550,11 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
         ItemFn::CarSpecificationLoop => car_specification_loop::run(),
         ItemFn::SlideshowLoop => slideshow_loop::run(),
         ItemFn::PreviousChoiceCar => {
-            car_choice::previous_choice_car();
+            car_choice::previous_choice_car(menus);
             Ok(())
         }
         ItemFn::NextChoiceCar => {
-            car_choice::next_choice_car();
+            car_choice::next_choice_car(menus);
             Ok(())
         }
         ItemFn::InGameOptionsLoop => in_game_options_loop::run(),
@@ -562,16 +569,16 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
         ItemFn::SimpleSelectPlayersLoop => simple_select_players_loop::run(),
         ItemFn::SwitchStageGroup => switch_stage_group::run(),
         ItemFn::NextStageSub => {
-            stage_choice::next_stage_sub(&mut || stage_choice::draw_stage_map())
+            stage_choice::next_stage_sub(&mut || stage_choice::draw_stage_map(menus))
         }
         ItemFn::PreviousStageSub => {
-            stage_choice::previous_stage_sub(&mut || stage_choice::draw_stage_map())
+            stage_choice::previous_stage_sub(&mut || stage_choice::draw_stage_map(menus))
         }
         ItemFn::NextStageNumber => {
-            stage_choice::next_stage_number(&mut || stage_choice::draw_stage_map())
+            stage_choice::next_stage_number(&mut || stage_choice::draw_stage_map(menus))
         }
         ItemFn::PreviousStageNumber => {
-            stage_choice::previous_stage_number(&mut || stage_choice::draw_stage_map())
+            stage_choice::previous_stage_number(&mut || stage_choice::draw_stage_map(menus))
         }
         ItemFn::SingleRally => single_rally::single_rally(),
         ItemFn::SingleRallySplit => single_rally_split::single_rally_split(),
@@ -579,12 +586,12 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
         ItemFn::SingleRallyThree => single_rally_three::single_rally_three(),
         ItemFn::SingleRallyFour => single_rally_four::single_rally_four(),
         ItemFn::ArcadeSelectLevelLoop => arcade_select_level_loop::run(),
-        ItemFn::StartArcade => item_actions::start_arcade(),
-        ItemFn::ArcadeLevel1 => arcade_levels::arcade_level(1),
-        ItemFn::ArcadeLevel2 => arcade_levels::arcade_level(2),
-        ItemFn::ArcadeLevel3 => arcade_levels::arcade_level(3),
-        ItemFn::ArcadeLevel4 => arcade_levels::arcade_level(4),
-        ItemFn::ArcadeLevel5 => arcade_levels::arcade_level(5),
+        ItemFn::StartArcade => item_actions::start_arcade(&menus.play),
+        ItemFn::ArcadeLevel1 => arcade_levels::arcade_level(&menus.play, 1),
+        ItemFn::ArcadeLevel2 => arcade_levels::arcade_level(&menus.play, 2),
+        ItemFn::ArcadeLevel3 => arcade_levels::arcade_level(&menus.play, 3),
+        ItemFn::ArcadeLevel4 => arcade_levels::arcade_level(&menus.play, 4),
+        ItemFn::ArcadeLevel5 => arcade_levels::arcade_level(&menus.play, 5),
         ItemFn::TimeTrialOne => time_trial_one::time_trial_one(),
         ItemFn::TimeTrialSplit => time_trial_split::time_trial_split(),
         ItemFn::TimeTrialTwo => time_trial_two::time_trial_two(),
@@ -600,12 +607,12 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
         ItemFn::StartChampionshipTwo => start_championship_two::start_championship_two(),
         ItemFn::StartChampionshipThree => start_championship_three::start_championship_three(),
         ItemFn::StartChampionshipFour => start_championship_four::start_championship_four(),
-        ItemFn::PreviousStageRows => stage_rows::step_rows(false, false),
-        ItemFn::NextStageRows => stage_rows::step_rows(false, true),
-        ItemFn::PreviousStageRowsOf90 => stage_rows::step_rows(true, false),
-        ItemFn::NextStageRowsOf90 => stage_rows::step_rows(true, true),
-        ItemFn::RallyResults => rally_results::rally_results(),
-        ItemFn::ChampionshipStandings => championship_standings::championship_standings(),
+        ItemFn::PreviousStageRows => stage_rows::step_rows(menus, false, false),
+        ItemFn::NextStageRows => stage_rows::step_rows(menus, false, true),
+        ItemFn::PreviousStageRowsOf90 => stage_rows::step_rows(menus, true, false),
+        ItemFn::NextStageRowsOf90 => stage_rows::step_rows(menus, true, true),
+        ItemFn::RallyResults => rally_results::rally_results(menus),
+        ItemFn::ChampionshipStandings => championship_standings::championship_standings(menus),
         ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(),
         ItemFn::NewSimulationLoop => new_simulation_loop::run(),
         ItemFn::StartA8One => start_a8_one::start_a8_one(),
@@ -621,7 +628,7 @@ pub fn item_fn(f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
 }
 
 /// Runs screen function `f` (the draw lists' and the frames'; it takes nothing).
-pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
+pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
     match f {
         ScreenFn::DrawSectionBestTimes => {
             draw_section_best_times::draw_section_best_times(&mut GameCanvas).map(|_| ())
@@ -644,7 +651,7 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
             Ok(())
         }
         ScreenFn::CarCaption2 => car_caption::car_caption().map(|_| ()),
-        ScreenFn::StepCarousel => Ok(step_carousel::step_carousel()?),
+        ScreenFn::StepCarousel => Ok(step_carousel::step_carousel(&menus.screens)?),
         ScreenFn::DrawBackgroundBand => draw_background_band::draw_background_band(&mut GameCanvas),
         ScreenFn::GearingText => gearing_text::gearing_text().map(|_| ()),
         ScreenFn::CarCaption => car_caption::car_caption().map(|_| ()),
@@ -715,8 +722,10 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawRedefinedKeys => {
             draw_redefined_keys::draw_redefined_keys(&mut GameCanvas).map(|_| ())
         }
-        ScreenFn::RedefinePlayer1Key => redefine_keys::redefine_key(player::player(0)),
-        ScreenFn::RedefineKey => redefine_keys::redefine_key(player_settings::current().ok()),
+        ScreenFn::RedefinePlayer1Key => redefine_keys::redefine_key(menus, player::player(0)),
+        ScreenFn::RedefineKey => {
+            redefine_keys::redefine_key(menus, player_settings::current().ok())
+        }
         ScreenFn::DrawOptionsChecklist => {
             draw_options_checklist::draw_options_checklist(&mut GameCanvas).map(|_| ())
         }
@@ -763,11 +772,11 @@ pub fn screen_fn(f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawHighlightedObject => draw_highlighted_object::run(),
         ScreenFn::DrawMainMenuObjects => draw_main_menu_objects::run(),
         ScreenFn::DrawCarObject => draw_car_object::run(),
-        ScreenFn::ClearChoiceMarks => Ok(clear_choice_marks::clear_choice_marks()?),
+        ScreenFn::ClearChoiceMarks => Ok(clear_choice_marks::clear_choice_marks(&menus.screens)?),
         ScreenFn::DrawServiceBoxes => draw_service_boxes::draw_service_boxes(),
         ScreenFn::DrawBottomPanel => draw_bottom_panel::draw_bottom_panel(),
         ScreenFn::DrawTwoColumnPanel => draw_two_column_panel::draw_two_column_panel(),
-        ScreenFn::StageRangeCaption => Ok(stage_range_caption::stage_range_caption()?),
+        ScreenFn::StageRangeCaption => Ok(stage_range_caption::stage_range_caption(&menus.play)?),
         ScreenFn::DrawClassStageResults => class_stage::draw(),
         ScreenFn::DrawOverallStageResults => overall_stage::draw(),
         ScreenFn::DrawClassRallyResults => class_rally::draw(),

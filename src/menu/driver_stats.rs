@@ -24,7 +24,7 @@
 //! before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 use crate::session::write_all;
 
@@ -51,8 +51,10 @@ const EQUALS_RVA: [&std::ffi::CStr; 13] = [
 ];
 const PARTS: u32 = 14;
 /// The current player and its car's table.
-pub fn player_and_table() -> Result<(PlayerCell, crate::pointers::GamePtr), BadInput> {
-    let n: u32 = menus().screens.event.current_player.get();
+pub fn player_and_table(
+    screens: &Screens,
+) -> Result<(PlayerCell, crate::pointers::GamePtr), BadInput> {
+    let n: u32 = screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
@@ -71,12 +73,11 @@ pub fn car_table(p: PlayerCell) -> Result<crate::pointers::GamePtr, BadInput> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn driver_stats() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn driver_stats(screens: &Screens) -> Result<(), Refused> {
     use crate::logfile::log_int::log_int;
     // Converted: `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
-    let (p, t) = player_and_table()?;
+    let (p, t) = player_and_table(screens)?;
     let fault = Fault::default();
     let table = Table::read(|o| fault.read_at::<u32>(t.offset(o as u32), "a car's figures"));
     let car = Car {

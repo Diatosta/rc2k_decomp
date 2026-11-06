@@ -11,12 +11,11 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::menu::lists_store::CarList;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 /// The Rust version.
-pub fn show_car_specs() -> Result<(), Refused> {
-    let menus = menus();
+pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::specs_list`.
     use rc2k_core::menu::cars::{SpecsList, specs_list};
     let kind: u32 = menus.screens.event.event_type.get();

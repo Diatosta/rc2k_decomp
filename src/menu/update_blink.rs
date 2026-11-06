@@ -13,7 +13,7 @@
 //!   without a key.
 //!
 //! 179 callers.
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::update_frame_clock::update_frame_clock;
 use crate::session::CLOCKS;
 
@@ -25,8 +25,7 @@ use crate::session::CLOCKS;
 pub use rc2k_core::menu::blink::blink_states;
 
 /// What the three variables should be for the clock the game holds now.
-fn states_now() -> (u32, u32, u32) {
-    let menus = menus();
+fn states_now(menus: &Menus) -> (u32, u32, u32) {
     blink_states(
         CLOCKS.frame.get(),
         menus.play.champ_view.last_key_time.get(),
@@ -35,11 +34,11 @@ fn states_now() -> (u32, u32, u32) {
     )
 }
 
-pub fn update_blink() {
-    let screens = &menus().screens;
+pub fn update_blink(menus: &Menus) {
+    let screens = &menus.screens;
     update_frame_clock();
     {
-        let (blink, cursor_on, idle) = states_now();
+        let (blink, cursor_on, idle) = states_now(menus);
         screens.draw_work.blink.set(blink);
         screens.draw_work.cursor_on.set(cursor_on);
         screens.loop_flags.idle.set(idle);

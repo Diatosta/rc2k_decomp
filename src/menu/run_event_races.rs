@@ -94,9 +94,11 @@ impl races::EventRaces for Game {
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        let menus = menus();
+        let screens = &menus.screens;
         self.fault.check()?;
         match s {
-            Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times()?,
+            Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times(screens)?,
             Step::ResetPlayerTimes => {
                 crate::menu::reset_player_times::reset_player_times()?;
             }
@@ -104,10 +106,10 @@ impl races::EventRaces for Game {
                 crate::menu::standings_from_drivers::standings_from_drivers()?;
             }
             Step::SortByTime => {
-                crate::menu::sort_standings_by_time::sort_standings_by_time()?;
+                crate::menu::sort_standings_by_time::sort_standings_by_time(menus)?;
             }
             Step::CopySummary => {
-                crate::menu::copy_standings_summary::copy_standings_summary()?;
+                crate::menu::copy_standings_summary::copy_standings_summary(screens)?;
             }
             Step::RaceInfo => {
                 // The summary's variable: 1 while it is there (the race reads it:
@@ -115,7 +117,7 @@ impl races::EventRaces for Game {
                 RACE_STATE
                     .settings
                     .rivals
-                    .set(menus().play.champ_view.summary.get());
+                    .set(menus.play.champ_view.summary.get());
                 RACE_STATE.settings.stage.set(self.pack.stage()?);
             }
             Step::Race { next } => {
@@ -170,6 +172,7 @@ impl races::EventRaces for Game {
 /// The Rust version (see the header).
 pub fn run_event_races() -> Result<(), Refused> {
     let menus = menus();
+    let screens = &menus.screens;
     let drivers = drivers()?;
     let few_running = drivers.len() < PICKED as usize
         || drivers[..PICKED as usize]
@@ -187,8 +190,8 @@ pub fn run_event_races() -> Result<(), Refused> {
         return Err(BadInput("a player of the event's mode missing").into());
     }
     let reset_only = { menus.tables.pages.reset_times.get() } == 1;
-    let rec = crate::menu::calc_cpu_times::record()?;
-    crate::menu::calc_cpu_times::check(rec)?;
+    let rec = crate::menu::calc_cpu_times::record(screens)?;
+    crate::menu::calc_cpu_times::check(screens, rec)?;
     let pack = crate::records::trakpak_entry::track_of(rec)?;
     let mut game = Game {
         drivers,

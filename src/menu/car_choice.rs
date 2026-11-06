@@ -2,7 +2,7 @@
 //! carousel's entries, and the carousel turned to the next or the previous car.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::player::player;
 
 const MOST_ENTRIES: u32 = 0x100;
@@ -11,8 +11,7 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entry whose car (+0) is the current player's `car_number`, 0 when none is (the first
 /// entry is looked at before the end mark -1). Refuses a current player past four, no
 /// entries, or entries without their end within 0x100.
-pub fn find_player_car() -> Result<(), Refused> {
-    let menus = menus();
+pub fn find_player_car(menus: &Menus) -> Result<(), Refused> {
     let current: u32 = menus.screens.event.current_player.get();
     let car = player(current)
         .ok_or(BadInput("a current player past the four"))?
@@ -52,8 +51,7 @@ pub fn find_player_car() -> Result<(), Refused> {
 /// `dword_755561` 0.
 /// The carousel turned (`menu::next_choice_car` / `previous_choice_car`). Converted:
 /// `rc2k_core::menu::cars::turn_carousel`.
-fn turn(on: bool) {
-    let menus = menus();
+fn turn(menus: &Menus, on: bool) {
     use rc2k_core::menu::cars::{Carousel, turn_carousel};
     use rc2k_core::menu::navigation::Turn;
 
@@ -77,10 +75,10 @@ fn turn(on: bool) {
     menus.screens.loop_flags.back.set(0u32);
 }
 
-pub fn next_choice_car() {
-    turn(true);
+pub fn next_choice_car(menus: &Menus) {
+    turn(menus, true);
 }
 
-pub fn previous_choice_car() {
-    turn(false);
+pub fn previous_choice_car(menus: &Menus) {
+    turn(menus, false);
 }

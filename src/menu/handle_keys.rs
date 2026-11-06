@@ -28,7 +28,7 @@ use crate::input::key_to_char::has_layout;
 use crate::input::take_key::take_key;
 use crate::menu::handle_yes_no::handle_yes_no;
 use crate::menu::navigation::{Direction, move_highlight};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::screens::controls_store::CONTROLS_SCREEN;
 use crate::session::CLOCKS;
 use rc2k_core::menu::keys::Pressed;
@@ -39,8 +39,7 @@ use rc2k_core::menu::keys::Pressed;
 
 /// `eax` is the caller's eax, whose bits 8 .. 15 are read on Enter (the screen loops: the
 /// elapsed time).
-pub fn handle_keys(eax: u32) -> Result<Pressed, Refused> {
-    let menus = menus();
+pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
     // Converted: `rc2k_core::menu::keys` (`keys_off`, `action`, `enter_skips_name_entry`).
     use rc2k_core::menu::keys::{self, Action, Move};
     let nothing = Pressed::Nothing;
@@ -114,6 +113,6 @@ pub fn handle_keys(eax: u32) -> Result<Pressed, Refused> {
         }
         _ => return Ok(nothing),
     };
-    move_highlight(direction)?;
+    move_highlight(menus, direction)?;
     Ok(nothing)
 }

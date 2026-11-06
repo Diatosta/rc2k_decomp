@@ -335,11 +335,13 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
     }
 
     fn spaced(&mut self, font: F, bytes: &[u8], x: i32, y: i32) -> Result<(), Refused> {
+        let screens = &menus().screens;
         let mut text = bytes.to_vec();
         text.push(0);
         store_in(Buffer::Line, &text)?;
         let at = buffer_at(Buffer::Line);
         crate::screens::draw_spaced_number::draw_spaced_number(
+            screens,
             font_of(font),
             at,
             at.offset(bytes.len() as u32),
@@ -760,7 +762,8 @@ impl GameWork for rc2k_core::screens::menus::Work {
 
 impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     fn own_button(&mut self, n: usize) -> Result<(), Refused> {
-        crate::screens::buttons::draw_item_button(self.menu_item(n)?, self.canvas)
+        let screens = &menus().screens;
+        crate::screens::buttons::draw_item_button(screens, self.menu_item(n)?, self.canvas)
     }
     fn text_button(
         &mut self,

@@ -4,14 +4,14 @@
 //! shares, the weather, the description, the stage's number, and the best and fastest.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Play;
 use crate::menu::owner::menus;
 use crate::records::stages_store::{Holder as RecordHolder, RecordRef};
 use crate::screens::game_screen::{Held, HeldText};
 use crate::text::draw_text::Canvas;
 
 /// The page's stage record.
-pub fn stage_record() -> Result<RecordRef, BadInput> {
-    let play = &menus().play;
+pub fn stage_record(play: &Play) -> Result<RecordRef, BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES.level_table(play.arcade.level.get())?;
     crate::records::stages_store::row(base, play.arcade.stage.get())
 }
@@ -23,12 +23,13 @@ pub fn stage_record() -> Result<RecordRef, BadInput> {
 /// it). The speed is formatted before anything is drawn (its refusals first). Every
 /// register kept.
 pub fn draw_stage_best_and_fastest(
+    play: &Play,
     times: &rc2k_core::saves::entries::BestTime,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
-        let record = stage_record()?;
+        let record = stage_record(play)?;
         let units = crate::strings::units::units();
         crate::strings::append_speed::append_speed(
             record.record()?.holder(RecordHolder::Fastest).speed,
@@ -72,8 +73,10 @@ pub fn draw_stage_best_and_fastest(
 /// (`g_courseBestTimes`, the stage the record's +0x3C). Every register kept. Refuses (before anything) no
 /// stage record or times table.
 pub fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let play = &menus().play;
+    let tables = &menus().tables;
     use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
-    let record = stage_record()?;
+    let record = stage_record(play)?;
     let course_times = &crate::saves::best_times::COURSE_TIMES;
     if !course_times.is_taken() {
         return Err(BadInput("no stage record or times table").into());
@@ -81,11 +84,12 @@ pub fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     draw_times_heading(&RALLY_STAGE_TIMES, canvas)?;
     // the two headings in `stru_51E564` here (the other stage pages: `stru_51E5C4`)
     crate::screens::stage_panel::draw_stage_body_in(
+        tables,
         record,
         true,
         crate::gfx::typefaces::fonts::TIME,
         canvas,
     )?;
     let times = crate::screens::stage_panel::best_of(course_times, record.record()?.event_slot())?;
-    draw_stage_best_and_fastest(&times, canvas)
+    draw_stage_best_and_fastest(play, &times, canvas)
 }

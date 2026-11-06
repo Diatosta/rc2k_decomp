@@ -10,7 +10,7 @@
 //! mark. Refuses a menu without an end in its first 256 items.
 
 use crate::menu::menus_store::{MenuId, MenuItem};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 // ---- game data ----
 
@@ -19,8 +19,8 @@ use crate::menu::owner::menus;
 /// The Rust version: the highlighted item's action, with its value. (The original hands
 /// the action the screen loop's other registers too, which no action reads; what the
 /// action leaves is nobody's.)
-pub fn run_item_action(menu: MenuId) -> Result<(), crate::errors::Refused> {
-    let screens = &menus().screens;
+pub fn run_item_action(menus: &Menus, menu: MenuId) -> Result<(), crate::errors::Refused> {
+    let screens = &menus.screens;
     let items = menu.items();
     let highlighted: u32 = screens.loop_flags.item.get();
     // Converted: `rc2k_core::menu::items::highlighted_item`. It asks for item n's type only
@@ -34,7 +34,7 @@ pub fn run_item_action(menu: MenuId) -> Result<(), crate::errors::Refused> {
         let item = &items[n as usize];
         let value = item.action_value.get();
         screens.draw_work.action_value.set(value);
-        crate::menu::table_calls::call_action(item.action.get(), value, item, menu);
+        crate::menu::table_calls::call_action(menus, item.action.get(), value, item, menu);
         screens.loop_flags.item.set(item.id.get());
     }
     Ok(())

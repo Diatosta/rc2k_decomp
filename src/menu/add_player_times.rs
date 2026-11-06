@@ -7,12 +7,14 @@
 //! Callers: the event drivers. Refuses a player count of 0 or past 4 or a missing player, before
 //! anything.
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn add_player_times() -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::menu::player::Player::add_time`.
-    for p in counted_players()? {
+    for p in counted_players(screens)? {
         p.update(rc2k_core::menu::player::Player::add_time);
     }
     Ok(())

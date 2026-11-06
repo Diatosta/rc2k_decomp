@@ -14,5 +14,5 @@ use crate::service::pages::{STEERING_SENSITIVITY, simple_page};
 // ---- Rust version ----
 
 pub fn edit_steering_sensitivity() -> Result<(), Refused> {
-    simple_page(STEERING_SENSITIVITY)
+    simple_page(crate::menu::owner::menus(), STEERING_SENSITIVITY)
 }

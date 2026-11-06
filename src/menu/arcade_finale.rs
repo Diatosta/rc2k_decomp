@@ -14,12 +14,11 @@
 //! one before left. Refuses (before anything) a missing player 0.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Play;
 use crate::race::state_store::RACE_STATE;
 
 /// The Rust version. The original keeps every register of its caller.
-pub fn arcade_finale() -> Result<(), Refused> {
-    let play = &menus().play;
+pub fn arcade_finale(play: &Play) -> Result<(), Refused> {
     let first = play.players.players[0].get();
     RACE_STATE.results.finish_player.set(first.race_number);
     RACE_STATE.results.finish_kind.set(first.car_number);

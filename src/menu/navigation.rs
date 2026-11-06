@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::menu::item_at::item_at;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 // ---- game data ----
 
@@ -45,8 +45,8 @@ impl Direction {
 
 /// The click is `sub_40F059` with sound 1 (`sound::play_menu_sound`); the callback gets
 /// the item (edi in the original, the only register its callbacks read).
-pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn move_highlight(menus: &Menus, direction: Direction) -> Result<(), Refused> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
     // out before it is written.
     use rc2k_core::menu::navigation::{Link, Turn, link, turn, walk};
@@ -54,7 +54,7 @@ pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
     let sideways = matches!(direction, Direction::Left | Direction::Right);
     {
         let highlighted: u32 = screens.loop_flags.item.get();
-        let item = item_at(highlighted)?;
+        let item = item_at(&menus.screens, highlighted)?;
         let turned = (sideways && screens.flow.turning.get() == 1).then(|| {
             let t = Turn {
                 count: screens.state.carousel.count.get() as i32,
@@ -67,7 +67,7 @@ pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
         let next = item.links[way].get();
         let to = match link(next) {
             Link::To(n) if !sideways => Some(walk(n, |n| {
-                let it = item_at(n).map_err(|e| rc2k_core::Invalid(e.0))?;
+                let it = item_at(&menus.screens, n).map_err(|e| rc2k_core::Invalid(e.0))?;
                 Ok((it.links[way].get(), it.skip_mark.get()))
             })?),
             Link::To(n) => Some(n),
@@ -86,7 +86,7 @@ pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
         }
         match to {
             Some(n) => screens.loop_flags.item.set(n),
-            None => crate::menu::table_calls::call_key(item.on_key[way].get(), item)?,
+            None => crate::menu::table_calls::call_key(menus, item.on_key[way].get(), item)?,
         }
     }
     Ok(())

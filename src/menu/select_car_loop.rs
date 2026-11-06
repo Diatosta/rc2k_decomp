@@ -17,7 +17,8 @@ use crate::scene::draw_store::DRAW;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let screens = &menus().screens;
+    let menus = menus();
+    let screens = &menus.screens;
     // The current player's +0x30 (its car).
     let current: u32 = screens.event.current_player.get();
     let Some(player) = crate::menu::player::player(current) else {
@@ -33,7 +34,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.flow.turning.set(0x0u32);
     screens.state.carousel.front.set(0x0u32);
     screens.event.shown_car.set(0x0u32);
-    crate::menu::car_choice::find_player_car()?;
+    crate::menu::car_choice::find_player_car(menus)?;
     DRAW.view_offset[0].set(0x7u32);
     DRAW.view_offset[1].set(0xFFFFFFCEu32);
     DRAW.view_zoom.set(0x100u32);

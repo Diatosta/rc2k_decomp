@@ -3,7 +3,7 @@
 //! `scene::choose_carousel_pictures` and `scene::update_carousel_pictures`.
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::SLOTS;
@@ -18,8 +18,7 @@ const ENTRIES: u32 = 0x100;
 /// the newly wanted ones (`scene::keep_held_pictures` 0x49036F); and each held
 /// picture's eight textures go to its eight slots (`scene::assign_picture_slots`
 /// 0x4903E3). Nothing is written before a refusal.
-pub fn update(entries: [u32; 4]) -> Result<(), BadInput> {
-    let menus = menus();
+pub fn update(menus: &Menus, entries: [u32; 4]) -> Result<(), BadInput> {
     let Some(table) = menus.screens.state.carousel.list()? else {
         return Err(BadInput("no carousel entries' records"));
     };

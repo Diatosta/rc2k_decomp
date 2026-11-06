@@ -10,15 +10,17 @@
 //! Callers: `sub_487E2C`, the event drivers.
 use crate::errors::Refused;
 use crate::menu::in_game_options_items::set;
+use crate::menu::owner::menus;
 use rc2k_core::menu::items::{HIDDEN, IN_GAME_OPTIONS};
 
 // off_750724
 /// The Rust version (see the header): the registers it leaves.
 pub fn reset_cars_750724() -> Result<(), Refused> {
+    let tables = &menus().tables;
     // Converted: `rc2k_core::menu::items::HIDDEN` (the four items `hide_in_game_options`
     // hides, all of them).
     for n in IN_GAME_OPTIONS {
-        set(n, HIDDEN)?;
+        set(tables, n, HIDDEN)?;
     }
     Ok(())
 }

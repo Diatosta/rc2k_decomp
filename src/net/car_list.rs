@@ -11,33 +11,32 @@
 
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
-use crate::menu::owner::menus;
+use crate::menu::owner::Tables;
 use crate::session::Dword;
 
 /// Whether one of the cars in `won` is in the list `secret` (read on past their ends, as
 /// the original reads to their ends' marks).
-pub fn any_won(secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
+pub fn any_won(tables: &Tables, secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::cars::any_won`, the lists' dwords by index.
     // The core asks infallibly: the first refusal is kept and raised after.
     let refused = std::cell::Cell::new(None);
     fn reader<'a>(
+        tables: &'a Tables,
         list: &'a [Dword],
         refused: &'a std::cell::Cell<Option<crate::errors::BadInput>>,
     ) -> impl Fn(u32) -> u32 + 'a {
         move |n: u32| {
-            crate::session::read_on_in(
-                &menus().tables.lists,
-                list,
-                n as usize,
-                "a car list's entry",
-            )
-            .unwrap_or_else(|e| {
-                refused.set(Some(e));
-                0
-            })
+            crate::session::read_on_in(&tables.lists, list, n as usize, "a car list's entry")
+                .unwrap_or_else(|e| {
+                    refused.set(Some(e));
+                    0
+                })
         }
     }
-    let answer = rc2k_core::net::cars::any_won(reader(secret, &refused), reader(won, &refused));
+    let answer = rc2k_core::net::cars::any_won(
+        reader(tables, secret, &refused),
+        reader(tables, won, &refused),
+    );
     if let Some(e) = refused.take() {
         return Err(e.into());
     }
@@ -45,10 +44,9 @@ pub fn any_won(secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
 }
 
 /// The Rust version.
-pub fn car_list() -> Result<CarList, Refused> {
-    let tables = &menus().tables;
+pub fn car_list(tables: &Tables) -> Result<CarList, Refused> {
     Ok(
-        if any_won(&tables.lists.cars_second, &tables.lists.secret_cars)? {
+        if any_won(tables, &tables.lists.cars_second, &tables.lists.secret_cars)? {
             CarList::WithClio
         } else {
             CarList::First

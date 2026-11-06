@@ -26,6 +26,7 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 // ---- Rust version ----
 
 pub fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refused> {
+    let screens = &crate::menu::owner::menus().screens;
     // Converted: `rc2k_core::saves::defaults::championship_times`.
     {
         let records_at = crate::records::stages_store::STAGE_TABLES.championship();
@@ -51,9 +52,9 @@ pub fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refused> {
             &records,
             Championship::Times { stage: ebp },
             present,
-            with_checkpoints(),
+            with_checkpoints(screens),
         )?;
-        apply(&filled, &tables)?;
+        apply(screens, &filled, &tables)?;
         Ok(())
     }
 }

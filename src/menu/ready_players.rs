@@ -8,11 +8,13 @@
 //! Refuses (before anything) a player count of 0 or past 4 or a player missing .
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::standings::counted_players;
 
 pub fn ready_players() -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::menu::player::Player::ready`.
-    for p in counted_players()? {
+    for p in counted_players(screens)? {
         p.update(rc2k_core::menu::player::Player::ready);
     }
     Ok(())

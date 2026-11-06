@@ -15,5 +15,5 @@ use crate::service::pages::{SUSPENSION_STIFFNESS, change_page};
 // ---- Rust version ----
 
 pub fn edit_suspension_stiffness(confirm: bool) -> Result<(), Refused> {
-    change_page(SUSPENSION_STIFFNESS, confirm)
+    change_page(crate::menu::owner::menus(), SUSPENSION_STIFFNESS, confirm)
 }

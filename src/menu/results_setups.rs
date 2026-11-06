@@ -25,7 +25,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
+use crate::menu::owner::Tables;
 
 const POSITION_LIMIT: u32 = 16;
 
@@ -45,8 +47,7 @@ fn place_pointer(offset: u32) -> Result<&'static crate::session::Dword, Refused>
 }
 
 /// The ranking of `rank_stage_times` (`by_totals` false) or `rank_totals`.
-pub fn rank(by_totals: bool) -> Result<(), Refused> {
-    let menus = menus();
+pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
     let values: Vec<u32> = if by_totals {
         (0..4).map(|k| menus.play.results.totals[k].get()).collect()
     } else {
@@ -73,8 +74,7 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
 }
 
 /// The stage record's +0x34, the time the bonus is counted from.
-fn stage_time() -> Result<u32, Refused> {
-    let screens = &menus().screens;
+fn stage_time(screens: &Screens) -> Result<u32, Refused> {
     let records = crate::records::stages_store::STAGE_TABLES.group_event_table(
         screens.event.stage_group.get(),
         screens.event.stage_sub.get(),
@@ -86,18 +86,17 @@ fn stage_time() -> Result<u32, Refused> {
     )
 }
 
-fn points(position: u32) -> Result<u32, Refused> {
+fn points(tables: &Tables, position: u32) -> Result<u32, Refused> {
     if position >= POSITION_LIMIT {
         return Err(BadInput("a position past the points table").into());
     }
-    Ok(menus().tables.captions.place_points[position as usize].get())
+    Ok(tables.captions.place_points[position as usize].get())
 }
 
 /// `menu::score_four_players` (`n` 4) or `score_two_players` (`n` 2).
-pub fn score(n: usize) -> Result<(), Refused> {
-    let menus = menus();
+pub fn score(menus: &Menus, n: usize) -> Result<(), Refused> {
     let records = players(n as u32)?;
-    let target = stage_time()?;
+    let target = stage_time(&menus.screens)?;
     let times: Vec<u32> = records.iter().map(|&r| r.get().time).collect();
     let positions: Vec<u32> = if n == 2 {
         rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
@@ -108,7 +107,7 @@ pub fn score(n: usize) -> Result<(), Refused> {
     };
     let earned: Vec<u32> = positions
         .iter()
-        .map(|&q| points(q))
+        .map(|&q| points(&menus.tables, q))
         .collect::<Result<_, _>>()?;
     for k in 0..n {
         menus.play.results.before[k].set(menus.play.results.totals[k].get());
@@ -137,18 +136,18 @@ pub fn score(n: usize) -> Result<(), Refused> {
 }
 
 /// The Rust versions as the harness runs them.
-pub fn rank_stage_times() -> Result<(), Refused> {
-    rank(false)
+pub fn rank_stage_times(menus: &Menus) -> Result<(), Refused> {
+    rank(menus, false)
 }
 
-pub fn rank_totals() -> Result<(), Refused> {
-    rank(true)
+pub fn rank_totals(menus: &Menus) -> Result<(), Refused> {
+    rank(menus, true)
 }
 
-pub fn score_four_players() -> Result<(), Refused> {
-    score(4)
+pub fn score_four_players(menus: &Menus) -> Result<(), Refused> {
+    score(menus, 4)
 }
 
-pub fn score_two_players() -> Result<(), Refused> {
-    score(2)
+pub fn score_two_players(menus: &Menus) -> Result<(), Refused> {
+    score(menus, 2)
 }

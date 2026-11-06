@@ -10,13 +10,13 @@
 
 use crate::errors::Refused;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 // ---- Rust version ----
 
 /// `menu` is edi at entry.
-pub fn draw_frame(menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
-    menus().screens.loop_flags.menu.set(menu);
+pub fn draw_frame(menus: &Menus, menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
+    menus.screens.loop_flags.menu.set(menu);
     if crate::menu::screen_loop::quitting() {
         return Ok(());
     }
@@ -25,7 +25,7 @@ pub fn draw_frame(menu: crate::menu::menus_store::MenuId) -> Result<(), Refused>
         return Ok(());
     }
     draw_menu(menu)?;
-    crate::menu::run_draw_list::run_draw_list()?;
+    crate::menu::run_draw_list::run_draw_list(menus)?;
     crate::platform::unlock_surface();
     Ok(())
 }

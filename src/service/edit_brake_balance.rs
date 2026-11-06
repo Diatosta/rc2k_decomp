@@ -14,5 +14,5 @@ use crate::service::pages::{BRAKE_BALANCE, simple_page};
 // ---- Rust version ----
 
 pub fn edit_brake_balance() -> Result<(), Refused> {
-    simple_page(BRAKE_BALANCE)
+    simple_page(crate::menu::owner::menus(), BRAKE_BALANCE)
 }

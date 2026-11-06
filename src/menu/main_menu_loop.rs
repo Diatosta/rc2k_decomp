@@ -88,7 +88,7 @@ fn idle(_: &Entry) -> Result<Flow, Refused> {
     crate::menu::play_films::play_films(true)?;
     log("menu::main_menu_loop: sub_4161CD has come back");
     menus.screens.loop_flags.idle.set(0u32);
-    update_blink();
+    update_blink(menus);
     let now = CLOCKS.frame.get();
     menus.play.champ_view.last_key_time.set(now);
     CLOCKS.setup_time.set(now);

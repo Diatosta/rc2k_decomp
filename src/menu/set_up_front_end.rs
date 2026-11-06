@@ -21,7 +21,7 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::saves::default_times::to_the_log;
 
 // ---- game data ----
@@ -47,8 +47,7 @@ fn record_tables() -> [crate::records::stages_store::RecordTable; 13] {
 /// `fit_player_names` as its x. Neither is looked at: the stage only while `dword_755A0C` is
 /// 1, which it is only for `default_checkpoint_times`, which does not read it; the x is
 /// where a measuring starts, which a width does not depend on. The stage passed is 0.
-pub fn set_up_front_end() -> Result<(), Refused> {
-    let menus = menus();
+pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
     let stage = 0;
     use crate::saves::{
         allocate_best_times, default_best_scores, default_championship_times,

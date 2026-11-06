@@ -20,7 +20,7 @@ use crate::service::read_setup_slot::{SLOT_COUNT, slot_name};
 // ---- Rust version ----
 
 pub fn begin_setup_name() -> Result<(), BadInput> {
-    let slot = highlighted_slot();
+    let slot = highlighted_slot(menus());
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table"));
     }

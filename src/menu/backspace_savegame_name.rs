@@ -9,11 +9,12 @@
 
 use crate::errors::BadInput;
 use crate::menu::name_lists::{NAME_LEN, savegame_name};
+use crate::menu::owner::Menus;
 use crate::menu::text_entry::{entry as text_entry, length, put_entry};
 
 // ---- Rust version ----
 
-pub fn backspace_savegame_name() -> Result<(), BadInput> {
+pub fn backspace_savegame_name(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::backspace`.
     if length() == 0 {
         return Ok(());
@@ -21,7 +22,7 @@ pub fn backspace_savegame_name() -> Result<(), BadInput> {
     let name = savegame_name()?;
     let mut e = text_entry();
     if let Some(at) = e.backspace(NAME_LEN)? {
-        put_entry(&e);
+        put_entry(menus, &e);
         name.add(at as u32).write(&[0], "a saved game's name")?;
     }
     Ok(())

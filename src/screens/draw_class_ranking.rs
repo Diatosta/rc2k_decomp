@@ -27,6 +27,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::find_class_time::find_class_time;
+use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::text::draw_text::Canvas;
 use rc2k_core::saves::entries::BestTime;
@@ -39,8 +40,7 @@ use rc2k_core::saves::entries::BestTime;
 type Rows = (Vec<(BestTime, u32)>, Option<u32>);
 
 /// The rows to draw, worked out before anything is drawn.
-fn rows() -> Result<Rows, Refused> {
-    let menus = menus();
+fn rows(menus: &Menus) -> Result<Rows, Refused> {
     // Converted: `rc2k_core::screens::results_pages::class_rows`.
     crate::menu::standings::with_a(|t| {
         let found = rc2k_core::screens::results_pages::class_rows(
@@ -62,7 +62,7 @@ fn rows() -> Result<Rows, Refused> {
 /// The Rust version.
 pub fn draw_class_ranking(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let menus = menus();
-    let (rows, last_place) = rows()?;
+    let (rows, last_place) = rows(menus)?;
     let first_time = find_class_time(menus.screens.event.class.get(), true)?;
     // Converted: `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};

@@ -20,7 +20,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::go_back;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, menus};
 use crate::service::clear_repair_flags::clear_repair_flags;
 use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
@@ -32,7 +32,7 @@ use crate::service::pages::{
     TYRE,
 };
 use crate::service::read_setup_slot::{SET_UPS, SLOT_COUNT, read_setup_slot};
-use crate::service::state::{ITEM_COUNT, current_player, marks_ended, menu_item, repair_flag};
+use crate::service::state::{ITEM_COUNT, current_player_of, marks_ended, repair_flag_in};
 
 // ---- game data ----
 
@@ -40,26 +40,27 @@ use crate::service::state::{ITEM_COUNT, current_player, marks_ended, menu_item, 
 /// A change page's editor (`confirm` its argument).
 type Editor = fn(bool) -> Result<(), Refused>;
 
-pub fn highlighted_slot() -> u32 {
+pub fn highlighted_slot(menus: &Menus) -> u32 {
     // Converted: `rc2k_core::service::setups::highlighted_slot`.
     rc2k_core::service::setups::highlighted_slot(
-        menus().tables.pages.setup_slot_page.get(),
-        menu_item(),
+        menus.tables.pages.setup_slot_page.get(),
+        menus.screens.loop_flags.item.get(),
     )
 }
 
 // ---- Rust version ----
 
 pub fn load_setup_slot() -> Result<(), Refused> {
-    let screens = &menus().screens;
-    let slot = highlighted_slot();
-    let Some(player) = current_player() else {
+    let menus = menus();
+    let (screens, tables) = (&menus.screens, &menus.tables);
+    let slot = highlighted_slot(menus);
+    let Some(player) = current_player_of(screens) else {
         return Err(BadInput("no current player object: the original writes through null").into());
     };
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
-    if repair_flag(ITEM_COUNT) != u32::MAX || !marks_ended() {
+    if repair_flag_in(tables, ITEM_COUNT) != u32::MAX || !marks_ended(tables) {
         return Err(BadInput("a flag table has lost its end mark").into());
     }
 
@@ -87,9 +88,9 @@ pub fn load_setup_slot() -> Result<(), Refused> {
     // The original clears both tables again here, this time checking each entry for the
     // end mark before writing it. With the end marks in place that is the same thing.
     clear_repair_flags()?;
-    clear_repair_marks()?;
+    clear_repair_marks(tables)?;
 
-    let highlighted = menu_item();
+    let highlighted = screens.loop_flags.item.get();
     for page in CONFIRM_ORDER {
         let (change, edit): (ChangePage, Editor) = match page {
             EditPage::GearRatio => (GEAR_RATIO, edit_gear_ratio),

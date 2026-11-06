@@ -12,12 +12,12 @@
 
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 /// The Rust version.
-pub fn arcade_level_end() -> Result<(), Refused> {
-    let play = &menus().play;
+pub fn arcade_level_end(menus: &Menus) -> Result<(), Refused> {
+    let play = &menus.play;
     // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};
     if !won(play.results.positions[0].get()) {
@@ -28,15 +28,15 @@ pub fn arcade_level_end() -> Result<(), Refused> {
     }
     let level = won_level(play.arcade.level.get())?;
     crate::sound::play_tune_6::play_tune_6();
-    crate::menu::arcade_finale::arcade_finale()?;
+    crate::menu::arcade_finale::arcade_finale(&menus.play)?;
     if first_win(play.arcade.levels_won.get(level as usize)) {
         play.arcade.levels_won.set(level as usize, 1);
         let shown = Entry {
             cars: Some(CarList::Shown),
         };
         run_screen(&crate::menu::car_specs_47af4c_loop::SCREEN, &shown)?;
-        crate::menu::arcade_steps::add_shown_car()?;
-        crate::menu::arcade_steps::remove_shown_car(&mut || {
+        crate::menu::arcade_steps::add_shown_car(menus)?;
+        crate::menu::arcade_steps::remove_shown_car(menus, &mut || {
             crate::saves::list_car_numbers::list_car_numbers().map_err(Refused::from)
         })?;
     }

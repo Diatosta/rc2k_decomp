@@ -26,6 +26,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_selected_stage_menu::menu_titles;
 use crate::screens::draw_stage_records::selection;
@@ -42,12 +43,15 @@ const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES; // dword
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
 pub fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles()?) else {
+    let play = &menus().play;
+    let screens = &menus().screens;
+    let tables = &menus().tables;
+    let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles(play)?) else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );
     };
-    let (Some(item_0), Some(item_1)) = (menu_item_id(0), menu_item_id(1)) else {
+    let (Some(item_0), Some(item_1)) = (menu_item_id(screens, 0), menu_item_id(screens, 1)) else {
         return Err(BadInput("there is no current menu: the original writes through null").into());
     };
     item_0.set(group_title);
@@ -59,7 +63,7 @@ pub fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Ref
         return Err(BadInput("no time trial best-times table: the original reads near 0").into());
     }
     build_second_heading(sel.record)?;
-    draw_stage_body(sel.record, true, canvas)?;
+    draw_stage_body(tables, sel.record, true, canvas)?;
     let best = crate::screens::stage_panel::best_of(table, sel.record.record()?.event_slot())?;
     draw_records_rows(&best, &TIME_TRIAL_ROWS, canvas)
 }

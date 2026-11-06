@@ -28,7 +28,7 @@ fn first_class() -> u32 {
 /// The Rust version (see the header).
 pub fn class_rally_results_pass() -> Result<(), Refused> {
     let menus = menus();
-    crate::menu::sort_standings_by_total::sort_standings_by_total()?;
+    crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
     let first = first_class();
     // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
     let classes = class_pages::classes(first, menus.screens.event.classes.get())?;
@@ -45,7 +45,7 @@ pub fn class_rally_results_pass() -> Result<(), Refused> {
         menus.screens.loop_flags.ended_b.set(1u32);
         let numbered = number_standings(Which::A, class)?;
         menus.screens.event.count_a.set(numbered.last_number);
-        crate::menu::show_class_rally_results::show_class_rally_results(class)?;
+        crate::menu::show_class_rally_results::show_class_rally_results(menus, class)?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             break;
         }

@@ -157,7 +157,7 @@ pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Ref
                 },
             },
             Heading::Record => {
-                crate::screens::best_scores::draw_record_heading(canvas)?;
+                crate::screens::best_scores::draw_record_heading(menus, canvas)?;
                 Drawn::Drawn
             }
         };

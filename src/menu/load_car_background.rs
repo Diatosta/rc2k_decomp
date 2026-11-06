@@ -13,7 +13,7 @@
 use crate::errors::{FatalError, Refused};
 use crate::menu::car_description::{read, shown_description};
 use crate::menu::load_background::load_background;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::GameCanvas;
 
 // ---- game data ----
@@ -33,15 +33,15 @@ pub fn shown_car() -> Result<u32, Refused> {
 /// `load` gets the path; it returns whether the carry was set. (The original hands it the
 /// car too, as the frame sprite's palette, which the sprite never looks at.)
 pub fn load_car_background(
+    menus: &Menus,
     load: &mut dyn FnMut(crate::pointers::GamePtr) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
-    let menus = menus();
     // Converted: `rc2k_core::menu::slides::background_page`.
     let page = rc2k_core::menu::slides::background_page(menus.screens.event.car_page.get())?;
     let car = shown_car()?;
     let path = crate::menu::texts_store::text_at(crate::session::read_on_in(
         &menus.tables.lists,
-        crate::menu::lists_store::page_pictures(page)?,
+        crate::menu::lists_store::page_pictures(&menus.tables, page)?,
         car as usize,
         "load car background: a game value",
     )?)?;
@@ -56,8 +56,8 @@ pub fn load_car_background(
 }
 
 /// In the game: the background through `menu::load_background` (its carry is never set).
-pub fn load_car_background_in_game() -> Result<(), Refused> {
-    load_car_background(&mut |path| {
+pub fn load_car_background_in_game(menus: &Menus) -> Result<(), Refused> {
+    load_car_background(menus, &mut |path| {
         load_background(&path, &mut GameCanvas)?;
         Ok(false)
     })

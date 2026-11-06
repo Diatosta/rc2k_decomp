@@ -9,16 +9,16 @@
 //! Caller: `sub_473126`. Refuses null tables and a table A that runs out (the original walks on
 //! past its end), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 use crate::saves::best_times::SUMMARY;
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn copy_standings_summary() -> Result<(), Refused> {
+pub fn copy_standings_summary(screens: &Screens) -> Result<(), Refused> {
     if !SUMMARY.is_taken() {
         return Err(BadInput("no standings summary").into());
     }
-    let grouped = menus().screens.state.menus.class_mode.get() == 2;
+    let grouped = screens.state.menus.class_mode.get() == 2;
     // Converted: `rc2k_core::saves::rankings::summary_rows`.
     let Some(rows) = rc2k_core::saves::rankings::summary_rows(&walked_entries_a()?, grouped) else {
         return Err(BadInput("standings table A runs out").into());

@@ -12,7 +12,7 @@
 //! Callers: `net::start_link`, `net::open_lobby`.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Play;
 use crate::menu::player::Player;
 use crate::net::lobby::copy_printable;
 use crate::net::store::NET;
@@ -74,10 +74,10 @@ const MORE: [(&Dword, &Dword); 5] = [
 ];
 
 /// The Rust version.
-pub fn fill_own_player(name: impl Into<crate::place::Place>) -> Result<(), Refused> {
+pub fn fill_own_player(play: &Play, name: impl Into<crate::place::Place>) -> Result<(), Refused> {
     copy_printable(name, &NET.player_name, 0x1F)?;
     // Converted: `rc2k_core::net::record::own_record`.
-    let player = menus().play.players.players[0].get();
+    let player = play.players.players[0].get();
     let own = record::own_record(
         player.car_number as u8,
         player.gearing as u8,

@@ -5,11 +5,10 @@
 //! `menu::take_player1_units` and `menu::arcade_event`.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Play;
 
 /// The Rust version for `level` (1 .. 5).
-pub fn arcade_level(level: u32) -> Result<(), Refused> {
-    let play = &menus().play;
+pub fn arcade_level(play: &Play, level: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::arcade::level_open`.
     use rc2k_core::menu::arcade::{CLOSED_SOUND, level_open};
     let open = level_open(play.cheats.cheats.get(), || {

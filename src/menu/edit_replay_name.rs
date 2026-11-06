@@ -30,7 +30,7 @@ use crate::menu::add_text_length::add_text_length;
 use crate::menu::backspace_savegame_name::backspace_savegame_name;
 use crate::menu::clear_text::clear_text;
 use crate::menu::name_lists::{NAME_LEN, replay_name, savegame_name};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
 use crate::strings::append_string_by_id::push_string;
@@ -49,8 +49,7 @@ fn end_name(name: crate::place::Place) -> Result<(), BadInput> {
 }
 
 /// Returns the carry flag.
-pub fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let menus = menus();
+pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Everything that could be refused, before the key is taken.
     let name = replay_name()?;
     let other_name = savegame_name()?;
@@ -83,7 +82,7 @@ pub fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         }
         // The saved game's name, not the replay's: the original's slip.
         Key::Clear => clear_text(other_name)?,
-        Key::Backspace => backspace_savegame_name()?,
+        Key::Backspace => backspace_savegame_name(menus)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             let len = length();
@@ -93,7 +92,7 @@ pub fn edit_replay_name(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
                 let measured =
                     measure_text_at(MEASURING_FONT.game_ptr(), name.game_ptr(), len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
-                    backspace_savegame_name()?;
+                    backspace_savegame_name(menus)?;
                 }
             }
         }

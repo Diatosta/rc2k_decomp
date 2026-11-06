@@ -10,22 +10,21 @@
 //! anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
 // g_eventMode
 
 /// The Rust version (see the header).
-pub fn show_class_stage_results(class: u32) -> Result<(), Refused> {
-    let menus = menus();
+pub fn show_class_stage_results(menus: &Menus, class: u32) -> Result<(), Refused> {
     menus.screens.event.class.set(class);
     let found = crate::menu::first_player_a::first_player_a(class)?;
     // Converted: `rc2k_core::menu::results_pages::held_figure`.
     let count = held_figure(Page::ClassStage, found.figure);
     menus.play.champ_view.count.set(count);
-    crate::menu::first_page_stage::first_page_stage();
-    crate::menu::stage_range_caption::stage_range_caption()?;
+    crate::menu::first_page_stage::first_page_stage(&menus.play);
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     run_screen(
         &crate::menu::class_stage_results_loop::SCREEN,
         &Entry::default(),

@@ -7,12 +7,13 @@
 //! Caller: `sub_4A3BE0`. `records::find_record`'s Rust version. Refuses a record past the table or
 //! no events table, before anything.
 use crate::errors::Refused;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header).
-pub fn clear_record_entries() -> Result<(), Refused> {
+pub fn clear_record_entries(screens: &Screens) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::entries::clear_marks`.
-    let event = current_event()?;
+    let event = current_event(screens)?;
     with_event(event, rc2k_core::saves::entries::clear_marks)?;
     Ok(())
 }

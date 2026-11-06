@@ -19,7 +19,7 @@ use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::clear_text::clear_text;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::menu::player_name::{backspace_name, bring_back_name, name_place};
 use crate::menu::text_entry::{TEXT_LEN, set_length};
 use crate::text::draw_text::Canvas;
@@ -31,8 +31,7 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 
 // ---- Rust version ----
 
-pub fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn edit_player_name(screens: &Screens, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Everything that could be refused, before the key is taken.
     let name = name_place()?;
     let len = { screens.loop_flags.text_length.get() } as i32;

@@ -21,7 +21,8 @@ use crate::menu::add_text_length::add_text_length;
 use crate::menu::backspace_savegame_name::backspace_savegame_name;
 use crate::menu::clear_text::clear_text;
 use crate::menu::name_lists::{NAME_LEN, savegame_name};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Tables;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::{length, set_length};
 use crate::saves::write_savegame_slot::write_savegame_slot;
@@ -42,9 +43,8 @@ fn end_name(name: crate::place::Place) -> Result<(), BadInput> {
 }
 
 /// The slot of the highlighted saved game: `page * 10 + item - 1`.
-fn highlighted_slot() -> u32 {
-    menus()
-        .tables
+fn highlighted_slot(tables: &Tables) -> u32 {
+    tables
         .pages
         .save_page
         .get()
@@ -66,10 +66,11 @@ pub fn save_game(slot: u32) {
 
 /// `save` is called with the slot when Enter ends the entry.
 pub fn edit_savegame_name(
+    menus: &Menus,
     canvas: &mut dyn Canvas,
     save: &mut dyn FnMut(u32),
 ) -> Result<(), Refused> {
-    let screens = &menus().screens;
+    let screens = &menus.screens;
     // Everything that could be refused, before the key is taken.
     let name = savegame_name()?;
     if !(0..NAME_LEN as i32).contains(&length()) {
@@ -96,13 +97,13 @@ pub fn edit_savegame_name(
             }
             screens.option_work.typing.set(0u32);
             end_name(name)?;
-            save(highlighted_slot());
+            save(highlighted_slot(&menus.tables));
             end_name(name)?;
             screens.option_work.typing.set(0u32);
             return Ok(());
         }
         Key::Clear => clear_text(name)?,
-        Key::Backspace => backspace_savegame_name()?,
+        Key::Backspace => backspace_savegame_name(menus)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             let len = length();
@@ -112,7 +113,7 @@ pub fn edit_savegame_name(
                 let measured =
                     measure_text_at(MEASURING_FONT.game_ptr(), name.game_ptr(), len, canvas)?;
                 if entry::too_wide(measured.width as i32) {
-                    backspace_savegame_name()?;
+                    backspace_savegame_name(menus)?;
                 }
             }
         }

@@ -23,7 +23,7 @@ use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
 use crate::menu::load_car_background::shown_car;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::pointers::GamePtr;
 
 // ---- game data ----
@@ -40,10 +40,10 @@ pub enum Step {
 // ---- Rust version ----
 
 pub fn load_slideshow_picture(
+    menus: &Menus,
     way: u32,
     step: &mut dyn FnMut(Step) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
-    let menus = menus();
     // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car()?)?;
@@ -80,8 +80,8 @@ pub fn load_slideshow_picture(
 }
 
 /// With the Rust versions of what it calls.
-pub fn load_slideshow_picture_in_game(way: u32) -> Result<(), Refused> {
-    load_slideshow_picture(way, &mut |step| match step {
+pub fn load_slideshow_picture_in_game(menus: &Menus, way: u32) -> Result<(), Refused> {
+    load_slideshow_picture(menus, way, &mut |step| match step {
         Step::Overlay(path, over) => load_picture_with_overlay(&path, &over),
         Step::Load(path) => load_picture(&path).map(|_| false),
         Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),

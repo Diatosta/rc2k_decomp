@@ -15,8 +15,9 @@ use crate::service::state::{flags, store_flags};
 
 pub fn clear_repair_flags() -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::repairs::clear`.
-    let mut t = flags();
+    let tables = &crate::menu::owner::menus().tables;
+    let mut t = flags(tables);
     rc2k_core::service::repairs::clear(&mut t)?;
-    store_flags(&t);
+    store_flags(tables, &t);
     Ok(())
 }

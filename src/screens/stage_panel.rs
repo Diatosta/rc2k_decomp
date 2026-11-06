@@ -5,7 +5,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
+use crate::menu::owner::Tables;
 use crate::pointers::GamePtr;
 use crate::records::stages_store::RecordRef;
 use crate::records::trakpak_entry::record_entry;
@@ -67,17 +68,19 @@ pub fn build_second_heading(record: RecordRef) -> Result<(), Refused> {
 /// +0x24/+0x28/+0x2C/+0x30 surface percentages, +0x38 a number and +0x3C which of two labels
 /// goes with it. The record gives +0x10, the start time as hours * 100 + minutes.
 pub fn draw_stage_body(
+    tables: &Tables,
     record: RecordRef,
     keep_entry_34: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    draw_stage_body_in(record, keep_entry_34, HEADING_FONT, canvas)
+    draw_stage_body_in(tables, record, keep_entry_34, HEADING_FONT, canvas)
 }
 
 /// `draw_stage_body` with the two headings (surface, weather) in `heading_font`: the rally
 /// stage page (`screens::draw_rally_stage_info`) uses `stru_51E564`, the others
 /// `stru_51E5C4`.
 pub fn draw_stage_body_in(
+    tables: &Tables,
     record: RecordRef,
     keep_entry_34: bool,
     heading_font: crate::gfx::typefaces::FontId,
@@ -99,8 +102,7 @@ pub fn draw_stage_body_in(
         let made = Entry {
             // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
             // has no bound (fixed: refused).
-            duration: menus()
-                .tables
+            duration: tables
                 .lists
                 .durations
                 .get(f(8) as usize)
@@ -196,7 +198,7 @@ pub fn draw_records_for_group(
 
 /// The string id (+0x14) of item `n` (from 0) of the current menu, or None without a menu
 /// (or past its end).
-pub fn menu_item_id(n: u32) -> Option<&'static crate::session::Dword> {
-    let menu = menus().screens.loop_flags.menu.get().ok()?;
+pub fn menu_item_id(screens: &Screens, n: u32) -> Option<&'_ crate::session::Dword> {
+    let menu = screens.loop_flags.menu.get().ok()?;
     menu.items().get(n as usize).map(|i| &i.string)
 }

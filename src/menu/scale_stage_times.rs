@@ -10,7 +10,7 @@
 //!
 //! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::work_store::RACE_WORK;
@@ -39,8 +39,7 @@ pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
 
 /// `record` the stage's record (edi in the original; its +0x40 is logged). The original
 /// leaves eax the section, which its one caller (`calc_cpu_times`) does not read.
-pub fn scale_stage_times(record: RecordRef) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn scale_stage_times(screens: &Screens, record: RecordRef) -> Result<(), Refused> {
     use crate::logfile::{log_float::log_float, log_int::log_int};
     let section = held_section();
     let times: [u32; 4] = read_all(&screens.state.menus.class_times);

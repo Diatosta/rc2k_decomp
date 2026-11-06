@@ -24,7 +24,8 @@
 use crate::audio::names_store::SampleNames;
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
+use crate::menu::owner::Tables;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 
@@ -51,7 +52,7 @@ pub const SOUNDS_A_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.
 pub const SOUNDS_B_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.sounds_b; // dword_7556A0
 /// The Rust version of a volume step. What it leaves in registers is read by none of its
 /// callers (the item call sites have nothing live after the call).
-pub fn volume_step(v: Volume) {
+pub fn volume_step(screens: &Screens, v: Volume) {
     // Converted: `rc2k_core::menu::steps::volume`.
     let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
     v.value.set(value as u32);
@@ -69,7 +70,7 @@ pub fn volume_step(v: Volume) {
             value as u32,
         ),
         Then::Sound(sound) => {
-            menus().screens.flow.menu_sounds_volume.set(value as u32);
+            screens.flow.menu_sounds_volume.set(value as u32);
             crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
         }
     }
@@ -78,8 +79,7 @@ pub fn volume_step(v: Volume) {
 // ---- the plain steps (no calls) ----
 
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
-pub fn next_screen_mode() {
-    let screens = &menus().screens;
+pub fn next_screen_mode(screens: &Screens) {
     // Converted: `rc2k_core::menu::steps::next_mode`.
     let mode = rc2k_core::menu::steps::next_mode(
         crate::gfx::owner::gfx().display.choices.resolution.get(),
@@ -96,8 +96,7 @@ pub fn next_screen_mode() {
 
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
-pub fn step_texture_setting(up: bool) {
-    let screens = &menus().screens;
+pub fn step_texture_setting(screens: &Screens, up: bool) {
     // Converted: `rc2k_core::menu::steps::texture`.
     let v = rc2k_core::menu::steps::texture(screens.option_work.setting_3.get(), up);
     screens.option_work.setting_3.set(v);
@@ -125,8 +124,7 @@ pub const COLOUR_B: Colour = Colour {
 };
 
 /// `menu::next_colour_a` and the three others.
-pub fn step_colour(c: Colour, up: bool) {
-    let tables = &menus().tables;
+pub fn step_colour(tables: &Tables, c: Colour, up: bool) {
     // Converted: `rc2k_core::menu::steps::colour`.
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);

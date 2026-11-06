@@ -29,11 +29,12 @@ const DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due; // dwo
 
 /// The Rust version.
 pub fn time_trial_service() -> Result<(), Refused> {
-    let screens = &menus().screens;
+    let menus = menus();
+    let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
     use rc2k_core::menu::passes;
-    crate::menu::standings::counted_players()?;
+    crate::menu::standings::counted_players(screens)?;
     set(SERVICE_TIME, passes::TIME_TRIAL_MINUTES);
     set(GOES_ON, 1);
     let mut current = 0;
@@ -42,10 +43,10 @@ pub fn time_trial_service() -> Result<(), Refused> {
             set(CURRENT, current);
             { crate::menu::inspection_screen::inspection_screen() }?;
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
-            crate::menu::fade_in::fade_in()?;
+            crate::menu::fade_in::fade_in(screens)?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
             screens.state.driver_stats.repair_time.set(0);
-            { crate::menu::driver_stats::driver_stats() }?;
+            { crate::menu::driver_stats::driver_stats(screens) }?;
             screens.state.menus.service_flag.set(0);
             {
                 run_screen(
@@ -57,7 +58,7 @@ pub fn time_trial_service() -> Result<(), Refused> {
                 break 'all;
             }
             { crate::service::apply_repairs::apply_repairs_in_game() }?;
-            crate::menu::set_player_entry_kind::set_player_entry_kind()?;
+            crate::menu::set_player_entry_kind::set_player_entry_kind(screens)?;
             // The current player as the screens leave it (the original reads it again).
             let serviced = get(CURRENT);
             if serviced >= 4 {
@@ -65,7 +66,7 @@ pub fn time_trial_service() -> Result<(), Refused> {
             }
             let record = player(serviced);
             if passes::is_out(record.get().entry) {
-                crate::menu::inspection_faults::inspection_faults()?;
+                crate::menu::inspection_faults::inspection_faults(menus)?;
                 {
                     run_screen(
                         &crate::menu::inspection_area_loop::SCREEN,

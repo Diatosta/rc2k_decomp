@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 use crate::menu::load_car_background::load_car_background;
 use crate::menu::load_slideshow_picture::load_slideshow_picture_in_game;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::sound::play_car_stream::play_car_stream;
 use crate::text::draw_text::GameCanvas;
 
@@ -14,8 +14,11 @@ pub use rc2k_core::menu::cars::{Button as Which, Call};
 
 /// A button through `rc2k_core::menu::cars::press`: the variables loaded, changed and
 /// stored, then its calls made.
-pub fn press(b: Which, call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(), Refused> {
-    let menus = menus();
+pub fn press(
+    menus: &Menus,
+    b: Which,
+    call: &mut dyn FnMut(Call) -> Result<(), Refused>,
+) -> Result<(), Refused> {
     use rc2k_core::menu::cars::Shown;
 
     let mut s = Shown {
@@ -38,13 +41,13 @@ pub fn press(b: Which, call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Res
 }
 
 /// The game's: each call through the Rust version.
-pub fn call_in_game(call: Call) -> Result<(), Refused> {
+pub fn call_in_game(menus: &Menus, call: Call) -> Result<(), Refused> {
     match call {
-        Call::Background => load_car_background(&mut |path| {
+        Call::Background => load_car_background(menus, &mut |path| {
             crate::menu::load_background::load_background(&path, &mut GameCanvas)?;
             Ok(false)
         }),
         Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream),
-        Call::Picture(way) => load_slideshow_picture_in_game(way),
+        Call::Picture(way) => load_slideshow_picture_in_game(menus, way),
     }
 }

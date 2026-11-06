@@ -1,5 +1,6 @@
 //! The four players' names and the players that keep a copy of them.
 
+use crate::menu::owner::Play;
 use crate::menu::owner::menus;
 
 pub const PLAYERS: usize = 4;
@@ -56,8 +57,8 @@ pub fn name_bytes(player: usize) -> [u8; NAME_LEN] {
 }
 
 /// The four players' records.
-pub fn cars() -> &'static [crate::session::Shared<crate::menu::player::Player>; 4] {
-    &menus().play.players.players
+pub fn cars(play: &Play) -> &'_ [crate::session::Shared<crate::menu::player::Player>; 4] {
+    &play.players.players
 }
 
 #[cfg(test)]

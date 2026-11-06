@@ -23,9 +23,10 @@ use crate::menu::standings::*;
 /// The Rust version (see the header).
 pub fn inspection_pass() -> Result<(), Refused> {
     let menus = menus();
+    let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
-    let players = counted_players()?;
+    let players = counted_players(screens)?;
     for &p in &players {
         if passes::takes_part(p.get().entry) {
             crate::menu::driver_stats::car_table(p)?;
@@ -37,9 +38,9 @@ pub fn inspection_pass() -> Result<(), Refused> {
         if !passes::takes_part(p.get().entry) {
             continue;
         }
-        crate::menu::driver_stats::driver_stats()?;
-        crate::menu::inspection_verdict::inspection_verdict()?;
-        crate::menu::inspection_faults::inspection_faults()?;
+        crate::menu::driver_stats::driver_stats(screens)?;
+        crate::menu::inspection_verdict::inspection_verdict(menus)?;
+        crate::menu::inspection_faults::inspection_faults(menus)?;
         if !passes::is_out(p.get().entry) {
             continue;
         }
@@ -50,7 +51,7 @@ pub fn inspection_pass() -> Result<(), Refused> {
             .set(menus.screens.event.event_out.get().wrapping_add(1));
         crate::menu::inspection_screen::inspection_screen()?;
         crate::system::sleep::sleep(passes::SCREEN_PAUSE);
-        crate::menu::fade_in::fade_in()?;
+        crate::menu::fade_in::fade_in(screens)?;
         run_screen(
             &crate::menu::inspection_area_loop::SCREEN,
             &Entry::default(),
@@ -58,7 +59,7 @@ pub fn inspection_pass() -> Result<(), Refused> {
         if menus.tables.pages.yes_no_answer.get() == 1 {
             return Ok(());
         }
-        crate::menu::fades::fade(true)?;
+        crate::menu::fades::fade(screens, true)?;
         crate::system::sleep::sleep(passes::INSPECTION_PAUSE);
     }
     if !passes::goes_on(menus.screens.event.event_out.get(), PLAYER_COUNT_RVA.get()) {

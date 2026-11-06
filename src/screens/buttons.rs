@@ -15,6 +15,7 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::menu::item_sprites_store::ItemSprite;
+use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
@@ -160,10 +161,11 @@ pub fn draw_button(
 /// `screens::draw_item_button` (0x469283): the button an item describes itself (width at
 /// +8, alignment at +0xC), highlighted if the item is.
 pub fn draw_item_button(
+    screens: &Screens,
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let highlighted = menus().screens.loop_flags.item.get() == item.id.get();
+    let highlighted = screens.loop_flags.item.get() == item.id.get();
     draw_button(
         if highlighted { &HIGHLIGHTED } else { &PLAIN },
         item.text_x.get(),

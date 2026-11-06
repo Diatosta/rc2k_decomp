@@ -1,5 +1,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
@@ -54,8 +55,7 @@ impl Game {
 }
 
 /// The variables that are in static cells.
-fn cell(v: Var) -> Option<&'static Dword> {
-    let menus = menus();
+fn cell(menus: &Menus, v: Var) -> Option<&'_ Dword> {
     Some(match v {
         Var::On => &RACE_STATE.results.finished,
         Var::Kept => &RACE_STATE.settings.kept,
@@ -74,9 +74,10 @@ impl finish::Finish for Game {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
+        let menus = menus();
         match v {
             Var::RacerNumber | Var::RacerCar => self.racer_get(v),
-            _ => match cell(v) {
+            _ => match cell(menus, v) {
                 Some(cell) => cell.get(),
                 None => unreachable!("the racer's fields are not at an address"),
             },
@@ -84,9 +85,10 @@ impl finish::Finish for Game {
     }
 
     fn set(&mut self, v: Var, value: u32) {
+        let menus = menus();
         match v {
             Var::RacerNumber | Var::RacerCar => self.fault.ok(Err(RACER_SET)),
-            _ => match cell(v) {
+            _ => match cell(menus, v) {
                 Some(cell) => cell.set(value),
                 None => unreachable!("the racer's fields are not at an address"),
             },
@@ -104,7 +106,8 @@ impl finish::Finish for Game {
     }
 
     fn find_done(&mut self) -> Result<Option<u32>, Refused> {
-        let found = crate::menu::find_section_player::find_section_player()?;
+        let screens = &menus().screens;
+        let found = crate::menu::find_section_player::find_section_player(screens)?;
         self.racer = RacerAt::Player(found.record);
         Ok((found.index != u32::MAX).then_some(found.index))
     }

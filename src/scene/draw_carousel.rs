@@ -12,7 +12,7 @@
 //! `scene::draw_main_menu_carousel`.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, Screens};
 use crate::scene::draw_carousel_entry::draw_carousel_entry;
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 
@@ -25,11 +25,11 @@ use crate::scene::draw_menu_object::draw_menu_object_in_game;
 /// (the original sets ebx and edx for it, not ecx).
 // Converted: `rc2k_core::scene::carousel::drawn`
 pub fn draw_carousel(
+    screens: &Screens,
     lone_row: u32,
     entry: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::carousel::{Drawn, drawn};
-    let screens = &menus().screens;
     {
         let count: u32 = screens.state.carousel.count.get();
         match drawn(
@@ -51,10 +51,11 @@ pub fn draw_carousel(
 
 /// With the Rust versions of what it calls.
 pub fn draw_carousel_in_game(
+    menus: &Menus,
     race: &crate::race::owner::Race,
     lone_row: u32,
 ) -> Result<(), Refused> {
-    draw_carousel(lone_row, &mut |e, place| {
-        draw_carousel_entry(e, place, &mut || draw_menu_object_in_game(race))
+    draw_carousel(&menus.screens, lone_row, &mut |e, place| {
+        draw_carousel_entry(menus, e, place, &mut || draw_menu_object_in_game(race))
     })
 }

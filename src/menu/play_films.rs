@@ -23,6 +23,7 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
+use crate::menu::owner::Panels;
 use crate::menu::owner::menus;
 use crate::session::SCREEN;
 use rc2k_core::menu::films::{self, Film, Flags, Step};
@@ -69,8 +70,7 @@ struct Game {
     failed: Option<Refused>,
 }
 
-fn film(f: Film) -> crate::pointers::GamePtr {
-    let panels = &menus().panels;
+fn film(panels: &Panels, f: Film) -> crate::pointers::GamePtr {
     match f {
         Film::AlLogo => crate::pointers::GamePtr::to(&panels.films.allogo),
         Film::MfLogo => crate::pointers::GamePtr::to(&panels.films.mflogo),
@@ -86,6 +86,7 @@ fn play(path: crate::pointers::GamePtr) -> bool {
 
 impl Game {
     fn run(&mut self, s: Step) -> Result<Flags, Refused> {
+        let panels = &menus().panels;
         let mut flags = Flags::default();
         match s {
             Step::StopMusic => crate::sound::stop_music::stop_music(),
@@ -94,10 +95,10 @@ impl Game {
                 flags.zero = crate::input::take_key::take_key() == 0;
             }
             Step::SwapMissingExtension(f) => {
-                crate::files::swap_missing_extension::swap_missing_extension(&film(f))?;
+                crate::files::swap_missing_extension::swap_missing_extension(&film(panels, f))?;
             }
             Step::Player(f) => {
-                flags.zero = play(film(f.unwrap_or(Film::AlLogo)));
+                flags.zero = play(film(panels, f.unwrap_or(Film::AlLogo)));
             }
             Step::LitEngine => crate::scene::set_up_lit_engine::set_up_lit_engine()?,
             Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,
@@ -106,7 +107,7 @@ impl Game {
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),
             Step::FileExists(f) => {
-                let there = crate::files::file_exists::file_exists_at(film(f))?;
+                let there = crate::files::file_exists::file_exists_at(film(panels, f))?;
                 flags.carry = !there;
                 flags.zero = there;
             }

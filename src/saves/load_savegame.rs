@@ -27,12 +27,11 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::go_back;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, menus};
 use crate::pointers::GamePtr;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::saves::write_savegame_slot::SLOTS;
-use crate::service::state::menu_item;
 use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
 
 // ---- game data ----
@@ -43,9 +42,12 @@ const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4: what `gather_savegame` wrote
 const UNREADABLE_SOUND: u32 = 8;
 
 /// The slot the highlighted menu item stands for.
-fn highlighted_slot() -> u32 {
+fn highlighted_slot(menus: &Menus) -> u32 {
     // Converted: `rc2k_core::saves::savegame::slot`.
-    rc2k_core::saves::savegame::slot(menus().tables.pages.save_page.get(), menu_item())
+    rc2k_core::saves::savegame::slot(
+        menus.tables.pages.save_page.get(),
+        menus.screens.loop_flags.item.get(),
+    )
 }
 
 // ---- Rust version ----
@@ -53,11 +55,11 @@ fn highlighted_slot() -> u32 {
 /// The Rust version (see the header).
 pub fn load_savegame() -> Result<(), Refused> {
     let menus = menus();
-    let slot = highlighted_slot();
+    let slot = highlighted_slot(menus);
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
-    let cars = cars()?;
+    let cars = cars(&menus.play)?;
 
     crate::menu::ready_players::ready_players()?;
     menus.screens.event.event_goes_on.set(1u32);
@@ -71,7 +73,7 @@ pub fn load_savegame() -> Result<(), Refused> {
 
     let mut cursor =
         GamePtr::to(&crate::saves::owner::saves().save_games.file).offset(PAYLOAD_OFFSET as u32);
-    for at in head() {
+    for at in head(menus) {
         at.set(cursor.read::<u32>("the savegame's head")?);
         cursor = cursor.offset(4);
     }

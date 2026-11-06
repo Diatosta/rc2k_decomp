@@ -3,10 +3,9 @@
 //! its key's place (`menu/redefine_keys.rs`): `g_redefiningKey` = 1 and
 //! `g_redefinedKeyPlace` = the place. `choose_key_8` is in no menu.
 
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 
-pub fn choose_key(place: u32) {
-    let screens = &menus().screens;
+pub fn choose_key(screens: &Screens, place: u32) {
     // Converted: `rc2k_core::menu::player::Redefining`.
     let r = rc2k_core::menu::player::Redefining::start(place);
 

@@ -10,10 +10,12 @@
 //! reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::screens::best_scores::*;
 use crate::text::draw_text::Canvas;
 
 /// The Rust version (see the header).
 pub fn draw(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    draw_scores_with_heading(&EVENT_BEST_SCORES, true, canvas)
+    let menus = menus();
+    draw_scores_with_heading(menus, &EVENT_BEST_SCORES, true, canvas)
 }

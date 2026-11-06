@@ -28,6 +28,7 @@ const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finish
 /// The Rust version (the original keeps ebp, ecx, edi and edx; it leaves eax 0 and esi
 /// as the main menu does, which its callers do not read).
 pub fn run_front_end() -> Result<(), Refused> {
+    let play = &menus().play;
     log("menu::run_front_end: the Rust version runs");
     menus()
         .screens
@@ -41,7 +42,7 @@ pub fn run_front_end() -> Result<(), Refused> {
     crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
     run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::default())?;
     crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
-    crate::menu::store_player_names::store_player_names(&mut |line| {
+    crate::menu::store_player_names::store_player_names(play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);
     })?;
     crate::gfx::free_fonts::free_fonts(

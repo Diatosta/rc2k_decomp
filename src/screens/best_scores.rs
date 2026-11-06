@@ -10,6 +10,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
 use crate::menu::event_flow::StageTable;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Tables;
 use crate::menu::owner::menus;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::GameScreen;
@@ -98,8 +100,7 @@ pub type ScoresScreen<'a> = GameScreen<
 /// the last one's y (`draw_text` leaves it), the next row 0x19 below; the sprites' palette
 /// the line buffer past its NUL (ebx after the rank's `draw_text`). Every register kept.
 /// Refuses (before anything) no table.
-pub fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let tables = &menus().tables;
+pub fn draw_scores(tables: &Tables, t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::best_scores::scores`.
     {
         t.at.need("no best scores table")?;
@@ -190,10 +191,11 @@ fn draw_held_rows(t: &Table, ten: &[HeldRow; 10], canvas: &mut dyn Canvas) -> Re
 /// `screens::draw_best_scores_page` (0x46D149): the best scores for pages up to 4, else
 /// the class times.
 pub fn draw_best_scores_page(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let tables = &menus().tables;
     if (PAGE.get() as i32) <= 4 {
-        draw_scores(&BEST_SCORES, canvas)
+        draw_scores(tables, &BEST_SCORES, canvas)
     } else {
-        draw_scores(&CLASS_TIMES, canvas)
+        draw_scores(tables, &CLASS_TIMES, canvas)
     }
 }
 
@@ -402,8 +404,7 @@ pub fn section_there() -> Result<bool, crate::errors::BadInput> {
 /// record's +0x38 string), then record `index`'s stage line (string 0x481 ...) in the line
 /// buffer at (0x2EB, 0x91). Every register kept. Refuses (before anything) a section the
 /// table has not.
-pub fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let menus = menus();
+pub fn draw_record_heading(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::best_scores::heading`.
     {
         if !section_there()? {
@@ -433,6 +434,7 @@ pub fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused> {
 /// leaves it out: `notes/bugs.md`). Every register kept. Refuses (before anything) a section
 /// the table has not, no times table, and what `strings::append_speed` refuses.
 pub fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let menus = menus();
     let times = &crate::saves::best_times::STAGE_TIMES;
     let (true, true) = (section_there()?, times.is_taken()) else {
         return Err(BadInput("a section past the record table, or no times table").into());
@@ -451,7 +453,7 @@ pub fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         true,
         crate::strings::units::units(),
     )?;
-    draw_record_heading(canvas)?;
+    draw_record_heading(menus, canvas)?;
     if !draw_time_rows(times, times_at as usize, Keep::Y, canvas)? {
         return Ok(());
     }
@@ -486,11 +488,11 @@ pub const OVERALL_BEST_SCORES: Table = Table {
 /// `records::find_record` and do not use it: left out.) Every register kept. Refuses
 /// (before anything) no table.
 pub fn draw_scores_with_heading(
+    menus: &Menus,
     t: &Table,
     event: bool,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let menus = menus();
     t.at.need("no best scores table")?;
     // Converted: `rc2k_core::screens::best_scores::scores_heading`, `heading`.
     let section = (menus.play.champ_view.event_mode.get() == 0x13)
@@ -510,5 +512,5 @@ pub fn draw_scores_with_heading(
         event.then(|| menus.screens.event.class.get()),
     );
     rc2k_core::screens::best_scores::heading(&mut screen, id, None)?;
-    draw_scores(t, screen.canvas)
+    draw_scores(&menus.tables, t, screen.canvas)
 }

@@ -18,7 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, Play};
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
     chosen_repairs_time, current_player, flagged_item, has_repair_time, leave_edit_mode,
@@ -110,7 +110,7 @@ fn player() -> Result<crate::menu::standings::PlayerCell, BadInput> {
 }
 
 /// The key, with the clock noted and the value stepped if it was an arrow. 0 = no key.
-fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
+fn key_and_step(play: &Play, down: Stepper, up: Stepper) -> Result<u8, Refused> {
     // Converted: `rc2k_core::service::setups::page_key`.
     use rc2k_core::service::setups::{PageKey, page_key};
     let key = take_key();
@@ -118,11 +118,7 @@ fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
     if action == PageKey::None {
         return Ok(0);
     }
-    menus()
-        .play
-        .champ_view
-        .last_key_time
-        .set(CLOCKS.frame.get());
+    play.champ_view.last_key_time.set(CLOCKS.frame.get());
     match action {
         PageKey::Down => {
             step(down)?;
@@ -135,27 +131,27 @@ fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
     Ok(key)
 }
 
-pub fn simple_page(page: SimplePage) -> Result<(), Refused> {
+pub fn simple_page(menus: &Menus, page: SimplePage) -> Result<(), Refused> {
     // Nothing may be written before it is known that nothing will be refused.
     player()?;
-    if { key_and_step(page.down, page.up) }? == KEY_CONFIRM {
-        leave_edit_mode();
+    if { key_and_step(&menus.play, page.down, page.up) }? == KEY_CONFIRM {
+        leave_edit_mode(&menus.screens);
     }
     Ok(())
 }
 
 /// `confirm`: act as if the confirm key had been pressed, without taking a key (the callers
 /// outside the key handler pass ebx = 1 for this).
-pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(), Refused> {
+    let (screens, tables) = (&menus.screens, &menus.tables);
     // Everything the steps below could refuse is checked first, so that an error never
     // leaves half of the work done.
-    let item = flagged_item()?;
-    if !has_repair_time(item) {
+    let item = flagged_item(screens)?;
+    if !has_repair_time(tables, item) {
         return Err(BadInput("the highlighted item has no repair time").into());
     }
-    chosen_repairs_time()?;
-    if !marks_ended() {
+    chosen_repairs_time(tables)?;
+    if !marks_ended(tables) {
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
     let installed_in_car = match page.in_car {
@@ -163,13 +159,13 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
         None => None,
     };
 
-    if !confirm && key_and_step(page.down, page.up)? != KEY_CONFIRM {
-        return update_repair_total();
+    if !confirm && key_and_step(&menus.play, page.down, page.up)? != KEY_CONFIRM {
+        return update_repair_total(menus);
     }
 
     // Converted: `rc2k_core::service::repairs::confirm_change`.
     use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
-    let (mut f, mut m) = (flags(), marks());
+    let (mut f, mut m) = (flags(tables), marks(tables));
     let v = rc2k_core::service::repairs::Value {
         chosen: page.change.chosen.get(),
         installed: page.change.installed.get(),
@@ -182,17 +178,17 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
         item as usize,
         screens.event.service_minutes.get() as i32,
         v,
-        time_of,
+        |item| time_of(tables, item),
     )
     .map_err(|e| BadInput(e.0))?;
-    store_flags(&f);
-    store_marks(&m);
+    store_flags(tables, &f);
+    store_marks(tables, &m);
     page.change.chosen.set(c.chosen);
     if let Some(status) = c.status {
         screens.state.service_ui.status.set(status);
     }
     screens.state.driver_stats.repair_time.set(c.total as u32);
-    leave_edit_mode();
+    leave_edit_mode(screens);
     Ok(())
 }
 

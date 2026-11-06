@@ -11,12 +11,13 @@
 
 use crate::errors::BadInput;
 use crate::menu::name_lists::replay_name;
+use crate::menu::owner::Menus;
 use crate::menu::text_entry::begin_logged;
 
 // ---- Rust version ----
 
 /// `log` = false leaves the log lines out.
-pub fn begin_replay_name(log: bool) -> Result<(), BadInput> {
+pub fn begin_replay_name(menus: &Menus, log: bool) -> Result<(), BadInput> {
     let name = replay_name()?;
     if log {
         // aGetrepsaveslot
@@ -24,5 +25,5 @@ pub fn begin_replay_name(log: bool) -> Result<(), BadInput> {
         crate::logfile::log_write::log_at(name, true, 1);
     }
     // Converted: `rc2k_core::menu::text_entry::Entry::begin` (through `begin_logged`).
-    begin_logged(name, log)
+    begin_logged(menus, name, log)
 }

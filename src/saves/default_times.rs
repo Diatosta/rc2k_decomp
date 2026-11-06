@@ -14,7 +14,7 @@
 
 use crate::errors::BadInput;
 use crate::math::random_below::random_below;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::race::work_store::RACE_WORK;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::saves::drivers::Driver;
@@ -115,8 +115,7 @@ pub enum Target {
 /// Writes what a function of the time tables worked out: its blocks into `tables` (the
 /// function's own, then the rallies'), and the work variables. Refuses a block past its
 /// table.
-pub fn apply(filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
-    let screens = &menus().screens;
+pub fn apply(screens: &Screens, filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
     {
         for block in &filled.blocks {
             match tables[block.table] {
@@ -152,8 +151,8 @@ pub fn apply(filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
 }
 
 /// Whether the game's switch for the checkpoint times is on.
-pub fn with_checkpoints() -> bool {
-    menus().screens.draw_work.work_0c.get() == 1
+pub fn with_checkpoints(screens: &Screens) -> bool {
+    screens.draw_work.work_0c.get() == 1
 }
 
 /// How many records a table has before its -1 (the first is not looked at for the end).

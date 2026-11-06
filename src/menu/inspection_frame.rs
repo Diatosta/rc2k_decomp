@@ -15,6 +15,7 @@
 use crate::errors::Refused;
 use crate::menu::fn_list::ListCell;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed, run_listed};
+use crate::menu::owner::Menus;
 use crate::platform::{show_frame_now, unlock_surface};
 use crate::scene::light_store::LIGHT_STATE;
 
@@ -23,22 +24,25 @@ const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.scene_list
 const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.overlay_list; // g_overlayList
 
 /// The Rust version, `menu` being edi at entry: whether the frame was made.
-pub fn inspection_frame(menu: crate::menu::menus_store::MenuId) -> Result<bool, Refused> {
+pub fn inspection_frame(
+    menus: &Menus,
+    menu: crate::menu::menus_store::MenuId,
+) -> Result<bool, Refused> {
     if lock_failed() {
         return Ok(false);
     }
     copy_picture()?;
-    run_listed(DRAW_LIST)?;
+    run_listed(menus, DRAW_LIST)?;
     unlock_surface();
     LIGHT_STATE.scene_state.set_bits(4u32);
     crate::scene::begin_scene::begin_scene();
-    run_listed(SCENE_LIST)?;
+    run_listed(menus, SCENE_LIST)?;
     crate::scene::end_scene::end_scene();
     if lock_failed() {
         return Ok(false);
     }
     draw_menu(menu)?;
-    run_listed(OVERLAY_LIST)?;
+    run_listed(menus, OVERLAY_LIST)?;
     unlock_surface();
     Ok(show_frame_now())
 }

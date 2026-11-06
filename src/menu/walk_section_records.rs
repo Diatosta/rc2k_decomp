@@ -13,6 +13,7 @@
 //! for any record of the walk, and a walk past 64 records, before anything.
 use crate::errors::Refused;
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::records::stages_store::RecordRef;
@@ -26,9 +27,9 @@ fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
 }
 
 /// The records the walk visits from `index`, with their steps, checked.
-fn walk() -> Result<Vec<(u32, Step)>, Refused> {
-    current_event()?;
-    counted_players()?;
+fn walk(screens: &Screens) -> Result<Vec<(u32, Step)>, Refused> {
+    current_event(screens)?;
+    counted_players(screens)?;
     drivers()?;
     let index: u32 = INDEX_RVA.get();
     // Converted: `rc2k_core::menu::section_walk::walk`.
@@ -36,7 +37,7 @@ fn walk() -> Result<Vec<(u32, Step)>, Refused> {
     let walked = rc2k_core::menu::section_walk::walk(
         index,
         |i| fault.ok(record_at(i).map(RecordRef::tag)),
-        |i| crate::menu::calc_cpu_times::check(record_at(i)?).map(|_| ()),
+        |i| crate::menu::calc_cpu_times::check(screens, record_at(i)?).map(|_| ()),
     );
     fault.check()?;
     walked
@@ -46,7 +47,7 @@ fn walk() -> Result<Vec<(u32, Step)>, Refused> {
 pub fn walk_section_records() -> Result<(), Refused> {
     let screens = &menus().screens;
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};
-    let records = walk()?;
+    let records = walk(screens)?;
     for (_, step) in records {
         if !step.goes_on() {
             if step == Step::Ended {
@@ -56,7 +57,7 @@ pub fn walk_section_records() -> Result<(), Refused> {
         }
         match step {
             Step::CpuTimes => {
-                crate::menu::calc_cpu_times::calc_cpu_times()?;
+                crate::menu::calc_cpu_times::calc_cpu_times(screens)?;
             }
             Step::Condition => {
                 rdc::reset_driver_condition()?;

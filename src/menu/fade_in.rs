@@ -9,8 +9,9 @@
 //! original divides by 0), before anything.
 
 use crate::errors::Refused;
+use crate::menu::owner::Screens;
 
 /// The Rust version (see the header).
-pub fn fade_in() -> Result<(), Refused> {
-    crate::menu::fades::fade(false)
+pub fn fade_in(screens: &Screens) -> Result<(), Refused> {
+    crate::menu::fades::fade(screens, false)
 }

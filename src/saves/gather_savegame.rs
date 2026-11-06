@@ -15,15 +15,14 @@
 //! Refuses, before anything is written: a missing player or a car without that pointer.
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, Play};
 use crate::pointers::GamePtr;
 use crate::session::Dword;
 
 // ---- game data ----
 
 /// The seven variables at the start, in the order they are saved.
-pub fn head() -> [&'static Dword; 7] {
-    let menus = menus();
+pub fn head(menus: &Menus) -> [&Dword; 7] {
     [
         &menus.screens.event.player_count,
         &menus.screens.event.stages_done,
@@ -37,9 +36,9 @@ pub fn head() -> [&'static Dword; 7] {
 pub use rc2k_core::saves::savegame::{CAR_LEN, CARS, RECORDS_LEN};
 
 /// The four players, if every one has its pointer at +0x18.
-pub fn cars()
--> Result<&'static [crate::session::Shared<crate::menu::player::Player>; CARS], BadInput> {
-    let play = &menus().play;
+pub fn cars(
+    play: &Play,
+) -> Result<&[crate::session::Shared<crate::menu::player::Player>; CARS], BadInput> {
     if play
         .players
         .players
@@ -55,11 +54,10 @@ pub fn cars()
 
 // ---- Rust version ----
 
-pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
+pub fn gather_savegame(menus: &Menus, buffer: GamePtr) -> Result<(), BadInput> {
     use rc2k_core::saves::savegame::{RECORDS_AT, car_at};
-    let menus = menus();
-    let cars = cars()?;
-    for (n, at) in head().into_iter().enumerate() {
+    let cars = cars(&menus.play)?;
+    for (n, at) in head(menus).into_iter().enumerate() {
         // The savegame is a file's bytes.
         buffer
             .offset(4 * n as u32)
@@ -90,6 +88,7 @@ pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::menu::owner::menus;
     use rc2k_core::menu::player::Player;
     use rc2k_core::saves::savegame::{LEN, car_at};
 
@@ -119,7 +118,7 @@ mod tests {
             crate::menu::player_names::set_name_bytes(n, &[b'a' + n as u8; 0x20]);
         }
         let names_before = std::array::from_fn::<_, 4, _>(crate::menu::player_names::name_bytes);
-        gather_savegame(buffer).unwrap();
+        gather_savegame(menus(), buffer).unwrap();
         let file = buffer.read_bytes(LEN, "the file").unwrap();
         for (n, car) in play.players.players.iter().enumerate() {
             // What the original wrote: the record, its name address in place of the number.

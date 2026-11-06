@@ -18,9 +18,10 @@ use crate::scene::light_store::LIGHT_STATE;
 /// The scene's mode 0, then the carousel; `lone_row`: ecx at the original's entry (see
 /// `draw_carousel`).
 pub fn draw_main_menu_carousel(
+    menus: &crate::menu::owner::Menus,
     race: &crate::race::owner::Race,
     lone_row: u32,
 ) -> Result<(), Refused> {
     LIGHT_STATE.draw_mode.set_bits(0u32);
-    draw_carousel_in_game(race, lone_row)
+    draw_carousel_in_game(menus, race, lone_row)
 }

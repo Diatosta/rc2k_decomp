@@ -2,6 +2,7 @@
 //! the length typed so far, the longest allowed, whether an entry is going on, and the copy
 //! of the text as it was before, which Escape brings back.
 
+use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 
 pub use rc2k_core::menu::text_entry::{Entry, TEXT_LEN, Text};
@@ -30,8 +31,7 @@ pub fn entry() -> Entry {
 }
 
 /// The entry's state stored back.
-pub fn put_entry(e: &Entry) {
-    let menus = menus();
+pub fn put_entry(menus: &Menus, e: &Entry) {
     set_length(e.length);
     menus.screens.option_work.typing.set(e.entering);
     for (i, &byte) in e.backup.iter().enumerate() {
@@ -40,10 +40,10 @@ pub fn put_entry(e: &Entry) {
 }
 
 /// The entry's state changed by `f` (read, changed, written back whole).
-pub fn with_entry<R>(f: impl FnOnce(&mut Entry) -> R) -> R {
+pub fn with_entry<R>(menus: &Menus, f: impl FnOnce(&mut Entry) -> R) -> R {
     let mut e = entry();
     let r = f(&mut e);
-    put_entry(&e);
+    put_entry(menus, &e);
     r
 }
 
@@ -66,13 +66,14 @@ const BACKED_UP_RVA: &std::ffi::CStr = c"Backed up name="; // aBackedUpName: "Ba
 /// the text is copied to the backup, "Backed up name=<backup>" goes to the log if `log` is
 /// set, the field is cleared, the length is 0 and an entry is going on.
 pub fn begin_logged(
+    menus: &Menus,
     at: impl Into<crate::place::Place>,
     log: bool,
 ) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::begin`.
     let at = at.into();
     let mut text = field(at)?;
-    with_entry(|e| e.begin(&mut text));
+    with_entry(menus, |e| e.begin(&mut text));
     put_field(at, &text)?;
     if log {
         crate::logfile::log_write::log_nul(BACKED_UP_RVA, false, 1);

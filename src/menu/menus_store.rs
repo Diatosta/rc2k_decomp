@@ -12,6 +12,7 @@
 
 use crate::gfx::typefaces::FontCell;
 use crate::menu::item_sprites_store::SpriteCell;
+use crate::menu::owner::Tables;
 use crate::menu::owner::menus;
 use crate::session::Dword;
 
@@ -1053,13 +1054,14 @@ pub fn labels_slot(
     head: &Dword,
     offset: u32,
 ) -> Result<Option<crate::pointers::GamePtr>, crate::errors::BadInput> {
+    let tables = &menus().tables;
     let at = labels_place_of(head)?;
     if at == 0 {
         return Ok(None);
     }
     Ok(Some(
         crate::pointers::GamePtr::to(&menus().tables.menus)
-            .offset(at.wrapping_sub(menus_addr()).wrapping_add(offset)),
+            .offset(at.wrapping_sub(menus_addr(tables)).wrapping_add(offset)),
     ))
 }
 
@@ -1068,7 +1070,8 @@ pub fn labels_slot(
 /// font (the walk gone off the lists' grid: the original would take what is there for a
 /// font object's address).
 pub fn label_font(at: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
-    let off = at.wrapping_sub(menus_addr()) as usize;
+    let tables = &menus().tables;
+    let off = at.wrapping_sub(menus_addr(tables)) as usize;
     if off >= LABEL_LISTS.len() * LABEL_LIST_LEN || off % LABEL_LIST_LEN != 8 {
         return Err(crate::errors::BadInput("a label's font read off a label"));
     }
@@ -1088,8 +1091,8 @@ pub const START: usize = 0x747AD8;
 pub const END: usize = 0x755144;
 
 /// Where IDA 0x747AD8 is now (`moved::MOVED`'s home).
-pub fn menus_addr() -> u32 {
-    crate::pointers::game_address(&raw const menus().tables.menus)
+pub fn menus_addr(tables: &Tables) -> u32 {
+    crate::pointers::game_address(&raw const tables.menus)
 }
 
 /// A menu by handle (phase 13, 2026-10-28): its number among `MENUS`' menus, in the image's
@@ -1938,10 +1941,11 @@ mod tests {
 
     #[test]
     fn menus_start_as_the_games() {
+        let tables = &menus().tables;
         assert_eq!(size_of::<MenuTables>(), END - START);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(menus_addr()).cast_const(),
+                crate::pointers::host(menus_addr(tables)).cast_const(),
                 END - START,
             )
         };
@@ -1949,7 +1953,7 @@ mod tests {
         // addresses.
         let mut mine = mine.to_vec();
         for item in (0..MENU_COUNT).flat_map(|n| MenuId(n).items()) {
-            let at = (item.addr() - menus_addr()) as usize;
+            let at = (item.addr() - menus_addr(tables)) as usize;
             for (off, cell) in [
                 (0x18, &item.font),
                 (0x4C, &item.measuring_font),

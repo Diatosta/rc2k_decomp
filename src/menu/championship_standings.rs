@@ -13,13 +13,12 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::standings::Which;
 use crate::menu::standings_steps::number_all;
 
 /// The Rust version (see the header).
-pub fn championship_standings() -> Result<(), Refused> {
-    let menus = menus();
+pub fn championship_standings(menus: &Menus) -> Result<(), Refused> {
     use crate::menu::{sort_standings_b_by_figure as fig, sort_standings_b_by_points as pts};
     // Converted: `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
     use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};

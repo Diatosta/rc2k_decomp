@@ -20,18 +20,17 @@
 //! traps), a drivers table without its end, before anything.
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
+use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 use crate::records::stages_store::RecordRef;
 
-use crate::menu::owner::menus;
 use crate::menu::scale_stage_times::{held_section, scaled};
 
 const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"]; // aCalccputimesSt, aCalccputimesFi
 
 /// The class time `c` as the original reads it, `dword_75AAE8`[c]: with no bound, so that a
 /// class past the four reads on into the variables that follow.
-fn class_time_at(c: u32) -> Result<u32, BadInput> {
-    let screens = &menus().screens;
+fn class_time_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
     crate::session::read_on_in(
         &screens.state,
         &screens.state.menus.class_times,
@@ -41,8 +40,7 @@ fn class_time_at(c: u32) -> Result<u32, BadInput> {
 }
 
 /// The drivers of class `c`, `dword_75AB00`[c], read the same way.
-fn class_count_at(c: u32) -> Result<u32, BadInput> {
-    let screens = &menus().screens;
+fn class_count_at(screens: &Screens, c: u32) -> Result<u32, BadInput> {
     crate::session::read_on_in(
         &screens.state,
         &screens.state.menus.class_counts,
@@ -60,8 +58,8 @@ fn any_in_class(drivers: &[Driver], c: u32) -> bool {
 }
 
 /// The current record (see `standings::current_event`'s checks).
-pub fn record() -> Result<RecordRef, BadInput> {
-    current_event()?;
+pub fn record(screens: &Screens) -> Result<RecordRef, BadInput> {
+    current_event(screens)?;
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let (section, index): (u32, u32) = (SECTION_RVA.get(), INDEX_RVA.get());
     crate::records::find_record::find_record_in(table, index as i32, section)
@@ -69,8 +67,8 @@ pub fn record() -> Result<RecordRef, BadInput> {
 
 /// What the Rust version refuses for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
-pub fn check(rec: RecordRef) -> Result<(u32, &'static [Driver], u32), Refused> {
-    let classes: u32 = menus().screens.event.classes.get();
+pub fn check(screens: &Screens, rec: RecordRef) -> Result<(u32, &'_ [Driver], u32), Refused> {
+    let classes: u32 = screens.event.classes.get();
     if classes == 0 || classes > 0x100 {
         return Err(BadInput("a class count of 0 or past 0x100").into());
     }
@@ -88,7 +86,7 @@ pub fn check(rec: RecordRef) -> Result<(u32, &'static [Driver], u32), Refused> {
             0..4 => Ok(times[c as usize]),
             4 => Ok(length),
             5 => Ok(length.wrapping_mul(100) / 0x96A),
-            _ => class_time_at(c),
+            _ => class_time_at(screens, c),
         }
     };
     for c in 0..classes {
@@ -98,7 +96,7 @@ pub fn check(rec: RecordRef) -> Result<(u32, &'static [Driver], u32), Refused> {
         if class_time(c)? >> 1 == 0 {
             return Err(DIVIDE_BY_ZERO.into());
         }
-        if class_count_at(c)? == 0 {
+        if class_count_at(screens, c)? == 0 {
             return Err(BadInput("a class's driver count of 0: the original divides by it").into());
         }
     }
@@ -106,15 +104,14 @@ pub fn check(rec: RecordRef) -> Result<(u32, &'static [Driver], u32), Refused> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn calc_cpu_times() -> Result<(), Refused> {
-    let screens = &menus().screens;
-    let rec = record()?;
-    let (classes, drivers, length) = check(rec)?;
+pub fn calc_cpu_times(screens: &Screens) -> Result<(), Refused> {
+    let rec = record(screens)?;
+    let (classes, drivers, length) = check(screens, rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
     for (k, t) in rec.record()?.class_times().into_iter().enumerate() {
         screens.state.menus.class_times[k].set(t);
     }
-    crate::menu::scale_stage_times::scale_stage_times(rec)?;
+    crate::menu::scale_stage_times::scale_stage_times(screens, rec)?;
     screens.state.menus.track_length[0].set(length);
     screens.state.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
     // Converted: `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
@@ -125,8 +122,8 @@ pub fn calc_cpu_times() -> Result<(), Refused> {
             if d.class.get() != c {
                 continue;
             }
-            let time = class_time_at(c)?;
-            let count = class_count_at(c)?;
+            let time = class_time_at(screens, c)?;
+            let count = class_count_at(screens, c)?;
             let gap = cpu_gap(time, count);
             screens.draw_work.hhmm.set(gap);
             let mut spread = Spread {

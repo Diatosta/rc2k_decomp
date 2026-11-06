@@ -22,7 +22,7 @@
 //! (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, Screens, menus};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -56,8 +56,8 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
 }
 
 /// `sub_490238`.
-pub fn pick_pictures() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     if screens.state.carousel.menu.get() != 0xB {
         return Ok(());
     }
@@ -66,13 +66,15 @@ pub fn pick_pictures() -> Result<(), Refused> {
         screens.state.carousel.count.get(),
     );
     write_all(&screens.state.carousel_pictures.wanted, entries);
-    update(entries)?;
+    update(menus, entries)?;
     Ok(())
 }
 
 /// `sub_49040D`: the car shown's object set up and drawn by `draw`.
-pub fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn draw_shown_car(
+    screens: &Screens,
+    draw: &mut dyn FnMut() -> Result<(), Refused>,
+) -> Result<(), Refused> {
     let car: u32 = screens.event.shown_car.get();
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
@@ -93,14 +95,15 @@ pub fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(
 /// ebx `sub_49040D` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
     let race = race();
-    if menus().screens.event.car_page.get() != 0 {
+    let menus = menus();
+    if menus.screens.event.car_page.get() != 0 {
         return Ok(());
     }
     clear_depth_buffer();
     assign_kind_textures()?;
-    pick_pictures()?;
+    pick_pictures(menus)?;
     map_texture_places();
     load_slot_textures_in_game()?;
     LIGHT_STATE.draw_mode.set_bits(0u32);
-    draw_shown_car(&mut || draw_menu_object_in_game(race))
+    draw_shown_car(&menus.screens, &mut || draw_menu_object_in_game(race))
 }

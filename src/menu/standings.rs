@@ -6,6 +6,9 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::drivers_store::Driver;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Play;
+use crate::menu::owner::Screens;
 use crate::session::Dword;
 use rc2k_core::menu::standings::{self, NAME_LEN};
 
@@ -177,8 +180,7 @@ pub fn name_address_of(p: &rc2k_core::menu::player::Player) -> Result<u32, BadIn
 }
 
 /// Runs `f` on `g_keptPlayerName`, the sorts' swap buffer (a copy of it, put back after).
-pub fn with_kept_name<R>(f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) -> R {
-    let play = &menus().play;
+pub fn with_kept_name<R>(play: &Play, f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) -> R {
     let mut all = play.names.kept_name.read();
     let [kept @ .., _] = &mut all;
     let r = f(kept);
@@ -192,8 +194,8 @@ pub const INDEX_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.index; //
 
 /// The players `0 .. dword_755984` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.
-pub fn counted_players() -> Result<Vec<PlayerCell>, BadInput> {
-    let n: u32 = menus().screens.event.player_count.get();
+pub fn counted_players(screens: &Screens) -> Result<Vec<PlayerCell>, BadInput> {
+    let n: u32 = screens.event.player_count.get();
     if n == 0 || n > 4 {
         return Err(BadInput("a player count of 0 or past 4"));
     }
@@ -203,8 +205,7 @@ pub fn counted_players() -> Result<Vec<PlayerCell>, BadInput> {
 /// The current record's event (`g_recordTable`, `section`, `index`; its +0x3C): its place
 /// in the stages' best times (`saves::best_times::STAGE_TIMES`); refused past the table's
 /// sections, with no table, or past it.
-pub fn current_event() -> Result<usize, BadInput> {
-    let screens = &menus().screens;
+pub fn current_event(screens: &Screens) -> Result<usize, BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
@@ -244,11 +245,13 @@ const SORTED: u32 = standings::SORTED as u32;
 /// Standings table A's first 0xB4 entries sorted by `key` (signed; the original's
 /// exchange sort: an entry later or equal moves up; `dword_7559B4` / `dword_7559B8` its
 /// counters). Refused without a table.
-pub fn sort_table_a(key: rc2k_core::saves::entries::Field) -> Result<(), BadInput> {
-    let screens = &menus().screens;
+pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Result<(), BadInput> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::saves::rankings::sort_a`.
     with_a(|t| {
-        with_kept_name(|kept| rc2k_core::saves::rankings::sort_a(t, SORTED as usize, key, kept));
+        with_kept_name(&menus.play, |kept| {
+            rc2k_core::saves::rankings::sort_a(t, SORTED as usize, key, kept);
+        });
     })?;
 
     screens.draw_work.work_b4.set(SORTED - 1);
@@ -266,6 +269,7 @@ pub fn enter_best(
     group: Option<u32>,
     score: fn(&rc2k_core::menu::player::Player) -> u32,
 ) -> Result<(), BadInput> {
+    let play = &menus().play;
     let n: u32 = menus().screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
@@ -293,7 +297,9 @@ pub fn enter_best(
         name: name_of(&p.get())?,
     };
     scores.with(|t| {
-        with_kept_name(|kept| s::enter_best(&mut t.groups[group as usize], &best, kept));
+        with_kept_name(play, |kept| {
+            s::enter_best(&mut t.groups[group as usize], &best, kept);
+        });
     })?;
     Ok(())
 }
@@ -301,11 +307,11 @@ pub fn enter_best(
 /// Standings table B's first 0xB4 entries sorted by `key`, as `sort_table_a`: going up (a
 /// later entry not above an earlier one moves up) or, with `down`, going down (a later
 /// entry not below one moves up). Refused without a table.
-pub fn sort_table_b(key: BKey, down: bool) -> Result<(), BadInput> {
-    let screens = &menus().screens;
+pub fn sort_table_b(menus: &Menus, key: BKey, down: bool) -> Result<(), BadInput> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::saves::rankings::sort_b`.
     with_b(|t| {
-        with_kept_name(|kept| {
+        with_kept_name(&menus.play, |kept| {
             rc2k_core::saves::rankings::sort_b(t, SORTED as usize, key, down, kept);
         });
     })?;
@@ -317,8 +323,8 @@ pub fn sort_table_b(key: BKey, down: bool) -> Result<(), BadInput> {
 }
 
 /// Whether the player's part `k` (an `INSPECTED` index) is at or past its limit (signed).
-pub fn past_limit(p: PlayerCell, k: u32) -> Result<bool, BadInput> {
-    let limit = menus().screens.state.driver_stats.limits[k as usize].get() as i32;
+pub fn past_limit(screens: &Screens, p: PlayerCell, k: u32) -> Result<bool, BadInput> {
+    let limit = screens.state.driver_stats.limits[k as usize].get() as i32;
     Ok(p.get().damage[k as usize] as i32 >= limit)
 }
 

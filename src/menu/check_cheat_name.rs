@@ -12,7 +12,7 @@
 //! original's `bts` would reach past `g_cheats`), and what the coding refuses.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Play;
 use crate::pointers::GamePtr;
 use crate::strings::rot13_into_text::rot13_into_text;
 use rc2k_core::strings::bytes::Bytes;
@@ -22,8 +22,8 @@ const HIDDEN_NAME: u32 = 0x18F;
 
 /// The list's entry and the cheat's bit for the coded name in the text buffer, if it is in
 /// the list.
-fn find(coded: GamePtr) -> Result<Option<(u32, u32)>, Refused> {
-    let list = GamePtr::to(&menus().play.cheats.cheat_names);
+fn find(play: &Play, coded: GamePtr) -> Result<Option<(u32, u32)>, Refused> {
+    let list = GamePtr::to(&play.cheats.cheat_names);
     let text = coded.bytes("a coded name")?;
     let coded: Vec<u8> = (0..)
         .map_while(|n| text.byte(n))
@@ -40,13 +40,12 @@ fn find(coded: GamePtr) -> Result<Option<(u32, u32)>, Refused> {
 
 /// The Rust version. Every register is kept (the original's `pusha` .. `popa`); the
 /// calls get theirs as noted, of which only the sound reads one (eax 8).
-pub fn check_cheat_name() -> Result<(), Refused> {
-    let play = &menus().play;
+pub fn check_cheat_name(play: &Play) -> Result<(), Refused> {
     let name = crate::menu::player_names::name_ptr(crate::menu::player_names::name_of(
         &crate::menu::standings::player(3).get(),
     )?);
     let coded = rot13_into_text(name)?;
-    let Some((_found, bit)) = find(coded)? else {
+    let Some((_found, bit)) = find(play, coded)? else {
         return Ok(());
     };
     // Converted: `rc2k_core::menu::cheat_names::with_cheat`.

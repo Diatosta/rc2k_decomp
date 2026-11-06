@@ -9,13 +9,12 @@
 //! Left/right handlers of the event pages' items (menu tables 0x74FAFC ..).
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 // g_captionText
 
 /// The Rust version: `of_90` the fixed count, `on` the direction.
-pub fn step_rows(of_90: bool, on: bool) -> Result<(), Refused> {
-    let menus = menus();
+pub fn step_rows(menus: &Menus, of_90: bool, on: bool) -> Result<(), Refused> {
     let count = if of_90 {
         0x5A
     } else {
@@ -26,6 +25,6 @@ pub fn step_rows(of_90: bool, on: bool) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::steps::rows`.
     let row = rc2k_core::menu::steps::rows(row, count, on);
     menus.play.champ_view.first_row.set(row);
-    crate::menu::stage_range_caption::stage_range_caption()?;
+    crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     Ok(())
 }

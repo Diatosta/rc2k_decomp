@@ -21,9 +21,10 @@ pub const ESCAPED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escaped
 /// car it starts from its set-up finds itself (the current player's record,
 /// `menu::car_choice::find_player_car`).
 pub fn choose_car() -> Result<(), Refused> {
-    let play = &menus().play;
+    let menus = menus();
+    let play = &menus.play;
     CLEARED.set(0);
-    let cars = crate::net::car_list::car_list()?;
+    let cars = crate::net::car_list::car_list(&menus.tables)?;
     ESCAPED.set(0);
     let entry = Entry { cars: Some(cars) };
     { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;

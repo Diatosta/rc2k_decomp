@@ -21,17 +21,20 @@ use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
 /// The Rust version (see the header).
 pub fn toggle_repair_choice() -> Result<(), Refused> {
-    let screens = &menus().screens;
+    let menus = menus();
+    let (screens, tables) = (&menus.screens, &menus.tables);
     // Converted: `rc2k_core::service::repairs::toggle_choice` (nothing written when it
     // refuses).
-    let item = flagged_item()?;
-    let (mut f, mut m) = (flags(), marks());
+    let item = flagged_item(screens)?;
+    let (mut f, mut m) = (flags(tables), marks(tables));
     let budget = screens.event.service_minutes.get() as i32;
     let (total, status) =
-        rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, time_of)
-            .map_err(|e| BadInput(e.0))?;
-    store_flags(&f);
-    store_marks(&m);
+        rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, |item| {
+            time_of(tables, item)
+        })
+        .map_err(|e| BadInput(e.0))?;
+    store_flags(tables, &f);
+    store_marks(tables, &m);
     {
         screens.state.service_ui.status.set(status);
         screens.state.service_ui.box_shown.set(0u32);

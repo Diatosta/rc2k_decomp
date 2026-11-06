@@ -11,6 +11,7 @@
 //! lists. The menus and draw lists run its `run` (`menu::table_routes`); the registers above
 //! are the original's, for reference.
 
+use crate::menu::owner::menus;
 use crate::race::owner::race;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
@@ -28,11 +29,12 @@ use crate::scene::map_texture_places::map_texture_places;
 /// loading leaves (the row place of a lone entry).
 pub fn run() -> Result<(), crate::errors::Refused> {
     let race = race();
+    let menus = menus();
     clear_depth_buffer();
     assign_kind_textures()?;
-    choose_carousel_pictures()?;
-    assign_menu_textures()?;
+    choose_carousel_pictures(menus)?;
+    assign_menu_textures(&menus.tables)?;
     map_texture_places();
     let count = load_slot_textures_in_game()?;
-    draw_main_menu_carousel(race, count)
+    draw_main_menu_carousel(menus, race, count)
 }

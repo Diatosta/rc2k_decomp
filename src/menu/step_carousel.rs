@@ -14,15 +14,14 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::Screens;
 use crate::physics::tables_store::PHYSICS;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-pub fn step_carousel() -> Result<(), BadInput> {
-    let screens = &menus().screens;
+pub fn step_carousel(screens: &Screens) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::navigation` (`passed`, `spin`), worked out before
     // anything is written.
     use rc2k_core::menu::navigation::{Turn, passed, spin};

@@ -9,6 +9,8 @@
 //! bottom panel.
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::screens::service_boxes::{BLACK, Outline, quad};
 
@@ -61,30 +63,29 @@ const BACKDROP_BOXES: [[u32; 4]; 30] = [
 ];
 
 /// The see-through value shared by the boxes.
-fn see_through() -> u32 {
-    menus().screens.state.service_ui.box_colour_a.get()
+fn see_through(screens: &Screens) -> u32 {
+    screens.state.service_ui.box_colour_a.get()
 }
 
 /// A quad in the colour of the item being drawn, see-through.
-fn shade(x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
+fn shade(screens: &Screens, x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
     quad(
         x,
         y,
         w,
         h,
-        menus().screens.state.service_ui.box_colour_b.get(),
-        see_through(),
+        screens.state.service_ui.box_colour_b.get(),
+        see_through(screens),
     )
 }
 
 /// A quad in the dark colour of the inside of a box, see-through.
-fn dark(x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
-    quad(x, y, w, h, DARK, see_through())
+fn dark(screens: &Screens, x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
+    quad(x, y, w, h, DARK, see_through(screens))
 }
 
 /// Sets the colour of an item's boxes from its two inspection flags.
-fn set_item_colour(item: u32) {
-    let menus = menus();
+fn set_item_colour(menus: &Menus, item: u32) {
     let colour = if menus.tables.lists.inspection_flags_a[item as usize].get() != 1 {
         BLUE
     } else if menus.tables.lists.inspection_flags_b[item as usize].get() != 1 {
@@ -96,16 +97,14 @@ fn set_item_colour(item: u32) {
 }
 
 /// Whether the cursor is on `item` and its highlight blinks on.
-fn blinking(item: u32) -> bool {
-    let screens = &menus().screens;
+fn blinking(screens: &Screens, item: u32) -> bool {
     screens.loop_flags.item.get() == item
         && screens.state.menus.service_flag.get() != 1
         && screens.draw_work.blink.get() == 1
 }
 
 /// Like [`blinking`], and also whenever the item's service box is turned over.
-fn blinking_or_turned_over(item: u32) -> bool {
-    let screens = &menus().screens;
+fn blinking_or_turned_over(screens: &Screens, item: u32) -> bool {
     screens.loop_flags.item.get() == item
         && (screens.state.service_ui.box_shown.get() == 1
             || (screens.state.menus.service_flag.get() != 1 && screens.draw_work.blink.get() == 1))
@@ -113,11 +112,11 @@ fn blinking_or_turned_over(item: u32) -> bool {
 
 /// A bar or panel: its filled box and the black outline round it, highlighted when the cursor
 /// is on `item`.
-fn panel(item: u32, [x, y, w, h]: [u32; 4], colour: u32) -> Result<(), Refused> {
-    quad(x, y, w, h, colour, see_through())?;
+fn panel(screens: &Screens, item: u32, [x, y, w, h]: [u32; 4], colour: u32) -> Result<(), Refused> {
+    quad(x, y, w, h, colour, see_through(screens))?;
     let outline = Outline::around(x, y, w, h);
     outline.draw(BLACK)?;
-    if blinking(item) {
+    if blinking(screens, item) {
         outline.draw_highlighted()?;
     }
     Ok(())
@@ -129,27 +128,27 @@ fn column_x(item: u32) -> u32 {
 }
 
 /// One of the twelve small boxes, items 2 .. 0xD: a label cell and a wide cell.
-fn small_item(item: u32) -> Result<(), Refused> {
+fn small_item(menus: &Menus, item: u32) -> Result<(), Refused> {
     let x = column_x(item);
     let y = 0x60 + 0x1D * ((item - 2) / 2);
-    set_item_colour(item);
-    shade(x, y, 0xAA, 0x1C)?;
-    shade(x + 0xAA, y, 0xA4, 4)?;
-    shade(x + 0x14A, y + 4, 4, 0x14)?;
-    shade(x + 0xAA, y + 0x18, 0xA4, 4)?;
-    dark(x + 0xAA, y + 4, 0xA0, 0x14)?;
+    set_item_colour(menus, item);
+    shade(&menus.screens, x, y, 0xAA, 0x1C)?;
+    shade(&menus.screens, x + 0xAA, y, 0xA4, 4)?;
+    shade(&menus.screens, x + 0x14A, y + 4, 4, 0x14)?;
+    shade(&menus.screens, x + 0xAA, y + 0x18, 0xA4, 4)?;
+    dark(&menus.screens, x + 0xAA, y + 4, 0xA0, 0x14)?;
     Outline::around(x, y, 0x24, 0x1C).draw(BLACK)?;
     let big = Outline::around(x, y, 0x14E, 0x1C);
     big.draw(BLACK)?;
     Outline::around(x + 0xA9, y + 3, 0xA2, 0x16).draw(BLACK)?;
-    if blinking(item) {
+    if blinking(&menus.screens, item) {
         big.draw_highlighted()?;
     }
     Ok(())
 }
 
 /// A row of setup cells under a label, item 0xE (five cells) or 0xF (six cells).
-fn setup_row(item: u32) -> Result<(), Refused> {
+fn setup_row(menus: &Menus, item: u32) -> Result<(), Refused> {
     let (cells, step, cell_w, label_h) = if item == 0xE {
         (5, 0x42, 0x40, 0x16)
     } else {
@@ -157,23 +156,23 @@ fn setup_row(item: u32) -> Result<(), Refused> {
     };
     let x = column_x(item);
     let y = 0x10E;
-    set_item_colour(item);
-    shade(x, y, 0xAA, 0x1F)?;
-    shade(x + 0xAA, y, 0xA4, 4)?;
-    shade(x + 0x14A, y, 4, 0x45)?;
-    shade(x + 0xAA, y + 0x18, 0xA1, 7)?;
-    shade(x, 0x12C, 4, 0x27)?;
-    shade(x, 0x152, 0x14E, 0xE)?;
+    set_item_colour(menus, item);
+    shade(&menus.screens, x, y, 0xAA, 0x1F)?;
+    shade(&menus.screens, x + 0xAA, y, 0xA4, 4)?;
+    shade(&menus.screens, x + 0x14A, y, 4, 0x45)?;
+    shade(&menus.screens, x + 0xAA, y + 0x18, 0xA1, 7)?;
+    shade(&menus.screens, x, 0x12C, 4, 0x27)?;
+    shade(&menus.screens, x, 0x152, 0x14E, 0xE)?;
     for n in 1..cells {
-        shade(x + step * n, 0x12D, 4, 0x25)?;
+        shade(&menus.screens, x + step * n, 0x12D, 4, 0x25)?;
     }
     // The label's inside is drawn after the cells' on the right, before them on the left.
-    let label = |x: u32| dark(x + 0xA9, 0x111, 0xA2, label_h);
+    let label = |x: u32| dark(&menus.screens, x + 0xA9, 0x111, 0xA2, label_h);
     if item == 0xE {
         label(x)?;
     }
     for n in 0..cells {
-        dark(x + 3 + step * n, 0x12C, cell_w, 0x26)?;
+        dark(&menus.screens, x + 3 + step * n, 0x12C, cell_w, 0x26)?;
     }
     if item != 0xE {
         label(x)?;
@@ -185,27 +184,27 @@ fn setup_row(item: u32) -> Result<(), Refused> {
     for n in 0..cells {
         Outline::around(x + 3 + step * n, 0x12C, cell_w, 0x26).draw(BLACK)?;
     }
-    if blinking_or_turned_over(item) {
+    if blinking_or_turned_over(&menus.screens, item) {
         big.draw_highlighted()?;
     }
     Ok(())
 }
 
 /// One of the four tall boxes, items 0x10 .. 0x13.
-fn tall_item(item: u32) -> Result<(), Refused> {
+fn tall_item(menus: &Menus, item: u32) -> Result<(), Refused> {
     let x = column_x(item);
     let y = 0x17D + 0x38 * ((item - 0x10) / 2);
-    set_item_colour(item);
-    shade(x, y, 0x14E, 0x1F)?;
-    shade(x + 0x14A, y + 0x1F, 4, 0x13)?;
-    shade(x, y + 0x1F, 4, 0x13)?;
-    shade(x, y + 0x32, 0x14E, 5)?;
-    dark(x + 4, y + 0x1F, 0x146, 0x13)?;
+    set_item_colour(menus, item);
+    shade(&menus.screens, x, y, 0x14E, 0x1F)?;
+    shade(&menus.screens, x + 0x14A, y + 0x1F, 4, 0x13)?;
+    shade(&menus.screens, x, y + 0x1F, 4, 0x13)?;
+    shade(&menus.screens, x, y + 0x32, 0x14E, 5)?;
+    dark(&menus.screens, x + 4, y + 0x1F, 0x146, 0x13)?;
     Outline::around(x, y, 0x24, 0x1C).draw(BLACK)?;
     let big = Outline::around(x, y, 0x14E, 0x37);
     big.draw(BLACK)?;
     Outline::around(x + 3, y + 0x1E, 0x148, 0x15).draw(BLACK)?;
-    if blinking_or_turned_over(item) {
+    if blinking_or_turned_over(&menus.screens, item) {
         big.draw_highlighted()?;
     }
     Ok(())
@@ -213,6 +212,8 @@ fn tall_item(item: u32) -> Result<(), Refused> {
 
 /// The service area's boxes, in the order the original draws them.
 pub fn draw_service_boxes() -> Result<(), Refused> {
+    let menus = menus();
+    let screens = &menus.screens;
     for [x, y, w, h] in BACKDROP_BOXES {
         quad(
             x,
@@ -220,26 +221,26 @@ pub fn draw_service_boxes() -> Result<(), Refused> {
             w,
             h,
             BACKDROP,
-            menus().screens.state.service_ui.fade_full.get(),
+            menus.screens.state.service_ui.fade_full.get(),
         )?;
     }
-    panel(HEADER_ITEM, [0x42, 0x44, 0x29D, 0x1B], BLUE)?;
+    panel(screens, HEADER_ITEM, [0x42, 0x44, 0x29D, 0x1B], BLUE)?;
     for item in 2..=0xD {
-        small_item(item)?;
+        small_item(menus, item)?;
     }
-    setup_row(0xE)?;
-    setup_row(0xF)?;
-    panel(HEADER_ITEM, [0x42, 0x161, 0x29D, 0x1B], BLUE)?;
+    setup_row(menus, 0xE)?;
+    setup_row(menus, 0xF)?;
+    panel(screens, HEADER_ITEM, [0x42, 0x161, 0x29D, 0x1B], BLUE)?;
     for item in 0x10..=0x13 {
-        tall_item(item)?;
+        tall_item(menus, item)?;
     }
-    panel(0x14, [0x42, 0x1ED, 0x14E, 0x1B], BLUE)?;
-    panel(0x15, [0x191, 0x1ED, 0x14E, 0x1B], BLUE)?;
-    panel(0x16, [0x42, 0x209, 0x14E, 0x1B], BLUE)?;
-    panel(LAST_BAR_ITEM, [0x191, 0x209, 0x14E, 0x1B], BLUE)?;
-    panel(HEADER_ITEM, [0x161, 0x228, 0x148, 0x15], DARK)?;
-    crate::screens::service_box_frame_1::service_box_frame_1()?;
-    crate::screens::service_box_frame_2::service_box_frame_2()?;
-    crate::screens::service_box_frame_3::service_box_frame_3()?;
-    crate::screens::service_box_frame_4::service_box_frame_4()
+    panel(screens, 0x14, [0x42, 0x1ED, 0x14E, 0x1B], BLUE)?;
+    panel(screens, 0x15, [0x191, 0x1ED, 0x14E, 0x1B], BLUE)?;
+    panel(screens, 0x16, [0x42, 0x209, 0x14E, 0x1B], BLUE)?;
+    panel(screens, LAST_BAR_ITEM, [0x191, 0x209, 0x14E, 0x1B], BLUE)?;
+    panel(screens, HEADER_ITEM, [0x161, 0x228, 0x148, 0x15], DARK)?;
+    crate::screens::service_box_frame_1::service_box_frame_1(screens)?;
+    crate::screens::service_box_frame_2::service_box_frame_2(menus)?;
+    crate::screens::service_box_frame_3::service_box_frame_3(screens)?;
+    crate::screens::service_box_frame_4::service_box_frame_4(menus)
 }

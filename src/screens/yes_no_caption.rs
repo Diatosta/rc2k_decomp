@@ -11,6 +11,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::Tables;
 use crate::menu::owner::menus;
 use crate::strings::append_string_by_id::append_string_by_id;
 
@@ -22,8 +23,8 @@ const FIRST: u32 = 0x56B;
 // ---- Rust version ----
 
 /// Puts the answer's caption in the caption buffer.
-pub fn yes_no_caption() -> Result<(), Refused> {
-    let id = menus().tables.pages.yes_no_answer.get().wrapping_add(FIRST);
+pub fn yes_no_caption(tables: &Tables) -> Result<(), Refused> {
+    let id = tables.pages.yes_no_answer.get().wrapping_add(FIRST);
     let mut text = Vec::new();
     append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
     // Converted: `rc2k_core::screens::captions::fit`.
@@ -37,6 +38,7 @@ pub fn yes_no_caption() -> Result<(), Refused> {
 /// The Rust version the typed tables run (what it leaves in registers is read by
 /// none of its callers).
 pub fn run() -> Result<(), Refused> {
-    yes_no_caption()?;
+    let tables = &menus().tables;
+    yes_no_caption(tables)?;
     Ok(())
 }

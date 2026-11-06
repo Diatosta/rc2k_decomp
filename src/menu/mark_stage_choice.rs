@@ -7,13 +7,11 @@
 //! One caller, `menu::select_stage_loop` at its set-up. Rust callers run its `entry` (`routes.rs`);
 //! the registers above are the original's, for reference.
 
-use crate::menu::owner::menus;
+use crate::menu::owner::Play;
 
-pub fn mark_stage_choice() {
+pub fn mark_stage_choice(play: &Play) {
     // Converted: `rc2k_core::menu::event::MapStage`.
-    menus()
-        .play
-        .champ_view
+    play.champ_view
         .stage_mode
         .set(rc2k_core::menu::event::MapStage::Choice as u32);
 }

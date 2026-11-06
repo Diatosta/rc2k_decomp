@@ -15,7 +15,8 @@ use crate::menu::standings::*;
 /// The Rust version (see the header): the registers it leaves.
 pub fn best_class_scores() -> Result<(), Refused> {
     let menus = menus();
-    let players = counted_players()?;
+    let screens = &menus.screens;
+    let players = counted_players(screens)?;
     let classes: u32 = menus.screens.event.classes.get();
     let (true, true) = (
         classes != 0 && classes <= 5,

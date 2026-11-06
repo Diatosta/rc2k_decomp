@@ -19,6 +19,8 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Screens;
+use crate::menu::owner::Tables;
 use crate::menu::owner::menus;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::text::draw_text::Canvas;
@@ -28,8 +30,7 @@ use crate::text::draw_text::Canvas;
 
 /// The stage's section's first record and the stage's record (`off_735512[dword_7558C8]
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.
-fn records() -> Result<(RecordTable, RecordRef), BadInput> {
-    let screens = &menus().screens;
+fn records(screens: &Screens) -> Result<(RecordTable, RecordRef), BadInput> {
     let base = crate::records::stages_store::STAGE_TABLES.group_event_table(
         screens.event.stage_group.get(),
         screens.event.stage_sub.get(),
@@ -41,15 +42,17 @@ fn records() -> Result<(RecordTable, RecordRef), BadInput> {
 }
 
 /// `dword_7588D2[v - 1]`, refused outside its 21 entries.
-fn label(v: u32) -> Result<u32, Refused> {
+fn label(tables: &Tables, v: u32) -> Result<u32, Refused> {
     if !(1..=21).contains(&v) {
         return Err(BadInput("a string index past dword_7588D2's 21").into());
     }
-    Ok(menus().tables.captions.duel_labels[v as usize - 1].get())
+    Ok(tables.captions.duel_labels[v as usize - 1].get())
 }
 
 pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus().play;
+    let screens = &menus().screens;
+    let tables = &menus().tables;
     let (p1, p2) = (
         crate::menu::standings::player(0),
         crate::menu::standings::player(1),
@@ -57,14 +60,14 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     if p1.get().name_player().is_none() || p2.get().name_player().is_none() {
         return Err(BadInput("player 1 or 2 without a name").into());
     }
-    let (base, record) = records()?;
+    let (base, record) = records(screens)?;
     let stage = crate::screens::page_settings::stage_line_bytes(0x482, record)?;
     if stage.len() > 0x100 {
         return Err(BadInput("a stage line past the line buffer").into());
     }
     let (label1, label2) = (
-        label(play.results.positions[0].get())?,
-        label(play.results.positions[1].get())?,
+        label(tables, play.results.positions[0].get())?,
+        label(tables, play.results.positions[1].get())?,
     );
     // Converted: `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;

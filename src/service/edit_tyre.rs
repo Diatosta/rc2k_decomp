@@ -14,5 +14,5 @@ use crate::service::pages::{TYRE, change_page};
 // ---- Rust version ----
 
 pub fn edit_tyre(confirm: bool) -> Result<(), Refused> {
-    change_page(TYRE, confirm)
+    change_page(crate::menu::owner::menus(), TYRE, confirm)
 }

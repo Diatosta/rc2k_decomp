@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
+use crate::menu::owner::menus;
 use crate::menu::standings::name_address_of;
 use crate::session::Dword;
 
@@ -24,6 +25,8 @@ const STAGE_SLOT: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure; 
 
 /// The Rust version (see the header).
 pub fn enter_time_trial_best() -> Result<(), Refused> {
+    let play = &menus().play;
+    let screens = &menus().screens;
     use rc2k_core::menu::bests;
     let record = stage_record()?;
     stage_times()?; // a stage the tables do not give: refused
@@ -32,7 +35,7 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
     let slot = record.record()?.event_slot();
     set(STAGE_SLOT, slot);
     let cheats = get(CHEATS);
-    let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
+    let sealed = crate::menu::sealed_player_time::sealed_player_time(screens, slot)?;
     // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_time_trial_best`.
     use crate::menu::standings::name_of;
     let best = bests::NewBest {
@@ -48,5 +51,5 @@ pub fn enter_time_trial_best() -> Result<(), Refused> {
         line: Some(p.get().best_line),
     };
     with_stage_times(|list| list[9].enter(&best))?;
-    crate::menu::rank_time_trial_best::rank_time_trial_best()
+    crate::menu::rank_time_trial_best::rank_time_trial_best(play)
 }

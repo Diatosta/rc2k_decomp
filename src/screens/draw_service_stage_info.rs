@@ -30,12 +30,14 @@ use crate::text::draw_text::Canvas;
 /// Returns the carry flag of `draw_stage_records`.
 pub fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let menus = menus();
-    label(canvas, event_title()?, TITLE_FONT, TITLE_X, TITLE_Y)?;
-    let (record, _) = event_stage()?;
+    let screens = &menus.screens;
+    let tables = &menus.tables;
+    label(canvas, event_title(menus)?, TITLE_FONT, TITLE_X, TITLE_Y)?;
+    let (record, _) = event_stage(screens)?;
     if menus.play.champ_view.event_mode.get() == 2 && menus.screens.event.stage_pages.get() == 0 {
         draw_stage_heading(record, canvas)?;
     }
     build_second_heading(record)?;
-    draw_stage_body(record, false, canvas)?;
+    draw_stage_body(tables, record, false, canvas)?;
     draw_records_from(&crate::saves::best_times::STAGE_TIMES, record, canvas)
 }
