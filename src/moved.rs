@@ -2614,6 +2614,28 @@ mod tests {
         places
     }
 
+    /// Step 11's census (run by hand): for each moved range, the image's relocated pointers
+    /// that point into it, and how many of those lie in a moved range (live data).
+    #[test]
+    #[ignore]
+    fn census_pointers_into_ranges() {
+        let places = image_relocations();
+        let inside = |a: usize| MOVED.iter().any(|m| (m.ida..m.ida + m.len).contains(&a));
+        for m in MOVED {
+            let (mut all, mut live) = (0, 0);
+            for &p in &places {
+                let v = u32::from_le_bytes(image_bytes(p as usize, 4).try_into().unwrap()) as usize;
+                if (m.ida..m.ida + m.len).contains(&v) {
+                    all += 1;
+                    if inside(p as usize) {
+                        live += 1;
+                    }
+                }
+            }
+            println!("CENSUS {:#x} {:#x} {all} {live}", m.ida, m.len);
+        }
+    }
+
     #[test]
     fn image_bytes_reads_the_image() {
         assert_eq!(image_bytes(0x4E0000, 6), b"$VER: ");
