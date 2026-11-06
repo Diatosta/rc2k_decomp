@@ -6,12 +6,13 @@
 //! Fifteen callers, `menu::set_up_front_end` among them.
 
 use crate::gfx::show_picture_file::show_picture_file;
+use crate::menu::owner::menus;
 
 // ---- game data ----
 
 /// The picture shown.
 pub fn show_loading_picture() -> Result<(), crate::errors::Refused> {
     show_picture_file(crate::pointers::GamePtr::to(
-        &crate::menu::owner::menus().tables.texts.loading_pcx,
+        &menus().tables.texts.loading_pcx,
     ))
 }

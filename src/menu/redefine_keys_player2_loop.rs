@@ -14,6 +14,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, quitting, screen_entry,
@@ -22,25 +23,16 @@ use crate::menu::screen_loop::{
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn before(_: &Entry) -> Result<(), Refused> {
+    let menus = menus();
     // The player's twelve bytes at +0x1C copied to `dword_755595` (`rep movsb` between
     // `pusha` and `popa`; eax pushed and popped around the player's address: no carried
     // value changes).
     {
-        let keys = crate::menu::owner::menus().play.players.players[1]
-            .get()
-            .keys;
+        let keys = menus.play.players.players[1].get().keys;
         for (n, key) in keys.into_iter().enumerate() {
-            crate::menu::owner::menus()
-                .keys
-                .tables
-                .redefined_keys
-                .set(n, key);
+            menus.keys.tables.redefined_keys.set(n, key);
         }
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .set(0x1u32);
+        menus.screens.event.current_player.set(0x1u32);
     }
     Ok(())
 }
@@ -53,18 +45,9 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 fn each_frame(_: &Entry) -> Result<Flow, Refused> {
-    if crate::menu::owner::menus()
-        .screens
-        .option_work
-        .redefining_key
-        .get()
-        == 0x1
-        && crate::menu::owner::menus()
-            .screens
-            .option_work
-            .redefining_key
-            .get()
-            != 0x0
+    let screens = &menus().screens;
+    if screens.option_work.redefining_key.get() == 0x1
+        && screens.option_work.redefining_key.get() != 0x0
     {
         return Ok(Flow::NextFrame);
     }
@@ -72,81 +55,39 @@ fn each_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .redefine_keys_player2
-            .id()
-    },
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::REDEFINE_KEYS_PLAYER2],
+    menu: || menus().tables.menus.redefine_keys_player2.id(),
+    saved_item: || &menus().screens.items.current[slot::REDEFINE_KEYS_PLAYER2],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.unread_list, // g_unreadList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .unread_758b72
-                    .id()
-            },
+            pointer: || &menus().screens.flow.unread_list, // g_unreadList
+            table: || menus().tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .draw_758dee
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.draw_758dee.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overlay_75928a
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.overlay_75928a.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .redefine_keys_player2_scene
-                    .id()
-            },
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
+            table: || menus().tables.draw_lists.redefine_keys_player2_scene.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .draw_758dee
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.draw_758dee.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overlay_75928a
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.overlay_75928a.id(),
             run: false,
         },
     ]),
@@ -157,10 +98,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::owner::menus()
-            .tables
-            .texts
-            .redefine_keys_player2_picture
+        &menus().tables.texts.redefine_keys_player2_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,

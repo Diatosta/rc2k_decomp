@@ -2,6 +2,7 @@
 //! carousel's entries, and the carousel turned to the next or the previous car.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::menu::player::player;
 
 const MOST_ENTRIES: u32 = 0x100;
@@ -11,19 +12,16 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entry is looked at before the end mark -1). Refuses a current player past four, no
 /// entries, or entries without their end within 0x100.
 pub fn find_player_car() -> Result<(), Refused> {
-    let current: u32 = crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .get();
+    let menus = menus();
+    let current: u32 = menus.screens.event.current_player.get();
     let car = player(current)
         .ok_or(BadInput("a current player past the four"))?
         .get()
         .car_number;
-    let Some(list) = crate::menu::owner::menus().screens.state.carousel.list()? else {
+    let Some(list) = menus.screens.state.carousel.list()? else {
         return Err(BadInput("no carousel entries").into());
     };
-    let entries = crate::menu::owner::menus().tables.lists.cars(list);
+    let entries = menus.tables.lists.cars(list);
     let entry = |n: u32| entries.offset(4 * n).read::<u32>("a carousel entry");
     if entry(0)? == u32::MAX {
         return Err(BadInput("no carousel entries").into());
@@ -42,17 +40,8 @@ pub fn find_player_car() -> Result<(), Refused> {
         }
     }
     let found = rc2k_core::menu::cars::find_car(&cars, car);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .front
-        .set(found);
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .shown_car
-        .set(found);
+    menus.screens.state.carousel.front.set(found);
+    menus.screens.event.shown_car.set(found);
 
     Ok(())
 }
@@ -64,70 +53,28 @@ pub fn find_player_car() -> Result<(), Refused> {
 /// The carousel turned (`menu::next_choice_car` / `previous_choice_car`). Converted:
 /// `rc2k_core::menu::cars::turn_carousel`.
 fn turn(on: bool) {
+    let menus = menus();
     use rc2k_core::menu::cars::{Carousel, turn_carousel};
     use rc2k_core::menu::navigation::Turn;
 
     let c = turn_carousel(
         Carousel {
             turn: Turn {
-                count: crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .count
-                    .get() as i32,
-                value: crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .front
-                    .get() as i32,
-                way: crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .direction
-                    .get(),
-                step: crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .angle
-                    .get(),
+                count: menus.screens.state.carousel.count.get() as i32,
+                value: menus.screens.state.carousel.front.get() as i32,
+                way: menus.screens.state.carousel.direction.get(),
+                step: menus.screens.state.carousel.angle.get(),
             },
-            shown: crate::menu::owner::menus().screens.event.shown_car.get(),
-            last: crate::menu::owner::menus().cars.table.last_car.get(),
+            shown: menus.screens.event.shown_car.get(),
+            last: menus.cars.table.last_car.get(),
         },
         on,
     );
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .front
-        .set(c.turn.value as u32);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .direction
-        .set(c.turn.way);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .angle
-        .set(c.turn.step);
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .shown_car
-        .set(c.shown);
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .back
-        .set(0u32);
+    menus.screens.state.carousel.front.set(c.turn.value as u32);
+    menus.screens.state.carousel.direction.set(c.turn.way);
+    menus.screens.state.carousel.angle.set(c.turn.step);
+    menus.screens.event.shown_car.set(c.shown);
+    menus.screens.loop_flags.back.set(0u32);
 }
 
 pub fn next_choice_car() {

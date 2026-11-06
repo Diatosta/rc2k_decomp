@@ -19,6 +19,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
@@ -35,11 +36,7 @@ pub fn menu_titles() -> Result<Option<(u32, u32)>, BadInput> {
         return Ok(None);
     };
     Ok(Some((
-        table_dword_at(
-            &crate::menu::owner::menus().play.results,
-            GROUP_TITLES,
-            sel.group,
-        )?,
+        table_dword_at(&menus().play.results, GROUP_TITLES, sel.group)?,
         sel.table.title()?,
     )))
 }

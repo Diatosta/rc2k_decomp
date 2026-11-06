@@ -14,6 +14,7 @@
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::Driver;
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 
 /// An entry's driver (computer) or player.
@@ -35,6 +36,7 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused>
 
 /// The Rust version (see the header).
 pub fn award_overall_points() -> Result<(), Refused> {
+    let screens = &menus().screens;
     {
         let section: u32 = SECTION_RVA.get();
         if section > 5 {
@@ -48,21 +50,13 @@ pub fn award_overall_points() -> Result<(), Refused> {
         // Converted: `rc2k_core::menu::points` (`Points`, `total`).
         use rc2k_core::menu::points::{Points, total};
         let mut points = Points::default();
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .seconds
-            .set(points.0);
+        screens.draw_work.seconds.set(points.0);
         for (e, &o) in all.iter_mut().zip(&owners) {
             if e.group == 0 {
                 continue;
             }
             let given = points.take();
-            crate::menu::owner::menus()
-                .screens
-                .draw_work
-                .seconds
-                .set(points.0);
+            screens.draw_work.seconds.set(points.0);
             e.overall[section as usize] = given;
             match o {
                 Owner::Driver(d) => d.overall(section as usize).set(given),

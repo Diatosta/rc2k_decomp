@@ -4,6 +4,7 @@
 //! direction the player moves, into the player's +0x50 table.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::screens::controls_store::CONTROLS_SCREEN as C;
 
 /// `screens::classify_controller` (0x46B27A): from the controller's four values (ecx x, edx
@@ -24,11 +25,7 @@ pub fn classify_controller(z: u32, buttons: u32, x: u32, y: u32) {
     for (cell, v) in C.history.iter().zip(history) {
         cell.set(v);
     }
-    crate::menu::owner::menus()
-        .screens
-        .draw_work
-        .figure
-        .set(found);
+    menus().screens.draw_work.figure.set(found);
 }
 
 /// `screens::learn_axis` (0x46B131): see the header. With 3 s gone the learning stops
@@ -39,19 +36,14 @@ pub fn classify_controller(z: u32, buttons: u32, x: u32, y: u32) {
 /// nothing; anything found goes to the player's +0x50 + 4 x (control - 1). The original keeps
 /// every register. Refuses (before anything) a player without its record.
 pub fn learn_axis() -> Result<(), Refused> {
+    let screens = &menus().screens;
     if C.learning.get() != 1 {
         return Ok(());
     }
-    let Some(player) = crate::menu::player::player(
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .get(),
-    ) else {
+    let Some(player) = crate::menu::player::player(screens.event.current_player.get()) else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
-    crate::menu::owner::menus().screens.draw_work.figure.set(0);
+    screens.draw_work.figure.set(0);
     // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
     // `CANCEL_KEY`, `binding`).
     use rc2k_core::screens::learning as l;
@@ -61,13 +53,12 @@ pub fn learn_axis() -> Result<(), Refused> {
         C.learning.set(0);
         return Ok(());
     }
-    if crate::menu::owner::menus().screens.draw_work.blink.get() == 1 {
-        let item = crate::menu::owner::menus()
-            .screens
+    if screens.draw_work.blink.get() == 1 {
+        let item = screens
             .loop_flags
             .menu
             .get()?
-            .item(crate::menu::owner::menus().screens.loop_flags.item.get())?;
+            .item(screens.loop_flags.item.get())?;
         crate::text::draw_string_by_id::draw_string_by_id_at(
             0x3BE,
             crate::gfx::typefaces::fonts::LIST.game_ptr(),
@@ -86,11 +77,7 @@ pub fn learn_axis() -> Result<(), Refused> {
             crate::input::store::DEVICES.records[0]
                 .axis_code
                 .set(u32::from_le_bytes(player.get().axis_codes));
-            crate::menu::owner::menus()
-                .screens
-                .draw_work
-                .figure
-                .set(found);
+            screens.draw_work.figure.set(found);
             C.learning.set(0);
             take = false;
         }
@@ -100,29 +87,24 @@ pub fn learn_axis() -> Result<(), Refused> {
     }
     if take {
         if crate::input::take_key::take_key() == l::CANCEL_KEY {
-            crate::menu::owner::menus().screens.draw_work.figure.set(0);
+            screens.draw_work.figure.set(0);
             C.learning.set(0);
-        } else if crate::menu::owner::menus().screens.draw_work.figure.get() == 0 {
+        } else if screens.draw_work.figure.get() == 0 {
             return Ok(());
         }
     }
     let Some(slot) = l::binding(C.learned.get()) else {
         return Err(crate::errors::BadInput("a learned control past the bindings").into());
     };
-    let figure = crate::menu::owner::menus().screens.draw_work.figure.get();
+    let figure = screens.draw_work.figure.get();
     player.update(|p| p.set_binding(slot, figure));
     Ok(())
 }
 
 /// What the controller page reads: refused before anything.
 pub fn controller_page_refuses() -> Result<crate::menu::standings::PlayerCell, Refused> {
-    let Some(player) = crate::menu::player::player(
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .get(),
-    ) else {
+    let Some(player) = crate::menu::player::player(menus().screens.event.current_player.get())
+    else {
         return Err(crate::errors::BadInput("no current player record").into());
     };
     let device = player.get().controller;

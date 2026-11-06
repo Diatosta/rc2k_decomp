@@ -12,6 +12,7 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 
 // ---- game data ----
 
@@ -25,12 +26,13 @@ pub fn step_car_stream(
     playing: &mut dyn FnMut() -> bool,
     start: &mut dyn FnMut(u32, u32),
 ) -> Result<(), BadInput> {
+    let menus = menus();
     // Converted: `rc2k_core::sound::race::stream_step`.
     use rc2k_core::sound::race::{StreamStep, stream_step};
     let list: u32 = crate::sound::owner::sound().race.car_stream.stream.get();
     let failed = std::cell::Cell::new(None);
     let step = stream_step(
-        crate::menu::owner::menus().play.champ_view.event_mode.get(),
+        menus.play.champ_view.event_mode.get(),
         crate::sound::owner::sound().race.car_stream.on.get(),
         playing,
         crate::sound::owner::sound().race.car_stream.place.get(),
@@ -62,14 +64,7 @@ pub fn step_car_stream(
         .car_stream
         .place
         .set(place);
-    start(
-        part,
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .speech_level
-            .get(),
-    );
+    start(part, menus.screens.option_work.speech_level.get());
     Ok(())
 }
 

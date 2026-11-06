@@ -3,6 +3,7 @@
 //! the bytes `shared_memory`'s raw copies give.
 
 use super::*;
+use crate::menu::owner::menus;
 use crate::race::owner::race;
 use crate::shared_memory;
 
@@ -124,23 +125,24 @@ macro_rules! every_store {
 
 #[test]
 fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
+    let menus = menus();
     let race = race();
     let _lock = crate::store::test_lock();
     every_store! {
         crate::audio::store::AUDIO,
         crate::audio::store::SAMPLE_RECORDS,
-        crate::menu::owner::menus().play.players,
-        crate::menu::owner::menus().cars.table,
+        menus.play.players,
+        menus.cars.table,
         race.replay.finish,
         race.replay.replay_frames,
         crate::effects::frame_state::VIEW_VARS,
         crate::effects::owner::effects().paths.spline_head,
         crate::effects::work_store::MARKS_WORK,
-        crate::menu::owner::menus().tables.captions,
-        crate::menu::owner::menus().tables.draw_lists,
-        crate::menu::owner::menus().tables.lists,
-        crate::menu::owner::menus().play.results,
-        crate::menu::owner::menus().screens.state,
+        menus.tables.captions,
+        menus.tables.draw_lists,
+        menus.tables.lists,
+        menus.play.results,
+        menus.screens.state,
         race.physics.camera,
         crate::physics::car_store::CAR,
         race.physics.contact,

@@ -10,6 +10,7 @@
 //! mark. Refuses a menu without an end in its first 256 items.
 
 use crate::menu::menus_store::{MenuId, MenuItem};
+use crate::menu::owner::menus;
 
 // ---- game data ----
 
@@ -19,8 +20,9 @@ use crate::menu::menus_store::{MenuId, MenuItem};
 /// the action the screen loop's other registers too, which no action reads; what the
 /// action leaves is nobody's.)
 pub fn run_item_action(menu: MenuId) -> Result<(), crate::errors::Refused> {
+    let screens = &menus().screens;
     let items = menu.items();
-    let highlighted: u32 = crate::menu::owner::menus().screens.loop_flags.item.get();
+    let highlighted: u32 = screens.loop_flags.item.get();
     // Converted: `rc2k_core::menu::items::highlighted_item`. It asks for item n's type only
     // while item n is there, and for the x of one past the last: the end mark after it.
     let found = rc2k_core::menu::items::highlighted_item(
@@ -31,17 +33,9 @@ pub fn run_item_action(menu: MenuId) -> Result<(), crate::errors::Refused> {
     if let Some(n) = found {
         let item = &items[n as usize];
         let value = item.action_value.get();
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .action_value
-            .set(value);
+        screens.draw_work.action_value.set(value);
         crate::menu::table_calls::call_action(item.action.get(), value, item, menu);
-        crate::menu::owner::menus()
-            .screens
-            .loop_flags
-            .item
-            .set(item.id.get());
+        screens.loop_flags.item.set(item.id.get());
     }
     Ok(())
 }

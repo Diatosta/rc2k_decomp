@@ -10,13 +10,11 @@
 
 /// The first stage of the last page, stored in `dword_7556B8` (1 for a single page). (What
 /// the original also leaves in eax, edx and ebp, nothing reads.)
+use crate::menu::owner::menus;
 pub fn first_page_stage() {
-    let n: u32 = crate::menu::owner::menus().play.champ_view.count.get();
+    let play = &menus().play;
+    let n: u32 = play.champ_view.count.get();
     // Converted: `rc2k_core::menu::event::last_page` (its division cannot meet 0).
     let first = rc2k_core::menu::event::last_page(n).map_or(1, |last| last.first);
-    crate::menu::owner::menus()
-        .play
-        .champ_view
-        .first_row
-        .set(first);
+    play.champ_view.first_row.set(first);
 }

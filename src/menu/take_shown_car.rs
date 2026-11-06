@@ -11,6 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::lists_store::CarList;
+use crate::menu::owner::menus;
 use crate::menu::player::{PLAYERS, Player, player};
 use crate::session::Dword;
 
@@ -19,19 +20,16 @@ const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
 const _: () = assert!(std::mem::offset_of!(Player, class) == 0x90);
 
 pub fn take_shown_car(list: Option<CarList>) -> Result<(), Refused> {
+    let menus = menus();
     let list = list.ok_or(BadInput("no list of cars"))?;
-    let current: u32 = crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .get();
+    let current: u32 = menus.screens.event.current_player.get();
     if current >= PLAYERS {
         return Err(BadInput("a current player past the four").into());
     }
-    let shown: u32 = crate::menu::owner::menus().screens.event.shown_car.get();
+    let shown: u32 = menus.screens.event.shown_car.get();
     // Converted: `rc2k_core::menu::player::Player::take_car`.
     {
-        let entry = crate::menu::owner::menus()
+        let entry = menus
             .tables
             .lists
             .cars(list)

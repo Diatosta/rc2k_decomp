@@ -31,6 +31,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
@@ -114,7 +115,7 @@ impl races::EventRaces for Game {
                 RACE_STATE
                     .settings
                     .rivals
-                    .set(crate::menu::owner::menus().play.champ_view.summary.get());
+                    .set(menus().play.champ_view.summary.get());
                 RACE_STATE.settings.stage.set(self.pack.stage()?);
             }
             Step::Race { next } => {
@@ -168,6 +169,7 @@ impl races::EventRaces for Game {
 
 /// The Rust version (see the header).
 pub fn run_event_races() -> Result<(), Refused> {
+    let menus = menus();
     let drivers = drivers()?;
     let few_running = drivers.len() < PICKED as usize
         || drivers[..PICKED as usize]
@@ -178,13 +180,13 @@ pub fn run_event_races() -> Result<(), Refused> {
     if few_running {
         return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
     }
-    let mode: u32 = crate::menu::owner::menus().screens.event.event_kind.get();
+    let mode: u32 = menus.screens.event.event_kind.get();
     if let Some((n, _)) = races::players_of(mode)
         && n > 4
     {
         return Err(BadInput("a player of the event's mode missing").into());
     }
-    let reset_only = { crate::menu::owner::menus().tables.pages.reset_times.get() } == 1;
+    let reset_only = { menus.tables.pages.reset_times.get() } == 1;
     let rec = crate::menu::calc_cpu_times::record()?;
     crate::menu::calc_cpu_times::check(rec)?;
     let pack = crate::records::trakpak_entry::track_of(rec)?;

@@ -16,6 +16,7 @@
 //! Converted: `rc2k_core::saves::defaults::best_scores`, `rc2k_core::saves::scores::fill_made_up`.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::saves::best_times::SCORES;
 use crate::saves::default_times::{GameSource, to_nowhere};
 use rc2k_core::saves::defaults::best_scores;
@@ -25,14 +26,12 @@ use rc2k_core::saves::defaults::best_scores;
 // ---- Rust version ----
 
 pub fn default_best_scores() -> Result<(), Refused> {
+    let screens = &menus().screens;
     if !SCORES.is_taken() {
         return Err(crate::errors::BadInput("no table of best scores").into());
     }
-    let counts = std::array::from_fn(|g| {
-        crate::menu::owner::menus().screens.state.menus.class_counts[g].get()
-    });
-    let firsts =
-        std::array::from_fn(|g| crate::menu::owner::menus().screens.state.menus.firsts[g].get());
+    let counts = std::array::from_fn(|g| screens.state.menus.class_counts[g].get());
+    let firsts = std::array::from_fn(|g| screens.state.menus.firsts[g].get());
     let entries = best_scores(
         &mut GameSource {
             log: &mut to_nowhere,

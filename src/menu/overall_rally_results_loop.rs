@@ -15,6 +15,7 @@
 //! Callers: `sub_4A3BA2` and the code at 0x4A9572.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
@@ -23,23 +24,13 @@ use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_first_item(_: &Entry) -> Result<(), Refused> {
-    let title = if crate::menu::owner::menus()
-        .screens
-        .state
-        .menus
-        .which_title
-        .get()
-        == 1
-    {
+    let menus = menus();
+    let title = if menus.screens.state.menus.which_title.get() == 1 {
         0x138
     } else {
         0x139
     };
-    crate::menu::owner::menus()
-        .tables
-        .menus
-        .overall_rally_results
-        .items[0]
+    menus.tables.menus.overall_rally_results.items[0]
         .string
         .set(title);
 
@@ -47,46 +38,22 @@ fn set_first_item(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .overall_rally_results
-            .id()
-    },
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::OVERALL_RALLY_RESULTS], // dword_74778C
+    menu: || menus().tables.menus.overall_rally_results.id(),
+    saved_item: || &menus().screens.items.current[slot::OVERALL_RALLY_RESULTS], // dword_74778C
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list,
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overall_rally_results_scene
-                    .id()
-            },
+            pointer: || &menus().screens.flow.scene_list,
+            table: || menus().tables.draw_lists.overall_rally_results_scene.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list,
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .list_758e36
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list,
+            table: || menus().tables.draw_lists.list_758e36.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list,
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overall_rally_results_overlay
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list,
+            table: || menus().tables.draw_lists.overall_rally_results_overlay.id(),
             run: false,
         },
     ],
@@ -98,10 +65,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::owner::menus()
-            .tables
-            .texts
-            .overall_rally_results_picture
+        &menus().tables.texts.overall_rally_results_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -112,13 +76,7 @@ pub const SCREEN: Screen = Screen {
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
-    leave_at_once: Some(|| {
-        &crate::menu::owner::menus()
-            .screens
-            .state
-            .menus
-            .standings_shown
-    }), // dword_75AB34
+    leave_at_once: Some(|| &menus().screens.state.menus.standings_shown), // dword_75AB34
     next_frame_repeats_first: false,
     action_saved_item: None,
     action_menu: None,

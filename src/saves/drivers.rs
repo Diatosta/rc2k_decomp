@@ -2,6 +2,7 @@
 //! default best times use them, and the table their names come from.
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::strings::append_string_by_id::push_string;
 
 pub const DRIVERS: u32 = 180;
@@ -18,9 +19,7 @@ impl Driver {
         if number >= DRIVERS {
             return Err(BadInput("a driver past the 180"));
         }
-        Ok(Self(
-            &crate::menu::owner::menus().cars.drivers.drivers[number as usize],
-        ))
+        Ok(Self(&menus().cars.drivers.drivers[number as usize]))
     }
 
     /// The dword at `offset` of the record.

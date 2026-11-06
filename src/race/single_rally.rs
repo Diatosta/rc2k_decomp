@@ -1709,6 +1709,7 @@ mod tests {
     use super::*;
     use crate::errors::BadInput;
     use crate::framework::{Regs, game_addr, rva};
+    use crate::menu::owner::menus;
     use crate::pointers::GamePtr;
 
     /// The tests share the game's memory.
@@ -1739,6 +1740,7 @@ mod tests {
 
     fn world() -> World {
         use std::sync::atomic::Ordering::Relaxed;
+        let play = &menus().play;
         let image = Box::leak(vec![0u8; IMAGE_LEN].into_boxed_slice());
         let base = crate::pointers::lend(image.as_mut_ptr(), IMAGE_LEN);
         crate::framework::BASE
@@ -1768,14 +1770,11 @@ mod tests {
             (BLOCK_CURRENT[0].addr(), 0x20),
             (OUTCOME_FIRST.data.addr(), 0x40),
             (OUTCOME_CURRENT.data.addr(), 0x40),
-            (
-                crate::menu::owner::menus().play.players.pointers[0].addr(),
-                16,
-            ),
+            (play.players.pointers[0].addr(), 16),
         ] {
             ranges.push((a as usize, len));
         }
-        for r in &crate::menu::owner::menus().play.players.players {
+        for r in &play.players.players {
             ranges.push((r.addr() as usize, RECORD_LEN));
         }
         ranges.sort_unstable();
@@ -1932,6 +1931,7 @@ mod tests {
 
     /// Puts the case's memory in place (the same bytes for both runs).
     unsafe fn setup(w: &mut World, c: &Case) {
+        let play = &menus().play;
         unsafe {
             let mut rng = Rng(c.seed | 1);
             for &(a, len) in &w.ranges {
@@ -1939,14 +1939,8 @@ mod tests {
                     crate::pointers::host_at(a + i).write(rng.next() as u8);
                 }
             }
-            for (k, r) in crate::menu::owner::menus()
-                .play
-                .players
-                .players
-                .iter()
-                .enumerate()
-            {
-                crate::menu::owner::menus().play.players.pointers[k].set(r.addr());
+            for (k, r) in play.players.players.iter().enumerate() {
+                play.players.pointers[k].set(r.addr());
                 set_field(r, 0xD0, c.d0[k]).expect("the record is there");
             }
             EVENT_MODE.set(c.mode);
@@ -2119,6 +2113,7 @@ mod tests {
     /// result, the order of the calls with the memory at each, and every byte left.
     #[test]
     fn plain_rust_equals_the_table() {
+        let play = &menus().play;
         let _g = crate::store::test_lock();
         let mut w = world();
         // The game's variables as they were, put back at the end (other tests read them).
@@ -2126,8 +2121,7 @@ mod tests {
         // A first check that the stand-in memory is there.
         RACE_INFO.set(0x1234_5678);
         assert_eq!(RACE_INFO.get(), 0x1234_5678);
-        let kept_players: Vec<_> = crate::menu::owner::menus()
-            .play
+        let kept_players: Vec<_> = play
             .players
             .players
             .iter()
@@ -2168,13 +2162,7 @@ mod tests {
             "coverage: {done} {fatal} {failed} {engine} {early} {results}"
         );
         crate::moved::restore(&first);
-        for (cell, kept) in crate::menu::owner::menus()
-            .play
-            .players
-            .players
-            .iter()
-            .zip(kept_players)
-        {
+        for (cell, kept) in play.players.players.iter().zip(kept_players) {
             cell.set(kept);
         }
     }

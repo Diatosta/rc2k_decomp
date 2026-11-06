@@ -12,6 +12,7 @@
 
 use crate::gfx::typefaces::FontCell;
 use crate::menu::item_sprites_store::SpriteCell;
+use crate::menu::owner::menus;
 use crate::session::Dword;
 
 /// A label: x, y, the font, the string id.
@@ -1057,7 +1058,7 @@ pub fn labels_slot(
         return Ok(None);
     }
     Ok(Some(
-        crate::pointers::GamePtr::to(&crate::menu::owner::menus().tables.menus)
+        crate::pointers::GamePtr::to(&menus().tables.menus)
             .offset(at.wrapping_sub(menus_addr()).wrapping_add(offset)),
     ))
 }
@@ -1088,7 +1089,7 @@ pub const END: usize = 0x755144;
 
 /// Where IDA 0x747AD8 is now (`moved::MOVED`'s home).
 pub fn menus_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.menus)
+    crate::pointers::game_address(&raw const menus().tables.menus)
 }
 
 /// A menu by handle (phase 13, 2026-10-28): its number among `MENUS`' menus, in the image's
@@ -1103,6 +1104,7 @@ pub const MENU_COUNT: u16 = 96;
 impl MenuId {
     /// The menu's head (the address of its labels) and its items.
     fn parts(self) -> (&'static Dword, &'static [MenuItem]) {
+        let tables = &menus().tables;
         match self.0 {
             0 => (
                 &crate::menu::owner::MENUS
@@ -1117,8 +1119,8 @@ impl MenuId {
                     .items,
             ),
             1 => (
-                &crate::menu::owner::menus().tables.menus.select_stage.head,
-                &crate::menu::owner::menus().tables.menus.select_stage.items,
+                &tables.menus.select_stage.head,
+                &tables.menus.select_stage.items,
             ),
             2 => (
                 &crate::menu::owner::MENUS
@@ -1156,10 +1158,7 @@ impl MenuId {
                     .simple_select_players
                     .items,
             ),
-            5 => (
-                &crate::menu::owner::menus().tables.menus.main_menu.head,
-                &crate::menu::owner::menus().tables.menus.main_menu.items,
-            ),
+            5 => (&tables.menus.main_menu.head, &tables.menus.main_menu.items),
             6 => (
                 &crate::menu::owner::MENUS
                     .tables
@@ -1173,16 +1172,16 @@ impl MenuId {
                     .items,
             ),
             7 => (
-                &crate::menu::owner::menus().tables.menus.network_rally.head,
-                &crate::menu::owner::menus().tables.menus.network_rally.items,
+                &tables.menus.network_rally.head,
+                &tables.menus.network_rally.items,
             ),
             8 => (
-                &crate::menu::owner::menus().tables.menus.menu_749290.head,
-                &crate::menu::owner::menus().tables.menus.menu_749290.items,
+                &tables.menus.menu_749290.head,
+                &tables.menus.menu_749290.items,
             ),
             9 => (
-                &crate::menu::owner::menus().tables.menus.menu_7493ac.head,
-                &crate::menu::owner::menus().tables.menus.menu_7493ac.items,
+                &tables.menus.menu_7493ac.head,
+                &tables.menus.menu_7493ac.items,
             ),
             10 => (
                 &crate::menu::owner::MENUS
@@ -1197,12 +1196,8 @@ impl MenuId {
                     .items,
             ),
             11 => (
-                &crate::menu::owner::menus().tables.menus.new_simulation.head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .new_simulation
-                    .items,
+                &tables.menus.new_simulation.head,
+                &tables.menus.new_simulation.items,
             ),
             12 => (
                 &crate::menu::owner::MENUS
@@ -1217,16 +1212,8 @@ impl MenuId {
                     .items,
             ),
             13 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player1_buttons
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player1_buttons
-                    .items,
+                &tables.menus.player1_buttons.head,
+                &tables.menus.player1_buttons.items,
             ),
             14 => (
                 &crate::menu::owner::MENUS
@@ -1241,16 +1228,8 @@ impl MenuId {
                     .items,
             ),
             15 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player2_buttons
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player2_buttons
-                    .items,
+                &tables.menus.player2_buttons.head,
+                &tables.menus.player2_buttons.items,
             ),
             16 => (
                 &crate::menu::owner::MENUS
@@ -1265,16 +1244,8 @@ impl MenuId {
                     .items,
             ),
             17 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player3_buttons
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player3_buttons
-                    .items,
+                &tables.menus.player3_buttons.head,
+                &tables.menus.player3_buttons.items,
             ),
             18 => (
                 &crate::menu::owner::MENUS
@@ -1289,16 +1260,8 @@ impl MenuId {
                     .items,
             ),
             19 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player4_buttons
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player4_buttons
-                    .items,
+                &tables.menus.player4_buttons.head,
+                &tables.menus.player4_buttons.items,
             ),
             20 => (
                 &crate::menu::owner::MENUS
@@ -1312,33 +1275,22 @@ impl MenuId {
                     .car_specification
                     .items,
             ),
-            21 => (
-                &crate::menu::owner::menus().tables.menus.slideshow.head,
-                &crate::menu::owner::menus().tables.menus.slideshow.items,
-            ),
+            21 => (&tables.menus.slideshow.head, &tables.menus.slideshow.items),
             22 => (
-                &crate::menu::owner::menus().tables.menus.select_car.head,
-                &crate::menu::owner::menus().tables.menus.select_car.items,
+                &tables.menus.select_car.head,
+                &tables.menus.select_car.items,
             ),
             23 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .car_specs_47af4c
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .car_specs_47af4c
-                    .items,
+                &tables.menus.car_specs_47af4c.head,
+                &tables.menus.car_specs_47af4c.items,
             ),
             24 => (
-                &crate::menu::owner::menus().tables.menus.menu_74ba3c.head,
-                &crate::menu::owner::menus().tables.menus.menu_74ba3c.items,
+                &tables.menus.menu_74ba3c.head,
+                &tables.menus.menu_74ba3c.items,
             ),
             25 => (
-                &crate::menu::owner::menus().tables.menus.menu_74bafc.head,
-                &crate::menu::owner::menus().tables.menus.menu_74bafc.items,
+                &tables.menus.menu_74bafc.head,
+                &tables.menus.menu_74bafc.items,
             ),
             26 => (
                 &crate::menu::owner::MENUS
@@ -1389,8 +1341,8 @@ impl MenuId {
                     .items,
             ),
             30 => (
-                &crate::menu::owner::menus().tables.menus.audio_setup.head,
-                &crate::menu::owner::menus().tables.menus.audio_setup.items,
+                &tables.menus.audio_setup.head,
+                &tables.menus.audio_setup.items,
             ),
             31 => (
                 &crate::menu::owner::MENUS
@@ -1405,56 +1357,44 @@ impl MenuId {
                     .items,
             ),
             32 => (
-                &crate::menu::owner::menus().tables.menus.screen_488f4c.head,
-                &crate::menu::owner::menus().tables.menus.screen_488f4c.items,
+                &tables.menus.screen_488f4c.head,
+                &tables.menus.screen_488f4c.items,
             ),
             33 => (
-                &crate::menu::owner::menus().tables.menus.arcade_results.head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .arcade_results
-                    .items,
+                &tables.menus.arcade_results.head,
+                &tables.menus.arcade_results.items,
             ),
             34 => (
-                &crate::menu::owner::menus().tables.menus.menu_74d1e8.head,
-                &crate::menu::owner::menus().tables.menus.menu_74d1e8.items,
+                &tables.menus.menu_74d1e8.head,
+                &tables.menus.menu_74d1e8.items,
             ),
             35 => (
-                &crate::menu::owner::menus().tables.menus.service_area.head,
-                &crate::menu::owner::menus().tables.menus.service_area.items,
+                &tables.menus.service_area.head,
+                &tables.menus.service_area.items,
             ),
             36 => (
-                &crate::menu::owner::menus().tables.menus.next_stage.head,
-                &crate::menu::owner::menus().tables.menus.next_stage.items,
+                &tables.menus.next_stage.head,
+                &tables.menus.next_stage.items,
             ),
             37 => (
-                &crate::menu::owner::menus().tables.menus.view_stage.head,
-                &crate::menu::owner::menus().tables.menus.view_stage.items,
+                &tables.menus.view_stage.head,
+                &tables.menus.view_stage.items,
             ),
             38 => (
-                &crate::menu::owner::menus().tables.menus.rally_stages.head,
-                &crate::menu::owner::menus().tables.menus.rally_stages.items,
+                &tables.menus.rally_stages.head,
+                &tables.menus.rally_stages.items,
             ),
             39 => (
-                &crate::menu::owner::menus().tables.menus.view_courses.head,
-                &crate::menu::owner::menus().tables.menus.view_courses.items,
+                &tables.menus.view_courses.head,
+                &tables.menus.view_courses.items,
             ),
             40 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .view_best_times
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .view_best_times
-                    .items,
+                &tables.menus.view_best_times.head,
+                &tables.menus.view_best_times.items,
             ),
             41 => (
-                &crate::menu::owner::menus().tables.menus.best_times.head,
-                &crate::menu::owner::menus().tables.menus.best_times.items,
+                &tables.menus.best_times.head,
+                &tables.menus.best_times.items,
             ),
             42 => (
                 &crate::menu::owner::MENUS
@@ -1517,80 +1457,41 @@ impl MenuId {
                     .items,
             ),
             47 => (
-                &crate::menu::owner::menus().tables.menus.menu_74e168.head,
-                &crate::menu::owner::menus().tables.menus.menu_74e168.items,
+                &tables.menus.menu_74e168.head,
+                &tables.menus.menu_74e168.items,
             ),
             48 => (
-                &crate::menu::owner::menus().tables.menus.start_rally.head,
-                &crate::menu::owner::menus().tables.menus.start_rally.items,
+                &tables.menus.start_rally.head,
+                &tables.menus.start_rally.items,
             ),
-            49 => (
-                &crate::menu::owner::menus().tables.menus.options.head,
-                &crate::menu::owner::menus().tables.menus.options.items,
-            ),
+            49 => (&tables.menus.options.head, &tables.menus.options.items),
             50 => (
-                &crate::menu::owner::menus().tables.menus.menu_74e79c.head,
-                &crate::menu::owner::menus().tables.menus.menu_74e79c.items,
+                &tables.menus.menu_74e79c.head,
+                &tables.menus.menu_74e79c.items,
             ),
             51 => (
-                &crate::menu::owner::menus().tables.menus.player_details.head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player_details
-                    .items,
+                &tables.menus.player_details.head,
+                &tables.menus.player_details.items,
             ),
             52 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player1_details
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player1_details
-                    .items,
+                &tables.menus.player1_details.head,
+                &tables.menus.player1_details.items,
             ),
             53 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player2_details
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player2_details
-                    .items,
+                &tables.menus.player2_details.head,
+                &tables.menus.player2_details.items,
             ),
             54 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player3_details
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player3_details
-                    .items,
+                &tables.menus.player3_details.head,
+                &tables.menus.player3_details.items,
             ),
             55 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player4_details
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .player4_details
-                    .items,
+                &tables.menus.player4_details.head,
+                &tables.menus.player4_details.items,
             ),
             56 => (
-                &crate::menu::owner::menus().tables.menus.information.head,
-                &crate::menu::owner::menus().tables.menus.information.items,
+                &tables.menus.information.head,
+                &tables.menus.information.items,
             ),
             57 => (
                 &crate::menu::owner::MENUS
@@ -1641,16 +1542,16 @@ impl MenuId {
                     .items,
             ),
             61 => (
-                &crate::menu::owner::menus().tables.menus.menu_74fde0.head,
-                &crate::menu::owner::menus().tables.menus.menu_74fde0.items,
+                &tables.menus.menu_74fde0.head,
+                &tables.menus.menu_74fde0.items,
             ),
             62 => (
-                &crate::menu::owner::menus().tables.menus.menu_74fe44.head,
-                &crate::menu::owner::menus().tables.menus.menu_74fe44.items,
+                &tables.menus.menu_74fe44.head,
+                &tables.menus.menu_74fe44.items,
             ),
             63 => (
-                &crate::menu::owner::menus().tables.menus.menu_74fea8.head,
-                &crate::menu::owner::menus().tables.menus.menu_74fea8.items,
+                &tables.menus.menu_74fea8.head,
+                &tables.menus.menu_74fea8.items,
             ),
             64 => (
                 &crate::menu::owner::MENUS
@@ -1701,60 +1602,33 @@ impl MenuId {
                     .items,
             ),
             68 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .inspection_area
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .inspection_area
-                    .items,
+                &tables.menus.inspection_area.head,
+                &tables.menus.inspection_area.items,
             ),
-            69 => (
-                &crate::menu::owner::menus().tables.menus.welcome.head,
-                &crate::menu::owner::menus().tables.menus.welcome.items,
-            ),
+            69 => (&tables.menus.welcome.head, &tables.menus.welcome.items),
             70 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .in_game_options
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .in_game_options
-                    .items,
+                &tables.menus.in_game_options.head,
+                &tables.menus.in_game_options.items,
             ),
             71 => (
-                &crate::menu::owner::menus().tables.menus.menu_7509b0.head,
-                &crate::menu::owner::menus().tables.menus.menu_7509b0.items,
+                &tables.menus.menu_7509b0.head,
+                &tables.menus.menu_7509b0.items,
             ),
             72 => (
-                &crate::menu::owner::menus().tables.menus.stage_result.head,
-                &crate::menu::owner::menus().tables.menus.stage_result.items,
+                &tables.menus.stage_result.head,
+                &tables.menus.stage_result.items,
             ),
             73 => (
-                &crate::menu::owner::menus().tables.menus.results_48584b.head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .results_48584b
-                    .items,
+                &tables.menus.results_48584b.head,
+                &tables.menus.results_48584b.items,
             ),
             74 => (
-                &crate::menu::owner::menus().tables.menus.menu_750b94.head,
-                &crate::menu::owner::menus().tables.menus.menu_750b94.items,
+                &tables.menus.menu_750b94.head,
+                &tables.menus.menu_750b94.items,
             ),
             75 => (
-                &crate::menu::owner::menus().tables.menus.results_482e9b.head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .results_482e9b
-                    .items,
+                &tables.menus.results_482e9b.head,
+                &tables.menus.results_482e9b.items,
             ),
             76 => (
                 &crate::menu::owner::MENUS
@@ -1769,8 +1643,8 @@ impl MenuId {
                     .items,
             ),
             77 => (
-                &crate::menu::owner::menus().tables.menus.screen_483163.head,
-                &crate::menu::owner::menus().tables.menus.screen_483163.items,
+                &tables.menus.screen_483163.head,
+                &tables.menus.screen_483163.items,
             ),
             78 => (
                 &crate::menu::owner::MENUS
@@ -1821,16 +1695,8 @@ impl MenuId {
                     .items,
             ),
             82 => (
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .view_best_scores
-                    .head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .view_best_scores
-                    .items,
+                &tables.menus.view_best_scores.head,
+                &tables.menus.view_best_scores.items,
             ),
             83 => (
                 &crate::menu::owner::MENUS
@@ -1869,44 +1735,32 @@ impl MenuId {
                     .items,
             ),
             86 => (
-                &crate::menu::owner::menus().tables.menus.save_setup.head,
-                &crate::menu::owner::menus().tables.menus.save_setup.items,
+                &tables.menus.save_setup.head,
+                &tables.menus.save_setup.items,
             ),
             87 => (
-                &crate::menu::owner::menus().tables.menus.save_replay.head,
-                &crate::menu::owner::menus().tables.menus.save_replay.items,
+                &tables.menus.save_replay.head,
+                &tables.menus.save_replay.items,
             ),
             88 => (
-                &crate::menu::owner::menus().tables.menus.load_replay.head,
-                &crate::menu::owner::menus().tables.menus.load_replay.items,
+                &tables.menus.load_replay.head,
+                &tables.menus.load_replay.items,
             ),
             89 => (
-                &crate::menu::owner::menus().tables.menus.leave_question.head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .leave_question
-                    .items,
+                &tables.menus.leave_question.head,
+                &tables.menus.leave_question.items,
             ),
             90 => (
-                &crate::menu::owner::menus().tables.menus.visual_options.head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .visual_options
-                    .items,
+                &tables.menus.visual_options.head,
+                &tables.menus.visual_options.items,
             ),
             91 => (
-                &crate::menu::owner::menus().tables.menus.advanced_audio.head,
-                &crate::menu::owner::menus()
-                    .tables
-                    .menus
-                    .advanced_audio
-                    .items,
+                &tables.menus.advanced_audio.head,
+                &tables.menus.advanced_audio.items,
             ),
             92 => (
-                &crate::menu::owner::menus().tables.menus.menu_754bc0.head,
-                &crate::menu::owner::menus().tables.menus.menu_754bc0.items,
+                &tables.menus.menu_754bc0.head,
+                &tables.menus.menu_754bc0.items,
             ),
             93 => (
                 &crate::menu::owner::MENUS
@@ -2054,13 +1908,14 @@ mod tests {
 
     #[test]
     fn menus_by_handle() {
+        let menu_tables = &menus().tables;
         for n in 0..MENU_COUNT {
             let m = MenuId(n);
             assert_eq!(MenuId::from_code(m.code()).unwrap(), m);
             assert_eq!(MenuId::of(m.labels()), m);
             // The -1 after the items is the dword right after the last: read through the
             // whole tables (a reference to the last item reaches no further than it).
-            let tables = std::ptr::from_ref(&crate::menu::owner::menus().tables.menus).cast::<u8>();
+            let tables = std::ptr::from_ref(&menu_tables.menus).cast::<u8>();
             let last = std::ptr::from_ref::<MenuItem>(m.items().last().unwrap());
             let after = last.addr() + size_of::<MenuItem>() - tables.addr();
             assert!(after + 4 <= size_of::<MenuTables>());
@@ -2070,37 +1925,15 @@ mod tests {
             );
         }
         assert_eq!(
-            crate::menu::owner::menus()
-                .tables
-                .menus
-                .stage_result
-                .id()
-                .items()
-                .len(),
-            crate::menu::owner::menus()
-                .tables
-                .menus
-                .stage_result
-                .items
-                .len()
+            menu_tables.menus.stage_result.id().items().len(),
+            menu_tables.menus.stage_result.items.len()
         );
         assert!(MenuId::from_code(0).is_err());
-        assert!(
-            crate::menu::owner::menus()
-                .tables
-                .menus
-                .select_stage
-                .id()
-                .item(0)
-                .is_err()
-        );
+        assert!(menu_tables.menus.select_stage.id().item(0).is_err());
         let c = MenuCell::new();
         assert!(c.get().is_err());
-        c.set(crate::menu::owner::menus().tables.menus.service_area.id());
-        assert_eq!(
-            c.get().unwrap(),
-            crate::menu::owner::menus().tables.menus.service_area.id()
-        );
+        c.set(menu_tables.menus.service_area.id());
+        assert_eq!(c.get().unwrap(), menu_tables.menus.service_area.id());
     }
 
     #[test]

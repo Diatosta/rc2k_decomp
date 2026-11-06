@@ -11,6 +11,7 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
+use crate::menu::owner::menus;
 use crate::race::owner::race;
 use crate::race::save_seal::seal_block;
 use crate::race::work_store::RACE_WORK;
@@ -29,7 +30,7 @@ pub fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
     let replay = &race().replay;
     let value = sealed_value(
         time,
-        crate::menu::owner::menus().play.cheats.cheats.get(),
+        menus().play.cheats.cheats.get(),
         RACE_WORK.patch_switch.bits(),
     );
     let bytes = block(value, bytes);

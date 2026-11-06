@@ -26,6 +26,7 @@ use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::clear_text::clear_text;
+use crate::menu::owner::menus;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::set_length;
 use crate::service::backspace_setup_name::{backspace_setup_name, entry};
@@ -48,11 +49,7 @@ fn put_cursor(name: crate::place::Place) -> Result<(), BadInput> {
     let mut tail = Vec::new();
     push_string(&mut tail, CURSOR_STRING)?;
     tail.push(0);
-    let len = crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .text_length
-        .get() as i32;
+    let len = menus().screens.loop_flags.text_length.get() as i32;
     name.add(len as u32).write(&tail, "the setup name")?;
     Ok(())
 }
@@ -64,18 +61,11 @@ fn put_char(name: crate::place::Place, at: i32, c: u8) -> Result<(), BadInput> {
 
 /// The name cut at its length.
 fn end_name(name: crate::place::Place) -> Result<(), BadInput> {
-    put_char(
-        name,
-        crate::menu::owner::menus()
-            .screens
-            .loop_flags
-            .text_length
-            .get() as i32,
-        0,
-    )
+    put_char(name, menus().screens.loop_flags.text_length.get() as i32, 0)
 }
 
 pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Everything that could be refused, before the key is taken.
     let (name, _) = entry()?;
     let slot = highlighted_slot();
@@ -93,57 +83,27 @@ pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         Key::None => {}
         Key::Escape => {
             restore_text(name)?;
-            crate::menu::owner::menus()
-                .screens
-                .option_work
-                .typing
-                .set(0u32);
+            screens.option_work.typing.set(0u32);
             return Ok(());
         }
         Key::Enter => {
-            if (crate::menu::owner::menus()
-                .screens
-                .loop_flags
-                .text_length
-                .get() as i32)
-                == 0
-            {
+            if (screens.loop_flags.text_length.get() as i32) == 0 {
                 restore_text(name)?;
                 add_text_length(name)?;
             }
-            crate::menu::owner::menus()
-                .screens
-                .option_work
-                .typing
-                .set(0u32);
+            screens.option_work.typing.set(0u32);
             end_name(name)?;
             write_setup_slot(slot)?;
             end_name(name)?;
-            crate::menu::owner::menus()
-                .screens
-                .option_work
-                .typing
-                .set(0u32);
+            screens.option_work.typing.set(0u32);
             return Ok(());
         }
         Key::Clear => clear_text(name)?,
         Key::Backspace => backspace_setup_name()?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
-            let len = crate::menu::owner::menus()
-                .screens
-                .loop_flags
-                .text_length
-                .get() as i32;
-            if entry::appends(
-                c,
-                len,
-                crate::menu::owner::menus()
-                    .screens
-                    .loop_flags
-                    .text_max
-                    .get() as i32,
-            ) {
+            let len = screens.loop_flags.text_length.get() as i32;
+            if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 put_char(name, len, c)?;
                 set_length(len.wrapping_add(1));
                 // x is whatever ecx held: the length before this character.

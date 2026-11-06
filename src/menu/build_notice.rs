@@ -24,42 +24,26 @@ use rc2k_core::menu::notice::{
 // ---- Rust version ----
 
 pub fn build_notice() {
+    let panels = &menus().panels;
     // Converted: `rc2k_core::menu::notice::notice`.
     if crate::strings::load_language::notice_kind() != BUILDS {
         return;
     }
-    let first: [u8; FIRST_READ] = std::array::from_fn(|i| {
-        crate::menu::owner::menus()
-            .panels
-            .notice
-            .notice_first
-            .get(FIRST_FROM + i)
-    });
-    let second: [u8; SECOND_READ] = std::array::from_fn(|i| {
-        crate::menu::owner::menus()
-            .panels
-            .notice
-            .notice_second
-            .get(SECOND_FROM + i)
-    });
+    let first: [u8; FIRST_READ] =
+        std::array::from_fn(|i| panels.notice.notice_first.get(FIRST_FROM + i));
+    let second: [u8; SECOND_READ] =
+        std::array::from_fn(|i| panels.notice.notice_second.get(SECOND_FROM + i));
     let built = notice(&first, &second);
     for (i, &byte) in built.iter().take(BUILT_LEN).enumerate() {
         TEXT_BUFFER.text.set(i, byte);
-        crate::menu::owner::menus()
-            .panels
-            .notice
-            .notice_first
-            .set(i, byte);
+        panels.notice.notice_first.set(i, byte);
     }
-    crate::menu::owner::menus()
-        .panels
-        .notice
-        .notice_second
-        .set(0, 0);
+    panels.notice.notice_second.set(0, 0);
 }
 
 // ---- the notice's lines (IDA 0x52A263 .. 0x52A30F, split from the network's block) ----
 
+use crate::menu::owner::menus;
 use crate::session::{Bytes, with_runs};
 
 /// IDA 0x52A263 .. 0x52A30F.

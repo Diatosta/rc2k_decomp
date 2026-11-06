@@ -4,6 +4,7 @@
 //! clock restarted and the race's starting values; each step logged and indented.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::race;
@@ -57,7 +58,7 @@ pub fn load_stage() -> Result<(), Refused> {
     {
         // As `menu::show_loading_picture`.
         crate::gfx::show_picture_file::show_picture_file(crate::pointers::GamePtr::to(
-            &crate::menu::owner::menus().tables.texts.loading_pcx,
+            &menus().tables.texts.loading_pcx,
         ))?;
     }
     race.replay.replay_frames.last_kept.set(u32::MAX);

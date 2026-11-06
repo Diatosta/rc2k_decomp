@@ -1,27 +1,30 @@
 //! The game's leaving switches and yes/no question as `rc2k_core::menu::leaving`'s
 //! `Leaving` and `Question`: read, changed, written back whole.
+use crate::menu::owner::menus;
 use crate::session::Dword;
 use rc2k_core::menu::leaving::{Leaving, Question};
 
 /// The switches of `Leaving`, in its order: `dword_75555D`, `dword_755561`, `dword_755565`,
 /// `dword_755569` and `dword_755A0C`.
 fn leaving_cells() -> [&'static Dword; 5] {
+    let screens = &menus().screens;
     [
-        &crate::menu::owner::menus().screens.loop_flags.went_back,
-        &crate::menu::owner::menus().screens.loop_flags.back,
-        &crate::menu::owner::menus().screens.loop_flags.ended_b,
-        &crate::menu::owner::menus().screens.loop_flags.ended_a,
-        &crate::menu::owner::menus().screens.draw_work.work_0c,
+        &screens.loop_flags.went_back,
+        &screens.loop_flags.back,
+        &screens.loop_flags.ended_b,
+        &screens.loop_flags.ended_a,
+        &screens.draw_work.work_0c,
     ]
 }
 
 /// The cells of `Question`, in its order: `dword_7554CC` (1 on a yes / no screen),
 /// `g_yesNoAnswer` (1 = yes, 0 = no) and `dword_758806` (the screen was left).
 fn question_cells() -> [&'static Dword; 3] {
+    let menus = menus();
     [
-        &crate::menu::owner::menus().screens.flow.asking,
-        &crate::menu::owner::menus().tables.pages.yes_no_answer,
-        &crate::menu::owner::menus().tables.captions.screen_left,
+        &menus.screens.flow.asking,
+        &menus.tables.pages.yes_no_answer,
+        &menus.tables.captions.screen_left,
     ]
 }
 

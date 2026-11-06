@@ -13,6 +13,7 @@
 //! leaving is asked about, and a "no" sets the screen up again. One caller, `sub_4A1F7A`.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
@@ -21,23 +22,13 @@ use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_first_item(_: &Entry) -> Result<(), Refused> {
-    let title = if crate::menu::owner::menus()
-        .screens
-        .state
-        .menus
-        .which_title
-        .get()
-        == 1
-    {
+    let menus = menus();
+    let title = if menus.screens.state.menus.which_title.get() == 1 {
         0x138
     } else {
         0x139
     };
-    crate::menu::owner::menus()
-        .tables
-        .menus
-        .class_stage_results
-        .items[0]
+    menus.tables.menus.class_stage_results.items[0]
         .string
         .set(title);
 
@@ -45,46 +36,22 @@ fn set_first_item(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .class_stage_results
-            .id()
-    },
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::CLASS_STAGE_RESULTS], // dword_747780
+    menu: || menus().tables.menus.class_stage_results.id(),
+    saved_item: || &menus().screens.items.current[slot::CLASS_STAGE_RESULTS], // dword_747780
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // dword_755504
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .class_stage_results_scene
-                    .id()
-            }, // unk_7590D2
+            pointer: || &menus().screens.flow.scene_list, // dword_755504
+            table: || menus().tables.draw_lists.class_stage_results_scene.id(), // unk_7590D2
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list,
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .list_758e12
-                    .id()
-            }, // off_758E12
+            pointer: || &menus().screens.flow.draw_list,
+            table: || menus().tables.draw_lists.list_758e12.id(), // off_758E12
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // dword_7554FC
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .class_stage_results_overlay
-                    .id()
-            }, // dword_759296
+            pointer: || &menus().screens.flow.overlay_list, // dword_7554FC
+            table: || menus().tables.draw_lists.class_stage_results_overlay.id(), // dword_759296
             run: false,
         },
     ],
@@ -96,10 +63,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::owner::menus()
-            .tables
-            .texts
-            .class_stage_results_picture
+        &menus().tables.texts.class_stage_results_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),

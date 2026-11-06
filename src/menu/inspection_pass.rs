@@ -16,11 +16,13 @@
 //! before anything.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
 /// The Rust version (see the header).
 pub fn inspection_pass() -> Result<(), Refused> {
+    let menus = menus();
     // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players()?;
@@ -29,17 +31,9 @@ pub fn inspection_pass() -> Result<(), Refused> {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .event_goes_on
-        .set(1u32);
+    menus.screens.event.event_goes_on.set(1u32);
     for (n, &p) in players.iter().enumerate() {
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .set(n as u32);
+        menus.screens.event.current_player.set(n as u32);
         if !passes::takes_part(p.get().entry) {
             continue;
         }
@@ -49,14 +43,11 @@ pub fn inspection_pass() -> Result<(), Refused> {
         if !passes::is_out(p.get().entry) {
             continue;
         }
-        crate::menu::owner::menus().screens.event.event_out.set(
-            crate::menu::owner::menus()
-                .screens
-                .event
-                .event_out
-                .get()
-                .wrapping_add(1),
-        );
+        menus
+            .screens
+            .event
+            .event_out
+            .set(menus.screens.event.event_out.get().wrapping_add(1));
         crate::menu::inspection_screen::inspection_screen()?;
         crate::system::sleep::sleep(passes::SCREEN_PAUSE);
         crate::menu::fade_in::fade_in()?;
@@ -64,21 +55,14 @@ pub fn inspection_pass() -> Result<(), Refused> {
             &crate::menu::inspection_area_loop::SCREEN,
             &Entry::default(),
         )?;
-        if crate::menu::owner::menus().tables.pages.yes_no_answer.get() == 1 {
+        if menus.tables.pages.yes_no_answer.get() == 1 {
             return Ok(());
         }
         crate::menu::fades::fade(true)?;
         crate::system::sleep::sleep(passes::INSPECTION_PAUSE);
     }
-    if !passes::goes_on(
-        crate::menu::owner::menus().screens.event.event_out.get(),
-        PLAYER_COUNT_RVA.get(),
-    ) {
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .event_goes_on
-            .set(0u32);
+    if !passes::goes_on(menus.screens.event.event_out.get(), PLAYER_COUNT_RVA.get()) {
+        menus.screens.event.event_goes_on.set(0u32);
     }
     Ok(())
 }

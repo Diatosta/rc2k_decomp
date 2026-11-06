@@ -5,6 +5,7 @@
 //! the front end's block `menu::store`.)
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::session::{Bytes, Dword, Shared, with_runs};
 use rc2k_core::screens::car_pages::CarDescription;
 
@@ -1246,13 +1247,13 @@ pub fn car_of(handle: u32) -> Result<usize, BadInput> {
 
 /// The description a handle names (`car_of`).
 pub fn description(handle: u32) -> Result<&'static Shared<CarDescription>, BadInput> {
-    Ok(&crate::menu::owner::menus().cars.table.descriptions[car_of(handle)?])
+    Ok(&menus().cars.table.descriptions[car_of(handle)?])
 }
 
 /// The table's entry for car `number` (refused past the 34: the original reads on into
 /// the bytes after the table as addresses).
 pub fn car_entry(number: u32) -> Result<u32, BadInput> {
-    crate::menu::owner::menus()
+    menus()
         .cars
         .table
         .cars
@@ -1296,6 +1297,7 @@ mod tests {
 
     #[test]
     fn car_table_starts_as_the_games() {
+        let menu_cars = &menus().cars;
         assert!(
             END - START <= size_of::<CarTable>()
                 && size_of::<CarTable>() <= (END - START).next_multiple_of(4)
@@ -1338,19 +1340,11 @@ mod tests {
         for car in 0..34 {
             let found = description_table(car_entry(car).unwrap()).unwrap().addr();
             assert!(
-                (crate::menu::owner::menus()
-                    .cars
-                    .table
-                    .description_texts
-                    .addr()..)
-                    .contains(&found),
+                (menu_cars.table.description_texts.addr()..).contains(&found),
                 "{car}"
             );
         }
-        assert_eq!(
-            car_of(crate::menu::owner::menus().cars.table.cars[33].get()),
-            Ok(33)
-        );
+        assert_eq!(car_of(menu_cars.table.cars[33].get()), Ok(33));
         assert!(car_of(0x756568).is_err() && car_of(u32::MAX).is_err());
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");
         at(offset_of!(CarTable, name_places), 0x75648C);

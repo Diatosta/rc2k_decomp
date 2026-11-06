@@ -3,6 +3,7 @@
 //! screen is entered as from a menu item.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 /// A race has been played this session (`drive::play_race`).
@@ -62,6 +63,7 @@ pub fn section_has_times(section: usize) -> bool {
 /// A menu's frame: runs what was asked for; true if a screen was run (the menu sets
 /// itself up again, its background having been replaced).
 pub fn serve() -> Result<bool, Refused> {
+    let screens = &menus().screens;
     #[cfg(debug_ui)]
     if crate::debug::dev_front_end::serve()? {
         return Ok(true);
@@ -77,21 +79,13 @@ pub fn serve() -> Result<bool, Refused> {
         )?;
         return Ok(true);
     }
-    let section = crate::menu::owner::menus().screens.event.section.get();
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .section
-        .set(wanted - 1);
+    let section = screens.event.section.get();
+    screens.event.section.set(wanted - 1);
     let result = crate::menu::screen_loop::screen_entry(
         "menu::section_times_loop",
         &crate::menu::section_times_loop::SCREEN,
     );
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .section
-        .set(section);
+    screens.event.section.set(section);
     result?;
     Ok(true)
 }

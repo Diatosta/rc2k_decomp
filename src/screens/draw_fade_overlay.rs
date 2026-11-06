@@ -9,18 +9,12 @@
 //! Caller: `sub_4A1E60` (the fades' frame).
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::screens::service_boxes::quad;
 
 /// The Rust version (see the header).
 pub fn draw_fade_overlay() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::panels::fade_overlay`.
-    let a = rc2k_core::screens::panels::fade_overlay(
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .menus
-            .fade_see
-            .get(),
-    );
+    let a = rc2k_core::screens::panels::fade_overlay(menus().screens.state.menus.fade_see.get());
     quad(a.x, a.y, a.w, a.h, a.colour, a.see)
 }

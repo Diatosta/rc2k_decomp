@@ -14,9 +14,11 @@
 //! the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::text::draw_text::Canvas;
 
 pub fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::screens::settings_pages::volume`.
 
     let id = crate::sound::owner::sound()
@@ -27,46 +29,14 @@ pub fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         .wrapping_add(0x56D);
     // g_masterVolumeShown, then dword_755688 .. dword_7556A0.
     let volumes: [u32; 8] = [
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .master_volume_shown
-            .get(),
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .music_level
-            .get(),
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .other_volume
-            .get(),
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .menu_sounds_c
-            .get(),
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .menu_sounds_a
-            .get(),
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .speech_level
-            .get(),
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .sounds_a
-            .get(),
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .sounds_b
-            .get(),
+        screens.option_work.master_volume_shown.get(),
+        screens.option_work.music_level.get(),
+        screens.option_work.other_volume.get(),
+        screens.option_work.menu_sounds_c.get(),
+        screens.option_work.menu_sounds_a.get(),
+        screens.option_work.speech_level.get(),
+        screens.option_work.sounds_a.get(),
+        screens.option_work.sounds_b.get(),
     ];
     rc2k_core::screens::settings_pages::volume(
         &mut crate::screens::game_screen::SettingsScreen::new(canvas),

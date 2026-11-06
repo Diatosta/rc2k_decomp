@@ -12,6 +12,7 @@
 //! anything; what the steps refuse.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::menu::standings_steps::number_standings;
 use rc2k_core::menu::class_pages;
@@ -20,52 +21,31 @@ use rc2k_core::menu::class_pages;
 
 /// The first class (see the header).
 fn first_class() -> u32 {
-    class_pages::first_stage_class(
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .menus
-            .class_mode
-            .get(),
-    )
+    class_pages::first_stage_class(menus().screens.state.menus.class_mode.get())
 }
 
 /// The Rust version (see the header).
 pub fn class_stage_results_pass() -> Result<(), Refused> {
+    let menus = menus();
     crate::menu::sort_standings_by_time::sort_standings_by_time()?;
     let first = first_class();
     // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
-    let classes = class_pages::classes(
-        first,
-        crate::menu::owner::menus().screens.event.classes.get(),
-    )?;
+    let classes = class_pages::classes(first, menus.screens.event.classes.get())?;
     let all: Vec<(u32, u32)> = walked_entries_a()?
         .iter()
         .map(|e| (e.head.group, e.head.player))
         .collect();
     for class in classes {
-        crate::menu::owner::menus()
-            .screens
-            .loop_flags
-            .ended_b
-            .set(0u32);
+        menus.screens.loop_flags.ended_b.set(0u32);
         let has_player = class_pages::has_player(all.len(), |n| all[n].0, |n| all[n].1, class);
         if !has_player {
             continue;
         }
-        crate::menu::owner::menus()
-            .screens
-            .loop_flags
-            .ended_b
-            .set(1u32);
+        menus.screens.loop_flags.ended_b.set(1u32);
         let numbered = number_standings(Which::A, class)?;
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .count_a
-            .set(numbered.last_number);
+        menus.screens.event.count_a.set(numbered.last_number);
         crate::menu::show_class_stage_results::show_class_stage_results(class)?;
-        if crate::menu::owner::menus().tables.pages.yes_no_answer.get() == 1 {
+        if menus.tables.pages.yes_no_answer.get() == 1 {
             break;
         }
     }

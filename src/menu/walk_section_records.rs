@@ -13,6 +13,7 @@
 //! for any record of the walk, and a walk past 64 records, before anything.
 use crate::errors::Refused;
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::records::stages_store::RecordRef;
 use rc2k_core::menu::section_walk::Step;
@@ -43,16 +44,13 @@ fn walk() -> Result<Vec<(u32, Step)>, Refused> {
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn walk_section_records() -> Result<(), Refused> {
+    let screens = &menus().screens;
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};
     let records = walk()?;
     for (_, step) in records {
         if !step.goes_on() {
             if step == Step::Ended {
-                crate::menu::owner::menus()
-                    .screens
-                    .event
-                    .championship_end
-                    .set(1u32);
+                screens.event.championship_end.set(1u32);
             }
             break;
         }
@@ -66,21 +64,13 @@ pub fn walk_section_records() -> Result<(), Refused> {
             _ => {}
         }
         if let Some(first) = step.first() {
-            crate::menu::owner::menus()
-                .screens
-                .event
-                .service_944
-                .set(first);
+            screens.event.service_944.set(first);
         }
         INDEX_RVA.set(INDEX_RVA.get().wrapping_add(1));
-        crate::menu::owner::menus().screens.event.stages_done.set(
-            crate::menu::owner::menus()
-                .screens
-                .event
-                .stages_done
-                .get()
-                .wrapping_add(1),
-        );
+        screens
+            .event
+            .stages_done
+            .set(screens.event.stages_done.get().wrapping_add(1));
         rpt::reset_player_totals()?;
     }
     rdc::reset_driver_condition()?;

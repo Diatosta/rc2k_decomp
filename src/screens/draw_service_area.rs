@@ -30,6 +30,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_bar::{Bar, blit_bar};
 use crate::gfx::blit_glyph::BlitCall;
+use crate::menu::owner::menus;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::screens::draw_inspection_status::draw_inspection_status;
 use crate::screens::draw_repair_times::draw_repair_times;
@@ -70,6 +71,7 @@ fn font_of(font: AreaFont) -> crate::gfx::typefaces::FontId {
 /// Returns the carry flag of the last text drawn. Refuses a missing player and a title
 /// that does not fit the text buffer.
 pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let screens = &menus().screens;
     FRAME_SWITCHES.service_cleared.set_bits(0u32);
 
     // Converted: `rc2k_core::screens::service` (`area_title`, `AREA_STEPS`).
@@ -81,11 +83,7 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     };
     let title = area_title(
         &string(AREA_TITLE.0),
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .get(),
+        screens.event.current_player.get(),
         &string(AREA_TITLE.1),
     );
     fault.check()?;
@@ -131,19 +129,11 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         }
     }
 
-    let setting = crate::menu::owner::menus()
-        .screens
-        .state
-        .driver_stats
-        .setups[1]
+    let setting = screens.state.driver_stats.setups[1]
         .chosen
         .get()
         .wrapping_add(SETTING_FIRST_STRING);
-    crate::menu::owner::menus()
-        .screens
-        .draw_work
-        .figure
-        .set(setting);
+    screens.draw_work.figure.set(setting);
     let (x, y) = TYRE_AT;
     draw_string_by_id_at(setting, font_of(AreaFont::Small).game_ptr(), x, y, canvas)?;
 

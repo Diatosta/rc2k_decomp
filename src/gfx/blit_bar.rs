@@ -12,6 +12,7 @@ use crate::errors::{FatalError, Refused};
 use crate::gfx::bar_store::BAR;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::surface::clip;
+use crate::menu::owner::menus;
 
 // ---- game data ----
 
@@ -80,11 +81,7 @@ impl rc2k_core::gfx::bars::BarCanvas for GameBar<'_> {
         crate::gfx::blit::BLIT.clip.right.set(x as u32);
     }
     fn keep_fill_end(&mut self, x: i32) {
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .seconds
-            .set(x as u32);
+        menus().screens.draw_work.seconds.set(x as u32);
     }
     fn set_bar_x(&mut self, x: i32) {
         set_bar_x(x);

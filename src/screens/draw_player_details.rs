@@ -30,6 +30,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::menu::player::Player;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
@@ -73,13 +74,8 @@ fn string(table: &[Dword], index: u32, count: u32) -> Result<u32, Refused> {
 }
 
 pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let Some(cell) = crate::menu::player::player(
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .get(),
-    ) else {
+    let screens = &menus().screens;
+    let Some(cell) = crate::menu::player::player(screens.event.current_player.get()) else {
         return Err(BadInput("a player past the four").into());
     };
     let player: Player = cell.get();
@@ -110,12 +106,8 @@ pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), R
         name: crate::screens::game_screen::player_name_of(crate::menu::player_names::name_of(
             &player,
         )?),
-        typing: crate::menu::owner::menus().screens.option_work.typing.get() != 0,
-        blink: crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .cursor_on
-            .get(),
+        typing: screens.option_work.typing.get() != 0,
+        blink: screens.draw_work.cursor_on.get(),
         nationality: player.nationality,
         nationality_id,
         view_id,

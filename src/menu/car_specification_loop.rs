@@ -12,6 +12,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
@@ -21,117 +22,71 @@ use crate::scene::draw_store::DRAW;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn before(_: &Entry) -> Result<(), Refused> {
-    crate::menu::owner::menus()
+    let menus = menus();
+    menus
         .screens
         .event
         .shown_car
-        .set(crate::menu::owner::menus().play.cheats.kept_car.get());
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .car_page
-        .set(0x0u32);
+        .set(menus.play.cheats.kept_car.get());
+    menus.screens.event.car_page.set(0x0u32);
 
     Ok(())
 }
 
 fn set_up_first(_: &Entry) -> Result<(), Refused> {
+    let screens = &menus().screens;
     DRAW.view_offset[0].set(0xFFFFFF60u32);
     DRAW.view_offset[1].set(0xFFFFFF9Cu32);
     DRAW.view_zoom.set(0x100u32);
     prepare_scene();
-    crate::menu::owner::menus().screens.flow.turning.set(0x1u32);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .menu
-        .set(0xBu32);
+    screens.flow.turning.set(0x1u32);
+    screens.state.carousel.menu.set(0xBu32);
     carousel(None)?;
-    let item = crate::menu::owner::menus().screens.items.current[slot::CAR_SPECIFICATION].get();
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .item
-        .set(item);
-    crate::menu::owner::menus()
-        .screens
+    let item = screens.items.current[slot::CAR_SPECIFICATION].get();
+    screens.loop_flags.item.set(item);
+    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.flow.turning.set(0x0u32);
+    screens
         .state
         .carousel
         .front
-        .set(item.wrapping_sub(1));
-    crate::menu::owner::menus().screens.flow.turning.set(0x0u32);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .front
-        .set(crate::menu::owner::menus().screens.event.shown_car.get());
+        .set(screens.event.shown_car.get());
     Ok(())
 }
 
 fn after(_: &Entry) -> Result<(), Refused> {
-    crate::menu::owner::menus()
+    let menus = menus();
+    menus
         .play
         .cheats
         .kept_car
-        .set(crate::menu::owner::menus().screens.event.shown_car.get());
+        .set(menus.screens.event.shown_car.get());
 
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .car_specification
-            .id()
-    },
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::CAR_SPECIFICATION],
+    menu: || menus().tables.menus.car_specification.id(),
+    saved_item: || &menus().screens.items.current[slot::CAR_SPECIFICATION],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .car_specification_scene
-                    .id()
-            },
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
+            table: || menus().tables.draw_lists.car_specification_scene.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .car_specification_draw
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.car_specification_draw.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.setup_list, // dword_755500
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .car_specification_setup
-                    .id()
-            },
+            pointer: || &menus().screens.flow.setup_list, // dword_755500
+            table: || menus().tables.draw_lists.car_specification_setup.id(),
             run: true,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .car_specification_overlay
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.car_specification_overlay.id(),
             run: false,
         },
     ],

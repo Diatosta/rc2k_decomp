@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
+use crate::menu::owner::menus;
 use crate::session::Dword;
 
 /// Whether one of the cars in `won` is in the list `secret` (read on past their ends, as
@@ -25,7 +26,7 @@ pub fn any_won(secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
     ) -> impl Fn(u32) -> u32 + 'a {
         move |n: u32| {
             crate::session::read_on_in(
-                &crate::menu::owner::menus().tables.lists,
+                &menus().tables.lists,
                 list,
                 n as usize,
                 "a car list's entry",
@@ -45,11 +46,9 @@ pub fn any_won(secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
 
 /// The Rust version.
 pub fn car_list() -> Result<CarList, Refused> {
+    let tables = &menus().tables;
     Ok(
-        if any_won(
-            &crate::menu::owner::menus().tables.lists.cars_second,
-            &crate::menu::owner::menus().tables.lists.secret_cars,
-        )? {
+        if any_won(&tables.lists.cars_second, &tables.lists.secret_cars)? {
             CarList::WithClio
         } else {
             CarList::First

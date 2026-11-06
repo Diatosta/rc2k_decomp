@@ -13,6 +13,7 @@
 //! car at all: the original copies one entry back and then counts through all 32 bits.
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::session::Dword;
 use rc2k_core::menu::car_lists;
 
@@ -62,7 +63,7 @@ pub fn remove_secret_cars() -> Result<(), BadInput> {
                 SCRATCH.0[n].set(car);
             }
             write_list(list, cars);
-            crate::menu::owner::menus().play.cheats.cheats.set(0u32);
+            menus().play.cheats.cheats.set(0u32);
         }
         Ok(())
     }

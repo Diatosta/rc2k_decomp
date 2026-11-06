@@ -6,6 +6,7 @@
 //! (Split 2026-10-25 from the front end's block `menu::store`.)
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::session::{Bytes, Dword, with_runs};
 
 /// The string-id tables (IDA 0x758806 .. 0x758B72).
@@ -50,7 +51,7 @@ impl CaptionTables {
     /// refused off the piece's dwords.
     fn result_at(name: &Dword) -> Result<&'static Dword, BadInput> {
         use crate::menu::results_store::{Results, START};
-        let r = &crate::menu::owner::menus().play.results;
+        let r = &menus().play.results;
         use std::mem::offset_of;
         let at = (name.get() as usize).wrapping_sub(START);
         let arrays: [(usize, &'static [Dword]); 10] = [
@@ -80,7 +81,7 @@ impl CaptionTables {
 
     /// Position `k` of the results (`Results::positions[k]`).
     pub fn place_of(k: usize) -> Result<&'static Dword, BadInput> {
-        let name = crate::menu::owner::menus()
+        let name = menus()
             .tables
             .captions
             .place_pointers
@@ -91,7 +92,7 @@ impl CaptionTables {
 
     /// Sum `k` of the results (`Results::sums[k]`).
     pub fn sum_of(k: usize) -> Result<&'static Dword, BadInput> {
-        let name = crate::menu::owner::menus()
+        let name = menus()
             .tables
             .captions
             .sum_pointers
@@ -102,7 +103,7 @@ impl CaptionTables {
 
     /// Total `k` of the results (`Results::totals[k]`).
     pub fn total_of(k: usize) -> Result<&'static Dword, BadInput> {
-        let name = crate::menu::owner::menus()
+        let name = menus()
             .tables
             .captions
             .total_pointers
@@ -365,7 +366,7 @@ pub const END: usize = 0x758B72;
 /// Where IDA 0x758806 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn captions_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.captions)
+    crate::pointers::game_address(&raw const menus().tables.captions)
 }
 
 #[cfg(test)]
@@ -376,6 +377,7 @@ mod tests {
 
     #[test]
     fn captions_starts_as_the_games() {
+        let play = &menus().play;
         assert!(
             END - START <= size_of::<CaptionTables>()
                 && size_of::<CaptionTables>() <= (END - START).next_multiple_of(4)
@@ -419,9 +421,9 @@ mod tests {
                     CaptionTables::total_of,
                 ][from](k);
                 let cells = [
-                    &crate::menu::owner::menus().play.results.positions,
-                    &crate::menu::owner::menus().play.results.sums,
-                    &crate::menu::owner::menus().play.results.totals,
+                    &play.results.positions,
+                    &play.results.sums,
+                    &play.results.totals,
                 ][from];
                 assert!(std::ptr::eq(resolved.unwrap(), &raw const cells[k]));
             }

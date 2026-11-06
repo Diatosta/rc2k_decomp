@@ -4,6 +4,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::picture_store::PICTURE;
+use crate::menu::owner::menus;
 use crate::screens::draw_stage_records::selection;
 use crate::session::Dword;
 
@@ -24,44 +25,39 @@ const NO_MAP: FatalError = FatalError {
 /// converted, `g_pictureFlags` = `g_screenModeFlags` & 0xFFF, made the surface, sprite 0xA0
 /// at (0, 0). Refuses a choice without its tables (the original reads through null).
 pub fn draw_stage_map() -> Result<(), Refused> {
+    let menus = menus();
     use crate::gfx::blit_glyph::blit_glyph_on_surface;
     use crate::gfx::convert_picture::convert_picture_now;
     use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
     use crate::gfx::picture_as_surface::picture_as_surface;
-    let mode: u32 = crate::menu::owner::menus().play.champ_view.stage_mode.get();
+    let mode: u32 = menus.play.champ_view.stage_mode.get();
     let record = match mode {
         2 => {
-            let table: u32 = crate::menu::owner::menus().play.arcade.level.get();
+            let table: u32 = menus.play.arcade.level.get();
             crate::records::stages_store::row(
                 crate::records::stages_store::STAGE_TABLES.level_table(table)?,
-                crate::menu::owner::menus().play.arcade.stage.get(),
+                menus.play.arcade.stage.get(),
             )?
         }
         3 => crate::records::find_record::find_record_in(
             crate::records::stages_store::STAGE_TABLES.championship(),
-            crate::menu::owner::menus().screens.event.index.get() as i32,
-            crate::menu::owner::menus().screens.event.section.get(),
+            menus.screens.event.index.get() as i32,
+            menus.screens.event.section.get(),
         )?,
         _ => {
             let s = selection()?.ok_or(crate::errors::BadInput(
                 "no stage tables for the choice: the original reads through null",
             ))?;
-            crate::records::stages_store::row(
-                s.table,
-                crate::menu::owner::menus().screens.event.stage_number.get(),
-            )?
+            crate::records::stages_store::row(s.table, menus.screens.event.stage_number.get())?
         }
     };
     let overlay = crate::menu::texts_store::text_at(crate::session::read_on_in(
-        &crate::menu::owner::menus().tables.lists,
-        &crate::menu::owner::menus().tables.lists.map_overlays,
+        &menus.tables.lists,
+        &menus.tables.lists.map_overlays,
         record.record()?.event_slot() as usize,
         "a map overlay",
     )?)?;
-    if load_picture_with_overlay(
-        &crate::menu::owner::menus().tables.texts.ukmap_png,
-        &overlay,
-    )? {
+    if load_picture_with_overlay(&menus.tables.texts.ukmap_png, &overlay)? {
         return Err(NO_MAP.into());
     }
     convert_picture_now()?;
@@ -71,11 +67,7 @@ pub fn draw_stage_map() -> Result<(), Refused> {
     picture_as_surface()?;
     blit_glyph_on_surface(
         MAP_SPRITE,
-        crate::menu::owner::menus()
-            .screens
-            .loop_flags
-            .sprite_table
-            .get(),
+        menus.screens.loop_flags.sprite_table.get(),
         0,
         0,
         None,

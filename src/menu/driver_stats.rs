@@ -24,6 +24,7 @@
 //! before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::session::write_all;
 
@@ -51,11 +52,7 @@ const EQUALS_RVA: [&std::ffi::CStr; 13] = [
 const PARTS: u32 = 14;
 /// The current player and its car's table.
 pub fn player_and_table() -> Result<(PlayerCell, crate::pointers::GamePtr), BadInput> {
-    let n: u32 = crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .get();
+    let n: u32 = menus().screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
@@ -75,6 +72,7 @@ pub fn car_table(p: PlayerCell) -> Result<crate::pointers::GamePtr, BadInput> {
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn driver_stats() -> Result<(), Refused> {
+    let screens = &menus().screens;
     use crate::logfile::log_int::log_int;
     // Converted: `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
@@ -88,59 +86,17 @@ pub fn driver_stats() -> Result<(), Refused> {
     };
     fault.check()?;
     let c = Constants {
-        steps: crate::menu::owner::menus()
-            .screens
-            .state
-            .driver_stats
-            .steps
-            .get(),
-        scale: crate::menu::owner::menus()
-            .screens
-            .state
-            .driver_stats
-            .scale
-            .get(),
-        keep_part_1: crate::menu::owner::menus()
-            .screens
-            .state
-            .driver_stats
-            .switch_a
-            .get(),
-        short_part_5: crate::menu::owner::menus()
-            .screens
-            .state
-            .driver_stats
-            .switch_b
-            .get(),
+        steps: screens.state.driver_stats.steps.get(),
+        scale: screens.state.driver_stats.scale.get(),
+        keep_part_1: screens.state.driver_stats.switch_a.get(),
+        short_part_5: screens.state.driver_stats.switch_b.get(),
     };
     let f = figures(&table, &car, &c);
-    write_all(
-        &crate::menu::owner::menus()
-            .screens
-            .state
-            .driver_stats
-            .repair_times,
-        f.values,
-    );
-    write_all(
-        &crate::menu::owner::menus().screens.state.driver_stats.highs,
-        f.highs,
-    );
-    write_all(
-        &crate::menu::owner::menus()
-            .screens
-            .state
-            .driver_stats
-            .limits,
-        f.limits,
-    );
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .driver_stats
-        .total
-        .set(f.total);
-    let ds = &crate::menu::owner::menus().screens.state.driver_stats;
+    write_all(&screens.state.driver_stats.repair_times, f.values);
+    write_all(&screens.state.driver_stats.highs, f.highs);
+    write_all(&screens.state.driver_stats.limits, f.limits);
+    screens.state.driver_stats.total.set(f.total);
+    let ds = &screens.state.driver_stats;
     for (cell, value) in [
         &ds.setups[2].chosen,
         &ds.setups[2].installed,
@@ -154,29 +110,15 @@ pub fn driver_stats() -> Result<(), Refused> {
     }
     for k in 0..PARTS as usize {
         if let Some(w) = f.weights[k] {
-            crate::menu::owner::menus()
-                .screens
-                .state
-                .driver_stats
-                .weights[k]
-                .set(w);
+            screens.state.driver_stats.weights[k].set(w);
         }
         if let Some(v) = f.penalties[k] {
-            crate::menu::owner::menus()
-                .screens
-                .state
-                .driver_stats
-                .penalties[k]
-                .set(v);
+            screens.state.driver_stats.penalties[k].set(v);
         }
     }
-    crate::menu::owner::menus()
-        .screens
-        .draw_work
-        .figure
-        .set(f.figure);
+    screens.draw_work.figure.set(f.figure);
     if let Some(span) = f.span {
-        crate::menu::owner::menus().screens.draw_work.hhmm.set(span);
+        screens.draw_work.hhmm.set(span);
     }
     for (slot, line) in f.logged.iter().enumerate() {
         crate::logfile::log_write::log_nul(&NAMES_RVA[slot], false, 1);

@@ -3,6 +3,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;
+use crate::menu::owner::menus;
 
 /// " ", "-----", "Count:", "GB_Timed: t:- ", "CTs:-", "-----", "%%%%%", "-----",
 /// "GB_Shaun: ", "CTs:", "-----", "%%%%%", "%%%%%", "%%%%%".
@@ -29,16 +30,12 @@ const WORDS: [&std::ffi::CStr; 14] = [
 /// `dword_7558C8` is 1, else in `dword_7556E8`). None for a null pointer, or a table or
 /// the summary they go to (`saves::best_times::SUMMARY`) not taken.
 pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadInput> {
+    let screens = &menus().screens;
     {
-        let kind = crate::menu::owner::menus().screens.event.stage_group.get();
-        let stages = crate::records::stages_store::STAGE_TABLES.group_event_table(
-            kind,
-            crate::menu::owner::menus().screens.event.stage_sub.get(),
-        )?;
-        let stage = crate::records::stages_store::row(
-            stages,
-            crate::menu::owner::menus().screens.event.stage_number.get(),
-        )?;
+        let kind = screens.event.stage_group.get();
+        let stages = crate::records::stages_store::STAGE_TABLES
+            .group_event_table(kind, screens.event.stage_sub.get())?;
+        let stage = crate::records::stages_store::row(stages, screens.event.stage_number.get())?;
         let n = stage.record()?.event_slot() as usize;
         let table = if kind == 1 {
             &crate::saves::best_times::STAGE_TIMES_ALT

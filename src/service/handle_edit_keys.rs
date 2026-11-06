@@ -11,6 +11,7 @@
 
 use crate::errors::FatalError;
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::service::edit_brake_balance::edit_brake_balance;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
 use crate::service::edit_ride_height::edit_ride_height;
@@ -27,14 +28,7 @@ pub fn handle_edit_keys() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::service::setups::EditPage`.
     use rc2k_core::service::setups::EditPage;
-    match EditPage::from_number(
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .service_ui
-            .box_page
-            .get(),
-    ) {
+    match EditPage::from_number(menus().screens.state.service_ui.box_page.get()) {
         Some(EditPage::GearRatio) => edit_gear_ratio(false),
         Some(EditPage::Tyre) => edit_tyre(false),
         Some(EditPage::SteeringSensitivity) => edit_steering_sensitivity(),

@@ -9,18 +9,16 @@
 //! (0x74BA9C, a left/right handler of an item of the car choice). The menus and draw lists run its
 //! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
+use crate::menu::owner::menus;
 use crate::strings::append_string_by_id::push_string;
 
 /// The Rust version (see the header).
 pub fn flip_gearing() -> Result<(), crate::errors::BadInput> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::menu::steps` (`flip`, `gearing_switch_text`).
     use rc2k_core::menu::steps::{flip, gearing_switch_text};
-    let kept = flip(crate::menu::owner::menus().screens.flow.shown_gearing.get());
-    crate::menu::owner::menus()
-        .screens
-        .flow
-        .shown_gearing
-        .set(kept);
+    let kept = flip(screens.flow.shown_gearing.get());
+    screens.flow.shown_gearing.set(kept);
     let mut text = Vec::new();
     push_string(&mut text, gearing_switch_text(kept))?;
     text.push(0);

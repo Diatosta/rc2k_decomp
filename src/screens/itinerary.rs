@@ -5,6 +5,7 @@
 //! services in `dword_755A0C`.
 
 use crate::errors::{FatalError, Refused};
+use crate::menu::owner::menus;
 use crate::records::stages_store::RecordRef;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
@@ -25,6 +26,7 @@ const INVALID_STAGE: FatalError = FatalError {
 /// "Invalid Stage ID". Every register kept. Refuses (before anything) a section past the
 /// table.
 pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let menus = menus();
     // Converted: `rc2k_core::screens::itinerary`.
     use rc2k_core::screens::itinerary::Row;
     {
@@ -32,11 +34,11 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             return Err(crate::errors::BadInput("a section past the record table").into());
         }
         let first = record_at(0)?;
-        let heading = if crate::menu::owner::menus().play.champ_view.event_mode.get() == 0x13 {
+        let heading = if menus.play.champ_view.event_mode.get() == 0x13 {
             crate::session::read_on_in(
-                &crate::menu::owner::menus().tables.lists,
-                &crate::menu::owner::menus().tables.lists.section_titles,
-                crate::menu::owner::menus().screens.event.section.get() as usize,
+                &menus.tables.lists,
+                &menus.tables.lists.section_titles,
+                menus.screens.event.section.get() as usize,
                 "a section title",
             )?
         } else {
@@ -72,7 +74,7 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             heading,
             &row,
             &ends_at,
-            crate::menu::owner::menus().screens.event.index.get(),
+            menus.screens.event.index.get(),
             crate::strings::units::units(),
         );
         fault.check()?;

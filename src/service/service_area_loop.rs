@@ -41,6 +41,7 @@
 //! `menu::confirm_leaving` in the shared loop.
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 use crate::scene::draw_store::DRAW;
@@ -50,51 +51,27 @@ use crate::scene::draw_store::DRAW;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || crate::menu::owner::menus().tables.menus.service_area.id(), // off_74D24C
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::SERVICE_AREA], // g_serviceSavedItem
+    menu: || menus().tables.menus.service_area.id(), // off_74D24C
+    saved_item: || &menus().screens.items.current[slot::SERVICE_AREA], // g_serviceSavedItem
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // dword_755504
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .service_area_scene
-                    .id()
-            }, // off_759082: the scene
+            pointer: || &menus().screens.flow.scene_list, // dword_755504
+            table: || menus().tables.draw_lists.service_area_scene.id(), // off_759082: the scene
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list,
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .service_area_draw
-                    .id()
-            }, // off_758D6E: `handle_edit_keys`
+            pointer: || &menus().screens.flow.draw_list,
+            table: || menus().tables.draw_lists.service_area_draw.id(), // off_758D6E: `handle_edit_keys`
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.setup_list, // dword_755500
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .service_area_setup
-                    .id()
-            }, // off_759436: `load_setup_values`
+            pointer: || &menus().screens.flow.setup_list, // dword_755500
+            table: || menus().tables.draw_lists.service_area_setup.id(), // off_759436: `load_setup_values`
             run: true,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // dword_7554FC
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .service_area_overlay
-                    .id()
-            }, // off_75924A: `draw_service_area`
+            pointer: || &menus().screens.flow.overlay_list, // dword_7554FC
+            table: || menus().tables.draw_lists.service_area_overlay.id(), // off_75924A: `draw_service_area`
             run: false,
         },
     ],
@@ -109,21 +86,9 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
-        Step::Write(
-            || {
-                &crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .menus
-                    .skip_edit_values
-            },
-            0,
-        ),
+        Step::Write(|| &menus().screens.state.menus.skip_edit_values, 0),
     ],
-    set_up_first: &[Step::Write(
-        || &crate::menu::owner::menus().screens.flow.left_service,
-        0,
-    )],
+    set_up_first: &[Step::Write(|| &menus().screens.flow.left_service, 0)],
     prepare: &[
         Step::Write(|| &DRAW.view_offset[0], 0), // dword_623FB0
         Step::Write(|| &DRAW.view_offset[1], 0), // dword_623FB4
@@ -138,13 +103,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[Step::Call(Callee::LoadServiceBackground)],
     after_first_frame: &[Step::Write(
-        || {
-            &crate::menu::owner::menus()
-                .screens
-                .state
-                .menus
-                .skip_edit_values
-        },
+        || &menus().screens.state.menus.skip_edit_values,
         1,
     )],
     confirm: Some(&[Step::Call(Callee::LoadServiceBackground)]),
@@ -152,18 +111,9 @@ pub const SCREEN: Screen = Screen {
     confirmed: &[],
     unasked_skips_save: false,
     after: &[
-        Step::Write(|| &crate::menu::owner::menus().screens.flow.left_service, 1),
+        Step::Write(|| &menus().screens.flow.left_service, 1),
         Step::Call(Callee::StopMusic),
-        Step::Write(
-            || {
-                &crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .menus
-                    .skip_edit_values
-            },
-            0,
-        ),
+        Step::Write(|| &menus().screens.state.menus.skip_edit_values, 0),
     ],
     escape_leaves: false,
     each_frame: &[],

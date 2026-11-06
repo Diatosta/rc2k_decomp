@@ -7,12 +7,11 @@
 //! Callers: the time trial's events, before each car choice.
 
 use crate::menu::lists_store::CarList;
+use crate::menu::owner::menus;
 
 /// The Rust version: the cheat cars' list (`off_75A412`) when the cheat is on.
 pub fn cheat_car_list() -> Option<CarList> {
     // Converted: `rc2k_core::menu::car_lists::cheat_cars`.
-    let on = rc2k_core::menu::car_lists::cheat_cars(
-        crate::menu::owner::menus().play.cheats.cheats.get(),
-    );
+    let on = rc2k_core::menu::car_lists::cheat_cars(menus().play.cheats.cheats.get());
     on.then_some(CarList::Cheat)
 }

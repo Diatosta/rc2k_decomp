@@ -4,15 +4,16 @@
 //! shares, the weather, the description, the stage's number, and the best and fastest.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::records::stages_store::{Holder as RecordHolder, RecordRef};
 use crate::screens::game_screen::{Held, HeldText};
 use crate::text::draw_text::Canvas;
 
 /// The page's stage record.
 pub fn stage_record() -> Result<RecordRef, BadInput> {
-    let base = crate::records::stages_store::STAGE_TABLES
-        .level_table(crate::menu::owner::menus().play.arcade.level.get())?;
-    crate::records::stages_store::row(base, crate::menu::owner::menus().play.arcade.stage.get())
+    let play = &menus().play;
+    let base = crate::records::stages_store::STAGE_TABLES.level_table(play.arcade.level.get())?;
+    crate::records::stages_store::row(base, play.arcade.stage.get())
 }
 
 /// `screens::draw_stage_best_and_fastest` (0x4744A9): the "best" and "fastest" lines

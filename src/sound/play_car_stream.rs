@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::menu::load_car_background::shown_car;
+use crate::menu::owner::menus;
 
 // ---- game data ----
 
@@ -20,6 +21,7 @@ use crate::menu::load_car_background::shown_car;
 
 /// `start` is `sound::start_stream` (the file, the volume).
 pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
+    let menus = menus();
     // Converted: `rc2k_core::sound::set_up::car_stream`.
     let car = shown_car()?;
     let failed = std::cell::Cell::new(None);
@@ -27,8 +29,8 @@ pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
         // `MENU_LISTS.car_streams` (off_75A31E) has 24 entries; the original reads any
         // car's, past them what the image has after (`read_on` goes on past them too).
         crate::session::read_on_in(
-            &crate::menu::owner::menus().tables.lists,
-            &crate::menu::owner::menus().tables.lists.car_streams,
+            &menus.tables.lists,
+            &menus.tables.lists.car_streams,
             car as usize,
             "a car's stream",
         )?,
@@ -38,11 +40,7 @@ pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
                 0
             })
         },
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .speech_level
-            .get(),
+        menus.screens.option_work.speech_level.get(),
     );
     if let Some(e) = failed.take() {
         return Err(e.into());

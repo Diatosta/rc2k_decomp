@@ -27,6 +27,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::go_back;
+use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
 use crate::saves::read_savegame_slot::read_savegame_slot;
@@ -44,16 +45,14 @@ const UNREADABLE_SOUND: u32 = 8;
 /// The slot the highlighted menu item stands for.
 fn highlighted_slot() -> u32 {
     // Converted: `rc2k_core::saves::savegame::slot`.
-    rc2k_core::saves::savegame::slot(
-        crate::menu::owner::menus().tables.pages.save_page.get(),
-        menu_item(),
-    )
+    rc2k_core::saves::savegame::slot(menus().tables.pages.save_page.get(), menu_item())
 }
 
 // ---- Rust version ----
 
 /// The Rust version (see the header).
 pub fn load_savegame() -> Result<(), Refused> {
+    let menus = menus();
     let slot = highlighted_slot();
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
@@ -61,21 +60,9 @@ pub fn load_savegame() -> Result<(), Refused> {
     let cars = cars()?;
 
     crate::menu::ready_players::ready_players()?;
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .event_goes_on
-        .set(1u32);
-    crate::menu::owner::menus()
-        .tables
-        .pages
-        .reset_times
-        .set(0u32);
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .event_out
-        .set(0u32);
+    menus.screens.event.event_goes_on.set(1u32);
+    menus.tables.pages.reset_times.set(0u32);
+    menus.screens.event.event_out.set(0u32);
     if !read_savegame_slot(slot)? {
         crate::sound::play_menu_sound::play_menu_sound_in_game(UNREADABLE_SOUND);
         go_back::go_back();
@@ -112,16 +99,16 @@ pub fn load_savegame() -> Result<(), Refused> {
         cursor = cursor.offset(CAR_LEN as u32);
     }
     cursor.copy_to(
-        GamePtr::to(&crate::menu::owner::menus().cars.drivers),
+        GamePtr::to(&menus.cars.drivers),
         RECORDS_LEN,
         "the saved drivers",
     )?;
-    crate::menu::owner::menus()
+    menus
         .screens
         .flow
         .start_section
         .set(cars[0].get().saved_start_section);
-    crate::menu::owner::menus()
+    menus
         .screens
         .flow
         .start_section_a8
@@ -129,24 +116,18 @@ pub fn load_savegame() -> Result<(), Refused> {
 
     match resume(crate::menu::next_record_kind::next_record_kind()?) {
         Resume::NextSection => {
-            crate::menu::owner::menus().screens.event.section.set(
-                crate::menu::owner::menus()
-                    .screens
-                    .event
-                    .section
-                    .get()
-                    .wrapping_add(1),
-            );
-            crate::menu::owner::menus().screens.event.index.set(0u32);
-        }
-        Resume::NextStage => crate::menu::owner::menus().screens.event.index.set(
-            crate::menu::owner::menus()
+            menus
                 .screens
                 .event
-                .index
-                .get()
-                .wrapping_add(1),
-        ),
+                .section
+                .set(menus.screens.event.section.get().wrapping_add(1));
+            menus.screens.event.index.set(0u32);
+        }
+        Resume::NextStage => menus
+            .screens
+            .event
+            .index
+            .set(menus.screens.event.index.get().wrapping_add(1)),
         Resume::Over => {
             go_back::go_back();
             return Ok(());
@@ -159,13 +140,9 @@ pub fn load_savegame() -> Result<(), Refused> {
             .into());
         }
     }
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .continuing_save
-        .set(1u32);
+    menus.screens.event.continuing_save.set(1u32);
     crate::menu::link_player_names::link_player_names()?;
-    if crate::menu::owner::menus().play.champ_view.event_mode.get() == A8_MODE {
+    if menus.play.champ_view.event_mode.get() == A8_MODE {
         crate::menu::run_a8_championship::run_a8_championship()?;
     } else {
         crate::menu::run_championship::run_championship()?;

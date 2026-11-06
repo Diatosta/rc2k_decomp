@@ -30,31 +30,33 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::menus;
 use crate::records::find_record::{find_record_in, has_section};
 use crate::records::stages_store::RecordRef;
 use rc2k_core::menu::stage_screens;
 
 /// The record `index` / `section` pick.
 fn stage_record() -> Result<RecordRef, Refused> {
+    let screens = &menus().screens;
     let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let section = crate::menu::owner::menus().screens.event.section.get();
+    let section = screens.event.section.get();
     if !has_section(table, section, 600)? {
         return Err(BadInput("a section past the record table").into());
     }
     Ok(find_record_in(
         table,
-        crate::menu::owner::menus().screens.event.index.get() as i32,
+        screens.event.index.get() as i32,
         section,
     )?)
 }
 
 fn championship() -> bool {
-    stage_screens::championship(crate::menu::owner::menus().play.champ_view.event_mode.get())
+    stage_screens::championship(menus().play.champ_view.event_mode.get())
 }
 
 fn small_section() -> Result<u32, Refused> {
     Ok(stage_screens::small_section(
-        crate::menu::owner::menus().screens.event.section.get(),
+        menus().screens.event.section.get(),
     )?)
 }
 
@@ -65,20 +67,21 @@ pub fn count_stage_pages() -> Result<(), Refused> {
     let n = rc2k_core::menu::event::stage_pages(|k| fault.ok(record.offset(k).map(RecordRef::tag)));
     fault.check()?;
     let n = n.ok_or(BadInput("more than 256 stage pages"))?;
-    crate::menu::owner::menus().screens.event.stage_pages.set(n);
+    menus().screens.event.stage_pages.set(n);
     Ok(())
 }
 
 /// `menu::play_stage_speech`.
 pub fn play_stage_speech() -> Result<(), Refused> {
+    let menus = menus();
     let record = stage_record()?;
     if championship() {
         // Converted: `rc2k_core::menu::stage_screens::stage_speech`.
         let fault = std::cell::Cell::new(None);
         let at = stage_screens::stage_speech(record.record()?.track(), |n| {
             crate::session::read_on_in(
-                &crate::menu::owner::menus().tables.lists,
-                &crate::menu::owner::menus().tables.lists.stage_speeches,
+                &menus.tables.lists,
+                &menus.tables.lists.stage_speeches,
                 n as usize,
                 "a stage speech",
             )
@@ -96,11 +99,7 @@ pub fn play_stage_speech() -> Result<(), Refused> {
         crate::sound::owner::sound().race.car_stream.place.set(0);
         crate::sound::start_stream::start_stream(
             crate::menu::texts_store::speech_entry(at, 0)?,
-            crate::menu::owner::menus()
-                .screens
-                .option_work
-                .speech_level
-                .get(),
+            menus.screens.option_work.speech_level.get(),
         );
     }
     Ok(())
@@ -108,26 +107,22 @@ pub fn play_stage_speech() -> Result<(), Refused> {
 
 /// `menu::play_rally_speech`: a key taken (and dropped), then the rally's speech.
 pub fn play_rally_speech() -> Result<(), Refused> {
+    let menus = menus();
     // Converted: `rc2k_core::menu::stage_screens::rally_speech`.
-    let section = stage_screens::rally_speech(
-        crate::menu::owner::menus().play.champ_view.event_mode.get(),
-        || crate::menu::owner::menus().screens.event.section.get(),
-    )?
+    let section = stage_screens::rally_speech(menus.play.champ_view.event_mode.get(), || {
+        menus.screens.event.section.get()
+    })?
     .unwrap_or(0);
     crate::input::take_key::take_key();
     if championship() {
         crate::sound::start_stream::start_stream(
             crate::session::read_on_in(
-                &crate::menu::owner::menus().tables.lists,
-                &crate::menu::owner::menus().tables.lists.rally_speeches,
+                &menus.tables.lists,
+                &menus.tables.lists.rally_speeches,
                 section as usize,
                 "a rally speech",
             )?,
-            crate::menu::owner::menus()
-                .screens
-                .option_work
-                .speech_level
-                .get(),
+            menus.screens.option_work.speech_level.get(),
         );
     }
     Ok(())
@@ -136,28 +131,23 @@ pub fn play_rally_speech() -> Result<(), Refused> {
 /// `menu::load_welcome_picture`: the section's welcome picture under the title bar,
 /// converted; not loaded: the fatal error 0x80712345.
 pub fn load_welcome_picture() -> Result<(), Refused> {
+    let menus = menus();
     let section = small_section()?;
     // Converted: `rc2k_core::menu::stage_screens::welcome`.
-    let table: &[crate::session::Dword] = match stage_screens::welcome(
-        crate::menu::owner::menus().play.champ_view.event_mode.get(),
-    ) {
-        stage_screens::Welcome::Championship => {
-            &crate::menu::owner::menus()
-                .tables
-                .lists
-                .welcome_championship
-        }
-        stage_screens::Welcome::Other => &crate::menu::owner::menus().tables.lists.welcome_other,
-    };
+    let table: &[crate::session::Dword] =
+        match stage_screens::welcome(menus.play.champ_view.event_mode.get()) {
+            stage_screens::Welcome::Championship => &menus.tables.lists.welcome_championship,
+            stage_screens::Welcome::Other => &menus.tables.lists.welcome_other,
+        };
     let path = crate::menu::texts_store::text_at(crate::session::read_on_in(
-        &crate::menu::owner::menus().tables.lists,
+        &menus.tables.lists,
         table,
         section as usize,
         "a welcome picture",
     )?)?;
     if crate::gfx::load_picture_with_overlay::load_picture_with_overlay(
         &path,
-        &crate::menu::owner::menus().tables.texts.titlebar_png,
+        &menus.tables.texts.titlebar_png,
     )? {
         return Err(FatalError {
             code: 0x8071_2345,
@@ -172,25 +162,18 @@ pub fn load_welcome_picture() -> Result<(), Refused> {
 /// `menu::previous_stage_page` (`up` false) / `next_stage_page`: the page stepped, the
 /// stage's map drawn and its speech played.
 pub fn step_stage_page(up: bool) -> Result<(), Refused> {
+    let screens = &menus().screens;
     let (page, pages) = (
-        crate::menu::owner::menus().screens.event.stage_page.get(),
-        crate::menu::owner::menus().screens.event.stage_pages.get(),
+        screens.event.stage_page.get(),
+        screens.event.stage_pages.get(),
     );
     // Converted: `rc2k_core::menu::steps::stage_page`.
     let page = rc2k_core::menu::steps::stage_page(page, pages, up);
-    crate::menu::owner::menus()
-        .screens
+    screens.event.stage_page.set(page);
+    screens
         .event
-        .stage_page
-        .set(page);
-    crate::menu::owner::menus().screens.event.index.set(
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .first_page_stage
-            .get()
-            .wrapping_add(page),
-    );
+        .index
+        .set(screens.event.first_page_stage.get().wrapping_add(page));
     crate::menu::stage_choice::draw_stage_map()?;
     play_stage_speech()
 }

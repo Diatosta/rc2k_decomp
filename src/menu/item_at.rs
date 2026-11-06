@@ -10,15 +10,11 @@
 
 use crate::errors::BadInput;
 use crate::menu::menus_store::MenuItem;
+use crate::menu::owner::menus;
 
 // ---- Rust version ----
 
 /// Item `number` (from 1) of the current menu.
 pub fn item_at(number: u32) -> Result<&'static MenuItem, BadInput> {
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .menu
-        .get()?
-        .item(number)
+    menus().screens.loop_flags.menu.get()?.item(number)
 }

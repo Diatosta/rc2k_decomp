@@ -1,13 +1,10 @@
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::menu::player::Player;
 
 /// The current player's record, or a refusal.
 pub fn current() -> Result<crate::menu::standings::PlayerCell, Refused> {
-    let index: u32 = crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .get();
+    let index: u32 = menus().screens.event.current_player.get();
     crate::menu::player::player(index).ok_or_else(|| BadInput("no current player").into())
 }
 

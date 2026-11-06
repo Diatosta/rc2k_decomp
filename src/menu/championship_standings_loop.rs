@@ -16,6 +16,7 @@
 //! 0x80712345; leaving is asked about, and a "no" sets the screen up again. If `dword_75AB34` is 1
 //! when the screen is left, nothing more is done: no question, and the highlight is not saved. One
 //! caller, `sub_4A5A47`.
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
@@ -24,81 +25,39 @@ use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .championship_standings
-            .id()
-    },
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::CHAMPIONSHIP_STANDINGS], // dword_7477BC
+    menu: || menus().tables.menus.championship_standings.id(),
+    saved_item: || &menus().screens.items.current[slot::CHAMPIONSHIP_STANDINGS], // dword_7477BC
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.unread_list, // dword_7554F4
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .unread_758b72
-                    .id()
-            },
+            pointer: || &menus().screens.flow.unread_list, // dword_7554F4
+            table: || menus().tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list,
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .list_758e5e
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list,
+            table: || menus().tables.draw_lists.list_758e5e.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list,
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overlay_7592b6
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list,
+            table: || menus().tables.draw_lists.overlay_7592b6.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .championship_standings_scene
-                    .id()
-            }, // unk_7590F6: empty
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
+            table: || menus().tables.draw_lists.championship_standings_scene.id(), // unk_7590F6: empty
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list,
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .list_758e5e
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list,
+            table: || menus().tables.draw_lists.list_758e5e.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list,
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overlay_7592b6
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list,
+            table: || menus().tables.draw_lists.overlay_7592b6.id(),
             run: false,
         },
     ]),
@@ -109,10 +68,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::owner::menus()
-            .tables
-            .texts
-            .championship_standings_picture
+        &menus().tables.texts.championship_standings_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -123,13 +79,7 @@ pub const SCREEN: Screen = Screen {
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
-    leave_at_once: Some(|| {
-        &crate::menu::owner::menus()
-            .screens
-            .state
-            .menus
-            .standings_shown
-    }), // dword_75AB34
+    leave_at_once: Some(|| &menus().screens.state.menus.standings_shown), // dword_75AB34
     next_frame_repeats_first: false,
     action_saved_item: None,
     action_menu: None,

@@ -12,6 +12,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
@@ -21,32 +22,14 @@ use crate::scene::draw_store::DRAW;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(_: &Entry) -> Result<(), Refused> {
-    crate::menu::owner::menus()
-        .tables
-        .captions
-        .screen_left
-        .set(0x0u32);
-    crate::menu::owner::menus().screens.flow.turning.set(0x1u32);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .menu
-        .set(0x2u32);
+    let menus = menus();
+    menus.tables.captions.screen_left.set(0x0u32);
+    menus.screens.flow.turning.set(0x1u32);
+    menus.screens.state.carousel.menu.set(0x2u32);
     carousel(None)?;
-    let item =
-        crate::menu::owner::menus().screens.items.current[slot::CHAMPIONSHIP_NEW_SIMULATION].get();
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .item
-        .set(item);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .front
-        .set(item.wrapping_sub(1));
+    let item = menus.screens.items.current[slot::CHAMPIONSHIP_NEW_SIMULATION].get();
+    menus.screens.loop_flags.item.set(item);
+    menus.screens.state.carousel.front.set(item.wrapping_sub(1));
     DRAW.view_offset[0].set(0x7u32);
     DRAW.view_offset[1].set(0xAu32);
     DRAW.view_zoom.set(0x100u32);
@@ -55,39 +38,22 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
 }
 
 fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
-    if crate::menu::owner::menus()
-        .tables
-        .captions
-        .screen_left
-        .get()
-        == 0x1
-    {
-        crate::menu::owner::menus()
-            .tables
-            .captions
-            .screen_left
-            .set(0x0u32);
+    let tables = &menus().tables;
+    if tables.captions.screen_left.get() == 0x1 {
+        tables.captions.screen_left.set(0x0u32);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .championship_new_simulation
-            .id()
-    },
-    saved_item: || {
-        &crate::menu::owner::menus().screens.items.current[slot::CHAMPIONSHIP_NEW_SIMULATION]
-    },
+    menu: || menus().tables.menus.championship_new_simulation.id(),
+    saved_item: || &menus().screens.items.current[slot::CHAMPIONSHIP_NEW_SIMULATION],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
             table: || {
-                crate::menu::owner::menus()
+                menus()
                     .tables
                     .draw_lists
                     .championship_new_simulation_scene
@@ -96,9 +62,9 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
             table: || {
-                crate::menu::owner::menus()
+                menus()
                     .tables
                     .draw_lists
                     .championship_new_simulation_draw
@@ -107,9 +73,9 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
             table: || {
-                crate::menu::owner::menus()
+                menus()
                     .tables
                     .draw_lists
                     .championship_new_simulation_overlay
@@ -121,18 +87,12 @@ pub const SCREEN: Screen = Screen {
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(
-        || &crate::menu::owner::menus().screens.event.event_done,
-        0x0,
-    )],
+    before: &[Step::Write(|| &menus().screens.event.event_done, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::owner::menus()
-            .tables
-            .texts
-            .championship_new_simulation_picture
+        &menus().tables.texts.championship_new_simulation_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,

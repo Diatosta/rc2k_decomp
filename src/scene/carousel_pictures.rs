@@ -3,6 +3,7 @@
 //! `scene::choose_carousel_pictures` and `scene::update_carousel_pictures`.
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::scene::textures::SLOTS;
@@ -18,10 +19,11 @@ const ENTRIES: u32 = 0x100;
 /// picture's eight textures go to its eight slots (`scene::assign_picture_slots`
 /// 0x4903E3). Nothing is written before a refusal.
 pub fn update(entries: [u32; 4]) -> Result<(), BadInput> {
-    let Some(table) = crate::menu::owner::menus().screens.state.carousel.list()? else {
+    let menus = menus();
+    let Some(table) = menus.screens.state.carousel.list()? else {
         return Err(BadInput("no carousel entries' records"));
     };
-    let table = crate::menu::owner::menus().tables.lists.cars(table);
+    let table = menus.tables.lists.cars(table);
     let mut wanted = [0u32; 4];
     let mut record = 0;
     for (n, &entry) in entries.iter().enumerate() {
@@ -40,42 +42,15 @@ pub fn update(entries: [u32; 4]) -> Result<(), BadInput> {
         return Err(BadInput("the pictures' slots lie past the table"));
     }
     let first_texture: u32 = KIND_TEXTURES.kind_first_textures[KIND].get();
-    write_all(
-        &crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel_pictures
-            .shown,
-        wanted,
-    );
+    write_all(&menus.screens.state.carousel_pictures.shown, wanted);
 
     // Converted: `rc2k_core::scene::carousel::{keep_held, picture_textures}`.
     let (wanted, held) = rc2k_core::scene::carousel::keep_held(
         wanted,
-        read_all(
-            &crate::menu::owner::menus()
-                .screens
-                .state
-                .carousel_pictures
-                .held,
-        ),
+        read_all(&menus.screens.state.carousel_pictures.held),
     );
-    write_all(
-        &crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel_pictures
-            .wanted,
-        wanted,
-    );
-    write_all(
-        &crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel_pictures
-            .held,
-        held,
-    );
+    write_all(&menus.screens.state.carousel_pictures.wanted, wanted);
+    write_all(&menus.screens.state.carousel_pictures.held, held);
     let textures = rc2k_core::scene::carousel::picture_textures(held, first_texture);
     for (n, texture) in textures.into_iter().enumerate() {
         TEXTURE_PLACES.slot_wanted[first_slot as usize + n].set(texture);

@@ -8,16 +8,14 @@
 //! table at 0x7544D8). The menus and draw lists run its `entry` (`menu::table_calls`); the
 //! registers above are the original's, for reference.
 
+use crate::menu::owner::menus;
+
 // ---- Rust version ----
 
 pub fn flip_yes_no() -> u32 {
+    let tables = &menus().tables;
     // Converted: `rc2k_core::menu::steps::flip`.
-    let answer =
-        rc2k_core::menu::steps::flip(crate::menu::owner::menus().tables.pages.yes_no_answer.get());
-    crate::menu::owner::menus()
-        .tables
-        .pages
-        .yes_no_answer
-        .set(answer);
+    let answer = rc2k_core::menu::steps::flip(tables.pages.yes_no_answer.get());
+    tables.pages.yes_no_answer.set(answer);
     answer
 }

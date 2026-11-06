@@ -9,6 +9,7 @@
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::store::{NET, PlayerRecord};
 use crate::session::Dword;
@@ -20,6 +21,7 @@ pub const ESCAPED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escaped
 /// car it starts from its set-up finds itself (the current player's record,
 /// `menu::car_choice::find_player_car`).
 pub fn choose_car() -> Result<(), Refused> {
+    let play = &menus().play;
     CLEARED.set(0);
     let cars = crate::net::car_list::car_list()?;
     ESCAPED.set(0);
@@ -29,15 +31,11 @@ pub fn choose_car() -> Result<(), Refused> {
         crate::menu::take_shown_car::take_shown_car(Some(cars))?;
         NET.own.head.set(
             PlayerRecord::CAR,
-            crate::menu::owner::menus().play.players.players[0]
-                .get()
-                .car_number as u8,
+            play.players.players[0].get().car_number as u8,
         );
         NET.own.head.set(
             PlayerRecord::COLOURS,
-            crate::menu::owner::menus().play.players.players[0]
-                .get()
-                .gearing as u8,
+            play.players.players[0].get().gearing as u8,
         );
     }
     crate::net::show_background::show_background()?;

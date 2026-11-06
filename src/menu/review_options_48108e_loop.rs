@@ -12,6 +12,7 @@
 //! Callers: `sub_4A0E60`, `sub_4AA4D7`.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene,
@@ -21,33 +22,16 @@ use crate::scene::draw_store::DRAW;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(_: &Entry) -> Result<(), Refused> {
+    let screens = &menus().screens;
     Callee::NoOp.run()?;
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .ended_a
-        .set(0x0u32);
-    crate::menu::owner::menus().screens.flow.turning.set(0x1u32);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .menu
-        .set(0x13u32);
+    screens.loop_flags.ended_a.set(0x0u32);
+    screens.flow.turning.set(0x1u32);
+    screens.state.carousel.menu.set(0x13u32);
     carousel(None)?;
-    let item = crate::menu::owner::menus().screens.items.current[slot::REVIEW_OPTIONS_48108E].get();
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .item
-        .set(item);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .front
-        .set(item.wrapping_sub(1));
-    crate::menu::owner::menus().screens.flow.turning.set(0x0u32);
+    let item = screens.items.current[slot::REVIEW_OPTIONS_48108E].get();
+    screens.loop_flags.item.set(item);
+    screens.state.carousel.front.set(item.wrapping_sub(1));
+    screens.flow.turning.set(0x0u32);
     DRAW.view_offset[0].set(0xFFFFFF64u32);
     DRAW.view_offset[1].set(0x27u32);
     DRAW.view_zoom.set(0x140u32);
@@ -56,77 +40,41 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .review_options_48108e
-            .id()
-    },
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::REVIEW_OPTIONS_48108E],
+    menu: || menus().tables.menus.review_options_48108e.id(),
+    saved_item: || &menus().screens.items.current[slot::REVIEW_OPTIONS_48108E],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .review_options_48108e_scene
-                    .id()
-            },
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
+            table: || menus().tables.draw_lists.review_options_48108e_scene.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .review_options_48108e_draw
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.review_options_48108e_draw.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .review_options_48108e_overlay
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.review_options_48108e_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(
-        || &crate::menu::owner::menus().screens.draw_work.escaped,
-        0x0,
-    )],
+    before: &[Step::Write(|| &menus().screens.draw_work.escaped, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::owner::menus()
-            .tables
-            .texts
-            .review_options_48108e_picture
+        &menus().tables.texts.review_options_48108e_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
-    ask_also_if: Some(|| &crate::menu::owner::menus().screens.loop_flags.ended_a),
+    ask_also_if: Some(|| &menus().screens.loop_flags.ended_a),
     confirmed: &[
-        Step::Write(
-            || &crate::menu::owner::menus().screens.loop_flags.ended_a,
-            0x0,
-        ),
-        Step::Write(
-            || &crate::menu::owner::menus().tables.captions.screen_left,
-            0x0,
-        ),
+        Step::Write(|| &menus().screens.loop_flags.ended_a, 0x0),
+        Step::Write(|| &menus().tables.captions.screen_left, 0x0),
     ],
     unasked_skips_save: false,
     after: &[Step::Call(Callee::NoOp)],

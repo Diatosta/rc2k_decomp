@@ -7,52 +7,29 @@
 //! afterwards = fatal error 0x80712345); leaving is asked about. A reading from the title string of
 //! its menu, not yet a visit: "ÁREA DE INSPECÇÃO".
 //! Callers: `sub_48E093`, `sub_4A15E3`, `4A1EC7`, `sub_4A8556`.
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .inspection_area
-            .id()
-    },
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::INSPECTION_AREA],
+    menu: || menus().tables.menus.inspection_area.id(),
+    saved_item: || &menus().screens.items.current[slot::INSPECTION_AREA],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .inspection_area_scene
-                    .id()
-            },
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
+            table: || menus().tables.draw_lists.inspection_area_scene.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .inspection_area_draw
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.inspection_area_draw.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .inspection_area_overlay
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.inspection_area_overlay.id(),
             run: false,
         },
     ],
@@ -65,10 +42,7 @@ pub const SCREEN: Screen = Screen {
     after_lists: &[],
     background: &[
         Step::Call(Callee::LoadPicture(|| {
-            &crate::menu::owner::menus()
-                .tables
-                .texts
-                .inspection_area_picture
+            &menus().tables.texts.inspection_area_picture
         })),
         Step::CallOrFatal(Callee::ConvertPicture, 0x80712345),
     ],

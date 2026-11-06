@@ -15,6 +15,7 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
 use crate::menu::item_sprites_store::ItemSprite;
+use crate::menu::owner::menus;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_string_by_id::measure_string_by_id_at;
@@ -107,8 +108,9 @@ pub fn draw_button(
     set: ItemSprite,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
+    let menus = menus();
     let list = match set {
-        ItemSprite::List(n) => &crate::menu::owner::menus().panels.item_sprites.lists[n],
+        ItemSprite::List(n) => &menus.panels.item_sprites.lists[n],
         ItemSprite::Sprite(0) => return Err(BadInput("a button without sprites").into()),
         // The original reads the five numbers at the sprite number as at an address.
         ItemSprite::Sprite(_) => return Err(BadInput("a button's sprites at no list").into()),
@@ -123,11 +125,7 @@ pub fn draw_button(
     kind.y.set(y as u32);
     kind.left.set(sprites[0]);
     kind.right.set(sprites[1]);
-    crate::menu::owner::menus()
-        .screens
-        .draw_work
-        .middle
-        .set(sprites[2]);
+    menus.screens.draw_work.middle.set(sprites[2]);
     // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
     use rc2k_core::screens::buttons::{Borrowed, Error};
     let borrowed = Borrowed {
@@ -165,7 +163,7 @@ pub fn draw_item_button(
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let highlighted = crate::menu::owner::menus().screens.loop_flags.item.get() == item.id.get();
+    let highlighted = menus().screens.loop_flags.item.get() == item.id.get();
     draw_button(
         if highlighted { &HIGHLIGHTED } else { &PLAIN },
         item.text_x.get(),

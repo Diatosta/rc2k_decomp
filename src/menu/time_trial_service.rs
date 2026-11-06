@@ -18,6 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
+use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::session::Dword;
 
@@ -28,6 +29,7 @@ const DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due; // dwo
 
 /// The Rust version.
 pub fn time_trial_service() -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
     use rc2k_core::menu::passes;
@@ -42,19 +44,9 @@ pub fn time_trial_service() -> Result<(), Refused> {
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in()?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
-            crate::menu::owner::menus()
-                .screens
-                .state
-                .driver_stats
-                .repair_time
-                .set(0);
+            screens.state.driver_stats.repair_time.set(0);
             { crate::menu::driver_stats::driver_stats() }?;
-            crate::menu::owner::menus()
-                .screens
-                .state
-                .menus
-                .service_flag
-                .set(0);
+            screens.state.menus.service_flag.set(0);
             {
                 run_screen(
                     &crate::service::service_area_loop::SCREEN,

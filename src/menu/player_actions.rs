@@ -23,20 +23,15 @@
 //! Refuses (before anything) no current player (or one past the four).
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
 /// The current player's record.
 fn player() -> Result<crate::menu::standings::PlayerCell, Refused> {
-    crate::menu::player::player(
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .get(),
-    )
-    .ok_or_else(|| BadInput("no current player (or one past the four)").into())
+    crate::menu::player::player(menus().screens.event.current_player.get())
+        .ok_or_else(|| BadInput("no current player (or one past the four)").into())
 }
 
 // ---- the Rust versions ----
@@ -52,7 +47,7 @@ fn with_player(f: impl FnOnce(&mut Player)) -> Result<(), Refused> {
 
 /// `menu::keep_player_keys`: the keys' table's bindings into the player's.
 pub fn keep_player_keys() -> Result<(), Refused> {
-    let controls = crate::menu::owner::menus().keys.tables.controls.read();
+    let controls = menus().keys.tables.controls.read();
     with_player(|p| p.bindings = controls)
 }
 
@@ -82,67 +77,44 @@ pub fn toggle_controller_mode() -> Result<(), Refused> {
 }
 
 pub fn next_scores_page() {
-    crate::menu::owner::menus()
-        .tables
+    let tables = &menus().tables;
+    tables
         .pages
         .scores_page
-        .set(steps::scores_page(
-            crate::menu::owner::menus().tables.pages.scores_page.get(),
-            true,
-        ));
+        .set(steps::scores_page(tables.pages.scores_page.get(), true));
 }
 
 pub fn previous_scores_page() {
-    crate::menu::owner::menus()
-        .tables
+    let tables = &menus().tables;
+    tables
         .pages
         .scores_page
-        .set(steps::scores_page(
-            crate::menu::owner::menus().tables.pages.scores_page.get(),
-            false,
-        ));
+        .set(steps::scores_page(tables.pages.scores_page.get(), false));
 }
 
 pub fn previous_replay_range() -> Result<(), BadInput> {
-    crate::menu::owner::menus()
-        .tables
+    let tables = &menus().tables;
+    tables
         .pages
         .replay_page
-        .set(steps::replay_range(
-            crate::menu::owner::menus().tables.pages.replay_page.get(),
-            false,
-        ));
+        .set(steps::replay_range(tables.pages.replay_page.get(), false));
     crate::screens::best_scores::replay_range_caption()
 }
 
 pub fn next_replay_range() -> Result<(), BadInput> {
-    crate::menu::owner::menus()
-        .tables
+    let tables = &menus().tables;
+    tables
         .pages
         .replay_page
-        .set(steps::replay_range(
-            crate::menu::owner::menus().tables.pages.replay_page.get(),
-            true,
-        ));
+        .set(steps::replay_range(tables.pages.replay_page.get(), true));
     crate::screens::best_scores::replay_range_caption()
 }
 
 /// `menu::toggle_caption_choice`: the choice flipped and its caption written.
 pub fn toggle_caption_choice() -> Result<(), BadInput> {
-    let choice = steps::flip(
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .menus
-            .caption_choice
-            .get(),
-    );
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .menus
-        .caption_choice
-        .set(choice);
+    let screens = &menus().screens;
+    let choice = steps::flip(screens.state.menus.caption_choice.get());
+    screens.state.menus.caption_choice.set(choice);
     let mut cursor = GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption);
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let fault = crate::menu::event_flow::Fault::default();
@@ -162,21 +134,10 @@ pub fn leave_with_carry() {
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
 /// one.
 pub fn player_car_specs(n: u32) -> Result<(), Refused> {
-    let kept = crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .get();
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .set(n);
+    let screens = &menus().screens;
+    let kept = screens.event.current_player.get();
+    screens.event.current_player.set(n);
     let done = { crate::menu::show_car_specs::show_car_specs() };
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .set(kept);
+    screens.event.current_player.set(kept);
     done
 }

@@ -10,98 +10,51 @@
 //! (0x47814C .. 0x479410), by the picture the pages of the controls set-up.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .player2_buttons
-            .id()
-    },
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::PLAYER2_BUTTONS],
+    menu: || menus().tables.menus.player2_buttons.id(),
+    saved_item: || &menus().screens.items.current[slot::PLAYER2_BUTTONS],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.unread_list, // g_unreadList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .unread_758b72
-                    .id()
-            },
+            pointer: || &menus().screens.flow.unread_list, // g_unreadList
+            table: || menus().tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .draw_758daa
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.draw_758daa.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.setup_list, // dword_755500
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .player2_buttons_setup
-                    .id()
-            },
+            pointer: || &menus().screens.flow.setup_list, // dword_755500
+            table: || menus().tables.draw_lists.player2_buttons_setup.id(),
             run: true,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overlay_75926a
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.overlay_75926a.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .player2_buttons_scene
-                    .id()
-            },
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
+            table: || menus().tables.draw_lists.player2_buttons_scene.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .draw_758daa
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.draw_758daa.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overlay_75926a
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.overlay_75926a.id(),
             run: false,
         },
     ]),
@@ -115,10 +68,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::owner::menus()
-            .tables
-            .texts
-            .player2_buttons_picture
+        &menus().tables.texts.player2_buttons_picture
     }))],
     after_first_frame: &[],
     confirm: None,

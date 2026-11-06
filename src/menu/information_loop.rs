@@ -11,6 +11,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, log_line, prepare_scene,
@@ -21,6 +22,7 @@ use crate::scene::draw_store::DRAW;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(_: &Entry) -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Between `pusha` and `popa`: no register changes.
     log_line(c"InfoScr: Start");
     DRAW.view_offset[0].set(0xFFFFFF64u32);
@@ -31,26 +33,12 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
     DRAW.clip_edges[3].set(0x2F8u32);
     DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
     DRAW.clip_screen[3].set(DRAW.clip_edges[3].bits() as i32 as f32);
-    crate::menu::owner::menus().screens.flow.turning.set(0x1u32);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .menu
-        .set(0x9u32);
+    screens.flow.turning.set(0x1u32);
+    screens.state.carousel.menu.set(0x9u32);
     carousel(None)?;
-    let item = crate::menu::owner::menus().screens.items.current[slot::INFORMATION].get();
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .item
-        .set(item);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .front
-        .set(item.wrapping_sub(1));
+    let item = screens.items.current[slot::INFORMATION].get();
+    screens.loop_flags.item.set(item);
+    screens.state.carousel.front.set(item.wrapping_sub(1));
     Ok(())
 }
 
@@ -61,40 +49,22 @@ fn after(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || crate::menu::owner::menus().tables.menus.information.id(),
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::INFORMATION],
+    menu: || menus().tables.menus.information.id(),
+    saved_item: || &menus().screens.items.current[slot::INFORMATION],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .information_scene
-                    .id()
-            },
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
+            table: || menus().tables.draw_lists.information_scene.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .information_draw
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.information_draw.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .information_overlay
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.information_overlay.id(),
             run: false,
         },
     ],
@@ -106,12 +76,9 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::Write(
-            || &crate::menu::owner::menus().screens.event.clears_escape_flag,
-            0x1,
-        ),
+        Step::Write(|| &menus().screens.event.clears_escape_flag, 0x1),
         Step::Call(Callee::LoadBackground(|| {
-            &crate::menu::owner::menus().tables.texts.information_picture
+            &menus().tables.texts.information_picture
         })),
     ],
     after_first_frame: &[],

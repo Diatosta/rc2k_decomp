@@ -15,44 +15,27 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::service::state::flagged_item;
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
 /// The Rust version (see the header).
 pub fn toggle_repair_choice() -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::service::repairs::toggle_choice` (nothing written when it
     // refuses).
     let item = flagged_item()?;
     let (mut f, mut m) = (flags(), marks());
-    let budget = crate::menu::owner::menus()
-        .screens
-        .event
-        .service_minutes
-        .get() as i32;
+    let budget = screens.event.service_minutes.get() as i32;
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, time_of)
             .map_err(|e| BadInput(e.0))?;
     store_flags(&f);
     store_marks(&m);
     {
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .service_ui
-            .status
-            .set(status);
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .service_ui
-            .box_shown
-            .set(0u32);
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .driver_stats
-            .repair_time
-            .set(total as u32);
+        screens.state.service_ui.status.set(status);
+        screens.state.service_ui.box_shown.set(0u32);
+        screens.state.driver_stats.repair_time.set(total as u32);
     }
     Ok(())
 }

@@ -5,6 +5,7 @@
 //! rounds' points, below 0 none, +0x6C the total, +0x70 the position).
 
 use crate::errors::{FatalError, Refused};
+use crate::menu::owner::menus;
 use crate::screens::game_screen::{HeldText, held_name};
 use crate::text::draw_text::Canvas;
 use rc2k_core::saves::rankings::HistoryEntry;
@@ -44,13 +45,14 @@ pub fn find_history_entry(
 /// Every register kept. Refuses (before anything) no history table; a position not in it is
 /// the original's fatal error.
 pub fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let menus = menus();
     let walked = crate::menu::standings::walked_entries_b()?;
     // Converted: `rc2k_core::screens::championship_table`; the ten entries looked up
     // first (a position not in the history is the original's fatal error, raised
     // before the rows rather than after those before it).
     let (class, first) = (
-        crate::menu::owner::menus().screens.event.class.get(),
-        crate::menu::owner::menus().play.champ_view.first_row.get(),
+        menus.screens.event.class.get(),
+        menus.play.champ_view.first_row.get(),
     );
     let mut rows = Vec::with_capacity(10);
     for n in 0..10u32 {
@@ -73,7 +75,7 @@ pub fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             HeldText,
         >::new(canvas),
         first,
-        crate::menu::owner::menus().play.champ_view.event_mode.get() == 0x13,
+        menus.play.champ_view.event_mode.get() == 0x13,
         &rows,
     )
 }

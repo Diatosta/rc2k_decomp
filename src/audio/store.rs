@@ -31,6 +31,7 @@ use rc2k_core::memory::List;
 use crate::audio::describe_wave_format::WaveFormat;
 use crate::audio::make_buffer::BufferDescription;
 use crate::audio::samples::SampleFile;
+use crate::menu::owner::menus;
 
 pub const STATE_IDA: usize = 0x4F8294;
 pub const STATE_END: usize = 0x506E6C;
@@ -865,16 +866,12 @@ pub const fn level_code(ida: u32) -> u32 {
 
 /// The level a record's `volume_factor` names (`level_code`; 0 is no level).
 pub fn volume_level(code: u32) -> Result<&'static Dword, crate::errors::BadInput> {
+    let screens = &menus().screens;
     Ok(match code {
         1 => &AUDIO.unit_volume_factor,
-        2 => {
-            &crate::menu::owner::menus()
-                .screens
-                .option_work
-                .menu_sounds_a
-        }
-        3 => &crate::menu::owner::menus().screens.option_work.sounds_a,
-        4 => &crate::menu::owner::menus().screens.option_work.sounds_b,
+        2 => &screens.option_work.menu_sounds_a,
+        3 => &screens.option_work.sounds_a,
+        4 => &screens.option_work.sounds_b,
         _ => {
             return Err(crate::errors::BadInput(
                 "a sample record's volume level unknown",

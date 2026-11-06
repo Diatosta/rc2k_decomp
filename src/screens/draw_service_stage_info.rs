@@ -15,6 +15,7 @@
 //! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::draw_stage_info::{TITLE_X, TITLE_Y, event_stage, event_title};
 use crate::screens::stage_panel::{
@@ -28,11 +29,10 @@ use crate::text::draw_text::Canvas;
 
 /// Returns the carry flag of `draw_stage_records`.
 pub fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let menus = menus();
     label(canvas, event_title()?, TITLE_FONT, TITLE_X, TITLE_Y)?;
     let (record, _) = event_stage()?;
-    if crate::menu::owner::menus().play.champ_view.event_mode.get() == 2
-        && crate::menu::owner::menus().screens.event.stage_pages.get() == 0
-    {
+    if menus.play.champ_view.event_mode.get() == 2 && menus.screens.event.stage_pages.get() == 0 {
         draw_stage_heading(record, canvas)?;
     }
     build_second_heading(record)?;

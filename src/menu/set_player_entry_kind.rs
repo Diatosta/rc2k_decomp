@@ -8,25 +8,18 @@
 //! anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn set_player_entry_kind() -> Result<(), Refused> {
-    let n: u32 = crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .get();
+    let screens = &menus().screens;
+    let n: u32 = screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::player::entry_kind`.
-    let score: i32 = crate::menu::owner::menus()
-        .screens
-        .state
-        .driver_stats
-        .score
-        .get() as i32;
+    let score: i32 = screens.state.driver_stats.score.get() as i32;
     player(n).update(|q| q.entry = rc2k_core::menu::player::entry_kind(score));
     Ok(())
 }

@@ -5,6 +5,7 @@
 //! last field is a 22-byte string: the struct is padded to a multiple of 4.
 
 use crate::menu::cars_store::car_cell;
+use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
 pub use rc2k_core::menu::car_lists::CarList;
@@ -177,11 +178,12 @@ const fn repair_ref(ida: u32) -> Dword {
 /// The car pages' pictures by page (the original's `page_picture_lists`, in its order; a car
 /// past a list reads on into the next, as there).
 pub fn page_pictures(page: u32) -> Result<&'static [Dword], crate::errors::BadInput> {
+    let tables = &menus().tables;
     Ok(match page {
-        0 => &crate::menu::owner::menus().tables.lists.page_pictures_a,
-        1 => &crate::menu::owner::menus().tables.lists.page_pictures_c,
-        2 => &crate::menu::owner::menus().tables.lists.page_pictures_d,
-        3 => &crate::menu::owner::menus().tables.lists.page_pictures_b,
+        0 => &tables.lists.page_pictures_a,
+        1 => &tables.lists.page_pictures_c,
+        2 => &tables.lists.page_pictures_d,
+        3 => &tables.lists.page_pictures_b,
         _ => return Err(crate::errors::BadInput("a car page past the four")),
     })
 }
@@ -190,7 +192,7 @@ pub fn page_pictures(page: u32) -> Result<&'static [Dword], crate::errors::BadIn
 pub fn repair_time_at(key: u32) -> Result<Option<&'static Dword>, crate::errors::BadInput> {
     match key {
         0 => Ok(None),
-        _ => crate::menu::owner::menus()
+        _ => menus()
             .screens
             .state
             .driver_stats
@@ -1531,10 +1533,7 @@ mod tests {
         let size = size_of::<MenuLists>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
         let mine = unsafe {
-            std::slice::from_raw_parts(
-                (&raw const crate::menu::owner::menus().tables.lists).cast::<u8>(),
-                END - START,
-            )
+            std::slice::from_raw_parts((&raw const menus().tables.lists).cast::<u8>(), END - START)
         };
         // The car lists' entries are handles: the image's addresses made handles to compare.
         let mut image = image_bytes(START, END - START);

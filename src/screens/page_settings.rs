@@ -2,6 +2,7 @@
 //! A, part F1, 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::records::stages_store::{RecordRef, RecordTable};
 
 /// `screens::pick_player_1` .. `_4` (0x46AEC5, 0x46AF21, 0x46AF58, 0x46AF8F): player `n`
@@ -9,26 +10,15 @@ use crate::records::stages_store::{RecordRef, RecordTable};
 /// +0x50 into the page's copy (`unk_7555B1`). Every register kept. Refuses (before
 /// anything) a player without its record.
 pub fn pick_player(n: u32) -> Result<(), Refused> {
+    let menus = menus();
     // Converted: `rc2k_core::screens::page_values` (`Player::picked`).
     let (value, copy) = crate::menu::player::player(n)
         .ok_or(BadInput("a player without its record"))?
         .get()
         .picked();
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .set(n);
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .dword_7558c4
-        .set(value);
-    crate::menu::owner::menus()
-        .keys
-        .tables
-        .controls
-        .write(&copy);
+    menus.screens.event.current_player.set(n);
+    menus.screens.event.dword_7558c4.set(value);
+    menus.keys.tables.controls.write(&copy);
     Ok(())
 }
 
@@ -40,7 +30,7 @@ pub fn load_audio_settings() {
     // Converted: `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions =
         crate::audio::store::AUDIO.audio_options.get();
-    crate::menu::owner::menus()
+    menus()
         .screens
         .option_work
         .set_audio_page(rc2k_core::screens::page_values::audio_page(&options));
@@ -98,50 +88,25 @@ fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
 /// caption string 0x4FC + `dword_75AB30`. Every register kept. Refuses (before anything) no
 /// stage records; a record of another track pack is the original's fatal error.
 pub fn stage_options_texts() -> Result<(), Refused> {
+    let menus = menus();
     let (a, b) = (
-        crate::menu::owner::menus().play.champ_view.switch_f8.get(),
-        crate::menu::owner::menus()
-            .tables
-            .captions
-            .shown_group
-            .get(),
+        menus.play.champ_view.switch_f8.get(),
+        menus.tables.captions.shown_group.get(),
     );
     stage_refuses(a, b)?;
     // Converted: `rc2k_core::screens::page_values` (the items and the caption).
     use rc2k_core::screens::page_values::{stage_options_caption, stage_options_items};
-    let items = &crate::menu::owner::menus()
-        .tables
-        .menus
-        .view_best_times
-        .items;
-    let (first, second) = stage_options_items(
-        a,
-        crate::menu::owner::menus().play.champ_view.switch_fc.get(),
-    );
+    let items = &menus.tables.menus.view_best_times.items;
+    let (first, second) = stage_options_items(a, menus.play.champ_view.switch_fc.get());
     set_item(items, 1, first)?;
     set_item(items, 2, second)?;
-    let (base, record) = stage_record(
-        a,
-        b,
-        crate::menu::owner::menus()
-            .tables
-            .captions
-            .shown_stage
-            .get(),
-    )?;
+    let (base, record) = stage_record(a, b, menus.tables.captions.shown_stage.get())?;
     set_item(items, 3, base.title()?)?;
     stage_line(0x481, record)?;
     let mut caption = Vec::new();
     push_id(
         &mut caption,
-        stage_options_caption(
-            crate::menu::owner::menus()
-                .screens
-                .state
-                .menus
-                .caption_choice
-                .get(),
-        ),
+        stage_options_caption(menus.screens.state.menus.caption_choice.get()),
     )?;
     caption.push(0);
     crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption)
@@ -156,33 +121,30 @@ pub fn stage_options_texts() -> Result<(), Refused> {
 /// [dword_7558D0]`. Every register kept. Refuses (before anything) no stage records or no
 /// item table; another track pack is the original's fatal error.
 pub fn stage_choice_texts() -> Result<(), Refused> {
+    let menus = menus();
     let (a, b) = (
-        crate::menu::owner::menus().screens.event.stage_group.get(),
-        crate::menu::owner::menus().screens.event.stage_sub.get(),
+        menus.screens.event.stage_group.get(),
+        menus.screens.event.stage_sub.get(),
     );
     stage_refuses(a, b)?;
     // Item 1 of the "menu" the head points to (the labels: the slip in `notes/bugs.md`).
     let item_1 = crate::menu::menus_store::labels_slot(
-        &crate::menu::owner::menus().tables.menus.view_courses.head,
+        &menus.tables.menus.view_courses.head,
         4 + 0x5C + 0x14,
     )?
     .ok_or(BadInput("no item table"))?;
-    let items = &crate::menu::owner::menus().tables.menus.view_courses.items;
+    let items = &menus.tables.menus.view_courses.items;
     set_item(
         items,
         0,
         crate::session::read_on_in(
-            &crate::menu::owner::menus().play.results,
-            &crate::menu::owner::menus().play.results.group_titles,
+            &menus.play.results,
+            &menus.play.results.group_titles,
             a as usize,
             "a group title",
         )?,
     )?;
-    let (base, record) = stage_record(
-        a,
-        b,
-        crate::menu::owner::menus().screens.event.stage_number.get(),
-    )?;
+    let (base, record) = stage_record(a, b, menus.screens.event.stage_number.get())?;
     item_1.write::<u32>(base.title()?, "a menu item")?;
     stage_line(0x482, record)
 }

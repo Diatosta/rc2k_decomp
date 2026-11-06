@@ -28,6 +28,7 @@ use crate::input::key_to_char::has_layout;
 use crate::input::take_key::take_key;
 use crate::menu::handle_yes_no::handle_yes_no;
 use crate::menu::navigation::{Direction, move_highlight};
+use crate::menu::owner::menus;
 use crate::screens::controls_store::CONTROLS_SCREEN;
 use crate::session::CLOCKS;
 use rc2k_core::menu::keys::Pressed;
@@ -39,75 +40,42 @@ use rc2k_core::menu::keys::Pressed;
 /// `eax` is the caller's eax, whose bits 8 .. 15 are read on Enter (the screen loops: the
 /// elapsed time).
 pub fn handle_keys(eax: u32) -> Result<Pressed, Refused> {
+    let menus = menus();
     // Converted: `rc2k_core::menu::keys` (`keys_off`, `action`, `enter_skips_name_entry`).
     use rc2k_core::menu::keys::{self, Action, Move};
     let nothing = Pressed::Nothing;
-    if keys::keys_off(
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .service_ui
-            .box_shown
-            .get(),
-        || CONTROLS_SCREEN.learning.get(),
-    ) {
+    if keys::keys_off(menus.screens.state.service_ui.box_shown.get(), || {
+        CONTROLS_SCREEN.learning.get()
+    }) {
         return Ok(nothing);
     }
-    if crate::menu::owner::menus().screens.flow.asking.get() == 1 && !has_layout() {
+    if menus.screens.flow.asking.get() == 1 && !has_layout() {
         return Err(BadInput("no keyboard layout").into());
     }
-    crate::menu::owner::menus()
-        .screens
-        .option_work
-        .menu_sound
-        .set(keys::NO_SOUND);
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .back
-        .set(0u32);
+    menus.screens.option_work.menu_sound.set(keys::NO_SOUND);
+    menus.screens.loop_flags.back.set(0u32);
     let key = take_key();
     if key == 0 {
         return Ok(nothing);
     }
     let eax = eax & !0xFF | key as u32;
     handle_yes_no(eax)?;
-    let action = keys::action(key, || crate::menu::owner::menus().play.cheats.cheats.get());
+    let action = keys::action(key, || menus.play.cheats.cheats.get());
     match action {
         Action::Ignored => return Ok(nothing),
         Action::Escape => {
-            crate::menu::owner::menus()
-                .screens
-                .loop_flags
-                .back
-                .set(1u32);
-            crate::menu::owner::menus()
-                .screens
-                .draw_work
-                .escaped
-                .set(1u32);
-            crate::menu::owner::menus()
-                .tables
-                .captions
-                .screen_left
-                .set(1);
+            menus.screens.loop_flags.back.set(1u32);
+            menus.screens.draw_work.escaped.set(1u32);
+            menus.tables.captions.screen_left.set(1);
             return Ok(Pressed::Escape);
         }
         _ => {}
     }
     let clock: u32 = CLOCKS.frame.get();
     if action == Action::Enter {
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .menu_sound
-            .set(keys::ENTER_SOUND);
-        crate::menu::owner::menus()
-            .play
-            .champ_view
-            .last_key_time
-            .set(clock);
-        crate::menu::owner::menus()
+        menus.screens.option_work.menu_sound.set(keys::ENTER_SOUND);
+        menus.play.champ_view.last_key_time.set(clock);
+        menus
             .screens
             .flow
             .enter_skips_name_entry
@@ -115,11 +83,7 @@ pub fn handle_keys(eax: u32) -> Result<Pressed, Refused> {
         crate::sound::play_menu_sound::play_menu_sound_in_game(keys::ENTER_CLICK);
         return Ok(Pressed::Enter);
     }
-    crate::menu::owner::menus()
-        .play
-        .champ_view
-        .last_key_time
-        .set(clock);
+    menus.play.champ_view.last_key_time.set(clock);
     let direction = match action {
         Action::Move(Move::Up) => Direction::Up,
         Action::Move(Move::Down) => Direction::Down,
@@ -130,26 +94,22 @@ pub fn handle_keys(eax: u32) -> Result<Pressed, Refused> {
             return Ok(nothing);
         }
         Action::Toggle => {
-            crate::menu::owner::menus()
+            menus
                 .screens
                 .loop_flags
                 .toggle
-                .set(crate::menu::owner::menus().screens.loop_flags.toggle.get() ^ 1);
+                .set(menus.screens.loop_flags.toggle.get() ^ 1);
             return Ok(nothing);
         }
         Action::AddTime => {
-            crate::menu::owner::menus()
-                .screens
-                .event
-                .service_minutes
-                .set(
-                    crate::menu::owner::menus()
-                        .screens
-                        .event
-                        .service_minutes
-                        .get()
-                        .wrapping_add(keys::ADDED_TIME),
-                );
+            menus.screens.event.service_minutes.set(
+                menus
+                    .screens
+                    .event
+                    .service_minutes
+                    .get()
+                    .wrapping_add(keys::ADDED_TIME),
+            );
             return Ok(nothing);
         }
         _ => return Ok(nothing),

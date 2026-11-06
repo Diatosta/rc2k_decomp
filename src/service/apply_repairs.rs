@@ -41,6 +41,7 @@ use crate::system::tick_count::tick_count;
 // ---- game data ----
 
 // Converted: `rc2k_core::service::workshop` (the items, the order, the car's fields).
+use crate::menu::owner::menus;
 use rc2k_core::service::workshop::{Setting, Timer, Workshop};
 // ---- Rust version ----
 
@@ -94,12 +95,7 @@ impl Workshop for Game<'_> {
         self.player.update(change);
     }
     fn set_working(&mut self) {
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .menus
-            .service_flag
-            .set(1u32);
+        menus().screens.state.menus.service_flag.set(1u32);
     }
     fn timer(&mut self, t: Timer) -> u32 {
         timer(t).get()
@@ -133,16 +129,11 @@ impl Workshop for Game<'_> {
 }
 
 fn timer(t: Timer) -> &'static Dword {
+    let screens = &menus().screens;
     match t {
-        Timer::Start => &crate::menu::owner::menus().screens.state.menus.fade_start,
-        Timer::Elapsed => &crate::menu::owner::menus().screens.state.menus.fade_gone,
-        Timer::LastStep => {
-            &crate::menu::owner::menus()
-                .screens
-                .state
-                .menus
-                .repair_last_step
-        }
+        Timer::Start => &screens.state.menus.fade_start,
+        Timer::Elapsed => &screens.state.menus.fade_gone,
+        Timer::LastStep => &screens.state.menus.repair_last_step,
     }
 }
 

@@ -40,6 +40,7 @@ use crate::session::{Dword, write_all, write_prefix};
 
 // ---- game data ----
 const MENUS: u32 = 0x15;
+use crate::menu::owner::menus;
 use rc2k_core::scene::carousel;
 
 /// One step of a carousel's set-up.
@@ -112,7 +113,7 @@ fn reading<R>(list: CarList, f: impl FnOnce(&dyn Fn(usize) -> u32) -> R) -> Resu
 }
 
 fn list_entry(list: CarList, n: usize) -> Result<u32, BadInput> {
-    crate::menu::owner::menus()
+    menus()
         .tables
         .lists
         .cars(list)
@@ -142,18 +143,10 @@ fn check_cars(list: CarList, from_second: bool) -> Result<(), Refused> {
 
 /// The cars' carousels, from the list; `size` the object's size.
 fn cars(list: CarList, size: u32) -> Result<(), BadInput> {
+    let menus = menus();
     {
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .set_up
-            .set(1);
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .set_list(list);
+        menus.screens.state.carousel.set_up.set(1);
+        menus.screens.state.carousel.set_list(list);
         let mut n = 0;
         loop {
             let car = list_entry(list, n)?;
@@ -163,24 +156,19 @@ fn cars(list: CarList, size: u32) -> Result<(), BadInput> {
             let first = crate::menu::cars_store::description(car)?.get().car;
             // `car_kinds` (dword_75A1FE) has 35 entries; the original allows numbers up to
             // 0x400 and reads on past the table (fixed: refused).
-            let kind = crate::menu::owner::menus()
+            let kind = menus
                 .tables
                 .lists
                 .car_kinds
                 .get(first as usize)
                 .ok_or(BadInput("a car past the 35 car kinds"))?
                 .get();
-            crate::menu::owner::menus().screens.state.carousel.kinds[n].set(kind);
+            menus.screens.state.carousel.kinds[n].set(kind);
             n += 1;
         }
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .count
-            .set(n as u32);
+        menus.screens.state.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
-        crate::menu::owner::menus().cars.table.last_car.set(last);
+        menus.cars.table.last_car.set(last);
         OBJECT_WORK.size.set_bits(size);
         for op in CARS_TAIL {
             run_op(op);
@@ -194,14 +182,10 @@ fn cars(list: CarList, size: u32) -> Result<(), BadInput> {
 /// none of its callers.
 // Converted: `rc2k_core::scene::carousel::{check_cars, list_end}`
 pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
+    let menus = menus();
     let given = || list.ok_or(BadInput("no list of cars"));
     {
-        let menu: u32 = crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .menu
-            .get();
+        let menu: u32 = menus.screens.state.carousel.menu.get();
         if menu >= MENUS {
             return Ok(());
         }
@@ -211,29 +195,12 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
                 cars(CarList::First, 0xF)?;
             }
             0xC => {
-                crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .set_up
-                    .set(1);
-                crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .set_list(CarList::A8);
+                menus.screens.state.carousel.set_up.set(1);
+                menus.screens.state.carousel.set_list(CarList::A8);
                 OBJECT_WORK.size.set_bits(0xCu32);
-                write_prefix(
-                    &crate::menu::owner::menus().screens.state.carousel.kinds,
-                    &FIXED_KINDS,
-                );
-                crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .count
-                    .set(6u32);
-                crate::menu::owner::menus().cars.table.last_car.set(5u32);
+                write_prefix(&menus.screens.state.carousel.kinds, &FIXED_KINDS);
+                menus.screens.state.carousel.count.set(6u32);
+                menus.cars.table.last_car.set(5u32);
                 for op in CARS_TAIL {
                     run_op(op);
                 }
@@ -246,16 +213,11 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
             0xE => {
                 let list = given()?;
                 check_cars(list, true)?;
-                crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .set_up
-                    .set(1);
+                menus.screens.state.carousel.set_up.set(1);
                 let count = reading(list, |read| carousel::list_end(read, 1).unwrap_or(0))?;
                 if count == 1 {
                     let first = list_entry(list, 0)?;
-                    crate::menu::owner::menus()
+                    menus
                         .tables
                         .lists
                         .cars(list)
@@ -270,10 +232,7 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
                     match *op {
                         Op::Set(cell, value) => cell.set(value),
                         Op::Run(cell, value) => cell().set(value),
-                        Op::Fill => write_all(
-                            &crate::menu::owner::menus().tables.lists.carousel_textures,
-                            [u32::MAX; 8],
-                        ),
+                        Op::Fill => write_all(&menus.tables.lists.carousel_textures, [u32::MAX; 8]),
                     }
                 }
             }

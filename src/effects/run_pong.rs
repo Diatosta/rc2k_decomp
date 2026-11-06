@@ -14,6 +14,7 @@ use crate::effects::move_pong_bat::move_pong_bat;
 use crate::effects::pong::Pong;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
 use crate::session::Float;
@@ -30,8 +31,7 @@ pub fn run_pong(frame: &Frame, pong: &Pong, fl: &WindscreenFlakes) -> Result<(),
     let p = &pong.state;
     {
         // `dword_641678`: pong shown.
-        if crate::menu::owner::menus().play.cheats.cheats.get() & CHEAT == 0
-            || frame.frame_work.lead_kept[7].get() == 0
+        if menus().play.cheats.cheats.get() & CHEAT == 0 || frame.frame_work.lead_kept[7].get() == 0
         {
             return Ok(());
         }

@@ -2,6 +2,7 @@
 //! quads (`scene::draw_tinted_quad`), and the outlines and frames built from them.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::session::Dword;
 
 /// A variable of the game.
@@ -110,20 +111,14 @@ pub fn chosen_frame(
     step: u32,
     cells: u32,
 ) -> Result<(), Refused> {
-    let blinking = crate::menu::owner::menus().screens.draw_work.blink.get() == 1;
-    let wanted = if crate::menu::owner::menus()
-        .screens
-        .state
-        .service_ui
-        .box_shown
-        .get()
-        == 1
-        && crate::menu::owner::menus().screens.loop_flags.item.get() == item
-    {
-        blinking
-    } else {
-        setup.installed.get() != setup.chosen.get() || flag.get() == 1
-    };
+    let screens = &menus().screens;
+    let blinking = screens.draw_work.blink.get() == 1;
+    let wanted =
+        if screens.state.service_ui.box_shown.get() == 1 && screens.loop_flags.item.get() == item {
+            blinking
+        } else {
+            setup.installed.get() != setup.chosen.get() || flag.get() == 1
+        };
     let chosen = setup.chosen.get();
     if wanted && chosen < cells {
         cell_frame(first_x, step, chosen, YELLOW)?;

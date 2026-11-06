@@ -11,6 +11,7 @@
 //! Caller: `screens::draw_two_column_panel`.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::screens::service_boxes::{quad, rd, set};
 use crate::session::Dword;
 
@@ -20,6 +21,7 @@ const MARKER_Y: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_y; 
 
 /// The Rust version: every register kept.
 pub fn draw_column_boxes() -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::screens::panels::row_box`; the row and marker variables
     // are left as the original leaves them.
     use rc2k_core::screens::panels::{BOXES_Y, COLUMNS, ROW_STEP, ROWS, row_box};
@@ -28,17 +30,12 @@ pub fn draw_column_boxes() -> Result<(), Refused> {
         set(MARKER_X, x);
         set(MARKER_Y, BOXES_Y);
         for _ in 0..ROWS {
-            let chosen = crate::menu::owner::menus().screens.loop_flags.item.get() == rd(ROW)
-                && crate::menu::owner::menus().screens.draw_work.blink.get() == 1;
+            let chosen =
+                screens.loop_flags.item.get() == rd(ROW) && screens.draw_work.blink.get() == 1;
             for a in row_box(
                 rd(MARKER_X),
                 rd(MARKER_Y),
-                crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .service_ui
-                    .box_colour_a
-                    .get(),
+                screens.state.service_ui.box_colour_a.get(),
                 chosen,
             ) {
                 quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;

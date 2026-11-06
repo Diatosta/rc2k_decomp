@@ -23,6 +23,7 @@ use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::standings::*;
 use crate::records::stages_store::RecordRef;
 
+use crate::menu::owner::menus;
 use crate::menu::scale_stage_times::{held_section, scaled};
 
 const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES:FINISHED"]; // aCalccputimesSt, aCalccputimesFi
@@ -30,9 +31,10 @@ const TEXTS_RVA: [&std::ffi::CStr; 2] = [c"CALCCPUTIMES:STARTED", c"CALCCPUTIMES
 /// The class time `c` as the original reads it, `dword_75AAE8`[c]: with no bound, so that a
 /// class past the four reads on into the variables that follow.
 fn class_time_at(c: u32) -> Result<u32, BadInput> {
+    let screens = &menus().screens;
     crate::session::read_on_in(
-        &crate::menu::owner::menus().screens.state,
-        &crate::menu::owner::menus().screens.state.menus.class_times,
+        &screens.state,
+        &screens.state.menus.class_times,
         c as usize,
         "a class time",
     )
@@ -40,9 +42,10 @@ fn class_time_at(c: u32) -> Result<u32, BadInput> {
 
 /// The drivers of class `c`, `dword_75AB00`[c], read the same way.
 fn class_count_at(c: u32) -> Result<u32, BadInput> {
+    let screens = &menus().screens;
     crate::session::read_on_in(
-        &crate::menu::owner::menus().screens.state,
-        &crate::menu::owner::menus().screens.state.menus.class_counts,
+        &screens.state,
+        &screens.state.menus.class_counts,
         c as usize,
         "a class driver count",
     )
@@ -67,7 +70,7 @@ pub fn record() -> Result<RecordRef, BadInput> {
 /// What the Rust version refuses for the record `rec` (or its fatal error), before
 /// anything: the class count, the drivers and the pack entry's length.
 pub fn check(rec: RecordRef) -> Result<(u32, &'static [Driver], u32), Refused> {
-    let classes: u32 = crate::menu::owner::menus().screens.event.classes.get();
+    let classes: u32 = menus().screens.event.classes.get();
     if classes == 0 || classes > 0x100 {
         return Err(BadInput("a class count of 0 or past 0x100").into());
     }
@@ -104,16 +107,16 @@ pub fn check(rec: RecordRef) -> Result<(u32, &'static [Driver], u32), Refused> {
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn calc_cpu_times() -> Result<(), Refused> {
+    let screens = &menus().screens;
     let rec = record()?;
     let (classes, drivers, length) = check(rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
     for (k, t) in rec.record()?.class_times().into_iter().enumerate() {
-        crate::menu::owner::menus().screens.state.menus.class_times[k].set(t);
+        screens.state.menus.class_times[k].set(t);
     }
     crate::menu::scale_stage_times::scale_stage_times(rec)?;
-    crate::menu::owner::menus().screens.state.menus.track_length[0].set(length);
-    crate::menu::owner::menus().screens.state.menus.track_length[1]
-        .set(length.wrapping_mul(100) / 0x96A);
+    screens.state.menus.track_length[0].set(length);
+    screens.state.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
     // Converted: `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.
     use rc2k_core::menu::event::{Spread, cpu_gap, cpu_time};
     for c in 0..classes {
@@ -125,27 +128,15 @@ pub fn calc_cpu_times() -> Result<(), Refused> {
             let time = class_time_at(c)?;
             let count = class_count_at(c)?;
             let gap = cpu_gap(time, count);
-            crate::menu::owner::menus().screens.draw_work.hhmm.set(gap);
+            screens.draw_work.hhmm.set(gap);
             let mut spread = Spread {
-                first: crate::menu::owner::menus().screens.event.service_944.get(),
-                step: crate::menu::owner::menus().screens.event.dword_755948.get(),
+                first: screens.event.service_944.get(),
+                step: screens.event.dword_755948.get(),
             };
             let own = spread.next(crate::math::random_below::random_below)?;
-            crate::menu::owner::menus()
-                .screens
-                .draw_work
-                .figure
-                .set(own);
-            crate::menu::owner::menus()
-                .screens
-                .event
-                .service_944
-                .set(spread.first);
-            crate::menu::owner::menus()
-                .screens
-                .event
-                .dword_755948
-                .set(spread.step);
+            screens.draw_work.figure.set(own);
+            screens.event.service_944.set(spread.first);
+            screens.event.dword_755948.set(spread.step);
             if d.in_event.get() == IN_EVENT {
                 let own = cpu_time(own, gaps, time);
                 d.time.set(own);

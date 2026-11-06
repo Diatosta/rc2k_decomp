@@ -12,6 +12,7 @@
 //! drawing loop) and one whose copies pass the 0x100 bytes of `byte_A8BC54`.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
@@ -29,7 +30,7 @@ pub fn draw_spaced_number(
     // Converted: `rc2k_core::screens::captions::spaced_places`.
     let n = end.addr().wrapping_sub(text.addr());
     let places = rc2k_core::screens::captions::spaced_places(n, x, CELLS_LEN)?;
-    crate::menu::owner::menus().screens.draw_work.work_b8.set(n);
+    menus().screens.draw_work.work_b8.set(n);
     let cells = GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.cells);
     let digits = text.read_bytes(n as usize, "the digits")?;
     let mut spaced = Vec::with_capacity(2 * digits.len());

@@ -7,6 +7,7 @@
 //! the second one.
 
 use crate::gfx::blit_glyph::BlitCall;
+use crate::menu::owner::menus;
 use crate::records::stages_store::Record;
 
 // ---- game data ----
@@ -15,11 +16,7 @@ const FIRST_GLYPH: u32 = 0x9C;
 const SECOND_GLYPH: u32 = 0x9D;
 
 pub fn sprite_table() -> u32 {
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .sprite_table
-        .get()
+    menus().screens.loop_flags.sprite_table.get()
 }
 
 // ---- Rust version ----
@@ -35,14 +32,7 @@ pub fn marker_calls(record: &Record) -> [BlitCall; 2] {
 
 /// Stores a marker's position in the two globals, as the original does before each blit.
 pub fn set_marker_position(call: &BlitCall) {
-    crate::menu::owner::menus()
-        .screens
-        .draw_work
-        .marker_x
-        .set(call.x as u32);
-    crate::menu::owner::menus()
-        .screens
-        .draw_work
-        .marker_y
-        .set(call.y as u32);
+    let screens = &menus().screens;
+    screens.draw_work.marker_x.set(call.x as u32);
+    screens.draw_work.marker_y.set(call.y as u32);
 }

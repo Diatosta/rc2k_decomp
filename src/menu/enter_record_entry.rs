@@ -11,29 +11,23 @@
 //! Caller: `menu::record_entries_pass`. The steps are their Rust versions. Refuses a record past
 //! the table, no events table, a current player past 3 or missing, or no name, before anything.
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 
 // hhmm
 /// The Rust version (see the header).
 pub fn enter_record_entry() -> Result<(), Refused> {
+    let menus = menus();
     let event = current_event()?;
-    let n: u32 = crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .get();
+    let n: u32 = menus.screens.event.current_player.get();
     if n >= 4 || player(n).get().name_player().is_none() {
         return Err(BadInput("a current player past 3, missing or without a name").into());
     }
     let p = player(n);
     // The event's place in the table (`current_event`'s).
     let slot = event as u32;
-    crate::menu::owner::menus()
-        .screens
-        .draw_work
-        .figure
-        .set(slot);
-    let cheats = crate::menu::owner::menus().play.cheats.cheats.get();
+    menus.screens.draw_work.figure.set(slot);
+    let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(slot)?;
     // Converted: `rc2k_core::saves::entries::BestTime::enter`, then `rank_entries`.
     use rc2k_core::menu::bests;

@@ -13,10 +13,12 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 
 /// The Rust version. (The original keeps every register of its caller.)
 pub fn apply_screen_mode() -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::menu::steps::applied_mode`.
     use rc2k_core::menu::steps::{BACK_TO_MODE, TRY_CHOSEN_MODE, applied_mode};
     let display = &crate::gfx::owner::gfx().display;
@@ -38,12 +40,8 @@ pub fn apply_screen_mode() -> Result<(), Refused> {
     crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
     crate::sound::play_tune_4::play_tune_4();
     let applied = applied_mode(taken);
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .item
-        .set(applied.item);
-    crate::menu::owner::menus().screens.items.current[slot::VISUAL_OPTIONS].set(applied.item);
+    screens.loop_flags.item.set(applied.item);
+    screens.items.current[slot::VISUAL_OPTIONS].set(applied.item);
     crate::sound::play_menu_sound::play_menu_sound_in_game(applied.sound);
     Ok(())
 }

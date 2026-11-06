@@ -25,6 +25,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;
+use crate::menu::owner::menus;
 
 const POSITION_LIMIT: u32 = 16;
 
@@ -45,10 +46,9 @@ fn place_pointer(offset: u32) -> Result<&'static crate::session::Dword, Refused>
 
 /// The ranking of `rank_stage_times` (`by_totals` false) or `rank_totals`.
 pub fn rank(by_totals: bool) -> Result<(), Refused> {
+    let menus = menus();
     let values: Vec<u32> = if by_totals {
-        (0..4)
-            .map(|k| crate::menu::owner::menus().play.results.totals[k].get())
-            .collect()
+        (0..4).map(|k| menus.play.results.totals[k].get()).collect()
     } else {
         players(4)?.iter().map(|&r| r.get().time).collect()
     };
@@ -60,12 +60,12 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
         .map(|&(o, _)| place_pointer(o))
         .collect::<Result<_, _>>()?;
     for (k, &(o, v)) in pairs.iter().enumerate() {
-        crate::menu::owner::menus().play.results.pairs[2 * k].set(o);
-        crate::menu::owner::menus().play.results.pairs[2 * k + 1].set(v);
-        crate::menu::owner::menus().play.results.order[k].set(o);
+        menus.play.results.pairs[2 * k].set(o);
+        menus.play.results.pairs[2 * k + 1].set(v);
+        menus.play.results.order[k].set(o);
     }
-    crate::menu::owner::menus().screens.draw_work.work_b4.set(3);
-    crate::menu::owner::menus().screens.draw_work.work_b8.set(4);
+    menus.screens.draw_work.work_b4.set(3);
+    menus.screens.draw_work.work_b8.set(4);
     for (k, to) in targets.iter().enumerate() {
         to.set(k as u32 + 1);
     }
@@ -74,27 +74,28 @@ pub fn rank(by_totals: bool) -> Result<(), Refused> {
 
 /// The stage record's +0x34, the time the bonus is counted from.
 fn stage_time() -> Result<u32, Refused> {
+    let screens = &menus().screens;
     let records = crate::records::stages_store::STAGE_TABLES.group_event_table(
-        crate::menu::owner::menus().screens.event.stage_group.get(),
-        crate::menu::owner::menus().screens.event.stage_sub.get(),
+        screens.event.stage_group.get(),
+        screens.event.stage_sub.get(),
     )?;
-    Ok(crate::records::stages_store::row(
-        records,
-        crate::menu::owner::menus().screens.event.stage_number.get(),
-    )?
-    .record()?
-    .race_stage())
+    Ok(
+        crate::records::stages_store::row(records, screens.event.stage_number.get())?
+            .record()?
+            .race_stage(),
+    )
 }
 
 fn points(position: u32) -> Result<u32, Refused> {
     if position >= POSITION_LIMIT {
         return Err(BadInput("a position past the points table").into());
     }
-    Ok(crate::menu::owner::menus().tables.captions.place_points[position as usize].get())
+    Ok(menus().tables.captions.place_points[position as usize].get())
 }
 
 /// `menu::score_four_players` (`n` 4) or `score_two_players` (`n` 2).
 pub fn score(n: usize) -> Result<(), Refused> {
+    let menus = menus();
     let records = players(n as u32)?;
     let target = stage_time()?;
     let times: Vec<u32> = records.iter().map(|&r| r.get().time).collect();
@@ -102,7 +103,7 @@ pub fn score(n: usize) -> Result<(), Refused> {
         rc2k_core::menu::results::two_places([times[0], times[1]]).to_vec()
     } else {
         (0..n)
-            .map(|k| crate::menu::owner::menus().play.results.positions[k].get())
+            .map(|k| menus.play.results.positions[k].get())
             .collect()
     };
     let earned: Vec<u32> = positions
@@ -110,32 +111,27 @@ pub fn score(n: usize) -> Result<(), Refused> {
         .map(|&q| points(q))
         .collect::<Result<_, _>>()?;
     for k in 0..n {
-        crate::menu::owner::menus().play.results.before[k]
-            .set(crate::menu::owner::menus().play.results.totals[k].get());
+        menus.play.results.before[k].set(menus.play.results.totals[k].get());
     }
     if n == 2 {
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .work_b8
-            .set(times[0]);
-        crate::menu::owner::menus().play.results.positions[0].set(positions[0]);
-        crate::menu::owner::menus().play.results.positions[1].set(positions[1]);
+        menus.screens.draw_work.work_b8.set(times[0]);
+        menus.play.results.positions[0].set(positions[0]);
+        menus.play.results.positions[1].set(positions[1]);
     }
     // Converted: `rc2k_core::menu::results::score`.
     for k in 0..n {
         let sc = rc2k_core::menu::results::score(
-            crate::menu::owner::menus().play.results.before[k].get(),
+            menus.play.results.before[k].get(),
             earned[k],
             times[k],
             target,
             records[k].get().figure,
         );
-        crate::menu::owner::menus().play.results.points[k].set(sc.points);
-        crate::menu::owner::menus().play.results.time_bonus[k].set(sc.bonus);
-        crate::menu::owner::menus().play.results.extra[k].set(sc.extra);
-        crate::menu::owner::menus().play.results.sums[k].set(sc.sum);
-        crate::menu::owner::menus().play.results.totals[k].set(sc.total);
+        menus.play.results.points[k].set(sc.points);
+        menus.play.results.time_bonus[k].set(sc.bonus);
+        menus.play.results.extra[k].set(sc.extra);
+        menus.play.results.sums[k].set(sc.sum);
+        menus.play.results.totals[k].set(sc.total);
     }
     Ok(())
 }

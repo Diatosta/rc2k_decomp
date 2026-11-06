@@ -13,6 +13,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::session::{Dword, Loose};
@@ -328,12 +329,12 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"allsecretcars",
         0x758710,
-        dword!(crate::menu::owner::menus().play.cheats.all_secret_cars),
+        dword!(menus().play.cheats.all_secret_cars),
     ),
     (
         b"secretcar",
         0x758710,
-        dword!(crate::menu::owner::menus().play.cheats.all_secret_cars),
+        dword!(menus().play.cheats.all_secret_cars),
     ),
     (
         b"usesavegamekeys",
@@ -347,7 +348,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"sensiblesaving",
         0x75AAD8,
-        dword!(crate::menu::owner::menus().screens.state.menus.review_kind),
+        dword!(menus().screens.state.menus.review_kind),
     ),
     (
         b"noprecipitation",
@@ -457,7 +458,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"sparksmode",
         0x7558DC,
-        dword!(crate::menu::owner::menus().screens.event.sparks_mode),
+        dword!(menus().screens.event.sparks_mode),
     ),
 ];
 

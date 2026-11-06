@@ -18,6 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
+use crate::menu::owner::menus;
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
     chosen_repairs_time, current_player, flagged_item, has_repair_time, leave_edit_mode,
@@ -117,7 +118,7 @@ fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
     if action == PageKey::None {
         return Ok(0);
     }
-    crate::menu::owner::menus()
+    menus()
         .play
         .champ_view
         .last_key_time
@@ -146,6 +147,7 @@ pub fn simple_page(page: SimplePage) -> Result<(), Refused> {
 /// `confirm`: act as if the confirm key had been pressed, without taking a key (the callers
 /// outside the key handler pass ebx = 1 for this).
 pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Everything the steps below could refuse is checked first, so that an error never
     // leaves half of the work done.
     let item = flagged_item()?;
@@ -178,11 +180,7 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
         &mut f,
         &mut m,
         item as usize,
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .service_minutes
-            .get() as i32,
+        screens.event.service_minutes.get() as i32,
         v,
         time_of,
     )
@@ -191,19 +189,9 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
     store_marks(&m);
     page.change.chosen.set(c.chosen);
     if let Some(status) = c.status {
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .service_ui
-            .status
-            .set(status);
+        screens.state.service_ui.status.set(status);
     }
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .driver_stats
-        .repair_time
-        .set(c.total as u32);
+    screens.state.driver_stats.repair_time.set(c.total as u32);
     leave_edit_mode();
     Ok(())
 }

@@ -7,19 +7,17 @@
 //! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
+use crate::menu::owner::menus;
+
 // ---- Rust version ----
 
 pub fn next_setup_page() {
+    let tables = &menus().tables;
     // Converted: `rc2k_core::service::setups::next_page`.
-    crate::menu::owner::menus()
-        .tables
+    tables
         .pages
         .setup_slot_page
-        .set(rc2k_core::service::setups::next_page(
-            crate::menu::owner::menus()
-                .tables
-                .pages
-                .setup_slot_page
-                .get() as i32,
-        ) as u32);
+        .set(
+            rc2k_core::service::setups::next_page(tables.pages.setup_slot_page.get() as i32) as u32,
+        );
 }

@@ -8,20 +8,18 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;
+use crate::menu::owner::menus;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};
 
 fn rows(layout: &Layout) -> usize {
-    rc2k_core::screens::players_results::rows(
-        layout,
-        crate::menu::owner::menus().screens.event.player_count.get(),
-    )
+    rc2k_core::screens::players_results::rows(layout, menus().screens.event.player_count.get())
 }
 
 fn offset(row: usize) -> u32 {
-    crate::menu::owner::menus().play.results.order[row].get()
+    menus().play.results.order[row].get()
 }
 
 /// The row's player record, refused for an offset past the four or a missing record or name.
@@ -30,7 +28,7 @@ fn player(row: usize) -> Result<crate::menu::standings::PlayerCell, Refused> {
     if o >= 16 || !o.is_multiple_of(4) {
         return Err(BadInput("a row's offset past g_players' four").into());
     }
-    let p = &crate::menu::owner::menus().play.players.players[(o / 4) as usize];
+    let p = &menus().play.players.players[(o / 4) as usize];
     if p.get().name_player().is_none() {
         return Err(BadInput("a row's player without its name").into());
     }
@@ -45,16 +43,14 @@ fn points_at(row: usize) -> Result<&'static crate::session::Dword, Refused> {
 /// The section's first record and the stage's (`off_735512[dword_7558C8][dword_7558D0]`, +
 /// 0xA4 x `dword_7558CC`); none: 0.
 fn records() -> Result<(RecordTable, RecordRef), BadInput> {
+    let screens = &menus().screens;
     let base = crate::records::stages_store::STAGE_TABLES.group_event_table(
-        crate::menu::owner::menus().screens.event.stage_group.get(),
-        crate::menu::owner::menus().screens.event.stage_sub.get(),
+        screens.event.stage_group.get(),
+        screens.event.stage_sub.get(),
     )?;
     Ok((
         base,
-        crate::records::stages_store::row(
-            base,
-            crate::menu::owner::menus().screens.event.stage_number.get(),
-        )?,
+        crate::records::stages_store::row(base, screens.event.stage_number.get())?,
     ))
 }
 
@@ -131,7 +127,7 @@ pub fn draw_players_results(layout: &Layout, canvas: &mut dyn Canvas) -> Result<
             stage,
             units_set: crate::strings::units::units() != 0,
             show_hours: crate::strings::append_time::show_hours(),
-            extra_glyph: crate::menu::owner::menus().screens.draw_work.work_b4.get(),
+            extra_glyph: menus().screens.draw_work.work_b4.get(),
         };
         players_results(
             &mut crate::screens::game_screen::GameScreen::<

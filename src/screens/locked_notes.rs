@@ -3,6 +3,7 @@
 
 use crate::errors::Refused;
 use crate::menu::arcade_store::Arcade;
+use crate::menu::owner::menus;
 use crate::race::state_store::RACE_STATE;
 
 /// A note's box put up (converted: `rc2k_core::screens::locked`). The original's x for the
@@ -22,9 +23,10 @@ fn show(note: rc2k_core::screens::locked::Note) -> Result<(), Refused> {
 /// `screens::note_locked_item_3` (0x4AAAB8): unless cheat 0x11 is on, with item 3 chosen
 /// (`dword_755525`) and `dword_75ACCC` not 1, the message box.
 pub fn note_locked_item_3() -> Result<(), Refused> {
+    let menus = menus();
     show(rc2k_core::screens::locked::item_3(
-        crate::menu::owner::menus().play.cheats.cheats.get(),
-        crate::menu::owner::menus().screens.loop_flags.item.get(),
+        menus.play.cheats.cheats.get(),
+        menus.screens.loop_flags.item.get(),
         RACE_STATE.settings.a8_game.get(),
     ))
 }
@@ -32,14 +34,15 @@ pub fn note_locked_item_3() -> Result<(), Refused> {
 /// `screens::note_locked_stage` (0x48ADCE): unless cheat 0 is on, with an item chosen other
 /// than 1 and 7 whose stage (`byte_758800[item - 2]`) is not open (1), the message box.
 pub fn note_locked_stage() -> Result<(), Refused> {
+    let menus = menus();
     let fault = crate::menu::event_flow::Fault::default();
     let note = rc2k_core::screens::locked::stage(
-        crate::menu::owner::menus().play.cheats.cheats.get(),
-        crate::menu::owner::menus().screens.loop_flags.item.get(),
+        menus.play.cheats.cheats.get(),
+        menus.screens.loop_flags.item.get(),
         |index| {
             fault.read_at::<u8>(
                 // Bounded to the arcade's store, not the six bytes: item 0 reads before them.
-                crate::pointers::GamePtr::to(&crate::menu::owner::menus().play.arcade)
+                crate::pointers::GamePtr::to(&menus.play.arcade)
                     .offset(core::mem::offset_of!(Arcade, levels_won) as u32)
                     .offset(index),
                 "a stage\'s lock",

@@ -51,6 +51,7 @@
 //! in 0x28 (0x30 for `off_75A12E`) entries, a shown car past the list.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::menu::standings::{name_address_of, name_of, name_player, with_kept_name};
 use crate::race::state_store::RACE_STATE;
 use crate::records::stages_store::{Holder, RecordRef};
@@ -65,10 +66,8 @@ const SHOWN_LIST_LEN: u32 = 0x30;
 
 /// The stage's record (`off_73555A[level]` + stage x 0xA4).
 fn stage_record() -> Result<RecordRef, Refused> {
-    let (level, stage) = (
-        crate::menu::owner::menus().play.arcade.level.get(),
-        crate::menu::owner::menus().play.arcade.stage.get(),
-    );
+    let play = &menus().play;
+    let (level, stage) = (play.arcade.level.get(), play.arcade.stage.get());
     if level > 5 || stage > 6 {
         return Err(BadInput("an arcade level past 5 or stage past 6").into());
     }
@@ -93,7 +92,7 @@ fn with_course_times<R>(
 fn with_level_scores<R>(
     f: impl FnOnce(&mut rc2k_core::saves::entries::List) -> R,
 ) -> Result<R, Refused> {
-    let level = crate::menu::owner::menus().play.arcade.level.get();
+    let level = menus().play.arcade.level.get();
     if level > 5 {
         return Err(BadInput("an arcade level past 5").into());
     }
@@ -105,11 +104,7 @@ fn with_level_scores<R>(
 }
 
 fn current() -> Result<(u32, crate::menu::standings::PlayerCell), Refused> {
-    let n = crate::menu::owner::menus()
-        .screens
-        .event
-        .current_player
-        .get();
+    let n = menus().screens.event.current_player.get();
     match crate::menu::player::player(n) {
         None => Err(BadInput("a current player past 3").into()),
         Some(r) => Ok((n, r)),
@@ -130,37 +125,24 @@ pub fn keep_arcade_stage_best(record: RecordRef) -> Result<(), Refused> {
 }
 
 pub fn check_arcade_level_score() -> Result<(), Refused> {
+    let menus = menus();
     // Converted: `rc2k_core::menu::bests::makes_score`.
     let best = with_level_scores(|ten| ten[9].key)?;
-    if bests::makes_score(
-        crate::menu::owner::menus().play.results.totals[0].get(),
-        best,
-    ) {
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .time_qualifies
-            .set(1);
+    if bests::makes_score(menus.play.results.totals[0].get(), best) {
+        menus.screens.event.time_qualifies.set(1);
     }
     Ok(())
 }
 
 pub fn check_arcade_stage_time() -> Result<(), Refused> {
+    let screens = &menus().screens;
     with_course_times(|_| ())?;
     let (_, player) = current()?;
     let time = player.get().time;
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .player_time
-        .set(time);
+    screens.event.player_time.set(time);
     // Converted: `rc2k_core::menu::bests::makes_time`.
     if bests::makes_time(time, with_course_times(|ten| ten[9].head.key)?) {
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .time_qualifies
-            .set(1);
+        screens.event.time_qualifies.set(1);
     }
     Ok(())
 }
@@ -189,17 +171,14 @@ fn new_best(
 }
 
 pub fn enter_arcade_stage_time() -> Result<(), Refused> {
+    let menus = menus();
     let record = stage_record()?;
     with_course_times(|_| ())?;
     let (_, player) = current()?;
     name_player(&player.get())?;
     let course = record.record()?.event_slot();
-    crate::menu::owner::menus()
-        .screens
-        .draw_work
-        .figure
-        .set(course);
-    let cheats = crate::menu::owner::menus().play.cheats.cheats.get();
+    menus.screens.draw_work.figure.set(course);
+    let cheats = menus.play.cheats.cheats.get();
     let sealed = crate::menu::sealed_player_time::sealed_player_time(course)?;
     // Converted: `rc2k_core::saves::entries` (`BestTime::enter`, `sort_arcade_times`).
     let seal = bests::Seal { cheats, sealed };
@@ -231,25 +210,19 @@ pub fn enter_arcade_level_score() -> Result<(), Refused> {
 }
 
 pub fn score_arcade_stage() -> Result<(), Refused> {
+    let play = &menus().play;
     let first = crate::menu::standings::player(0);
-    crate::menu::owner::menus().play.results.before[0]
-        .set(crate::menu::owner::menus().play.results.totals[0].get());
-    crate::menu::owner::menus().play.results.extra[0].set(first.get().figure);
+    play.results.before[0].set(play.results.totals[0].get());
+    play.results.extra[0].set(first.get().figure);
     // Converted: `rc2k_core::menu::standings::arcade_points`.
-    let points = standings::arcade_points(
-        crate::menu::owner::menus().play.arcade.places.get(),
-        crate::menu::owner::menus().play.results.positions[0].get(),
-    );
-    crate::menu::owner::menus().play.results.points[0].set(points);
+    let points =
+        standings::arcade_points(play.arcade.places.get(), play.results.positions[0].get());
+    play.results.points[0].set(points);
     let sum = points
-        .wrapping_add(crate::menu::owner::menus().play.results.time_bonus[0].get())
-        .wrapping_add(crate::menu::owner::menus().play.results.extra[0].get());
-    crate::menu::owner::menus().play.results.sums[0].set(sum);
-    crate::menu::owner::menus().play.results.totals[0].set(
-        crate::menu::owner::menus().play.results.before[0]
-            .get()
-            .wrapping_add(sum),
-    );
+        .wrapping_add(play.results.time_bonus[0].get())
+        .wrapping_add(play.results.extra[0].get());
+    play.results.sums[0].set(sum);
+    play.results.totals[0].set(play.results.before[0].get().wrapping_add(sum));
     Ok(())
 }
 
@@ -280,41 +253,32 @@ fn end_of(list: &[Dword], len: u32) -> Result<u32, Refused> {
 }
 
 pub fn add_shown_car() -> Result<(), Refused> {
+    let menus = menus();
     // Converted: `rc2k_core::menu::car_lists` (`entries`, `shown_car`).
     use rc2k_core::menu::car_lists::{entries, shown_car};
     let list = |cells: &[Dword], len: u32| entries(len as usize, |k| cells[k].get());
-    let shown = crate::menu::owner::menus().screens.event.shown_car.get();
+    let shown = menus.screens.event.shown_car.get();
     let car = shown_car(
-        &list(
-            &crate::menu::owner::menus().tables.lists.shown_cars,
-            SHOWN_LIST_LEN,
-        )?,
+        &list(&menus.tables.lists.shown_cars, SHOWN_LIST_LEN)?,
         shown,
     )?;
-    let end = list(
-        &crate::menu::owner::menus().tables.lists.cars_second,
-        CARS_LEN,
-    )?
-    .len();
-    crate::menu::owner::menus().tables.lists.cars_second[end].set(car);
+    let end = list(&menus.tables.lists.cars_second, CARS_LEN)?.len();
+    menus.tables.lists.cars_second[end].set(car);
     Ok(())
 }
 
 /// `menu::remove_shown_car`: the moving down; `then` the list's numbers
 /// (`saves::list_car_numbers`).
 pub fn remove_shown_car(then: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let shown = crate::menu::owner::menus().screens.event.shown_car.get();
-    let end = end_of(
-        &crate::menu::owner::menus().tables.lists.shown_cars,
-        SHOWN_LIST_LEN,
-    )?;
+    let menus = menus();
+    let shown = menus.screens.event.shown_car.get();
+    let end = end_of(&menus.tables.lists.shown_cars, SHOWN_LIST_LEN)?;
     if shown >= end {
         return Err(BadInput("a shown car past the list").into());
     }
     // Converted: `rc2k_core::menu::standings::remove_at`.
-    let mut cars: [u32; SHOWN_LIST_LEN as usize] =
-        read_all(&crate::menu::owner::menus().tables.lists.shown_cars);
+    let mut cars: [u32; SHOWN_LIST_LEN as usize] = read_all(&menus.tables.lists.shown_cars);
     standings::remove_at(&mut cars, shown as usize, end as usize);
-    write_all(&crate::menu::owner::menus().tables.lists.shown_cars, cars);
+    write_all(&menus.tables.lists.shown_cars, cars);
     then()
 }

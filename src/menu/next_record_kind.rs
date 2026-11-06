@@ -10,12 +10,14 @@
 //! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 
 /// The Rust version (see the header): the kind (eax in the original), also kept in
 /// `dword_7559EC`.
 pub fn next_record_kind() -> Result<u32, Refused> {
-    let section: u32 = crate::menu::owner::menus().screens.event.section.get();
-    let index: u32 = crate::menu::owner::menus().screens.event.index.get();
+    let screens = &menus().screens;
+    let section: u32 = screens.event.section.get();
+    let index: u32 = screens.event.index.get();
     // The scan may run on past the 66 records (to `championship_end` and the event tables):
     // bounded by the whole store.
     let table = crate::pointers::GamePtr::to(&crate::records::stages_store::STAGE_TABLES)
@@ -25,10 +27,6 @@ pub fn next_record_kind() -> Result<u32, Refused> {
         .bytes("the championship's stage table")?;
     // Converted: `rc2k_core::menu::record_kinds::next_record_kind`.
     let kind = rc2k_core::menu::record_kinds::next_record_kind(&table, section, index)?;
-    crate::menu::owner::menus()
-        .screens
-        .draw_work
-        .figure
-        .set(kind);
+    screens.draw_work.figure.set(kind);
     Ok(kind)
 }

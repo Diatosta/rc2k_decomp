@@ -19,6 +19,7 @@ use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::clear_text::clear_text;
+use crate::menu::owner::menus;
 use crate::menu::player_name::{backspace_name, bring_back_name, name_place};
 use crate::menu::text_entry::{TEXT_LEN, set_length};
 use crate::text::draw_text::Canvas;
@@ -31,15 +32,10 @@ const MEASURING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fon
 // ---- Rust version ----
 
 pub fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let screens = &menus().screens;
     // Everything that could be refused, before the key is taken.
     let name = name_place()?;
-    let len = {
-        crate::menu::owner::menus()
-            .screens
-            .loop_flags
-            .text_length
-            .get()
-    } as i32;
+    let len = { screens.loop_flags.text_length.get() } as i32;
     if !(0..TEXT_LEN as i32).contains(&len) {
         return Err(BadInput("an entry length outside 0 .. 0x1F").into());
     }
@@ -54,35 +50,19 @@ pub fn edit_player_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         Key::None => {}
         Key::Escape => {
             bring_back_name(name)?;
-            crate::menu::owner::menus()
-                .screens
-                .option_work
-                .typing
-                .set(0u32);
+            screens.option_work.typing.set(0u32);
         }
         Key::Enter => {
             if len == 0 {
                 bring_back_name(name)?;
             }
-            crate::menu::owner::menus()
-                .screens
-                .option_work
-                .typing
-                .set(0u32);
+            screens.option_work.typing.set(0u32);
         }
         Key::Clear => clear_text(name)?,
         Key::Backspace => backspace_name(name)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
-            if entry::appends(
-                c,
-                len,
-                crate::menu::owner::menus()
-                    .screens
-                    .loop_flags
-                    .text_max
-                    .get() as i32,
-            ) {
+            if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 name.offset(len as u32).write::<u8>(c, "a player's name")?;
                 set_length(len.wrapping_add(1));
                 let measured = measure_text_at(MEASURING_FONT.game_ptr(), name, len, canvas)?;

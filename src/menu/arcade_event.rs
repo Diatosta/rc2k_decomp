@@ -1,5 +1,6 @@
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
+use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
@@ -26,26 +27,27 @@ fn cell(v: Var) -> Option<&'static Dword> {
 }
 
 fn address(v: Var) -> &'static Dword {
+    let menus = menus();
     match v {
-        Var::Failed => &crate::menu::owner::menus().play.arcade.retry,
-        Var::TotalA8 => &crate::menu::owner::menus().play.results.before[0],
-        Var::Total798 => &crate::menu::owner::menus().play.results.sums[0],
-        Var::TotalB8 => &crate::menu::owner::menus().play.results.totals[0],
-        Var::Figure768 => &crate::menu::owner::menus().play.results.positions[0],
-        Var::Figure758 => &crate::menu::owner::menus().play.results.time_bonus[0],
-        Var::PlayerCount => &crate::menu::owner::menus().screens.event.player_count,
-        Var::EventMode => &crate::menu::owner::menus().screens.event.event_kind,
-        Var::Leave => &crate::menu::owner::menus().screens.loop_flags.went_back,
-        Var::Ended565 => &crate::menu::owner::menus().screens.loop_flags.ended_b,
-        Var::Ended569 => &crate::menu::owner::menus().screens.loop_flags.ended_a,
-        Var::Stage => &crate::menu::owner::menus().play.arcade.stage,
-        Var::Level => &crate::menu::owner::menus().play.arcade.level,
-        Var::Current => &crate::menu::owner::menus().screens.event.current_player,
-        Var::CarLeft => &crate::menu::owner::menus().tables.captions.screen_left,
-        Var::Answer => &crate::menu::owner::menus().tables.pages.yes_no_answer,
-        Var::Cheats => &crate::menu::owner::menus().play.cheats.cheats,
-        Var::Qualifies => &crate::menu::owner::menus().screens.event.time_qualifies,
-        Var::Done => &crate::menu::owner::menus().screens.event.event_done,
+        Var::Failed => &menus.play.arcade.retry,
+        Var::TotalA8 => &menus.play.results.before[0],
+        Var::Total798 => &menus.play.results.sums[0],
+        Var::TotalB8 => &menus.play.results.totals[0],
+        Var::Figure768 => &menus.play.results.positions[0],
+        Var::Figure758 => &menus.play.results.time_bonus[0],
+        Var::PlayerCount => &menus.screens.event.player_count,
+        Var::EventMode => &menus.screens.event.event_kind,
+        Var::Leave => &menus.screens.loop_flags.went_back,
+        Var::Ended565 => &menus.screens.loop_flags.ended_b,
+        Var::Ended569 => &menus.screens.loop_flags.ended_a,
+        Var::Stage => &menus.play.arcade.stage,
+        Var::Level => &menus.play.arcade.level,
+        Var::Current => &menus.screens.event.current_player,
+        Var::CarLeft => &menus.tables.captions.screen_left,
+        Var::Answer => &menus.tables.pages.yes_no_answer,
+        Var::Cheats => &menus.play.cheats.cheats,
+        Var::Qualifies => &menus.screens.event.time_qualifies,
+        Var::Done => &menus.screens.event.event_done,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
         Var::RaceStage
         | Var::RaceLevel
@@ -77,6 +79,7 @@ impl arcade::Arcade for Game {
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        let play = &menus().play;
         use crate::menu as m;
         use crate::menu::arcade_steps as a;
         match s {
@@ -97,10 +100,8 @@ impl arcade::Arcade for Game {
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
                 let level = crate::records::stages_store::STAGE_TABLES
-                    .level_table(crate::menu::owner::menus().play.arcade.level.get())?;
-                a::keep_arcade_stage_best(
-                    level.row(crate::menu::owner::menus().play.arcade.stage.get())?,
-                )?;
+                    .level_table(play.arcade.level.get())?;
+                a::keep_arcade_stage_best(level.row(play.arcade.stage.get())?)?;
             }
             Step::CheckStageTime => a::check_arcade_stage_time()?,
             Step::ClearTimeMarks => a::clear_arcade_time_marks()?,

@@ -21,6 +21,7 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::saves::default_times::to_the_log;
 
 // ---- game data ----
@@ -47,6 +48,7 @@ fn record_tables() -> [crate::records::stages_store::RecordTable; 13] {
 /// 1, which it is only for `default_checkpoint_times`, which does not read it; the x is
 /// where a measuring starts, which a width does not depend on. The stage passed is 0.
 pub fn set_up_front_end() -> Result<(), Refused> {
+    let menus = menus();
     let stage = 0;
     use crate::saves::{
         allocate_best_times, default_best_scores, default_championship_times,
@@ -61,81 +63,43 @@ pub fn set_up_front_end() -> Result<(), Refused> {
     crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
     crate::menu::fit_player_names::fit_player_names()?;
     // The two dwords: the music volumes, then the tables' copies.
-    crate::sound::owner::sound().menu.options.music_volume.set(
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .music_level
-            .get(),
-    );
+    crate::sound::owner::sound()
+        .menu
+        .options
+        .music_volume
+        .set(menus.screens.option_work.music_level.get());
     crate::sound::owner::sound()
         .menu
         .options
         .race_music_volume
-        .set(
-            crate::menu::owner::menus()
-                .screens
-                .option_work
-                .other_volume
-                .get(),
-        );
+        .set(menus.screens.option_work.other_volume.get());
     allocate_best_times::allocate_best_times(
         crate::saves::owner::saves().best_times.list(),
         crate::records::stages_store::STAGE_TABLES.championship(),
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
     // variable says it is there, for the race's rivals.
-    crate::menu::owner::menus()
+    menus
         .play
         .champ_view
         .summary
         .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
     if crate::saves::owner::saves().best_times.loaded.get() != 1 {
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .work_0c
-            .set(0u32);
+        menus.screens.draw_work.work_0c.set(0u32);
         default_best_scores::default_best_scores()?;
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .work_0c
-            .set(0u32);
+        menus.screens.draw_work.work_0c.set(0u32);
         default_championship_times::default_championship_times(stage, &mut to_the_log)?;
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .work_0c
-            .set(1u32);
+        menus.screens.draw_work.work_0c.set(1u32);
         default_checkpoint_times::default_checkpoint_times(stage, &mut to_the_log)?;
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .work_0c
-            .set(0u32);
+        menus.screens.draw_work.work_0c.set(0u32);
         default_class_times::default_class_times()?;
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .work_0c
-            .set(0u32);
+        menus.screens.draw_work.work_0c.set(0u32);
         default_stage_times::default_stage_times(stage, &mut to_the_log)?;
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .work_0c
-            .set(0u32);
+        menus.screens.draw_work.work_0c.set(0u32);
         default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
         crate::saves::owner::saves().best_times.loaded.set(1);
     }
-    if crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .options_loaded
-        .get()
-        != 1
-    {
+    if menus.screens.loop_flags.options_loaded.get() != 1 {
         for table in record_tables() {
             crate::records::default_stage_records::default_stage_records(table)?;
         }

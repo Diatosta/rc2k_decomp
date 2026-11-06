@@ -17,6 +17,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::session::Bytes;
 use crate::settings::read_text::read_text;
 use crate::strings::format_u32::format_u32;
@@ -49,6 +50,7 @@ pub fn path() -> &'static [u8] {
 // ---- Rust version ----
 
 pub fn read_driver_names(path: impl crate::files::handle::GamePath) -> Result<(), BadInput> {
+    let cars = &menus().cars;
     // Converted: `rc2k_core::files::settings::driver_names`; the pool's room checked before
     // anything is written. The key the original makes in place (`aName000`) is left as
     // its last one, "name179".
@@ -91,14 +93,10 @@ pub fn read_driver_names(path: impl crate::files::handle::GamePath) -> Result<()
                 pool_used += name.len() as u32 + 1;
             }
             if let Some(n) = entry.first {
-                crate::menu::owner::menus().cars.drivers.drivers[driver]
-                    .nation
-                    .set(n);
+                cars.drivers.drivers[driver].nation.set(n);
             }
             if let Some(n) = entry.second {
-                crate::menu::owner::menus().cars.drivers.drivers[driver]
-                    .car
-                    .set(n);
+                cars.drivers.drivers[driver].car.set(n);
             }
         }
         Ok(())

@@ -24,6 +24,7 @@
 use crate::audio::names_store::SampleNames;
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 
@@ -68,11 +69,7 @@ pub fn volume_step(v: Volume) {
             value as u32,
         ),
         Then::Sound(sound) => {
-            crate::menu::owner::menus()
-                .screens
-                .flow
-                .menu_sounds_volume
-                .set(value as u32);
+            menus().screens.flow.menu_sounds_volume.set(value as u32);
             crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
         }
     }
@@ -82,6 +79,7 @@ pub fn volume_step(v: Volume) {
 
 /// `menu::next_screen_mode`: the next screen mode chosen, the changed flag flipped.
 pub fn next_screen_mode() {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::menu::steps::next_mode`.
     let mode = rc2k_core::menu::steps::next_mode(
         crate::gfx::owner::gfx().display.choices.resolution.get(),
@@ -92,36 +90,17 @@ pub fn next_screen_mode() {
         .choices
         .resolution
         .set(mode);
-    let changed = crate::menu::owner::menus()
-        .screens
-        .option_work
-        .mode_changed
-        .get()
-        ^ 1;
-    crate::menu::owner::menus()
-        .screens
-        .option_work
-        .mode_changed
-        .set(changed);
+    let changed = screens.option_work.mode_changed.get() ^ 1;
+    screens.option_work.mode_changed.set(changed);
 }
 
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
 pub fn step_texture_setting(up: bool) {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::menu::steps::texture`.
-    let v = rc2k_core::menu::steps::texture(
-        crate::menu::owner::menus()
-            .screens
-            .option_work
-            .setting_3
-            .get(),
-        up,
-    );
-    crate::menu::owner::menus()
-        .screens
-        .option_work
-        .setting_3
-        .set(v);
+    let v = rc2k_core::menu::steps::texture(screens.option_work.setting_3.get(), up);
+    screens.option_work.setting_3.set(v);
     RACE_STATE.settings.setting_3.set(v);
 }
 
@@ -147,14 +126,15 @@ pub const COLOUR_B: Colour = Colour {
 
 /// `menu::next_colour_a` and the three others.
 pub fn step_colour(c: Colour, up: bool) {
+    let tables = &menus().tables;
     // Converted: `rc2k_core::menu::steps::colour`.
     let n = rc2k_core::menu::steps::colour(c.number.get() as i32, up);
     c.number.set(n as u32);
     // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
     // number past 6 steps on from it); the address is resolved by `MOVED`.
     let pick = crate::session::read_on_in(
-        &crate::menu::owner::menus().tables.captions,
-        &crate::menu::owner::menus().tables.captions.caption_lists,
+        &tables.captions,
+        &tables.captions.caption_lists,
         c.table_at.wrapping_add(n as usize),
         "a caption list",
     )

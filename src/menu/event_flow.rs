@@ -5,6 +5,7 @@
 //! (the callees' Rust versions, the screens through `menu::screen_loop`).
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::records::stages_store::RecordRef;
 use crate::session::Dword;
 
@@ -88,7 +89,7 @@ pub const CAR_LIST_KIND: &Dword = &crate::menu::owner::MENUS.screens.flow.car_li
 
 /// Player `n`'s record (`g_players`).
 pub fn player(n: u32) -> crate::menu::standings::PlayerCell {
-    &crate::menu::owner::menus().play.players.players[n as usize]
+    &menus().play.players.players[n as usize]
 }
 
 pub fn yes() -> bool {

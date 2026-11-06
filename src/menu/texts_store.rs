@@ -9,6 +9,7 @@
 //! Every address of the range is 2 past a multiple of 4: a two-byte lead and `align(4)`
 //! keep each image address's alignment; the dwords are `Loose`.
 
+use crate::menu::owner::menus;
 use crate::session::{Bytes, Loose, with_runs};
 
 #[repr(C, align(4))]
@@ -2157,7 +2158,7 @@ pub fn text_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadI
             "a text's handle off the menus' texts",
         ));
     }
-    Ok(crate::pointers::GamePtr::to(&crate::menu::owner::menus().tables.texts).offset(key))
+    Ok(crate::pointers::GamePtr::to(&menus().tables.texts).offset(key))
 }
 
 /// IDA 0x734BC6, the end of the piece.
@@ -2171,7 +2172,7 @@ const SPEECH_TABLES_END: usize = 0x734986 + 36 * 4 * 4;
 
 #[cfg(test)]
 pub fn menu_texts_addr() -> u32 {
-    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.texts) + 2
+    crate::pointers::game_address(&raw const menus().tables.texts) + 2
 }
 
 #[cfg(test)]

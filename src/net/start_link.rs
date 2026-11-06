@@ -23,6 +23,7 @@
 //! does (section 16). Callers: 0x4AAAE1, 0x4AAAEC.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::net::lobby::log;
 use crate::net::store::PlayerRecord;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -91,7 +92,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_STARTING_LINK), true, 2);
     NET.mode.set(mode);
     take_player_settings::take_player_settings();
-    fill_own_player::fill_own_player(&crate::menu::owner::menus().play.names.player_names)?;
+    fill_own_player::fill_own_player(&menus().play.names.player_names)?;
     show_background::show_background()?;
     match link()? {
         Way::Message(n) => show_message::show_message(n)?,

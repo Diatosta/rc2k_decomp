@@ -13,12 +13,14 @@
 //! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the labels.
 /// The Rust version.
 pub fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let play = &menus().play;
     let player = crate::menu::player_settings::current()?.get();
     let name = crate::screens::game_screen::player_name_of(crate::menu::player_name::name()?);
     (RALLY_STAGE_TIMES.records)()?;
@@ -38,15 +40,15 @@ pub fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> 
         speed,
     };
     let figures = rc2k_core::screens::player_result::RallyFigures {
-        position: crate::menu::owner::menus().play.results.positions[0].get(),
-        best: crate::menu::owner::menus().play.results.time_bonus[0].get(),
+        position: play.results.positions[0].get(),
+        best: play.results.time_bonus[0].get(),
         column: [
-            crate::menu::owner::menus().play.results.points[0].get(),
-            crate::menu::owner::menus().play.results.time_bonus[0].get(),
-            crate::menu::owner::menus().play.results.extra[0].get(),
-            crate::menu::owner::menus().play.results.sums[0].get(),
-            crate::menu::owner::menus().play.results.before[0].get(),
-            crate::menu::owner::menus().play.results.totals[0].get(),
+            play.results.points[0].get(),
+            play.results.time_bonus[0].get(),
+            play.results.extra[0].get(),
+            play.results.sums[0].get(),
+            play.results.before[0].get(),
+            play.results.totals[0].get(),
         ],
     };
     rc2k_core::screens::player_result::rally_result(

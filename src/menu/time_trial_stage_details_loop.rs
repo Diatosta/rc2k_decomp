@@ -8,27 +8,20 @@
 //! A reading, not yet a visit: its draw list 0x758CFE is the one of
 //! `screens::draw_time_trial_stage_info`, a confirmed screen; it sets `dword_755700` to 1 first.
 //! Callers: `sub_47037E`.
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || {
-        crate::menu::owner::menus()
-            .tables
-            .menus
-            .time_trial_stage_details
-            .id()
-    },
-    saved_item: || {
-        &crate::menu::owner::menus().screens.items.current[slot::TIME_TRIAL_STAGE_DETAILS]
-    },
+    menu: || menus().tables.menus.time_trial_stage_details.id(),
+    saved_item: || &menus().screens.items.current[slot::TIME_TRIAL_STAGE_DETAILS],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
             table: || {
-                crate::menu::owner::menus()
+                menus()
                     .tables
                     .draw_lists
                     .time_trial_stage_details_scene
@@ -37,20 +30,14 @@ pub const SCREEN: Screen = Screen {
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .time_trial_stage_details_draw
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.time_trial_stage_details_draw.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
             table: || {
-                crate::menu::owner::menus()
+                menus()
                     .tables
                     .draw_lists
                     .time_trial_stage_details_overlay
@@ -62,10 +49,7 @@ pub const SCREEN: Screen = Screen {
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(
-        || &crate::menu::owner::menus().play.champ_view.stage_mode,
-        0x1,
-    )],
+    before: &[Step::Write(|| &menus().play.champ_view.stage_mode, 0x1)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],

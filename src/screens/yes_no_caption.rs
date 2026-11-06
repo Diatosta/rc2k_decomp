@@ -11,6 +11,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::strings::append_string_by_id::append_string_by_id;
 
 // ---- game data ----
@@ -22,12 +23,7 @@ const FIRST: u32 = 0x56B;
 
 /// Puts the answer's caption in the caption buffer.
 pub fn yes_no_caption() -> Result<(), Refused> {
-    let id = crate::menu::owner::menus()
-        .tables
-        .pages
-        .yes_no_answer
-        .get()
-        .wrapping_add(FIRST);
+    let id = menus().tables.pages.yes_no_answer.get().wrapping_add(FIRST);
     let mut text = Vec::new();
     append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
     // Converted: `rc2k_core::screens::captions::fit`.

@@ -9,6 +9,7 @@
 //! `scene::update_carousel_pictures`. One caller, `scene::draw_main_menu_objects`.
 
 use crate::errors::BadInput;
+use crate::menu::owner::menus;
 use crate::scene::carousel_pictures::update;
 
 // ---- game data ----
@@ -16,30 +17,14 @@ use crate::scene::carousel_pictures::update;
 // ---- Rust version ----
 
 pub fn choose_carousel_pictures() -> Result<(), BadInput> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::scene::carousel::{shows_pictures, visible_entries}`.
     use rc2k_core::scene::carousel::{shows_pictures, visible_entries};
-    if !shows_pictures(
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .menu
-            .get(),
-    ) {
+    if !shows_pictures(screens.state.carousel.menu.get()) {
         return Ok(());
     }
     update(visible_entries(
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .front
-            .get(),
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .count
-            .get(),
+        screens.state.carousel.front.get(),
+        screens.state.carousel.count.get(),
     ))
 }

@@ -4,6 +4,7 @@
 //! list's address, `moved::point_into_homes` passes those places over). The first eight are the menus' (sprites 0xA ..), the last
 //! eight the in-race menus' (0x11 ..). Nothing changes them.
 
+use crate::menu::owner::menus;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -147,10 +148,9 @@ impl ItemSprite {
     pub fn raw(self) -> u32 {
         match self {
             Self::Sprite(n) => n,
-            Self::List(n) => crate::pointers::GamePtr::to(
-                &crate::menu::owner::menus().panels.item_sprites.lists[n],
-            )
-            .addr(),
+            Self::List(n) => {
+                crate::pointers::GamePtr::to(&menus().panels.item_sprites.lists[n]).addr()
+            }
         }
     }
 }

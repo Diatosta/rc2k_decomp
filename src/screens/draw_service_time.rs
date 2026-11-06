@@ -14,6 +14,7 @@
 //! The overrun pair of labels has not been seen.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -27,20 +28,12 @@ use crate::text::draw_text::Canvas;
 
 /// Returns the carry flag of the last `draw_text`.
 pub fn draw_service_time(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let screens = &menus().screens;
     // Converted: `rc2k_core::screens::service::service_time`.
 
     rc2k_core::screens::service::service_time(
         &mut crate::screens::game_screen::ServiceScreen::new(canvas),
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .service_minutes
-            .get() as i32,
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .driver_stats
-            .repair_time
-            .get() as i32,
+        screens.event.service_minutes.get() as i32,
+        screens.state.driver_stats.repair_time.get() as i32,
     )
 }

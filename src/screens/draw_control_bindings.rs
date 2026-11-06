@@ -17,6 +17,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::screens::controls_store::CONTROLS_SCREEN;
 use crate::screens::game_screen::ControlsScreen;
 use crate::text::draw_text::Canvas;
@@ -57,13 +58,8 @@ pub fn binding_text(
 
 /// Returns the carry.
 pub fn draw_control_bindings(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let Some(player) = crate::menu::player::player(
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .get(),
-    ) else {
+    let Some(player) = crate::menu::player::player(menus().screens.event.current_player.get())
+    else {
         return Err(BadInput("no current player").into());
     };
     let learning: u32 = CONTROLS_SCREEN.learning.get();

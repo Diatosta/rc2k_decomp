@@ -20,6 +20,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::go_back;
+use crate::menu::owner::menus;
 use crate::service::clear_repair_flags::clear_repair_flags;
 use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
@@ -42,11 +43,7 @@ type Editor = fn(bool) -> Result<(), Refused>;
 pub fn highlighted_slot() -> u32 {
     // Converted: `rc2k_core::service::setups::highlighted_slot`.
     rc2k_core::service::setups::highlighted_slot(
-        crate::menu::owner::menus()
-            .tables
-            .pages
-            .setup_slot_page
-            .get(),
+        menus().tables.pages.setup_slot_page.get(),
         menu_item(),
     )
 }
@@ -54,6 +51,7 @@ pub fn highlighted_slot() -> u32 {
 // ---- Rust version ----
 
 pub fn load_setup_slot() -> Result<(), Refused> {
+    let screens = &menus().screens;
     let slot = highlighted_slot();
     let Some(player) = current_player() else {
         return Err(BadInput("no current player object: the original writes through null").into());
@@ -100,19 +98,11 @@ pub fn load_setup_slot() -> Result<(), Refused> {
             _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
         };
         if change.change.chosen.get() != change.change.installed.get() {
-            crate::menu::owner::menus()
-                .screens
-                .loop_flags
-                .item
-                .set(change.item);
+            screens.loop_flags.item.set(change.item);
             edit(true)?;
         }
     }
-    crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .item
-        .set(highlighted);
+    screens.loop_flags.item.set(highlighted);
     go_back::go_back();
     Ok(())
 }

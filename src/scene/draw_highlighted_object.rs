@@ -24,6 +24,7 @@
 //! `run` (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -43,23 +44,19 @@ use crate::scene::object_store::OBJECT_WORK;
 
 /// `sub_49007F`: the highlighted item's object set up and drawn by `draw`.
 pub fn draw_highlighted(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let item = crate::menu::owner::menus()
-        .screens
-        .loop_flags
-        .item
-        .get()
-        .wrapping_sub(1);
+    let screens = &menus().screens;
+    let item = screens.loop_flags.item.get().wrapping_sub(1);
     if item >= ENTRIES {
         return Err(BadInput("a highlighted item of 0 or past the carousel's kinds").into());
     }
-    let kind = crate::menu::owner::menus().screens.state.carousel.kinds[item as usize].get();
+    let kind = screens.state.carousel.kinds[item as usize].get();
     let own = (kind as i32 > 0x258).then(|| kind.wrapping_sub(0x259));
     if own.is_some_and(|own| own >= OWN) {
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
     let clock: u32 = PHYSICS.scene_clock.bits();
     OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
-    OBJECT_WORK.place[2].set(crate::menu::owner::menus().screens.state.carousel.z.get());
+    OBJECT_WORK.place[2].set(screens.state.carousel.z.get());
     OBJECT_WORK.place[0].set_bits(0u32);
     if let Some(own) = own {
         let [size, y, angle] = own_place(own)?;
@@ -71,12 +68,7 @@ pub fn draw_highlighted(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result
             OBJECT_WORK.angles[0].set_bits(angle);
         }
     }
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .kind
-        .set(kind);
+    screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind);
     FRAME_SWITCHES.object_number.set_bits(object);
     draw()

@@ -10,6 +10,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::menu::player::{Player, player};
 use crate::screens::car_caption::put_string;
 
@@ -19,14 +20,8 @@ const FIRST_STRING: u32 = 0x21F;
 const _: () = assert!(std::mem::offset_of!(Player, gearing) == 0x30);
 
 pub fn current() -> Result<&'static crate::session::Shared<Player>, Refused> {
-    Ok(player(
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .get(),
-    )
-    .ok_or(BadInput("a current player past the four"))?)
+    Ok(player(menus().screens.event.current_player.get())
+        .ok_or(BadInput("a current player past the four"))?)
 }
 
 pub fn gearing_text() -> Result<(), Refused> {
@@ -36,19 +31,16 @@ pub fn gearing_text() -> Result<(), Refused> {
         crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.title),
         TEXT_LEN,
     )?;
-    crate::menu::owner::menus()
-        .screens
-        .flow
-        .shown_gearing
-        .set(value);
+    menus().screens.flow.shown_gearing.set(value);
     Ok(())
 }
 
 /// `menu::next_gearing` / `menu::previous_gearing`: `dword_7554F0` on (past 2 to 0) or back
 /// (below 0 to 2, both signed), the current player's `gearing` it, and its text.
 pub fn step_gearing(on: bool) -> Result<(), Refused> {
+    let screens = &menus().screens;
     let p = current()?;
-    let kept = crate::menu::owner::menus().screens.flow.shown_gearing.get() as i32;
+    let kept = screens.flow.shown_gearing.get() as i32;
     // Converted: `rc2k_core::screens::captions::step_gearing`.
     let value = rc2k_core::screens::captions::step_gearing(kept, on);
     put_string(
@@ -56,11 +48,7 @@ pub fn step_gearing(on: bool) -> Result<(), Refused> {
         crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.title),
         TEXT_LEN,
     )?;
-    crate::menu::owner::menus()
-        .screens
-        .flow
-        .shown_gearing
-        .set(value);
+    screens.flow.shown_gearing.set(value);
     p.update(|p| p.gearing = value);
     Ok(())
 }

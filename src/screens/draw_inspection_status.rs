@@ -18,6 +18,7 @@
 //! `draw_car_condition` before the screenshot.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::service::state::{current_player, repair_flag};
 use crate::text::draw_text::Canvas;
 
@@ -34,22 +35,13 @@ pub fn inspection_status(
     player: crate::menu::standings::PlayerCell,
 ) -> Result<(i32, Option<u32>), crate::errors::BadInput> {
     use rc2k_core::screens::inspection::{PARTS, Part, status};
+    let screens = &menus().screens;
     let parts: [Part; 13] = std::array::from_fn(|n| {
         let item = PARTS[n];
         Part {
             damage: player.get().damage[item as usize - 2] as i32,
-            threshold: crate::menu::owner::menus()
-                .screens
-                .state
-                .driver_stats
-                .limits[item as usize - 2]
-                .get() as i32,
-            weight: crate::menu::owner::menus()
-                .screens
-                .state
-                .driver_stats
-                .penalties[item as usize - 2]
-                .get() as i32,
+            threshold: screens.state.driver_stats.limits[item as usize - 2].get() as i32,
+            weight: screens.state.driver_stats.penalties[item as usize - 2].get() as i32,
             repairing: repair_flag(item) != 0,
         }
     });

@@ -5,6 +5,7 @@
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
+use crate::menu::owner::menus;
 use crate::physics::car_store::Car;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::vars_store::RACE_VARS;
@@ -159,11 +160,7 @@ pub fn race_keys() -> Result<(), Refused> {
             if second {
                 // The "up" step reads `dword_75568C`, not the music's volume (see bugs).
                 let from: u32 = if up {
-                    crate::menu::owner::menus()
-                        .screens
-                        .option_work
-                        .other_volume
-                        .get()
+                    menus().screens.option_work.other_volume.get()
                 } else {
                     crate::sound::owner::sound()
                         .menu

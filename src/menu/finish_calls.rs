@@ -1,5 +1,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::menus;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
@@ -54,6 +55,7 @@ impl Game {
 
 /// The variables that are in static cells.
 fn cell(v: Var) -> Option<&'static Dword> {
+    let menus = menus();
     Some(match v {
         Var::On => &RACE_STATE.results.finished,
         Var::Kept => &RACE_STATE.settings.kept,
@@ -62,8 +64,8 @@ fn cell(v: Var) -> Option<&'static Dword> {
         Var::SetUpDriver => &RACE_STATE.results.finish_kind,
         Var::SetUpDriver2 => &RACE_STATE.settings.car_kind_current,
         Var::SetUpSection => &RACE_STATE.results.stage_index,
-        Var::EventMode => &crate::menu::owner::menus().play.champ_view.event_mode,
-        Var::Section => &crate::menu::owner::menus().screens.event.section,
+        Var::EventMode => &menus.play.champ_view.event_mode,
+        Var::Section => &menus.screens.event.section,
         _ => return None,
     })
 }

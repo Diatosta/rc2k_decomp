@@ -11,6 +11,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, log_line, screen_entry,
@@ -31,51 +32,27 @@ fn after(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || crate::menu::owner::menus().tables.menus.view_courses.id(),
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::VIEW_COURSES],
+    menu: || menus().tables.menus.view_courses.id(),
+    saved_item: || &menus().screens.items.current[slot::VIEW_COURSES],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .view_courses_scene
-                    .id()
-            },
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
+            table: || menus().tables.draw_lists.view_courses_scene.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .view_courses_draw
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.view_courses_draw.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.setup_list, // dword_755500
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .view_courses_setup
-                    .id()
-            },
+            pointer: || &menus().screens.flow.setup_list, // dword_755500
+            table: || menus().tables.draw_lists.view_courses_setup.id(),
             run: true,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .view_courses_overlay
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.view_courses_overlay.id(),
             run: false,
         },
     ],
@@ -83,23 +60,14 @@ pub const SCREEN: Screen = Screen {
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[
-        Step::Write(
-            || &crate::menu::owner::menus().play.champ_view.stage_mode,
-            0x1,
-        ),
-        Step::Write(
-            || &crate::menu::owner::menus().screens.event.stage_group,
-            0x0,
-        ),
-        Step::Write(
-            || &crate::menu::owner::menus().screens.event.stage_number,
-            0x1,
-        ),
-        Step::Write(|| &crate::menu::owner::menus().screens.event.stage_sub, 0x0),
-        Step::Write(|| &crate::menu::owner::menus().play.arcade.level, 0x0),
-        Step::Write(|| &crate::menu::owner::menus().play.arcade.stage, 0x1),
-        Step::Write(|| &crate::menu::owner::menus().screens.event.section, 0x0),
-        Step::Write(|| &crate::menu::owner::menus().screens.event.index, 0x0),
+        Step::Write(|| &menus().play.champ_view.stage_mode, 0x1),
+        Step::Write(|| &menus().screens.event.stage_group, 0x0),
+        Step::Write(|| &menus().screens.event.stage_number, 0x1),
+        Step::Write(|| &menus().screens.event.stage_sub, 0x0),
+        Step::Write(|| &menus().play.arcade.level, 0x0),
+        Step::Write(|| &menus().play.arcade.stage, 0x1),
+        Step::Write(|| &menus().screens.event.section, 0x0),
+        Step::Write(|| &menus().screens.event.index, 0x0),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],

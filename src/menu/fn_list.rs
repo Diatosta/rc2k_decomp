@@ -6,6 +6,7 @@
 
 use crate::errors::BadInput;
 use crate::menu::draw_lists_store::DrawLists;
+use crate::menu::owner::menus;
 use crate::session::Dword;
 
 /// A function list: its first entry's place.
@@ -21,7 +22,7 @@ pub enum FnList {
 fn draw_dwords() -> &'static [Dword] {
     const N: usize = size_of::<DrawLists>() / size_of::<Dword>();
     const _: () = assert!(size_of::<DrawLists>().is_multiple_of(size_of::<Dword>()));
-    crate::pointers::dwords_in::<_, N>(&crate::menu::owner::menus().tables.draw_lists, 0)
+    crate::pointers::dwords_in::<_, N>(&menus().tables.draw_lists, 0)
 }
 
 impl FnList {
@@ -30,7 +31,7 @@ impl FnList {
     pub fn entries(self) -> &'static [Dword] {
         match self {
             FnList::Draw(n) => &draw_dwords()[n as usize..],
-            FnList::Menus => &crate::menu::owner::menus().tables.lists.draw_list,
+            FnList::Menus => &menus().tables.lists.draw_list,
         }
     }
 
@@ -86,19 +87,11 @@ mod tests {
 
     #[test]
     fn lists_by_handle() {
-        let l = crate::menu::owner::menus()
-            .tables
-            .draw_lists
-            .list_758eae
-            .from(2);
+        let tables = &menus().tables;
+        let l = tables.draw_lists.list_758eae.from(2);
         assert_eq!(
             l.entries()[0].get(),
-            crate::menu::owner::menus()
-                .tables
-                .draw_lists
-                .list_758eae
-                .entries[2]
-                .get()
+            tables.draw_lists.list_758eae.entries[2].get()
         );
         let c = ListCell::new();
         assert!(c.get().is_err());
@@ -106,13 +99,6 @@ mod tests {
         assert_eq!(c.get().unwrap(), l);
         c.set(FnList::Menus);
         assert_eq!(c.get().unwrap(), FnList::Menus);
-        assert_eq!(
-            crate::menu::owner::menus()
-                .tables
-                .draw_lists
-                .unread_758b72
-                .id(),
-            FnList::Draw(0)
-        );
+        assert_eq!(tables.draw_lists.unread_758b72.id(), FnList::Draw(0));
     }
 }

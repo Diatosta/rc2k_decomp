@@ -7,6 +7,7 @@
 //! 4, a missing player, no table, and what an entry refuses, before anything.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
@@ -16,18 +17,11 @@ use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn best_overall_scores() -> Result<(), Refused> {
+    let screens = &menus().screens;
     let players = counted_players()?;
-    crate::menu::owner::menus()
-        .screens
-        .event
-        .any_time_qualified
-        .set(0u32);
+    screens.event.any_time_qualified.set(0u32);
     for (n, &p) in players.iter().enumerate() {
-        crate::menu::owner::menus()
-            .screens
-            .event
-            .current_player
-            .set(n as u32);
+        screens.event.current_player.set(n as u32);
         let player_score = p.get().overall_points[6];
         // The tenth entry's offset (the original leaves its address in esi, which the
         // screen's lists set before anything reads it).
@@ -35,20 +29,10 @@ pub fn best_overall_scores() -> Result<(), Refused> {
         let tenth = tenth_best_score(4)?;
         if rc2k_core::menu::bests::makes_score(player_score, tenth) {
             enter_best(Some(4), |p| p.overall_points[6])?;
-            crate::menu::owner::menus()
-                .screens
-                .event
-                .any_time_qualified
-                .set(1u32);
+            screens.event.any_time_qualified.set(1u32);
         }
     }
-    if crate::menu::owner::menus()
-        .screens
-        .event
-        .any_time_qualified
-        .get()
-        == 1
-    {
+    if screens.event.any_time_qualified.get() == 1 {
         run_screen(
             &crate::menu::best_overall_scores_loop::SCREEN,
             &Entry::default(),

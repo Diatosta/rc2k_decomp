@@ -17,6 +17,7 @@
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
+use crate::menu::owner::menus;
 use crate::menu::standings::*;
 
 const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
@@ -39,7 +40,8 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused>
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn award_stage_points() -> Result<(), Refused> {
-    let classes: u32 = crate::menu::owner::menus().screens.event.classes.get();
+    let screens = &menus().screens;
+    let classes: u32 = screens.event.classes.get();
     let section: u32 = SECTION_RVA.get();
     if classes == 0 || classes > 0x100 || section > 5 {
         return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
@@ -53,24 +55,16 @@ pub fn award_stage_points() -> Result<(), Refused> {
     use rc2k_core::menu::points::{Points, kept, total};
     for class in 0..classes {
         let mut points = Points::default();
-        crate::menu::owner::menus()
-            .screens
-            .draw_work
-            .seconds
-            .set(points.0);
+        screens.draw_work.seconds.set(points.0);
         for (e, o) in all.iter_mut().zip(&owners) {
-            crate::menu::owner::menus().screens.event.class.set(class);
+            screens.event.class.set(class);
             if e.group != class {
                 continue;
             }
             crate::logfile::log_write::log_nul(&STATUS_TEXT_RVA, false, 1);
             crate::logfile::log_int::log_int(e.status as i32, true, 1);
             let given = points.take();
-            crate::menu::owner::menus()
-                .screens
-                .draw_work
-                .seconds
-                .set(points.0);
+            screens.draw_work.seconds.set(points.0);
             let keeps = match *o {
                 Owner::Driver(d) => d.in_event.get() == IN_EVENT,
                 Owner::Player(p) => p.get().entry == 1,

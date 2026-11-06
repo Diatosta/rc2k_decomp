@@ -23,6 +23,7 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
+use crate::menu::owner::menus;
 use crate::session::SCREEN;
 use rc2k_core::menu::films::{self, Film, Flags, Step};
 
@@ -69,16 +70,11 @@ struct Game {
 }
 
 fn film(f: Film) -> crate::pointers::GamePtr {
+    let panels = &menus().panels;
     match f {
-        Film::AlLogo => {
-            crate::pointers::GamePtr::to(&crate::menu::owner::menus().panels.films.allogo)
-        }
-        Film::MfLogo => {
-            crate::pointers::GamePtr::to(&crate::menu::owner::menus().panels.films.mflogo)
-        }
-        Film::Intro => {
-            crate::pointers::GamePtr::to(&crate::menu::owner::menus().panels.films.intro)
-        }
+        Film::AlLogo => crate::pointers::GamePtr::to(&panels.films.allogo),
+        Film::MfLogo => crate::pointers::GamePtr::to(&panels.films.mflogo),
+        Film::Intro => crate::pointers::GamePtr::to(&panels.films.intro),
     }
 }
 
@@ -185,18 +181,15 @@ mod films_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &crate::menu::owner::menus().panels.films,
-            FILMS_START,
-            FILMS_START + FILMS_LEN,
-        );
+        let panels = &menus().panels;
+        crate::gfx::first_values_are_the_games(&panels.films, FILMS_START, FILMS_START + FILMS_LEN);
         assert_eq!(
             crate::moved::place(0x52980B),
-            crate::menu::owner::menus().panels.films.mflogo.addr() as usize
+            panels.films.mflogo.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x529822),
-            crate::menu::owner::menus().panels.films.allogo.addr() as usize
+            panels.films.allogo.addr() as usize
         );
     }
 }

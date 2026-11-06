@@ -26,6 +26,7 @@
 //! of 0x100 or more and a kind past the records.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::menus;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
@@ -58,7 +59,7 @@ pub(crate) use crate::scene::find_object_of_kind::find_object_of_kind;
 /// A kind's own place: its size, y and angle (`unk_75950E`, 12 bytes each). The original
 /// reads on past the table's 73 for a kind below `OWN` (fixed: refused).
 pub(crate) fn own_place(own: u32) -> Result<[u32; 3], BadInput> {
-    let place = crate::menu::owner::menus()
+    let place = menus()
         .tables
         .lists
         .own_places
@@ -69,31 +70,17 @@ pub(crate) fn own_place(own: u32) -> Result<[u32; 3], BadInput> {
 
 /// Reads only.
 fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
+    let screens = &menus().screens;
     if entry >= ENTRIES {
         return Err(BadInput("a carousel entry past the table"));
     }
     let [spacing, y, z, forward] = [
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .spacing
-            .get(),
-        crate::menu::owner::menus().screens.state.carousel.y.get(),
-        crate::menu::owner::menus().screens.state.carousel.z.get(),
-        crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .forward
-            .get(),
+        screens.state.carousel.spacing.get(),
+        screens.state.carousel.y.get(),
+        screens.state.carousel.z.get(),
+        screens.state.carousel.forward.get(),
     ];
-    let turn: u32 = crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .angle
-        .get();
+    let turn: u32 = screens.state.carousel.angle.get();
     let high = |a: u32, b: u32| ((a as u64 * b as u64) >> 32) as u32;
     let x = high(spacing, !turn)
         .wrapping_add((spacing as i32).wrapping_mul(row.wrapping_sub(1) as i32) as u32);
@@ -108,7 +95,7 @@ fn settings(entry: u32, row: u32) -> Result<Settings, BadInput> {
         size: None,
         angle_x: 0,
         angle_y: ((clock as u16) << 3) as u32,
-        kind: crate::menu::owner::menus().screens.state.carousel.kinds[entry as usize].get(),
+        kind: screens.state.carousel.kinds[entry as usize].get(),
         object: 0,
     };
     if set.kind as i32 > 0x258 {
@@ -140,12 +127,7 @@ pub fn draw_carousel_entry(
     OBJECT_WORK.angles[0].set_bits(set.angle_x);
     OBJECT_WORK.angles[1].set_bits(set.angle_y);
     crate::session::write_bits(&DRAW.view_offset, [0u32; 2]);
-    crate::menu::owner::menus()
-        .screens
-        .state
-        .carousel
-        .kind
-        .set(set.kind);
+    menus().screens.state.carousel.kind.set(set.kind);
     FRAME_SWITCHES.object_number.set_bits(set.object);
     draw()
 }

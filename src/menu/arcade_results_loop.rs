@@ -8,98 +8,57 @@
 //! the question, the highlight is not saved; its own 3D list goes to `g_sceneList` before the first
 //! frame only. Named by its address until then.
 //! Callers: `sub_487E2C`.
+use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || crate::menu::owner::menus().tables.menus.arcade_results.id(),
-    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::ARCADE_RESULTS],
+    menu: || menus().tables.menus.arcade_results.id(),
+    saved_item: || &menus().screens.items.current[slot::ARCADE_RESULTS],
     lists: &[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.unread_list, // g_unreadList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .unread_758b72
-                    .id()
-            },
+            pointer: || &menus().screens.flow.unread_list, // g_unreadList
+            table: || menus().tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .draw_758e76
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.draw_758e76.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overlay_7592be
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.overlay_7592be.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .arcade_results_scene
-                    .id()
-            },
+            pointer: || &menus().screens.flow.scene_list, // g_sceneList
+            table: || menus().tables.draw_lists.arcade_results_scene.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .draw_758e76
-                    .id()
-            },
+            pointer: || &menus().screens.flow.draw_list, // g_drawList
+            table: || menus().tables.draw_lists.draw_758e76.id(),
             run: false,
         },
         List {
-            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
-            table: || {
-                crate::menu::owner::menus()
-                    .tables
-                    .draw_lists
-                    .overlay_7592be
-                    .id()
-            },
+            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
+            table: || menus().tables.draw_lists.overlay_7592be.id(),
             run: false,
         },
     ]),
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(
-        || &crate::menu::owner::menus().screens.event.event_done,
-        0x0,
-    )],
+    before: &[Step::Write(|| &menus().screens.event.event_done, 0x0)],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::owner::menus()
-            .tables
-            .texts
-            .arcade_results_picture
+        &menus().tables.texts.arcade_results_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -107,7 +66,7 @@ pub const SCREEN: Screen = Screen {
     confirmed: &[],
     unasked_skips_save: true,
     after: &[Step::Write(
-        || &crate::menu::owner::menus().screens.option_work.menu_sound,
+        || &menus().screens.option_work.menu_sound,
         0x6F,
     )],
     escape_leaves: false,

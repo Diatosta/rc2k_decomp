@@ -12,6 +12,7 @@
 //! `scene::draw_main_menu_carousel`.
 
 use crate::errors::Refused;
+use crate::menu::owner::menus;
 use crate::scene::draw_carousel_entry::draw_carousel_entry;
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 
@@ -28,32 +29,13 @@ pub fn draw_carousel(
     entry: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::carousel::{Drawn, drawn};
+    let screens = &menus().screens;
     {
-        let count: u32 = crate::menu::owner::menus()
-            .screens
-            .state
-            .carousel
-            .count
-            .get();
+        let count: u32 = screens.state.carousel.count.get();
         match drawn(
             count,
-            || {
-                crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .front
-                    .get()
-            },
-            || {
-                crate::menu::owner::menus()
-                    .screens
-                    .state
-                    .carousel
-                    .angle
-                    .get()
-                    != 0
-            },
+            || screens.state.carousel.front.get(),
+            || screens.state.carousel.angle.get() != 0,
         ) {
             Drawn::Nothing => Ok(()),
             Drawn::Lone => entry(0, lone_row),

@@ -16,6 +16,7 @@
 
 use crate::errors::Refused;
 use crate::menu::fn_list::ListCell;
+use crate::menu::owner::menus;
 use crate::menu::table_calls::call_listed;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
 use crate::scene::light_store::LIGHT_STATE;
@@ -70,6 +71,7 @@ pub fn draw_menu(menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> 
 /// `menu` is edi at entry. Returns whether the
 /// frame was made (the original's clear carry).
 pub fn frame_callback(menu: crate::menu::menus_store::MenuId) -> Result<bool, Refused> {
+    let play = &menus().play;
     if lock_failed() {
         return Ok(false);
     }
@@ -87,9 +89,9 @@ pub fn frame_callback(menu: crate::menu::menus_store::MenuId) -> Result<bool, Re
     run_listed(OVERLAY_LIST)?;
     // Converted: `rc2k_core::menu::notice::drawn_now`.
     if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
-        crate::menu::owner::menus().play.cheats.notice_due.get()
+        play.cheats.notice_due.get()
     }) {
-        crate::menu::owner::menus().play.cheats.notice_due.set(0u32);
+        play.cheats.notice_due.set(0u32);
         crate::text::draw_string_by_id::draw_string_by_id_at(
             notice::STRING,
             NOTICE_FONT.game_ptr(),
