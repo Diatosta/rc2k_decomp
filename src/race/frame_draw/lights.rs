@@ -273,12 +273,8 @@ pub(super) fn lamp_lights_on_point() -> Result<(), BadInput> {
             let tint = lamp[2].get();
             LIGHT_WORK.lamp_tint.set(tint);
             let point = lamp[0].get();
-            let coordinate = |k| crate::race::scene_points::point_word(point, k);
-            let d = [
-                coordinate(0)?.wrapping_sub(place[0].get()),
-                coordinate(1)?.wrapping_sub(place[1].get()),
-                coordinate(2)?.wrapping_sub(place[2].get()),
-            ];
+            let at = crate::race::scene_points::point_number(point)?;
+            let d: [u32; 3] = std::array::from_fn(|k| at[k].wrapping_sub(place[k].get()));
             let [distance, _, _] = crate::scene::approximate_distance::approximate_distance(d);
             DRAW.scratch.set_bits(distance);
             let (grey, _) = rc2k_core::race::lights::lamp_grey(

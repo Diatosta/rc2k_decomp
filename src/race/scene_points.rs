@@ -133,6 +133,12 @@ pub fn point_number(n: u32) -> Result<[u32; 3], BadInput> {
     point(place(n))
 }
 
+/// Point `n`'s x and z, read as one point.
+#[track_caller]
+pub fn point_xz(n: u32) -> Result<(u32, u32), BadInput> {
+    point_number(n).map(|[x, _, z]| (x, z))
+}
+
 /// Point `from` copied over point `to` (as `bytes` reads `from`).
 #[track_caller]
 pub fn copy_point(from: u32, to: u32) -> Result<(), BadInput> {

@@ -98,11 +98,9 @@ fn turned_to_view(f: &Face, triangle: usize) -> Result<u32, BadInput> {
         }
         let p = f.point(1 + triangle);
         let normal = f.normal(triangle);
-        let along = |k: u32, view_at: &Float, normal: u32| -> Result<_, BadInput> {
-            Ok(
-                (int(crate::race::scene_points::point_word(p, k)? as i32) - ld(view_at.bits()))
-                    * ld(normal),
-            )
+        let at = crate::race::scene_points::point_number(p)?;
+        let along = |k: usize, view_at: &Float, normal: u32| -> Result<_, BadInput> {
+            Ok((int(at[k] as i32) - ld(view_at.bits())) * ld(normal))
         };
         let place = &VIEW_VARS.view_place_f;
         let (x, y, z) = (
@@ -406,14 +404,10 @@ pub fn face_texture_coordinates(set: &TextureSet) -> Result<(), BadInput> {
         let trap = Trap::new();
         let c = texture_coordinates(texture_info, pairs, |k| {
             let n: u32 = RACE_VIEW.corners[k].get();
-            let w = |k: u32| match crate::race::scene_points::point_word(n, k) {
-                Ok(v) => v,
-                Err(e) => {
-                    trap.keep(e);
-                    0
-                }
-            };
-            (w(0), w(2))
+            crate::race::scene_points::point_xz(n).unwrap_or_else(|e| {
+                trap.keep(e);
+                (0, 0)
+            })
         });
         trap.finish()?;
         set.size.set(c.size);
@@ -729,12 +723,13 @@ pub fn draw_lit_triangle() -> Result<(), Refused> {
         let v = crate::scene::point_records::of_quad(k as u32);
         let pa = entry(first).point.get();
         let pb = entry(second).point.get();
+        let (at_a, at_b) = (
+            crate::race::scene_points::point_number(pa)?,
+            crate::race::scene_points::point_number(pb)?,
+        );
         for (n, lit) in LIGHT_STATE.lit_place.iter().enumerate() {
             let o = 4 * n as u32;
-            let (a, b) = (
-                crate::race::scene_points::point_word(pa, n as u32)?,
-                crate::race::scene_points::point_word(pb, n as u32)?,
-            );
+            let (a, b) = (at_a[n], at_b[n]);
             let m = ((b.wrapping_sub(a) as i32) >> 1) as u32;
             let m = m.wrapping_add(a);
             crate::scene::point_records::put_field(v, o, m)?;

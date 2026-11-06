@@ -14,7 +14,7 @@ use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
-use crate::race::scene_points::{point_word, put_point_word};
+use crate::race::scene_points::{point_word, point_xz, put_point_word};
 use crate::race::shadow_skids_store::{SHADOW_SKIDS, ShadowPoint};
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
@@ -188,8 +188,9 @@ fn work_entry(n: u32) -> Result<&'static PolygonEntry, BadInput> {
 /// of whole numbers on the x87 (the original's instructions) above 0, or not a number
 /// (`fldz; fcompp`, C0). The point's x and z into `GROUND_WORK.ground_x` / `GROUND_WORK.ground_z`.
 fn inside_edge(n: u32) -> Result<bool, BadInput> {
-    GROUND_WORK.ground_x.set(point_word(n, 0)?);
-    GROUND_WORK.ground_z.set(point_word(n, 2)?);
+    let (x, z) = point_xz(n)?;
+    GROUND_WORK.ground_x.set(x);
+    GROUND_WORK.ground_z.set(z);
     use crate::math::x87_float::{X, compare, int};
     let word = |d: &crate::session::Dword| int(d.bits() as i32);
     let (x, z) = (&GROUND_WORK.ground_x, &GROUND_WORK.ground_z);
@@ -250,10 +251,11 @@ fn edge_crossing(ea: &PolygonEntry, eb: &PolygonEntry, ed: &PolygonEntry) -> Res
         let c = &FRAME_WORK.shadow_corners;
         let w = &FRAME_WORK.shadow_work;
         let rd = |d: &crate::session::Dword| d.bits();
-        w[1].set(point_word(pb, 0)?);
-        w[5].set(point_word(pb, 2)?);
-        w[0].set(point_word(pa, 0)?);
-        w[4].set(point_word(pa, 2)?);
+        let ((bx, bz), (ax, az)) = (point_xz(pb)?, point_xz(pa)?);
+        w[1].set(bx);
+        w[5].set(bz);
+        w[0].set(ax);
+        w[4].set(az);
         w[2].set(rd(&c[0]));
         w[3].set(rd(&c[2]));
         w[6].set(rd(&c[1]));
@@ -287,10 +289,11 @@ fn clip_to_edge(from: u32, to: u32) -> Result<(), BadInput> {
         if count < 3 {
             return Ok(());
         }
-        FRAME_WORK.shadow_corners[2].set(point_word(to, 0)?);
-        FRAME_WORK.shadow_corners[3].set(point_word(to, 2)?);
-        FRAME_WORK.shadow_corners[0].set(point_word(from, 0)?);
-        FRAME_WORK.shadow_corners[1].set(point_word(from, 2)?);
+        let ((tx, tz), (fx, fz)) = (point_xz(to)?, point_xz(from)?);
+        FRAME_WORK.shadow_corners[2].set(tx);
+        FRAME_WORK.shadow_corners[3].set(tz);
+        FRAME_WORK.shadow_corners[0].set(fx);
+        FRAME_WORK.shadow_corners[1].set(fz);
         let (list, old) = (&POLYGON_WORK.list, &POLYGON_WORK.old_list);
         copy_on_in(
             (&crate::race::buffers_store::BUFFERS, list),
@@ -381,14 +384,10 @@ pub fn clip_shadow_to_face() -> Result<(), BadInput> {
         let found = rc2k_core::race::shadow::face_near(
             (CAR.position[0].bits(), CAR.position[2].bits()),
             |n| {
-                let w = |k: u32| match point_word(corners[n], k) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        trap.keep(e);
-                        0
-                    }
-                };
-                (w(0), w(2))
+                point_xz(corners[n]).unwrap_or_else(|e| {
+                    trap.keep(e);
+                    (0, 0)
+                })
             },
         );
         trap.finish()?;
@@ -416,8 +415,9 @@ fn raise_onto_face(index: u32) -> Result<(), Refused> {
     for k in 0..3 {
         GROUND_WORK.face_corner_numbers[k].set_bits(FRAME_WORK.shadow_light[k].bits());
     }
-    GROUND_WORK.ground_x.set(point_word(p, 0)?);
-    GROUND_WORK.ground_z.set(point_word(p, 2)?);
+    let (x, z) = point_xz(p)?;
+    GROUND_WORK.ground_x.set(x);
+    GROUND_WORK.ground_z.set(z);
     face_shares_at()?;
     crate::physics::plane_height::plane_height();
     put_point_word(
