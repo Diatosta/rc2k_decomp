@@ -44,11 +44,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{X, int, ld, st};
-use crate::pointers::GamePtr;
+
 use crate::scene::x87_mem::{Base, fild, fld, mov};
 use crate::session::MACHINE;
 use crate::sound::sets_store::KindRecord;
-use rc2k_core::sound::engine::{Left, Words, extrapolation, over_256, readings, state};
+use rc2k_core::sound::engine::{Engine, Left, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
 /// The kind of object `o` (its +4, a number into the kinds' table), or a refusal.
@@ -63,41 +63,99 @@ pub fn kind_of(o: &crate::sound::store::SoundObject) -> Result<u32, BadInput> {
 
 // ---- Rust version ----
 
-/// The object's dwords where the original reads and writes them. The core's reads and
-/// writes have no failure to give: the first refusal is kept, and the caller asks for it.
-struct Object {
-    at: GamePtr,
-    failed: std::cell::Cell<Option<BadInput>>,
+/// The object's dwords the engine works on, taken as values.
+fn load(o: &crate::sound::store::SoundObject) -> Engine {
+    Engine {
+        new_revs: o.new_revs.get(),
+        revs: o.revs.get(),
+        throttle: o.throttle.get(),
+        gear_event: o.gear_event.get(),
+        no_gear: o.no_gear.get(),
+        reading_times: [o.reading_times[0].get(), o.reading_times[1].get()],
+        reading_revs: [o.reading_revs[0].get(), o.reading_revs[1].get()],
+        gear: o.gear.get(),
+        last_gear: o.last_gear.get(),
+        gear_notice: o.gear_notice.get(),
+        countdown: o.countdown.get(),
+        wait_flag: o.wait_f8.get(),
+        last_direction: o.last_direction.get(),
+        state: o.state.get(),
+        last_state: o.last_state.get(),
+        smooth_throttle: o.smooth_throttle.get(),
+        gap_time: o.gap_time.get(),
+        turns_up: o.turns_up.get(),
+        direction: o.direction.get(),
+        turns_down: o.turns_down.get(),
+        drop_sound: o.slots[5].sound.get(),
+        drop_start: o.slots[5].start.get(),
+        backfire_start: o.slots[6].start.get(),
+        backfire_playing: o.slots[6].playing.get(),
+        backfire_volume: o.slots[6].volume.get(),
+        backfire_wait: o.backfire_wait.get(),
+        gear_slot_start: o.gear_slot.start.get(),
+    }
 }
 
-impl Object {
-    fn new(o: &crate::sound::store::SoundObject) -> Self {
-        Self {
-            at: GamePtr::to(o),
-            failed: std::cell::Cell::new(None),
+/// The dwords `now` has changed from `before` put back in the object (the others are left
+/// alone, as the original never wrote them).
+fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
+    use crate::session::Dword;
+    let put = |cell: &Dword, was: u32, is: u32| {
+        if was != is {
+            cell.set(is);
         }
+    };
+    put(&o.new_revs, before.new_revs, now.new_revs);
+    put(&o.revs, before.revs, now.revs);
+    put(&o.gear_event, before.gear_event, now.gear_event);
+    put(&o.no_gear, before.no_gear, now.no_gear);
+    for n in 0..2 {
+        put(
+            &o.reading_times[n],
+            before.reading_times[n],
+            now.reading_times[n],
+        );
+        put(
+            &o.reading_revs[n],
+            before.reading_revs[n],
+            now.reading_revs[n],
+        );
     }
-
-    fn check(&self) -> Result<(), BadInput> {
-        self.failed.get().map_or(Ok(()), Err)
-    }
-}
-
-impl Words for Object {
-    fn get(&self, at: u32) -> u32 {
-        self.at
-            .offset(at)
-            .read("a sound object's dword")
-            .unwrap_or_else(|e| {
-                self.failed.set(self.failed.get().or(Some(e)));
-                0
-            })
-    }
-    fn set(&mut self, at: u32, value: u32) {
-        if let Err(e) = self.at.offset(at).write(value, "a sound object's dword") {
-            self.failed.set(self.failed.get().or(Some(e)));
-        }
-    }
+    put(&o.last_gear, before.last_gear, now.last_gear);
+    put(&o.gear_notice, before.gear_notice, now.gear_notice);
+    put(&o.countdown, before.countdown, now.countdown);
+    put(&o.wait_f8, before.wait_flag, now.wait_flag);
+    put(&o.last_direction, before.last_direction, now.last_direction);
+    put(&o.state, before.state, now.state);
+    put(&o.last_state, before.last_state, now.last_state);
+    put(
+        &o.smooth_throttle,
+        before.smooth_throttle,
+        now.smooth_throttle,
+    );
+    put(&o.gap_time, before.gap_time, now.gap_time);
+    put(&o.turns_up, before.turns_up, now.turns_up);
+    put(&o.direction, before.direction, now.direction);
+    put(&o.turns_down, before.turns_down, now.turns_down);
+    put(&o.slots[5].sound, before.drop_sound, now.drop_sound);
+    put(&o.slots[5].start, before.drop_start, now.drop_start);
+    put(&o.slots[6].start, before.backfire_start, now.backfire_start);
+    put(
+        &o.slots[6].playing,
+        before.backfire_playing,
+        now.backfire_playing,
+    );
+    put(
+        &o.slots[6].volume,
+        before.backfire_volume,
+        now.backfire_volume,
+    );
+    put(&o.backfire_wait, before.backfire_wait, now.backfire_wait);
+    put(
+        &o.gear_slot.start,
+        before.gear_slot_start,
+        now.gear_slot_start,
+    );
 }
 
 /// The object `so` brought up to date; its sound kind's number returned (the original's edi
@@ -107,7 +165,8 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     // `over_256`); the floats are the original's x87 still.
     let kind = kind_of(so)?;
     let record = crate::sound::sets_store::SoundKinds::record(kind)?;
-    let mut object = Object::new(so);
+    let before = load(so);
+    let mut object = before;
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let revs = extrapolation(&object, clock, || {
@@ -129,12 +188,15 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
         },
         &mut left,
     );
-    object.check()?;
+    store(so, &before, &object);
     x87_1(so, record);
     so.throttle_input
         .set_bits(over_256(from_int(so.throttle.get() as i32)));
     x87_2(so, &crate::sound::store::SURFACE_SOUNDS);
+    let before = load(so);
+    let mut object = before;
     let low = state(&mut object, || record.flags.get(), clock, &mut left);
+    store(so, &before, &object);
     if let Some(low) = low {
         MACHINE.scratch.set(low);
         x87_3(&MACHINE.scratch, so);
@@ -150,7 +212,6 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     if so.distance.bits() as i32 > 0x3F80_0000 {
         x87_6(so);
     }
-    object.check()?;
     Ok(kind)
 }
 
@@ -250,6 +311,57 @@ fn x87_6(bx: &crate::sound::store::SoundObject) {
     let t1 = ld(bx.distance.bits());
     let t2 = t0 / t1;
     bx.volume_factor.set_bits(st(t2));
+}
+
+#[cfg(test)]
+mod tests {
+    /// The engine's dwords sit where the core's offsets had them in the sound object.
+    #[test]
+    fn the_engine_words_sit_where_the_offsets_were() {
+        use crate::session::Dword;
+        let o = crate::sound::store::SoundObject::number(0).unwrap();
+        let base = crate::pointers::GamePtr::to(o).addr();
+        let at = |cell: &Dword| crate::pointers::GamePtr::to(cell).addr() - base;
+        let found = [
+            at(&o.new_revs),
+            at(&o.revs),
+            at(&o.throttle),
+            at(&o.gear_event),
+            at(&o.no_gear),
+            at(&o.reading_times[0]),
+            at(&o.reading_times[1]),
+            at(&o.reading_revs[0]),
+            at(&o.reading_revs[1]),
+            at(&o.gear),
+            at(&o.last_gear),
+            at(&o.gear_notice),
+            at(&o.countdown),
+            at(&o.wait_f8),
+            at(&o.last_direction),
+            at(&o.state),
+            at(&o.last_state),
+            at(&o.smooth_throttle),
+            at(&o.gap_time),
+            at(&o.turns_up),
+            at(&o.direction),
+            at(&o.turns_down),
+            at(&o.slots[5].sound),
+            at(&o.slots[5].start),
+            at(&o.slots[6].start),
+            at(&o.slots[6].playing),
+            at(&o.slots[6].volume),
+            at(&o.backfire_wait),
+            at(&o.gear_slot.start),
+        ];
+        assert_eq!(
+            found,
+            [
+                0x10, 0x14, 0x18, 0x20, 0x24, 0x94, 0x98, 0x9C, 0xA0, 0xE8, 0xEC, 0xF0, 0xF4, 0xF8,
+                0xFC, 0x10C, 0x110, 0x118, 0x11C, 0x128, 0x12C, 0x130, 0x1C4, 0x1C8, 0x1E0, 0x1E4,
+                0x1EC, 0x1F4, 0x1FC
+            ]
+        );
+    }
 }
 
 #[cfg(all(test, target_arch = "x86"))]

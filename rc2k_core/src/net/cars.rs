@@ -58,79 +58,8 @@ pub fn hud_bits(switches: [u32; 9]) -> u32 {
         .fold(0, |bits, (_, bit)| bits | bit)
 }
 
-/// A car's block's dwords set before it is cleared (`reset_cars`), in order: +0xAA8 the
-/// car's number + 1, +0x684 4, +0x28 2, +0x34, +0x30, +0x20, +0x3C 0x80.
-pub fn reset_fields(car: u32) -> [(u32, u32); 7] {
-    [
-        (0xAA8, car + 1),
-        (0x684, 4),
-        (0x28, 2),
-        (0x34, 0x80),
-        (0x30, 0x80),
-        (0x20, 0x80),
-        (0x3C, 0x80),
-    ]
-}
-
 /// The cars reset.
 pub const CARS: u32 = 8;
-
-/// A car's block's dwords cleared (`clear_car_state`), in the original's order, and what
-/// goes in them: 51 of them 0, +0x298 -1.
-pub const CLEARED: [(u32, u32); 52] = [
-    (0x2B8, 0),
-    (0x2BC, 0),
-    (0x310, 0),
-    (0x2C0, 0),
-    (0x2C4, 0),
-    (0x330, 0),
-    (0x2C8, 0),
-    (0x2CC, 0),
-    (0x344, 0),
-    (0x364, 0),
-    (0x350, 0),
-    (0x32C, 0),
-    (0x2F4, 0),
-    (0x30C, 0),
-    (0x2D0, 0),
-    (0x2D8, 0),
-    (0x2DC, 0),
-    (0x2E0, 0),
-    (0x2E4, 0),
-    (0x2E8, 0),
-    (0x2EC, 0),
-    (0x2F0, 0),
-    (0x2F8, 0),
-    (0x2FC, 0),
-    (0x300, 0),
-    (0x304, 0),
-    (0x308, 0),
-    (0x314, 0),
-    (0x318, 0),
-    (0x31C, 0),
-    (0x320, 0),
-    (0x324, 0),
-    (0x328, 0),
-    (0x334, 0),
-    (0x338, 0),
-    (0x33C, 0),
-    (0x340, 0),
-    (0x348, 0),
-    (0x34C, 0),
-    (0x354, 0),
-    (0x358, 0),
-    (0x35C, 0),
-    (0x360, 0),
-    (0x64, 0),
-    (0x68, 0),
-    (0x6C, 0),
-    (0x70, 0),
-    (0x74, 0),
-    (0x78, 0),
-    (0x7C, 0),
-    (0x80, 0),
-    (0x298, 0xFFFF_FFFF),
-];
 
 #[cfg(test)]
 mod tests {
@@ -155,7 +84,5 @@ mod tests {
             0x10 | 1 | 0x100 | 0x80
         );
         assert_eq!(hud_bits([0; 9]), 0);
-        assert_eq!(reset_fields(3)[0], (0xAA8, 4));
-        assert_eq!(CLEARED.iter().filter(|(_, v)| *v == 0).count(), 51);
     }
 }

@@ -19,14 +19,37 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
+use crate::net::send_inputs::fields;
 use crate::net::store::NET;
+use crate::physics::car_store::Car;
 use crate::pointers::GamePtr;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
+use crate::session::Dword;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
 /// g_carBlocks: the eight cars' blocks.
 const TEXT: &std::ffi::CStr = c"rcvd fm plyr"; // "rcvd fm plyr"
+
+/// A car's place (+0x134 .. +0x13C).
+pub fn place(car: &Car) -> &[Dword; 3] {
+    &car.position
+}
+
+/// Where a place received goes, to be glided to (+0xFC0 .. +0xFC8; then the glide's 32nd).
+pub fn wanted(car: &Car) -> &[Dword] {
+    &car.unknown_fc0[..3]
+}
+
+/// The glide's steps left (+0xFCC).
+pub fn glide_steps(car: &Car) -> &Dword {
+    &car.unknown_fc0[3]
+}
+
+/// The three dwords' values.
+pub fn three(cells: &[Dword]) -> [u32; 3] {
+    [cells[0].get(), cells[1].get(), cells[2].get()]
+}
 
 /// A message no car could send, told once in the log.
 fn note_unbelievable(player: u32) {
@@ -49,50 +72,65 @@ pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
         return Ok(());
     }
     let block = RACE_WORK.car_block(player as usize);
-    // The block is looked up at each access: a null one refuses at the first, as the original's.
-    // The offsets come from `rc2k_core::net::race`'s field tables: the message and the block
-    // are read by table, so they stay byte places.
-    let at = |offset: u32| {
-        Ok::<_, BadInput>(GamePtr::to(crate::race::trap::car_at(block)?).offset(offset))
-    };
-    let rd = |offset: u32| at(offset)?.read::<u32>("a received message or car block");
-    let wr = |offset: u32, v: u32| at(offset)?.write(v, "a car block's field");
-    // Converted: `rc2k_core::net::race` (`Kind`, `arrival`; the distance's test in `f64`,
-    // exact for the decision).
+    // The block is looked up after the message is read and believed: a null one refuses
+    // at the first write, as the original's.
     let Some(kind) = Kind::of(message.read("a received message")?) else {
         return Ok(());
     };
-    let mut values = Vec::with_capacity(kind.fields().len());
-    for n in 0..kind.fields().len() as u32 {
+    let table = fields(kind);
+    let mut values = Vec::with_capacity(table.len());
+    for n in 0..table.len() as u32 {
         values.push(message.offset(4 + 4 * n).read("a received message")?);
     }
-    if !kind.believable(&values) {
+    if !race::believable(table.iter().map(|&(_, limit)| limit), &values) {
         note_unbelievable(player);
         return Ok(());
     }
-    for (n, &value) in values.iter().enumerate() {
-        wr(kind.destination(n), value)?;
+    let car = crate::race::trap::car_at(block)?;
+    for (n, (&(field, _), &value)) in table.iter().zip(&values).enumerate() {
+        // The place received goes where the car is to be.
+        if kind == Kind::Position && n < 3 {
+            wanted(car)[n].set(value);
+        } else {
+            field(car).set_bits(value);
+        }
     }
     if kind != Kind::Position {
         return Ok(());
     }
-    let three = |at: u32| Ok::<_, BadInput>([rd(at)?, rd(at + 4)?, rd(at + 8)?]);
-    let (wanted, now) = (three(race::WANTED)?, three(race::PLACE)?);
-    let steps = rd(race::STEPS)?;
-    match race::arrival(wanted, now, steps, race::SNAP_FROM) {
+    let (wanted_place, now) = (three(wanted(car)), three(place(car)));
+    let steps = car.step_clock.get();
+    match race::arrival(wanted_place, now, steps, race::SNAP_FROM) {
         Arrival::Jump => {
-            for (k, v) in (0..).zip(wanted) {
-                wr(race::PLACE + 4 * k, v)?;
+            for (cell, v) in place(car).iter().zip(wanted_place) {
+                cell.set(v);
             }
             // +0xFC0 now holds a place, not a step: a glide under way ends.
-            wr(race::GLIDE_STEPS, 0)?;
+            glide_steps(car).set(0);
         }
         Arrival::Glide(step) => {
-            for (k, v) in (0..).zip(step) {
-                wr(race::WANTED + 4 * k, v)?;
+            for (cell, v) in wanted(car).iter().zip(step) {
+                cell.set(v);
             }
-            wr(race::GLIDE_STEPS, race::GLIDE)?;
+            glide_steps(car).set(race::GLIDE);
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The places sit where the core's constants put them in the car's block.
+    #[test]
+    fn the_places_sit_where_the_offsets_were() {
+        let car = &crate::physics::car_store::CAR;
+        let base = GamePtr::to(car).addr();
+        let at = |cell: &Dword| GamePtr::to(cell).addr() - base;
+        assert_eq!(at(&place(car)[0]), 0x134);
+        assert_eq!(at(&wanted(car)[0]), 0xFC0);
+        assert_eq!(at(glide_steps(car)), 0xFCC);
+        assert_eq!(at(&car.step_clock), 8);
+    }
 }

@@ -39,6 +39,87 @@ use crate::session::Dword;
 use crate::sound::store::SoundObject;
 use rc2k_core::drive::sharing;
 
+use crate::race::light_records_store::LightRecord;
+use crate::session::Cell32;
+
+/// A field of a car block, picked out of the block.
+type BlockField = fn(&Car) -> &dyn Cell32;
+/// A field of the effects' car record.
+type RecordField = fn(&MarkCar) -> &dyn Cell32;
+/// A field of a light record.
+type LightField = fn(&LightRecord) -> &Dword;
+
+/// The field `$field` of the effects' record number `$i` (the four wheels, then the body 4).
+macro_rules! rec {
+    ($i:expr, $field:ident) => {
+        (|o: &MarkCar| &o.records[$i].$field) as RecordField
+    };
+}
+
+/// A car block's array field `$field` at `$i`.
+macro_rules! blk {
+    ($field:ident [$i:expr]) => {
+        (|c: &Car| &c.$field[$i]) as BlockField
+    };
+}
+
+/// The light record's (record field, light record field) moves.
+const LIGHT_MOVES: [(RecordField, LightField); 4] = [
+    (|o| &o.head[5], |l| &l.axles[2]),
+    (|o| &o.head[6], |l| &l.axles[3]),
+    (|o| &o.head[3], |l| &l.axles[0]),
+    (|o| &o.head[4], |l| &l.axles[1]),
+];
+
+/// (record field, block field) moves in the original's order, after the light record: the
+/// four wheels' flags, second flags, flags and second flags under the wheel, and chances.
+const MOVES_A: [(RecordField, BlockField); 20] = [
+    (rec!(0, flags), blk!(wheel_cell_a_byte18[0])),
+    (rec!(1, flags), blk!(wheel_cell_a_byte18[1])),
+    (rec!(2, flags), blk!(wheel_cell_a_byte18[2])),
+    (rec!(3, flags), blk!(wheel_cell_a_byte18[3])),
+    (rec!(0, flags2), blk!(wheel_cell_a_byte14[0])),
+    (rec!(1, flags2), blk!(wheel_cell_a_byte14[1])),
+    (rec!(2, flags2), blk!(wheel_cell_a_byte14[2])),
+    (rec!(3, flags2), blk!(wheel_cell_a_byte14[3])),
+    (rec!(0, under_flags), blk!(wheel_cell_b_byte18[0])),
+    (rec!(1, under_flags), blk!(wheel_cell_b_byte18[1])),
+    (rec!(2, under_flags), blk!(wheel_cell_b_byte18[2])),
+    (rec!(3, under_flags), blk!(wheel_cell_b_byte18[3])),
+    (rec!(0, under_flags2), blk!(wheel_cell_b_byte14[0])),
+    (rec!(1, under_flags2), blk!(wheel_cell_b_byte14[1])),
+    (rec!(2, under_flags2), blk!(wheel_cell_b_byte14[2])),
+    (rec!(3, under_flags2), blk!(wheel_cell_b_byte14[3])),
+    (rec!(0, chance), blk!(wheel_surface_blend[0])),
+    (rec!(1, chance), blk!(wheel_surface_blend[1])),
+    (rec!(2, chance), blk!(wheel_surface_blend[2])),
+    (rec!(3, chance), blk!(wheel_surface_blend[3])),
+];
+
+/// The wheels' sums: (the two wheel records they go to, the block's driven speed that is
+/// their first figure). Each record gets the speed, the local velocity's x, 0 and its z.
+const QUADS: [([usize; 2], BlockField); 2] = [
+    ([0, 1], |c| &c.drive_speed_a),
+    ([2, 3], |c| &c.drive_speed_b),
+];
+
+/// The four wheel records' surface kind (from the block's `wheel_surface_a`), each cleared by
+/// its switch.
+const WHEELS: [RecordField; 4] = [rec!(0, kind), rec!(1, kind), rec!(2, kind), rec!(3, kind)];
+
+/// With `contact_found` set: (body record field, block field) moves.
+const MOVES_B: [(RecordField, BlockField); 9] = [
+    (rec!(4, flags), blk!(wheel_cell_a_byte18[4])),
+    (rec!(4, flags2), blk!(wheel_cell_a_byte14[4])),
+    (rec!(4, under_flags), blk!(wheel_cell_b_byte18[4])),
+    (rec!(4, under_flags2), blk!(wheel_cell_b_byte14[4])),
+    (rec!(4, chance), blk!(wheel_surface_blend[4])),
+    (rec!(4, kind), blk!(wheel_surface_a[4])),
+    (rec!(4, under_kind), blk!(wheel_surface_b[4])),
+    (rec!(4, speed_10), blk!(velocity[0])),
+    (rec!(4, speed_18), blk!(velocity[2])),
+];
+
 /// The dword at `offset` of the block, for the offsets the core's tables give (bounded by the
 /// block).
 fn at(car: &Car, offset: u32) -> Result<u32, BadInput> {
@@ -83,52 +164,53 @@ pub fn share_car_state_at(
         }
     }
     o.put(0x1C, car.light_colour.get())?;
-    let light = LIGHT_RECORDS.record_ptr(n);
-    for (r, l) in sharing::LIGHT_MOVES {
-        o.put(r, light.offset(l).read("a light record")?)?;
+    let light = &LIGHT_RECORDS.records[n as usize];
+    for (r, l) in LIGHT_MOVES {
+        r(o).set_bits(l(light).get());
     }
     o.set_block(crate::race::blocks_store::handle_of(
         GamePtr::to(car).addr(),
     ))?;
     o.put(8, x87::loaded(car.engine_speed.bits()))?;
     o.put(4, n)?;
-    for (r, b) in sharing::MOVES_A {
-        o.put(r, at(car, b)?)?;
+    for (r, b) in MOVES_A {
+        r(o).set_bits(b(car).bits());
     }
-    for (offsets, first) in sharing::QUADS {
+    for (records, first) in QUADS {
         let (a, bb, c) = (
-            at(car, first)?,
+            first(car).bits(),
             car.local_velocity[0].bits(),
             car.local_velocity[2].bits(),
         );
-        for base in [offsets[0], offsets[0] + 0x48] {
-            o.put(base, a)?;
-            o.put(base + 4, bb)?;
-            o.put(base + 8, 0)?;
-            o.put(base + 0xC, c)?;
+        for wheel in records {
+            let w = &o.records[wheel];
+            w.speed_c.set_bits(a);
+            w.speed_10.set_bits(bb);
+            w.unknown_14.set(0);
+            w.speed_18.set_bits(c);
         }
     }
-    for (k, r) in sharing::WHEELS.into_iter().enumerate() {
-        o.put(r, car.wheel_surface_a[k].get())?;
+    for (k, r) in WHEELS.into_iter().enumerate() {
+        r(o).set_bits(car.wheel_surface_a[k].get());
     }
-    for (k, r) in sharing::WHEELS.into_iter().enumerate() {
+    for (k, r) in WHEELS.into_iter().enumerate() {
         if sharing::wheel_cleared(
             car.wheel_squeeze[k].bits(),
             car.parts_present.get(),
             k as u32,
         ) {
-            o.put(r, 0)?;
+            r(o).set_bits(0);
         }
     }
-    o.put(0x210, 0)?;
-    o.put(0x21C, 0)?;
+    o.records[4].kind.set(0);
+    o.records[4].under_kind.set(0);
     let zero = x87::loaded(0);
     for r in [0x24C, 0x250, 0x254, 0x244] {
         o.put(r, zero)?;
     }
     if car.contact_found.get() != 0 {
-        for (r, b) in sharing::MOVES_B {
-            o.put(r, at(car, b)?)?;
+        for (r, b) in MOVES_B {
+            r(o).set_bits(b(car).bits());
         }
         for (r, v) in [
             (0x230, &car.contact_point_x),
@@ -171,4 +253,94 @@ pub fn share_car_state(
     sound: &SoundObject,
 ) -> Result<(), Refused> {
     share_car_state_at(block, record, sound, &DRAW.scratch /* dword_62400C */)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::race::blocks_store::own_car;
+    use crate::race::marks_settings_store::MARKS_SETTINGS;
+
+    fn rec_off(o: &MarkCar, f: RecordField) -> usize {
+        core::ptr::from_ref(f(o)).cast::<u8>().addr() - core::ptr::from_ref(o).addr()
+    }
+
+    fn blk_off(c: &Car, f: BlockField) -> usize {
+        core::ptr::from_ref(f(c)).cast::<u8>().addr() - core::ptr::from_ref(c).addr()
+    }
+
+    #[test]
+    fn the_tables_sit_where_the_original_moved_them() {
+        let o = &MARKS_SETTINGS.cars[0];
+        let car = own_car();
+        let light = &LIGHT_RECORDS.records[0];
+        let lbase = core::ptr::from_ref(light).addr();
+        let lights = [(0x14, 0x34), (0x18, 0x38), (0xC, 0x2C), (0x10, 0x30)];
+        for ((r, l), (ro, lo)) in LIGHT_MOVES.into_iter().zip(lights) {
+            assert_eq!(rec_off(o, r), ro);
+            assert_eq!(core::ptr::from_ref(l(light)).addr() - lbase, lo);
+        }
+        let moves_a = [
+            (0xF4, 0x95C),
+            (0x13C, 0x960),
+            (0x184, 0x964),
+            (0x1CC, 0x968),
+            (0xF8, 0x984),
+            (0x140, 0x988),
+            (0x188, 0x98C),
+            (0x1D0, 0x990),
+            (0x100, 0x970),
+            (0x148, 0x974),
+            (0x190, 0x978),
+            (0x1D8, 0x97C),
+            (0x104, 0x998),
+            (0x14C, 0x99C),
+            (0x194, 0x9A0),
+            (0x1DC, 0x9A4),
+            (0x108, 0x9AC),
+            (0x150, 0x9B0),
+            (0x198, 0x9B4),
+            (0x1E0, 0x9B8),
+        ];
+        for ((r, b), (ro, bo)) in MOVES_A.into_iter().zip(moves_a) {
+            assert_eq!((rec_off(o, r), blk_off(car, b)), (ro, bo));
+        }
+        let quads = [
+            ([0xE0, 0xE4, 0xE8, 0xEC], 0x1B8),
+            ([0x170, 0x174, 0x178, 0x17C], 0x1BC),
+        ];
+        for ((records, first), (offsets, bo)) in QUADS.into_iter().zip(quads) {
+            assert_eq!(blk_off(car, first), bo);
+            for (wheel, base) in records.into_iter().zip([offsets[0], offsets[0] + 0x48]) {
+                let w = &o.records[wheel];
+                let at = |f: &Dword| core::ptr::from_ref(f).addr() - core::ptr::from_ref(o).addr();
+                let atf = |f: &crate::session::Float| {
+                    core::ptr::from_ref(f).addr() - core::ptr::from_ref(o).addr()
+                };
+                assert_eq!(atf(&w.speed_c), base);
+                assert_eq!(atf(&w.speed_10), base + 4);
+                assert_eq!(at(&w.unknown_14), base + 8);
+                assert_eq!(atf(&w.speed_18), base + 0xC);
+            }
+        }
+        for (r, wo) in WHEELS.into_iter().zip([0xF0, 0x138, 0x180, 0x1C8]) {
+            assert_eq!(rec_off(o, r), wo);
+        }
+        let moves_b = [
+            (0x214, 0x96C),
+            (0x218, 0x994),
+            (0x220, 0x980),
+            (0x224, 0x9A8),
+            (0x228, 0x9BC),
+            (0x210, 0x930),
+            (0x21C, 0x944),
+            (0x204, 0x198),
+            (0x20C, 0x1A0),
+        ];
+        for ((r, b), (ro, bo)) in MOVES_B.into_iter().zip(moves_b) {
+            assert_eq!((rec_off(o, r), blk_off(car, b)), (ro, bo));
+        }
+        assert_eq!(rec_off(o, rec!(4, kind)), 0x210);
+        assert_eq!(rec_off(o, rec!(4, under_kind)), 0x21C);
+    }
 }

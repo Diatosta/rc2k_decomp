@@ -4,6 +4,7 @@
 //! (`sub_437971`: per stage, three-digit numbers into `dword_601430`). Here the steps.
 
 use crate::errors::{BadInput, Refused};
+use crate::physics::car_store::Car;
 use crate::physics::split_tables_store::SPLIT_TABLES;
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
@@ -15,7 +16,7 @@ use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
-use crate::session::Dword;
+use crate::session::{Cell32, Dword};
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
 /// Player n's (0, 1) kind, tyre and colours word: `car_kinds[n]`, `car_tyres[n]`,
@@ -27,20 +28,60 @@ fn player_kinds(n: usize) -> [&'static Dword; 3] {
 /// The text the digits are read from (`byte_6047B8`, 0x708 bytes).
 pub const TEXT_LEN: usize = 0x708;
 
+/// A selector of one 32-bit field of a car block (a `Dword` or a `Float`).
+type Field = fn(&Car) -> &dyn Cell32;
+
+/// The block fields `reset_block` sets to 0, in the original's order.
+const CLEARED: [Field; 22] = [
+    |c| &c.view_covered,
+    |c| &c.splits_recorded,
+    |c| &c.stage_time,
+    |c| &c.finish_flag,
+    |c| &c.go_stand_timer,
+    |c| &c.started_stand_timer,
+    |c| &c.damage_failed,
+    |c| &c.checkpoint,
+    |c| &c.brake_heat[0],
+    |c| &c.brake_heat[1],
+    |c| &c.damper_wear[0],
+    |c| &c.damper_wear[1],
+    |c| &c.engine_heat,
+    |c| &c.brake_fade,
+    |c| &c.handbrake_failed,
+    |c| &c.electrical_failures[0],
+    |c| &c.electrical_failures[1],
+    |c| &c.electrical_failures[2],
+    |c| &c.electrical_failures[3],
+    |c| &c.electrical_failures[4],
+    |c| &c.electrical_failures[5],
+    |c| &c.electrical_failures[6],
+];
+
+/// What `race::reset_car_blocks` writes into car block `n` (field, value, in order):
+/// `driver_kind` (+0x25C) 1 for the race's cars (`cars`, unsigned) else 0, the `CLEARED`
+/// fields 0, `gearbox_kind` (+0x38) 1, `time_left` (+0x8C) the stage's number
+/// (`dword_601430`) x 100.
+fn reset_block(n: u32, cars: u32, number: u32) -> Vec<(Field, u32)> {
+    let mut writes: Vec<(Field, u32)> = vec![(|c| &c.driver_kind, (n < cars) as u32)];
+    writes.extend(CLEARED.iter().map(|&field| (field, 0)));
+    writes.push((|c| &c.gearbox_kind, 1));
+    writes.push((|c| &c.time_left, number.wrapping_mul(100)));
+    writes
+}
+
 /// `race::reset_car_blocks` (0x43658A): each of the eight car blocks (by `g_carBlocks`):
 /// +0x25C 1 for the race's cars (`g_raceCars`, unsigned) else 0, +0x38 1, +0x8C
 /// `dword_601430` x 100, the others in `CLEARED` 0; then each block's +0x24 (fixed
 /// addresses) its kind from `g_raceCarKinds`.
 pub fn reset_car_blocks() -> Result<(), BadInput> {
-    // Converted: `rc2k_core::race::cars::reset_block`.
-    use rc2k_core::race::cars::{CAR_BLOCKS as BLOCK_COUNT, reset_block};
+    use rc2k_core::race::cars::CAR_BLOCKS as BLOCK_COUNT;
     {
         let cars: u32 = RACE_VIEW.race_cars.bits();
         for n in 0..BLOCK_COUNT {
             let b: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
-            let car = GamePtr::to(crate::race::trap::car_at(b)?);
-            for (off, v) in reset_block(n, cars, SPLIT_TABLES.stage_numbers[0].get()) {
-                car.offset(off).write(v, "a car block's word")?;
+            let car = crate::race::trap::car_at(b)?;
+            for (field, v) in reset_block(n, cars, SPLIT_TABLES.stage_numbers[0].get()) {
+                field(car).set_bits(v);
             }
         }
         for n in 0..BLOCK_COUNT as usize {
@@ -544,6 +585,16 @@ pub fn set_up_mode_2_cars() -> Result<(), Refused> {
     Ok(())
 }
 
+/// What `race::set_up_cars` writes into both players' blocks first (field, value).
+const PLAYER_RESETS: [(Field, u32); 6] = [
+    (|c| &c.top_speed, 0),
+    (|c| &c.split_gaps[0], u32::MAX),
+    (|c| &c.split_gaps[2], u32::MAX),
+    (|c| &c.split_gaps[1], u32::MAX),
+    (|c| &c.split_gaps[4], u32::MAX),
+    (|c| &c.split_gaps[3], u32::MAX),
+];
+
 /// `race::set_up_cars` (0x43603C): race init's "cars": "gamemode" and `dword_62389C`
 /// logged; both players' +0x5FC 0 and +0xA0C .. +0xA1C -1; then by the mode: 2 the
 /// numbers, the times, the arcade set-up, `dword_601C68` (0x40 dwords) 0; 1, 3, 0 (with
@@ -552,14 +603,12 @@ pub fn set_up_mode_2_cars() -> Result<(), Refused> {
 pub fn set_up_cars() -> Result<(), Refused> {
     text(c"gamemode", false);
     number(RACE_VARS.run_kind.bits(), true);
-    // Converted: `rc2k_core::race::cars::{PLAYER_RESETS, cars_steps}`.
-    use rc2k_core::race::cars::{CarsStep, PLAYER_RESETS, cars_steps};
+    // Converted: `rc2k_core::race::cars::cars_steps`.
+    use rc2k_core::race::cars::{CarsStep, cars_steps};
     for n in 0..2 {
-        for (off, v) in PLAYER_RESETS {
+        for (field, v) in PLAYER_RESETS {
             let b = crate::race::work_store::RACE_WORK.car_block(n as usize);
-            GamePtr::to(crate::race::trap::car_at(b)?)
-                .offset(off)
-                .write(v, "a car block's word")?;
+            field(crate::race::trap::car_at(b)?).set_bits(v);
         }
     }
     for &step in cars_steps(RACE_VARS.run_kind.bits()) {
@@ -681,4 +730,47 @@ pub fn set_up_arcade_cars() -> Result<(), Refused> {
             .set_bits(RACE_VARS.race_car_kinds[n].get());
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn offset_of(field: Field) -> usize {
+        let car = &CAR_BLOCKS.cars[0];
+        core::ptr::from_ref(field(car)).cast::<u8>() as usize - core::ptr::from_ref(car) as usize
+    }
+
+    /// Every selector sits where the core's old table of byte offsets had it.
+    #[test]
+    fn cleared_and_resets_sit_at_their_old_offsets() {
+        let cleared: [usize; 22] = [
+            0xFA8, 0xAC, 0x88, 0xA8, 0xA4, 0xA0, 0x29C, 0x98, 0x2AC, 0x2B0, 0x2A4, 0x2A8, 0x2B4,
+            0x2A0, 0x428, 0x40C, 0x410, 0x414, 0x418, 0x41C, 0x420, 0x424,
+        ];
+        for (field, old) in CLEARED.iter().zip(cleared) {
+            assert_eq!(offset_of(*field), old);
+        }
+        let resets: [(usize, u32); 6] = [
+            (0x5FC, 0),
+            (0xA0C, u32::MAX),
+            (0xA14, u32::MAX),
+            (0xA10, u32::MAX),
+            (0xA1C, u32::MAX),
+            (0xA18, u32::MAX),
+        ];
+        for ((field, v), (old, old_v)) in PLAYER_RESETS.iter().zip(resets) {
+            assert_eq!((offset_of(*field), *v), (old, old_v));
+        }
+    }
+
+    #[test]
+    fn block_reset() {
+        let w = reset_block(2, 3, 7);
+        assert_eq!(w.len(), 25);
+        assert_eq!((offset_of(w[0].0), w[0].1), (0x25C, 1));
+        assert_eq!((offset_of(w[23].0), w[23].1), (0x38, 1));
+        assert_eq!((offset_of(w[24].0), w[24].1), (0x8C, 700));
+        assert_eq!(reset_block(3, 3, 0)[0].1, 0);
+    }
 }
