@@ -262,10 +262,7 @@ pub fn tidy_stage() -> Result<(), Refused> {
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    crate::effects::tidy_marks::tidy_marks(
-        &crate::effects::owner::effects().paths,
-        &crate::effects::owner::effects().ring,
-    )?;
+    crate::effects::tidy_marks::tidy_marks(crate::effects::owner::effects())?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
     s.step(STAGE_WORDS[3], || free(&FONTS))?;

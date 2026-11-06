@@ -18,9 +18,9 @@
 //! clip's refusals.
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
+use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
-use crate::effects::surface_store::SURFACE;
 use crate::errors::{BadInput, Refused};
 use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
@@ -42,6 +42,7 @@ fn square() {
 /// The Rust version (see the header): `subcell` (eax), `size` (edx, a float's bits),
 /// `entry` (esi). No caller reads a register it leaves.
 pub fn draw_subcell_sprite(
+    masks: &Masks,
     ring: &Ring,
     subcell: u32,
     size: u32,
@@ -70,7 +71,7 @@ pub fn draw_subcell_sprite(
     }
     DRAW_WORK.half[0].set_bits(size);
     let at = subcell << 4;
-    let place = |n: usize| SURFACE.word(0x400 + at as usize + 4 * n);
+    let place = |n: usize| masks.surface.word(0x400 + at as usize + 4 * n);
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
     for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
         .into_iter()

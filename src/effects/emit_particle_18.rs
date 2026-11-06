@@ -17,9 +17,9 @@
 
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
+use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::field;
 use crate::effects::ring_store::Ring;
-use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -46,13 +46,14 @@ fn count(record: &MarkRecord) -> Result<(i32, i32), Refused> {
 
 /// The Rust version (see the header).
 pub fn emit_particle_18(
+    masks: &Masks,
     ring: &Ring,
     record: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
         let flags = record.flags.get();
-        SURFACE.wheel_flags.set(flags);
+        masks.surface.wheel_flags.set(flags);
         let (count, n) = count(record)?;
         ring.work.whole.set(n as u32);
         ring.work.whole.set(count as u32);

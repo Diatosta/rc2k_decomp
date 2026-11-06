@@ -19,11 +19,11 @@
 //! version. Refuses, before anything (the walk simulated), null settings, a null entry or
 //! link on the way, and a colour index out of its table.
 
+use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::field;
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
 use crate::effects::ring_store::Ring;
 use crate::effects::setup::{CLOCK, MarksClock};
-use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -92,9 +92,9 @@ fn colour_count() -> i32 {
 }
 
 /// The colour `i` of the table in use (`i` below `colour_count`).
-fn colour_at(ring: &Ring, i: usize) -> u32 {
+fn colour_at(masks: &Masks, ring: &Ring, i: usize) -> u32 {
     if MARKS_KIND_FLOATS.other.bits() != 0 {
-        SURFACE.colours[i].get()
+        masks.surface.colours[i].get()
     } else {
         ring.colours.colours[i]
     }
@@ -175,8 +175,14 @@ fn streak(ring: &Ring, e: u32) -> Result<bool, Refused> {
         eg(ring, e, field::ALPHA_FADE)?,
     );
     ring.work.whole.set(i as u32);
-    let colour = colour_at(ring, i as usize);
-    crate::effects::draw_ribbon::draw_ribbon(0x20, i as u32, 0x800, colour)?;
+    let colour = colour_at(&crate::effects::owner::effects().masks, ring, i as usize);
+    crate::effects::draw_ribbon::draw_ribbon(
+        &crate::effects::owner::effects().masks,
+        0x20,
+        i as u32,
+        0x800,
+        colour,
+    )?;
     Ok(false)
 }
 

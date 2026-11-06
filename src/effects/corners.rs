@@ -3,10 +3,9 @@
 //! taken as an entry's two corners, ordered, scaled into the kind's box, flipped and held
 //! (`clamp_pair`); `span_ring` makes the rings of them.
 
-use crate::effects::edges::KIND_BOXES;
 use crate::effects::kind_values::MARKS_KIND;
 use crate::effects::mask_constants::MASK_CONSTANTS;
-use crate::effects::mask_vars::MASKS;
+use crate::effects::mask_store::Masks;
 use crate::effects::shape_points::{farthest_pair, turn_shape_checks, turn_shape_points, turned};
 use crate::effects::turns::{clamp_pair, smooth_pair, smooth_steps};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -17,8 +16,8 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Bytes, Dword, read_bits, read_first, write_bits};
 
 /// The two corner tables (`g_marksCornersA`, `_B`).
-pub fn tables() -> [&'static Bytes<3096>; 2] {
-    [&MASKS.corners_a, &MASKS.corners_b]
+pub fn tables(masks: &Masks) -> [&Bytes<3096>; 2] {
+    [&masks.vars.corners_a, &masks.vars.corners_b]
 }
 pub const ENTRIES: u32 = 0x81;
 const ENTRY: u32 = 0x18;
@@ -76,7 +75,7 @@ fn turns(drops: &WindscreenDrops, n: usize, k: u32) -> (u32, u32) {
 /// +0x18, +0x1C) over them as floats; y from 0x80; and `clamp_pair`. Refuses a kind of
 /// 0x22 or more, a farthest pair past 0x3F, what `turn_shape_points` refuses at any step,
 /// before writing.
-pub fn make_corners(drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let kind: u32 = MARKS_KIND.kind.bits();
         if kind >= 0x22 {
@@ -111,7 +110,7 @@ pub fn make_corners(drops: &WindscreenDrops) -> Result<(), Refused> {
                 )
                 .1;
                 turn_shape_points(drops, first, second)?;
-                let table = tables()[n];
+                let table = tables(masks)[n];
                 let mut to = k * ENTRY;
                 let pair: [u32; 2] = read_bits(farthest_pair(drops, n));
                 let turned = turned(drops, n);
@@ -126,7 +125,7 @@ pub fn make_corners(drops: &WindscreenDrops) -> Result<(), Refused> {
             }
         }
         for k in 0..ENTRIES {
-            for table in tables() {
+            for table in tables(masks) {
                 let e = k * ENTRY;
                 let c = |o: u32| -> Result<_, Refused> { Ok(get(table, e + o)? as i32) };
                 let status = x87::compare_squares(c(0)?, c(4)?, c(0xC)?, c(0x10)?);
@@ -141,18 +140,19 @@ pub fn make_corners(drops: &WindscreenDrops) -> Result<(), Refused> {
             }
         }
         let bx_at = (kind * 0x30) as usize;
-        let bx =
-            |o: usize| -> Result<_, Refused> { Ok(KIND_BOXES.boxes.get_u32(bx_at + o) as i32) };
+        let bx = |o: usize| -> Result<_, Refused> {
+            Ok(masks.kind_boxes.boxes.get_u32(bx_at + o) as i32)
+        };
         let divisors: [i32; 2] = MASK_CONSTANTS.divisors.each_ref().map(|c| c.get() as i32);
         let scales = [
             x87::int_div_int(bx(0x24)?.wrapping_sub(bx(0x18)?), divisors[0]),
             x87::int_div_int(bx(4)?.wrapping_sub(bx(0x1C)?), divisors[1]),
         ];
-        write_bits(&MASKS.corner_scale, scales);
+        write_bits(&masks.vars.corner_scale, scales);
         let corners = 2 * ENTRIES;
         for k in 0..corners {
             for n in 0..2 {
-                let table = tables()[n];
+                let table = tables(masks)[n];
                 let e = 12 * k;
                 let offset: [u32; 2] = offsets(drops, n);
                 let x = get(table, e)?
@@ -168,13 +168,13 @@ pub fn make_corners(drops: &WindscreenDrops) -> Result<(), Refused> {
         let flips: [i32; 2] = MASK_CONSTANTS.flips.each_ref().map(|c| c.get() as i32);
         for k in 0..corners {
             for (n, &flip) in flips.iter().enumerate() {
-                let table = tables()[n];
+                let table = tables(masks)[n];
                 let e = 12 * k;
                 put(table, e + 4, x87::int_less(flip, get(table, e + 4)?))?;
             }
         }
         for k in 0..corners {
-            for table in tables() {
+            for table in tables(masks) {
                 let e = 12 * k;
                 let out = clamp_pair([extended(get(table, e + 4)?), extended(get(table, e)?)]);
                 put(table, e + 4, rounded(out[0]))?;

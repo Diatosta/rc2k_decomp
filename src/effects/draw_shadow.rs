@@ -24,7 +24,7 @@ use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::kind_store::{
     CONSTS_1, CONSTS_2, EXTRA_2, EXTRAS_1, KindConsts, QUAD_1, QUAD_2, QuadWork,
 };
-use crate::effects::surface_store::SURFACE;
+use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
 use crate::math::{x87, x87_run};
 use crate::race::matrices_store::MATRICES;
@@ -83,8 +83,8 @@ fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn draw_shadow() -> Result<(), Refused> {
-    draw_shadow_with(&FIRST, true)
+pub fn draw_shadow(masks: &Masks) -> Result<(), Refused> {
+    draw_shadow_with(masks, &FIRST, true)
 }
 
 impl Shadow<'_> {
@@ -103,7 +103,7 @@ impl Shadow<'_> {
 }
 
 /// A shadow (see the header) on `sh`'s variables; `depth` the two depth calls first.
-pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
+pub fn draw_shadow_with(masks: &Masks, sh: &Shadow, depth: bool) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let q = sh.quad;
     let corner: u32 = q.corner.get();
@@ -166,7 +166,7 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
         vertex.u.set_bits(x87::int_times(word(u) as i32, uv_k));
         vertex.v.set_bits(x87::int_times(word(v) as i32, uv_k));
     }
-    let mut c = SURFACE.lives_by_level[8].get() | 0xFF00_0000;
+    let mut c = masks.surface.lives_by_level[8].get() | 0xFF00_0000;
     let half = |shift: u32| ((!(c >> shift) & 0xFF) >> 1) << shift;
     let (r, gr, bl) = (half(16), half(8), half(0));
     c = c.wrapping_add(r).wrapping_add(gr).wrapping_add(bl);

@@ -24,6 +24,7 @@
 //! is read, and the draws' own refusals for an entry that may be drawn.
 
 use crate::effects::emitters::matrix_cell;
+use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::field;
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
 use crate::effects::ring_store::Ring;
@@ -399,7 +400,14 @@ struct Sprite {
 
 /// The draws: 1 `draw_cell_sprite`, 2 its twin (the same Rust version), 3
 /// `draw_subcell_sprite`; `cell` is the (sub)cell, `size` the size.
-fn draw(ring: &Ring, place: u32, sprite: Sprite, e: u32, p: [[u8; 10]; 3]) -> Result<(), Refused> {
+fn draw(
+    masks: &Masks,
+    ring: &Ring,
+    place: u32,
+    sprite: Sprite,
+    e: u32,
+    p: [[u8; 10]; 3],
+) -> Result<(), Refused> {
     use crate::effects::{draw_cell_sprite as c, draw_subcell_sprite as s};
     let Sprite {
         cell,
@@ -409,14 +417,20 @@ fn draw(ring: &Ring, place: u32, sprite: Sprite, e: u32, p: [[u8; 10]; 3]) -> Re
     } = sprite;
     {
         match place {
-            3 => s::draw_subcell_sprite(ring, cell, size, e, p),
-            _ => c::draw_cell_sprite(ring, cell, angle, alpha, size, e, p),
+            3 => s::draw_subcell_sprite(masks, ring, cell, size, e, p),
+            _ => c::draw_cell_sprite(masks, ring, cell, angle, alpha, size, e, p),
         }
     }
 }
 
 /// Kinds 5 and 0xB (draw 1 or 2; their y gain, size and alpha gains): whether it dies.
-fn drift_kind(ring: &Ring, e: u32, place: u32, ks: [&f32; 3]) -> Result<bool, Refused> {
+fn drift_kind(
+    masks: &Masks,
+    ring: &Ring,
+    e: u32,
+    place: u32,
+    ks: [&f32; 3],
+) -> Result<bool, Refused> {
     {
         if aged(ring, e, true)? {
             return Ok(true);
@@ -430,6 +444,7 @@ fn drift_kind(ring: &Ring, e: u32, place: u32, ks: [&f32; 3]) -> Result<bool, Re
                 eg(ring, e, field::SIZE)?,
             ];
             draw(
+                masks,
                 ring,
                 place,
                 Sprite {
@@ -463,7 +478,7 @@ fn drift_kind(ring: &Ring, e: u32, place: u32, ks: [&f32; 3]) -> Result<bool, Re
 }
 
 /// Kinds 6, 0x15, 1, 0xD, 0x13, 0x16 (draw 1): whether it dies.
-fn fading_kind(ring: &Ring, e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
+fn fading_kind(masks: &Masks, ring: &Ring, e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
     {
         if aged(ring, e, true)? {
             return Ok(true);
@@ -490,6 +505,7 @@ fn fading_kind(ring: &Ring, e: u32, kind: u32, c: &Kind) -> Result<bool, Refused
             };
             let size = whole(ring, size);
             draw(
+                masks,
                 ring,
                 1,
                 Sprite {
@@ -560,7 +576,7 @@ fn pull_toward(ring: &Ring, e: u32) -> Result<(), Refused> {
 }
 
 /// Kinds 0x10, 0x11 (draw 3): boxed, no ground test of their own first. Whether it dies.
-fn boxed_kind(ring: &Ring, e: u32, gain: &f32, both: bool) -> Result<bool, Refused> {
+fn boxed_kind(masks: &Masks, ring: &Ring, e: u32, gain: &f32, both: bool) -> Result<bool, Refused> {
     if aged(ring, e, true)? {
         return Ok(true);
     }
@@ -577,6 +593,7 @@ fn boxed_kind(ring: &Ring, e: u32, gain: &f32, both: bool) -> Result<bool, Refus
         ring.work.whole.set(f as u32);
         let subcell = ((f as u32) & 3).wrapping_add(eg(ring, e, field::CELL)?);
         draw(
+            masks,
             ring,
             3,
             Sprite {
@@ -601,7 +618,7 @@ fn boxed_kind(ring: &Ring, e: u32, gain: &f32, both: bool) -> Result<bool, Refus
 }
 
 /// The Rust version (see the header).
-pub fn run_ring(ring: &Ring) -> Result<(), Refused> {
+pub fn run_ring(masks: &Masks, ring: &Ring) -> Result<(), Refused> {
     if let Some(why) = refusal(ring)? {
         return Err(BadInput(why).into());
     }
@@ -616,6 +633,7 @@ pub fn run_ring(ring: &Ring) -> Result<(), Refused> {
             let next = eg(ring, e, 4)?;
             let dies = match eg(ring, e, field::KIND)? {
                 5 => drift_kind(
+                    masks,
                     ring,
                     e,
                     1,
@@ -626,6 +644,7 @@ pub fn run_ring(ring: &Ring) -> Result<(), Refused> {
                     ],
                 )?,
                 0xB => drift_kind(
+                    masks,
                     ring,
                     e,
                     2,
@@ -635,14 +654,14 @@ pub fn run_ring(ring: &Ring) -> Result<(), Refused> {
                         &ring.kinds.drift_b[2],
                     ],
                 )?,
-                6 => fading_kind(ring, e, 6, &K6)?,
-                0x15 => fading_kind(ring, e, 0x15, &K15)?,
-                1 => fading_kind(ring, e, 1, &K1)?,
-                0xD => fading_kind(ring, e, 0xD, &KD)?,
-                0x13 => fading_kind(ring, e, 0x13, &K13)?,
-                0x16 => fading_kind(ring, e, 0x16, &K16)?,
-                0x10 => boxed_kind(ring, e, &ring.kinds.k10_gain, true)?,
-                0x11 => boxed_kind(ring, e, &ring.kinds.k11_gain, false)?,
+                6 => fading_kind(masks, ring, e, 6, &K6)?,
+                0x15 => fading_kind(masks, ring, e, 0x15, &K15)?,
+                1 => fading_kind(masks, ring, e, 1, &K1)?,
+                0xD => fading_kind(masks, ring, e, 0xD, &KD)?,
+                0x13 => fading_kind(masks, ring, e, 0x13, &K13)?,
+                0x16 => fading_kind(masks, ring, e, 0x16, &K16)?,
+                0x10 => boxed_kind(masks, ring, e, &ring.kinds.k10_gain, true)?,
+                0x11 => boxed_kind(masks, ring, e, &ring.kinds.k11_gain, false)?,
                 _ => false,
             };
             if dies {

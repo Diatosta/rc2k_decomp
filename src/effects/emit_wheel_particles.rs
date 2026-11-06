@@ -15,8 +15,7 @@
 //! emitters' refusals; on a refusal nothing stays written (all it may write is put back).
 
 use crate::effects::emitters::*;
-use crate::effects::paths::Paths;
-use crate::effects::run_particles::Particles;
+use crate::effects::owner::Effects;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::{
     emit_bursts, emit_bursts_2, emit_kind_1, emit_particle_5, emit_particle_6, emit_particle_11,
@@ -54,24 +53,23 @@ pub enum Table {
 
 /// The emitters for a kind.
 pub fn emit(
-    paths: &Paths,
-    particles: &Particles,
-    ring: &Ring,
+    effects: &Effects,
     table: Table,
     kind: u32,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
+    let (masks, particles, ring) = (&effects.masks, &effects.particles, &effects.ring);
     match kind {
-        1 if table == Table::Body => emit_particle_18::emit_particle_18(ring, wheel, object),
-        1 => emit_kind_1::emit_kind_1(particles, ring, wheel, object),
+        1 if table == Table::Body => emit_particle_18::emit_particle_18(masks, ring, wheel, object),
+        1 => emit_kind_1::emit_kind_1(masks, particles, ring, wheel, object),
         3 if table == Table::Wheel => {
-            emit_bursts_2::emit_bursts_2(paths, ring, wheel, object)?;
-            emit_particle_6::emit_particle_6(particles, ring, wheel, object)
+            emit_bursts_2::emit_bursts_2(effects, wheel, object)?;
+            emit_particle_6::emit_particle_6(masks, particles, ring, wheel, object)
         }
         2..=4 | 6..=9 | 0xC => {
-            emit_bursts::emit_bursts(paths, ring, wheel, object)?;
-            emit_particle_6::emit_particle_6(particles, ring, wheel, object)
+            emit_bursts::emit_bursts(effects, wheel, object)?;
+            emit_particle_6::emit_particle_6(masks, particles, ring, wheel, object)
         }
         5 => emit_particle_5::emit_particle_5(ring, wheel, object),
         0xB => emit_particle_11::emit_particle_11(ring, wheel, object),
@@ -82,27 +80,17 @@ pub fn emit(
 /// The Rust version (see the header): `wheel` the wheel's record (the original's edi),
 /// `object` the car's object (esi).
 pub fn emit_wheel_particles(
-    paths: &Paths,
-    particles: &Particles,
-    ring: &Ring,
+    effects: &Effects,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
         let (chance, _) = chance(wheel)?;
-        ring.work.whole.set(chance as u32);
+        effects.ring.work.whole.set(chance as u32);
         let r = next_c5(&EMITTER.wheel_random);
         if copies(chance, r) {
             wheel.take_surface();
         }
-        emit(
-            paths,
-            particles,
-            ring,
-            Table::Wheel,
-            wheel.kind.get(),
-            wheel,
-            object,
-        )
+        emit(effects, Table::Wheel, wheel.kind.get(), wheel, object)
     }
 }

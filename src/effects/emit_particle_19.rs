@@ -21,10 +21,10 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
+use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
 use crate::effects::setup::CLOCK;
-use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -88,15 +88,17 @@ pub fn refusal(
 
 /// The Rust version (see the header).
 pub fn emit_particle_19(
+    masks: &Masks,
     particles: &Particles,
     ring: &Ring,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
-    emit_twin(particles, ring, &NINETEENTH, object)
+    emit_twin(masks, particles, ring, &NINETEENTH, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_twin(
+    masks: &Masks,
     particles: &Particles,
     ring: &Ring,
     set: &TwinSet,
@@ -111,7 +113,7 @@ pub fn emit_twin(
     if (r.rotate_right(16) & 7) as i32 >= level as i32 {
         return Ok(());
     }
-    SURFACE.wheel_flags.set(set.flags);
+    masks.surface.wheel_flags.set(set.flags);
     let motion = [object.word(0x4C)?, object.word(0x50)?, object.word(0x54)?];
     crate::session::write_bits(&particles.twin_state.motion, motion);
     if next_entry(ring)?.is_none() {
@@ -156,7 +158,7 @@ pub fn emit_twin(
     let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
     ring.work.whole.set(size);
     put(field::SIZE, x87::from_int(size as i32))?;
-    let life: u32 = SURFACE.lives_by_level[level as usize].get();
+    let life: u32 = masks.surface.lives_by_level[level as usize].get();
     put(field::LIFE, life)?;
     put(
         field::ALPHA_FADE,

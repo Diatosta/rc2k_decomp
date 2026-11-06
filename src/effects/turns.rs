@@ -2,7 +2,7 @@
 //! three rows scaled to set lengths, and two cosine-eased steps.
 
 use crate::effects::mask_constants::MASK_CONSTANTS;
-use crate::effects::mask_vars::MASKS;
+use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::work_store::MARKS_WORK;
 use crate::math::x87;
@@ -12,17 +12,17 @@ use crate::session::{Dword, Float};
 /// from the line at esi (+0, +4 to +0xC, +0x10: here `line`'s dwords 0, 1 to 3, 4) dx into
 /// +0x396 and +0x3A6, minus dy (dy when `back`) into +0x3A2, its negation into +0x39A.
 /// Every register kept.
-pub fn set_line_turn(line: &[Dword; 6], back: bool) {
+pub fn set_line_turn(masks: &Masks, line: &[Dword; 6], back: bool) {
     let dx = x87::sub(line[3].get(), line[0].get());
     let dy = if back {
         x87::sub(line[4].get(), line[1].get())
     } else {
         x87::negated_sub(line[4].get(), line[1].get())
     };
-    MASKS.turn[0].set_bits(dx);
-    MASKS.turn[3].set_bits(dy);
-    MASKS.turn[1].set_bits(x87::negated(dy));
-    MASKS.turn[4].set_bits(x87::loaded(dx));
+    masks.vars.turn[0].set_bits(dx);
+    masks.vars.turn[3].set_bits(dy);
+    masks.vars.turn[1].set_bits(x87::negated(dy));
+    masks.vars.turn[4].set_bits(x87::loaded(dx));
 }
 
 /// `effects::scale_rows3` (0x4BF498): the three rows of three floats at esi each made the
@@ -61,8 +61,8 @@ pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
 /// `effects::turn_pair` (0x4BF409): st(0) a, st(1) b turned by `g_marksLineTurn` (m0 .. m3):
 /// st(0) a m3 + b m2, st(1) b m0 + a m1, unrounded (the original's `fld st(1)`, `fxch`s
 /// and `faddp`s). Every register kept.
-pub fn turn_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
-    turn_pair_x87(&inputs, &MASKS.turn)
+pub fn turn_pair(masks: &Masks, inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
+    turn_pair_x87(&inputs, &masks.vars.turn)
 }
 
 /// `fld tbyte; fmul; fistp` for st(0) then st(1): their whole-number scalings.

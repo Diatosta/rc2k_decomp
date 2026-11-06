@@ -19,6 +19,7 @@
 //! game's variables; the vector helpers their Rust versions. Refuses null settings, before
 //! anything.
 
+use crate::effects::mask_store::Masks;
 use crate::effects::plain::{ld_cell, ldi_cell, st_cell};
 use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::tuning::MARKS_KIND_FLOATS;
@@ -62,7 +63,7 @@ fn point_turned(drops: &WindscreenDrops, p: &[Float; 3]) {
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_top(drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn windscreen_drops_top(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
     drops.hex.buffer.set(0);
     frame_axes(drops, m);
@@ -95,7 +96,7 @@ pub fn windscreen_drops_top(drops: &WindscreenDrops) -> Result<(), Refused> {
         point_turned(drops, p);
     }
     if drops.state.rate.bits() != 0 {
-        crate::effects::windscreen_drops_frame::windscreen_drops_frame(drops)?;
+        crate::effects::windscreen_drops_frame::windscreen_drops_frame(masks, drops)?;
         let at_now: u32 = drops.hex.buffer.get();
         if at_now != 0 {
             let quads =
@@ -111,7 +112,7 @@ pub fn windscreen_drops_top(drops: &WindscreenDrops) -> Result<(), Refused> {
         }
         let marks = crate::effects::setup::marks()?;
         if marks.listener_switch_6.get() != 0 && MARKS_KIND_FLOATS.running.bits() != 0 {
-            crate::effects::windscreen_drops_step::windscreen_drops_step(drops)?;
+            crate::effects::windscreen_drops_step::windscreen_drops_step(masks, drops)?;
         }
     }
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());

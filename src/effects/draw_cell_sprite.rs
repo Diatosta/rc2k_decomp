@@ -18,9 +18,9 @@
 //! fog's and the clip's refusals.
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
+use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
-use crate::effects::surface_store::SURFACE;
 use crate::errors::{BadInput, Refused};
 use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
@@ -44,7 +44,12 @@ fn square(k: u32, angle: u32) -> u32 {
 
 /// The Rust version (see the header): `cell` (eax), `angle` (ebx), `alpha` (ecx, its top
 /// byte), `size` (edx), `entry` (esi). No caller reads a register it leaves.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the original's five registers and the cell places, and now the two owners"
+)]
 pub fn draw_cell_sprite(
+    masks: &Masks,
     ring: &Ring,
     cell: u32,
     angle: u32,
@@ -79,7 +84,7 @@ pub fn draw_cell_sprite(
     }
     DRAW_WORK.sprite_half[0].set_bits(size);
     let at = cell << 4;
-    let place = |n: usize| SURFACE.places.get_u32(at as usize + 4 * n);
+    let place = |n: usize| masks.surface.places.get_u32(at as usize + 4 * n);
     let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
     for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
         .into_iter()

@@ -12,8 +12,8 @@
 //! again, the 0x40000 block left taken).
 
 use crate::effects::load_mask_pictures::{lock, put_pixel};
+use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
-use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
@@ -52,11 +52,11 @@ fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
 /// The Rust version (see the header): `memory::allocate`, `d3d::lock_texture` /
 /// `unlock_texture`, `gfx::read_picture_file`, `gfx::put_surface_pixel`,
 /// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
-pub fn set_up_surface(ring: &Ring) -> Result<(), Refused> {
+pub fn set_up_surface(ring: &Ring, masks: &Masks) -> Result<(), Refused> {
     // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
     // block was.
     let mut mask =
-        crate::memory::owned::counted(crate::pointers::GamePtr::to(&MASK_LIST.list), MASK_BYTES)?;
+        crate::memory::owned::counted(crate::pointers::GamePtr::to(&masks.list.list), MASK_BYTES)?;
     lock(KIND_TEXTURES.kind_first_textures[211].bits(), true)?;
     if crate::gfx::screen_state::DRAW_SURFACE.width.get() < SIDE
         || crate::gfx::screen_state::DRAW_SURFACE.height.get() < SIDE
@@ -86,7 +86,7 @@ pub fn set_up_surface(ring: &Ring) -> Result<(), Refused> {
     crate::scene::forget_slot_texture::forget_slot_texture(
         KIND_TEXTURES.kind_first_slots[211].bits(),
     )?;
-    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&MASK_LIST.list))?;
+    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&masks.list.list))?;
 
     crate::effects::ring_entries::take(ring, crate::pointers::GamePtr::to(&ring.work.list))?;
     ring.work.block.set(1);
@@ -99,7 +99,7 @@ pub fn set_up_surface(ring: &Ring) -> Result<(), Refused> {
         MARKS_FLOATS.over_256.bits(),
         MARKS_FLOATS.over_32.bits(),
     ];
-    let places = &SURFACE.places;
+    let places = &masks.surface.places;
     let end = size_of_val(places);
     let put = |at: u32, v: u32| {
         if at as usize + 4 > end {
@@ -172,15 +172,19 @@ pub struct MaskList {
 }
 
 /// MaskList's first values.
-pub static MASK_LIST: MaskList = MaskList {
-    list: [
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-    ],
-    _gap_93a1ea: Bytes::new([0; 48]),
-};
+impl MaskList {
+    pub const fn new() -> Self {
+        MaskList {
+            list: [
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+            ],
+            _gap_93a1ea: Bytes::new([0; 48]),
+        }
+    }
+}
 
 impl MaskList {
     pub const START: usize = 0x93A1DA;
@@ -203,7 +207,8 @@ mod mask_list_tests {
     fn mask_list_starts_as_the_games() {
         assert_eq!(size_of::<MaskList>(), MaskList::LEN);
         assert!(
-            bytes(&MASK_LIST) == crate::moved::image_bytes(MaskList::START, MaskList::LEN),
+            bytes(&crate::effects::owner::effects().masks.list)
+                == crate::moved::image_bytes(MaskList::START, MaskList::LEN),
             "MASK_LIST starts differently from the image"
         );
         assert_eq!(offset_of!(MaskList, list), 0x93A1DA - MaskList::START);

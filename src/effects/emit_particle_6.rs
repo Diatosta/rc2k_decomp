@@ -18,9 +18,9 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
+use crate::effects::mask_store::Masks;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
-use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
@@ -90,6 +90,7 @@ fn refusal(
 
 /// The Rust version (see the header).
 pub fn emit_particle_6(
+    masks: &Masks,
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
@@ -100,7 +101,7 @@ pub fn emit_particle_6(
             return Err(BadInput(why).into());
         }
         let flags = wheel.flags.get();
-        SURFACE.wheel_flags.set(flags);
+        masks.surface.wheel_flags.set(flags);
         if flags & 0xC0 == 0 {
             return Ok(());
         }
@@ -169,7 +170,7 @@ pub fn emit_particle_6(
         let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
         MARKS_WORK.seed.set(s);
         put(field::SIZE, x87::from_int(((s & 0x3FFF) + 0x4000) as i32))?;
-        let life: u32 = SURFACE.lives_by_flags[(flags >> 6) as usize].get();
+        let life: u32 = masks.surface.lives_by_flags[(flags >> 6) as usize].get();
         put(field::LIFE, life)?;
         put(
             field::ALPHA_FADE,

@@ -17,8 +17,8 @@
 //! that holds blocks (`free_list`'s refusal).
 
 use crate::effects::blocks::{MARK_LINKS, PLACES_BLOCK};
-use crate::effects::mask_store::MASK_BLOCKS;
-use crate::effects::paths::Paths;
+use crate::effects::mask_store::Masks;
+use crate::effects::owner::Effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::memory::free_list::free_list;
@@ -29,14 +29,14 @@ use crate::pointers::GamePtr;
 const CAR_PART: u32 = crate::race::marks_settings_store::CAR_BLOCK;
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
-fn lists(ring: &Ring) -> [GamePtr; 6] {
+fn lists(ring: &Ring, masks: &Masks) -> [GamePtr; 6] {
     [
-        GamePtr::to(&ring.pool.list),     // g_marksRingList
-        GamePtr::to(&ring.work.list),     // stru_935620
-        GamePtr::to(&MASK_BLOCKS.list_b), // g_marksBMaskList
-        GamePtr::to(&MASK_BLOCKS.list_a), // stru_934D76
-        GamePtr::to(&PLACES_BLOCK.list),  // g_marksPlacesList
-        GamePtr::to(&MARK_LINKS.list),    // g_marksLinksList
+        GamePtr::to(&ring.pool.list),      // g_marksRingList
+        GamePtr::to(&ring.work.list),      // stru_935620
+        GamePtr::to(&masks.blocks.list_b), // g_marksBMaskList
+        GamePtr::to(&masks.blocks.list_a), // stru_934D76
+        GamePtr::to(&PLACES_BLOCK.list),   // g_marksPlacesList
+        GamePtr::to(&MARK_LINKS.list),     // g_marksLinksList
     ]
 }
 /// Each car's list, worked out without writing (none for a count past the refusals).
@@ -49,21 +49,22 @@ fn car_lists() -> Result<Vec<GamePtr>, BadInput> {
 }
 
 /// Every list it frees, the cars' first.
-fn all_lists(ring: &Ring) -> Result<Vec<GamePtr>, BadInput> {
+fn all_lists(ring: &Ring, masks: &Masks) -> Result<Vec<GamePtr>, BadInput> {
     let mut r = car_lists()?;
-    r.extend(lists(ring));
+    r.extend(lists(ring, masks));
     Ok(r)
 }
 
 /// The Rust version (see the header).
-pub fn tidy_marks(paths: &Paths, ring: &Ring) -> Result<(), Refused> {
+pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
+    let (paths, ring, masks) = (&effects.paths, &effects.ring, &effects.masks);
     let marks = crate::effects::setup::marks()?;
     let count = marks.cars_copy.get() as i32;
     if !(0..=MOST_CARS).contains(&count) {
         return Err(BadInput("a cars' count below 0 or above 8").into());
     }
     if own_heap() == 1
-        && crate::effects::try_any(all_lists(ring)?.iter(), |&l| {
+        && crate::effects::try_any(all_lists(ring, masks)?.iter(), |&l| {
             Ok(l.read::<MemoryList>("a car's block list")?.head != 0)
         })?
     {
@@ -77,13 +78,13 @@ pub fn tidy_marks(paths: &Paths, ring: &Ring) -> Result<(), Refused> {
         }
         car.put(CAR_PART + 0x8C, paths.morph_work.taken.get())?;
     }
-    for list in lists(ring) {
+    for list in lists(ring, masks) {
         free_list(list)?;
     }
     // The particles and the masks went with their lists.
-    crate::effects::owner::effects().particles.ring.give_back();
+    effects.particles.ring.give_back();
     ring.entries.give_back();
-    crate::effects::mask_store::MASK.give_back();
-    crate::effects::mask_store::BMASK.give_back();
+    masks.mask.give_back();
+    masks.bmask.give_back();
     Ok(())
 }

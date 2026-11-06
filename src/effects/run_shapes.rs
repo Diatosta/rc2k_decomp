@@ -16,7 +16,7 @@
 
 use crate::effects::emitters::next_c5;
 use crate::effects::mask_constants::MASK_CONSTANTS;
-use crate::effects::mask_vars::MASKS;
+use crate::effects::mask_store::Masks;
 use crate::effects::pick_shapes::pick_shapes;
 use crate::effects::setup::CLOCK;
 use crate::effects::shape_points::turn_all_shapes;
@@ -28,11 +28,11 @@ use crate::physics::tables_store::PHYSICS;
 const MASK_COUNT: u32 = 9;
 
 /// The Rust version (see the header).
-pub fn run_shapes(drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn run_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     let marks = crate::effects::setup::marks()?;
     {
-        pick_shapes(drops)?;
-        turn_all_shapes(drops)?;
+        pick_shapes(masks, drops)?;
+        turn_all_shapes(masks, drops)?;
         let clock: u32 = PHYSICS.scene_clock.bits();
         if clock as i32 >= drops.picks.next.get() as i32 {
             let r = next_c5(&MASK_CONSTANTS.time_random);
@@ -66,12 +66,12 @@ pub fn run_shapes(drops: &WindscreenDrops) -> Result<(), Refused> {
             let count = x87::int_times_plus_int_to_int(
                 CLOCK.frame_ticks.get() as i32,
                 rate.bits(),
-                MASKS.count.get() as i32,
+                masks.vars.count.get() as i32,
             );
-            MASKS.count.set(count as u32);
+            masks.vars.count.set(count as u32);
             drops.picks.index.set((count as u32 >> 16) & 0xFF);
         }
-        pick_shapes(drops)?;
+        pick_shapes(masks, drops)?;
     }
     Ok(())
 }

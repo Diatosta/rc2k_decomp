@@ -20,8 +20,7 @@
 use crate::effects::emit_body_particles::emit_body_particles;
 use crate::effects::emit_wheel_particles::emit_wheel_particles;
 use crate::effects::emitters::*;
-use crate::effects::paths::Paths;
-use crate::effects::run_particles::Particles;
+use crate::effects::owner::Effects;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -31,12 +30,7 @@ use crate::scene::rotate_point::rotate_point;
 use crate::session::{read_bits, write_bits};
 
 /// The Rust version (see the header): `o` the car's object (the original's esi).
-pub fn emit_car_particles(
-    paths: &Paths,
-    particles: &Particles,
-    ring: &Ring,
-    o: &'static MarkCar,
-) -> Result<(), Refused> {
+pub fn emit_car_particles(effects: &Effects, o: &'static MarkCar) -> Result<(), Refused> {
     o.whole()?;
     let k = read_bits(&EMITTER.place_k);
     let z1 = x87::int_times(o.word(0xC)? as i32, k[0]);
@@ -89,11 +83,11 @@ pub fn emit_car_particles(
             );
         }
         EMITTER.record.set(n as u32);
-        emit_wheel_particles(paths, particles, ring, &o.records[n], o)?;
+        emit_wheel_particles(effects, &o.records[n], o)?;
     }
     let sides: [u32; 6] = std::array::from_fn(|n| x87::loaded(EMITTER.body_k[n].bits()));
     write_bits(&EMITTER.side_a, [sides[0], sides[1], sides[2]]);
     write_bits(&EMITTER.side_b, [sides[3], sides[4], sides[5]]);
-    emit_body_particles(paths, particles, ring, &o.records[4], o)?;
+    emit_body_particles(effects, &o.records[4], o)?;
     Ok(())
 }

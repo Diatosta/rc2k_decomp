@@ -13,9 +13,7 @@
 //! taken), memory or a picture not had, as its steps do.
 
 use crate::effects::kind_values::MARKS_KIND;
-use crate::effects::mask_store::{
-    GROUND_NAMES, KIND_PICTURES, MASK_BLOCKS, MASK_PIXELS, Mask, PICTURE_COPY,
-};
+use crate::effects::mask_store::{KIND_PICTURES, MASK_PIXELS, Mask, Masks};
 use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -25,7 +23,7 @@ const NAMES: i32 = 6;
 const MASK_BYTES: u32 = 0x2_0000;
 const COPY_BYTES: u32 = 0x8_0000;
 const MOST_KIND: i32 = 0x21;
-/// The mask paths in `PICTURE_COPY.paths`: "files\m\mask00.pcx" and "files\m\bmask00.pcx"
+/// The mask paths in `PictureCopy::paths`: "files\m\mask00.pcx" and "files\m\bmask00.pcx"
 /// (the third, "files\m\bdata00.pcx", is not read here), and where their two digits are.
 const MASK_PATH_AT: usize = 0;
 const BMASK_PATH_AT: usize = 0x13;
@@ -88,10 +86,10 @@ pub fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 
 /// A mask read, copied to the 0x80000 block (`copy`), the ground read, and the mask `to`
 /// made and drawn at rows 0x80 .. 0xFD.
-fn mask(path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refused> {
+fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refused> {
     {
         // A file path (text up to its NUL) at a byte offset in the paths.
-        read(crate::pointers::GamePtr::to(&PICTURE_COPY.paths).offset(path as u32))?;
+        read(crate::pointers::GamePtr::to(&masks.picture_copy.paths).offset(path as u32))?;
         copy[..4 * COPIED as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
             PICTURE.buffer.get(),
             0,
@@ -99,15 +97,15 @@ fn mask(path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refuse
         )?);
         // The ground's file path, a text up to its NUL, at the offset the settings name.
         read(
-            crate::pointers::GamePtr::to(&GROUND_NAMES.names)
-                .offset(GROUND_NAMES.ground_path.get()),
+            crate::pointers::GamePtr::to(&masks.ground_names.names)
+                .offset(masks.ground_names.ground_path.get()),
         )?;
         for y in 0..ROWS {
             for x in 0..width.max(1) {
                 let n = ((y << 8).wrapping_add(x) * 4) as usize;
                 let mask = u32::from_le_bytes(copy[n..n + 4].try_into().expect("four bytes"));
                 let pixel = (mask << 8) & 0xFF00_0000 | 0xFF_FFFF;
-                to.pixels().with(|p| p[n / 4] = pixel)?;
+                to.pixels(masks).with(|p| p[n / 4] = pixel)?;
                 put_pixel(pixel, x, y + 0x80)?;
             }
         }
@@ -121,14 +119,15 @@ fn mask(path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refuse
 /// (`gfx::read_picture_file`) into its block and drawn (`gfx::put_surface_pixel`);
 /// unlocked, the texture slot forgotten (`scene::forget_slot_texture`), the 0x80000
 /// block's list freed, `dword_934D6E` -1.
-pub fn load_mask_pictures() -> Result<(), Refused> {
-    let ground: i32 = GROUND_NAMES.ground.get() as i32;
+pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
+    let ground: i32 = masks.ground_names.ground.get() as i32;
     if ground >= NAMES {
         return Err(BadInput("a ground past the six names").into());
     }
     let mut name = 0usize;
     for _ in 0..ground.max(0) {
-        while *GROUND_NAMES
+        while *masks
+            .ground_names
             .names
             .read_at(name, 1, "the ground names")?
             .first()
@@ -139,23 +138,24 @@ pub fn load_mask_pictures() -> Result<(), Refused> {
         }
         name += 1;
     }
-    GROUND_NAMES.ground_path.set(name as u32);
+    masks.ground_names.ground_path.set(name as u32);
     // The masks and the picture copy are Rust's (phase 12), counted on their lists
     // as the game's blocks were.
     for (mask, list) in [
         (
             Mask::Plain,
-            crate::pointers::GamePtr::to(&MASK_BLOCKS.list_a),
+            crate::pointers::GamePtr::to(&masks.blocks.list_a),
         ),
         (
             Mask::Bordered,
-            crate::pointers::GamePtr::to(&MASK_BLOCKS.list_b),
+            crate::pointers::GamePtr::to(&masks.blocks.list_b),
         ),
     ] {
-        mask.pixels().take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
+        mask.pixels(masks)
+            .take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
     }
     let mut copy = crate::memory::owned::counted(
-        crate::pointers::GamePtr::to(&PICTURE_COPY.list),
+        crate::pointers::GamePtr::to(&masks.picture_copy.list),
         COPY_BYTES,
     )?;
     lock(KIND_TEXTURES.kind_first_textures[202].bits(), true)?;
@@ -171,16 +171,16 @@ pub fn load_mask_pictures() -> Result<(), Refused> {
         (number % 10) as u8 + b'0',
     ];
     for d in DIGITS_AT {
-        PICTURE_COPY.paths.set(d, digits[0]);
-        PICTURE_COPY.paths.set(d + 1, digits[1]);
+        masks.picture_copy.paths.set(d, digits[0]);
+        masks.picture_copy.paths.set(d + 1, digits[1]);
     }
-    mask(MASK_PATH_AT, Mask::Plain, &mut copy, width)?;
-    mask(BMASK_PATH_AT, Mask::Bordered, &mut copy, width)?;
+    mask(masks, MASK_PATH_AT, Mask::Plain, &mut copy, width)?;
+    mask(masks, BMASK_PATH_AT, Mask::Bordered, &mut copy, width)?;
     lock(KIND_TEXTURES.kind_first_textures[202].bits(), false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
         KIND_TEXTURES.kind_first_slots[202].bits(),
     )?;
-    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&PICTURE_COPY.list))?;
-    MASK_BLOCKS.seen.set(u32::MAX);
+    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&masks.picture_copy.list))?;
+    masks.blocks.seen.set(u32::MAX);
     Ok(())
 }

@@ -26,8 +26,8 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
+use crate::effects::mask_store::Masks;
 use crate::effects::run_particles::Particles;
-use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -102,6 +102,7 @@ fn refusal(ring: &Ring, wheel: &MarkRecord) -> Result<Option<&'static str>, Refu
 
 /// The body at 0x4CCF71 (see the header).
 pub fn emit_particle_1(
+    masks: &Masks,
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
@@ -112,7 +113,7 @@ pub fn emit_particle_1(
             return Err(BadInput(why).into());
         }
         let flags = wheel.flags.get();
-        SURFACE.wheel_flags.set(flags);
+        masks.surface.wheel_flags.set(flags);
         let p = pace(wheel)?;
         ring.work.whole.set(p.grown.0 as u32);
         wheel.pace.set(p.grown.1);
@@ -202,6 +203,7 @@ pub fn emit_particle_1(
 
 /// The Rust version (see the header).
 pub fn emit_kind_1(
+    masks: &Masks,
     particles: &Particles,
     ring: &Ring,
     wheel: &MarkRecord,
@@ -210,7 +212,7 @@ pub fn emit_kind_1(
     if particles.kind1_choice.choice.get() != 0 {
         emit_particle_21(particles, ring, wheel, object)
     } else {
-        emit_particle_1(particles, ring, wheel, object)
+        emit_particle_1(masks, particles, ring, wheel, object)
     }
 }
 

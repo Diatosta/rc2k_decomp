@@ -4,7 +4,7 @@
 //! and the two farthest apart of each list on one face.
 
 use crate::effects::kind_values::MARKS_KIND;
-use crate::effects::mask_vars::MASKS;
+use crate::effects::mask_store::Masks;
 use crate::effects::masks::PointList;
 use crate::effects::shape_work::MarkShapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -175,16 +175,19 @@ pub fn turn_shape_points(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), 
 
 /// The two shapes' steps and ends for `turn_all_shapes`: the step (each shape's +0), a, b,
 /// and the switch that picks the second result.
-fn all_steps(drops: &WindscreenDrops) -> [(&Dword, usize, &Dword, &Dword); 2] {
+fn all_steps<'a>(
+    masks: &'a crate::effects::mask_store::Masks,
+    drops: &'a WindscreenDrops,
+) -> [(&'a Dword, usize, &'a Dword, &'a Dword); 2] {
     [
         (
-            &MASKS.shapes[0].step,
+            &masks.vars.shapes[0].step,
             0,                               // `dword_89C974`, `ShapeSetTuning::turn_angles`
             &drops.shape_work.work.steps[0], // dword_884FC4
             &drops.picks.flags[0],           // dword_844604
         ),
         (
-            &MASKS.shapes[1].step,
+            &masks.vars.shapes[1].step,
             2,                               // `dword_89C97C`
             &drops.shape_work.work.steps[1], // dword_884FC8
             &drops.picks.flags[1],           // dword_844608
@@ -198,12 +201,12 @@ fn all_steps(drops: &WindscreenDrops) -> [(&Dword, usize, &Dword, &Dword); 2] {
 /// (`dword_844604` / `_08`) is 0, and `turn_shape_points` with them. The object's offset
 /// (times 0xAB8) is worked out and not used: the one set is turned every time (section
 /// 16). Refuses what `turn_shape_points` would, before writing.
-pub fn turn_all_shapes(drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn turn_all_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     use crate::effects::turns::{smooth_pair, smooth_steps};
     {
         let marks = crate::effects::setup::marks()?;
         let count = marks.object_count.get() as i32;
-        let all_steps = all_steps(drops);
+        let all_steps = all_steps(masks, drops);
         let pick = |n: usize, (first, second): (u32, u32)| -> u32 {
             if all_steps[n].3.get() == 0 {
                 first

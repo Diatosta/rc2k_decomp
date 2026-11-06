@@ -10,6 +10,7 @@
 //! `pick_shapes`' refusals (all it may write put back first).
 
 use crate::effects::expire_windscreen_flakes::expire_windscreen_flakes;
+use crate::effects::mask_store::Masks;
 use crate::effects::pick_shapes::pick_shapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
@@ -18,6 +19,7 @@ use crate::errors::Refused;
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::steps::{steps, next_step}`
 pub fn windscreen_flakes_step(
+    masks: &Masks,
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
 ) -> Result<(), Refused> {
@@ -28,8 +30,8 @@ pub fn windscreen_flakes_step(
         let n = steps::steps(drops.picks.index.get(), clock);
         drops.picks.index.set(clock);
         for _ in 0..n {
-            pick_shapes(drops)?;
-            expire_windscreen_flakes(drops, fl);
+            pick_shapes(masks, drops)?;
+            expire_windscreen_flakes(masks, drops, fl);
             drops
                 .picks
                 .index

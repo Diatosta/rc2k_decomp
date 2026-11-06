@@ -10,7 +10,7 @@
 //!
 //! Caller: `effects::windscreen_drops_step` (0x4BCAF1).
 
-use crate::effects::mask_vars::MASKS;
+use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 
@@ -19,7 +19,7 @@ pub const ITEM_LEN: u32 = 0x30;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::expiry::{cell, windscreen_drop_draw, windscreen_drop_hit}`
-pub fn expire_windscreen_drops(drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn expire_windscreen_drops(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     use rc2k_core::effects::expiry;
     {
         let items = &drops.hex.items;
@@ -43,7 +43,7 @@ pub fn expire_windscreen_drops(drops: &WindscreenDrops) -> Result<(), Refused> {
                     let at = drops.picks.index.get().wrapping_add(k) & 0xFF;
                     drops.picks.values[at as usize].get()
                 },
-                |n| [&MASKS.mask_a, &MASKS.mask_b][n].get(c.at as usize),
+                |n| [&masks.vars.mask_a, &masks.vars.mask_b][n].get(c.at as usize),
             );
             if hit {
                 items.set_u32(e, 0);

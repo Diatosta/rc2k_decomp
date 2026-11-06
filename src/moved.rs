@@ -1781,7 +1781,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::edges::EdgeMask::START,
         len: crate::effects::edges::EdgeMask::LEN,
-        home: Home::Store(&crate::effects::edges::EDGE_MASK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.masks.edge_mask),
     },
     Moved {
         ida: crate::effects::tilt_shape::ShapeTilt::START,
@@ -1791,7 +1791,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::edges::KindBoxes::START,
         len: crate::effects::edges::KindBoxes::LEN,
-        home: Home::Store(&crate::effects::edges::KIND_BOXES),
+        home: Home::Store(&crate::effects::owner::EFFECTS.masks.kind_boxes),
     },
     Moved {
         ida: crate::effects::windscreen_drop_state::WindscreenDropState::START,
@@ -1811,7 +1811,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::mask_vars::MaskVars::START,
         len: crate::effects::mask_vars::MaskVars::LEN,
-        home: Home::Store(&crate::effects::mask_vars::MASKS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.masks.vars),
     },
     Moved {
         ida: crate::effects::mask_picks::MaskPicks::START,
@@ -1856,7 +1856,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::edges::EdgeSettings::START,
         len: crate::effects::edges::EdgeSettings::LEN,
-        home: Home::Store(&crate::effects::edges::EDGE_SETTINGS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.masks.edge_settings),
     },
     Moved {
         ida: crate::effects::rain::RainState::START,
@@ -1996,17 +1996,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::mask_store::GroundNames::START,
         len: crate::effects::mask_store::GroundNames::LEN,
-        home: Home::Store(&crate::effects::mask_store::GROUND_NAMES),
+        home: Home::Store(&crate::effects::owner::EFFECTS.masks.ground_names),
     },
     Moved {
         ida: crate::effects::mask_store::MaskBlocks::START,
         len: crate::effects::mask_store::MaskBlocks::LEN,
-        home: Home::Store(&crate::effects::mask_store::MASK_BLOCKS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.masks.blocks),
     },
     Moved {
         ida: crate::effects::mask_store::PictureCopy::START,
         len: crate::effects::mask_store::PictureCopy::LEN,
-        home: Home::Store(&crate::effects::mask_store::PICTURE_COPY),
+        home: Home::Store(&crate::effects::owner::EFFECTS.masks.picture_copy),
     },
     Moved {
         ida: crate::effects::mark_slots::MarkSlots::START,
@@ -2036,7 +2036,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::surface_store::SurfaceTables::START,
         len: crate::effects::surface_store::SurfaceTables::LEN,
-        home: Home::Store(&crate::effects::surface_store::SURFACE),
+        home: Home::Store(&crate::effects::owner::EFFECTS.masks.surface),
     },
     Moved {
         ida: crate::effects::emit_particle_19::TwinState::START,
@@ -2051,7 +2051,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::set_up_surface::MaskList::START,
         len: crate::effects::set_up_surface::MaskList::LEN,
-        home: Home::Store(&crate::effects::set_up_surface::MASK_LIST),
+        home: Home::Store(&crate::effects::owner::EFFECTS.masks.list),
     },
     Moved {
         ida: crate::effects::emit_particle_5::Kind5Set::START,

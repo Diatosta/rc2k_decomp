@@ -3,7 +3,7 @@
 //! rows of spans are filled into a mask of 0x8000 bytes (rows of 0x100) with the shape's
 //! number, 0xFF elsewhere. These are the leaves.
 
-use crate::effects::mask_vars::MASKS;
+use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::session::Dword;
@@ -71,31 +71,31 @@ pub fn collect_points(list: &PointList<'_>, face: u32) -> Result<(), Refused> {
 /// `effects::reset_mask_cursor` (0x4BE0A3): `g_marksMaskCursor` the work block, the runs
 /// from the start of `run_table` (0x831D2E; the runs are offsets in it), `g_marksMaskRunCount` 0. Every register kept. Converted:
 /// `rc2k_core::effects::masks::MaskCursor::reset`.
-pub fn reset_mask_cursor() {
+pub fn reset_mask_cursor(masks: &Masks) {
     // The work's first byte: offset 0 (phase 12).
     let c = rc2k_core::effects::masks::MaskCursor::reset(0, 0);
-    MASKS.cursor.set(c.cursor);
-    MASKS.runs.set(c.runs);
-    MASKS.run_count.set(c.run_count);
+    masks.vars.cursor.set(c.cursor);
+    masks.vars.runs.set(c.runs);
+    masks.vars.run_count.set(c.run_count);
 }
 
 /// Entry `index` of a list of shapes' rows (`ebp` +8; `entries` the offset of the list in `run_table`): 16 bytes each, +0 the spans (x,
 /// length; 8 bytes each), +4 the first row, +8 the count (signed).
-fn shape_rows(entries: u32, index: u32) -> Result<ShapeRows, Refused> {
+fn shape_rows(masks: &Masks, entries: u32, index: u32) -> Result<ShapeRows, Refused> {
     Ok({
         let entry = entries.wrapping_add(index.wrapping_mul(16));
         let (spans, first_row, count) = (
-            crate::effects::spans::run_get(entry)?,
-            crate::effects::spans::run_get(entry + 4)?,
-            crate::effects::spans::run_get(entry + 8)?,
+            crate::effects::spans::run_get(masks, entry)?,
+            crate::effects::spans::run_get(masks, entry + 4)?,
+            crate::effects::spans::run_get(masks, entry + 8)?,
         );
         ShapeRows {
             first_row,
             spans: (0..(count as i32).max(0) as u32)
                 .map(|i| {
                     Ok(Span {
-                        x: work_get(spans.wrapping_add(8 * i))?,
-                        len: work_get(spans.wrapping_add(8 * i + 4))?,
+                        x: work_get(masks, spans.wrapping_add(8 * i))?,
+                        len: work_get(masks, spans.wrapping_add(8 * i + 4))?,
                     })
                 })
                 .collect::<Result<_, BadInput>>()?,
@@ -109,13 +109,14 @@ fn shape_rows(entries: u32, index: u32) -> Result<ShapeRows, Refused> {
 /// Refuses a count of 0 or less (the original's loop tests after counting and would run
 /// round) or a span outside the mask, before writing. Converted:
 /// `rc2k_core::effects::masks::draw_mask`.
-pub fn draw_mask(drops: &WindscreenDrops, n: u32) -> Result<(), Refused> {
+pub fn draw_mask(masks: &Masks, drops: &WindscreenDrops, n: u32) -> Result<(), Refused> {
     {
-        let shapes = MASKS
+        let shapes = masks
+            .vars
             .shapes
             .get(n as usize)
             .ok_or(BadInput("a shape's number that names none"))?;
-        let place = [&MASKS.mask_a, &MASKS.mask_b][n as usize];
+        let place = [&masks.vars.mask_a, &masks.vars.mask_b][n as usize];
         let count = shapes.count.get() as i32;
         if count <= 0 {
             return Err(BadInput("a mask of no shapes: the loop would run round").into());
@@ -123,7 +124,7 @@ pub fn draw_mask(drops: &WindscreenDrops, n: u32) -> Result<(), Refused> {
         let entries = shapes.rows.get();
         let mut rows = Vec::new();
         for k in 0..2 * count as u32 {
-            let r = shape_rows(entries, k)?;
+            let r = shape_rows(masks, entries, k)?;
             r.fit()?;
             rows.push(r);
         }
@@ -132,30 +133,30 @@ pub fn draw_mask(drops: &WindscreenDrops, n: u32) -> Result<(), Refused> {
         place.write_at(0, &mask, "a mark mask")?;
         drops.picks.mask.set(n);
         drops.picks.shapes.set(n);
-        MASKS.mask_value.set(count as u32 - 1);
+        masks.vars.mask_value.set(count as u32 - 1);
     }
     Ok(())
 }
 
 pub const WORK_LEN: u32 = 0x8_0000;
 
-/// The masks' work (`g_marksMaskWork`, the game's 0x80000-byte block), Rust's since phase
-/// 12: the rows of spans `span_triangle` makes, reached by byte offsets (the cursor, the
-/// runs' +0). Taken by `make_masks` counted on its list, given back with it.
-pub static MASK_WORK: crate::memory::owned::Owned<Vec<u32>> =
-    crate::memory::owned::Owned::new("no mask work");
+// The masks' work (`g_marksMaskWork`, the game's 0x80000-byte block) is `Masks::work`,
+// Rust's since phase 12: the rows of spans `span_triangle` makes, reached by byte offsets
+// (the cursor, the runs' +0). Taken by `make_masks` counted on its list, given back with it.
 
 /// The work's dword at byte offset `at`.
-pub fn work_get(at: u32) -> Result<u32, BadInput> {
-    MASK_WORK
+pub fn work_get(masks: &Masks, at: u32) -> Result<u32, BadInput> {
+    masks
+        .work
         .with(|w| w.get(at as usize / 4).copied())?
         .filter(|_| at.is_multiple_of(4))
         .ok_or(BadInput("a mask span past the work block"))
 }
 
 /// The work's dword at byte offset `at` set to `v`.
-pub fn work_put(at: u32, v: u32) -> Result<(), BadInput> {
-    MASK_WORK
+pub fn work_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
+    masks
+        .work
         .with(|w| match w.get_mut(at as usize / 4) {
             Some(d) if at.is_multiple_of(4) => {
                 *d = v;
@@ -172,26 +173,28 @@ pub fn work_put(at: u32, v: u32) -> Result<(), BadInput> {
 /// (`draw_mask`) and pixels (`map_shapes`); the list freed (`memory::free_list`). Refuses
 /// as its steps do, mid-way (the work block is on the list, which the original's run
 /// frees with its own).
-pub fn make_masks(drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn make_masks(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     // The two shapes' ring-angle tables (each shape's mask, pixel and corner tables are
     // found by its number).
-    let ring_angles = [&MASKS.ring_angles_a, &MASKS.ring_angles_b];
-    let list = crate::pointers::GamePtr::to(&MASKS.list);
-    MASK_WORK.take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
+    let ring_angles = [&masks.vars.ring_angles_a, &masks.vars.ring_angles_b];
+    let list = crate::pointers::GamePtr::to(&masks.vars.list);
+    masks
+        .work
+        .take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
     crate::effects::shape_points::make_shape_sets(drops)?;
-    crate::effects::corners::make_corners(drops)?;
-    reset_mask_cursor();
-    for (n, (shape, angles)) in MASKS.shapes.iter().zip(ring_angles).enumerate() {
-        MASKS.ring_corners.set(n as u32);
-        crate::effects::rings::span_ring(shape, angles)?;
+    crate::effects::corners::make_corners(masks, drops)?;
+    reset_mask_cursor(masks);
+    for (n, (shape, angles)) in masks.vars.shapes.iter().zip(ring_angles).enumerate() {
+        masks.vars.ring_corners.set(n as u32);
+        crate::effects::rings::span_ring(masks, shape, angles)?;
     }
     for n in 0..2 {
-        draw_mask(drops, n as u32)?;
+        draw_mask(masks, drops, n as u32)?;
     }
     for n in 0..2 {
-        crate::effects::pixels::map_shapes(drops, n as u32)?;
+        crate::effects::pixels::map_shapes(masks, drops, n as u32)?;
     }
     crate::memory::free_list::free_list(list)?;
-    MASK_WORK.give_back();
+    masks.work.give_back();
     Ok(())
 }

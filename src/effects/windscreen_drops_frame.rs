@@ -15,8 +15,8 @@
 //! The float steps run on the x87 model (`math::x87_float`), in the original's order and
 //! rounding. Refuses, before anything, null settings and a live item of a kind past 7.
 
-use crate::effects::edges::EDGE_MASK;
 use crate::effects::expire_windscreen_drops::{ITEM_LEN, ITEMS};
+use crate::effects::mask_store::Masks;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::work_store::MARKS_WORK;
@@ -91,7 +91,7 @@ pub fn draw_batch() -> Result<(), Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_frame(drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn windscreen_drops_frame(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     if let Some(why) = refusal(drops)? {
         return Err(BadInput(why).into());
     }
@@ -123,7 +123,7 @@ pub fn windscreen_drops_frame(drops: &WindscreenDrops) -> Result<(), Refused> {
             }
             let shape = get(drops, e + ITEM_KIND);
             let cell = ((((z as u32) >> 3) & 0x7F) << 8) + (((x as u32) >> 3) & 0xFF);
-            if EDGE_MASK.mask.get(cell as usize) != 0 {
+            if masks.edge_mask.mask.get(cell as usize) != 0 {
                 put(drops, e, 0);
                 continue;
             }

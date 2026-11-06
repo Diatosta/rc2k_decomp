@@ -53,7 +53,7 @@ pub fn run_frame() -> Result<(), Refused> {
     let (weather, particles, ring) = (&effects.weather, &effects.particles, &effects.ring);
     let paths = &effects.paths;
     {
-        swap_mask::swap_mask()?;
+        swap_mask::swap_mask(&effects.masks)?;
         setup::tick_clock()?;
         let whole = rdtsc();
         for (value, state) in STATES {
@@ -63,9 +63,9 @@ pub fn run_frame() -> Result<(), Refused> {
         run_snow::run_snow(weather)?;
         let start = rdtsc();
         share(0, start);
-        draw_frame::draw_frame(paths, particles, ring)?;
+        draw_frame::draw_frame(effects)?;
         let start = rdtsc();
-        ring_frame::ring_frame(weather, particles, ring)?;
+        ring_frame::ring_frame(&effects.masks, weather, particles, ring)?;
         share(1, start);
         set_render_state(2, 0x14);
         flare_frame::flare_frame(paths)?;

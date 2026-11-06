@@ -15,6 +15,7 @@
 //! game's variables; the vector helpers, `scale_axes` and `windscreen_flakes_step` their Rust
 //! versions. Refuses null settings and `windscreen_flakes_step`'s refusals.
 
+use crate::effects::mask_store::Masks;
 use crate::effects::plain::ldi_cell;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -49,6 +50,7 @@ fn frame_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
 
 /// The Rust version (see the header).
 pub fn windscreen_flakes_frame(
+    masks: &Masks,
     drops: &WindscreenDrops,
     pong: &crate::effects::pong::Pong,
     fl: &WindscreenFlakes,
@@ -73,7 +75,7 @@ pub fn windscreen_flakes_frame(
     if x87::mul_to_int(fl.timing.rate.bits(), fl.state.share.bits()) == 0 {
         return Ok(());
     }
-    crate::effects::run_windscreen_flakes::run_windscreen_flakes(drops, fl)?;
+    crate::effects::run_windscreen_flakes::run_windscreen_flakes(masks, drops, fl)?;
     let marks = crate::effects::setup::marks()?;
     if marks.listener_switch_6.get() == 0 {
         return Ok(());
@@ -81,7 +83,7 @@ pub fn windscreen_flakes_frame(
     if MARKS_KIND_FLOATS.running.bits() == 0 {
         return Ok(());
     }
-    windscreen_flakes_step(drops, fl)?;
+    windscreen_flakes_step(masks, drops, fl)?;
     Ok(())
 }
 

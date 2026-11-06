@@ -98,8 +98,7 @@ pub fn race_init() -> Result<(), Refused> {
         MARKS_SETTINGS.other_marks_shown.set(1);
         { crate::drive::share_all_cars::share_all_cars() }?;
         MARKS_SETTINGS.other_marks_shown.set(0);
-        let effects = crate::effects::owner::effects();
-        crate::effects::frame_marks::frame_marks(&effects.paths, &effects.windscreen_drops)?;
+        crate::effects::frame_marks::frame_marks(crate::effects::owner::effects())?;
         crate::effects::run_frame::run_frame()?;
     }
     crate::race::race_init::clear_race_slots();

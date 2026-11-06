@@ -15,7 +15,7 @@
 //! null marks settings (the clip's refusal).
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
-use crate::effects::surface_store::SURFACE;
+use crate::effects::mask_store::Masks;
 use crate::errors::{BadInput, Refused};
 use crate::scene::draw_store::DRAW;
 
@@ -29,7 +29,13 @@ fn ribbon() {
 
 /// The Rust version (see the header): `cell` (eax), `alpha` (ecx), `width` (edx),
 /// `colour` (esi). Its one caller reads no register after it.
-pub fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(), Refused> {
+pub fn draw_ribbon(
+    masks: &Masks,
+    cell: u32,
+    alpha: u32,
+    width: u32,
+    colour: u32,
+) -> Result<(), Refused> {
     if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
@@ -43,7 +49,7 @@ pub fn draw_ribbon(cell: u32, alpha: u32, width: u32, colour: u32) -> Result<(),
             VERTICES.vertices[n].colour.set(colour);
         }
         let at = cell << 4;
-        let place = |n: usize| SURFACE.places.get_u32(at as usize + 4 * n);
+        let place = |n: usize| masks.surface.places.get_u32(at as usize + 4 * n);
         let [u0, v0, u1, v1] = [place(0), place(1), place(2), place(3)];
         for (n, (u, v)) in [(u0, v0), (u1, v0), (u1, v1), (u0, v1)]
             .into_iter()

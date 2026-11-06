@@ -13,8 +13,7 @@
 
 use crate::effects::emit_wheel_particles::{Table, emit};
 use crate::effects::emitters::*;
-use crate::effects::paths::Paths;
-use crate::effects::run_particles::Particles;
+use crate::effects::owner::Effects;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -47,22 +46,12 @@ fn prepare(ring: &Ring, record: &MarkRecord, object: &'static MarkCar) -> Result
 /// The Rust version (see the header): `record` the body's record (the original's edi),
 /// `object` the car's object (esi).
 pub fn emit_body_particles(
-    paths: &Paths,
-    particles: &Particles,
-    ring: &Ring,
+    effects: &Effects,
     record: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
-        prepare(ring, record, object)?;
-        emit(
-            paths,
-            particles,
-            ring,
-            Table::Body,
-            record.kind.get(),
-            record,
-            object,
-        )
+        prepare(&effects.ring, record, object)?;
+        emit(effects, Table::Body, record.kind.get(), record, object)
     }
 }

@@ -21,9 +21,7 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
-use crate::effects::paths::Paths;
-use crate::effects::ring_store::Ring;
-use crate::effects::surface_store::SURFACE;
+use crate::effects::owner::Effects;
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -143,28 +141,27 @@ pub fn refusal(set: &BurstSet, wheel: &MarkRecord) -> Result<Option<&'static str
 
 /// The Rust version (see the header).
 pub fn emit_bursts(
-    paths: &Paths,
-    ring: &Ring,
+    effects: &Effects,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
-    emit_bursts_with(paths, ring, &FIRST, wheel, object)
+    emit_bursts_with(effects, &FIRST, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_bursts_with(
-    paths: &Paths,
-    ring: &Ring,
+    effects: &Effects,
     set: &BurstSet,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
+    let (paths, masks, ring) = (&effects.paths, &effects.masks, &effects.ring);
     {
         if let Some(why) = refusal(set, wheel)? {
             return Err(BadInput(why).into());
         }
         let flags2 = wheel.flags2.get();
-        SURFACE.wheel_flags2.set(flags2);
+        masks.surface.wheel_flags2.set(flags2);
         if flags2 >> 6 == 0 {
             return Ok(());
         }

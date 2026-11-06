@@ -12,7 +12,7 @@
 //!
 //! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version.
 
-use crate::effects::edges::EDGE_MASK;
+use crate::effects::mask_store::Masks;
 use crate::effects::setup::CLOCK;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -35,16 +35,17 @@ fn less(k: u32, z: u32) -> [u8; 10] {
 
 /// The Rust version (see the header).
 pub fn run_windscreen_flakes(
+    masks: &Masks,
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
 ) -> Result<(), Refused> {
     let old = x87::set_chop();
-    run(drops, fl)?;
+    run(masks, drops, fl)?;
     x87::set_control(old);
     Ok(())
 }
 
-fn run(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), Refused> {
+fn run(masks: &Masks, drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), Refused> {
     {
         crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl);
         let [a, b, c, d]: [u32; 4] = read_bits(&fl.state.run_places);
@@ -71,7 +72,7 @@ fn run(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), Refused> {
             let z = x87::to_int(item.place[1].bits()) as u32;
             let column = (x >> 3) & 0xFF;
             let cell = (((z >> 3) & 0x7F) << 8) + column;
-            if EDGE_MASK.mask.get(cell as usize) != 0 {
+            if masks.edge_mask.mask.get(cell as usize) != 0 {
                 item.live.set(0);
                 continue;
             }

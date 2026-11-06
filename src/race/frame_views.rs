@@ -148,10 +148,9 @@ pub fn draw_marks_overlays() -> Result<(), Refused> {
     shadow_refuses(&crate::effects::draw_shadow::FIRST)?;
     // Neither reads a register, and the race reads none they leave (only DF, ST).
     {
-        crate::effects::draw_overlays::draw_overlays(
-            &crate::effects::owner::effects().windscreen_drops,
-        )?;
-        crate::effects::draw_shadow::draw_shadow()?;
+        let effects = crate::effects::owner::effects();
+        crate::effects::draw_overlays::draw_overlays(&effects.masks, &effects.windscreen_drops)?;
+        crate::effects::draw_shadow::draw_shadow(&effects.masks)?;
     }
     Ok(())
 }
@@ -506,9 +505,8 @@ pub fn run_view_marks() -> Result<(), Refused> {
         FRAME_WORK.view_scale_y[n].bits(),
     ));
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
-    let effects = crate::effects::owner::effects();
-    let done = crate::effects::frame_marks::frame_marks(&effects.paths, &effects.windscreen_drops)
-        .and_then(|_| {
+    let done =
+        crate::effects::frame_marks::frame_marks(crate::effects::owner::effects()).and_then(|_| {
             if FRAME_WORK.drawing.get() == 0 {
                 crate::effects::run_frame::run_frame()
             } else {

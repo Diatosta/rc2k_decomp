@@ -6,6 +6,7 @@
 //! and pass it down. It rises as their callers take the owner, until the program's top holds
 //! it (`notes/memory_layer_plan.md`, step 11).
 
+use crate::effects::mask_store::Masks;
 use crate::effects::paths::Paths;
 use crate::effects::pong::Pong;
 use crate::effects::rain::Weather;
@@ -23,6 +24,7 @@ pub struct Effects {
     pub ring: Ring,
     pub windscreen_drops: WindscreenDrops,
     pub paths: Paths,
+    pub masks: Masks,
 }
 
 /// The one instance. Reached through `effects()`; `moved` registers its stores' places.
@@ -34,6 +36,7 @@ pub static EFFECTS: Effects = Effects {
     ring: Ring::new(),
     windscreen_drops: WindscreenDrops::new(),
     paths: Paths::new(),
+    masks: Masks::new(),
 };
 
 /// The effects' state, for a caller that does not take it as a parameter yet.

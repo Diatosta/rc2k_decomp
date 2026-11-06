@@ -9,7 +9,7 @@
 //!
 //! Caller: `effects::windscreen_flakes_step` (0x4C0682).
 
-use crate::effects::mask_vars::MASKS;
+use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
@@ -18,10 +18,10 @@ pub const ITEM_LEN: u32 = 0x3C;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::expiry::{cell, square_ends}`
-pub fn expire_windscreen_flakes(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
+pub fn expire_windscreen_flakes(masks: &Masks, drops: &WindscreenDrops, fl: &WindscreenFlakes) {
     use rc2k_core::effects::expiry;
 
-    let al = MASKS.shapes[0].step.get() as u8;
+    let al = masks.vars.shapes[0].step.get() as u8;
     for item in &fl.items.items {
         if item.live.get() != 1 {
             continue;
@@ -31,8 +31,8 @@ pub fn expire_windscreen_flakes(drops: &WindscreenDrops, fl: &WindscreenFlakes) 
         drops.state.cell[0].set(c.x as u32);
         if expiry::square_ends(
             al,
-            || MASKS.run_count.get() as i32,
-            |n| [&MASKS.mask_a, &MASKS.mask_b][n].get(c.at as usize),
+            || masks.vars.run_count.get() as i32,
+            |n| [&masks.vars.mask_a, &masks.vars.mask_b][n].get(c.at as usize),
         ) {
             item.live.set(0);
         }
