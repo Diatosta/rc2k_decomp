@@ -1,25 +1,19 @@
 //! The race's shell (`sub_4843EC`, `single_rally`'s race, and `sub_443F0B`, IDA
 //! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
-use crate::input::store::DEVICES;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_replay::Replay;
-use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::state_store::RACE_STATE;
-use crate::race::tables_store::RACE_TABLES;
 use crate::race::trap::Trap;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 use crate::session::Dword;
 
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
 
 /// `race::release_controls` (0x409425): `dword_4F7DE4` 2. Every register kept.
 pub fn release_controls() {
-    DEVICES.input_command.set(2); // g_inputCommand
+    crate::input::owner::input().devices.input_command.set(2); // g_inputCommand
 }
 
 /// `race::clear_player_absences` (0x449D44): the eight blocks' +0xB0 0. Every register
@@ -46,7 +40,7 @@ pub fn index_of_kind(kind: u32) -> Result<u32, BadInput> {
     // dword_6051E0: 0x22 kinds, but `unknown_ba4` holds 32: the last two are the two dwords
     // after it (`view_share`, `camera_turn_step`), read as the original does.
     // Bounded by the whole store: the last two entries are past the table.
-    let first = crate::pointers::GamePtr::to(&RACE_TABLES)
+    let first = crate::pointers::GamePtr::to(&crate::race::owner::race().shared.tables)
         .offset(core::mem::offset_of!(crate::race::tables_store::RaceTables, unknown_ba4) as u32);
     let trap = Trap::new();
     let order =
@@ -86,7 +80,11 @@ pub fn seal_stage_time(replay: &Replay) -> Result<(), BadInput> {
             || CAR_BLOCKS.cars[0].stage_time.bits(),
             key,
         );
-        REPLAY_FILE.index_seal.set(sealed);
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .index_seal
+            .set(sealed);
     }
     Ok(())
 }
@@ -100,7 +98,14 @@ pub fn copy_league_table(course: &Course) -> Result<(), BadInput> {
     use rc2k_core::race::results::league;
     {
         // The standings summary (`settings.rivals` 1 while it is there).
-        if RACE_STATE.settings.rivals.get() == 0 {
+        if crate::race::owner::race()
+            .shared
+            .state
+            .settings
+            .rivals
+            .get()
+            == 0
+        {
             return Ok(());
         }
         let rows = crate::saves::best_times::SUMMARY.with(|t| t.rows.map(|r| r.dwords()))?;
@@ -161,34 +166,47 @@ pub fn set_start_states() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::cars::{start_record, start_state_value, held_split,
     // settled_state}`.
     {
-        let one = crate::net::store::NET.session.get() == 1;
-        let chosen: u32 = crate::net::store::NET.player.get();
+        let one = crate::net::owner::net().vars.session.get() == 1;
+        let chosen: u32 = crate::net::owner::net().vars.player.get();
         if one && chosen > 7 {
             return Err(BadInput("a chosen car past the eight").into());
         }
         let first_kind: u32 = if one {
-            RACE_VARS.race_car_kinds[chosen as usize].get()
+            crate::race::owner::race().shared.vars.race_car_kinds[chosen as usize].get()
         } else {
-            RACE_VARS.race_car_kinds[0].bits()
+            crate::race::owner::race().shared.vars.race_car_kinds[0].bits()
         };
         let v = start_value(physics, first_kind);
         frame.panel_and_overlay.panel.start_values[0].set(v);
-        let v = start_value(physics, RACE_VARS.race_car_kinds[1].bits());
+        let v = start_value(
+            physics,
+            crate::race::owner::race().shared.vars.race_car_kinds[1].bits(),
+        );
         frame.panel_and_overlay.panel.start_values[1].set(v);
         if one {
-            let block: u32 = crate::race::work_store::RACE_WORK.car_block(chosen as usize);
-            RACE_VARS.split.set_bits(0u32);
+            let block: u32 = crate::race::owner::race()
+                .shared
+                .work
+                .car_block(chosen as usize);
+            crate::race::owner::race().shared.vars.split.set_bits(0u32);
             let block = crate::race::trap::car_at(block)?;
             if !flagged(block.car_kind.get()) {
                 settle_state(&block.camera_view);
             }
             return Ok(());
         }
-        let two = RACE_VIEW.players.bits() == 2;
-        let held = rc2k_core::race::cars::held_split(two, RACE_VARS.split.bits() as i32);
-        RACE_VARS.split.set_bits(held as u32);
+        let two = crate::race::owner::race().shared.view.players.bits() == 2;
+        let held = rc2k_core::race::cars::held_split(
+            two,
+            crate::race::owner::race().shared.vars.split.bits() as i32,
+        );
+        crate::race::owner::race()
+            .shared
+            .vars
+            .split
+            .set_bits(held as u32);
         let kind_0: u32 = CAR_BLOCKS.cars[0].car_kind.bits();
-        if !flagged(kind_0) || RACE_VIEW.players.bits() >= 2 {
+        if !flagged(kind_0) || crate::race::owner::race().shared.view.players.bits() >= 2 {
             settle_state(&CAR_BLOCKS.cars[0].camera_view);
             settle_state(&CAR_BLOCKS.cars[1].camera_view);
         }
@@ -205,39 +223,50 @@ pub fn set_start_states() -> Result<(), Refused> {
 pub fn store_results_by_mode(physics: &Physics) {
     // Converted: `rc2k_core::race::cars::margin`.
     use rc2k_core::race::cars::margin;
-    match RACE_VARS.run_kind.bits() {
+    match crate::race::owner::race().shared.vars.run_kind.bits() {
         2 => {
-            RACE_STATE
+            crate::race::owner::race()
+                .shared
+                .state
                 .results
                 .figure_ffc
                 .set(CAR_BLOCKS.cars[0].time_left.get());
             let v = CAR_BLOCKS.cars[0].mode2_place.get();
-            RACE_STATE.results.figure_000.set(v);
-            RACE_TABLES.start_place.set_bits(v);
-            RACE_STATE.results.results[0]
+            crate::race::owner::race()
+                .shared
+                .state
+                .results
+                .figure_000
+                .set(v);
+            crate::race::owner::race()
+                .shared
+                .tables
+                .start_place
+                .set_bits(v);
+            crate::race::owner::race().shared.state.results.results[0]
                 .time
                 .set(CAR_BLOCKS.cars[0].stage_time.get());
         }
         0 => {
-            RACE_STATE.results.results[0]
+            crate::race::owner::race().shared.state.results.results[0]
                 .time
                 .set(CAR_BLOCKS.cars[0].stage_time.get());
-            RACE_STATE.results.results[1]
+            crate::race::owner::race().shared.state.results.results[1]
                 .time
                 .set(CAR_BLOCKS.cars[1].stage_time.get());
             let total = physics.split_tables.stage_car_total.get();
-            RACE_STATE.results.results[0]
+            crate::race::owner::race().shared.state.results.results[0]
                 .word
                 .set(margin(total, CAR_BLOCKS.cars[0].stage_time.get()));
-            RACE_STATE.results.results[1]
+            crate::race::owner::race().shared.state.results.results[1]
                 .word
                 .set(margin(total, CAR_BLOCKS.cars[1].stage_time.get()));
         }
         1 | 3 => {
-            RACE_STATE.results.results[0]
+            crate::race::owner::race().shared.state.results.results[0]
                 .time
                 .set(CAR_BLOCKS.cars[0].stage_time.get());
-            RACE_STATE.results.results[1]
+            crate::race::owner::race().shared.state.results.results[1]
                 .time
                 .set(CAR_BLOCKS.cars[1].stage_time.get());
         }

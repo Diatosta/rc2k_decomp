@@ -13,12 +13,7 @@ use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
-use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::state_store::RACE_STATE;
 use crate::race::state_store::RaceCar;
-use crate::race::tables_store::RACE_TABLES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 use crate::session::{Dword, Float};
 use std::ffi::{CStr, CString};
 
@@ -335,20 +330,62 @@ const OPTION_BITS: [(SettingWord, u32); 9] = [
 
 /// The race's settings that are logged after the copy: the log text and the variable.
 const SHAUN_LOGS: [(&CStr, Place); 14] = [
-    (c"[shaunnumplayers]", var!(RACE_VIEW.players)),
-    (c"[shaunsplitmode]", var!(RACE_VARS.split)),
-    (c"[shauntracknum]", var!(RACE_VARS.stage_number)),
-    (c"[shauncrsdirec]", var!(RACE_VARS.direction)),
-    (c"[shaunrallynumber]", var!(RACE_VARS.race_level)),
-    (c"[shaunstagenumber]", var!(RACE_VARS.race_stage)),
-    (c"[shaungmode]", var!(RACE_VARS.run_kind)),
-    (c"[shaunnumcars]", var!(RACE_VIEW.race_cars)),
-    (c"[shaunmipmapping]", var!(RACE_VARS.mip_setting)),
-    (c"[shaunlensflare]", var!(RACE_VARS.settings_words[0])),
-    (c"[shaunreflections]", var!(RACE_VARS.settings_words[1])),
-    (c"[shauncarshadow]", var!(RACE_VARS.settings_words[2])),
-    (c"[shauncardetail]", var!(RACE_VARS.settings_words[3])),
-    (c"[shaunheadlights]", var!(RACE_VARS.settings_words[4])),
+    (
+        c"[shaunnumplayers]",
+        var!(crate::race::owner::RACE.shared.view.players),
+    ),
+    (
+        c"[shaunsplitmode]",
+        var!(crate::race::owner::RACE.shared.vars.split),
+    ),
+    (
+        c"[shauntracknum]",
+        var!(crate::race::owner::RACE.shared.vars.stage_number),
+    ),
+    (
+        c"[shauncrsdirec]",
+        var!(crate::race::owner::RACE.shared.vars.direction),
+    ),
+    (
+        c"[shaunrallynumber]",
+        var!(crate::race::owner::RACE.shared.vars.race_level),
+    ),
+    (
+        c"[shaunstagenumber]",
+        var!(crate::race::owner::RACE.shared.vars.race_stage),
+    ),
+    (
+        c"[shaungmode]",
+        var!(crate::race::owner::RACE.shared.vars.run_kind),
+    ),
+    (
+        c"[shaunnumcars]",
+        var!(crate::race::owner::RACE.shared.view.race_cars),
+    ),
+    (
+        c"[shaunmipmapping]",
+        var!(crate::race::owner::RACE.shared.vars.mip_setting),
+    ),
+    (
+        c"[shaunlensflare]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
+    ),
+    (
+        c"[shaunreflections]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
+    ),
+    (
+        c"[shauncarshadow]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
+    ),
+    (
+        c"[shauncardetail]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
+    ),
+    (
+        c"[shaunheadlights]",
+        var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
+    ),
 ];
 
 /// The steps in building: pushes, and jumps patched to where they land.
@@ -394,11 +431,19 @@ impl Builder {
             }
             if car == 0 {
                 skip = Some(self.here());
-                self.push(JumpIfNot(var!(RACE_VIEW.players), 0x2, 0));
+                self.push(JumpIfNot(
+                    var!(crate::race::owner::RACE.shared.view.players),
+                    0x2,
+                    0,
+                ));
             }
         }
         if let Some(at) = skip {
-            self.0[at] = JumpIfNot(var!(RACE_VIEW.players), 0x2, self.here());
+            self.0[at] = JumpIfNot(
+                var!(crate::race::owner::RACE.shared.view.players),
+                0x2,
+                self.here(),
+            );
         }
     }
 }
@@ -417,7 +462,7 @@ const IMPACT_MARKS: [CarFloat; 8] = [
 
 /// Car `car`'s eight impact marks in the results record (`results[car].field_24c`).
 fn result_marks(car: usize) -> &'static [Dword; 8] {
-    &RACE_STATE.results.results[car].field_24c
+    &crate::race::owner::race().shared.state.results.results[car].field_24c
 }
 
 /// The steps of `copy_settings_in` (the front end's settings into the race's), in the
@@ -435,7 +480,11 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
         b.push(Value(place, Kind::Int));
     }
     for car in 0..2 {
-        let settings = |f: fn(&RaceCar) -> &Dword| Cell(f(&RACE_STATE.settings.cars[car]));
+        let settings = |f: fn(&RaceCar) -> &Dword| {
+            Cell(f(
+                &crate::race::owner::race().shared.state.settings.cars[car]
+            ))
+        };
         for (field, setting) in SETTING_BRAKES {
             b.push(Brake(CarCell(car, field), settings(setting)));
         }
@@ -449,23 +498,35 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
     b.push(SubEax(CarCell(0, |c| &c.brake_balance)));
     b.push(Store(CarCell(0, |c| &c.brake_balance)));
     for (car, colour) in CAR_COLOURS.into_iter().enumerate() {
-        b.push(Load(Cell(&RACE_STATE.settings.cars[car].gearing)));
+        b.push(Load(Cell(
+            &crate::race::owner::race().shared.state.settings.cars[car].gearing,
+        )));
         b.push(Store(Var(colour)));
     }
     for car in 0..2 {
         b.push(Copy(
             CarCell(car, |c| &c.start_slot_value),
-            Cell(&RACE_STATE.settings.cars[car].race_number),
+            Cell(&crate::race::owner::race().shared.state.settings.cars[car].race_number),
         ));
     }
     for car in 0..2 {
-        b.push(Load(Cell(&RACE_STATE.settings.cars[car].view)));
+        b.push(Load(Cell(
+            &crate::race::owner::race().shared.state.settings.cars[car].view,
+        )));
         b.push(Store(CarCell(car, |c| &c.camera_view)));
         b.push(Store(CarCell(car, |c| &c.camera_blend_view)));
     }
     let hud_bits = [
-        &RACE_STATE.results.hud_bits_current,
-        &RACE_STATE.results.hud_bits_first,
+        &crate::race::owner::race()
+            .shared
+            .state
+            .results
+            .hud_bits_current,
+        &crate::race::owner::race()
+            .shared
+            .state
+            .results
+            .hud_bits_first,
     ];
     b.push(Text(c"[onerace.car1overbits]", false));
     b.push(Value(Cell(hud_bits[0]), Kind::Int));
@@ -478,7 +539,12 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
         b.push(JumpIfEaxNot(0xFFFF_FFFF, 0));
         b.push(LoadImm(0));
         for (field, bit) in OPTION_BITS {
-            b.push(BitIf(Cell(field(&RACE_STATE.settings.cars[car])), bit));
+            b.push(BitIf(
+                Cell(field(
+                    &crate::race::owner::race().shared.state.settings.cars[car],
+                )),
+                bit,
+            ));
         }
         b.0[jump] = JumpIfEaxNot(0xFFFF_FFFF, b.here());
         b.push(Store(CarCell(car, |c| &c.option_bits)));
@@ -488,7 +554,9 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
         for (field, setting) in GAUGES {
             b.push(IntToFloat(
                 CarBits(car, field),
-                Cell(setting(&RACE_STATE.settings.cars[car])),
+                Cell(setting(
+                    &crate::race::owner::race().shared.state.settings.cars[car],
+                )),
             ));
         }
         for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(car)) {
@@ -508,76 +576,97 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
 /// The front end's settings that the race's variables overwrite first (`GRAHAM_TO_SHAUN`).
 static HEAD_IN: [Step<Place>; 21] = [
     Copy(
-        var!(RACE_VARS.no_replay),
-        Cell(&RACE_STATE.settings.no_replay),
-    ),
-    Copy(var!(RACE_VARS.rivals), Cell(&RACE_STATE.settings.rivals)),
-    Copy(
-        var!(RACE_VARS.race_car_kinds[0]),
-        Cell(&RACE_STATE.settings.car_kind_current),
+        var!(crate::race::owner::RACE.shared.vars.no_replay),
+        Cell(&crate::race::owner::RACE.shared.state.settings.no_replay),
     ),
     Copy(
-        var!(RACE_VARS.race_car_kinds[1]),
-        Cell(&RACE_STATE.settings.car_kind_first),
+        var!(crate::race::owner::RACE.shared.vars.rivals),
+        Cell(&crate::race::owner::RACE.shared.state.settings.rivals),
     ),
     Copy(
-        var!(RACE_VIEW.players),
-        Cell(&RACE_STATE.settings.race_mode),
-    ),
-    Copy(var!(RACE_VARS.split), Cell(&RACE_STATE.settings.kept)),
-    Copy(
-        var!(RACE_VARS.stage_number),
-        Cell(&RACE_STATE.settings.stage),
-    ),
-    Copy(
-        var!(RACE_VARS.direction),
-        Cell(&RACE_STATE.settings.direction),
+        var!(crate::race::owner::RACE.shared.vars.race_car_kinds[0]),
+        Cell(
+            &crate::race::owner::RACE
+                .shared
+                .state
+                .settings
+                .car_kind_current,
+        ),
     ),
     Copy(
-        var!(RACE_VARS.race_level),
-        Cell(&RACE_STATE.results.race_level),
+        var!(crate::race::owner::RACE.shared.vars.race_car_kinds[1]),
+        Cell(
+            &crate::race::owner::RACE
+                .shared
+                .state
+                .settings
+                .car_kind_first,
+        ),
     ),
     Copy(
-        var!(RACE_VARS.race_stage),
-        Cell(&RACE_STATE.results.race_stage),
-    ),
-    Dec(var!(RACE_VARS.race_stage)),
-    Copy(
-        var!(RACE_VARS.run_kind),
-        Cell(&RACE_STATE.settings.run_kind),
-    ),
-    Copy(var!(RACE_VIEW.race_cars), var!(RACE_VIEW.players)),
-    Copy(
-        var!(RACE_VARS.car_tyres[0]),
-        Cell(&RACE_STATE.settings.cars[0].tyre),
+        var!(crate::race::owner::RACE.shared.view.players),
+        Cell(&crate::race::owner::RACE.shared.state.settings.race_mode),
     ),
     Copy(
-        var!(RACE_VARS.car_tyres[1]),
-        Cell(&RACE_STATE.settings.cars[1].tyre),
+        var!(crate::race::owner::RACE.shared.vars.split),
+        Cell(&crate::race::owner::RACE.shared.state.settings.kept),
     ),
     Copy(
-        var!(RACE_VARS.mip_setting),
+        var!(crate::race::owner::RACE.shared.vars.stage_number),
+        Cell(&crate::race::owner::RACE.shared.state.settings.stage),
+    ),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.direction),
+        Cell(&crate::race::owner::RACE.shared.state.settings.direction),
+    ),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.race_level),
+        Cell(&crate::race::owner::RACE.shared.state.results.race_level),
+    ),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.race_stage),
+        Cell(&crate::race::owner::RACE.shared.state.results.race_stage),
+    ),
+    Dec(var!(crate::race::owner::RACE.shared.vars.race_stage)),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.run_kind),
+        Cell(&crate::race::owner::RACE.shared.state.settings.run_kind),
+    ),
+    Copy(
+        var!(crate::race::owner::RACE.shared.view.race_cars),
+        var!(crate::race::owner::RACE.shared.view.players),
+    ),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.car_tyres[0]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.cars[0].tyre),
+    ),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.car_tyres[1]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.cars[1].tyre),
+    ),
+    Copy(
+        var!(crate::race::owner::RACE.shared.vars.mip_setting),
         var!(GFX.display.choices.mipmapping),
     ),
     Copy(
-        var!(RACE_VARS.settings_words[0]),
-        Cell(&RACE_STATE.settings.setting_0),
+        var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_0),
     ),
     Copy(
-        var!(RACE_VARS.settings_words[1]),
-        Cell(&RACE_STATE.settings.setting_1),
+        var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_1),
     ),
     Copy(
-        var!(RACE_VARS.settings_words[2]),
-        Cell(&RACE_STATE.settings.setting_2),
+        var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_2),
     ),
     Copy(
-        var!(RACE_VARS.settings_words[3]),
-        Cell(&RACE_STATE.settings.setting_3),
+        var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_3),
     ),
     Copy(
-        var!(RACE_VARS.settings_words[4]),
-        Cell(&RACE_STATE.settings.setting_4),
+        var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
+        Cell(&crate::race::owner::RACE.shared.state.settings.setting_4),
     ),
 ];
 
@@ -585,33 +674,46 @@ static HEAD_IN: [Step<Place>; 21] = [
 static FLAGS_IN: [Step<Place>; 4] = [
     Copy(
         car!(0, parts_present),
-        Cell(&RACE_STATE.results.flags_current),
+        Cell(&crate::race::owner::RACE.shared.state.results.flags_current),
     ),
     Copy(
         car!(1, parts_present),
-        Cell(&RACE_STATE.results.flags_first),
+        Cell(&crate::race::owner::RACE.shared.state.results.flags_first),
     ),
     Copy(
-        var!(RACE_TABLES.start_place),
-        Cell(&RACE_STATE.results.figure_000),
+        var!(crate::race::owner::RACE.shared.tables.start_place),
+        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
     ),
-    Copy(car!(0, mode2_place), Cell(&RACE_STATE.results.figure_000)),
+    Copy(
+        car!(0, mode2_place),
+        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
+    ),
 ];
 
 /// The end of the copy: the players' absences cleared, the results into the cars' stop
 /// states, the arcade positions logged, the league table copied.
 static TAIL_IN: [Step<Place>; 15] = [
     Call(Place::Routine(Routine::ClearPlayerAbsences)),
-    Load(Cell(&RACE_STATE.results.results[0].result)),
+    Load(Cell(
+        &crate::race::owner::RACE.shared.state.results.results[0].result,
+    )),
     Store(car!(0, stop_state)),
-    Load(Cell(&RACE_STATE.results.results[1].result)),
+    Load(Cell(
+        &crate::race::owner::RACE.shared.state.results.results[1].result,
+    )),
     Store(car!(1, stop_state)),
     Text(c"[arcadestartposition]", false),
-    Value(var!(RACE_TABLES.start_place), Kind::Int),
+    Value(
+        var!(crate::race::owner::RACE.shared.tables.start_place),
+        Kind::Int,
+    ),
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
-    Value(Cell(&RACE_STATE.results.figure_000), Kind::Int),
+    Value(
+        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
+        Kind::Int,
+    ),
     Call(Place::Routine(Routine::CopyLeagueTable)),
     Text(c"COPY GRAHAM TO SHAUN", true),
     Text(c"-------------------------------------", true),
@@ -621,11 +723,17 @@ static TAIL_IN: [Step<Place>; 15] = [
 /// The arcade positions logged at the end of the copy back.
 static TAIL_OUT: [Step<Place>; 6] = [
     Text(c"[arcadestartposition]", false),
-    Value(var!(RACE_TABLES.start_place), Kind::Int),
+    Value(
+        var!(crate::race::owner::RACE.shared.tables.start_place),
+        Kind::Int,
+    ),
     Text(c"[car1.arcadeposition]", false),
     Value(car!(0, mode2_place), Kind::Int),
     Text(c"[onerace.car1arcadeposition]", false),
-    Value(Cell(&RACE_STATE.results.figure_000), Kind::Int),
+    Value(
+        Cell(&crate::race::owner::RACE.shared.state.results.figure_000),
+        Kind::Int,
+    ),
 ];
 
 /// The steps of `copy_settings_out` (the race's settings back to the front end's), in the
@@ -635,19 +743,37 @@ pub fn shaun_to_graham() -> Vec<Step<Place>> {
     b.push(Text(c"-------------------------------------", true));
     b.push(Text(c"COPY SHAUN TO GRAHAM", true));
     let skip = b.here();
-    b.push(JumpIfNot(var!(REPLAY_FILE.hold_car_revs), 0x0, 0));
+    b.push(JumpIfNot(
+        var!(crate::race::owner::RACE.shared.replay_file.hold_car_revs),
+        0x0,
+        0,
+    ));
     b.push(Copy(
-        Cell(&RACE_STATE.results.hud_bits_current),
+        Cell(
+            &crate::race::owner::race()
+                .shared
+                .state
+                .results
+                .hud_bits_current,
+        ),
         CarCell(0, |c| &c.option_bits),
     ));
     b.push(Copy(
-        Cell(&RACE_STATE.results.hud_bits_first),
+        Cell(
+            &crate::race::owner::race()
+                .shared
+                .state
+                .results
+                .hud_bits_first,
+        ),
         CarCell(1, |c| &c.option_bits),
     ));
     for car in 0..2 {
         for (field, setting) in GAUGES {
             b.push(FloatToInt(
-                Cell(setting(&RACE_STATE.settings.cars[car])),
+                Cell(setting(
+                    &crate::race::owner::race().shared.state.settings.cars[car],
+                )),
                 CarBits(car, field),
             ));
         }
@@ -658,20 +784,22 @@ pub fn shaun_to_graham() -> Vec<Step<Place>> {
     b.push(Call(Place::Routine(Routine::StoreResultsByMode)));
     for car in 0..2 {
         b.push(Load(CarCell(car, |c| &c.stop_state)));
-        b.push(Store(Cell(&RACE_STATE.results.results[car].result)));
+        b.push(Store(Cell(
+            &crate::race::owner::RACE.shared.state.results.results[car].result,
+        )));
     }
     for car in 0..2 {
         b.push(FloatCopy(
-            Bits(&RACE_STATE.results.results[car].secs),
+            Bits(&crate::race::owner::RACE.shared.state.results.results[car].secs),
             CarBits(car, |c| &c.top_speed),
         ));
     }
     b.push(Copy(
-        Cell(&RACE_STATE.results.flags_current),
+        Cell(&crate::race::owner::RACE.shared.state.results.flags_current),
         CarCell(0, |c| &c.parts_present),
     ));
     b.push(Copy(
-        Cell(&RACE_STATE.results.flags_first),
+        Cell(&crate::race::owner::RACE.shared.state.results.flags_first),
         CarCell(1, |c| &c.parts_present),
     ));
     b.car_logs();
@@ -680,7 +808,11 @@ pub fn shaun_to_graham() -> Vec<Step<Place>> {
     }
     let over = b.here();
     b.push(Jump(0));
-    b.0[skip] = JumpIfNot(var!(REPLAY_FILE.hold_car_revs), 0x0, b.here());
+    b.0[skip] = JumpIfNot(
+        var!(crate::race::owner::RACE.shared.replay_file.hold_car_revs),
+        0x0,
+        b.here(),
+    );
     b.push(Text(c"SKIPPING - REPLAY!", true));
     b.0[over] = Jump(b.here());
     b.push(Text(c"COPY SHAUN TO GRAHAM", true));
@@ -690,9 +822,11 @@ pub fn shaun_to_graham() -> Vec<Step<Place>> {
 }
 
 /// The race variable of each of the two cars' colours, and of each player's options.
-const CAR_COLOURS: [fn() -> &'static Dword; 2] =
-    [|| &RACE_VARS.car_colours[0], || &RACE_VARS.car_colours[1]];
+const CAR_COLOURS: [fn() -> &'static Dword; 2] = [
+    || &crate::race::owner::RACE.shared.vars.car_colours[0],
+    || &crate::race::owner::RACE.shared.vars.car_colours[1],
+];
 const PLAYER_OPTIONS: [fn() -> &'static Dword; 2] = [
-    || &RACE_VIEW.player_options[0],
-    || &RACE_VIEW.player_options[1],
+    || &crate::race::owner::RACE.shared.view.player_options[0],
+    || &crate::race::owner::RACE.shared.view.player_options[1],
 ];

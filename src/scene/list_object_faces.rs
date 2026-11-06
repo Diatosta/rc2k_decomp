@@ -12,7 +12,6 @@
 //! number past the table and a face that is not there.
 
 use crate::errors::Refused;
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -34,9 +33,17 @@ pub fn list_object_faces(
             crate::scene::objects::face_cell(number as usize).get()
         })?;
         scene.lights.work.listed_face_count.set_bits(0u32);
-        RACE_VARS.face_mark.set_bits(u32::MAX);
+        crate::race::owner::race()
+            .shared
+            .vars
+            .face_mark
+            .set_bits(u32::MAX);
         for (n, &face) in faces.iter().enumerate() {
-            RACE_VARS.face_number.set_bits(n as u32);
+            crate::race::owner::race()
+                .shared
+                .vars
+                .face_number
+                .set_bits(n as u32);
             list(face as usize)?;
         }
         Ok(())

@@ -20,7 +20,7 @@ pub fn next_record_kind() -> Result<u32, Refused> {
     let index: u32 = screens.event.index.get();
     // The scan may run on past the 66 records (to `championship_end` and the event tables):
     // bounded by the whole store.
-    let table = crate::pointers::GamePtr::to(&crate::records::stages_store::STAGE_TABLES)
+    let table = crate::pointers::GamePtr::to(&crate::system::owner::system().records.stage_tables)
         .offset(
             std::mem::offset_of!(crate::records::stages_store::StageTables, championship) as u32,
         )

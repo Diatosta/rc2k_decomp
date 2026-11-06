@@ -21,13 +21,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::devices::{STATE_LEN, joy_state};
-use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
 use crate::pointers::GamePtr;
 use rc2k_core::input::joystick::{SELECT_SECOND, SELECT_THIRD, SELECT_X, SELECT_Y};
 
 fn state(n: u32) -> u32 {
-    DEVICES.device_state[n as usize].get()
+    crate::input::owner::input().devices.device_state[n as usize].get()
 }
 
 /// The record's byte at one of the four places of the axis codes (+0x1A .. +0x1D).
@@ -50,7 +49,12 @@ pub fn poll_device(record: &InputDevice) -> Result<(), Refused> {
     crate::input::di_objects::poll(device);
     let failed = match crate::input::di_objects::get_device_state(device, STATE_LEN as u32) {
         Ok(state) => {
-            for (cell, v) in DEVICES.device_state.iter().zip(state.dwords()) {
+            for (cell, v) in crate::input::owner::input()
+                .devices
+                .device_state
+                .iter()
+                .zip(state.dwords())
+            {
                 cell.set(v);
             }
             false
@@ -62,7 +66,7 @@ pub fn poll_device(record: &InputDevice) -> Result<(), Refused> {
     if failed {
         crate::input::di_objects::acquire(device);
         GamePtr::to(record).copy_to(
-            GamePtr::to(&DEVICES.device_state),
+            GamePtr::to(&crate::input::owner::input().devices.device_state),
             STATE_LEN,
             "a device record read as its state",
         )?;

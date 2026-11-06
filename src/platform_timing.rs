@@ -5,7 +5,6 @@
 
 use crate::framework::log;
 use crate::platform::SHOWN;
-use crate::session::SCREEN as GAME_SCREEN;
 use std::sync::atomic::Ordering;
 
 // ---- where the time goes: the main thread and the rasteriser's sampled every millisecond ----
@@ -203,7 +202,18 @@ pub fn report_timing() {
         crate::render::PIXELS.load(Relaxed),
     );
     // The screen's places, for the pixels a frame in screens.
-    let screen = (GAME_SCREEN.width.get().max(1) * GAME_SCREEN.height.get().max(1)) as f64;
+    let screen = (crate::system::owner::system()
+        .session
+        .screen
+        .width
+        .get()
+        .max(1)
+        * crate::system::owner::system()
+            .session
+            .screen
+            .height
+            .get()
+            .max(1)) as f64;
     let Ok(mut last) = LAST.lock() else {
         return;
     };

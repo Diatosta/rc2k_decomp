@@ -35,16 +35,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::owner::scene;
-use crate::session::SCREEN;
 const SLOTS: u32 = 0x400;
 
 /// The two view blocks, or the refusal.
 fn view_blocks() -> Result<[u32; 2], Refused> {
-    let blocks: [u32; 2] = [RACE_VIEW.view_block(0), RACE_VIEW.view_block(1)];
+    let blocks: [u32; 2] = [
+        crate::race::owner::race().shared.view.view_block(0),
+        crate::race::owner::race().shared.view.view_block(1),
+    ];
     if blocks.contains(&0) {
         return Err(BadInput("a null view block").into());
     }
@@ -102,7 +101,10 @@ pub fn draw_race_scene() -> Result<(), Refused> {
         }
     }
     crate::drive::choose_shown_cars::choose_shown_cars()?;
-    crate::session::write_bits(&RACE_VIEW.view_cleared, [0u32; 0x20]);
+    crate::session::write_bits(
+        &crate::race::owner::race().shared.view.view_cleared,
+        [0u32; 0x20],
+    );
     for (flags, block) in race
         .frame
         .panel_and_overlay
@@ -119,7 +121,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
         .panel
         .hud_flags
         .iter()
-        .zip(&RACE_VIEW.view_on)
+        .zip(&crate::race::owner::race().shared.view.view_on)
     {
         if on.get() == 0 {
             flags.set(0);
@@ -178,11 +180,9 @@ pub fn draw_race_scene() -> Result<(), Refused> {
         .ground
         .frames_drawn
         .set(race.physics.ground.frames_drawn.get().wrapping_add(1));
-    RACE_VIEW
-        .clock_base
-        .set(crate::scene::restart_clock::restart_clock(
-            crate::system::tick_count::tick_count(),
-        ));
+    crate::race::owner::race().shared.view.clock_base.set(
+        crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count()),
+    );
     crate::race::frame_views::full_view_window(physics, true);
     crate::race::car_parts::ready_car_parts(race)?;
     crate::race::map_scroll::scroll_maps(race)?;
@@ -216,14 +216,17 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     if race.replay.finish.no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel()?;
     }
-    if RACE_VIEW.views.get() == 1 {
-        RACE_VIEW.drawn_view.set(0);
+    if crate::race::owner::race().shared.view.views.get() == 1 {
+        crate::race::owner::race().shared.view.drawn_view.set(0);
         draw_view(race, 0, 0, true)?;
     } else {
-        let side_by_side = RACE_VARS.split.bits() == 1;
+        let side_by_side = crate::race::owner::race().shared.vars.split.bits() == 1;
         for view in 0..2u32 {
-            RACE_VIEW.drawn_view.set(view);
-            let (w, h) = (SCREEN.width.get(), SCREEN.height.get());
+            crate::race::owner::race().shared.view.drawn_view.set(view);
+            let (w, h) = (
+                crate::system::owner::system().session.screen.width.get(),
+                crate::system::owner::system().session.screen.height.get(),
+            );
             // (width, x, height, y).
             if side_by_side {
                 scene.drawing.scene.view_size[0].set_bits(w >> 1);
@@ -252,7 +255,9 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
-    if RACE_WORK.in_credits.bits() == 0 && race.replay.finish.no_place.get() == 0 {
+    if crate::race::owner::race().shared.work.in_credits.bits() == 0
+        && race.replay.finish.no_place.get() == 0
+    {
         crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud(), race)?;
     }
     race_sound_tick(frame)?; // 0x11

@@ -12,7 +12,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
-use crate::session::SCREEN;
 
 /// The Rust version (see the header).
 pub fn clear_back_surface() -> Result<(), Refused> {
@@ -20,7 +19,7 @@ pub fn clear_back_surface() -> Result<(), Refused> {
     if drawing.surfaces.front.get() == 0 {
         return Ok(());
     }
-    if SCREEN.height.get() == 0 {
+    if crate::system::owner::system().session.screen.height.get() == 0 {
         return Err(BadInput("a screen of no rows: the original goes round 2^32 times").into());
     }
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
@@ -28,11 +27,15 @@ pub fn clear_back_surface() -> Result<(), Refused> {
         return Ok(());
     }
     // Each row's dwords, then the gap to the next (the original's step).
-    let dwords = SCREEN.row_dwords.get();
+    let dwords = crate::system::owner::system()
+        .session
+        .screen
+        .row_dwords
+        .get();
     let rows = crate::gfx::rows::Rows::new(
         drawing.draw_surface.present_pixels.get(),
         (4 * dwords).wrapping_add(drawing.draw_surface.present_gap.get()),
-        SCREEN.height.get(),
+        crate::system::owner::system().session.screen.height.get(),
     );
     for y in 0..rows.count() {
         rows.fill(y, 0, 0, 4 * dwords as usize, "the back surface")?;

@@ -9,18 +9,16 @@
 //! Callers: `drive::play_inputs_if`, `sub_460835`.
 
 use crate::errors::BadInput;
-use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
 pub fn play_inputs() -> Result<(), BadInput> {
     let replay = &race().replay;
-    let car = RACE_WORK.current_car.get();
+    let car = crate::race::owner::race().shared.work.current_car.get();
     if !on_tape(car) {
         return Ok(());
     }
@@ -29,7 +27,7 @@ pub fn play_inputs() -> Result<(), BadInput> {
     let [ebx, second]: [u32; 2] = at(0).read("the replay tape")?;
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);
     for (k, v) in [eax, ebx, ecx, edx].iter().enumerate() {
-        PHYSICS.input_words[k].set(*v);
+        crate::race::owner::race().shared.physics_tables.input_words[k].set(*v);
     }
     Ok(())
 }

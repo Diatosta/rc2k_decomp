@@ -33,7 +33,6 @@ use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::menus;
 use crate::menu::standings::*;
-use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 
@@ -71,10 +70,10 @@ impl Game {
 /// The variables that are in the physics block.
 fn cell(v: Var) -> &'static Dword {
     match v {
-        Var::CheatSwitch => &RACE_STATE.settings.direction,
-        Var::RaceKept => &RACE_STATE.settings.kept,
-        Var::Result => &RACE_STATE.results.results[0].result,
-        Var::Result2 => &RACE_STATE.results.results[1].result,
+        Var::CheatSwitch => &crate::race::owner::race().shared.state.settings.direction,
+        Var::RaceKept => &crate::race::owner::race().shared.state.settings.kept,
+        Var::Result => &crate::race::owner::race().shared.state.results.results[0].result,
+        Var::Result2 => &crate::race::owner::race().shared.state.results.results[1].result,
         Var::GoesOn => GOES_ON,
         Var::Cheats => CHEATS,
         Var::Kept => KEPT,
@@ -114,11 +113,18 @@ impl races::EventRaces for Game {
             Step::RaceInfo => {
                 // The summary's variable: 1 while it is there (the race reads it:
                 // `RACE_STATE.settings.rivals`).
-                RACE_STATE
+                crate::race::owner::race()
+                    .shared
+                    .state
                     .settings
                     .rivals
                     .set(menus.play.champ_view.summary.get());
-                RACE_STATE.settings.stage.set(self.pack.stage()?);
+                crate::race::owner::race()
+                    .shared
+                    .state
+                    .settings
+                    .stage
+                    .set(self.pack.stage()?);
             }
             Step::Race { next } => {
                 crate::race::single_rally_race::single_rally_race(u32::from(next), 1)?;

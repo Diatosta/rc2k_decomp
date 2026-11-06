@@ -15,23 +15,22 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::log;
-use crate::net::store::NET;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
 pub fn find_connections() -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_FIND_CONNECTIONS), true, 2);
-    if NET.receive_done.get() == 1 || !open_lobby::open_lobby()? {
+    if crate::net::owner::net().vars.receive_done.get() == 1 || !open_lobby::open_lobby()? {
         return Ok(false);
     }
     if !create_dplay::create_dplay() {
         return Ok(false);
     }
     allocate_lists::allocate_lists()?;
-    NET.connections.set(0);
+    crate::net::owner::net().vars.connections.set(0);
     let result =
         { crate::net::dp_objects::enum_connections(crate::net::connection_found::callback, 0) };
     // `cmp dword_52AC34, 1`: the carry when none was listed.
-    Ok(result == 0 && NET.connections.get() >= 1)
+    Ok(result == 0 && crate::net::owner::net().vars.connections.get() >= 1)
 }

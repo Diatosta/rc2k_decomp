@@ -26,14 +26,12 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::store::{NET, PlayerRecord};
-use crate::session::CLOCKS;
-use crate::session::FLAGS;
+use crate::net::store::PlayerRecord;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
 /// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
 pub fn all_states(bits: u8, count: u32) -> u8 {
-    let state = |n: u32| NET.player_block(n).record.state();
+    let state = |n: u32| crate::net::owner::net().vars.player_block(n).record.state();
     // Converted: `rc2k_core::net::players::all_in_state`.
     rc2k_core::net::players::all_in_state(bits, count, state)
 }
@@ -42,28 +40,40 @@ pub fn all_states(bits: u8, count: u32) -> u8 {
 /// player answered), once a second message `kind` and the sync counter sent to each player
 /// that has not answered; true when all have. Shared with `net::race_wait`.
 pub fn sync(kind: u8) -> Result<bool, Refused> {
-    let first = NET.sync_first.get();
-    NET.sync_first.set(0);
+    let first = crate::net::owner::net().vars.sync_first.get();
+    crate::net::owner::net().vars.sync_first.set(0);
     if first != 0 {
         for n in 0..8 {
-            NET.synced.set(n, 0);
+            crate::net::owner::net().vars.synced.set(n, 0);
         }
-        NET.set_synced(NET.player.get() as usize, 1);
+        crate::net::owner::net()
+            .vars
+            .set_synced(crate::net::owner::net().vars.player.get() as usize, 1);
     }
     let now = crate::system::tick_count::tick_count();
-    if (now.wrapping_sub(NET.sync_clock.get()).wrapping_sub(1000) as i32) >= 0 {
-        NET.sync_clock.set(now);
+    if (now
+        .wrapping_sub(crate::net::owner::net().vars.sync_clock.get())
+        .wrapping_sub(1000) as i32)
+        >= 0
+    {
+        crate::net::owner::net().vars.sync_clock.set(now);
         // Counted up with `jb` at the end: at least one turn.
         let mut n = 0;
         loop {
-            if NET.synced(n as usize) != 1 {
-                let id = NET.player_block(n).id.get();
-                NET.send_buffer.set(0, kind);
-                NET.send_buffer.set(1, NET.sync.get());
-                crate::net::dplay_send::dplay_send(id, &NET.send_buffer.read()[..2]);
+            if crate::net::owner::net().vars.synced(n as usize) != 1 {
+                let id = crate::net::owner::net().vars.player_block(n).id.get();
+                crate::net::owner::net().vars.send_buffer.set(0, kind);
+                crate::net::owner::net()
+                    .vars
+                    .send_buffer
+                    .set(1, crate::net::owner::net().vars.sync.get());
+                crate::net::dplay_send::dplay_send(
+                    id,
+                    &crate::net::owner::net().vars.send_buffer.read()[..2],
+                );
             }
             n += 1;
-            if n >= NET.players.get() {
+            if n >= crate::net::owner::net().vars.players.get() {
                 break;
             }
         }
@@ -71,9 +81,9 @@ pub fn sync(kind: u8) -> Result<bool, Refused> {
     // The answers added up in a byte (again at least one turn).
     let (mut n, mut answered) = (0u32, 0u8);
     loop {
-        answered = answered.wrapping_add(NET.synced(n as usize));
+        answered = answered.wrapping_add(crate::net::owner::net().vars.synced(n as usize));
         n += 1;
-        if n >= NET.players.get() {
+        if n >= crate::net::owner::net().vars.players.get() {
             break;
         }
     }
@@ -91,10 +101,10 @@ fn step_item(step: u32) {
                 .wrapping_add(step),
         );
         let c = crate::install::owner::install().pages.choice.get();
-        if c == 1 && NET.car_item.get() != 1 {
+        if c == 1 && crate::net::owner::net().vars.car_item.get() != 1 {
             continue;
         }
-        if c == 2 && NET.stage_item.get() != 1 {
+        if c == 2 && crate::net::owner::net().vars.stage_item.get() != 1 {
             continue;
         }
         break;
@@ -103,46 +113,60 @@ fn step_item(step: u32) {
 
 /// The Rust version: 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
 pub fn lobby_loop() -> Result<u32, Refused> {
-    NET.players.set(0);
-    NET.racing.set(0);
+    crate::net::owner::net().vars.players.set(0);
+    crate::net::owner::net().vars.racing.set(0);
     crate::net::show_background::show_background()?;
-    let now = CLOCKS.key_ticks.get();
+    let now = crate::system::owner::system()
+        .session
+        .clocks
+        .key_ticks
+        .get();
     crate::install::owner::install().pages.move_clock.set(now);
     crate::install::owner::install().pages.key_clock.set(now);
-    NET.edited.set(u32::MAX);
+    crate::net::owner::net().vars.edited.set(u32::MAX);
     crate::install::owner::install().pages.choice.set(3);
     let tick = crate::system::tick_count::tick_count();
-    NET.clock_a.set(tick);
-    NET.sync_clock.set(tick);
-    NET.sync_first.set(1);
-    NET.sync.set(NET.sync.get().wrapping_add(1));
-    NET.car_item.set(1);
-    NET.stage_item.set(1);
-    if NET.own.state() & 0x10 == 0 {
-        NET.stage_item.set(0);
+    crate::net::owner::net().vars.clock_a.set(tick);
+    crate::net::owner::net().vars.sync_clock.set(tick);
+    crate::net::owner::net().vars.sync_first.set(1);
+    crate::net::owner::net()
+        .vars
+        .sync
+        .set(crate::net::owner::net().vars.sync.get().wrapping_add(1));
+    crate::net::owner::net().vars.car_item.set(1);
+    crate::net::owner::net().vars.stage_item.set(1);
+    if crate::net::owner::net().vars.own.state() & 0x10 == 0 {
+        crate::net::owner::net().vars.stage_item.set(0);
     }
     loop {
         run_frame(crate::net::lobby_frame::lobby_frame)?;
         let tick = crate::system::tick_count::tick_count();
-        if (tick.wrapping_sub(NET.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
-            NET.clock_a.set(tick);
+        if (tick
+            .wrapping_sub(crate::net::owner::net().vars.clock_a.get())
+            .wrapping_sub(1000) as i32)
+            >= 0
+        {
+            crate::net::owner::net().vars.clock_a.set(tick);
             // The original's `jb` after it is never taken (`list_players_regs` loses
             // the carry, section 16).
             crate::net::list_players::list_players_regs()?;
         }
-        crate::install::owner::install()
-            .pages
-            .frame_clock
-            .set(CLOCKS.key_ticks.get());
+        crate::install::owner::install().pages.frame_clock.set(
+            crate::system::owner::system()
+                .session
+                .clocks
+                .key_ticks
+                .get(),
+        );
         let key = list_key()?;
         let mut moved = false;
-        if NET.edited.get() != u32::MAX {
+        if crate::net::owner::net().vars.edited.get() != u32::MAX {
             crate::net::chat_key::chat_key(key)?;
         } else {
-            let ready = NET.own.state() & 1 != 0;
+            let ready = crate::net::owner::net().vars.own.state() & 1 != 0;
             if !ready && key == 0x69 {
                 step_item(u32::MAX);
-                if NET.after_race.get() == 1
+                if crate::net::owner::net().vars.after_race.get() == 1
                     && (crate::install::owner::install().pages.choice.get() as i32) < 1
                 {
                     crate::install::owner::install().pages.choice.set(1);
@@ -160,9 +184,10 @@ pub fn lobby_loop() -> Result<u32, Refused> {
             } else if key == 0x1C {
                 match crate::install::owner::install().pages.choice.get() {
                     0 => {
-                        NET.own
-                            .head
-                            .set(PlayerRecord::STATE, NET.own.state() & 0xF9 | 1);
+                        crate::net::owner::net().vars.own.head.set(
+                            PlayerRecord::STATE,
+                            crate::net::owner::net().vars.own.state() & 0xF9 | 1,
+                        );
                         crate::install::owner::install().pages.choice.set(3);
                         moved = true;
                     }
@@ -182,7 +207,10 @@ pub fn lobby_loop() -> Result<u32, Refused> {
                     _ => {}
                 }
             } else if key == 0x0F {
-                NET.show_gaps.set(NET.show_gaps.get() ^ 1);
+                crate::net::owner::net()
+                    .vars
+                    .show_gaps
+                    .set(crate::net::owner::net().vars.show_gaps.get() ^ 1);
                 moved = true;
             } else if key == 1 {
                 crate::install::owner::install().pages.choice.set(u32::MAX);
@@ -197,21 +225,23 @@ pub fn lobby_loop() -> Result<u32, Refused> {
                 .move_clock
                 .set(crate::install::owner::install().pages.frame_clock.get());
         }
-        if NET.own.state() & 0x10 != 0
-            && NET.players.get() >= 2
-            && all_states(1, NET.players.get()) == 1
+        if crate::net::owner::net().vars.own.state() & 0x10 != 0
+            && crate::net::owner::net().vars.players.get() >= 2
+            && all_states(1, crate::net::owner::net().vars.players.get()) == 1
             && sync(b'@')?
         {
-            NET.all_raced.set(1);
+            crate::net::owner::net().vars.all_raced.set(1);
         }
-        if NET.all_raced.get() == 1 {
+        if crate::net::owner::net().vars.all_raced.get() == 1 {
             crate::install::owner::install().pages.choice.set(1);
             return Ok(crate::install::owner::install().pages.choice.get());
         }
-        if NET.players.get() >= 1 && all_states(4, NET.players.get()) == 4 {
-            NET.after_race.set(0);
+        if crate::net::owner::net().vars.players.get() >= 1
+            && all_states(4, crate::net::owner::net().vars.players.get()) == 4
+        {
+            crate::net::owner::net().vars.after_race.set(0);
         }
-        if FLAGS.quitting.get() == 1 {
+        if crate::system::owner::system().session.flags.quitting.get() == 1 {
             break;
         }
     }

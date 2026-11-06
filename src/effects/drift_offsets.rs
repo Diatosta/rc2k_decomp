@@ -17,7 +17,6 @@
 use crate::effects::owner::effects;
 use crate::effects::rain::Weather;
 use crate::math::x87;
-use crate::physics::tables_store::PHYSICS;
 
 /// The marks' random: times 0x9D plus 0x47.
 fn next_seed() -> u32 {
@@ -31,7 +30,12 @@ fn next_seed() -> u32 {
 pub fn drift_offsets(weather: &Weather) {
     let (r, k) = (&weather.rain, &weather.rain_rules);
     {
-        let since = PHYSICS.scene_clock.bits().wrapping_sub(r.drift_since.get());
+        let since = crate::race::owner::race()
+            .shared
+            .physics_tables
+            .scene_clock
+            .bits()
+            .wrapping_sub(r.drift_since.get());
         if since >= r.drift_wait.get() {
             let s = next_seed();
             let x = (s & 0xFFF).wrapping_sub(0x7FF);
@@ -39,7 +43,13 @@ pub fn drift_offsets(weather: &Weather) {
             let y = ((s >> 12) & 0xFFF).wrapping_sub(0x7FF);
             r.drift_target[2].set_bits(x87::int_times(y as i32, k.target_scale[1].to_bits()));
             r.drift_wait.set(((s >> 24) + 0x40) * 5);
-            r.drift_since.set(PHYSICS.scene_clock.bits());
+            r.drift_since.set(
+                crate::race::owner::race()
+                    .shared
+                    .physics_tables
+                    .scene_clock
+                    .bits(),
+            );
             let s = next_seed();
             r.drift_halves[0].set((s & 0xFFFF) << 8);
             r.drift_halves[2].set((s >> 16) << 8);

@@ -7,7 +7,6 @@
 //!
 //! Caller: `sub_43907F` (0x4392CD).
 
-use crate::physics::car_store::CAR;
 use crate::race::owner_physics::Physics;
 use crate::session::Cell32;
 use rc2k_core::physics::easing::ease_up;
@@ -15,7 +14,7 @@ use rc2k_core::physics::easing::ease_up;
 fn game(physics: &Physics) -> Vec<&dyn Cell32> {
     vec![
         &physics.camera.pitch_ceiling as &dyn Cell32,
-        &CAR.camera_pitch,
+        &crate::race::owner::race().shared.car.camera_pitch,
         &physics.camera.pitch_step,
     ]
 }

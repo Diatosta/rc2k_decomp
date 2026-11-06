@@ -10,7 +10,6 @@
 //! (`dword_A8C188` = 0), else `sound::start_stream` with it and `dword_755698`. Once a
 //! frame on four screens (the car specification, the slideshow, two stage screens).
 
-use crate::audio::store::AUDIO;
 use crate::errors::BadInput;
 use crate::menu::owner::menus;
 
@@ -71,7 +70,14 @@ pub fn step_car_stream(
 /// With the game's stream flag and `sound::start_stream`.
 pub fn step_car_stream_in_game() -> Result<(), BadInput> {
     step_car_stream(
-        &mut || AUDIO.sound_stream.get().playing == 1,
+        &mut || {
+            crate::audio::owner::audio()
+                .state
+                .sound_stream
+                .get()
+                .playing
+                == 1
+        },
         &mut crate::sound::start_stream::start_stream,
     )
 }

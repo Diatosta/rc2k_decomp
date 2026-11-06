@@ -129,11 +129,12 @@ pub fn note_open(path: &[u8]) {
 /// The car `state` reports: the viewed car's block in a race. With several cars the work car
 /// holds whichever was stepped last between frames.
 fn driven_car(course: &Course) -> &'_ crate::physics::car_store::Car {
-    let viewed =
-        crate::race::blocks_store::car_of(crate::race::view_store::RACE_VIEW.view_blocks[0].get());
+    let viewed = crate::race::blocks_store::car_of(
+        crate::race::owner::race().shared.view.view_blocks[0].get(),
+    );
     match viewed {
         Some(car) if course.numbers.in_race.get() != 0 => car,
-        _ => &crate::physics::car_store::CAR,
+        _ => &crate::race::owner::race().shared.car,
     }
 }
 
@@ -153,13 +154,21 @@ fn state(course: &Course) -> String {
         course.numbers.in_race.get(),
         screens.loop_flags.menu.get().ok(),
         screens.loop_flags.item.get(),
-        crate::session::FLAGS.window_focused.get(),
+        crate::system::owner::system()
+            .session
+            .flags
+            .window_focused
+            .get(),
         CAR.speed.get(),
         CAR.stage_time.get(),
         CAR.splits_passed.get(),
         CAR.finish_flag.get(),
         CAR.stuck_count.get(),
-        crate::race::vars_store::RACE_VARS.checkpoint_count.get(),
+        crate::race::owner::race()
+            .shared
+            .vars
+            .checkpoint_count
+            .get(),
         at,
         CAR.map_place[0].get() as i32,
         CAR.map_place[1].get() as i32,
@@ -167,18 +176,42 @@ fn state(course: &Course) -> String {
         cell_in(&CHECKPOINTS.map_y, ahead).get() as i32,
         cell_in(&CHECKPOINTS.map_x, near).get() as i32,
         cell_in(&CHECKPOINTS.map_y, near).get() as i32,
-        crate::audio::store::AUDIO.channels_used.get(),
+        crate::audio::owner::audio().state.channels_used.get(),
         crate::platform_sound::LAST_PEAK.swap(0, std::sync::atomic::Ordering::Relaxed),
         CAR.car_heading.get() as i32,
         CAR.gear.get() as i32,
         CAR.gearbox_kind.get(),
         CAR.driver_kind.get(),
-        crate::physics::tables_store::PHYSICS.input_steer.get() as i32,
-        crate::physics::tables_store::PHYSICS.input_throttle.get(),
-        crate::physics::tables_store::PHYSICS.input_brake.get(),
-        crate::physics::tables_store::PHYSICS.input_handbrake.get(),
-        crate::physics::tables_store::PHYSICS.input_gear_up.get(),
-        crate::physics::tables_store::PHYSICS.input_gear_down.get(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_steer
+            .get() as i32,
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_throttle
+            .get(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_brake
+            .get(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_handbrake
+            .get(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_gear_up
+            .get(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_gear_down
+            .get(),
         CAR.crash_matrix[..12]
             .iter()
             .map(|cell| format!("{:.2}", cell.get()))
@@ -233,7 +266,7 @@ pub fn autodrive_keys(checkpoint: u32) -> u32 {
         if *held == 0 {
             crate::framework::log(&format!(
                 "remote: the reset key let go at checkpoint {checkpoint} (stage time {})",
-                crate::physics::car_store::CAR.stage_time.get()
+                crate::race::owner::race().shared.car.stage_time.get()
             ));
         }
         return rc2k_core::drive::controls::RESET_KEY;
@@ -406,7 +439,9 @@ pub fn shots_loading() {
     reseed();
     // The scene's clock as the menus left it (their time on screen) is the snow's first
     // step's start: the held clock's from here.
-    crate::physics::tables_store::PHYSICS
+    crate::race::owner::race()
+        .shared
+        .physics_tables
         .scene_clock
         .set(0x10000u32);
     // The frame rate's text measures the host: not drawn.

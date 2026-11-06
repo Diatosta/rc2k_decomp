@@ -11,7 +11,6 @@
 //! reference.
 
 use crate::errors::BadInput;
-use crate::input::store::DEVICES;
 use crate::menu::owner::menus;
 use crate::menu::player_names::cars;
 
@@ -20,7 +19,7 @@ use crate::menu::player_names::cars;
 pub fn drop_missing_controllers() -> Result<(), BadInput> {
     let play = &menus().play;
     // Converted: `rc2k_core::menu::steps::kept_controller`.
-    let most = DEVICES.controller_count.get();
+    let most = crate::input::owner::input().devices.controller_count.get();
     for car in cars(play) {
         let c = car.get().controller;
         let kept = rc2k_core::menu::steps::kept_controller(c, most);

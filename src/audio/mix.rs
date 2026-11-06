@@ -12,7 +12,6 @@
 //! `DSERR_BUFFERLOST` sets `g_soundBufferLost`. (A `GetStatus` at 0x40BE9D is in it but not
 //! reached.) One caller, the mixer's way of the turn.
 
-use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 
 const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
@@ -21,45 +20,60 @@ const BUFFER_LOST: i32 = 0x8878_0096u32 as i32;
 pub fn mix() -> Result<bool, Refused> {
     use crate::platform_sound as ds;
     {
-        let primary = AUDIO.primary_buffer.get();
+        let primary = crate::audio::owner::audio().state.primary_buffer.get();
         let failed = |r: i32| {
             if r == BUFFER_LOST {
-                AUDIO.sound_buffer_lost.set(1);
+                crate::audio::owner::audio().state.sound_buffer_lost.set(1);
             }
             false
         };
-        let old = AUDIO.play_cursor.get();
+        let old = crate::audio::owner::audio().state.play_cursor.get();
         match ds::current_position(primary) {
-            Ok((play, _)) => AUDIO.play_cursor.set(play),
+            Ok((play, _)) => crate::audio::owner::audio().state.play_cursor.set(play),
             Err(r) => return Ok(failed(r)),
         }
         // Converted: `rc2k_core::audio::streams::cursor_moved` and `round`.
         use rc2k_core::audio::streams::{cursor_moved, round};
-        let size = AUDIO.primary_size.get();
-        let Some((bytes, write_at)) =
-            cursor_moved(old, AUDIO.play_cursor.get(), size, AUDIO.mix_most.get())
-        else {
+        let size = crate::audio::owner::audio().state.primary_size.get();
+        let Some((bytes, write_at)) = cursor_moved(
+            old,
+            crate::audio::owner::audio().state.play_cursor.get(),
+            size,
+            crate::audio::owner::audio().state.mix_most.get(),
+        ) else {
             return Ok(true);
         };
         if let Some(at) = write_at {
-            AUDIO.write_cursor.set(at);
+            crate::audio::owner::audio().state.write_cursor.set(at);
         }
         crate::audio::mix_channels::mix_channels_in_game(bytes)?;
-        match ds::lock(primary, AUDIO.write_cursor.get(), bytes, 0) {
+        match ds::lock(
+            primary,
+            crate::audio::owner::audio().state.write_cursor.get(),
+            bytes,
+            0,
+        ) {
             Ok(parts) => {
-                for (cell, part) in AUDIO.locked_parts.iter().zip(parts) {
+                for (cell, part) in crate::audio::owner::audio()
+                    .state
+                    .locked_parts
+                    .iter()
+                    .zip(parts)
+                {
                     cell.set(part);
                 }
             }
             Err(r) => return Ok(failed(r)),
         }
-        AUDIO
-            .write_cursor
-            .set(round(bytes.wrapping_add(AUDIO.write_cursor.get()), size));
+        crate::audio::owner::audio().state.write_cursor.set(round(
+            bytes.wrapping_add(crate::audio::owner::audio().state.write_cursor.get()),
+            size,
+        ));
         crate::audio::write_mix::write_mix_in_game()?;
         let r = ds::unlock(
             primary,
-            AUDIO
+            crate::audio::owner::audio()
+                .state
                 .locked_parts
                 .each_ref()
                 .map(super::super::session::Dword::get),

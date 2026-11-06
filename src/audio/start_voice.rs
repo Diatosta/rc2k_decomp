@@ -23,7 +23,6 @@
 //! voice's); no channels left and no voice playing; a playing list that does not end
 //! within 0x200 voices; a playing voice to stop without its channel.
 
-use crate::audio::store::AUDIO;
 use crate::audio::voices::{GamePool, lists, store_lists};
 use crate::errors::Refused;
 
@@ -32,7 +31,7 @@ use crate::errors::Refused;
 /// Converted: `rc2k_core::audio::voices::start_voice`; nothing is written when it refuses.
 pub fn start_voice(sound: i32, cmd: &[u32; 8]) -> Result<(), Refused> {
     let mut l = lists();
-    let mode = AUDIO.sound_mode.get();
+    let mode = crate::audio::owner::audio().state.sound_mode.get();
     rc2k_core::audio::voices::start_voice(&mut GamePool, &mut l, mode, sound, cmd)?;
     store_lists(&l);
     Ok(())

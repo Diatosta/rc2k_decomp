@@ -11,10 +11,7 @@ use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
-use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::Trap;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 use crate::scene::owner::scene;
 use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
 use crate::session::byte_of;
@@ -43,13 +40,13 @@ pub fn face_depth_test_off() {
     {
         // Converted: `rc2k_core::race::faces::depth_test_off`.
         if !rc2k_core::race::faces::depth_test_off(
-            RACE_VIEW.texture_a.bits(),
-            RACE_VIEW.polygon_mode.bits(),
+            crate::race::owner::race().shared.view.texture_a.bits(),
+            crate::race::owner::race().shared.view.polygon_mode.bits(),
         ) {
             return;
         }
         crate::scene::depth_test_off::depth_test_off();
-        RACE_VIEW.depth_test.set(1u32);
+        crate::race::owner::race().shared.view.depth_test.set(1u32);
     }
 }
 
@@ -59,10 +56,12 @@ pub fn face_depth_test_off() {
 pub fn face_depth_test_on() {
     {
         // Converted: `rc2k_core::race::faces::depth_test_on`.
-        if rc2k_core::race::faces::depth_test_on(RACE_VIEW.depth_test.bits()) {
+        if rc2k_core::race::faces::depth_test_on(
+            crate::race::owner::race().shared.view.depth_test.bits(),
+        ) {
             crate::scene::depth_test_on::depth_test_on();
         }
-        RACE_VIEW.depth_test.set(0u32);
+        crate::race::owner::race().shared.view.depth_test.set(0u32);
     }
 }
 
@@ -71,7 +70,7 @@ pub fn face_depth_test_on() {
 pub fn face_corners(face: &Face) -> u32 {
     // Converted: `rc2k_core::race::faces::corners`.
     let corners = rc2k_core::race::faces::corners(std::array::from_fn(|n| face.point(n)));
-    crate::session::write_bits(&RACE_VIEW.corners, corners);
+    crate::session::write_bits(&crate::race::owner::race().shared.view.corners, corners);
     corners[3]
 }
 
@@ -89,7 +88,7 @@ fn face_turned_to_view(face: u32, half: u32) -> Result<u32, BadInput> {
 fn turned_to_view(frame: &Frame, f: &Face, triangle: usize) -> Result<u32, BadInput> {
     use crate::math::x87_float::{X, compare, int, ld};
     {
-        if FRAME_SWITCHES.other_way.get() == 0 {
+        if crate::race::owner::race().shared.switches.other_way.get() == 0 {
             return Ok(0);
         }
         let p = f.point(1 + triangle);
@@ -115,10 +114,11 @@ fn turned_to_view(frame: &Frame, f: &Face, triangle: usize) -> Result<u32, BadIn
 /// caller's parts take only esi, the face.
 pub fn face_sides(frame: &Frame, face: &Face) -> Result<(), BadInput> {
     {
-        RACE_VIEW.face_turned[0].set(turned_to_view(frame, face, 0)?);
-        RACE_VIEW.face_turned[1].set(1u32);
-        if RACE_VIEW.corners[3].get() != u32::MAX {
-            RACE_VIEW.face_turned[1].set(turned_to_view(frame, face, 1)?);
+        crate::race::owner::race().shared.view.face_turned[0].set(turned_to_view(frame, face, 0)?);
+        crate::race::owner::race().shared.view.face_turned[1].set(1u32);
+        if crate::race::owner::race().shared.view.corners[3].get() != u32::MAX {
+            crate::race::owner::race().shared.view.face_turned[1]
+                .set(turned_to_view(frame, face, 1)?);
         }
     }
     Ok(())
@@ -155,25 +155,29 @@ pub fn face_materials(course: &Course, face: &Face) -> Result<(), BadInput> {
             scene().drawing.scene.scratch.set(n);
             let (frame, place) = rc2k_core::race::faces::frame_place(object, n);
             if first {
-                RACE_VIEW.face_frame.set(frame);
+                crate::race::owner::race().shared.view.face_frame.set(frame);
             }
             table_byte(&course.stage_prefs.face_places, place, "the face places")
         };
         // Converted: `rc2k_core::race::faces::{frame_place, material_bits}` (the frame's
         // rounding the x87's).
         use rc2k_core::race::faces::material_bits;
-        RACE_VIEW
+        crate::race::owner::race()
+            .shared
+            .view
             .texture_a
             .set(texture(face.object() as u32, true)?);
         let (order, back) = material_bits(face.kind());
-        RACE_VIEW.order_a.set(order);
-        RACE_VIEW.back_a.set(back);
-        RACE_VIEW
+        crate::race::owner::race().shared.view.order_a.set(order);
+        crate::race::owner::race().shared.view.back_a.set(back);
+        crate::race::owner::race()
+            .shared
+            .view
             .texture_b
             .set(texture(face.second_object() as u32, false)?);
         let (order, back) = material_bits(face.second_kind());
-        RACE_VIEW.order_b.set(order);
-        RACE_VIEW.back_b.set(back);
+        crate::race::owner::race().shared.view.order_b.set(order);
+        crate::race::owner::race().shared.view.back_b.set(back);
     }
     Ok(())
 }
@@ -197,8 +201,8 @@ pub fn face_switches() {
     // Converted: `rc2k_core::race::faces::switches`.
     {
         let [first, second] = rc2k_core::race::faces::switches([
-            RACE_VIEW.texture_a.bits(),
-            RACE_VIEW.texture_b.bits(),
+            crate::race::owner::race().shared.view.texture_a.bits(),
+            crate::race::owner::race().shared.view.texture_b.bits(),
         ]);
         drawing.scene.polygon_sides[0].set(first);
         drawing.scene.polygon_sides[1].set(second);
@@ -228,26 +232,26 @@ fn point_light(race: &Race, n: u32) -> Result<u32, Refused> {
 /// (before anything) what `light_colour_at` refuses.
 pub fn face_lights(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::faces::corners_lit`.
-    let wanted: u32 = RACE_VIEW.lamps_wanted.get();
+    let wanted: u32 = crate::race::owner::race().shared.view.lamps_wanted.get();
     let lit = wanted != 0
         && rc2k_core::race::faces::corners_lit(
             wanted,
-            RACE_VIEW.texture_a.bits(),
-            RACE_VIEW.polygon_mode.bits(),
+            crate::race::owner::race().shared.view.texture_a.bits(),
+            crate::race::owner::race().shared.view.polygon_mode.bits(),
         );
     if lit {
         crate::race::frame_draw::check_light_colour()?;
     }
     for k in 0..4 {
-        RACE_VIEW.corner_lights[k].set(0u32);
+        crate::race::owner::race().shared.view.corner_lights[k].set(0u32);
     }
     if !lit {
         return Ok(());
     }
     for k in 0..4 {
-        let n: u32 = RACE_VIEW.corners[k].get();
+        let n: u32 = crate::race::owner::race().shared.view.corners[k].get();
         let light = point_light(race, n)?;
-        RACE_VIEW.corner_lights[k].set(light);
+        crate::race::owner::race().shared.view.corner_lights[k].set(light);
     }
     Ok(())
 }
@@ -285,10 +289,10 @@ pub fn face_out_of_view(course: &Course) -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::face_drawing::corner_in_sight` (exact in `f64`).
     use rc2k_core::race::face_drawing::{InSight, corner_in_sight};
     crate::race::frame_draw::points_there(course)?;
-    let near: u32 = RACE_VIEW.near.bits();
-    let slope: u32 = RACE_VIEW.slope.bits();
+    let near: u32 = crate::race::owner::race().shared.view.near.bits();
+    let slope: u32 = crate::race::owner::race().shared.view.slope.bits();
     for k in 0..4 {
-        let n: u32 = RACE_VIEW.corners[k].get();
+        let n: u32 = crate::race::owner::race().shared.view.corners[k].get();
         if k == 3 && n == u32::MAX {
             break;
         }
@@ -331,24 +335,24 @@ pub struct TextureSet {
 /// The first triangle's set.
 pub fn first_set() -> TextureSet {
     TextureSet {
-        texture: &RACE_VIEW.texture_a,
-        order: &RACE_VIEW.order_a,
+        texture: &crate::race::owner::race().shared.view.texture_a,
+        order: &crate::race::owner::race().shared.view.order_a,
         size: &scene().drawing.scene.polygon_textures[0],
-        mapping: &RACE_VARS.mapping_a[0],
+        mapping: &crate::race::owner::race().shared.vars.mapping_a[0],
         plain: &race().course.level_grid.plain_first,
-        uv: &RACE_VIEW.corner_uv,
+        uv: &crate::race::owner::race().shared.view.corner_uv,
     }
 }
 
 /// The second triangle's set.
 pub fn second_set() -> TextureSet {
     TextureSet {
-        texture: &RACE_VIEW.texture_b,
-        order: &RACE_VIEW.order_b,
+        texture: &crate::race::owner::race().shared.view.texture_b,
+        order: &crate::race::owner::race().shared.view.order_b,
         size: &scene().drawing.scene.polygon_textures[1],
-        mapping: &RACE_VARS.mapping_b[0],
+        mapping: &crate::race::owner::race().shared.vars.mapping_b[0],
         plain: &race().course.level_grid.plain_second,
-        uv: &RACE_VIEW.corner_uv_b,
+        uv: &crate::race::owner::race().shared.view.corner_uv_b,
     }
 }
 
@@ -394,7 +398,9 @@ pub fn face_texture_coordinates(set: &TextureSet) -> Result<(), BadInput> {
         let order: u32 = set.order.get();
         let mut pairs = [(0u16, 0u16); 4];
         for (k, pair_out) in pairs.iter_mut().enumerate() {
-            let table = RACE_VIEW.corner_uv_offsets[(order << 2) as usize + k].get();
+            let table = crate::race::owner::race().shared.view.corner_uv_offsets
+                [(order << 2) as usize + k]
+                .get();
             *pair_out = (
                 u16::from_le_bytes(info_bytes(texture, table)?),
                 u16::from_le_bytes(info_bytes(texture, table.wrapping_add(2))?),
@@ -402,7 +408,7 @@ pub fn face_texture_coordinates(set: &TextureSet) -> Result<(), BadInput> {
         }
         let trap = Trap::new();
         let c = texture_coordinates(texture_info, pairs, |k| {
-            let n: u32 = RACE_VIEW.corners[k].get();
+            let n: u32 = crate::race::owner::race().shared.view.corners[k].get();
             crate::race::scene_points::point_xz(n).unwrap_or_else(|e| {
                 trap.keep(e);
                 (0, 0)
@@ -426,7 +432,8 @@ pub fn face_corners_to_new_points(course: &Course) -> Result<(), Refused> {
     {
         crate::race::frame_draw::points_there(course)?;
         let count: u32 = course.course.scene_point_count.get();
-        let corners: [u32; 4] = crate::session::read_bits(&RACE_VIEW.corners);
+        let corners: [u32; 4] =
+            crate::session::read_bits(&crate::race::owner::race().shared.view.corners);
         let (marked, copies) = rc2k_core::race::faces::new_points(count, corners);
         for n in marked {
             crate::scene::point_records::put_field(
@@ -437,7 +444,7 @@ pub fn face_corners_to_new_points(course: &Course) -> Result<(), Refused> {
         }
         for (k, (from, to)) in copies.into_iter().enumerate() {
             crate::race::scene_points::copy_point(course, from, to)?;
-            RACE_VIEW.corners[k].set(to);
+            crate::race::owner::race().shared.view.corners[k].set(to);
         }
         Ok(())
     }
@@ -455,14 +462,18 @@ fn fill_entry(slot: u32, corner: u32) -> Result<(), BadInput> {
     {
         let e = entry(slot);
         let c = corner as usize;
-        e.point.set(RACE_VIEW.corners[c].get());
-        e.u.set(RACE_VIEW.corner_uv[2 * c].get());
-        e.v.set(RACE_VIEW.corner_uv[2 * c + 1].get());
-        e.light.set(RACE_VIEW.corner_colours[c].get());
-        e.lamp_light.set(RACE_VIEW.corner_lights[c].get());
-        e.u2.set(RACE_VIEW.corner_uv_b[2 * c].get());
-        e.v2.set(RACE_VIEW.corner_uv_b[2 * c + 1].get());
-        e.amount.set(RACE_VIEW.corner_alphas[c].get() as u8);
+        e.point
+            .set(crate::race::owner::race().shared.view.corners[c].get());
+        e.u.set(crate::race::owner::race().shared.view.corner_uv[2 * c].get());
+        e.v.set(crate::race::owner::race().shared.view.corner_uv[2 * c + 1].get());
+        e.light
+            .set(crate::race::owner::race().shared.view.corner_colours[c].get());
+        e.lamp_light
+            .set(crate::race::owner::race().shared.view.corner_lights[c].get());
+        e.u2.set(crate::race::owner::race().shared.view.corner_uv_b[2 * c].get());
+        e.v2.set(crate::race::owner::race().shared.view.corner_uv_b[2 * c + 1].get());
+        e.amount
+            .set(crate::race::owner::race().shared.view.corner_alphas[c].get() as u8);
     }
     Ok(())
 }
@@ -545,15 +556,20 @@ pub fn draw_face_triangles(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::face_drawing::{
         FIRST_TRIANGLE, SECOND_TRIANGLE, draws_first, draws_second,
     };
-    if draws_first(RACE_VIEW.face_turned[0].bits()) {
+    if draws_first(crate::race::owner::race().shared.view.face_turned[0].bits()) {
         for (slot, corner) in FIRST_TRIANGLE {
             fill_entry(slot, corner)?;
         }
         drawing.scene.polygon_vertex_count.set(3u32);
         draw_lit_triangle(race)?;
     }
-    let fourth: u32 = RACE_VIEW.corners[3].get();
-    if fourth != u32::MAX && draws_second(fourth, RACE_VIEW.face_turned[1].bits()) {
+    let fourth: u32 = crate::race::owner::race().shared.view.corners[3].get();
+    if fourth != u32::MAX
+        && draws_second(
+            fourth,
+            crate::race::owner::race().shared.view.face_turned[1].bits(),
+        )
+    {
         for (slot, corner) in SECOND_TRIANGLE {
             fill_entry(slot, corner)?;
         }
@@ -568,12 +584,12 @@ pub fn draw_face_triangles(race: &Race) -> Result<(), Refused> {
 /// carry asking for triangles), else as triangles (`race::draw_face_triangles`).
 pub fn draw_face_polygons(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::tries_quad`.
-    let in_race: u32 = FRAME_SWITCHES.other_way.get();
+    let in_race: u32 = crate::race::owner::race().shared.switches.other_way.get();
     if in_race != 0
         && rc2k_core::race::face_drawing::tries_quad(
             in_race,
-            RACE_VIEW.face_turned[0].bits(),
-            RACE_VIEW.face_turned[1].bits(),
+            crate::race::owner::race().shared.view.face_turned[0].bits(),
+            crate::race::owner::race().shared.view.face_turned[1].bits(),
         )
         && !draw_whole_quad()?
     {
@@ -593,7 +609,7 @@ pub fn draw_face(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{face_mode, PLAIN_MODE}`, the lights'
     // test `rc2k_core::race::faces::corners_lit`.
     use rc2k_core::race::face_drawing::{PLAIN_MODE, face_mode};
-    let second: u32 = RACE_VIEW.texture_b.get();
+    let second: u32 = crate::race::owner::race().shared.view.texture_b.get();
     let trap = Trap::new();
     let picked = || {
         // A run-on: the picked info number is not bounded, as the original.
@@ -604,7 +620,7 @@ pub fn draw_face(race: &Race) -> Result<(), Refused> {
         // dword_63D9D0: indexed by a byte (not bounded by the field's 4 dwords), so
         // read by address.
         trap.read_at::<u32>(
-            GamePtr::to(&RACE_VIEW.surface_kinds)
+            GamePtr::to(&crate::race::owner::race().shared.view.surface_kinds)
                 .unbounded()
                 .offset((4 * pick) as u32),
             "the surface kinds table",
@@ -612,18 +628,31 @@ pub fn draw_face(race: &Race) -> Result<(), Refused> {
     };
     let mode = face_mode(second, picked);
     trap.finish()?;
-    let wanted: u32 = RACE_VIEW.lamps_wanted.get();
-    if wanted != 0 && rc2k_core::race::faces::corners_lit(wanted, RACE_VIEW.texture_a.bits(), mode)
+    let wanted: u32 = crate::race::owner::race().shared.view.lamps_wanted.get();
+    if wanted != 0
+        && rc2k_core::race::faces::corners_lit(
+            wanted,
+            crate::race::owner::race().shared.view.texture_a.bits(),
+            mode,
+        )
     {
         crate::race::frame_draw::check_light_colour()?;
     }
     face_switches();
-    if RACE_VIEW.texture_a.get() != 0 {
+    if crate::race::owner::race().shared.view.texture_a.get() != 0 {
         face_texture_coordinates(&first_set())?;
     }
-    RACE_VIEW.polygon_mode.set(PLAIN_MODE);
+    crate::race::owner::race()
+        .shared
+        .view
+        .polygon_mode
+        .set(PLAIN_MODE);
     if second != 0 {
-        RACE_VIEW.polygon_mode.set(face_mode(second, picked));
+        crate::race::owner::race()
+            .shared
+            .view
+            .polygon_mode
+            .set(face_mode(second, picked));
         trap.finish()?;
         face_texture_coordinates(&second_set())?;
     }
@@ -757,7 +786,7 @@ pub fn draw_lit_triangle(race: &Race) -> Result<(), Refused> {
         scene.drawing.scene.scratch.set(light);
         to.lamp_light.set(light);
     }
-    let mode5 = RACE_VIEW.polygon_mode.get() == 5;
+    let mode5 = crate::race::owner::race().shared.view.polygon_mode.get() == 5;
     for slot in 0..6 {
         let e = entry(slot);
         if mode5 {
@@ -789,7 +818,7 @@ pub fn face_colours(race: &Race, face: &Face) -> Result<(), Refused> {
     let lit = face.switches() & EXTRA_LIGHTS != 0;
     for k in 0..4 {
         let c = light_tables.light_table[face.corner_light(k) as usize].get();
-        RACE_VIEW.corner_colours[k].set(c);
+        crate::race::owner::race().shared.view.corner_colours[k].set(c);
         if lit {
             let extra = || {
                 let (a, b) = face.lamps(k);
@@ -798,11 +827,11 @@ pub fn face_colours(race: &Race, face: &Face) -> Result<(), Refused> {
                 (a, b)
             };
             let c = corner_colour(c, lit, extra, crate::race::frame_draw::has_mmx());
-            RACE_VIEW.corner_colours[k].set(c);
+            crate::race::owner::race().shared.view.corner_colours[k].set(c);
         }
     }
     for k in 0..4 {
-        RACE_VIEW.corner_alphas[k].set(face.corner_fog(k) as u32);
+        crate::race::owner::race().shared.view.corner_alphas[k].set(face.corner_fog(k) as u32);
     }
     draw_face(race)
 }
@@ -812,27 +841,34 @@ pub fn face_colours(race: &Race, face: &Face) -> Result<(), Refused> {
 fn turn_over() -> Result<(), BadInput> {
     {
         let swap = |a: usize, b: usize| {
-            let (x, y) = (RACE_VIEW.corners[a].get(), RACE_VIEW.corners[b].get());
-            RACE_VIEW.corners[a].set(y);
-            RACE_VIEW.corners[b].set(x);
+            let (x, y) = (
+                crate::race::owner::race().shared.view.corners[a].get(),
+                crate::race::owner::race().shared.view.corners[b].get(),
+            );
+            crate::race::owner::race().shared.view.corners[a].set(y);
+            crate::race::owner::race().shared.view.corners[b].set(x);
         };
         // Converted: `rc2k_core::race::face_drawing::{turns_last_pair, turned_order}`.
         use rc2k_core::race::face_drawing::{turned_order, turns_last_pair};
         swap(0, 1);
-        if turns_last_pair(RACE_VIEW.corners[3].bits()) {
+        if turns_last_pair(crate::race::owner::race().shared.view.corners[3].bits()) {
             swap(2, 3);
         }
-        let order: u32 = RACE_VIEW.order_a.get();
+        let order: u32 = crate::race::owner::race().shared.view.order_a.get();
         let trap = Trap::new();
         let turned = turned_order(order, |n| {
             // `turned_order` asks 0 ..= 7.
-            byte_of(&RACE_VIEW.turned_corner_order, n as usize).unwrap_or_else(|| {
+            byte_of(
+                &crate::race::owner::race().shared.view.turned_corner_order,
+                n as usize,
+            )
+            .unwrap_or_else(|| {
                 trap.keep(BadInput("past the turned corner order"));
                 0
             })
         });
         trap.finish()?;
-        RACE_VIEW.order_a.set(turned);
+        crate::race::owner::race().shared.view.order_a.set(turned);
     }
     Ok(())
 }
@@ -844,16 +880,18 @@ fn turn_over() -> Result<(), BadInput> {
 pub fn draw_back_face(race: &Race, face: &Face) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{has_back, turns_last_pair,
     // turned_order}`.
-    if !rc2k_core::race::face_drawing::has_back(RACE_VIEW.back_a.bits()) {
+    if !rc2k_core::race::face_drawing::has_back(
+        crate::race::owner::race().shared.view.back_a.bits(),
+    ) {
         return Ok(());
     }
     turn_over()?;
     for k in 0..4 {
-        RACE_VIEW.corner_colours[k]
+        crate::race::owner::race().shared.view.corner_colours[k]
             .set(scene().light_tables.light_table[face.back_light(k) as usize].get());
     }
     for k in 0..4 {
-        RACE_VIEW.corner_alphas[k].set(face.back_fog(k) as u32);
+        crate::race::owner::race().shared.view.corner_alphas[k].set(face.back_fog(k) as u32);
     }
     draw_face(race)?;
     turn_over()?;
@@ -869,19 +907,19 @@ pub fn draw_face_sides(race: &Race, face: &Face) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::face_drawing::{has_objects, two_sided, side_drawn,
     // flipped}`.
     use rc2k_core::race::face_drawing::{flipped, has_objects, side_drawn, two_sided};
-    if FRAME_SWITCHES.other_way.get() == 0 {
+    if crate::race::owner::race().shared.switches.other_way.get() == 0 {
         face_materials(&race.course, face)?;
-        RACE_VIEW.face_turned[0].set(0u32);
-        RACE_VIEW.face_turned[1].set(0u32);
+        crate::race::owner::race().shared.view.face_turned[0].set(0u32);
+        crate::race::owner::race().shared.view.face_turned[1].set(0u32);
         face_colours(race, face)?;
-        RACE_VIEW.face_turned[0].set(0u32);
-        RACE_VIEW.face_turned[1].set(0u32);
+        crate::race::owner::race().shared.view.face_turned[0].set(0u32);
+        crate::race::owner::race().shared.view.face_turned[1].set(0u32);
         return draw_back_face(race, face);
     }
     let facings = || -> bool {
         side_drawn(
-            RACE_VIEW.face_turned[0].bits(),
-            RACE_VIEW.face_turned[1].bits(),
+            crate::race::owner::race().shared.view.face_turned[0].bits(),
+            crate::race::owner::race().shared.view.face_turned[1].bits(),
         )
     };
     if !has_objects(face.object(), face.second_object()) {
@@ -898,8 +936,12 @@ pub fn draw_face_sides(race: &Race, face: &Face) -> Result<(), Refused> {
     if facings() {
         face_colours(race, face)?;
     }
-    RACE_VIEW.face_turned[0].set(flipped(RACE_VIEW.face_turned[0].bits()));
-    RACE_VIEW.face_turned[1].set(flipped(RACE_VIEW.face_turned[1].bits()));
+    crate::race::owner::race().shared.view.face_turned[0].set(flipped(
+        crate::race::owner::race().shared.view.face_turned[0].bits(),
+    ));
+    crate::race::owner::race().shared.view.face_turned[1].set(flipped(
+        crate::race::owner::race().shared.view.face_turned[1].bits(),
+    ));
     if facings() {
         draw_back_face(race, face)?;
     }
@@ -969,7 +1011,7 @@ mod asm_reference {
     // The original functions, verbatim.
     pub(super) unsafe fn face_turned_to_view_asm(face: u32, half: u32) -> u32 {
         unsafe {
-            if FRAME_SWITCHES.other_way.get() == 0 {
+            if crate::race::owner::race().shared.switches.other_way.get() == 0 {
                 return 0;
             }
             let e = face + half;
@@ -1178,7 +1220,11 @@ mod asm_reference {
         let mut face = [0u32; 0x20];
         at_each_control_word(|| {
             for _ in 0..20000 {
-                FRAME_SWITCHES.other_way.set(r.below(8));
+                crate::race::owner::race()
+                    .shared
+                    .switches
+                    .other_way
+                    .set(r.below(8));
                 race()
                     .course
                     .course

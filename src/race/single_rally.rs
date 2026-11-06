@@ -13,7 +13,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::race;
-use crate::race::state_store::{RACE_STATE, RaceCar, RaceResult};
+use crate::race::state_store::{RaceCar, RaceResult};
 use crate::session::{Bytes, Dword};
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
@@ -41,20 +41,20 @@ const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player;
 const SWITCH: &Dword = &crate::menu::owner::MENUS.play.arcade.scene_let_go;
 /// dword_75ACD0: a copy of `SUMMARY` (the summary's block id, as the race reads it:
 /// `race::copy_league_table`, `physics::fill_rival_table`).
-const RACE_INFO: &Dword = &RACE_STATE.settings.rivals;
+const RACE_INFO: &Dword = &crate::race::owner::RACE.shared.state.settings.rivals;
 /// dword_75ACD4: the stage chosen.
-const STAGE: &Dword = &RACE_STATE.settings.stage;
+const STAGE: &Dword = &crate::race::owner::RACE.shared.state.settings.stage;
 /// dword_75ACD8: the run's kind argument.
-const RACE_KIND: &Dword = &RACE_STATE.settings.run_kind;
+const RACE_KIND: &Dword = &crate::race::owner::RACE.shared.state.settings.run_kind;
 /// dword_75ACDC: 1 when the race is not an event's and has more than one player.
-const NO_REPLAY: &Dword = &RACE_STATE.settings.no_replay;
+const NO_REPLAY: &Dword = &crate::race::owner::RACE.shared.state.settings.no_replay;
 /// dword_75ACE0: 1, or 2 in the events' one-car modes.
-const RACE_MODE: &Dword = &RACE_STATE.settings.race_mode;
+const RACE_MODE: &Dword = &crate::race::owner::RACE.shared.state.settings.race_mode;
 /// dword_75ACE4: a copy of `KEPT`, put back after the race.
-const RACE_KEPT: &Dword = &RACE_STATE.settings.kept;
+const RACE_KEPT: &Dword = &crate::race::owner::RACE.shared.state.settings.kept;
 /// dword_75B028 / dword_75B098: the current / the first car's result (-1 none, -2 left).
-const RESULT: &Dword = &RACE_STATE.results.results[0].result;
-const RESULT_2: &Dword = &RACE_STATE.results.results[1].result;
+const RESULT: &Dword = &crate::race::owner::RACE.shared.state.results.results[0].result;
+const RESULT_2: &Dword = &crate::race::owner::RACE.shared.state.results.results[1].result;
 /// One player's side of the race variables: the car's settings and the results it
 /// leaves. `FIRST_SIDE` is player 1's, `CURRENT_SIDE` the current player's.
 struct Side {
@@ -71,50 +71,72 @@ struct Side {
     result: &'static RaceResult,
 }
 const FIRST_SIDE: Side = Side {
-    car: &RACE_STATE.settings.cars[1],
-    car_kind: &RACE_STATE.settings.car_kind_first,
-    service_spent: &RACE_STATE.results.service_spent_first,
-    flags: &RACE_STATE.results.flags_first,
-    hud_bits: &RACE_STATE.results.hud_bits_first,
-    result: &RACE_STATE.results.results[1],
+    car: &crate::race::owner::RACE.shared.state.settings.cars[1],
+    car_kind: &crate::race::owner::RACE
+        .shared
+        .state
+        .settings
+        .car_kind_first,
+    service_spent: &crate::race::owner::RACE
+        .shared
+        .state
+        .results
+        .service_spent_first,
+    flags: &crate::race::owner::RACE.shared.state.results.flags_first,
+    hud_bits: &crate::race::owner::RACE.shared.state.results.hud_bits_first,
+    result: &crate::race::owner::RACE.shared.state.results.results[1],
 };
 const CURRENT_SIDE: Side = Side {
-    car: &RACE_STATE.settings.cars[0],
-    car_kind: &RACE_STATE.settings.car_kind_current,
-    service_spent: &RACE_STATE.results.service_spent_current,
-    flags: &RACE_STATE.results.flags_current,
-    hud_bits: &RACE_STATE.results.hud_bits_current,
-    result: &RACE_STATE.results.results[0],
+    car: &crate::race::owner::RACE.shared.state.settings.cars[0],
+    car_kind: &crate::race::owner::RACE
+        .shared
+        .state
+        .settings
+        .car_kind_current,
+    service_spent: &crate::race::owner::RACE
+        .shared
+        .state
+        .results
+        .service_spent_current,
+    flags: &crate::race::owner::RACE.shared.state.results.flags_current,
+    hud_bits: &crate::race::owner::RACE
+        .shared
+        .state
+        .results
+        .hud_bits_current,
+    result: &crate::race::owner::RACE.shared.state.results.results[0],
 };
 /// dword_75AE24: the second set's word that mode 2 takes from the record's `second_view`.
-const MODE_WORD: &Dword = &RACE_STATE.settings.cars[0].view;
+const MODE_WORD: &Dword = &crate::race::owner::RACE.shared.state.settings.cars[0].view;
 
 #[cfg(test)]
-const BLOCK_FIRST: &[Dword; 8] = &RACE_STATE.results.results[1].field_24c;
+const BLOCK_FIRST: &[Dword; 8] =
+    &crate::race::owner::RACE.shared.state.results.results[1].field_24c;
 #[cfg(test)]
-const BLOCK_CURRENT: &[Dword; 8] = &RACE_STATE.results.results[0].field_24c;
+const BLOCK_CURRENT: &[Dword; 8] =
+    &crate::race::owner::RACE.shared.state.results.results[0].field_24c;
 #[cfg(test)]
 const TIMES_FIRST: [&Dword; 4] = [
-    &RACE_STATE.settings.cars[1].wear[10],
-    &RACE_STATE.settings.cars[1].wear[11],
-    &RACE_STATE.settings.cars[1].wear[12],
-    &RACE_STATE.settings.cars[1].wear[13],
+    &crate::race::owner::RACE.shared.state.settings.cars[1].wear[10],
+    &crate::race::owner::RACE.shared.state.settings.cars[1].wear[11],
+    &crate::race::owner::RACE.shared.state.settings.cars[1].wear[12],
+    &crate::race::owner::RACE.shared.state.settings.cars[1].wear[13],
 ];
 #[cfg(test)]
-const EXTRA_FIRST: &Dword = &RACE_STATE.settings.cars[1].wear[14];
+const EXTRA_FIRST: &Dword = &crate::race::owner::RACE.shared.state.settings.cars[1].wear[14];
 #[cfg(test)]
 const TIMES_CURRENT: [&Dword; 4] = [
-    &RACE_STATE.settings.cars[0].wear[10],
-    &RACE_STATE.settings.cars[0].wear[11],
-    &RACE_STATE.settings.cars[0].wear[12],
-    &RACE_STATE.settings.cars[0].wear[13],
+    &crate::race::owner::RACE.shared.state.settings.cars[0].wear[10],
+    &crate::race::owner::RACE.shared.state.settings.cars[0].wear[11],
+    &crate::race::owner::RACE.shared.state.settings.cars[0].wear[12],
+    &crate::race::owner::RACE.shared.state.settings.cars[0].wear[13],
 ];
 #[cfg(test)]
-const EXTRA_CURRENT: &Dword = &RACE_STATE.settings.cars[0].wear[14];
+const EXTRA_CURRENT: &Dword = &crate::race::owner::RACE.shared.state.settings.cars[0].wear[14];
 #[cfg(test)]
-const OUTCOME_FIRST: &RaceResult = &RACE_STATE.results.results[1];
+const OUTCOME_FIRST: &RaceResult = &crate::race::owner::RACE.shared.state.results.results[1];
 #[cfg(test)]
-const OUTCOME_CURRENT: &RaceResult = &RACE_STATE.results.results[0];
+const OUTCOME_CURRENT: &RaceResult = &crate::race::owner::RACE.shared.state.results.results[0];
 
 /// The fatal error of a track number not in the list.
 const UNKNOWN_TRACK: FatalError = FatalError {
@@ -126,23 +148,23 @@ const UNKNOWN_TRACK: FatalError = FatalError {
 const SETTINGS_TO_RACE: [(&Dword, &Dword); 5] = [
     (
         &crate::menu::owner::MENUS.screens.option_work.setting_0,
-        &RACE_STATE.settings.setting_0,
+        &crate::race::owner::RACE.shared.state.settings.setting_0,
     ),
     (
         &crate::menu::owner::MENUS.screens.option_work.setting_1,
-        &RACE_STATE.settings.setting_1,
+        &crate::race::owner::RACE.shared.state.settings.setting_1,
     ),
     (
         &crate::menu::owner::MENUS.screens.option_work.setting_2,
-        &RACE_STATE.settings.setting_2,
+        &crate::race::owner::RACE.shared.state.settings.setting_2,
     ),
     (
         &crate::menu::owner::MENUS.screens.option_work.setting_3,
-        &RACE_STATE.settings.setting_3,
+        &crate::race::owner::RACE.shared.state.settings.setting_3,
     ),
     (
         &crate::menu::owner::MENUS.screens.option_work.setting_4,
-        &RACE_STATE.settings.setting_4,
+        &crate::race::owner::RACE.shared.state.settings.setting_4,
     ),
 ];
 
@@ -344,7 +366,7 @@ fn single_rally(
 ) -> Result<(), Refused> {
     // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is
     // left as if chosen, with no stage yet. Not the original's, whose close stopped nothing.
-    if crate::session::FLAGS.quitting.get() == 1 {
+    if crate::system::owner::system().session.flags.quitting.get() == 1 {
         crate::standalone::leave_on_close();
     }
     if kind == 3 {
@@ -364,7 +386,7 @@ fn single_rally(
 
     // The stage's entry in the track list: the tracks, then the pack's closing -1.
     let stage = STAGE.get();
-    let pack = &crate::records::stages_store::STAGE_TABLES.trak_pak;
+    let pack = &crate::system::owner::system().records.stage_tables.trak_pak;
     let mut at = 0;
     let entry = loop {
         let entry = pack
@@ -384,8 +406,18 @@ fn single_rally(
         }
     };
     // The entry's +0x1C (temperature) and +0x20 (wind) into the race variables.
-    RACE_STATE.settings.track_1c.set(entry.temperature.get());
-    RACE_STATE.settings.track_20.set(entry.wind.get());
+    crate::race::owner::race()
+        .shared
+        .state
+        .settings
+        .track_1c
+        .set(entry.temperature.get());
+    crate::race::owner::race()
+        .shared
+        .state
+        .settings
+        .track_20
+        .set(entry.wind.get());
     for &(from, to) in &SETTINGS_TO_RACE {
         to.set(from.get());
     }
@@ -1949,7 +1981,12 @@ mod tests {
             // The track list: entries 0x40 apart from +0x34; the stage's number at +0x34 of
             // the entry; a dword -1 at the start of the entry the list ends at.
             let entry = |k: usize| {
-                crate::records::stages_store::STAGE_TABLES.trak_pak() + 0x34 + 0x40 * k as u32
+                crate::system::owner::system()
+                    .records
+                    .stage_tables
+                    .trak_pak()
+                    + 0x34
+                    + 0x40 * k as u32
             };
             for k in 0..6 {
                 let mut id = rng.next();

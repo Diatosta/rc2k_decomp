@@ -4,7 +4,6 @@
 //! without A3D's driver (phase 11, 2026-10-26: no COM, the class is never there), and the
 //! Rust versions go the original's way for that.
 
-use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
 use crate::session::Dword;
 
@@ -29,14 +28,18 @@ const THERE: &str = "A3D is there (CoCreateInstance worked): not ported";
 
 /// `audio::open_a3d`: A3D as the DirectSound. False for the carry (not used).
 pub fn open_a3d() -> Result<bool, Refused> {
-    if AUDIO.no_a3d_setting.get() & 1 != 0 {
-        release(&AUDIO.a3d_object);
-        release(&AUDIO.direct_sound);
+    if crate::audio::owner::audio().state.no_a3d_setting.get() & 1 != 0 {
+        release(&crate::audio::owner::audio().state.a3d_object);
+        release(&crate::audio::owner::audio().state.direct_sound);
         return Ok(false);
     }
-    AUDIO.a3d_ready.set(0);
-    AUDIO.direct_sound.set(0);
-    if game_create(&AUDIO.a3d_clsid, &AUDIO.a3d_iid) != 0 {
+    crate::audio::owner::audio().state.a3d_ready.set(0);
+    crate::audio::owner::audio().state.direct_sound.set(0);
+    if game_create(
+        &crate::audio::owner::audio().state.a3d_clsid,
+        &crate::audio::owner::audio().state.a3d_iid,
+    ) != 0
+    {
         return Ok(false);
     }
     Err(BadInput(THERE).into())
@@ -44,14 +47,18 @@ pub fn open_a3d() -> Result<bool, Refused> {
 
 /// `audio::open_a3d2`: A3D's second interface. False for the carry (not used).
 pub fn open_a3d2() -> Result<bool, Refused> {
-    if AUDIO.no_a3d_setting.get() & 2 != 0 {
-        release(&AUDIO.a3d_object);
-        AUDIO.a3d_object.set(0);
+    if crate::audio::owner::audio().state.no_a3d_setting.get() & 2 != 0 {
+        release(&crate::audio::owner::audio().state.a3d_object);
+        crate::audio::owner::audio().state.a3d_object.set(0);
         return Ok(false);
     }
-    AUDIO.use_a3d.set(0);
-    AUDIO.a3d_object.set(0);
-    if game_create(&AUDIO.a3d2_clsid, &AUDIO.a3d2_iid) != 0 {
+    crate::audio::owner::audio().state.use_a3d.set(0);
+    crate::audio::owner::audio().state.a3d_object.set(0);
+    if game_create(
+        &crate::audio::owner::audio().state.a3d2_clsid,
+        &crate::audio::owner::audio().state.a3d2_iid,
+    ) != 0
+    {
         return Ok(false);
     }
     Err(BadInput(THERE).into())
@@ -59,9 +66,9 @@ pub fn open_a3d2() -> Result<bool, Refused> {
 
 /// `audio::close_a3d2`: its interface released, `release_a3d` (place 9), A3D off.
 pub fn close_a3d2() -> Result<(), Refused> {
-    release(&AUDIO.a3d2_interface);
+    release(&crate::audio::owner::audio().state.a3d2_interface);
     crate::audio::sound_device::release_a3d_object();
-    AUDIO.use_a3d.set(0);
+    crate::audio::owner::audio().state.use_a3d.set(0);
     Ok(())
 }
 
@@ -69,7 +76,7 @@ pub fn close_a3d2() -> Result<(), Refused> {
 /// (`g_a3dSplashKept` 1); then they read and turn off, or write back, A3D's
 /// "SplashScreen" and "SplashAudio" under HKLM\SOFTWARE\Aureal\A3D: refused.
 pub fn splash() -> Result<(), Refused> {
-    if AUDIO.a3d_splash_kept.get() == 1 {
+    if crate::audio::owner::audio().state.a3d_splash_kept.get() == 1 {
         return Err(BadInput("A3D's splash settings in the registry (not ported)").into());
     }
     Ok(())

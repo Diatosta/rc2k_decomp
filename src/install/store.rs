@@ -134,15 +134,22 @@ pub struct LobbyKeys {
     pub _gap_5ab48f: [u8; 1],
 }
 
-pub static LOBBY_KEYS: LobbyKeys = LobbyKeys {
-    registry_key: with_runs::<74>(&[(0, b"SOFTWARE\\Microsoft\\DirectPlay\\Applications\\RC")]),
-    name_guid: with_runs::<5>(&[(0, b"Guid")]),
-    name_file: with_runs::<5>(&[(0, b"File")]),
-    name_command_line: with_runs::<12>(&[(0, b"CommandLine")]),
-    name_path: with_runs::<5>(&[(0, b"Path")]),
-    name_current_directory: with_runs::<17>(&[(0, b"CurrentDirectory")]),
-    _gap_5ab48f: [0; 1],
-};
+impl LobbyKeys {
+    pub const fn new() -> Self {
+        LobbyKeys {
+            registry_key: with_runs::<74>(&[(
+                0,
+                b"SOFTWARE\\Microsoft\\DirectPlay\\Applications\\RC",
+            )]),
+            name_guid: with_runs::<5>(&[(0, b"Guid")]),
+            name_file: with_runs::<5>(&[(0, b"File")]),
+            name_command_line: with_runs::<12>(&[(0, b"CommandLine")]),
+            name_path: with_runs::<5>(&[(0, b"Path")]),
+            name_current_directory: with_runs::<17>(&[(0, b"CurrentDirectory")]),
+            _gap_5ab48f: [0; 1],
+        }
+    }
+}
 
 /// The bytes up to the first NUL (or all of them): a text kept in a field of `LobbyKeys`.
 pub fn text_of(field: &[u8]) -> &[u8] {
@@ -228,7 +235,7 @@ mod tests {
             offset_of!(DriveRows, drive_rows),
             0x52A30F - DriveRows::START
         );
-        let keys = &LOBBY_KEYS;
+        let keys = &crate::install::owner::INSTALL.lobby_keys;
         let mine = [
             &keys.registry_key[..],
             &keys.name_guid,

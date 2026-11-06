@@ -30,8 +30,6 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
@@ -50,7 +48,7 @@ fn moved(course: &crate::race::owner_course::Course, from: usize, by: u32) -> Re
     let (a, b) = (read(from)?, read(other)?);
     // The fraction, the two points, the result, the fraction as it is stored.
     let mut w = [
-        RACE_VARS.move_fraction.bits(),
+        crate::race::owner::race().shared.vars.move_fraction.bits(),
         a[0],
         a[1],
         a[2],
@@ -146,7 +144,11 @@ struct Object {
 
 fn object(course: &crate::race::owner_course::Course) -> Result<Object, BadInput> {
     let objects = &scene().objects;
-    let number: u32 = FRAME_SWITCHES.object_number.bits();
+    let number: u32 = crate::race::owner::race()
+        .shared
+        .switches
+        .object_number
+        .bits();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
@@ -177,7 +179,7 @@ pub fn place_object_points(race: &crate::race::owner::Race) -> Result<(), Refuse
     // (`g_objectMatrix` is only ever `g_madeObjectMatrix`, never written.)
     let matrix: [u32; 16] =
         std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].bits());
-    let move_by: u32 = RACE_VARS.move_by.bits();
+    let move_by: u32 = crate::race::owner::race().shared.vars.move_by.bits();
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));
     for _ in 0..object.points {

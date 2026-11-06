@@ -13,8 +13,6 @@
 //! Caller: `drive::race_tick`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
@@ -29,12 +27,12 @@ pub fn simple_car_step(race: &Race) -> Result<(), Refused> {
     crate::drive::pedal_inputs::pedal_inputs();
     // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
-    let keys = CAR.input_keys.get();
+    let keys = crate::race::owner::race().shared.car.input_keys.get();
     { crate::drive::reset_request::reset_request() }?;
     let distance = roam_distance(
         CAR_BLOCKS.cars[0].throttle.bits(),
         CAR_BLOCKS.cars[0].brake.bits(),
-        crate::input::store::DEVICES.keys_now.get(0x1D) != 0, // byte_4F6B79
+        crate::input::owner::input().devices.keys_now.get(0x1D) != 0, // byte_4F6B79
     );
     let [x, _, z, _] = {
         crate::math::turn_point_xz::turn_point_xz(
@@ -63,12 +61,13 @@ pub fn simple_car_step(race: &Race) -> Result<(), Refused> {
         .set(race.course.course.place_z.get());
     { crate::physics::find_ground::find_ground(race) }?;
     if race.course.course.ground_slot.get() != u32::MAX {
-        let y = race
-            .physics
-            .ground
-            .ground_height
-            .get()
-            .wrapping_add(PHYSICS.ground_drop.get());
+        let y = race.physics.ground.ground_height.get().wrapping_add(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .ground_drop
+                .get(),
+        );
         race.course.course.place_y.set(y);
         CAR_BLOCKS.cars[0].position[1].set_bits(y);
     }

@@ -11,9 +11,7 @@ use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
-use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 use crate::session::{Bytes, Dword};
 
@@ -21,7 +19,7 @@ use crate::session::{Bytes, Dword};
 /// `race::seal_replay_header`; `race::seal_stage_time` turns the first car's time by it).
 /// Split 2026-10-25 from sound's dwords around it; `moved::MOVED` names IDA 0x4F66F9 here
 /// (`race::owner_replay::Replay::seal_key`).
-// The index (`REPLAY_FILE.index()`) is 0x3850 bytes.
+// The index (`crate::race::owner::race().shared.replay_file.index()`) is 0x3850 bytes.
 const _: () = assert!(crate::race::replay_file_store::INDEX_DWORDS * 4 == 0x3850);
 pub const MOST_BLOCKS: u32 = rc2k_core::race::replay::MOST_BLOCKS;
 pub const BLOCK_LEN: u32 = 0x2810;
@@ -46,11 +44,15 @@ pub struct Replays {
     pub names: Bytes<{ SLOTS * NAME_BYTES }>,
 }
 
-/// The replays' buffers; the first values are the image's (all zero).
-pub static REPLAYS: Replays = Replays {
-    header: Bytes::new([0; HEADER_LEN as usize]),
-    names: Bytes::new([0; SLOTS * NAME_BYTES]),
-};
+impl Replays {
+    /// The replays' buffers; the first values are the image's (all zero).
+    pub const fn new() -> Self {
+        Replays {
+            header: Bytes::new([0; HEADER_LEN as usize]),
+            names: Bytes::new([0; SLOTS * NAME_BYTES]),
+        }
+    }
+}
 
 #[cfg(test)]
 mod block_tests {
@@ -59,17 +61,27 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&REPLAYS, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().shared.replays,
+            START,
+            START + LEN,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(Replays, names), 0x528934 - START);
-        assert_eq!(crate::moved::place(START), REPLAYS.header.addr() as usize);
-        assert_eq!(crate::moved::place(0x528934), REPLAYS.names.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::race::owner::race().shared.replays.header.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x528934),
+            crate::race::owner::race().shared.replays.names.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(0x528510),
-            (REPLAYS.header.addr() + 0xC) as usize
+            (crate::race::owner::race().shared.replays.header.addr() + 0xC) as usize
         );
     }
 }
@@ -178,7 +190,13 @@ fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
 /// the whole replay block (`dword_9613A4`, 0x2810 bytes): here it is that block.
 pub fn write_replay_chunk(handle: u32) -> Result<(u32, bool), Refused> {
     let block = VIEWER_BUFFERS.block_bytes();
-    if REPLAY_FILE.chunks_plain.get() == 1 {
+    if crate::race::owner::race()
+        .shared
+        .replay_file
+        .chunks_plain
+        .get()
+        == 1
+    {
         return Ok(write(handle, &block));
     }
     let (packing, packed) = crate::race::save_seal::pack_runs(&block)?;
@@ -202,8 +220,13 @@ pub fn write_replay_chunk(handle: u32) -> Result<(u32, bool), Refused> {
 /// The replay index's dword `k` (`lDistanceToMove` ..: offset and size a block). A block
 /// count past the index's 1800 (a broken file) reads on past it, as the original does.
 pub fn block_place(k: usize) -> Result<u32, BadInput> {
-    let places = &REPLAY_FILE.block_places;
-    crate::session::read_on_in(&REPLAY_FILE, places, k, "the replay index")
+    let places = &crate::race::owner::race().shared.replay_file.block_places;
+    crate::session::read_on_in(
+        &crate::race::owner::race().shared.replay_file,
+        places,
+        k,
+        "the replay index",
+    )
 }
 
 /// `race::write_replay_block` (0x41E9A3): the block (`dword_9613A4`, 0x2810 bytes) written
@@ -212,21 +235,36 @@ pub fn block_place(k: usize) -> Result<u32, BadInput> {
 /// the replay (`race::close_replay`; the carry it sets is read by no caller). Every
 /// register kept.
 pub fn write_replay_block(replay: &Replay) -> Result<(), Refused> {
-    let n = REPLAY_FILE.index_block_count.get();
+    let n = crate::race::owner::race()
+        .shared
+        .replay_file
+        .index_block_count
+        .get();
     if n >= MOST_BLOCKS {
         return Err(BadInput("the replay's index is full already").into());
     }
-    REPLAY_FILE.block_places[2 * n as usize].set(replay.replay_view.file_offset.get());
-    let (written, failed) = write_replay_chunk(REPLAY_FILE.replay_handle.get())?;
+    crate::race::owner::race().shared.replay_file.block_places[2 * n as usize]
+        .set(replay.replay_view.file_offset.get());
+    let (written, failed) = write_replay_chunk(
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .replay_handle
+            .get(),
+    )?;
     let failed = failed || {
-        REPLAY_FILE.block_places[2 * n as usize + 1].set(written);
+        crate::race::owner::race().shared.replay_file.block_places[2 * n as usize + 1].set(written);
         // Converted: `rc2k_core::race::replay::block_written`.
         let (size, full) = rc2k_core::race::replay::block_written(written, n);
         replay
             .replay_view
             .file_offset
             .set(replay.replay_view.file_offset.get().wrapping_add(size));
-        REPLAY_FILE.index_block_count.set(n + 1);
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .index_block_count
+            .set(n + 1);
         full
     };
     if failed {
@@ -242,7 +280,13 @@ pub fn write_replay_block(replay: &Replay) -> Result<(), Refused> {
 /// anything). Its one caller adds the padding frame (`REPLAY_VIEW.pad_frame`): here the
 /// frame's cells, `bytes` their size.
 pub fn add_replay_frame(replay: &Replay, frame: &[Dword]) -> Result<(), Refused> {
-    if REPLAY_FILE.replay_open.get() != 1 {
+    if crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_open
+        .get()
+        != 1
+    {
         return Ok(());
     }
     // Converted: `rc2k_core::race::replay::{fits, frame_added}`.
@@ -255,9 +299,18 @@ pub fn add_replay_frame(replay: &Replay, frame: &[Dword]) -> Result<(), Refused>
     }
     let (in_block, full) = frame_added(bytes, replay.replay_view.frames_in_block.get());
     if bytes == FRAME_BYTES {
-        REPLAY_FILE
+        crate::race::owner::race()
+            .shared
+            .replay_file
             .index_frame_count
-            .set(REPLAY_FILE.index_frame_count.get().wrapping_add(1));
+            .set(
+                crate::race::owner::race()
+                    .shared
+                    .replay_file
+                    .index_frame_count
+                    .get()
+                    .wrapping_add(1),
+            );
         replay.replay_view.frames_in_block.set(in_block);
     }
     let first = used as usize / 4;
@@ -280,7 +333,13 @@ pub fn add_replay_frame(replay: &Replay, frame: &[Dword]) -> Result<(), Refused>
 /// `dword_5BEC88` 0, `dword_5BEC84` 1. Every register kept.
 pub fn close_replay() -> Result<(), Refused> {
     let replay = &race().replay;
-    if REPLAY_FILE.replay_open.get() != 1 {
+    if crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_open
+        .get()
+        != 1
+    {
         return Ok(());
     }
     while replay.replay_view.frames_in_block.get() != 0 {
@@ -289,15 +348,44 @@ pub fn close_replay() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::replay::closing_frames`.
     let (frames, _, _) = rc2k_core::race::replay::closing_frames(
         replay.replay_view.replay_block.get(),
-        REPLAY_FILE.index_block_count.get(),
-        REPLAY_FILE.index_frame_count.get(),
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .index_block_count
+            .get(),
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .index_frame_count
+            .get(),
     );
     replay.replay_view.frames_in_block.set(frames);
     crate::race::race_shell::seal_stage_time(replay)?;
-    crate::files::handle::write_cells(REPLAY_FILE.replay_handle.get(), REPLAY_FILE.index());
-    crate::files::handle::close(REPLAY_FILE.replay_handle.get());
-    REPLAY_FILE.replay_open.set(0);
-    REPLAY_FILE.replay_closed.set(1);
+    crate::files::handle::write_cells(
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .replay_handle
+            .get(),
+        crate::race::owner::race().shared.replay_file.index(),
+    );
+    crate::files::handle::close(
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .replay_handle
+            .get(),
+    );
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_open
+        .set(0);
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_closed
+        .set(1);
     Ok(())
 }
 
@@ -315,19 +403,36 @@ pub fn open_replay() -> Result<(), Refused> {
     use rc2k_core::race::replay::{
         HEADER_MAGIC, HEADER_NAME, HEADER_VERSION, INDEX_MAGIC, replays_on, room_for_replay,
     };
-    REPLAY_FILE.replay_closed.set(0);
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_closed
+        .set(0);
     if !replays_on(
-        REPLAY_FILE.replays_on.get(),
-        REPLAY_FILE.no_replay_switch.get(),
-        crate::net::store::NET.session.get(),
-        RACE_STATE.settings.no_replay.get(),
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .replays_on
+            .get(),
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .no_replay_switch
+            .get(),
+        crate::net::owner::net().vars.session.get(),
+        crate::race::owner::race()
+            .shared
+            .state
+            .settings
+            .no_replay
+            .get(),
     ) {
         return Ok(());
     }
     if !room_for_replay(crate::logfile::start_log::free_space_kb()) {
         return Ok(());
     }
-    let header = &REPLAYS.header;
+    let header = &crate::race::owner::race().shared.replays.header;
     for k in 0..0x10C {
         header.set_u32(4 * k, 0);
     }
@@ -340,10 +445,16 @@ pub fn open_replay() -> Result<(), Refused> {
     let w = &REPLAY_WORK;
     w.header_one_player
         .set(crate::sound::owner::sound().race.sounds.one_player.get());
-    w.header_codriver_sex_0
-        .set(RACE_STATE.settings.cars[0].codriver_sex.get());
-    w.header_codriver_sex_1
-        .set(RACE_STATE.settings.cars[1].codriver_sex.get());
+    w.header_codriver_sex_0.set(
+        crate::race::owner::race().shared.state.settings.cars[0]
+            .codriver_sex
+            .get(),
+    );
+    w.header_codriver_sex_1.set(
+        crate::race::owner::race().shared.state.settings.cars[1]
+            .codriver_sex
+            .get(),
+    );
     w.patches_in_header.set(6);
     for (to, from) in w
         .header_patches
@@ -356,14 +467,18 @@ pub fn open_replay() -> Result<(), Refused> {
     // The store types the stage's 0x400 bytes by their first dword.
     GamePtr::to(&REPLAY_WORK.header_stage).unbounded().copy_to(
         // The file's header is bytes.
-        GamePtr::to(&REPLAYS.header).offset(0x30),
+        GamePtr::to(&crate::race::owner::race().shared.replays.header).offset(0x30),
         0x400,
         "the replay header's stage",
     )?;
-    for cell in REPLAY_FILE.index() {
+    for cell in crate::race::owner::race().shared.replay_file.index() {
         cell.set(0);
     }
-    REPLAY_FILE.index_magic.set(INDEX_MAGIC);
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .index_magic
+        .set(INDEX_MAGIC);
     VIEWER_BUFFERS.block_used.set(0);
     replay.replay_view.frames_in_block.set(0);
     replay.replay_view.file_offset.set(0);
@@ -372,8 +487,16 @@ pub fn open_replay() -> Result<(), Refused> {
     let failed = match opened {
         None => true,
         Some(handle) => {
-            REPLAY_FILE.replay_handle.set(handle);
-            REPLAY_FILE.replay_open.set(1);
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .replay_handle
+                .set(handle);
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .replay_open
+                .set(1);
             replay.replay_view.file_offset.set(
                 replay
                     .replay_view
@@ -382,8 +505,12 @@ pub fn open_replay() -> Result<(), Refused> {
                     .wrapping_add(HEADER_LEN),
             );
             !crate::files::handle::write_slice(
-                REPLAY_FILE.replay_handle.get(),
-                &REPLAYS.header.read(),
+                crate::race::owner::race()
+                    .shared
+                    .replay_file
+                    .replay_handle
+                    .get(),
+                &crate::race::owner::race().shared.replays.header.read(),
             )
             .1
         }

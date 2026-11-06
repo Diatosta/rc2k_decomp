@@ -7,9 +7,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::car_at;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::owner::scene;
 use crate::session::Dword;
 
@@ -119,12 +116,18 @@ pub fn add_skid_point(slot: &Dword) -> Result<(), Refused> {
 
 /// What `lay_skidmarks` reads: the cars' blocks.
 fn cars_refuse() -> Result<(), Refused> {
-    for n in 0..RACE_VIEW.race_cars.get().min(8) {
-        if RACE_WORK.car_block(n as usize) == 0 {
+    for n in 0..crate::race::owner::race()
+        .shared
+        .view
+        .race_cars
+        .get()
+        .min(8)
+    {
+        if crate::race::owner::race().shared.work.car_block(n as usize) == 0 {
             return Err(BadInput("a race car without its block").into());
         }
     }
-    if RACE_VIEW.race_cars.get() > 8 {
+    if crate::race::owner::race().shared.view.race_cars.get() > 8 {
         return Err(BadInput("more than eight race cars").into());
     }
     Ok(())
@@ -141,7 +144,7 @@ pub fn lay_skidmarks(frame: &Frame) -> Result<(), Refused> {
     let drawing = &scene().drawing;
     use crate::race::skidmarks::int_80;
     cars_refuse()?;
-    let count = RACE_VIEW.race_cars.get();
+    let count = crate::race::owner::race().shared.view.race_cars.get();
     if count == 0 {
         return Ok(());
     }
@@ -149,7 +152,7 @@ pub fn lay_skidmarks(frame: &Frame) -> Result<(), Refused> {
     let zero = int_80(0);
     for c in 0..count {
         frame.shadow_skids.skid_cars.set(1 << (c & 31));
-        let car = car_at(RACE_WORK.car_block(c as usize))?;
+        let car = car_at(crate::race::owner::race().shared.work.car_block(c as usize))?;
         for wheel in 0..4usize {
             let slot = &car.skid_slots[wheel];
             let on = car.wheel_squeeze[wheel].bits() != 0
@@ -196,7 +199,9 @@ pub fn lay_skidmarks(frame: &Frame) -> Result<(), Refused> {
 /// `dword_6416BC` is set. Its one caller, `race::draw_race_scene`, reads no register it
 /// leaves.
 pub fn lay_skidmarks_if_on(frame: &Frame) -> Result<(), Refused> {
-    if RACE_VARS.scene_switch.get() != 0 || frame.frame_work.still_2.get() != 0 {
+    if crate::race::owner::race().shared.vars.scene_switch.get() != 0
+        || frame.frame_work.still_2.get() != 0
+    {
         return Ok(());
     }
     lay_skidmarks(frame)

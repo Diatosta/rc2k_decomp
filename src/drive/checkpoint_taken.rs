@@ -13,7 +13,6 @@
 use crate::drive::car_near_checkpoint::near_at;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::line_places;
 
 /// The Rust core: the four cars `cars`, the count `count`, the checkpoint
@@ -28,5 +27,13 @@ pub fn taken_at(cars: [&Car; 4], count: u32, checkpoint: u32) -> bool {
 /// The Rust version: whether `checkpoint` is taken (the CF; every register kept).
 pub fn checkpoint_taken(checkpoint: u32) -> bool {
     let cars = [0, 1, 2, 3].map(|n| &CAR_BLOCKS.cars[n]);
-    taken_at(cars, RACE_VARS.checkpoint_count.bits(), checkpoint)
+    taken_at(
+        cars,
+        crate::race::owner::race()
+            .shared
+            .vars
+            .checkpoint_count
+            .bits(),
+        checkpoint,
+    )
 }

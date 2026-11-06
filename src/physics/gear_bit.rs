@@ -12,7 +12,6 @@
 //! along the copy).
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::flag_result::FlagResult;
 use rc2k_core::physics::gearbox::GearBits;
 
@@ -36,5 +35,5 @@ pub fn gear_bit_at(bits: &dyn crate::session::Cell32, gear: u32) -> Result<FlagR
 
 /// The Rust version.
 pub fn gear_bit(gear: u32) -> Result<FlagResult, Refused> {
-    gear_bit_at(&CAR.lost_gear_bits, gear)
+    gear_bit_at(&crate::race::owner::race().shared.car.lost_gear_bits, gear)
 }

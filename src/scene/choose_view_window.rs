@@ -8,9 +8,7 @@
 //!
 //! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust version.
 
-use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::owner::scene;
-use crate::session::SCREEN;
 
 /// The window chosen, then `set_view_window`.
 pub fn choose_view_window() {
@@ -18,11 +16,21 @@ pub fn choose_view_window() {
     // Converted: `rc2k_core::scene::view_window::choose`.
     use rc2k_core::scene::view_window::{ViewSettings, choose};
     let settings = ViewSettings {
-        framed: FRAME_SWITCHES.editor_mode.bits() != 0,
-        wide: FRAME_SWITCHES.other_way.bits() != 0,
+        framed: crate::race::owner::race()
+            .shared
+            .switches
+            .editor_mode
+            .bits()
+            != 0,
+        wide: crate::race::owner::race().shared.switches.other_way.bits() != 0,
         mode: scene.light_tables.view_mode.get(),
     };
-    let window = choose(settings, || [SCREEN.width.get(), SCREEN.height.get()]);
+    let window = choose(settings, || {
+        [
+            crate::system::owner::system().session.screen.width.get(),
+            crate::system::owner::system().session.screen.height.get(),
+        ]
+    });
     scene.drawing.scene.view_size[0].set_bits(window.size[0]);
     scene.drawing.scene.view_size[1].set_bits(window.size[1]);
     scene.drawing.scene.view_offset[0].set_bits(window.offset[0]);

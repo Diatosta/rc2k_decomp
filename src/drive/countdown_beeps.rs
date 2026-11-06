@@ -10,7 +10,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner_frame::Frame;
-use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
 pub fn countdown_beeps(frame: &Frame) -> Result<(), Refused> {
@@ -18,7 +17,7 @@ pub fn countdown_beeps(frame: &Frame) -> Result<(), Refused> {
         (0u32, &frame.panel_and_overlay.panel.lights[0]),
         (1, &frame.panel_and_overlay.panel.lights[1]),
     ] {
-        RACE_WORK.current_car.set(car);
+        crate::race::owner::race().shared.work.current_car.set(car);
         crate::drive::countdown_beep::countdown_beep(
             frame,
             &crate::race::blocks_store::CAR_BLOCKS.cars[car as usize],

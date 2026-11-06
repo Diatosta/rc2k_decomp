@@ -34,7 +34,7 @@ const HEAD_LEN: u32 = 0x80;
 
 /// What comes before the memory is taken: whether the file's head is a PNG the game takes.
 fn head_is_taken(path: &[u8]) -> Result<bool, Refused> {
-    let scratch = &crate::files::scratch::SCRATCH.buffer;
+    let scratch = &crate::system::owner::system().work.files.buffer;
     scratch.write_at(0, &[0; 4], "the PNG head")?;
     let mut head = [0u8; HEAD_LEN as usize];
     head.copy_from_slice(&scratch.read_at(0, HEAD_LEN as usize, "the PNG head")?);

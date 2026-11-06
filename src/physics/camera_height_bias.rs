@@ -17,7 +17,6 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::record;
-use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low};
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
@@ -43,7 +42,11 @@ pub fn camera_height_bias(race: &Race) -> Result<(), crate::errors::BadInput> {
         .view_vars
         .camera_height_bias
         .set(eax);
-    CAR.camera_position[1].set(CAR.camera_position[1].get().wrapping_add(eax));
+    crate::race::owner::race().shared.car.camera_position[1].set(
+        crate::race::owner::race().shared.car.camera_position[1]
+            .get()
+            .wrapping_add(eax),
+    );
     Ok(())
 }
 

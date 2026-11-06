@@ -29,8 +29,6 @@ use crate::input::take_key::take_key;
 use crate::menu::handle_yes_no::handle_yes_no;
 use crate::menu::navigation::{Direction, move_highlight};
 use crate::menu::owner::Menus;
-use crate::screens::controls_store::CONTROLS_SCREEN;
-use crate::session::CLOCKS;
 use rc2k_core::menu::keys::Pressed;
 
 // ---- game data ----
@@ -44,7 +42,7 @@ pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
     use rc2k_core::menu::keys::{self, Action, Move};
     let nothing = Pressed::Nothing;
     if keys::keys_off(menus.screens.state.service_ui.box_shown.get(), || {
-        CONTROLS_SCREEN.learning.get()
+        crate::screens::owner::screens().controls.learning.get()
     }) {
         return Ok(nothing);
     }
@@ -70,7 +68,7 @@ pub fn handle_keys(menus: &Menus, eax: u32) -> Result<Pressed, Refused> {
         }
         _ => {}
     }
-    let clock: u32 = CLOCKS.frame.get();
+    let clock: u32 = crate::system::owner::system().session.clocks.frame.get();
     if action == Action::Enter {
         menus.screens.option_work.menu_sound.set(keys::ENTER_SOUND);
         menus.play.champ_view.last_key_time.set(clock);

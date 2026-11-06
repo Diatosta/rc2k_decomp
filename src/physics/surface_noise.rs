@@ -16,7 +16,6 @@
 //! above are the original's, for reference.
 
 use crate::math::x87_run::{ext_div2, int_80};
-use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
@@ -43,25 +42,41 @@ pub fn surface_noise(course: &Course) -> Result<(), crate::errors::BadInput> {
             course.stage_prefs.blit_cleared[0].get(),
             course.stage_prefs.blit_cleared[1].get(),
         );
-        CAR.surface_noise_a.set(first);
-        CAR.surface_noise_b.set(first);
+        crate::race::owner::race()
+            .shared
+            .car
+            .surface_noise_a
+            .set(first);
+        crate::race::owner::race()
+            .shared
+            .car
+            .surface_noise_b
+            .set(first);
         let second = scaled(
             sample(0x20)?,
             course.stage_prefs.surface_scale[0].get(),
             course.stage_prefs.surface_scale[1].get(),
         );
-        CAR.surface_noise_second.set(second);
+        crate::race::owner::race()
+            .shared
+            .car
+            .surface_noise_second
+            .set(second);
         let floor = rough_floor(second, course.stage_prefs.surface_floor.get());
         scene().drawing.scene.scratch.set(floor);
-        CAR.surface_blend.set_bits(ext_div2(
-            int_80(floor as i32, false),
-            course.numbers.k256.bits(),
-            0x3F80_0000,
-        ));
+        crate::race::owner::race()
+            .shared
+            .car
+            .surface_blend
+            .set_bits(ext_div2(
+                int_80(floor as i32, false),
+                course.numbers.k256.bits(),
+                0x3F80_0000,
+            ));
         if course.stage_prefs.noise_pick.get() != 0 {
-            CAR.surface_noise_a.set(0);
+            crate::race::owner::race().shared.car.surface_noise_a.set(0);
         } else {
-            CAR.surface_noise_b.set(0);
+            crate::race::owner::race().shared.car.surface_noise_b.set(0);
         }
     }
     Ok(())

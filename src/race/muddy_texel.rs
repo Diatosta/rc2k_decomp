@@ -19,7 +19,6 @@ use crate::race::mud_texel::mud_texel;
 use crate::race::owner_course::Course;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 
 // g_surface.format
@@ -34,7 +33,7 @@ pub fn shuffled_place(n: u32) -> (u32, u32) {
 
 /// The texture worked on, or the refusal (also without the mud).
 pub fn texture_and_mud() -> Result<u32, Refused> {
-    let n: u32 = RACE_VARS.mud_texture.bits();
+    let n: u32 = crate::race::owner::race().shared.vars.mud_texture.bits();
     if n > rc2k_core::race::mud::MOST_TEXTURE {
         return Err(BadInput("a mud texture past 3 (the map would be read past its end)").into());
     }

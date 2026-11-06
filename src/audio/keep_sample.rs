@@ -9,7 +9,6 @@
 //! command 3 (`sub_40AEB9`). Since phase 12 the copy is Rust's (`audio::sample_data::keep`,
 //! counted on `g_sampleMemory` as the block was) and the voice's data its id.
 
-use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::Refused;
 
@@ -18,6 +17,10 @@ pub fn keep_sample(v: &mut Voice) -> Result<(), Refused> {
     if !rc2k_core::audio::buffers::keeps_sample(v) {
         return Ok(());
     }
-    v.data = crate::audio::sample_data::keep(v.data, v.length, &AUDIO.sample_memory)?;
+    v.data = crate::audio::sample_data::keep(
+        v.data,
+        v.length,
+        &crate::audio::owner::audio().state.sample_memory,
+    )?;
     Ok(())
 }

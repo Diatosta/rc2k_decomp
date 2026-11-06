@@ -30,10 +30,8 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::light_dot::light_dot;
 use crate::scene::owner::scene;
-use crate::session::MACHINE;
 
 // ---- game data ----
 const TABLE_LEN: u32 = 0x100;
@@ -147,12 +145,13 @@ pub fn vertex_light(
 ) -> Result<u32, BadInput> {
     let scene = scene();
     let kind: u32 = scene.lights.work.light_kind.bits();
-    let mmx = MACHINE.has_mmx.get() != 0;
+    let mmx = crate::system::owner::system().session.machine.has_mmx.get() != 0;
     if kind == 4 {
         // 0 plus the lit colour.
         return Ok(plus(0, lit(number, mmx)?, mmx));
     }
-    let lit_at_all = FRAME_SWITCHES.other_way.bits() != 0 || course.stage_prefs.lit_b.bits() != 0;
+    let lit_at_all = crate::race::owner::race().shared.switches.other_way.bits() != 0
+        || course.stage_prefs.lit_b.bits() != 0;
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }

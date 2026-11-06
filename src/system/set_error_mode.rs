@@ -22,8 +22,16 @@ const FAIL_CRITICAL_ERRORS: u32 = 1;
 
 pub fn set_error_mode() {
     let was = crate::os::set_error_mode(FAIL_CRITICAL_ERRORS);
-    ERROR_MODE.mode.set(was);
-    ERROR_MODE.changed.set(1);
+    crate::system::owner::system()
+        .start
+        .error_mode
+        .mode
+        .set(was);
+    crate::system::owner::system()
+        .start
+        .error_mode
+        .changed
+        .set(1);
 }
 
 /// The error mode kept and whether it was set (IDA 0x4E059C .. 0x4E05A4, the image's layout).
@@ -36,10 +44,14 @@ pub struct ErrorMode {
     pub mode: Dword,
 }
 
-pub static ERROR_MODE: ErrorMode = ErrorMode {
-    changed: Dword::new(0x0),
-    mode: Dword::new(0x0),
-};
+impl ErrorMode {
+    pub const fn new() -> Self {
+        ErrorMode {
+            changed: Dword::new(0x0),
+            mode: Dword::new(0x0),
+        }
+    }
+}
 
 impl ErrorMode {
     pub const START: usize = 0x4E059C;
@@ -47,7 +59,8 @@ impl ErrorMode {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const ERROR_MODE) as usize
+        crate::pointers::game_address(&raw const crate::system::owner::system().start.error_mode)
+            as usize
     }
 }
 

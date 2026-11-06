@@ -8,8 +8,6 @@
 //!
 //! Caller: `sub_43B635` (0x43B89B), every physics step.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -23,19 +21,40 @@ fn core(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &PHYSICS.contact_step as &dyn Cell32,
-        &CAR.velocity[0],
-        &CAR.velocity[1],
-        &CAR.velocity[2],
-        &CAR.spin[0],
-        &CAR.spin[1],
-        &CAR.spin[2],
-        &PHYSICS.kept_vectors[0],
-        &PHYSICS.kept_vectors[1],
-        &PHYSICS.kept_vectors[2],
-        &PHYSICS.kept_vectors[4],
-        &PHYSICS.kept_vectors[5],
-        &PHYSICS.kept_vectors[6],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .contact_step as &dyn Cell32,
+        &crate::race::owner::race().shared.car.velocity[0],
+        &crate::race::owner::race().shared.car.velocity[1],
+        &crate::race::owner::race().shared.car.velocity[2],
+        &crate::race::owner::race().shared.car.spin[0],
+        &crate::race::owner::race().shared.car.spin[1],
+        &crate::race::owner::race().shared.car.spin[2],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .kept_vectors[0],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .kept_vectors[1],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .kept_vectors[2],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .kept_vectors[4],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .kept_vectors[5],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .kept_vectors[6],
     ]
 }
 

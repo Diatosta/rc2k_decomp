@@ -28,7 +28,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 use crate::session::{Cell32, Dword, Float};
 
@@ -78,7 +77,11 @@ pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
     let texture = textures.kinds.kind_first_textures[256]
         .bits()
         .wrapping_add(n);
-    RACE_VARS.mud_locked.set_bits(texture);
+    crate::race::owner::race()
+        .shared
+        .vars
+        .mud_locked
+        .set_bits(texture);
     if texture == 0 {
         return Ok(());
     }
@@ -88,26 +91,31 @@ pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
     // The throws.
     let throws = whole_units(
         &race.course,
-        &RACE_VARS.mud_thrown_in[k],
-        &RACE_VARS.mud_throws,
+        &crate::race::owner::race().shared.vars.mud_thrown_in[k],
+        &crate::race::owner::race().shared.vars.mud_throws,
     );
-    let count: u32 = RACE_VARS.mud_thrown_counts[k].bits();
+    let count: u32 = crate::race::owner::race().shared.vars.mud_thrown_counts[k].bits();
     if count <= LAST_THROWN {
         let over = (count & 0xFFFF).wrapping_add(throws as u32);
         if (over.wrapping_sub(0x100_0000) as i32) >= 0 {
             let over = over.wrapping_sub(0x100_0000);
-            RACE_VARS
+            crate::race::owner::race()
+                .shared
+                .vars
                 .mud_throws
                 .set_bits((throws as u32).wrapping_sub(over));
         }
-        take_units(&RACE_VARS.mud_thrown_in[k], &RACE_VARS.mud_throws);
-        let throws = RACE_VARS.mud_throws.bits() as i32;
+        take_units(
+            &crate::race::owner::race().shared.vars.mud_thrown_in[k],
+            &crate::race::owner::race().shared.vars.mud_throws,
+        );
+        let throws = crate::race::owner::race().shared.vars.mud_throws.bits() as i32;
         if throws > 0 {
             let mut done = 0u32;
             loop {
                 throw_mud_texel(&race.course)?;
                 done = done.wrapping_add(1);
-                if done == RACE_VARS.mud_throws.bits() {
+                if done == crate::race::owner::race().shared.vars.mud_throws.bits() {
                     break;
                 }
             }
@@ -116,27 +124,34 @@ pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
     // The splashes.
     whole_units(
         &race.course,
-        &RACE_VARS.mud_splashes_in[k],
-        &RACE_VARS.mud_splashes,
+        &crate::race::owner::race().shared.vars.mud_splashes_in[k],
+        &crate::race::owner::race().shared.vars.mud_splashes,
     );
-    if RACE_VARS.mud_splash_counts[k].bits() < LAST_SPLASHED {
-        take_units(&RACE_VARS.mud_splashes_in[k], &RACE_VARS.mud_splashes);
-        let splashes = RACE_VARS.mud_splashes.bits() as i32;
+    if crate::race::owner::race().shared.vars.mud_splash_counts[k].bits() < LAST_SPLASHED {
+        take_units(
+            &crate::race::owner::race().shared.vars.mud_splashes_in[k],
+            &crate::race::owner::race().shared.vars.mud_splashes,
+        );
+        let splashes = crate::race::owner::race().shared.vars.mud_splashes.bits() as i32;
         if splashes > 0 {
             let mut done = 0u32;
             loop {
-                if RACE_VARS.mud_splash_counts[k].bits() >= LAST_SPLASHED {
+                if crate::race::owner::race().shared.vars.mud_splash_counts[k].bits()
+                    >= LAST_SPLASHED
+                {
                     break;
                 }
                 splash_mud()?;
                 done = done.wrapping_add(1);
-                if done == RACE_VARS.mud_splashes.bits() {
+                if done == crate::race::owner::race().shared.vars.mud_splashes.bits() {
                     break;
                 }
             }
         }
     }
-    crate::d3d::unlock_texture::unlock_texture(RACE_VARS.mud_locked.bits())?;
+    crate::d3d::unlock_texture::unlock_texture(
+        crate::race::owner::race().shared.vars.mud_locked.bits(),
+    )?;
     Ok(())
 }
 

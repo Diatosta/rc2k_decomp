@@ -15,36 +15,79 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::race::owner::race;
-use crate::race::replay_file_store::REPLAY_FILE;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
 /// The Rust version: CF.
 pub fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
     let replay = &race().replay;
-    if REPLAY_FILE.replay_open.get() != 1 {
+    if crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_open
+        .get()
+        != 1
+    {
         return Ok(true);
     }
     if let Some(code) = frame_fault(frame, tenth) {
         return Err(FatalError { code, message: "" }.into());
     }
-    if past_end(frame, REPLAY_FILE.index_block_count.get()) {
-        REPLAY_FILE.replay_at_end.set(1);
-        replay
-            .replay_view
-            .replay_block
-            .set(REPLAY_FILE.index_block_count.get());
+    if past_end(
+        frame,
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .index_block_count
+            .get(),
+    ) {
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .replay_at_end
+            .set(1);
+        replay.replay_view.replay_block.set(
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .index_block_count
+                .get(),
+        );
         replay.replay_view.replay_frame.set(0);
         return Ok(false);
     }
     replay.replay_view.replay_frame.set(tenth);
-    REPLAY_FILE.replay_at_end.set(0);
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_at_end
+        .set(0);
     replay.replay_view.replay_block.set(frame);
     let place = crate::race::replay::block_place(2 * frame as usize)?; // (place, count) a frame
-    if { crate::files::handle::seek(REPLAY_FILE.replay_handle.get(), place as i32, 0) }.is_none() {
+    if {
+        crate::files::handle::seek(
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .replay_handle
+                .get(),
+            place as i32,
+            0,
+        )
+    }
+    .is_none()
+    {
         return Ok(true);
     }
     let count = crate::race::replay::block_place(2 * frame as usize + 1)?;
-    let (_, carry, _) =
-        { crate::drive::read_packed::read_packed(REPLAY_FILE.replay_handle.get(), count) }?;
+    let (_, carry, _) = {
+        crate::drive::read_packed::read_packed(
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .replay_handle
+                .get(),
+            count,
+        )
+    }?;
     Ok(carry)
 }

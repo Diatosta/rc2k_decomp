@@ -17,17 +17,16 @@ use crate::drive::race_parts::{
     input_update, race_frame, race_keys, stop_race_sounds, take_key, wake_car_sounds,
 };
 use crate::errors::Refused;
-use crate::input::store::DEVICES;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::vars_store::RACE_VARS;
-use crate::session::FLAGS;
 use rc2k_core::drive::race_ticks;
 
 /// Whether a key ends the pause: any of 1 .. 0x7F but 0x1D, 0x38, 0x0F, 0x3B .. 0x44, 0x57.
 fn any_ending_key() -> u32 {
     (1..0x80usize)
         .filter(|&k| race_ticks::ends_pause(k))
-        .fold(0u32, |o, k| o | DEVICES.keys_pressed.get(k) as u32)
+        .fold(0u32, |o, k| {
+            o | crate::input::owner::input().devices.keys_pressed.get(k) as u32
+        })
 }
 
 /// The Rust version.
@@ -35,37 +34,51 @@ fn any_ending_key() -> u32 {
 /// The Rust version. The registers it leaves are read by no caller (liveness: nothing
 /// live after `race_loop`'s call).
 pub fn pause_until_key() -> Result<(), Refused> {
-    RACE_VARS.hold_count.set(0x19);
+    crate::race::owner::race().shared.vars.hold_count.set(0x19);
     for _ in 0..5 {
         take_key();
     }
     stop_race_sounds()?;
-    RACE_VARS.scene_switch.set(1);
+    crate::race::owner::race().shared.vars.scene_switch.set(1);
     for c in 0..2 {
         CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0xCB);
         CAR_BLOCKS.cars[c as usize].notice_time_b.set_bits(0);
         CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
     }
-    RACE_VARS.pause_wait.set(0x1E);
+    crate::race::owner::race().shared.vars.pause_wait.set(0x1E);
     // From 0x4453EE (the wait held) or 0x445401 (a turn).
     let mut hold = true;
     loop {
         if hold {
-            let wait = RACE_VARS.pause_wait.get();
+            let wait = crate::race::owner::race().shared.vars.pause_wait.get();
             if race_ticks::held_wait(wait) != wait {
-                RACE_VARS.pause_wait.set(race_ticks::held_wait(wait));
+                crate::race::owner::race()
+                    .shared
+                    .vars
+                    .pause_wait
+                    .set(race_ticks::held_wait(wait));
             }
         }
         take_key();
         race_frame()?;
-        if FLAGS.window_active.get() == 0 {
+        if crate::system::owner::system()
+            .session
+            .flags
+            .window_active
+            .get()
+            == 0
+        {
             hold = true;
             continue;
         }
         hold = false;
         input_update();
-        if RACE_VARS.pause_wait.get() != 0 {
-            RACE_VARS.pause_wait.set(RACE_VARS.pause_wait.get() - 1);
+        if crate::race::owner::race().shared.vars.pause_wait.get() != 0 {
+            crate::race::owner::race()
+                .shared
+                .vars
+                .pause_wait
+                .set(crate::race::owner::race().shared.vars.pause_wait.get() - 1);
             continue;
         }
         race_keys()?;
@@ -78,7 +91,7 @@ pub fn pause_until_key() -> Result<(), Refused> {
         CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0);
         CAR_BLOCKS.cars[c as usize].notice_last.set_bits(0);
     }
-    RACE_VARS.scene_switch.set(0);
+    crate::race::owner::race().shared.vars.scene_switch.set(0);
     wake_car_sounds()?;
     take_key();
     CAR_BLOCKS.cars[0].input_keys.set_bits(0);

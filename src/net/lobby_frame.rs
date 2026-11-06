@@ -19,8 +19,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::net::lobby::{Cursor, FONT, blit, copy_picture, lock_surface};
-use crate::net::store::NET;
-use crate::strings::text_buffer::TEXT_BUFFER;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::players::{self, READY};
 use rc2k_core::net::screens;
@@ -53,7 +51,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     if !lock_surface() {
         return Ok(());
     }
-    if NET.players.get() > 8 {
+    if crate::net::owner::net().vars.players.get() > 8 {
         return Err(BadInput("more than eight players").into());
     }
     copy_picture()?;
@@ -69,15 +67,18 @@ pub fn lobby_frame() -> Result<(), Refused> {
         )?;
     }
     y += 0x1D;
-    if NET.players.get() != 0 {
+    if crate::net::owner::net().vars.players.get() != 0 {
         crate::net::sort_players::sort_players()?;
-        let gaps = NET.show_gaps.get() == 1;
+        let gaps = crate::net::owner::net().vars.show_gaps.get() == 1;
         let (first_time, first_total) = (
-            NET.sorted[0].record.race_time.get(),
-            NET.sorted[0].record.total.get(),
+            crate::net::owner::net().vars.sorted[0]
+                .record
+                .race_time
+                .get(),
+            crate::net::owner::net().vars.sorted[0].record.total.get(),
         );
-        for n in 0..NET.players.get() {
-            let block = &NET.sorted[n as usize];
+        for n in 0..crate::net::owner::net().vars.players.get() {
+            let block = &crate::net::owner::net().vars.sorted[n as usize];
             let mut x = 0x18;
             blit(screens::flag_sprite(block.record.head.get(3)), x, y)?;
             x += 0x28;
@@ -91,7 +92,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             };
             crate::text::draw_text::draw_text_at(
                 font.game_ptr(),
-                crate::pointers::GamePtr::to(&TEXT_BUFFER.text),
+                crate::pointers::GamePtr::to(&crate::strings::owner::strings().text.buffer.text),
                 x as i32,
                 y as i32,
                 &mut canvas,
@@ -113,7 +114,9 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 let out = {
                     crate::text::draw_text::draw_text_at(
                         NAME_FONT.game_ptr(),
-                        crate::pointers::GamePtr::to(&TEXT_BUFFER.text),
+                        crate::pointers::GamePtr::to(
+                            &crate::strings::owner::strings().text.buffer.text,
+                        ),
                         x as i32,
                         y as i32,
                         &mut canvas,
@@ -126,7 +129,9 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 {
                     crate::text::draw_time_text::draw_time_text(
                         FONT.game_ptr(),
-                        crate::pointers::GamePtr::to(&TEXT_BUFFER.text),
+                        crate::pointers::GamePtr::to(
+                            &crate::strings::owner::strings().text.buffer.text,
+                        ),
                         x,
                         y,
                     )
@@ -145,7 +150,9 @@ pub fn lobby_frame() -> Result<(), Refused> {
             {
                 crate::text::draw_time_text::draw_time_text(
                     FONT.game_ptr(),
-                    crate::pointers::GamePtr::to(&TEXT_BUFFER.text),
+                    crate::pointers::GamePtr::to(
+                        &crate::strings::owner::strings().text.buffer.text,
+                    ),
                     x,
                     total_y,
                 )
@@ -159,7 +166,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.game_ptr(),
-            crate::pointers::GamePtr::to(&NET.chat),
+            crate::pointers::GamePtr::to(&crate::net::owner::net().vars.chat),
             0xA,
             y as i32,
             &mut canvas,
@@ -167,12 +174,15 @@ pub fn lobby_frame() -> Result<(), Refused> {
     }?;
     crate::net::unlock_received::unlock_received();
     y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
-    crate::net::chat_input_line::chat_input_line(&NET.chat_input, 3, y)?;
+    crate::net::chat_input_line::chat_input_line(&crate::net::owner::net().vars.chat_input, 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
-    for (n, (id, shown)) in screens::lobby_buttons(NET.car_item.get(), NET.stage_item.get())
-        .into_iter()
-        .enumerate()
+    for (n, (id, shown)) in screens::lobby_buttons(
+        crate::net::owner::net().vars.car_item.get(),
+        crate::net::owner::net().vars.stage_item.get(),
+    )
+    .into_iter()
+    .enumerate()
     {
         if shown {
             x = crate::net::lobby_button::lobby_button(id, item, x, 0x223)?;

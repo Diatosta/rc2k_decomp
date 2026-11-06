@@ -15,8 +15,6 @@
 
 use crate::math::x87;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::race::owner::Race;
 use crate::scene::matrix::multiply_matrices;
@@ -25,21 +23,44 @@ use crate::scene::view_matrix::{square_matrix, unit_vector};
 
 /// The Rust version.
 pub fn spin_matrix(race: &Race) {
-    CAR.spin_length.set_bits(rounded(vector_length(&CAR.spin)));
-    if CAR.spin_length.bits() != 0 {
+    crate::race::owner::race()
+        .shared
+        .car
+        .spin_length
+        .set_bits(rounded(vector_length(
+            &crate::race::owner::race().shared.car.spin,
+        )));
+    if crate::race::owner::race().shared.car.spin_length.bits() != 0 {
         let lists = &race.course.lists;
         let turn = &lists.turn_matrix;
         let turned = &race.frame.matrices.turned_matrix;
-        unit_vector(&race.course, &CAR.spin, &lists.spin_axis);
-        lists
-            .spin_angle
-            .set_bits(x87::mul(CAR.spin_length.bits(), PHYSICS.step_time.bits()));
+        unit_vector(
+            &race.course,
+            &crate::race::owner::race().shared.car.spin,
+            &lists.spin_axis,
+        );
+        lists.spin_angle.set_bits(x87::mul(
+            crate::race::owner::race().shared.car.spin_length.bits(),
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .step_time
+                .bits(),
+        ));
         axis_turn_matrix(&race.course, turn);
         square_matrix(&race.course, turn);
-        multiply_matrices(&CAR.crash_matrix, turn, turned);
+        multiply_matrices(
+            &crate::race::owner::race().shared.car.crash_matrix,
+            turn,
+            turned,
+        );
         for k in 0..16 {
-            CAR.crash_matrix[k].set_bits(race.frame.matrices.turned_matrix[k].bits());
+            crate::race::owner::race().shared.car.crash_matrix[k]
+                .set_bits(race.frame.matrices.turned_matrix[k].bits());
         }
     }
-    square_matrix(&race.course, &CAR.crash_matrix);
+    square_matrix(
+        &race.course,
+        &crate::race::owner::race().shared.car.crash_matrix,
+    );
 }

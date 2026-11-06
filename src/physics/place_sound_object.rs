@@ -16,7 +16,6 @@ use crate::physics::car_sounds::{cue_plain, listed, object};
 use crate::physics::sound_band_2::TWIN;
 use crate::physics::sound_bands::band_value_plain;
 use crate::race::owner::Race;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::owner::scene;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
 
@@ -24,7 +23,10 @@ use rc2k_core::physics::sound_places::{FIRST, object_sound};
 // Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
 pub fn place_sound_object(race: &Race) -> Result<(), Refused> {
     let physics_store = &race.physics;
-    if !listed(&race.frame, RACE_WORK.current_car.get())? {
+    if !listed(
+        &race.frame,
+        crate::race::owner::race().shared.work.current_car.get(),
+    )? {
         return Ok(());
     }
     let trap = crate::physics::cells::Trap::new();

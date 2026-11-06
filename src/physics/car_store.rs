@@ -576,12 +576,14 @@ impl Car {
         static HOMES: std::sync::OnceLock<(u32, u32)> = std::sync::OnceLock::new();
         let &(car, blocks) = HOMES.get_or_init(|| {
             (
-                crate::pointers::game_address(core::ptr::from_ref(&CAR)),
+                crate::pointers::game_address(core::ptr::from_ref(
+                    &crate::race::owner::race().shared.car,
+                )),
                 blocks_addr(replay),
             )
         });
         if address == car {
-            return Some(&CAR);
+            return Some(&crate::race::owner::race().shared.car);
         }
         let off = address.wrapping_sub(blocks) as usize;
         (off.is_multiple_of(BLOCK_LEN) && off / BLOCK_LEN < BLOCK_COUNT)
@@ -589,10 +591,13 @@ impl Car {
     }
 }
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static CAR: Car =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl Car {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x719FD8, the first byte of the piece.
 pub const START: usize = 0x719FD8;
@@ -616,7 +621,9 @@ mod tests {
                 .ok()
                 .map(core::ptr::from_ref)
         };
-        let at = crate::pointers::game_address(core::ptr::from_ref(&CAR));
+        let at = crate::pointers::game_address(core::ptr::from_ref(
+            &crate::race::owner::race().shared.car,
+        ));
         assert_eq!(Car::known(at).map(core::ptr::from_ref), by_region(at));
         for n in 0..BLOCK_COUNT {
             let at = block_addr(n);
@@ -647,14 +654,18 @@ mod tests {
         assert_eq!(offset_of!(Car, skid_slots), 0xF48);
         assert_eq!(offset_of!(Car, gear), 0x1D4);
         assert_eq!(offset_of!(Car, probe_point_face), 0xDF0);
-        let car_addr = || crate::pointers::game_address(core::ptr::from_ref(&CAR));
+        let car_addr = || {
+            crate::pointers::game_address(core::ptr::from_ref(
+                &crate::race::owner::race().shared.car,
+            ))
+        };
         assert_eq!(car_addr() % 4, 0);
         assert_eq!(
             car_addr(),
             crate::framework::game_addr(crate::framework::rva(START))
         );
         assert_eq!(
-            crate::pointers::game_address(&raw const CAR.gear),
+            crate::pointers::game_address(&raw const crate::race::owner::race().shared.car.gear),
             car_addr() + 0x1D4
         );
         let mine = unsafe {

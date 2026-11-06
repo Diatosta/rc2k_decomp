@@ -16,12 +16,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
-use crate::session::SCREEN;
 
 /// The Rust version (see the header): in the standalone the lock fails, so only the
 /// checks are made.
 pub fn clear_front_surface() -> Result<(), Refused> {
-    if gfx().drawing.surfaces.front.get() != 0 && SCREEN.height.get() == 0 {
+    if gfx().drawing.surfaces.front.get() != 0
+        && crate::system::owner::system().session.screen.height.get() == 0
+    {
         return Err(BadInput("a screen height of 0 (2^32 rows)").into());
     }
     Ok(())

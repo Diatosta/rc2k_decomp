@@ -23,7 +23,6 @@ use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
-use crate::session::Bytes;
 use crate::session::Dword;
 use rc2k_core::strings::lexicon::{Compiled, compile};
 
@@ -33,7 +32,6 @@ use rc2k_core::strings::lexicon::{Compiled, compile};
 /// `dword_94EAB4` ..). Written here, read by nothing now (the original's compiler read
 /// them).
 pub const WORK_LEN: usize = 0xC44;
-pub static WORK: Bytes<WORK_LEN> = Bytes::new([0; WORK_LEN]);
 /// The work variables that are counts, as offsets into the block, in `Compiled`'s order;
 /// before them the flags word (0x11000000) at 0, after them the unused count at 0x30.
 const PADDED: usize = 0x04;
@@ -69,22 +67,25 @@ pub struct LexiconMemory {
     pub _gap_14: [Dword; 12],
 }
 
-/// The lexicon's memory; the first values are the image's.
-pub static LEXICON: LexiconMemory = LexiconMemory {
-    kilobytes: Dword::new(0x400),
-    memory: crate::memory::ListCells::new(MemoryList {
-        head: 0,
-        total: 0,
-        cursor: 0,
-        remaining: 0,
-    }),
-    _gap_14: [const { Dword::new(0) }; 12],
-};
+impl LexiconMemory {
+    /// The lexicon's memory; the first values are the image's.
+    pub const fn new() -> Self {
+        LexiconMemory {
+            kilobytes: Dword::new(0x400),
+            memory: crate::memory::ListCells::new(MemoryList {
+                head: 0,
+                total: 0,
+                cursor: 0,
+                remaining: 0,
+            }),
+            _gap_14: [const { Dword::new(0) }; 12],
+        }
+    }
+}
 
 /// The record all empty messages share (`unk_4F3034` in the image until 2026-10-24): +4 how
 /// often it was used (never reset), +0xC its index entry. Written here only.
 pub const EMPTY_MESSAGE_LEN: usize = 0x10;
-pub static EMPTY_MESSAGE: Bytes<EMPTY_MESSAGE_LEN> = Bytes::new([0; EMPTY_MESSAGE_LEN]);
 /// `aFilesLocaleTxt` (0x4E0770).
 const PATTERN: &[u8] = b"files\\%locale\\*.txt";
 const FILE_ROOM: u32 = 0x40000;
@@ -124,7 +125,12 @@ fn report(why: &str) {
 /// compiler is reported in the log first. Memory and table overflows, which the original
 /// reports as 0x80E1801x / 2x, are 0x80E18051 here.
 pub fn compiled() -> Result<Compiled, FatalError> {
-    let memory = LEXICON.kilobytes.get().wrapping_mul(0x400);
+    let memory = crate::strings::owner::strings()
+        .lexicon
+        .memory
+        .kilobytes
+        .get()
+        .wrapping_mul(0x400);
     if memory < FILE_ROOM {
         report("the lexicon's memory is smaller than the file may be");
         return Err(NOT_CREATED);
@@ -174,22 +180,45 @@ pub fn compile_lexicon() -> Result<(), Refused> {
     {
         line(b"Compiling lexicon...\0", true);
         let compiled = compiled()?;
-        WORK.write(&[0; WORK_LEN]);
+        crate::strings::owner::strings()
+            .lexicon
+            .work
+            .write(&[0; WORK_LEN]);
         // The original's memory, for the game's memory figures: counted and given back
         // (nothing is put in it: the lexicon is built in Rust's memory).
-        let list = crate::pointers::GamePtr::to(&LEXICON.memory);
-        crate::memory::owned::count_on(list, LEXICON.kilobytes.get().wrapping_mul(0x400))?;
+        let list =
+            crate::pointers::GamePtr::to(&crate::strings::owner::strings().lexicon.memory.memory);
+        crate::memory::owned::count_on(
+            list,
+            crate::strings::owner::strings()
+                .lexicon
+                .memory
+                .kilobytes
+                .get()
+                .wrapping_mul(0x400),
+        )?;
 
         for (offset, value) in counts(&compiled) {
-            WORK.set_u32(offset, value);
+            crate::strings::owner::strings()
+                .lexicon
+                .work
+                .set_u32(offset, value);
         }
-        EMPTY_MESSAGE.set_u32(
-            4,
-            EMPTY_MESSAGE
-                .get_u32(4)
-                .wrapping_add(compiled.empty_messages),
-        );
-        EMPTY_MESSAGE.set_u32(12, compiled.index_size);
+        crate::strings::owner::strings()
+            .lexicon
+            .empty_message
+            .set_u32(
+                4,
+                crate::strings::owner::strings()
+                    .lexicon
+                    .empty_message
+                    .get_u32(4)
+                    .wrapping_add(compiled.empty_messages),
+            );
+        crate::strings::owner::strings()
+            .lexicon
+            .empty_message
+            .set_u32(12, compiled.index_size);
         crate::strings::string_table::lexicon_room()
             .write_bytes(&compiled.table, "the lexicon's memory")?;
         crate::strings::string_table::publish()?;
@@ -232,13 +261,17 @@ mod tests {
     #[test]
     fn lexicon_memory_first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &super::LEXICON,
+            &crate::strings::owner::strings().lexicon.memory,
             super::MEMORY_START,
             super::MEMORY_START + super::MEMORY_LEN,
         );
         assert_eq!(
             crate::moved::place(0x519558),
-            super::LEXICON.memory.addr() as usize
+            crate::strings::owner::strings()
+                .lexicon
+                .memory
+                .memory
+                .addr() as usize
         );
     }
 

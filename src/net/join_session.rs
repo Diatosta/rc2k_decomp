@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
 use crate::net::lobby::{log, log_int_nl};
-use crate::net::store::{NET, put_bytes};
+use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The code at 0x418D77 as the receiving thread calls it when it is posted.
@@ -30,18 +30,29 @@ fn join_group() -> Result<bool, Refused> {
 pub fn join_session(number: u32) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_JOIN_SESSION), false, 2);
     log_int_nl(number, 1);
-    if NET.dplay.get() == 0 {
+    if crate::net::owner::net().vars.dplay.get() == 0 {
         return Ok(false);
     }
     let s = crate::net::tables::with_session(number, |s| *s)?;
-    NET.joined.write_at(0, &s.instance, "the joined session")?;
-    NET.joined_name.write_at(0, &s.name, "the joined session")?;
-    NET.joined_most.set(s.max_players);
-    NET.joined_password
+    crate::net::owner::net()
+        .vars
+        .joined
+        .write_at(0, &s.instance, "the joined session")?;
+    crate::net::owner::net()
+        .vars
+        .joined_name
+        .write_at(0, &s.name, "the joined session")?;
+    crate::net::owner::net().vars.joined_most.set(s.max_players);
+    crate::net::owner::net()
+        .vars
+        .joined_password
         .write_at(0, &s.user, "the joined session")?;
-    NET.session_desc.clear();
-    NET.session_desc.size.set(0x50);
-    put_bytes(&NET.session_desc.instance, &NET.joined.read());
+    crate::net::owner::net().vars.session_desc.clear();
+    crate::net::owner::net().vars.session_desc.size.set(0x50);
+    put_bytes(
+        &crate::net::owner::net().vars.session_desc.instance,
+        &crate::net::owner::net().vars.joined.read(),
+    );
     finish(
         posted_open_join,
         join_group,

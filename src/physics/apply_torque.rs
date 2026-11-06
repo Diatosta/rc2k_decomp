@@ -15,7 +15,7 @@
 
 use crate::math::x87_run::neg_product2_plus;
 use crate::physics::car_store::Car;
-use crate::physics::tables_store::{ForceRecord, PHYSICS};
+use crate::physics::tables_store::ForceRecord;
 use crate::physics::turn_by_car_matrix::turn_cells;
 use crate::race::owner_physics::Physics;
 use crate::scene::view_matrix::cross_product;
@@ -24,15 +24,22 @@ use crate::scene::view_matrix::cross_product;
 /// `rec` (a record of the wheels' or the contacts' table) on the car block `car`.
 pub fn apply_torque(physics: &Physics, rec: &ForceRecord, car: &Car) {
     let work = &physics.contact.contact_turn_speed;
-    let cross = &PHYSICS.torque_cross;
+    let cross = &crate::race::owner::race()
+        .shared
+        .physics_tables
+        .torque_cross;
     for (w, s) in work.iter().zip(&car.spin) {
         w.set_bits(s.bits());
     }
     turn_cells(&car.car_inverse_matrix, work);
     cross_product(&rec.force, &rec.point, cross);
-    let step = PHYSICS.step_time.bits();
+    let step = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .step_time
+        .bits();
     for k in 0..3 {
-        let inertia = PHYSICS.inertia[k].bits();
+        let inertia = crate::race::owner::race().shared.physics_tables.inertia[k].bits();
         work[k].set_bits(neg_product2_plus(
             cross[k].bits(),
             step,

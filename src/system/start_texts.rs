@@ -22,14 +22,18 @@ pub struct StartTexts {
     pub _gap_4e008a: Bytes<22>,
 }
 
-pub static START_TEXTS: StartTexts = StartTexts {
+impl StartTexts {
+    pub const fn new() -> Self {
+        StartTexts {
     version: Bytes::new(with_runs::<28>(&[(0, b"$VER: Rally 5.30 (4.8.2000)")])),
     copyright: Bytes::new(with_runs::<91>(&[(0, b"Copyright (c) Magnetic Fields (Software Design) Ltd., 1998,1999,2000. All rights reserved.")])),
     second_text: Byte::new(0x0),
     window_name: Bytes::new(with_runs::<8>(&[(0, b"Rally 5")])),
     class_name: Bytes::new(with_runs::<10>(&[(0, b"MF-SDG R5")])),
     _gap_4e008a: Bytes::new(with_runs::<22>(&[(2, b"c\x0f_\x00M\x10\x11")])),
-};
+}
+    }
+}
 
 impl StartTexts {
     pub const START: usize = 0x4E0000;
@@ -37,7 +41,8 @@ impl StartTexts {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const START_TEXTS) as usize
+        crate::pointers::game_address(&raw const crate::system::owner::system().start.texts)
+            as usize
     }
 }
 

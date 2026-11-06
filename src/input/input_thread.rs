@@ -22,9 +22,6 @@
 
 use crate::errors::Refused;
 use crate::input::devices::records;
-use crate::input::store::DEVICES;
-use crate::session::CLOCKS;
-use crate::session::FLAGS;
 
 const START_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:START"; // "INPUTTDB:START"
 const QUIT_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:QUIT"; // "INPUTTDB:QUIT"
@@ -48,38 +45,51 @@ pub fn input_thread() -> Result<(), Refused> {
         // DirectInput made (in Rust, on SDL's joysticks); the keyboard and the mouse are
         // SDL's events: nothing to make for them.
         let input = crate::input::di_objects::create_input();
-        DEVICES.direct_input.set(input);
+        crate::input::owner::input().devices.direct_input.set(input);
         if input == 0 {
             break 'work;
         }
         crate::input::list_joysticks::list_joysticks();
         set_priority(2);
         let mut last = crate::system::tick_count::tick_count();
-        DEVICES.last_tick.set(last);
+        crate::input::owner::input().devices.last_tick.set(last);
         loop {
             let mut gone;
             loop {
                 crate::system::sleep::sleep(5);
-                last = DEVICES.last_tick.get();
+                last = crate::input::owner::input().devices.last_tick.get();
                 gone = crate::system::tick_count::tick_count().wrapping_sub(last);
                 if gone >= TICK_MS {
                     break;
                 }
             }
             loop {
-                CLOCKS.key_ticks.set(CLOCKS.key_ticks.get().wrapping_add(1));
+                crate::system::owner::system().session.clocks.key_ticks.set(
+                    crate::system::owner::system()
+                        .session
+                        .clocks
+                        .key_ticks
+                        .get()
+                        .wrapping_add(1),
+                );
                 gone -= TICK_MS;
                 last = last.wrapping_add(TICK_MS);
                 if gone < TICK_MS {
                     break;
                 }
             }
-            DEVICES.last_tick.set(last);
+            crate::input::owner::input().devices.last_tick.set(last);
             crate::input::input_tick::input_tick_in_game()?;
-            if FLAGS.window_focused.get() != 1 {
+            if crate::system::owner::system()
+                .session
+                .flags
+                .window_focused
+                .get()
+                != 1
+            {
                 crate::system::sleep::sleep(1000);
             }
-            if FLAGS.quitting.get() == 1 {
+            if crate::system::owner::system().session.flags.quitting.get() == 1 {
                 break;
             }
         }
@@ -87,10 +97,10 @@ pub fn input_thread() -> Result<(), Refused> {
     for record in records() {
         { crate::input::release_device::release_device_in_game(record) }?;
     }
-    let input = DEVICES.direct_input.get();
+    let input = crate::input::owner::input().devices.direct_input.get();
     if input != 0 {
         crate::input::di_objects::release(input);
-        DEVICES.direct_input.set(0);
+        crate::input::owner::input().devices.direct_input.set(0);
     }
     log(QUIT_TEXT_RVA);
     set_priority(0);

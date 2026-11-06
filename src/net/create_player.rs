@@ -14,22 +14,21 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{log, log_bytes};
-use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version (see the header).
 pub fn create_player() -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_CREATE_PLAYER), false, 2);
-    let name = NET.player_name.read();
+    let name = crate::net::owner::net().vars.player_name.read();
     log_bytes(&name, true, 2);
     let made = crate::net::dp_objects::create_player(
-        NET.dplay.get(),
+        crate::net::owner::net().vars.dplay.get(),
         &name,
-        NET.event.get(),
-        &NET.own.bytes(),
+        crate::net::owner::net().vars.event.get(),
+        &crate::net::owner::net().vars.own.bytes(),
     );
     if let Ok(id) = made {
-        NET.player_id.set(id);
+        crate::net::owner::net().vars.player_id.set(id);
     }
     Ok(made.is_ok())
 }

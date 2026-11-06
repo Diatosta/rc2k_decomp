@@ -16,16 +16,12 @@
 //! Caller: `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::CAR;
 use crate::physics::flow::g;
 use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
-use crate::race::work_store::RACE_WORK;
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
 fn load_frame(replay: &Replay) {
@@ -41,7 +37,7 @@ fn load_frame(replay: &Replay) {
 /// The Rust version (the original leaves registers nothing reads).
 pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
     use crate::drive::*;
-    if !(1..=8).contains(&RACE_VIEW.race_cars.get()) {
+    if !(1..=8).contains(&crate::race::owner::race().shared.view.race_cars.get()) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
     race.physics.split_tables.still.set(1);
@@ -64,30 +60,44 @@ pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
         load_frame(&race.replay);
         load_replay_cars::load_replay_cars();
     }
-    RACE_WORK.current_car.set(0);
+    crate::race::owner::race().shared.work.current_car.set(0);
     loop {
         load_car::load_car()?;
-        if !matches!(CAR.driver_kind.get(), 0 | 2) {
+        if !matches!(
+            crate::race::owner::race().shared.car.driver_kind.get(),
+            0 | 2
+        ) {
             race.replay.replay_frames.step_first.set(1);
             crate::physics::camera_frame::camera_frame()?;
             race.replay.replay_frames.step_first.set(0);
         }
         store_car::store_car()?;
-        RACE_WORK
-            .current_car
-            .set(RACE_WORK.current_car.get().wrapping_add(1));
-        if RACE_WORK.current_car.get() == RACE_VIEW.race_cars.get() {
+        crate::race::owner::race().shared.work.current_car.set(
+            crate::race::owner::race()
+                .shared
+                .work
+                .current_car
+                .get()
+                .wrapping_add(1),
+        );
+        if crate::race::owner::race().shared.work.current_car.get()
+            == crate::race::owner::race().shared.view.race_cars.get()
+        {
             break;
         }
     }
-    RACE_VIEW.view_on[0].set(0);
-    RACE_VIEW.view_on[1].set(0);
+    crate::race::owner::race().shared.view.view_on[0].set(0);
+    crate::race::owner::race().shared.view.view_on[1].set(0);
     race.frame.frame_work.drawing.set(1);
-    let kept = RACE_VARS.scene_switch.get();
-    RACE_VARS.scene_switch.set(1);
+    let kept = crate::race::owner::race().shared.vars.scene_switch.get();
+    crate::race::owner::race().shared.vars.scene_switch.set(1);
     // The scene (it reads no register).
     crate::race::draw_race_scene::draw_race_scene()?;
-    RACE_VARS.scene_switch.set(kept);
+    crate::race::owner::race()
+        .shared
+        .vars
+        .scene_switch
+        .set(kept);
     race.frame.frame_work.drawing.set(0);
     race.frame.frame_work.still_2.set(0);
     race.physics.split_tables.still.set(0);

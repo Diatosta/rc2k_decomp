@@ -10,13 +10,15 @@
 //! original's other, `sub_4104F2`, is not reached). Refuses what `net::stop` refuses.
 
 use crate::errors::Refused;
-use crate::net::store::NET;
 use std::sync::atomic::Ordering;
 
 /// The Rust version.
 pub fn shut_down() -> Result<(), Refused> {
     crate::net::stop::stop()?;
-    for cell in [&NET.mutex, &NET.event] {
+    for cell in [
+        &crate::net::owner::net().vars.mutex,
+        &crate::net::owner::net().vars.event,
+    ] {
         let handle = cell.atomic().swap(0, Ordering::SeqCst);
         if handle != 0 {
             crate::sync::close(handle);

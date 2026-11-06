@@ -18,8 +18,6 @@
 //! Run by `threading::start_slot_thread` (its slot `stru_518714`, `routes.rs`).
 
 use crate::errors::Refused;
-use crate::net::store::NET;
-use crate::session::FLAGS;
 
 const START_TEXT: &std::ffi::CStr = c"NETRXTDB:START"; // "NETRXTDB:START"
 const QUIT_TEXT: &std::ffi::CStr = c"NETRXTDB:QUIT"; // "NETRXTDB:QUIT"
@@ -33,31 +31,33 @@ pub fn receive_thread() -> Result<(), Refused> {
     if running.get() != 1 {
         running.set(1);
         crate::logfile::log_write::log_nul(&START_TEXT, true, 2);
-        if NET.receive_done.get() == 0 {
+        if crate::net::owner::net().vars.receive_done.get() == 0 {
             loop {
-                let (_, zero) =
-                    crate::threading::wait_for_object::wait_for_object(NET.event.get(), WAIT)
-                        .flags();
+                let (_, zero) = crate::threading::wait_for_object::wait_for_object(
+                    crate::net::owner::net().vars.event.get(),
+                    WAIT,
+                )
+                .flags();
                 if !zero {
-                    NET.receiving.set(1);
-                    if NET.session.get() == 1 {
+                    crate::net::owner::net().vars.receiving.set(1);
+                    if crate::net::owner::net().vars.session.get() == 1 {
                         crate::net::take_messages::take_messages()?;
                     }
                 }
-                NET.receiving.set(0);
-                if NET.posting.get() == 1
+                crate::net::owner::net().vars.receiving.set(0);
+                if crate::net::owner::net().vars.posting.get() == 1
                     && let Some(call) = crate::net::post_call::take_posted()
                 {
-                    NET.posted_result.set(call());
-                    NET.posted_answered.set(1);
+                    crate::net::owner::net().vars.posted_result.set(call());
+                    crate::net::owner::net().vars.posted_answered.set(1);
                 }
-                if FLAGS.quitting.get() == 1 {
+                if crate::system::owner::system().session.flags.quitting.get() == 1 {
                     break;
                 }
             }
         }
     }
-    NET.receive_done.set(1);
+    crate::net::owner::net().vars.receive_done.set(1);
     crate::logfile::log_write::log_nul(&QUIT_TEXT, true, 2);
     running.set(0);
     // The routine's end ends its thread (the original's `ExitThread`).

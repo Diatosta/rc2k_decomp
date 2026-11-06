@@ -9,7 +9,6 @@ use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner_course::Course;
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 
 pub const MUD_LEN: u32 = 0x1_0000;
@@ -80,11 +79,19 @@ pub fn load_mud() -> Result<(), Refused> {
     let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
         crate::race::blocks_store::own_car().car_kind.get(),
     ));
-    RACE_VARS.mud_path.set(0x11, tens as u8);
-    RACE_VARS.mud_path.set(0x12, units as u8);
+    crate::race::owner::race()
+        .shared
+        .vars
+        .mud_path
+        .set(0x11, tens as u8);
+    crate::race::owner::race()
+        .shared
+        .vars
+        .mud_path
+        .set(0x12, units as u8);
     MUD.with(|mud| {
         crate::files::read_whole_file::read_whole_file_into(
-            crate::pointers::GamePtr::to(&RACE_VARS.mud_path),
+            crate::pointers::GamePtr::to(&crate::race::owner::race().shared.vars.mud_path),
             mud,
         )
     })??;
@@ -94,7 +101,7 @@ pub fn load_mud() -> Result<(), Refused> {
 /// `race::clear_mud_state` (0x449E01): the 18 dwords at 0x623D58 and the two more 0.
 pub fn clear_mud_state() {
     // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
-    let v = &RACE_VARS;
+    let v = &crate::race::owner::race().shared.vars;
     v.mud_frames.set(0);
     v.mud_texture.set(0);
     for k in 0..4 {
@@ -117,7 +124,7 @@ pub fn sample_mud_colours() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
         let (x, y) = rc2k_core::race::mud::sample_place(n);
-        RACE_VARS.mud_colours[n as usize].set(mud_pixel(x, y)?);
+        crate::race::owner::race().shared.vars.mud_colours[n as usize].set(mud_pixel(x, y)?);
     }
     crate::d3d::unlock_texture::unlock_texture(textures.kinds.kind_first_textures[193].get())?;
     Ok(())

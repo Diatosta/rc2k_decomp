@@ -24,11 +24,9 @@
 //! here the game's stage it asks and the image's load and store.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
-use crate::race::vars_store::RACE_VARS;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Stage};
 
@@ -50,7 +48,11 @@ pub fn game_course() -> Course {
     Course {
         faces: 0,
         window: (0, len),
-        count: RACE_VARS.checkpoint_count.bits(),
+        count: crate::race::owner::race()
+            .shared
+            .vars
+            .checkpoint_count
+            .bits(),
     }
 }
 
@@ -73,7 +75,11 @@ impl Stage for GameStage {
         crate::race::checkpoints_store::angle(k as usize).get()
     }
     fn slot_offset(&self, slot: u32) -> u32 {
-        PHYSICS.pace_slot_offsets[slot as usize].bits() // dword_614D14: each slot's byte in the face
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .pace_slot_offsets[slot as usize]
+            .bits() // dword_614D14: each slot's byte in the face
     }
     fn word(&self, tens: u32) -> u8 {
         race().physics.pace.distance_words.get(tens as usize)
@@ -130,7 +136,11 @@ impl Machine {
             *held = None;
         }
         Ok(Self(Notes::new(
-            PHYSICS.pace_slot.bits(),
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .pace_slot
+                .bits(),
             tables(physics).read_bytes(IMAGE_LEN, "the pace notes' tables")?,
             course,
             &STAGE,
@@ -140,7 +150,11 @@ impl Machine {
     /// The slot and the tables written back.
     pub fn commit(&self) -> Result<(), BadInput> {
         let physics = &race().physics;
-        PHYSICS.pace_slot.set_bits(self.slot);
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .pace_slot
+            .set_bits(self.slot);
         tables(physics).write_bytes(&self.image, "the pace notes' tables")
     }
 

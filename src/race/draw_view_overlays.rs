@@ -11,7 +11,6 @@
 //! Out: nothing its one caller, `race::draw_race_scene`, reads
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::scene::owner::scene;
 
@@ -21,7 +20,7 @@ pub fn draw_view_overlays(race: &Race) -> Result<(), Refused> {
     use crate::hud::overlay_states::overlay_states;
     use crate::race::frame_views::{draw_flat_triangle, draw_own_car, draw_screen_tint};
     use crate::scene::set_filters::set_filters;
-    if CAR.view_covered.get() != 0 {
+    if crate::race::owner::race().shared.car.view_covered.get() != 0 {
         return Ok(());
     }
     overlay_states();

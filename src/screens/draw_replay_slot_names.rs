@@ -25,7 +25,7 @@ use crate::text::draw_text::Canvas;
 /// The name of replay slot `slot`.
 fn slot_name(slot: u32) -> crate::place::Place {
     crate::place::Place::In(
-        &crate::race::replay::REPLAYS.names,
+        &crate::race::owner::race().shared.replays.names,
         slot as usize * NAME_LEN,
     )
 }

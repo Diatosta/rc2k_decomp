@@ -15,7 +15,7 @@ use crate::physics::tables_store::ForceRecord;
 /// work car.
 pub fn apply_forces(records: &[ForceRecord]) -> Result<(), Refused> {
     for rec in records {
-        apply_force(rec, &crate::physics::car_store::CAR);
+        apply_force(rec, &crate::race::owner::race().shared.car);
     }
     Ok(())
 }

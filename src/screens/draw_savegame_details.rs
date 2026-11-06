@@ -66,7 +66,10 @@ pub fn draw_savegame_details(tables: &Tables, canvas: &mut dyn Canvas) -> Result
         let index = saves.savegame_preview.saved[2].get() as i32;
         let section = saves.savegame_preview.saved[3].get();
         let mode_13 = saves.savegame_preview.saved[5].get() == 0x13;
-        let table = crate::records::stages_store::STAGE_TABLES.championship();
+        let table = crate::system::owner::system()
+            .records
+            .stage_tables
+            .championship();
         let title = Title {
             mode_13,
             section: if mode_13 {

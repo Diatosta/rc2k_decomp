@@ -52,39 +52,32 @@ pub const PIECES_LEN: usize = 0xB656;
 pub fn pieces() -> [(GamePtr, usize); 69] {
 let saves = saves();
 let display = &gfx().display;
-    use crate::audio::store::AUDIO;
-    use crate::net::store::NET;
-    use crate::race::state_store::RACE_STATE;
-    use crate::race::tyre_store::TYRE_CHANGE;
-    use crate::records::stages_store::STAGE_TABLES;
-    use crate::service::read_setup_slot::SET_UPS;
 let menus = menus();
 
-    use crate::system::load_game_data::RUN_COUNT;
     let names = |n: u32| GamePtr::to(&menus.play.names.player_names).offset(0x20 * n).limited(0x20);
     [
-        (GamePtr::to(&RUN_COUNT.runs), 0x4),                            // how many times the game was run
+        (GamePtr::to(&crate::system::owner::system().start.run_count.runs), 0x4),                            // how many times the game was run
         (GamePtr::to(&display.mode.menu_mode), 0x4),                     // the menus' screen mode
         (GamePtr::to(&display.mode.race_mode), 0x4),                     // the race's screen mode
         (GamePtr::to(&display.choices.mipmapping), 0x4),                 // mipmapping, off or on
-        (GamePtr::to(&AUDIO.menu_sound_mode), 0x4),                     // the menus' sound mode
-        (GamePtr::to(&AUDIO.race_sound_mode), 0x4),                     // the race's sound mode
-        (GamePtr::to(&AUDIO.master_volume), 0x4),                       // the master volume
+        (GamePtr::to(&crate::audio::owner::audio().state.menu_sound_mode), 0x4),                     // the menus' sound mode
+        (GamePtr::to(&crate::audio::owner::audio().state.race_sound_mode), 0x4),                     // the race's sound mode
+        (GamePtr::to(&crate::audio::owner::audio().state.master_volume), 0x4),                       // the master volume
         (GamePtr::to(&crate::sound::owner::sound().menu.options.kept_f0), 0x4),                     // a sound option, not worked out
         (GamePtr::to(&crate::sound::owner::sound().menu.options.name_switch), 0x4),                 // the driver names switch
         (GamePtr::to(&crate::sound::owner::sound().menu.options.tune_turn), 0x4),                   // which tune comes next
         (GamePtr::to(&crate::sound::owner::sound().menu.options.music_volume), 0x4),                // the music volume
         (GamePtr::to(&crate::sound::owner::sound().menu.options.race_music_volume), 0x4),           // the race music's volume
-        (GamePtr::to(&NET.machine_name), 0x40),                         // the machine's name
-        (GamePtr::to(&NET.most_players), 0x4),                          // the most players a hosted session takes
-        (GamePtr::to(&NET.host_address), 0x40),                         // the host's address (TCP/IP)
-        (GamePtr::to(&NET.port), 0x4),                                  // the TCP/IP port
-        (GamePtr::to(&NET.saved_connection), 0x10),                     // the saved connection's GUID
+        (GamePtr::to(&crate::net::owner::net().vars.machine_name), 0x40),                         // the machine's name
+        (GamePtr::to(&crate::net::owner::net().vars.most_players), 0x4),                          // the most players a hosted session takes
+        (GamePtr::to(&crate::net::owner::net().vars.host_address), 0x40),                         // the host's address (TCP/IP)
+        (GamePtr::to(&crate::net::owner::net().vars.port), 0x4),                                  // the TCP/IP port
+        (GamePtr::to(&crate::net::owner::net().vars.saved_connection), 0x10),                     // the saved connection's GUID
         (GamePtr::to(&saves.save_games.kept_a), 0x4),                         // a saved-games word, not worked out
         (GamePtr::to(&saves.save_games.kept_b), 0x4),                         // a saved-games word, not worked out
-        (GamePtr::to(&SET_UPS.kept), 0x4),                              // a car set-ups word, not worked out
-        (GamePtr::to(&TYRE_CHANGE.record_name), 0x20),                  // the tyre change record holder's name
-        (GamePtr::to(&TYRE_CHANGE.record), 0x4),                        // the tyre change record time
+        (GamePtr::to(&crate::service::owner::service().set_ups.kept), 0x4),                              // a car set-ups word, not worked out
+        (GamePtr::to(&crate::race::owner::race().shared.tyre_change.record_name), 0x20),                  // the tyre change record holder's name
+        (GamePtr::to(&crate::race::owner::race().shared.tyre_change.record), 0x4),                        // the tyre change record time
         (GamePtr::to(&saves.files.options_kept[0]), 0x4),                                   // four dwords nothing else reads
         (GamePtr::to(&saves.files.options_kept[1]), 0x4),
         (GamePtr::to(&saves.files.options_kept[2]), 0x4),
@@ -105,23 +98,23 @@ let menus = menus();
         (GamePtr::to(&menus.screens.option_work.audio_quality).unbounded(), 0x18),    // the audio quality, the 3D switches and the channels
         (GamePtr::to(&menus.tables.pages.services), 0x4),                       // the services counted
         (GamePtr::to(&menus.screens.flow.kept), 0x4),                          // kept by the event races
-        (GamePtr::to(&RACE_STATE.settings.a8_game), 0x4),               // the race settings' first word
+        (GamePtr::to(&crate::race::owner::race().shared.state.settings.a8_game), 0x4),               // the race settings' first word
         (GamePtr::to(&menus.play.arcade.levels_won), 0x6),                    // the arcade levels won, a byte each
         (GamePtr::to(&menus.cars.numbers.first_numbers), 0xA0),                // the first list of car numbers
         (GamePtr::to(&menus.cars.numbers.second_numbers[..20]), 0x50),         // the second list of car numbers, 20 entries
-        (GamePtr::to(&STAGE_TABLES.championship), 0x2A48),              // the championship's records
-        (GamePtr::to(&STAGE_TABLES.events[5].records), 0x47C),          // the events' record tables, in the file's order
-        (GamePtr::to(&STAGE_TABLES.events[4].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[3].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[2].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[1].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[0].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[6].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[7].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[8].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[9].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[10].records), 0x47C),
-        (GamePtr::to(&STAGE_TABLES.events[11].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.championship), 0x2A48),              // the championship's records
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[5].records), 0x47C),          // the events' record tables, in the file's order
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[4].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[3].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[2].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[1].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[0].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[6].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[7].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[8].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[9].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[10].records), 0x47C),
+        (GamePtr::to(&crate::system::owner::system().records.stage_tables.events[11].records), 0x47C),
         (GamePtr::to(&saves.rally_times.rallies[0]), 0xC30),                  // the six rallies' best times
         (GamePtr::to(&saves.rally_times.rallies[1]), 0xC30),
         (GamePtr::to(&saves.rally_times.rallies[2]), 0xC30),
@@ -147,7 +140,7 @@ pub struct Places<'a> {
 /// `saves::load_options` (see the header).
 pub fn load_options(path: crate::pointers::GamePtr, places: &mut Places) -> Result<bool, Refused> {
     places.loaded.set(0);
-    let file = &crate::files::scratch::SCRATCH.buffer;
+    let file = &crate::system::owner::system().work.files.buffer;
     let read = read_file(path, crate::pointers::GamePtr::to(file), TEXT_ROOM + 1, 0)?;
     use rc2k_core::saves::kept;
     let block = file.read_at(0, TEXT_ROOM as usize + 1, "the options file")?;

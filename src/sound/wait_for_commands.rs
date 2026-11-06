@@ -8,7 +8,6 @@
 //! and the quit switch at 1 ends the wait.
 //! Fourteen callers.
 
-use crate::session::FLAGS;
 use crate::sound::queue::{END_OF_TURN, pending, send_command};
 
 // ---- game data ----
@@ -40,7 +39,7 @@ impl Parts for Game {
     }
 
     fn quitting(&mut self) -> bool {
-        FLAGS.quitting.get() == 1
+        crate::system::owner::system().session.flags.quitting.get() == 1
     }
 }
 

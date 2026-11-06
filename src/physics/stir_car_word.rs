@@ -9,7 +9,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
 use crate::scene::next_noise::noise_step;
 
 /// The Rust core on the word at `at`: the new word.
@@ -21,5 +20,5 @@ pub fn stir_word_at(at: &crate::session::Dword) -> u32 {
 
 /// The Rust version.
 pub fn stir_car_word() -> u32 {
-    stir_word_at(&CAR.noise_word)
+    stir_word_at(&crate::race::owner::race().shared.car.noise_word)
 }

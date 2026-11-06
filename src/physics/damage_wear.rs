@@ -10,7 +10,6 @@
 //! Caller: `physics::damage_step`.
 
 use crate::math::x87_float::{X, int, ld, st};
-use crate::physics::car_store::CAR;
 use crate::physics::damage_gauges::raise;
 use crate::physics::flow::{hold_low, table_lerp};
 use crate::physics::store::DamageModel;
@@ -22,7 +21,10 @@ use core::mem::offset_of;
 /// The wear of this step: the gauges raised or lowered by their rates times the shares,
 /// the lerps of the speed shares, and the hit figures.
 pub fn steps(physics: &Physics) {
-    physics.damage.clock.set_bits(CAR.noise_word.get());
+    physics
+        .damage
+        .clock
+        .set_bits(crate::race::owner::race().shared.car.noise_word.get());
     table_lerp(
         &physics.damage.engine_speed_share,
         &physics.damage.lerp_tables[0],
@@ -30,101 +32,143 @@ pub fn steps(physics: &Physics) {
         &physics.damage.flt_75b45c,
     );
     for k in 0..2 {
-        raise(physics, &CAR.brake_heat[k], |g| {
-            add_wear(
-                &physics.damage,
-                &physics.damage.wear_rates[3],
-                &physics.damage.brake_share,
-                g,
-                g,
-            );
-        });
+        raise(
+            physics,
+            &crate::race::owner::race().shared.car.brake_heat[k],
+            |g| {
+                add_wear(
+                    &physics.damage,
+                    &physics.damage.wear_rates[3],
+                    &physics.damage.brake_share,
+                    g,
+                    g,
+                );
+            },
+        );
     }
     for k in 0..2 {
-        raise(physics, &CAR.brake_heat[k], |g| {
-            subtract_rate(&physics.damage, &physics.damage.wear_rates[4], g, g);
-        });
+        raise(
+            physics,
+            &crate::race::owner::race().shared.car.brake_heat[k],
+            |g| {
+                subtract_rate(&physics.damage, &physics.damage.wear_rates[4], g, g);
+            },
+        );
     }
     let extrapolated = [
         &physics.damage.drive_a_extrapolated_share,
         &physics.damage.drive_b_extrapolated_share,
     ];
-    for (damper, share) in CAR.damper_wear.iter().zip(extrapolated) {
+    for (damper, share) in crate::race::owner::race()
+        .shared
+        .car
+        .damper_wear
+        .iter()
+        .zip(extrapolated)
+    {
         raise(physics, damper, |g| {
             add_wear(&physics.damage, &physics.damage.wear_rates[5], share, g, g);
         });
     }
     for k in 0..2 {
-        raise(physics, &CAR.damper_wear[k], |g| {
-            subtract_rate(&physics.damage, &physics.damage.wear_rates[6], g, g);
-        });
+        raise(
+            physics,
+            &crate::race::owner::race().shared.car.damper_wear[k],
+            |g| {
+                subtract_rate(&physics.damage, &physics.damage.wear_rates[6], g, g);
+            },
+        );
     }
-    raise(physics, &CAR.brake_fade, |g| {
-        add_wear(
-            &physics.damage,
-            &physics.damage.wear_rates[7],
-            &physics.damage.flt_75b3b4,
-            g,
-            g,
-        );
-    });
-    raise(physics, &CAR.brake_fade, |g| {
-        subtract_rate(&physics.damage, &physics.damage.wear_rates[8], g, g);
-    });
-    raise(physics, &CAR.brake_fade, |g| {
-        subtract_wear(
-            &physics.damage,
-            &physics.damage.wear_rates[9],
-            &physics.damage.brake_share,
-            g,
-            g,
-        );
-    });
+    raise(
+        physics,
+        &crate::race::owner::race().shared.car.brake_fade,
+        |g| {
+            add_wear(
+                &physics.damage,
+                &physics.damage.wear_rates[7],
+                &physics.damage.flt_75b3b4,
+                g,
+                g,
+            );
+        },
+    );
+    raise(
+        physics,
+        &crate::race::owner::race().shared.car.brake_fade,
+        |g| {
+            subtract_rate(&physics.damage, &physics.damage.wear_rates[8], g, g);
+        },
+    );
+    raise(
+        physics,
+        &crate::race::owner::race().shared.car.brake_fade,
+        |g| {
+            subtract_wear(
+                &physics.damage,
+                &physics.damage.wear_rates[9],
+                &physics.damage.brake_share,
+                g,
+                g,
+            );
+        },
+    );
     table_lerp(
-        &CAR.cooling_damage,
+        &crate::race::owner::race().shared.car.cooling_damage,
         &physics.damage.lerp_tables[1],
         &physics.damage.gauge_low,
         &physics.damage.flt_75b460,
     );
     lerp_gap(&physics.damage);
     hold_low(&physics.damage.flt_75b464, &physics.damage.gauge_low);
-    raise(physics, &CAR.engine_heat, |g| {
-        add_wear(
-            &physics.damage,
-            &physics.damage.wear_rates[0],
-            &physics.damage.flt_75b464,
-            g,
-            g,
-        );
-    });
-    raise(physics, &CAR.engine_heat, |g| {
-        subtract_rate(&physics.damage, &physics.damage.wear_rates[1], g, g);
-    });
-    raise(physics, &CAR.engine_heat, |g| {
-        subtract_wear(
-            &physics.damage,
-            &physics.damage.wear_rates[2],
-            &physics.damage.speed_share,
-            g,
-            g,
-        );
-    });
+    raise(
+        physics,
+        &crate::race::owner::race().shared.car.engine_heat,
+        |g| {
+            add_wear(
+                &physics.damage,
+                &physics.damage.wear_rates[0],
+                &physics.damage.flt_75b464,
+                g,
+                g,
+            );
+        },
+    );
+    raise(
+        physics,
+        &crate::race::owner::race().shared.car.engine_heat,
+        |g| {
+            subtract_rate(&physics.damage, &physics.damage.wear_rates[1], g, g);
+        },
+    );
+    raise(
+        physics,
+        &crate::race::owner::race().shared.car.engine_heat,
+        |g| {
+            subtract_wear(
+                &physics.damage,
+                &physics.damage.wear_rates[2],
+                &physics.damage.speed_share,
+                g,
+                g,
+            );
+        },
+    );
     table_lerp(
-        &CAR.stiffness_mean,
+        &crate::race::owner::race().shared.car.stiffness_mean,
         &physics.damage.lerp_tables_b[2],
         &physics.damage.gauge_low,
         &physics.damage.flt_75b44c,
     );
     square_into(&physics.damage.flt_75b44c, &physics.damage.flt_75b44c);
     table_lerp(
-        &CAR.stiffness_mean,
+        &crate::race::owner::race().shared.car.stiffness_mean,
         &physics.damage.lerp_tables_b[0],
         &physics.damage.gauge_low,
         &physics.damage.flt_75b448,
     );
     square_into(&physics.damage.flt_75b448, &physics.damage.flt_75b448);
     table_lerp(
-        &CAR.ride_height_mean,
+        &crate::race::owner::race().shared.car.ride_height_mean,
         &physics.damage.lerp_tables_b[1],
         &physics.damage.gauge_low,
         &physics.damage.flt_75b468,
@@ -352,8 +396,8 @@ mod asm_reference {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[3],
                         &dm(a[0]).brake_share,
-                        &CAR.brake_heat[0],
-                        &CAR.brake_heat[0],
+                        &crate::race::owner::race().shared.car.brake_heat[0],
+                        &crate::race::owner::race().shared.car.brake_heat[0],
                     );
                 },
             },
@@ -376,8 +420,8 @@ mod asm_reference {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[3],
                         &dm(a[0]).brake_share,
-                        &CAR.brake_heat[1],
-                        &CAR.brake_heat[1],
+                        &crate::race::owner::race().shared.car.brake_heat[1],
+                        &crate::race::owner::race().shared.car.brake_heat[1],
                     );
                 },
             },
@@ -399,8 +443,8 @@ mod asm_reference {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[4],
-                        &CAR.brake_heat[0],
-                        &CAR.brake_heat[0],
+                        &crate::race::owner::race().shared.car.brake_heat[0],
+                        &crate::race::owner::race().shared.car.brake_heat[0],
                     );
                 },
             },
@@ -422,8 +466,8 @@ mod asm_reference {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[4],
-                        &CAR.brake_heat[1],
-                        &CAR.brake_heat[1],
+                        &crate::race::owner::race().shared.car.brake_heat[1],
+                        &crate::race::owner::race().shared.car.brake_heat[1],
                     );
                 },
             },
@@ -446,8 +490,8 @@ mod asm_reference {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[5],
                         &dm(a[0]).drive_a_extrapolated_share,
-                        &CAR.damper_wear[0],
-                        &CAR.damper_wear[0],
+                        &crate::race::owner::race().shared.car.damper_wear[0],
+                        &crate::race::owner::race().shared.car.damper_wear[0],
                     );
                 },
             },
@@ -470,8 +514,8 @@ mod asm_reference {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[5],
                         &dm(a[0]).drive_b_extrapolated_share,
-                        &CAR.damper_wear[1],
-                        &CAR.damper_wear[1],
+                        &crate::race::owner::race().shared.car.damper_wear[1],
+                        &crate::race::owner::race().shared.car.damper_wear[1],
                     );
                 },
             },
@@ -493,8 +537,8 @@ mod asm_reference {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[6],
-                        &CAR.damper_wear[0],
-                        &CAR.damper_wear[0],
+                        &crate::race::owner::race().shared.car.damper_wear[0],
+                        &crate::race::owner::race().shared.car.damper_wear[0],
                     );
                 },
             },
@@ -516,8 +560,8 @@ mod asm_reference {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[6],
-                        &CAR.damper_wear[1],
-                        &CAR.damper_wear[1],
+                        &crate::race::owner::race().shared.car.damper_wear[1],
+                        &crate::race::owner::race().shared.car.damper_wear[1],
                     );
                 },
             },
@@ -540,8 +584,8 @@ mod asm_reference {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[7],
                         &dm(a[0]).flt_75b3b4,
-                        &CAR.brake_fade,
-                        &CAR.brake_fade,
+                        &crate::race::owner::race().shared.car.brake_fade,
+                        &crate::race::owner::race().shared.car.brake_fade,
                     );
                 },
             },
@@ -563,8 +607,8 @@ mod asm_reference {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[8],
-                        &CAR.brake_fade,
-                        &CAR.brake_fade,
+                        &crate::race::owner::race().shared.car.brake_fade,
+                        &crate::race::owner::race().shared.car.brake_fade,
                     );
                 },
             },
@@ -587,8 +631,8 @@ mod asm_reference {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[9],
                         &dm(a[0]).brake_share,
-                        &CAR.brake_fade,
-                        &CAR.brake_fade,
+                        &crate::race::owner::race().shared.car.brake_fade,
+                        &crate::race::owner::race().shared.car.brake_fade,
                     );
                 },
             },
@@ -621,8 +665,8 @@ mod asm_reference {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[0],
                         &dm(a[0]).flt_75b464,
-                        &CAR.engine_heat,
-                        &CAR.engine_heat,
+                        &crate::race::owner::race().shared.car.engine_heat,
+                        &crate::race::owner::race().shared.car.engine_heat,
                     );
                 },
             },
@@ -644,8 +688,8 @@ mod asm_reference {
                     subtract_rate(
                         dm(a[0]),
                         &dm(a[0]).wear_rates[1],
-                        &CAR.engine_heat,
-                        &CAR.engine_heat,
+                        &crate::race::owner::race().shared.car.engine_heat,
+                        &crate::race::owner::race().shared.car.engine_heat,
                     );
                 },
             },
@@ -668,8 +712,8 @@ mod asm_reference {
                         dm(a[0]),
                         &dm(a[0]).wear_rates[2],
                         &dm(a[0]).speed_share,
-                        &CAR.engine_heat,
-                        &CAR.engine_heat,
+                        &crate::race::owner::race().shared.car.engine_heat,
+                        &crate::race::owner::race().shared.car.engine_heat,
                     );
                 },
             },

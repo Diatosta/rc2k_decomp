@@ -15,7 +15,6 @@
 //! Refuses a shared voice for a record without voices, a chain without its end.
 
 use crate::audio::samples::fill_voice;
-use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 
 pub fn fill_voice_in_game(
@@ -23,6 +22,12 @@ pub fn fill_voice_in_game(
     record: crate::audio::voices::SampleRecord,
     shared: u32,
 ) -> Result<(), Refused> {
-    let file = AUDIO.sample_file.get();
-    fill_voice(at, record, shared, &file, AUDIO.sound_mode.get())
+    let file = crate::audio::owner::audio().state.sample_file.get();
+    fill_voice(
+        at,
+        record,
+        shared,
+        &file,
+        crate::audio::owner::audio().state.sound_mode.get(),
+    )
 }

@@ -413,7 +413,7 @@ impl GameWork for rc2k_core::screens::stage_panel::Work {
         match self {
             W::Scratch => &screens.draw_work.figure,
             W::Finish => &screens.draw_work.hhmm,
-            W::Entry34 => &crate::race::state_store::RACE_STATE.settings.stage,
+            W::Entry34 => &crate::race::owner::race().shared.state.settings.stage,
         }
     }
 }

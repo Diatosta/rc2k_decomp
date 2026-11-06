@@ -28,8 +28,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
 use crate::place::Place;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 
 // ---- game data ----
 
@@ -101,7 +99,7 @@ pub fn load_texture_picture(
             number,
             texture,
             || scene().textures.kinds.kind_first_textures[0x100].get(), // dword_5D0EE8,
-            || RACE_VIEW.race_cars.bits(),
+            || crate::race::owner::race().shared.view.race_cars.bits(),
         );
         if let Some(car) = car {
             call(Call::Text(b"carnum".to_vec()));
@@ -109,9 +107,13 @@ pub fn load_texture_picture(
             call(Call::Text(b"grav".to_vec()));
             // Eight cars' gravel switches; a car past them (the race's cars are at most
             // eight) reads on, as the original.
-            let tyres = &RACE_VARS.car_tyres;
-            let gravel =
-                crate::session::read_on_in(&RACE_VARS, tyres, car as usize, "a car's tyre switch")?;
+            let tyres = &crate::race::owner::race().shared.vars.car_tyres;
+            let gravel = crate::session::read_on_in(
+                &crate::race::owner::race().shared.vars,
+                tyres,
+                car as usize,
+                "a car's tyre switch",
+            )?;
             call(Call::Number(gravel));
             if takes_gravel(gravel) && call(Call::Exists(folders(course)[GRAVEL].0)) {
                 gravel_chosen = true;

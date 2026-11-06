@@ -14,7 +14,6 @@
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use rc2k_core::physics::camera_ground::{is_clear, over};
 
@@ -24,13 +23,13 @@ use rc2k_core::physics::camera_ground::{is_clear, over};
 pub fn camera_clear_of_ground(race: &Race) -> Result<bool, Refused> {
     let mut clear = probe_at(
         race,
-        CAR.camera_position[0].get(),
-        CAR.camera_position[2].get(),
-        &CAR.camera_ground_faces[0],
+        crate::race::owner::race().shared.car.camera_position[0].get(),
+        crate::race::owner::race().shared.car.camera_position[2].get(),
+        &crate::race::owner::race().shared.car.camera_ground_faces[0],
     )?;
     if clear {
         clear = is_clear(over(
-            CAR.camera_position[1].get(),
+            crate::race::owner::race().shared.car.camera_position[1].get(),
             race.physics.ground.ground_height.get(),
         ));
     }

@@ -12,28 +12,38 @@
 
 use crate::errors::Refused;
 use crate::net::lobby_loop::{all_states, sync};
-use crate::net::store::{NET, PlayerRecord};
+use crate::net::store::PlayerRecord;
 use rc2k_core::net::players;
 
 /// The Rust version.
 pub fn race_wait() -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::players` (`waiting`, `all_in_state` in `all_states`).
-    NET.own
-        .head
-        .set(PlayerRecord::STATE, players::waiting(NET.own.state()));
-    NET.own.race_time.set(u32::MAX);
+    crate::net::owner::net().vars.own.head.set(
+        PlayerRecord::STATE,
+        players::waiting(crate::net::owner::net().vars.own.state()),
+    );
+    crate::net::owner::net().vars.own.race_time.set(u32::MAX);
     let now = crate::system::tick_count::tick_count();
-    if (now.wrapping_sub(NET.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
-        NET.clock_a.set(now);
+    if (now
+        .wrapping_sub(crate::net::owner::net().vars.clock_a.get())
+        .wrapping_sub(1000) as i32)
+        >= 0
+    {
+        crate::net::owner::net().vars.clock_a.set(now);
         crate::net::list_players::list_players_regs()?;
     }
-    if NET.own.state() & players::HOST != 0 {
-        if NET.players.get() == 0 {
-            return Ok(NET.race_over.get());
+    if crate::net::owner::net().vars.own.state() & players::HOST != 0 {
+        if crate::net::owner::net().vars.players.get() == 0 {
+            return Ok(crate::net::owner::net().vars.race_over.get());
         }
-        if all_states(players::WAITING, NET.players.get()) == players::WAITING && sync(b'P')? {
-            NET.race_over.set(1);
+        if all_states(
+            players::WAITING,
+            crate::net::owner::net().vars.players.get(),
+        ) == players::WAITING
+            && sync(b'P')?
+        {
+            crate::net::owner::net().vars.race_over.set(1);
         }
     }
-    Ok(NET.race_over.get())
+    Ok(crate::net::owner::net().vars.race_over.get())
 }

@@ -26,13 +26,13 @@ pub struct TextBuffers {
     pub page_numbers: Bytes<40>,
 }
 
-/// The piece, a field of `race::buffers_store::BUFFERS`.
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = TextBuffers;
     fn deref(&self) -> &TextBuffers {
-        &crate::race::buffers_store::BUFFERS.text
+        &crate::race::owner::race().shared.buffers.text
     }
 }
 

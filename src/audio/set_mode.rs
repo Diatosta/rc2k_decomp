@@ -14,7 +14,6 @@
 //! way `system::restore_window` last (its flags kept around it). Callers: the audio thread's
 //! start (the menus' mode), `audio::take_commands` (command 5).
 
-use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 
 const SAM_TEXT: &std::ffi::CStr = c"SAM:"; // "SAM:"
@@ -25,7 +24,7 @@ const FAIL_TEXT: &std::ffi::CStr = c"SAM: FAIL"; // "SAM: FAIL"
 pub fn set_mode(mode: u32) -> Result<bool, Refused> {
     use crate::audio::mixer_set_up::{close_way, open_way};
     use crate::audio::sound_device as sd;
-    let caps = &AUDIO.sound_caps;
+    let caps = &crate::audio::owner::audio().state.sound_caps;
     sd::log_text(SAM_TEXT, false);
     sd::log_hex(mode, true);
     // Fixed (section 16, 2026-10-20): the streams stopped with action 0; the original
@@ -33,9 +32,9 @@ pub fn set_mode(mode: u32) -> Result<bool, Refused> {
     // outlived the DirectSound it played on.
     crate::audio::stop_streams::stop_streams()?;
     crate::audio::free_voices::free_voices()?;
-    close_way(AUDIO.sound_mode.get())?;
+    close_way(crate::audio::owner::audio().state.sound_mode.get())?;
     sd::release_primary()?;
-    AUDIO.sound_mode.set(mode);
+    crate::audio::owner::audio().state.sound_mode.set(mode);
     // Converted: `rc2k_core::audio::modes::channels`. `g_soundCaps`: free hardware buffers
     // +0x24 all, +0x28 static, +0x3C 3D all, +0x40 3D static.
     let (channels, _) = rc2k_core::audio::modes::channels(
@@ -43,16 +42,22 @@ pub fn set_mode(mode: u32) -> Result<bool, Refused> {
         [caps.get_u32(0x24), caps.get_u32(0x28)],
         [caps.get_u32(0x3C), caps.get_u32(0x40)],
     );
-    AUDIO.channel_count.set(channels);
+    crate::audio::owner::audio()
+        .state
+        .channel_count
+        .set(channels);
     let ok = !sd::reopen_sound()? && crate::audio::primary::make_primary()?;
     if ok {
-        open_way(AUDIO.sound_mode.get())?;
+        open_way(crate::audio::owner::audio().state.sound_mode.get())?;
         crate::system::sleep::sleep(1000);
         crate::audio::thread_parts::play_primary();
-        AUDIO.opened_sound_mode.set(AUDIO.sound_mode.get());
+        crate::audio::owner::audio()
+            .state
+            .opened_sound_mode
+            .set(crate::audio::owner::audio().state.sound_mode.get());
         sd::log_text(OK_TEXT, true);
     } else {
-        AUDIO.opened_sound_mode.set(0);
+        crate::audio::owner::audio().state.opened_sound_mode.set(0);
         sd::log_text(FAIL_TEXT, true);
     }
     crate::system::restore_window::restore_window();

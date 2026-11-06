@@ -4,7 +4,7 @@
 //! message, the `patch*` settings, the stages' checkpoint counts. Named from the code's uses
 //! (2026-10-25); most names are readings, `unknown_*` runs are places no ported code names.
 //! `#[repr(C)]` with the image's layout, over the race block's bytes (`RACE_WORK`, as
-//! `physics::car_store::CAR`) until the code reaching them by RVA is typed.
+//! `crate::race::owner::race().shared.car`) until the code reaching them by RVA is typed.
 
 use crate::errors::BadInput;
 use crate::session::{Dword, Float};
@@ -281,14 +281,17 @@ pub const CAR_RECORDS_LEN: usize = 8 * 0x4C8;
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static RACE_WORK: RaceWork =
-    crate::pointers::cells_of_bytes(crate::race::blocks_store::with_block_refs(
-        crate::race::store::first_values::<{ END - START }>(START),
-        crate::race::blocks_store::CAR_BLOCKS_IDA - START,
-        8,
-    ));
+impl RaceWork {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::blocks_store::with_block_refs(
+            crate::race::store::first_values::<{ END - START }>(START),
+            crate::race::blocks_store::CAR_BLOCKS_IDA - START,
+            8,
+        ))
+    }
+}
 
 /// IDA 0x71AFB8, the first byte of the piece.
 pub const START: usize = 0x71AFB8;
@@ -300,7 +303,7 @@ const _: () = assert!(END - START == core::mem::size_of::<RaceWork>());
 /// Where IDA 0x71AFB8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&RACE_WORK))
+    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::race().shared.work))
 }
 
 #[cfg(test)]
@@ -311,14 +314,19 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         let at = crate::race::blocks_store::CAR_BLOCKS_IDA - START;
-        crate::gfx::first_values_are_the_games_but(&RACE_WORK, START, END, |image| {
-            for k in 0..8 {
-                let o = at + 4 * k;
-                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                image[o..o + 4]
-                    .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
-            }
-        });
+        crate::gfx::first_values_are_the_games_but(
+            &crate::race::owner::race().shared.work,
+            START,
+            END,
+            |image| {
+                for k in 0..8 {
+                    let o = at + 4 * k;
+                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                    image[o..o + 4]
+                        .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
+                }
+            },
+        );
     }
 
     #[test]
@@ -330,7 +338,9 @@ mod tests {
             let name = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
             assert_eq!(name as usize, CAR_RECORDS_IDA + 0x4C8 * k);
             assert_eq!(
-                RACE_WORK
+                crate::race::owner::race()
+                    .shared
+                    .work
                     .car_record(k)
                     .map(|r| crate::pointers::GamePtr::to(r).addr()),
                 Ok(crate::framework::game_addr(crate::framework::rva(
@@ -338,11 +348,25 @@ mod tests {
                 )))
             );
             assert!(std::ptr::eq(
-                RACE_WORK.car_records_resolved().unwrap()[k],
-                RACE_WORK.car_record(k).unwrap()
+                crate::race::owner::race()
+                    .shared
+                    .work
+                    .car_records_resolved()
+                    .unwrap()[k],
+                crate::race::owner::race()
+                    .shared
+                    .work
+                    .car_record(k)
+                    .unwrap()
             ));
         }
-        assert!(RACE_WORK.car_record(8).is_err());
+        assert!(
+            crate::race::owner::race()
+                .shared
+                .work
+                .car_record(8)
+                .is_err()
+        );
     }
 
     #[test]

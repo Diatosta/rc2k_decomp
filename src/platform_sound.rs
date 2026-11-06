@@ -665,7 +665,12 @@ fn mixed_frames(frames: usize) -> Vec<i16> {
     // DirectSound's focus: while the window is not in front, a buffer made without
     // `DSBCAPS_GLOBALFOCUS` or `DSBCAPS_STICKYFOCUS` plays on unheard (the game asks for
     // neither, so it goes quiet and comes back with the focus).
-    let focused = crate::session::FLAGS.window_focused.get() == 1;
+    let focused = crate::system::owner::system()
+        .session
+        .flags
+        .window_focused
+        .get()
+        == 1;
     let mut unheard = Vec::new();
     with(|s| {
         let master = s

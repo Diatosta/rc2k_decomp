@@ -26,7 +26,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::runs_from_source::{scratch_put, scratch_text};
-use crate::system::read_command_line::COMMAND_LINE;
 use rc2k_core::files::paths;
 
 const ROOM: u32 = 0x100;
@@ -75,7 +74,12 @@ pub fn run_after_exit(g: &'static crate::install::owner::Install) -> Result<(), 
         && switch(5) != 1
         && switch(3) == 1
         && from_cd == 1
-        && COMMAND_LINE.program_len.get() >= ROOM
+        && crate::system::owner::system()
+            .start
+            .command_line
+            .program_len
+            .get()
+            >= ROOM
     {
         return Err(BadInput("a command line's program of 0x100 bytes or more").into());
     }

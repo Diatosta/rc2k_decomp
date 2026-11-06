@@ -11,7 +11,7 @@
 //! pitch and volume factors.
 
 use crate::errors::BadInput;
-use crate::session::{Dword, MACHINE};
+use crate::session::Dword;
 
 pub const VOICE_LEN: u32 = 0x50;
 pub const VOICE_COUNT: u32 = 0x48;
@@ -93,6 +93,10 @@ pub fn store_picks(
     work.pick_next_distance.set(picks.next_distance);
     work.pick_next.set(voice_or_0(picks.next));
     if let Some(d) = trail.last_distance {
-        MACHINE.scratch.set(d);
+        crate::system::owner::system()
+            .session
+            .machine
+            .scratch
+            .set(d);
     }
 }

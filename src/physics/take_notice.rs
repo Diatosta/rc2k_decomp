@@ -10,7 +10,6 @@
 //!
 //! Caller: `sub_43B635` (0x43B961), every physics step, right after `sub_4B0241`.
 
-use crate::physics::car_store::CAR;
 use crate::physics::cells::set_changed;
 use crate::physics::queue_notice::{load, store};
 use rc2k_core::physics::notices::Notice;
@@ -18,10 +17,10 @@ use rc2k_core::physics::notices::Notice;
 /// The Rust version.
 pub fn take_notice() {
     let was = Notice {
-        id: CAR.notice_id.get(),
-        shown: CAR.notice_shown.get(),
-        time: CAR.notice_time.get(),
-        w708: CAR.notice_time_b.get(),
+        id: crate::race::owner::race().shared.car.notice_id.get(),
+        shown: crate::race::owner::race().shared.car.notice_shown.get(),
+        time: crate::race::owner::race().shared.car.notice_time.get(),
+        w708: crate::race::owner::race().shared.car.notice_time_b.get(),
         ..Notice::default()
     };
     let queue = load();
@@ -29,8 +28,20 @@ pub fn take_notice() {
     if notice.take(&mut now).is_none() {
         return;
     }
-    set_changed(&CAR.notice_id, was.id, notice.id);
-    set_changed(&CAR.notice_time_b, was.w708, notice.w708);
-    set_changed(&CAR.notice_time, was.time, notice.time);
+    set_changed(
+        &crate::race::owner::race().shared.car.notice_id,
+        was.id,
+        notice.id,
+    );
+    set_changed(
+        &crate::race::owner::race().shared.car.notice_time_b,
+        was.w708,
+        notice.w708,
+    );
+    set_changed(
+        &crate::race::owner::race().shared.car.notice_time,
+        was.time,
+        notice.time,
+    );
     store(&queue, &now);
 }

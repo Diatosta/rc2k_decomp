@@ -9,15 +9,13 @@
 //! Caller: `input::input_thread` (its start). The method DirectInput's own (in the
 //! standalone program Rust's, `input::di_objects`).
 
-use crate::input::store::DEVICES;
-
 /// The Rust version.
 pub fn list_joysticks() {
-    if DEVICES.no_joysticks.get() != 0 {
+    if crate::input::owner::input().devices.no_joysticks.get() != 0 {
         return;
     }
     crate::input::di_objects::enum_devices(
-        DEVICES.direct_input.get(),
+        crate::input::owner::input().devices.direct_input.get(),
         4,
         crate::input::joystick_found::callback,
         1,

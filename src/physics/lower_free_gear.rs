@@ -15,7 +15,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::bits_at;
 
 /// The Rust version on the bits at `bits`: the free lower gear (None when neutral is
@@ -31,5 +30,5 @@ pub fn lower_free_gear_at(
 
 /// The Rust version.
 pub fn lower_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
-    lower_free_gear_at(&CAR.lost_gear_bits, gear)
+    lower_free_gear_at(&crate::race::owner::race().shared.car.lost_gear_bits, gear)
 }

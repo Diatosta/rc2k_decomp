@@ -11,7 +11,6 @@
 //! Caller: `sub_43C1E3` (0x43C1FD). Refuses what `gear_bit` refuses (a bit past 31).
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::bits_at;
 use crate::race::owner_course::Course;
 
@@ -37,9 +36,9 @@ pub fn allowed_gear_at(
 pub fn allowed_gear(course: &Course, eax: u32) -> Result<u32, Refused> {
     allowed_gear_at(
         course,
-        &CAR.engine_damage,
-        &CAR.engine_power_factor,
-        &CAR.lost_gear_bits,
+        &crate::race::owner::race().shared.car.engine_damage,
+        &crate::race::owner::race().shared.car.engine_power_factor,
+        &crate::race::owner::race().shared.car.lost_gear_bits,
         eax,
     )
 }

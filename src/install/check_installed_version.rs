@@ -15,9 +15,7 @@
 //! are the original's.
 
 use crate::errors::Refused;
-use crate::files::scratch::SCRATCH;
 use crate::install::installer::set_cd;
-use crate::system::start_texts::START_TEXTS;
 use rc2k_core::install::version::{self, Scan};
 
 const READ_TARGET: usize = 0x100; // into the scratch
@@ -43,14 +41,16 @@ pub fn check_installed_version(g: &'static crate::install::owner::Install) -> Re
     if !set_cd(&g.paths.installed) {
         return Ok(());
     }
-    SCRATCH
+    crate::system::owner::system()
+        .work
+        .files
         .buffer
         .write(&[0; crate::files::scratch::Scratch::LEN]);
     // The standalone checks its own program (the same version text is in its built-in
     // image). files::open_by_mode, mode 0.
     let program = crate::install::run_after_exit::RC2K;
     if let Some(file) = crate::files::handle::open_by_mode(program, 0)? {
-        let buffer = &SCRATCH.buffer;
+        let buffer = &crate::system::owner::system().work.files.buffer;
         loop {
             // the previous tail carried to the front (`rep movsd`, 0x40 dwords)
             for n in 0..0x100 {
@@ -66,7 +66,7 @@ pub fn check_installed_version(g: &'static crate::install::owner::Install) -> Re
             // to its NUL, inside its 91 bytes).
             let scanned =
                 buffer.read_at(0, crate::files::scratch::Scratch::LEN, "the scan buffer")?;
-            let copyright = START_TEXTS.copyright.read();
+            let copyright = crate::system::owner::system().start.texts.copyright.read();
             if let Scan::Stopped { same, .. } = version::scan(&scanned[..], &copyright[..])? {
                 if same {
                     g.run.same_version.set(1);

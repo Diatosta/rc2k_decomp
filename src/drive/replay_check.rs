@@ -19,7 +19,6 @@ use crate::errors::BadInput;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner_course::Course;
 use crate::race::owner_replay::Replay;
-use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
@@ -69,7 +68,13 @@ pub fn note(course: &Course) -> Result<(), BadInput> {
         return Ok(());
     }
     let mut line = format!("replay check: {mode}, clock {clock}:");
-    for car in 0..RACE_VIEW.race_cars.get().min(4) as usize {
+    for car in 0..crate::race::owner::race()
+        .shared
+        .view
+        .race_cars
+        .get()
+        .min(4) as usize
+    {
         // g_carBlockStore: four blocks of 0xFE0.
         let block = &CAR_BLOCKS.cars[car];
         let bytes =

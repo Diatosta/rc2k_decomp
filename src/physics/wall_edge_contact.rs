@@ -25,10 +25,8 @@ use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::math::x87::mul;
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
-use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::flow::copy_cells;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
@@ -51,16 +49,16 @@ pub fn edge_normal(race: &Race, first: u32, second: u32) -> Result<[u32; 4], Ref
     let drawing = &scene().drawing;
     let race_owner = race;
     let rd = crate::race::scene_points::point_word;
-    PHYSICS.edge_points[0].set(rd(first, 0)?);
-    PHYSICS.edge_points[1].set(rd(first, 2)?);
-    PHYSICS.edge_points[2].set(rd(second, 0)?);
-    PHYSICS.edge_points[3].set(rd(second, 2)?);
-    let dx = PHYSICS.edge_points[2]
+    crate::race::owner::race().shared.physics_tables.edge_points[0].set(rd(first, 0)?);
+    crate::race::owner::race().shared.physics_tables.edge_points[1].set(rd(first, 2)?);
+    crate::race::owner::race().shared.physics_tables.edge_points[2].set(rd(second, 0)?);
+    crate::race::owner::race().shared.physics_tables.edge_points[3].set(rd(second, 2)?);
+    let dx = crate::race::owner::race().shared.physics_tables.edge_points[2]
         .get()
-        .wrapping_sub(PHYSICS.edge_points[0].get());
-    let dz = PHYSICS.edge_points[3]
+        .wrapping_sub(crate::race::owner::race().shared.physics_tables.edge_points[0].get());
+    let dz = crate::race::owner::race().shared.physics_tables.edge_points[3]
         .get()
-        .wrapping_sub(PHYSICS.edge_points[1].get());
+        .wrapping_sub(crate::race::owner::race().shared.physics_tables.edge_points[1].get());
     let d = [dx, dz];
     x87_1(&race.course, d);
     drawing
@@ -68,7 +66,11 @@ pub fn edge_normal(race: &Race, first: u32, second: u32) -> Result<[u32; 4], Ref
         .scratch
         .set(drawing.scene.scratch.get() & 0xFFFF);
     let heading = (drawing.scene.scratch.get() << 16).wrapping_add(0x4000_0000);
-    PHYSICS.wall_heading.set(heading);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .wall_heading
+        .set(heading);
     let out = {
         turn_float_point_xz(
             race_owner.course.numbers.zero.bits(),
@@ -99,8 +101,14 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     race.physics.contact.wall_edge_from.set(from);
     race.physics.contact.wall_edge_to.set(to);
     edge_normal(race, to, from)?;
-    copy_cells(&race.physics.contact.contact_car_speed, &CAR.velocity);
-    copy_cells(&race.physics.contact.contact_turn_speed, &CAR.spin);
+    copy_cells(
+        &race.physics.contact.contact_car_speed,
+        &crate::race::owner::race().shared.car.velocity,
+    );
+    copy_cells(
+        &race.physics.contact.contact_turn_speed,
+        &crate::race::owner::race().shared.car.spin,
+    );
     let n = n as usize;
     race.physics.contact.contact_point[0].set_bits(race.physics.contact.probe_turned_x[n].bits());
     race.physics.contact.contact_point[1].set_bits(race.physics.contact.probe_turned_y[n].bits());
@@ -110,7 +118,10 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         race.course.numbers.tenth.bits(),
     ));
     race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(race, &PHYSICS.contacts[4]);
+    contact_force(
+        race,
+        &crate::race::owner::race().shared.physics_tables.contacts[4],
+    );
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     Ok(())
 }

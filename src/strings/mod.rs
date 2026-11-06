@@ -14,6 +14,7 @@ pub mod hex_append;
 pub mod keyboard_tables;
 pub mod load_language;
 pub mod maybe_compile_lexicon;
+pub mod owner;
 pub mod rot13_into_text;
 pub mod same_text;
 pub mod string_table;

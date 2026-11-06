@@ -8,9 +8,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::pointers::GamePtr;
 use crate::race::owner_frame::Frame;
-use crate::race::view_store::RACE_VIEW;
 use crate::scene::owner::scene;
-use crate::strings::text_buffer::TEXT_BUFFER;
 
 /// `race::draw_name_plate` (0x45B695): slot `slot`'s (eax) surface, locked and unlocked
 /// (`d3d::lock_texture`, nothing when it fails): three lines' height cleared, text `text`
@@ -42,12 +40,20 @@ pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
     let mut cursor = 0usize;
     crate::strings::append_string_by_id::append_string_by_id(id, &mut |bytes| {
         for (k, &b) in bytes.iter().enumerate() {
-            TEXT_BUFFER.text.set(cursor + k, b);
+            crate::strings::owner::strings()
+                .text
+                .buffer
+                .text
+                .set(cursor + k, b);
         }
         cursor += bytes.len();
     })?;
-    TEXT_BUFFER.text.set(cursor, 0);
-    draw_name_plate(slot, &TEXT_BUFFER.text)
+    crate::strings::owner::strings()
+        .text
+        .buffer
+        .text
+        .set(cursor, 0);
+    draw_name_plate(slot, &crate::strings::owner::strings().text.buffer.text)
 }
 
 /// `race::draw_time_plate` (0x45B70A): slot `slot`'s (eax) surface, locked and unlocked as
@@ -95,7 +101,10 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
 /// register it leaves. Refuses (before anything) a null view block.
 pub fn update_name_plates(frame: &Frame) -> Result<(), Refused> {
     let textures = &scene().textures;
-    let (Some(a), Some(b)) = (RACE_VIEW.view_car(0), RACE_VIEW.view_car(1)) else {
+    let (Some(a), Some(b)) = (
+        crate::race::owner::race().shared.view.view_car(0),
+        crate::race::owner::race().shared.view.view_car(1),
+    ) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };
     // Their notice fields: +0x71C asked, +0x720 the plate flag, +0x724 the last, +0x728 shown.

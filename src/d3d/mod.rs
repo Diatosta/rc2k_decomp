@@ -14,6 +14,7 @@ pub mod draw_hud_batch;
 pub mod draw_marks_windscreen_drops;
 pub mod draw_vertex_strip;
 pub mod lock_texture;
+pub mod owner;
 pub mod recorder;
 pub mod set_render_state;
 pub mod set_texture;

@@ -13,9 +13,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::physics::car_store::CAR;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -36,9 +34,9 @@ pub struct SettlePlaces {
 impl SettlePlaces {
     pub fn game() -> Self {
         Self {
-            first: &CAR.front_wheels_off,
-            second: &CAR.rear_wheels_off,
-            fast: &CAR.brake,
+            first: &crate::race::owner::race().shared.car.front_wheels_off,
+            second: &crate::race::owner::race().shared.car.rear_wheels_off,
+            fast: &crate::race::owner::race().shared.car.brake,
             scratch: &scene().drawing.scene.scratch,
         }
     }
@@ -78,9 +76,17 @@ pub fn settle_drive_speeds_at(
     }
     let step = || {
         if s.fast.bits() != 0 {
-            PHYSICS.settle_fast_step.bits()
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .settle_fast_step
+                .bits()
         } else {
-            PHYSICS.settle_slow_step.bits()
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .settle_slow_step
+                .bits()
         }
     };
     if s.first.bits() != 0 && gear == 0 {

@@ -14,8 +14,8 @@ use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
 use crate::math::x87_float::{int, ld, st};
-use crate::race::tyre_store::{TYRE_CHANGE, TyreChange};
-use crate::session::{Dword, Float, MACHINE};
+use crate::race::tyre_store::TyreChange;
+use crate::session::{Dword, Float};
 
 /// The turn's arithmetic: `ty` the tyre change's variables (the constants and results), `e`
 /// the input device, `d` the rectangle (floats), `v` the vertices, `t` the scratch float
@@ -57,13 +57,17 @@ pub fn tyre_turned_quad(
     colour: u32,
     device: &InputDevice,
 ) -> Result<(), Refused> {
-    MACHINE.scratch.set(0x40C9_0FDB);
+    crate::system::owner::system()
+        .session
+        .machine
+        .scratch
+        .set(0x40C9_0FDB);
     turn(
-        &TYRE_CHANGE,
+        &crate::race::owner::race().shared.tyre_change,
         device,
         rect,
         &VERTICES.vertices[..4],
-        &MACHINE.scratch,
+        &crate::system::owner::system().session.machine.scratch,
     );
     quad_words(colour);
     quad_tail(uv);

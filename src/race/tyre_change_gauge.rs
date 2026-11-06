@@ -29,12 +29,9 @@
 //! anything) a player past 7 or a null device.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
 use crate::menu::owner::menus;
-use crate::race::tyre_store::TYRE_CHANGE as TYRE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::session::MACHINE;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
 /// flt_5C2C60 (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
@@ -50,10 +47,26 @@ fn p(x: usize, v: u32) {
 /// log_two_ten}` and flt_5C2C60.
 fn constants() -> [u32; 5] {
     [
-        TYRE.time_base.bits(),
-        TYRE.time_scale.bits(),
-        TYRE.gauge_unit.bits(),
-        TYRE.log_two_ten.bits(),
+        crate::race::owner::race()
+            .shared
+            .tyre_change
+            .time_base
+            .bits(),
+        crate::race::owner::race()
+            .shared
+            .tyre_change
+            .time_scale
+            .bits(),
+        crate::race::owner::race()
+            .shared
+            .tyre_change
+            .gauge_unit
+            .bits(),
+        crate::race::owner::race()
+            .shared
+            .tyre_change
+            .log_two_ten
+            .bits(),
         VIEWER_PANEL.one.bits(),
     ]
 }
@@ -104,14 +117,22 @@ impl Io for GameIo {
         crate::system::check_developer_machine::DEVELOPER.get() == 1
     }
     fn record(&mut self) -> u32 {
-        TYRE.record.get()
+        crate::race::owner::race().shared.tyre_change.record.get()
     }
     fn beaten(&mut self, time: u32) {
-        TYRE.record.set(time);
+        crate::race::owner::race()
+            .shared
+            .tyre_change
+            .record
+            .set(time);
         // g_playerNames, or the second name, byte_7557A4: 30 bytes.
-        let from = 0x20 * (TYRE.player.get() != 0) as usize;
+        let from =
+            0x20 * (crate::race::owner::race().shared.tyre_change.player.get() != 0) as usize;
         for n in 0..30 {
-            TYRE.record_name
+            crate::race::owner::race()
+                .shared
+                .tyre_change
+                .record_name
                 .set(n, menus().play.names.player_names.get(from + n));
         }
     }
@@ -124,10 +145,17 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
     }
-    let Some(d) = DEVICES.input_device(player as usize)? else {
+    let Some(d) = crate::input::owner::input()
+        .devices
+        .input_device(player as usize)?
+    else {
         return Err(BadInput("a tyre change player without a device").into());
     };
-    TYRE.player.set(player);
+    crate::race::owner::race()
+        .shared
+        .tyre_change
+        .player
+        .set(player);
     let mut io = GameIo { device: d };
     let mut gauge = Gauge {
         gauge: d.gauge.get(),
@@ -139,7 +167,11 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     if gauge != before {
         io.store(&gauge);
     }
-    MACHINE.scratch.set(result);
+    crate::system::owner::system()
+        .session
+        .machine
+        .scratch
+        .set(result);
     Ok(result)
 }
 
@@ -154,10 +186,26 @@ mod asm_reference {
 
     impl Drop for Kept {
         fn drop(&mut self) {
-            TYRE.time_base.set_bits(self.0[0]);
-            TYRE.time_scale.set_bits(self.0[1]);
-            TYRE.gauge_unit.set_bits(self.0[2]);
-            TYRE.log_two_ten.set_bits(self.0[3]);
+            crate::race::owner::race()
+                .shared
+                .tyre_change
+                .time_base
+                .set_bits(self.0[0]);
+            crate::race::owner::race()
+                .shared
+                .tyre_change
+                .time_scale
+                .set_bits(self.0[1]);
+            crate::race::owner::race()
+                .shared
+                .tyre_change
+                .gauge_unit
+                .set_bits(self.0[2]);
+            crate::race::owner::race()
+                .shared
+                .tyre_change
+                .log_two_ten
+                .set_bits(self.0[3]);
         }
     }
 
@@ -201,10 +249,26 @@ mod asm_reference {
         let _l = lock();
         let _saved = Saved::new(&[SQRT_OFFSET]);
         let _kept = Kept([
-            TYRE.time_base.bits(),
-            TYRE.time_scale.bits(),
-            TYRE.gauge_unit.bits(),
-            TYRE.log_two_ten.bits(),
+            crate::race::owner::race()
+                .shared
+                .tyre_change
+                .time_base
+                .bits(),
+            crate::race::owner::race()
+                .shared
+                .tyre_change
+                .time_scale
+                .bits(),
+            crate::race::owner::race()
+                .shared
+                .tyre_change
+                .gauge_unit
+                .bits(),
+            crate::race::owner::race()
+                .shared
+                .tyre_change
+                .log_two_ten
+                .bits(),
         ]);
         let mut r = Rng(31);
         let mut off = 0;
@@ -212,10 +276,26 @@ mod asm_reference {
         at_each_control_word(|| {
             for n in 0..60000u32 {
                 if n >= 20000 {
-                    TYRE.time_base.set_bits(r.float());
-                    TYRE.time_scale.set_bits(r.float());
-                    TYRE.gauge_unit.set_bits(r.float());
-                    TYRE.log_two_ten.set_bits(r.float());
+                    crate::race::owner::race()
+                        .shared
+                        .tyre_change
+                        .time_base
+                        .set_bits(r.float());
+                    crate::race::owner::race()
+                        .shared
+                        .tyre_change
+                        .time_scale
+                        .set_bits(r.float());
+                    crate::race::owner::race()
+                        .shared
+                        .tyre_change
+                        .gauge_unit
+                        .set_bits(r.float());
+                    crate::race::owner::race()
+                        .shared
+                        .tyre_change
+                        .log_two_ten
+                        .set_bits(r.float());
                     p(SQRT_OFFSET, r.float());
                 }
                 let s = if n < 20000 {

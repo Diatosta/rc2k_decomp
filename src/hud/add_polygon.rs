@@ -20,7 +20,6 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::owner_frame::Frame;
 use crate::scene::owner::scene;
-use crate::session::SCREEN;
 
 /// The Rust version (see the header). What the original leaves in eax, ecx, esi and edi
 /// is read by none of its callers (register liveness, 2026-10-23).
@@ -39,7 +38,10 @@ pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
             batch::flushes(vertices, texture, hud.block.batch_texture.get())
         };
         batch::check_polygon(count, vertices, hud.block.index_count.get(), flushes)?;
-        let [w, h]: [u32; 2] = [SCREEN.width.get(), SCREEN.height.get()];
+        let [w, h]: [u32; 2] = [
+            crate::system::owner::system().session.screen.width.get(),
+            crate::system::owner::system().session.screen.height.get(),
+        ];
         let [kx, ky] = [
             hud.block.virtual_screen[0].get(),
             hud.block.virtual_screen[1].get(),

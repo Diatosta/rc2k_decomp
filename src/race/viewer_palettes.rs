@@ -12,7 +12,6 @@
 
 use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
-use crate::race::replay_file_store::REPLAY_FILE;
 use crate::scene::owner::scene;
 
 /// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
@@ -28,19 +27,31 @@ pub fn viewer_palettes() -> Result<(), BadInput> {
     // The textures and slots kept: (to, from).
     for (to, from) in [
         (
-            &REPLAY_FILE.viewer_first_texture_a,
+            &crate::race::owner::race()
+                .shared
+                .replay_file
+                .viewer_first_texture_a,
             &textures.kinds.kind_first_textures[212],
         ), // g_kindFirstTextures + 0x350
         (
-            &REPLAY_FILE.viewer_list_texture,
+            &crate::race::owner::race()
+                .shared
+                .replay_file
+                .viewer_list_texture,
             &textures.kinds.kind_first_slots[212],
         ), // g_kindFirstSlots + 0x350
         (
-            &REPLAY_FILE.viewer_panel_texture,
+            &crate::race::owner::race()
+                .shared
+                .replay_file
+                .viewer_panel_texture,
             &textures.kinds.kind_first_textures[201],
         ), // g_kindFirstTextures + 0x324
         (
-            &REPLAY_FILE.viewer_device_texture,
+            &crate::race::owner::race()
+                .shared
+                .replay_file
+                .viewer_device_texture,
             &textures.kinds.kind_first_slots[201],
         ), // g_kindFirstSlots + 0x324
     ] {

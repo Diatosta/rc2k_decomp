@@ -7,8 +7,6 @@
 //!
 //! Caller: `sub_43C8AC`.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -19,9 +17,9 @@ fn core(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.step_clock as &dyn Cell32,
-        &PHYSICS.time_marks[1],
-        &PHYSICS.time_marks[0],
+        &crate::race::owner::race().shared.car.step_clock as &dyn Cell32,
+        &crate::race::owner::race().shared.physics_tables.time_marks[1],
+        &crate::race::owner::race().shared.physics_tables.time_marks[0],
     ]
 }
 

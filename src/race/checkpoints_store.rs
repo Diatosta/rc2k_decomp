@@ -34,13 +34,13 @@ pub struct Checkpoints {
     pub replay_cameras_2: [Dword; 1024],
 }
 
-/// The piece, a field of `race::buffers_store::BUFFERS`.
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = Checkpoints;
     fn deref(&self) -> &Checkpoints {
-        &crate::race::buffers_store::BUFFERS.checkpoints
+        &crate::race::owner::race().shared.buffers.checkpoints
     }
 }
 

@@ -19,30 +19,32 @@
 
 use crate::errors::BadInput;
 use crate::input::di_harness::{CAPS_LEN, CONTROLLERS};
-use crate::input::guids::INPUT_GUIDS;
-use crate::input::store::DEVICES;
 use crate::input::types::{Controller, DiDeviceInstance};
 use crate::pointers::GamePtr;
-use crate::session::MACHINE;
 
 /// Looks the joystick over and fills the entry: false at the first failure.
 fn look_over(instance: &DiDeviceInstance, entry: &'static Controller) -> Result<bool, BadInput> {
     use crate::input::di_objects as di;
-    let input = DEVICES.direct_input.get();
+    let input = crate::input::owner::input().devices.direct_input.get();
     let made = di::create_device(input, &instance.instance);
-    if di::store(&DEVICES.new_joystick, made) != 0 {
+    if di::store(&crate::input::owner::input().devices.new_joystick, made) != 0 {
         return Ok(false);
     }
-    let device = DEVICES.new_joystick.get();
-    let made = di::query_interface(device, &INPUT_GUIDS.device2.read());
-    if di::store(&DEVICES.new_joystick2, made) != 0 {
+    let device = crate::input::owner::input().devices.new_joystick.get();
+    let made = di::query_interface(device, &crate::input::owner::input().guids.device2.read());
+    if di::store(&crate::input::owner::input().devices.new_joystick2, made) != 0 {
         return Ok(false);
     }
-    let device2 = DEVICES.new_joystick2.get();
+    let device2 = crate::input::owner::input().devices.new_joystick2.get();
     if di::set_data_format(device2) != 0 {
         return Ok(false);
     }
-    if di::set_cooperative_level(device2, MACHINE.window.get(), 5) != 0 {
+    if di::set_cooperative_level(
+        device2,
+        crate::system::owner::system().session.machine.window.get(),
+        5,
+    ) != 0
+    {
         return Ok(false);
     }
     let Ok(caps) = di::get_capabilities(device2, CAPS_LEN as u32) else {
@@ -59,7 +61,7 @@ fn look_over(instance: &DiDeviceInstance, entry: &'static Controller) -> Result<
     entry.instance.write(&guid);
     // Converted: `rc2k_core::input::joystick::{name_prefix, found}`.
     use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
-    let count = DEVICES.controller_count.get();
+    let count = crate::input::owner::input().devices.controller_count.get();
     let name = name_prefix(count);
     let at_name = GamePtr::to(&entry.name);
     at_name.write_bytes(&name, "a controller's name")?;
@@ -79,7 +81,7 @@ fn look_over(instance: &DiDeviceInstance, entry: &'static Controller) -> Result<
         caps.axes,
         caps.buttons,
         caps.hats,
-        DEVICES.no_force_feedback.get(),
+        crate::input::owner::input().devices.no_force_feedback.get(),
     );
     entry.caps_flags.set(f.caps_flags);
     entry.axes.set(f.axes);
@@ -89,7 +91,10 @@ fn look_over(instance: &DiDeviceInstance, entry: &'static Controller) -> Result<
     if let Some(force) = f.force_feedback {
         entry.force_feedback.set(force);
     }
-    DEVICES.controller_count.set(count.wrapping_add(1));
+    crate::input::owner::input()
+        .devices
+        .controller_count
+        .set(count.wrapping_add(1));
     Ok(true)
 }
 
@@ -106,13 +111,16 @@ pub fn callback(instance: &DiDeviceInstance) -> u32 {
 }
 
 pub fn joystick_found(instance: &DiDeviceInstance) -> Result<u32, BadInput> {
-    let count = DEVICES.controller_count.get();
+    let count = crate::input::owner::input().devices.controller_count.get();
     if count >= CONTROLLERS {
         return Ok(0);
     }
-    let entry = &DEVICES.controllers[count as usize];
+    let entry = &crate::input::owner::input().devices.controllers[count as usize];
     look_over(instance, entry)?;
-    for cell in [&DEVICES.new_joystick2, &DEVICES.new_joystick] {
+    for cell in [
+        &crate::input::owner::input().devices.new_joystick2,
+        &crate::input::owner::input().devices.new_joystick,
+    ] {
         let object = cell.get();
         if object != 0 {
             crate::input::di_objects::release(object);

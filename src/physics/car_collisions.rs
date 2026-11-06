@@ -19,54 +19,61 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::CAR;
 use crate::physics::car_store::Car;
 use crate::physics::corner_hits_car::corner_hits_car;
 use crate::race::owner::Race;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place};
 
 /// The cars looked at: `g_raceCars`, at least one (the loop runs once).
 fn cars() -> u32 {
-    RACE_VIEW.race_cars.get().max(1)
+    crate::race::owner::race()
+        .shared
+        .view
+        .race_cars
+        .get()
+        .max(1)
 }
 
 /// The Rust version. The registers it leaves (ebx the cars looked at) are read by none
 /// of its callers.
 pub fn car_collisions(race: &Race) -> Result<(), Refused> {
     let physics = &race.physics;
-    if !matches!(RACE_VARS.run_kind.get(), 0 | 2) {
+    if !matches!(crate::race::owner::race().shared.vars.run_kind.get(), 0 | 2) {
         return Ok(());
     }
     let n = cars();
     if n > 8 {
         return Err(BadInput("more than eight cars (g_carBlocks' room)").into());
     }
-    if (0..n).any(|k| k != RACE_WORK.current_car.get() && RACE_WORK.car_block(k as usize) == 0) {
+    if (0..n).any(|k| {
+        k != crate::race::owner::race().shared.work.current_car.get()
+            && crate::race::owner::race().shared.work.car_block(k as usize) == 0
+    }) {
         return Err(BadInput("a null car block").into());
     }
     {
         physics.contact.corner_inside.set(0);
         for car in 0..n {
-            if car == RACE_WORK.current_car.get() {
+            if car == crate::race::owner::race().shared.work.current_car.get() {
                 continue;
             }
             physics.contact.other_car_number.set(car);
-            let block = RACE_WORK.car_block(car as usize);
+            let block = crate::race::owner::race()
+                .shared
+                .work
+                .car_block(car as usize);
             physics.contact.other_car_block.set(block);
             // SAFETY: a `g_carBlocks` entry of the eight, not null (both checked above).
             if { Car::at(block) }.driver_kind.bits() == 0 {
                 continue;
             }
             set_place([0usize, 1, 2].map(|k| {
-                CAR.position[k]
+                crate::race::owner::race().shared.car.position[k]
                     .get()
                     .wrapping_sub(Car::at(block).position[k].get())
             }));
             multiply_matrices(
-                &CAR.crash_matrix,
+                &crate::race::owner::race().shared.car.crash_matrix,
                 &race.frame.matrices.placed_matrix,
                 &race.frame.matrices.turned_matrix,
             );

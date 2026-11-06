@@ -11,19 +11,33 @@
 
 use crate::errors::Refused;
 use crate::race::owner_replay::Replay;
-use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::drive::replay_frames::written_view;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
 pub fn write_replay_frames(replay: &Replay) -> Result<(), Refused> {
-    if REPLAY_FILE.replay_open.get() != 1 {
+    if crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_open
+        .get()
+        != 1
+    {
         return Ok(());
     }
-    REPLAY_FILE
+    crate::race::owner::race()
+        .shared
+        .replay_file
         .index_frame_count
-        .set(REPLAY_FILE.index_frame_count.get().wrapping_add(0x64));
+        .set(
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .index_frame_count
+                .get()
+                .wrapping_add(0x64),
+        );
     replay.replay_view.frames_in_block.set(0x64);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[0].set(0);
     crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[1].set(0);

@@ -19,8 +19,6 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::race::owner::race;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
 use crate::scene::owner::scene;
@@ -43,13 +41,20 @@ pub use rc2k_core::scene::shown::Way;
 fn texture_set(course: &crate::race::owner_course::Course) -> Result<(u32, u32), Refused> {
     use rc2k_core::scene::shown::SetError;
     {
-        let object: u32 = FRAME_SWITCHES.object_number.bits();
+        let object: u32 = crate::race::owner::race()
+            .shared
+            .switches
+            .object_number
+            .bits();
         let t = rc2k_core::scene::shown::texture_set(
             object,
             course.numbers.in_race.bits() != 0,
             |object| scene().objects.tables.object_kind(object),
             |car| {
-                let block: u32 = RACE_WORK.car_block(car as usize);
+                let block: u32 = crate::race::owner::race()
+                    .shared
+                    .work
+                    .car_block(car as usize);
                 (block != 0).then(|| crate::physics::car_store::Car::at(block).car_kind.bits())
             },
         )

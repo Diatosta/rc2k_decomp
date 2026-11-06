@@ -12,8 +12,6 @@
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
-use crate::race::tables_store::RACE_TABLES;
-use crate::race::work_store::RACE_WORK;
 use crate::records::stages_store::RecordRef;
 use crate::session::{read_all, write_all};
 
@@ -28,8 +26,16 @@ pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
     // flt_60463C, flt_604654: 6 each
     let s = section as usize;
     let f: [u32; 2] = [
-        RACE_TABLES.stage_time_factors_last[s].bits(),
-        RACE_TABLES.stage_time_factors_first[s].bits(),
+        crate::race::owner::race()
+            .shared
+            .tables
+            .stage_time_factors_last[s]
+            .bits(),
+        crate::race::owner::race()
+            .shared
+            .tables
+            .stage_time_factors_first[s]
+            .bits(),
     ];
     // Converted: `rc2k_core::menu::stage_scale` (exact at the game's precisions for times
     // below 2^29; its header).
@@ -44,8 +50,8 @@ pub fn scale_stage_times(screens: &Screens, record: RecordRef) -> Result<(), Ref
     let section = held_section();
     let times: [u32; 4] = read_all(&screens.state.menus.class_times);
     let (times, f) = scaled(times, section);
-    RACE_WORK.stage_time_scales[0].set_bits(f[0]);
-    RACE_WORK.stage_time_scales[1].set_bits(f[1]);
+    crate::race::owner::race().shared.work.stage_time_scales[0].set_bits(f[0]);
+    crate::race::owner::race().shared.work.stage_time_scales[1].set_bits(f[1]);
     write_all(&screens.state.menus.class_times, times);
     let text = |n: usize| &TEXTS_RVA[n];
     crate::logfile::log_write::log_nul(text(0), false, 1);

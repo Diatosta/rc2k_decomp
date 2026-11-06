@@ -18,7 +18,6 @@
 //! probe thrown away: section 16); `audio::choose_modes`; "AUD: Using modes" and both;
 //! `audio::close_sound`; the mode 0. One caller, the audio thread.
 
-use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 
 const USING_MODES_TEXT: &std::ffi::CStr = c"AUD: Using modes"; // "AUD: Using modes"
@@ -30,35 +29,47 @@ pub fn start() -> Result<bool, Refused> {
         A3D2_MODE, CAPS_EMULATED, Fact, MENU_MODE, modes_kept, probed_race_mode,
     };
     crate::audio::a3d::open_a3d2()?;
-    AUDIO.has_a3d2.set(AUDIO.use_a3d.get());
+    crate::audio::owner::audio()
+        .state
+        .has_a3d2
+        .set(crate::audio::owner::audio().state.use_a3d.get());
     crate::audio::a3d::close_a3d2()?;
     // The original's ebx: the race mode found.
     let mut found = MENU_MODE;
-    AUDIO.sound_mode.set(MENU_MODE | 0x190_0000);
+    crate::audio::owner::audio()
+        .state
+        .sound_mode
+        .set(MENU_MODE | 0x190_0000);
     let mut to_log = false;
     if !sd::open_sound_in_game(0)? {
-        if AUDIO.has_a3d2.get() == 1 {
+        if crate::audio::owner::audio().state.has_a3d2.get() == 1 {
             found = A3D2_MODE;
         } else {
-            AUDIO.menu_sound_mode.set(0);
-            AUDIO.race_sound_mode.set(0);
+            crate::audio::owner::audio().state.menu_sound_mode.set(0);
+            crate::audio::owner::audio().state.race_sound_mode.set(0);
             to_log = true;
         }
     } else {
-        AUDIO.a3d_splash_kept.set(AUDIO.a3d_ready.get());
-        let flags = || AUDIO.sound_caps.get_u32(4);
+        crate::audio::owner::audio()
+            .state
+            .a3d_splash_kept
+            .set(crate::audio::owner::audio().state.a3d_ready.get());
+        let flags = || crate::audio::owner::audio().state.sound_caps.get_u32(4);
         if sd::read_caps()? && flags() & CAPS_EMULATED == 0 {
             crate::audio::primary::make_primary()?;
-            let has_3d = (AUDIO.sound_mode.get() & 0x10_0000 != 0) as u32;
-            AUDIO.has_3d.set(has_3d);
-            crate::audio::mixer_set_up::open_way(AUDIO.sound_mode.get())?;
+            let has_3d =
+                (crate::audio::owner::audio().state.sound_mode.get() & 0x10_0000 != 0) as u32;
+            crate::audio::owner::audio().state.has_3d.set(has_3d);
+            crate::audio::mixer_set_up::open_way(
+                crate::audio::owner::audio().state.sound_mode.get(),
+            )?;
             // A probe voice in the pool's first record: zeroed, then its format, the mixing
             // rate setting, flags 1 and 0x4000 bytes.
-            let probe = &AUDIO.voices[0];
+            let probe = &crate::audio::owner::audio().state.voices[0];
             probe.update(|v| {
                 *v = Default::default();
                 v.format = 0x121;
-                v.frequency = AUDIO.mix_rate_setting.get();
+                v.frequency = crate::audio::owner::audio().state.mix_rate_setting.get();
                 v.flags = 1;
                 v.length = 0x4000;
             });
@@ -67,32 +78,52 @@ pub fn start() -> Result<bool, Refused> {
             crate::audio::release_eax::release_eax();
             crate::audio::release_voice_manager::release_voice_manager();
             crate::audio::release_voice::release_voice_in_game(voice);
-            crate::audio::mixer_set_up::close_way(AUDIO.sound_mode.get())?;
+            crate::audio::mixer_set_up::close_way(
+                crate::audio::owner::audio().state.sound_mode.get(),
+            )?;
             sd::release_primary()?;
             // Converted: `rc2k_core::audio::device::probed_race_mode`.
             found = probed_race_mode(|fact| match fact {
                 Fact::CapsFlags => flags(),
-                Fact::FreeHardware => AUDIO.sound_caps.get_u32(0x14),
-                Fact::Has3d => AUDIO.has_3d.get(),
-                Fact::HasA3d2 => AUDIO.has_a3d2.get(),
-                Fact::VoiceManagerOn => AUDIO.voice_manager_on.get(),
-                Fact::Free3d => AUDIO.sound_caps.get_u32(0x3C),
-                Fact::HasEax => AUDIO.has_eax.get(),
+                Fact::FreeHardware => crate::audio::owner::audio().state.sound_caps.get_u32(0x14),
+                Fact::Has3d => crate::audio::owner::audio().state.has_3d.get(),
+                Fact::HasA3d2 => crate::audio::owner::audio().state.has_a3d2.get(),
+                Fact::VoiceManagerOn => crate::audio::owner::audio().state.voice_manager_on.get(),
+                Fact::Free3d => crate::audio::owner::audio().state.sound_caps.get_u32(0x3C),
+                Fact::HasEax => crate::audio::owner::audio().state.has_eax.get(),
             });
         }
     }
     if !to_log {
-        if !modes_kept(AUDIO.race_sound_mode.get(), || AUDIO.menu_sound_mode.get()) {
-            AUDIO.race_sound_mode.set(found);
-            AUDIO.menu_sound_mode.set(MENU_MODE);
-            AUDIO.race_sound_mode.set(MENU_MODE);
+        if !modes_kept(
+            crate::audio::owner::audio().state.race_sound_mode.get(),
+            || crate::audio::owner::audio().state.menu_sound_mode.get(),
+        ) {
+            crate::audio::owner::audio()
+                .state
+                .race_sound_mode
+                .set(found);
+            crate::audio::owner::audio()
+                .state
+                .menu_sound_mode
+                .set(MENU_MODE);
+            crate::audio::owner::audio()
+                .state
+                .race_sound_mode
+                .set(MENU_MODE);
         }
         crate::audio::choose_modes::in_game(&mut crate::audio::choose_modes::real_log)?;
     }
     sd::log_text(USING_MODES_TEXT, false);
-    sd::log_hex(AUDIO.menu_sound_mode.get(), false);
-    sd::log_hex(AUDIO.race_sound_mode.get(), true);
+    sd::log_hex(
+        crate::audio::owner::audio().state.menu_sound_mode.get(),
+        false,
+    );
+    sd::log_hex(
+        crate::audio::owner::audio().state.race_sound_mode.get(),
+        true,
+    );
     sd::close_sound()?;
-    AUDIO.sound_mode.set(0);
-    Ok(AUDIO.race_sound_mode.get() >= 1)
+    crate::audio::owner::audio().state.sound_mode.set(0);
+    Ok(crate::audio::owner::audio().state.race_sound_mode.get() >= 1)
 }

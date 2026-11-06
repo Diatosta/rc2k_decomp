@@ -23,12 +23,9 @@ use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
-use crate::physics::car_store::CAR;
 use crate::physics::gear_change_sound::gear_change_sound;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::race::view_store::RACE_VIEW;
 use crate::scene::matrix3::extended;
 use crate::scene::owner::scene;
 use rc2k_core::physics::engine::ease_revs;
@@ -44,24 +41,40 @@ fn run(course: &Course) {
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
 /// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
 fn run_at(course: &Course) {
-    CAR.engine_speed_scaled.set_bits(st(
-        ld(CAR.local_velocity[2].bits()) * ld(course.numbers.two_and_a_quarter.bits())
-    ));
-    let speed = ld(CAR.engine_speed_scaled.bits());
-    let flags = CAR.option_bits.get();
+    crate::race::owner::race()
+        .shared
+        .car
+        .engine_speed_scaled
+        .set_bits(st(ld(crate::race::owner::race().shared.car.local_velocity
+            [2]
+        .bits())
+            * ld(course.numbers.two_and_a_quarter.bits())));
+    let speed = ld(crate::race::owner::race()
+        .shared
+        .car
+        .engine_speed_scaled
+        .bits());
+    let flags = crate::race::owner::race().shared.car.option_bits.get();
     let scaled = if flags & 0x100 != 0 {
         speed * ld(course.numbers.kilometres_in_mile.bits())
     } else {
         speed
     };
-    CAR.engine_sound_speed_int.set_bits(to_int(scaled) as u32);
+    crate::race::owner::race()
+        .shared
+        .car
+        .engine_sound_speed_int
+        .set_bits(to_int(scaled) as u32);
     let (z, x, y) = (
-        ld(CAR.velocity[2].bits()),
-        ld(CAR.velocity[0].bits()),
-        ld(CAR.velocity[1].bits()),
+        ld(crate::race::owner::race().shared.car.velocity[2].bits()),
+        ld(crate::race::owner::race().shared.car.velocity[0].bits()),
+        ld(crate::race::owner::race().shared.car.velocity[1].bits()),
     );
     let sum = z * z + (x * x + y * y);
-    CAR.sound_speed
+    crate::race::owner::race()
+        .shared
+        .car
+        .sound_speed
         .set_bits(st(sum.sqrt() * ld(course.numbers.two_and_a_quarter.bits())));
 }
 
@@ -70,15 +83,20 @@ fn run_at(course: &Course) {
 // and the rounding stay x87).
 pub fn engine_sound(race: &Race) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    if RACE_VIEW.players.get() == 1 && RACE_VIEW.view_block(0) == 0 {
+    if crate::race::owner::race().shared.view.players.get() == 1
+        && crate::race::owner::race().shared.view.view_block(0) == 0
+    {
         return Err(crate::errors::BadInput("a null view block").into());
     }
     run(&race.course);
-    drawing
-        .scene
-        .scratch
-        .set(x87::loaded(CAR.engine_speed.bits()));
-    let floor = PHYSICS.idle_engine_speed.bits();
+    drawing.scene.scratch.set(x87::loaded(
+        crate::race::owner::race().shared.car.engine_speed.bits(),
+    ));
+    let floor = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .idle_engine_speed
+        .bits();
     let held = hold_low(
         f32::from_bits(drawing.scene.scratch.get()),
         f32::from_bits(floor),
@@ -88,8 +106,19 @@ pub fn engine_sound(race: &Race) -> Result<(), Refused> {
         .scene
         .scratch
         .set(ext_to_int(extended(drawing.scene.scratch.get())) as u32);
-    let (revs, _) = ease_revs(CAR.engine_sound_revs.get(), drawing.scene.scratch.get());
-    CAR.engine_sound_revs.set(revs);
+    let (revs, _) = ease_revs(
+        crate::race::owner::race()
+            .shared
+            .car
+            .engine_sound_revs
+            .get(),
+        drawing.scene.scratch.get(),
+    );
+    crate::race::owner::race()
+        .shared
+        .car
+        .engine_sound_revs
+        .set(revs);
     { car_sound_state(race) }?;
     gear_change_sound()
 }

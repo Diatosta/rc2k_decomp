@@ -25,7 +25,6 @@ use crate::errors::Refused;
 use crate::framework::log;
 use crate::menu::owner::Panels;
 use crate::menu::owner::menus;
-use crate::session::SCREEN;
 use rc2k_core::menu::films::{self, Film, Flags, Step};
 
 // ---- game data ----
@@ -135,7 +134,7 @@ impl films::Films for Game {
     }
 
     fn screen_bits(&mut self) -> u32 {
-        SCREEN.bits.get()
+        crate::system::owner::system().session.screen.bits.get()
     }
 
     fn step(&mut self, s: Step) -> Flags {

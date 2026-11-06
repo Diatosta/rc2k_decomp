@@ -16,10 +16,8 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::compare_80;
-use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::flow::{copy_cells, fill_cells, negate};
-use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
@@ -28,7 +26,7 @@ use crate::race::owner::Race;
 /// callers.
 pub fn steps(race: &Race) -> Result<(), Refused> {
     let work = &race.frame.scratch.work_vector;
-    copy_cells(work, &CAR.velocity);
+    copy_cells(work, &crate::race::owner::race().shared.car.velocity);
     negate(&work[0]);
     negate(&work[1]);
     negate(&work[2]);
@@ -37,12 +35,25 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     }
     normalise_work_vector();
     copy_cells(&race.physics.contact.contact_normal, work);
-    copy_cells(&race.physics.contact.contact_car_speed, &CAR.velocity);
-    copy_cells(&race.physics.contact.contact_turn_speed, &CAR.spin);
+    copy_cells(
+        &race.physics.contact.contact_car_speed,
+        &crate::race::owner::race().shared.car.velocity,
+    );
+    copy_cells(
+        &race.physics.contact.contact_turn_speed,
+        &crate::race::owner::race().shared.car.spin,
+    );
     fill_cells(&race.physics.contact.contact_point, 0);
     race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(race, &PHYSICS.contacts[4]);
+    contact_force(
+        race,
+        &crate::race::owner::race().shared.physics_tables.contacts[4],
+    );
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;
-    PHYSICS.wall_heading.set(u32::MAX);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .wall_heading
+        .set(u32::MAX);
     Ok(())
 }

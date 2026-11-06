@@ -244,10 +244,13 @@ pub struct StageTimes {
 
 fn champ_records() -> Result<RecordTable, BadInput> {
     let screens = &menus().screens;
-    crate::records::stages_store::STAGE_TABLES.group_event_table(
-        screens.event.stage_group.get(),
-        screens.event.stage_sub.get(),
-    )
+    crate::system::owner::system()
+        .records
+        .stage_tables
+        .group_event_table(
+            screens.event.stage_group.get(),
+            screens.event.stage_sub.get(),
+        )
 }
 
 fn champ_table() -> &'static StageTable {
@@ -259,7 +262,10 @@ fn champ_table() -> &'static StageTable {
 }
 
 fn rally_records() -> Result<RecordTable, BadInput> {
-    crate::records::stages_store::STAGE_TABLES.level_table(menus().play.arcade.level.get())
+    crate::system::owner::system()
+        .records
+        .stage_tables
+        .level_table(menus().play.arcade.level.get())
 }
 
 fn rally_table() -> &'static StageTable {
@@ -384,7 +390,10 @@ const INDEX: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
 /// `records::find_record` of the record table: the section's record `index`.
 pub fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
     crate::records::find_record::find_record_in(
-        crate::records::stages_store::STAGE_TABLES.championship(),
+        crate::system::owner::system()
+            .records
+            .stage_tables
+            .championship(),
         index as i32,
         SECTION.get(),
     )
@@ -393,7 +402,10 @@ pub fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
 /// Whether the record table has the section (the look-up has no end): for the refusals.
 pub fn section_there() -> Result<bool, crate::errors::BadInput> {
     crate::records::find_record::has_section(
-        crate::records::stages_store::STAGE_TABLES.championship(),
+        crate::system::owner::system()
+            .records
+            .stage_tables
+            .championship(),
         SECTION.get(),
         0x400,
     )

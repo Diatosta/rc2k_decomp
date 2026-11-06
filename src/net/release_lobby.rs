@@ -7,12 +7,10 @@
 //! Caller: `net::destroy_connection`. `Release` from Rust (`net::dplay`).
 //! Refuses nothing.
 
-use crate::net::store::NET;
-
 /// The Rust version.
 pub fn release_lobby() {
-    if NET.lobby.get() != 0 {
-        crate::net::dp_objects::release(NET.lobby.get());
-        NET.lobby.set(0);
+    if crate::net::owner::net().vars.lobby.get() != 0 {
+        crate::net::dp_objects::release(crate::net::owner::net().vars.lobby.get());
+        crate::net::owner::net().vars.lobby.set(0);
     }
 }

@@ -12,7 +12,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
 use crate::session::Cell32;
 use rc2k_core::physics::ground::SkidStart;
 
@@ -44,17 +43,17 @@ pub fn start_at(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.wheel_squeeze[0] as &dyn Cell32,
-        &CAR.wheel_squeeze[1],
-        &CAR.wheel_squeeze[2],
-        &CAR.wheel_squeeze[3],
-        &CAR.camera_view_return,
-        &CAR.camera_blend_view,
-        &CAR.camera_switch_active,
-        &CAR.camera_switch_share,
-        &CAR.camera_switch_length,
-        &CAR.step_clock,
-        &CAR.camera_switch_clock,
+        &crate::race::owner::race().shared.car.wheel_squeeze[0] as &dyn Cell32,
+        &crate::race::owner::race().shared.car.wheel_squeeze[1],
+        &crate::race::owner::race().shared.car.wheel_squeeze[2],
+        &crate::race::owner::race().shared.car.wheel_squeeze[3],
+        &crate::race::owner::race().shared.car.camera_view_return,
+        &crate::race::owner::race().shared.car.camera_blend_view,
+        &crate::race::owner::race().shared.car.camera_switch_active,
+        &crate::race::owner::race().shared.car.camera_switch_share,
+        &crate::race::owner::race().shared.car.camera_switch_length,
+        &crate::race::owner::race().shared.car.step_clock,
+        &crate::race::owner::race().shared.car.camera_switch_clock,
     ]
 }
 

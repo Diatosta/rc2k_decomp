@@ -4,7 +4,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner::race;
-use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_viewer::Mode;
 
 /// One start in `mode` (the original's eax): the viewer, when there is a replay. (The
@@ -13,7 +12,13 @@ use crate::race::replay_viewer::Mode;
 pub fn replay_mode(mode: Mode) -> Result<(), Refused> {
     let race = race();
     // Converted: `rc2k_core::race::viewer_flow::views_replay`.
-    if rc2k_core::race::viewer_flow::views_replay(REPLAY_FILE.replay_closed.bits()) {
+    if rc2k_core::race::viewer_flow::views_replay(
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .replay_closed
+            .bits(),
+    ) {
         crate::race::replay_viewer::replay_viewer(race, mode)?;
     }
     Ok(())

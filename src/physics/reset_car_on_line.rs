@@ -10,7 +10,6 @@
 //! Caller: `physics::reset_car` (its end). Refuses what the three calls refuse.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::scene::owner::scene;
 
@@ -21,7 +20,11 @@ use crate::scene::owner::scene;
 pub fn reset_car_on_line(race: &Race) -> Result<(), Refused> {
     let lights = &scene().lights;
     let nearest = crate::race::start_place::nearest_checkpoint(race)?;
-    for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
+    for cell in [
+        &crate::race::owner::race().shared.car.checkpoint,
+        &crate::race::owner::race().shared.car.reset_checkpoint,
+        &crate::race::owner::race().shared.car.last_pace_call,
+    ] {
         cell.set(nearest);
     }
     for cell in [&lights.state.line_place, &lights.state.line_fraction] {
@@ -29,8 +32,20 @@ pub fn reset_car_on_line(race: &Race) -> Result<(), Refused> {
     }
     crate::race::start_place::place_car_on_line(&race.course)?;
     crate::race::car_starts::reset_car_motion()?;
-    CAR.value_jump_steps.set(8u32);
-    CAR.light_hold_steps.set(8u32);
-    CAR.reset_marker.set(10u32);
+    crate::race::owner::race()
+        .shared
+        .car
+        .value_jump_steps
+        .set(8u32);
+    crate::race::owner::race()
+        .shared
+        .car
+        .light_hold_steps
+        .set(8u32);
+    crate::race::owner::race()
+        .shared
+        .car
+        .reset_marker
+        .set(10u32);
     Ok(())
 }

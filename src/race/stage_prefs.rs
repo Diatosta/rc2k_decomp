@@ -4,13 +4,10 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::owner::scene;
 
 // The stage's localdat is the whole of `race().course.stage_prefs` (0x608CB4, 0x206C bytes).
@@ -39,7 +36,7 @@ fn swapped(n: u32) -> u32 {
 pub fn swap_stage_texture(course: &Course) {
     // Converted: `rc2k_core::race::stage::swap_texture`.
     use rc2k_core::race::stage::{Swap, swap_texture};
-    let stage: u32 = RACE_VARS.stage_number.bits();
+    let stage: u32 = crate::race::owner::race().shared.vars.stage_number.bits();
     let ((_, new), swap) = swap_texture(stage, kind, swapped);
     let swapped_kind = match swap {
         Swap::NotThisStage | Swap::NotFound => return,
@@ -57,7 +54,9 @@ pub fn swap_stage_texture(course: &Course) {
 pub fn tweak_stage(course: &Course) {
     {
         // Converted: `rc2k_core::race::stage::stage_tweaked`.
-        if rc2k_core::race::stage::stage_tweaked(RACE_VARS.stage_number.bits()) {
+        if rc2k_core::race::stage::stage_tweaked(
+            crate::race::owner::race().shared.vars.stage_number.bits(),
+        ) {
             crate::session::write_bits(&course.stage_prefs.car_light_table, [0xFFu32; 3]);
         }
     }
@@ -66,7 +65,13 @@ pub fn tweak_stage(course: &Course) {
 /// `race::clear_prefs_qword` (0x465381): with `dword_71C800` set, `qword_609344` 0.
 pub fn clear_prefs_qword(course: &Course) {
     {
-        if RACE_WORK.no_precipitation.get() != 0 {
+        if crate::race::owner::race()
+            .shared
+            .work
+            .no_precipitation
+            .get()
+            != 0
+        {
             crate::session::write_bits(&course.stage_prefs.blit_cleared, [0u32; 2]);
         }
     }
@@ -143,9 +148,9 @@ pub fn get_mat_crash() {
     // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
     // scene's).
     let turns = rc2k_core::race::stage_objects::crash_turns([
-        CAR.car_heading.get(),
-        CAR.car_pitch.get(),
-        CAR.car_roll.get(),
+        crate::race::owner::race().shared.car.car_heading.get(),
+        crate::race::owner::race().shared.car.car_pitch.get(),
+        crate::race::owner::race().shared.car.car_roll.get(),
     ]);
     crate::session::write_bits(&scene().drawing.object_work.angles, turns);
     matrix::set_turn_x(turns[0]);
@@ -159,6 +164,6 @@ pub fn get_mat_crash() {
     matrix::multiply_matrices(
         &frame.matrices.lit_matrix,
         &frame.matrices.turn_y_matrix,
-        &CAR.crash_matrix,
+        &crate::race::owner::race().shared.car.crash_matrix,
     );
 }

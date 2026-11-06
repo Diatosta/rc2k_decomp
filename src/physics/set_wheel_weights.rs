@@ -16,7 +16,6 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, weight_force};
-use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::owner::Race;
 use crate::scene::owner::scene;
@@ -38,10 +37,18 @@ pub fn set_wheel_weights(race: &Race) {
         scratch.get(),
         one,
         k,
-        PHYSICS.gravity.bits(),
-        PHYSICS.weight.bits(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .gravity
+            .bits(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .weight
+            .bits(),
     );
-    let wheels = &PHYSICS.forces[..4];
+    let wheels = &crate::race::owner::race().shared.physics_tables.forces[..4];
     for w in wheels {
         w.force[1].set_bits(f);
     }

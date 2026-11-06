@@ -20,9 +20,7 @@
 use crate::logfile::log_float::log_float;
 use crate::math::x87_float::compare;
 use crate::math::x87_float::{ld, st};
-use crate::physics::car_store::CAR;
 use crate::physics::scale_vector::scale_vector;
-use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::rounded;
 use crate::scene::owner::scene;
@@ -50,7 +48,7 @@ pub fn limit_motion() {
     let drawing = &scene().drawing;
     let mut bad = false;
     for k in 0..3usize {
-        let ecx = CAR.velocity[k].bits() & 0x7F80_0000;
+        let ecx = crate::race::owner::race().shared.car.velocity[k].bits() & 0x7F80_0000;
         if ecx == 0x7F80_0000 {
             bad = true;
             break;
@@ -60,24 +58,44 @@ pub fn limit_motion() {
         crate::logfile::log_write::log_nul(&c"*** INFINITY", false, 1);
         crate::logfile::log_write::log_nul(&c"[car0.newxspd] =", false, 1);
         for k in 0..3usize {
-            log_float(f32::from_bits(CAR.velocity[k].bits()), 5, k == 2, 1);
+            log_float(
+                f32::from_bits(crate::race::owner::race().shared.car.velocity[k].bits()),
+                5,
+                k == 2,
+                1,
+            );
         }
 
         for k in 0..3usize {
-            CAR.velocity[k].set_bits(0);
-            CAR.local_velocity[k].set_bits(0);
-            CAR.spin[k].set_bits(0);
+            crate::race::owner::race().shared.car.velocity[k].set_bits(0);
+            crate::race::owner::race().shared.car.local_velocity[k].set_bits(0);
+            crate::race::owner::race().shared.car.spin[k].set_bits(0);
         }
     }
     for k in 0..3usize {
-        hold(&CAR.spin[k], &PHYSICS.spin_limit);
+        hold(
+            &crate::race::owner::race().shared.car.spin[k],
+            &crate::race::owner::race().shared.physics_tables.spin_limit,
+        );
     }
     for k in [0usize, 2, 1] {
-        hold(&CAR.velocity[k], &PHYSICS.velocity_limit);
+        hold(
+            &crate::race::owner::race().shared.car.velocity[k],
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .velocity_limit,
+        );
     }
-    let length = rounded(vector_length(&CAR.velocity));
+    let length = rounded(vector_length(
+        &crate::race::owner::race().shared.car.velocity,
+    ));
     drawing.scene.motion_length.set_bits(length);
-    let top = PHYSICS.top_speed.bits();
+    let top = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .top_speed
+        .bits();
     let past = matches!(
         f32::from_bits(top).partial_cmp(&f32::from_bits(length)),
         Some(Ordering::Less)
@@ -85,8 +103,11 @@ pub fn limit_motion() {
         || f32::from_bits(length).is_nan();
     if past {
         let factor = crate::math::x87_run::div_80(top, length);
-        scale_vector(&CAR.velocity, factor);
-        scale_vector(&CAR.local_velocity, factor);
+        scale_vector(&crate::race::owner::race().shared.car.velocity, factor);
+        scale_vector(
+            &crate::race::owner::race().shared.car.local_velocity,
+            factor,
+        );
         drawing.scene.scratch.set(rounded(factor));
     }
 }

@@ -14,7 +14,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::work_store::RACE_WORK;
 use crate::sound::store::SoundObject;
 
 // ---- Rust version ----
@@ -26,7 +25,12 @@ fn pairs() -> Result<Vec<(&'static SoundObject, u32)>, BadInput> {
         return Err(BadInput("a sound object count of 0 or over 8"));
     }
     let pairs = (0..count as usize)
-        .map(|n| Ok((SoundObject::number(n as u32)?, RACE_WORK.car_block(n))))
+        .map(|n| {
+            Ok((
+                SoundObject::number(n as u32)?,
+                crate::race::owner::race().shared.work.car_block(n),
+            ))
+        })
         .collect::<Result<Vec<_>, BadInput>>()?;
     if pairs.iter().any(|&(_, c)| c == 0) {
         return Err(BadInput("a null car"));

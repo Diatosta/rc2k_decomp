@@ -11,7 +11,6 @@ use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::race::trap::Trap;
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::owner::scene;
 
@@ -228,17 +227,21 @@ pub fn reset_refresh(course: &Course) {
 pub fn init_checkpoints(physics: &Physics) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::listed_checkpoints`.
     {
-        let kinds = RACE_VARS.checkpoint_count.get();
+        let kinds = crate::race::owner::race()
+            .shared
+            .vars
+            .checkpoint_count
+            .get();
         if (kinds.wrapping_sub(2) as i32) < 0 {
             physics.split_tables.split_colour_count.set(0);
             return Ok(());
         }
-        let end = RACE_VARS.last_checkpoint.get();
+        let end = crate::race::owner::race().shared.vars.last_checkpoint.get();
         let table = &crate::race::checkpoints_store::CHECKPOINTS.checkpoint_faces;
         let trap = Trap::new();
         let listed = rc2k_core::race::checkpoints::listed_checkpoints(end, |n| {
             let face = trap.keep_read(crate::session::read_on_in(
-                &crate::race::buffers_store::BUFFERS,
+                &crate::race::owner::race().shared.buffers,
                 table,
                 n as usize,
                 "the checkpoint table",

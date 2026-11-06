@@ -16,19 +16,22 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::sort_players::{bubble_blocks, swap_blocks};
-use crate::net::store::NET;
 use rc2k_core::net::players;
 
 /// The Rust version.
 pub fn list_players() -> Result<bool, Refused> {
-    if NET.dplay.get() == 0 {
+    if crate::net::owner::net().vars.dplay.get() == 0 {
         return Ok(false);
     }
-    crate::net::dp_objects::set_player_data(NET.dplay.get(), NET.player_id.get(), &NET.own.bytes());
-    if NET.racing.get() != 1 {
-        NET.players.set(0);
+    crate::net::dp_objects::set_player_data(
+        crate::net::owner::net().vars.dplay.get(),
+        crate::net::owner::net().vars.player_id.get(),
+        &crate::net::owner::net().vars.own.bytes(),
+    );
+    if crate::net::owner::net().vars.racing.get() != 1 {
+        crate::net::owner::net().vars.players.set(0);
         let result = crate::net::dp_objects::enum_players(
-            NET.dplay.get(),
+            crate::net::owner::net().vars.dplay.get(),
             crate::net::player_found::callback,
             0,
         );
@@ -36,33 +39,43 @@ pub fn list_players() -> Result<bool, Refused> {
             return Ok(false);
         }
     }
-    let players = NET.players.get();
+    let players = crate::net::owner::net().vars.players.get();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
     for n in 0..players {
-        NET.data_size.set(0x10);
-        let player = NET.player_block(n);
+        crate::net::owner::net().vars.data_size.set(0x10);
+        let player = crate::net::owner::net().vars.player_block(n);
         let mut data = [0u8; 0x10];
-        let (result, size) =
-            crate::net::dp_objects::get_player_data(NET.dplay.get(), player.id.get(), &mut data);
-        NET.data_size.set(size);
+        let (result, size) = crate::net::dp_objects::get_player_data(
+            crate::net::owner::net().vars.dplay.get(),
+            player.id.get(),
+            &mut data,
+        );
+        crate::net::owner::net().vars.data_size.set(size);
         if result == 0 {
             player.record.set_bytes(&data[..size as usize]);
         }
     }
     // Converted: `rc2k_core::net::players` (`bubble` by the ids, `find_own`).
-    let id = |n: u32| NET.player_block(n).id.get();
+    let id = |n: u32| crate::net::owner::net().vars.player_block(n).id.get();
     bubble_blocks(
         players,
         |k| id(k) > id(k + 1),
-        |k| swap_blocks(NET.player_block(k), NET.player_block(k + 1)),
+        |k| {
+            swap_blocks(
+                crate::net::owner::net().vars.player_block(k),
+                crate::net::owner::net().vars.player_block(k + 1),
+            )
+        },
     )?;
-    match players::find_own(NET.player_id.get(), NET.players.get(), |n| {
-        NET.player_block(n).id.get()
-    }) {
+    match players::find_own(
+        crate::net::owner::net().vars.player_id.get(),
+        crate::net::owner::net().vars.players.get(),
+        |n| crate::net::owner::net().vars.player_block(n).id.get(),
+    ) {
         Ok(n) => {
-            NET.player.set(n);
+            crate::net::owner::net().vars.player.set(n);
             Ok(true)
         }
         Err(_) => Ok(false),

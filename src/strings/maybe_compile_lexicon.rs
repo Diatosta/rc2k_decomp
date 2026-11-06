@@ -9,7 +9,6 @@
 //! Hook removed 2026-10-21 (conversion phase 4); the original keeps every register.
 
 use crate::errors::Refused;
-use crate::input::store::DEVICES;
 use crate::strings::compile_lexicon::compile_lexicon;
 
 /// 1 or more (signed) to recompile on the key: a `var\\ral.cfg` setting, out of the image
@@ -20,7 +19,7 @@ pub static RECOMPILE_LEVEL: crate::session::Dword = crate::session::Dword::new(0
 pub fn maybe_compile_lexicon() -> Result<(), Refused> {
     let level = RECOMPILE_LEVEL.get();
     // byte_4F6B2A: `input`'s key states (key 0x4E).
-    let key = DEVICES.keys_down.get(0x4E);
+    let key = crate::input::owner::input().devices.keys_down.get(0x4E);
     // Converted: `rc2k_core::strings::lexicon::recompile_wanted`.
     if rc2k_core::strings::lexicon::recompile_wanted(level, key) {
         compile_lexicon()?;

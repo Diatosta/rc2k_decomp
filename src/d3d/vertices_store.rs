@@ -35,13 +35,13 @@ pub struct PolygonVertices {
     pub vertices: [Vertex; 64],
 }
 
-/// The piece, a field of `race::buffers_store::BUFFERS`.
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = PolygonVertices;
     fn deref(&self) -> &PolygonVertices {
-        &crate::race::buffers_store::BUFFERS.vertices
+        &crate::race::owner::race().shared.buffers.vertices
     }
 }
 

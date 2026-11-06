@@ -14,10 +14,8 @@
 //! -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::gear_shifts::Change;
@@ -35,10 +33,10 @@ pub struct ChangePlaces {
 impl ChangePlaces {
     pub fn game() -> Self {
         Self {
-            wanted: &PHYSICS.gear_asked,
-            bits: &CAR.lost_gear_bits,
-            changed: &CAR.gear_changed,
-            changed_2: &CAR.gear_changed_2,
+            wanted: &crate::race::owner::race().shared.physics_tables.gear_asked,
+            bits: &crate::race::owner::race().shared.car.lost_gear_bits,
+            changed: &crate::race::owner::race().shared.car.gear_changed,
+            changed_2: &crate::race::owner::race().shared.car.gear_changed_2,
         }
     }
 }

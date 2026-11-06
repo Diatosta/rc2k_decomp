@@ -30,8 +30,6 @@ use crate::install::installer::{
     page_action, run_frame, show, unlock,
 };
 use crate::menu::list_handle::ListMenu;
-use crate::session::CLOCKS;
-use crate::session::FLAGS;
 
 const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen");
 
@@ -52,8 +50,20 @@ pub fn run_page(
     use crate::install as i;
     g.pages.list_answer.set(1);
     g.pages.list_leave.set(0);
-    g.pages.move_clock.set(CLOCKS.key_ticks.get());
-    g.pages.key_clock.set(CLOCKS.key_ticks.get());
+    g.pages.move_clock.set(
+        crate::system::owner::system()
+            .session
+            .clocks
+            .key_ticks
+            .get(),
+    );
+    g.pages.key_clock.set(
+        crate::system::owner::system()
+            .session
+            .clocks
+            .key_ticks
+            .get(),
+    );
     g.pages.choice.set(list.highlight());
     let count = list.count() as u32;
     let round = 2 * count as usize + 2;
@@ -89,11 +99,17 @@ pub fn run_page(
                 unlock();
                 show();
             }
-            g.pages.frame_clock.set(CLOCKS.key_ticks.get());
+            g.pages.frame_clock.set(
+                crate::system::owner::system()
+                    .session
+                    .clocks
+                    .key_ticks
+                    .get(),
+            );
             g.pages.choice_before.set(g.pages.choice.get());
             // eax: the key, as the callees leave it (`install::edit_key` changes it)
             let mut key = list_take_key()? as u32;
-            if FLAGS.quitting.get() == 1 {
+            if crate::system::owner::system().session.flags.quitting.get() == 1 {
                 break 'page;
             }
             if key as u8 != 0 && key & 0x80 == 0 {

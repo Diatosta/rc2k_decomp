@@ -47,52 +47,56 @@ impl ControlsScreen {
 }
 
 /// First values the image's (`tests::controls_screen_starts_as_the_games`).
-pub static CONTROLS_SCREEN: ControlsScreen = ControlsScreen {
-    _gap_755170: Bytes::new([0; 8]),
-    _table_755178: [
-        Dword::new(1),
-        Dword::new(2),
-        Dword::new(3),
-        Dword::new(4),
-        Dword::new(5),
-        Dword::new(6),
-        Dword::new(7),
-        Dword::new(8),
-        Dword::new(9),
-        Dword::new(10),
-        Dword::new(11),
-        Dword::new(12),
-        Dword::new(0xFFFF_FFFF),
-    ],
-    _gap_7551ac: Bytes::new([0; 52]),
-    _unused_7551e0: Dword::new(0xFFFF_FFFF),
-    history: [const { Dword::new(0xFFFF_FFFF) }; 4],
-    learning: Dword::new(0),
-    learn_start: Dword::new(0),
-    learned: Dword::new(0),
-    pad_names: [
-        Word::new(0),
-        Word::new(0x3C4),
-        Word::new(0x3C3),
-        Word::new(0),
-        Word::new(0x3C1),
-        Word::new(0),
-        Word::new(0),
-        Word::new(0),
-        Word::new(0x3C2),
-    ],
-    stick_names: [
-        Word::new(0),
-        Word::new(0x3B2),
-        Word::new(0x3B1),
-        Word::new(0),
-        Word::new(0x3C1),
-        Word::new(0),
-        Word::new(0),
-        Word::new(0),
-        Word::new(0x3C2),
-    ],
-};
+impl ControlsScreen {
+    pub const fn new() -> Self {
+        ControlsScreen {
+            _gap_755170: Bytes::new([0; 8]),
+            _table_755178: [
+                Dword::new(1),
+                Dword::new(2),
+                Dword::new(3),
+                Dword::new(4),
+                Dword::new(5),
+                Dword::new(6),
+                Dword::new(7),
+                Dword::new(8),
+                Dword::new(9),
+                Dword::new(10),
+                Dword::new(11),
+                Dword::new(12),
+                Dword::new(0xFFFF_FFFF),
+            ],
+            _gap_7551ac: Bytes::new([0; 52]),
+            _unused_7551e0: Dword::new(0xFFFF_FFFF),
+            history: [const { Dword::new(0xFFFF_FFFF) }; 4],
+            learning: Dword::new(0),
+            learn_start: Dword::new(0),
+            learned: Dword::new(0),
+            pad_names: [
+                Word::new(0),
+                Word::new(0x3C4),
+                Word::new(0x3C3),
+                Word::new(0),
+                Word::new(0x3C1),
+                Word::new(0),
+                Word::new(0),
+                Word::new(0),
+                Word::new(0x3C2),
+            ],
+            stick_names: [
+                Word::new(0),
+                Word::new(0x3B2),
+                Word::new(0x3B1),
+                Word::new(0),
+                Word::new(0x3C1),
+                Word::new(0),
+                Word::new(0),
+                Word::new(0),
+                Word::new(0x3C2),
+            ],
+        }
+    }
+}
 
 /// IDA 0X755170, the first byte of the piece.
 pub const START: usize = 0x755170;
@@ -102,7 +106,7 @@ pub const END: usize = 0x755224;
 /// Where IDA 0X755170 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn controls_screen_addr() -> u32 {
-    crate::pointers::game_address(&raw const CONTROLS_SCREEN)
+    crate::pointers::game_address(&raw const crate::screens::owner::SCREENS_OWNER.controls)
 }
 
 #[cfg(test)]

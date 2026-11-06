@@ -8,13 +8,21 @@
 //! One caller, `start`'s way out (0x401116, also the short one), which calls it directly
 //! (2026-10-23); the registers above are the original's, for reference.
 
-use crate::system::set_error_mode::ERROR_MODE;
-
 /// The Rust version (see the header).
 pub fn restore_error_mode() {
-    if ERROR_MODE.changed.get() != 1 {
+    if crate::system::owner::system()
+        .start
+        .error_mode
+        .changed
+        .get()
+        != 1
+    {
         return;
     }
-    ERROR_MODE.changed.set(0);
-    crate::os::set_error_mode(ERROR_MODE.mode.get());
+    crate::system::owner::system()
+        .start
+        .error_mode
+        .changed
+        .set(0);
+    crate::os::set_error_mode(crate::system::owner::system().start.error_mode.mode.get());
 }

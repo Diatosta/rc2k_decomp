@@ -16,13 +16,13 @@ pub struct Faces {
     pub unknown_40000: [Dword; 2],
 }
 
-/// The piece, a field of `race::buffers_store::BUFFERS`.
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = Faces;
     fn deref(&self) -> &Faces {
-        &crate::race::buffers_store::BUFFERS.faces
+        &crate::race::owner::race().shared.buffers.faces
     }
 }
 

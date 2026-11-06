@@ -17,12 +17,6 @@
 use crate::errors::Refused;
 use crate::logfile::log_int::log_int;
 use crate::race::owner::race;
-use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::tables_store::RACE_TABLES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 
 const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT CREDITS - track", "car"
 
@@ -33,19 +27,39 @@ pub fn credits_race() -> Result<(), Refused> {
     let frame = &race.frame;
     crate::framework::log("race::credits_race: the demonstration starts");
     race.course.numbers.replay_mode.set(0);
-    REPLAY_FILE.hold_car_revs.set(0); // g_holdCarRevs
-    RACE_TABLES.noise_seed.set(0x1234_5678);
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .hold_car_revs
+        .set(0); // g_holdCarRevs
+    crate::race::owner::race()
+        .shared
+        .tables
+        .noise_seed
+        .set(0x1234_5678);
     race.physics.split_tables.arcade_kind.set(2);
-    FRAME_SWITCHES.editor_mode.set(0);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .editor_mode
+        .set(0);
     crate::race::set_up_credits_race::set_up_credits_race()?;
     crate::race::race_cars::set_up_arcade_cars()?;
     crate::race::race_shell::set_start_states()?;
-    RACE_WORK.in_credits.set(1);
+    crate::race::owner::race().shared.work.in_credits.set(1);
     let word = |n: usize| &WORDS[n];
     crate::logfile::log_write::log_nul(word(0), false, 1);
-    log_int(RACE_VARS.stage_number.get() as i32, false, 1);
+    log_int(
+        crate::race::owner::race().shared.vars.stage_number.get() as i32,
+        false,
+        1,
+    );
     crate::logfile::log_write::log_nul(word(1), false, 1);
-    log_int(RACE_VARS.race_car_kinds[0].get() as i32, true, 1);
+    log_int(
+        crate::race::owner::race().shared.vars.race_car_kinds[0].get() as i32,
+        true,
+        1,
+    );
     crate::race::stage_loading::load_stage()?;
     crate::race::frame_text::roll_credits(
         frame,
@@ -53,8 +67,8 @@ pub fn credits_race() -> Result<(), Refused> {
         &mut crate::text::draw_text::GameCanvas,
         &mut crate::race::frame_text::credits_tune,
     )?;
-    RACE_VIEW.after_credits.set(0);
+    crate::race::owner::race().shared.view.after_credits.set(0);
     crate::drive::play_race::play_race()?;
-    RACE_WORK.in_credits.set(0);
+    crate::race::owner::race().shared.work.in_credits.set(0);
     crate::race::race_end::tidy_everything()
 }

@@ -19,7 +19,6 @@ use crate::physics::flow::c0;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
-use crate::race::state_store::RACE_STATE;
 use crate::scene::owner::scene;
 
 /// `flt_64BB64` = the clock less the start (`dword_62400C`) over `flt_5C5D18`.
@@ -80,13 +79,29 @@ pub fn timing_from(race: &Race, now: u32) {
     }
     replay.finish.share.set_bits(0);
     let late = !c0(replay.finish.time.bits(), replay.finish.limit_c.bits());
-    if RACE_STATE.results.finished.get() != 0 && late {
+    if crate::race::owner::race()
+        .shared
+        .state
+        .results
+        .finished
+        .get()
+        != 0
+        && late
+    {
         replay.finish.share.set_bits(0x3F80_0000);
         if c0(replay.finish.time.bits(), replay.finish.limit_d.bits()) {
             share(&race.replay);
         }
     }
-    if late && RACE_STATE.results.finished.get() != 0 {
+    if late
+        && crate::race::owner::race()
+            .shared
+            .state
+            .results
+            .finished
+            .get()
+            != 0
+    {
         MARKS_SETTINGS.race_done.set(1);
     }
 }

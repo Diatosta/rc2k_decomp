@@ -25,7 +25,7 @@ pub fn file_len() -> usize {
 
 /// True if the file was written.
 pub fn save_options(path: crate::pointers::GamePtr) -> Result<bool, Refused> {
-    let file = &crate::files::scratch::SCRATCH.buffer;
+    let file = &crate::system::owner::system().work.files.buffer;
     let mut owned = Vec::new();
     for (place, len) in pieces() {
         owned.push(place.read_bytes(len, "a saved option")?);

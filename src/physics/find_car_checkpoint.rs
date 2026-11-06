@@ -13,10 +13,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_div2, int_80};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 use rc2k_core::physics::progress;
 
@@ -31,24 +28,34 @@ pub fn find_car_checkpoint(race: &Race) -> Result<u32, Refused> {
         .physics
         .ground
         .ground_x
-        .set(CAR.position[0].get());
+        .set(crate::race::owner::race().shared.car.position[0].get());
     race_owner
         .physics
         .ground
         .ground_z
-        .set(CAR.position[2].get());
-    if RACE_VARS.checkpoint_count.get() == 0 {
+        .set(crate::race::owner::race().shared.car.position[2].get());
+    if crate::race::owner::race()
+        .shared
+        .vars
+        .checkpoint_count
+        .get()
+        == 0
+    {
         return Ok(0);
     }
-    let (from, to) = progress::near_window(CAR.checkpoint.get());
+    let (from, to) = progress::near_window(crate::race::owner::race().shared.car.checkpoint.get());
     let near = crate::race::start_place::nearest_checkpoint_in(race, from, to)?;
     scene().drawing.scene.scratch.set(near.distance);
     // g_nearestCheckpointDistance
-    PHYSICS.nearest_checkpoint_distance.set_bits(ext_div2(
-        int_80(near.distance as i32, false),
-        race_owner.course.numbers.k65536.bits(),
-        0x3F80_0000,
-    ));
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .nearest_checkpoint_distance
+        .set_bits(ext_div2(
+            int_80(near.distance as i32, false),
+            race_owner.course.numbers.k65536.bits(),
+            0x3F80_0000,
+        ));
     if progress::search_all(near.distance) {
         return crate::race::start_place::nearest_checkpoint(race);
     }

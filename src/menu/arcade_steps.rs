@@ -55,7 +55,6 @@ use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::menu::standings::{name_address_of, name_of, name_player, with_kept_name};
-use crate::race::state_store::RACE_STATE;
 use crate::records::stages_store::{Holder, RecordRef};
 use crate::session::{Dword, read_all, write_all};
 use rc2k_core::menu::{bests, standings};
@@ -73,7 +72,10 @@ fn stage_record(play: &Play) -> Result<RecordRef, Refused> {
         return Err(BadInput("an arcade level past 5 or stage past 6").into());
     }
     Ok(crate::records::stages_store::row(
-        crate::records::stages_store::STAGE_TABLES.level_table(level)?,
+        crate::system::owner::system()
+            .records
+            .stage_tables
+            .level_table(level)?,
         stage,
     )?)
 }
@@ -245,7 +247,9 @@ pub fn clear_arcade_time_marks(play: &Play) -> Result<(), Refused> {
 pub fn take_arcade_stage_best(play: &Play) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::entries::BestTime::line`.
     let line = with_course_times(play, |ten| ten[0].line())?;
-    RACE_STATE.results.results[0].data.write(&line);
+    crate::race::owner::race().shared.state.results.results[0]
+        .data
+        .write(&line);
     Ok(())
 }
 

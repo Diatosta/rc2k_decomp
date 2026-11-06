@@ -20,23 +20,25 @@ use crate::gfx::owner::gfx;
 use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 use crate::scene::owner::scene;
-use crate::session::SCREEN;
 use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `dword_623DE8`: its colour and see-through,
 /// texture coordinates, then corners (three consecutive fields).
 fn quad_input(o: usize) -> &'static crate::session::Dword {
-    use crate::race::vars_store::RACE_VARS;
     match o {
-        0..0x8 => &RACE_VARS.quad_colour[o / 4],
-        0x8..0x28 => &RACE_VARS.quad_uv[(o - 8) / 4],
-        _ => &RACE_VARS.quad_corners[(o - 0x28) / 4],
+        0..0x8 => &crate::race::owner::race().shared.vars.quad_colour[o / 4],
+        0x8..0x28 => &crate::race::owner::race().shared.vars.quad_uv[(o - 8) / 4],
+        _ => &crate::race::owner::race().shared.vars.quad_corners[(o - 0x28) / 4],
     }
 }
 
 /// The strip's sizes into `dword_6D1870` .. (`strips::sizes`).
 fn sizes(v: [u32; 4]) {
-    let (sizes, _) = strips::sizes(v, SCREEN.width.get(), SCREEN.height.get());
+    let (sizes, _) = strips::sizes(
+        v,
+        crate::system::owner::system().session.screen.width.get(),
+        crate::system::owner::system().session.screen.height.get(),
+    );
     for (n, x) in sizes.into_iter().enumerate() {
         gfx().strips.sizes[n].set(x);
     }

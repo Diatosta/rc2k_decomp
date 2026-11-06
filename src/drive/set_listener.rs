@@ -26,14 +26,10 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::{ext_to_int, int_80, int_over_int_plus};
-use crate::physics::tables_store::PHYSICS;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
@@ -41,8 +37,14 @@ use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
 fn figures() -> Result<[i32; 6], Refused> {
-    let viewed = RACE_VIEW.drawn_view.get();
-    listener::check_viewed(viewed, || RACE_WORK.car_block(viewed as usize) != 0)?;
+    let viewed = crate::race::owner::race().shared.view.drawn_view.get();
+    listener::check_viewed(viewed, || {
+        crate::race::owner::race()
+            .shared
+            .work
+            .car_block(viewed as usize)
+            != 0
+    })?;
     let n = car_file_number(crate::race::blocks_store::own_car().car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
@@ -62,7 +64,10 @@ pub fn set_listener(race: &Race) -> Result<(), Refused> {
     let f = figures()?;
     let car = crate::race::blocks_store::own_car();
     let s = crate::race::blocks_store::block_at(
-        RACE_WORK.car_block(RACE_VIEW.drawn_view.get() as usize),
+        crate::race::owner::race()
+            .shared
+            .work
+            .car_block(crate::race::owner::race().shared.view.drawn_view.get() as usize),
         "a car's block",
     )?;
     let place: [u32; 3] = crate::session::read_all(&s.position);
@@ -85,12 +90,19 @@ pub fn set_listener(race: &Race) -> Result<(), Refused> {
             .set_bits(race.frame.matrices.view_turn_matrix[o as usize / 4].bits());
     }
     MARKS_SETTINGS.listener_figures[0].set(listener::first_figure(
-        RACE_VARS.settings_words[0].get(),
+        crate::race::owner::race().shared.vars.settings_words[0].get(),
         || race.frame.frame_work.view_out.get(),
     ));
     MARKS_SETTINGS.listener_figures[1].set(race.frame.frame_work.sun_place[0].get());
     MARKS_SETTINGS.listener_figures[2].set(race.frame.frame_work.sun_place[1].get());
-    let f = listener::listener_points(f, PHYSICS.ground_drop.get());
+    let f = listener::listener_points(
+        f,
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .ground_drop
+            .get(),
+    );
     for (k, &v) in f.iter().enumerate() {
         physics.camera.listener_points[k].set(v as u32);
     }

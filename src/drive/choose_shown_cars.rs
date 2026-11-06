@@ -17,8 +17,6 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 use crate::session::Dword;
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
@@ -65,17 +63,17 @@ pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
 /// The variables' addresses, in the order the core uses them.
 fn game(race: &Race) -> Vec<&Dword> {
     let mut cells: Vec<&Dword> = vec![
-        &RACE_VIEW.view_cars[0],
-        &RACE_VIEW.view_cars[1],
-        &RACE_VIEW.players,
-        &RACE_VIEW.views,
+        &crate::race::owner::race().shared.view.view_cars[0],
+        &crate::race::owner::race().shared.view.view_cars[1],
+        &crate::race::owner::race().shared.view.players,
+        &crate::race::owner::race().shared.view.views,
         &race.course.numbers.replay_mode,
-        &RACE_VIEW.view_switch,
-        &RACE_VARS.split,
-        &crate::net::store::NET.session, // dword_52A910: in the network's variables
-        &RACE_VIEW.local_car,
-        &RACE_VIEW.view_blocks[0],
-        &RACE_VIEW.view_blocks[1],
+        &crate::race::owner::race().shared.view.view_switch,
+        &crate::race::owner::race().shared.vars.split,
+        &crate::net::owner::net().vars.session, // dword_52A910: in the network's variables
+        &crate::race::owner::race().shared.view.local_car,
+        &crate::race::owner::race().shared.view.view_blocks[0],
+        &crate::race::owner::race().shared.view.view_blocks[1],
     ];
     cells.extend(race.frame.frame_work.listed_car_sounds.iter());
     cells

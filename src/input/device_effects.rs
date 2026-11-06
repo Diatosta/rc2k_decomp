@@ -15,7 +15,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::store::DEVICES;
 use crate::input::types::{Controller, InputDevice};
 
 pub const CONTROLLERS: u32 = 16;
@@ -26,7 +25,7 @@ pub fn controller(record: &InputDevice) -> Result<&'static Controller, Refused> 
     if n >= CONTROLLERS {
         return Err(BadInput("a controller number past the table's 16").into());
     }
-    Ok(&DEVICES.controllers[n as usize])
+    Ok(&crate::input::owner::input().devices.controllers[n as usize])
 }
 
 /// The pending changes of the device `record`'s effects.

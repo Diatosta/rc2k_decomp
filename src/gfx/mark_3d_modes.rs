@@ -22,13 +22,12 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::Display;
-use crate::session::MACHINE;
 
 pub use rc2k_core::gfx::screen_modes::MODES_ROOM;
 
 /// The Rust version on the modes listed for card `kind` (see the header).
 pub fn mark_3d_modes(display: &Display, kind: u32) -> Result<(), Refused> {
-    if MACHINE.has_fpu.get() != 1 {
+    if crate::system::owner::system().session.machine.has_fpu.get() != 1 {
         return Ok(());
     }
     let count: u32 = display.modes.count.get();
@@ -39,7 +38,7 @@ pub fn mark_3d_modes(display: &Display, kind: u32) -> Result<(), Refused> {
     display.mode.depth_bits.set(0xA00);
     display.mode.depth_extra.set(0xA00);
     // 0x5AB98C ..= 0x5AB9AC, every dword of them.
-    let cards = &crate::d3d::cards_store::CARDS_3D;
+    let cards = &crate::d3d::owner::D3D.cards;
     for cell in cards.mode_switches.iter().chain(&cards.mode_switches_end) {
         cell.set(1);
     }

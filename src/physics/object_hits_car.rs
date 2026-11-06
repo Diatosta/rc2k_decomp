@@ -21,7 +21,6 @@ use crate::errors::Refused;
 use crate::math::x87_run::{ext_to_int, int_80};
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
@@ -39,12 +38,18 @@ pub fn object_hits_car(race: &Race, point: u32, face: u32) -> Result<bool, Refus
     let number = race_owner.physics.contact.face_object.get();
     contacts::check_object(number)?;
     { object_turn_matrix(race) }?;
-    PHYSICS.object_hits.set(
-        crate::physics::tables_store::PHYSICS
-            .object_hits
-            .get()
-            .wrapping_add(1),
-    );
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .object_hits
+        .set(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .object_hits
+                .get()
+                .wrapping_add(1),
+        );
     let count = objects.slots.point_counts[number as usize].get();
     // With no points the original skips to `clc` before it sets edx (0x45E779); the
     // points' table is read only when there are some.

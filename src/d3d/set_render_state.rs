@@ -16,7 +16,7 @@ const STATES: u32 = 0x40;
 /// Render state `state` set to `value` (the standalone keeps the value).
 pub fn set_render_state(value: u32, state: u32) {
     if state < STATES {
-        let kept = &crate::d3d::cards_store::CARDS_3D.kept_states[state as usize];
+        let kept = &crate::d3d::owner::d3d().cards.kept_states[state as usize];
         if kept.get() != value {
             kept.set(value);
             crate::platform_3d::forget_states();

@@ -7,10 +7,9 @@
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;
-use crate::physics::tables_store::PHYSICS;
 const COUNT: usize = 0x17;
 
 /// The Rust version.
 pub fn apply_wheel_forces() -> Result<(), Refused> {
-    apply_forces(&PHYSICS.forces[..COUNT])
+    apply_forces(&crate::race::owner::race().shared.physics_tables.forces[..COUNT])
 }

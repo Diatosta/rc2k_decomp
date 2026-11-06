@@ -604,7 +604,7 @@ fn blit(p: &Picture) {
     let pitch = s.pitch.get();
     let pixels = s.pixels.get();
     // masks: blue, green, red, alpha
-    let mask = |n: u32| crate::session::SCREEN.format[1 + n as usize].get();
+    let mask = |n: u32| crate::system::owner::system().session.screen.format[1 + n as usize].get();
     let (mb, mg, mr) = (mask(0), mask(1), mask(2));
     if pixels == 0 || sw == 0 || sh == 0 || w == 0 || h == 0 || !matches!(bytes, 2 | 4) {
         return;
@@ -856,7 +856,7 @@ fn run(film: &mut Film) -> u8 {
         crate::platform::pump_messages_now();
         // The window closed: the film ends (the original played on without a window; its
         // pump's carry for `WM_QUIT` is not looked at here). Fixed bug.
-        if crate::session::FLAGS.quitting.get() == 1 {
+        if crate::system::owner::system().session.flags.quitting.get() == 1 {
             break;
         }
         // the frame's time, as the stream's Update waits for it

@@ -12,7 +12,6 @@
 //! skips their frames (held for the owner: notes/open_items_full.md).
 
 use crate::errors::Refused;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_frame::Frame;
 
 // g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
@@ -24,15 +23,22 @@ use crate::race::owner_frame::Frame;
 pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(
-        PHYSICS.scene_clock.get(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .scene_clock
+            .get(),
         frame.clock_ticks.sound_tick_last.get(),
     ) {
         return Ok(());
     }
-    frame
-        .clock_ticks
-        .sound_tick_last
-        .set(PHYSICS.scene_clock.get());
+    frame.clock_ticks.sound_tick_last.set(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .scene_clock
+            .get(),
+    );
     crate::sound::race_turn_if::race_turn_if()?;
     frame
         .clock_ticks

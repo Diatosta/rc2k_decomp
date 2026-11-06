@@ -13,8 +13,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::hud::overlay_pass::shown_layout;
 use crate::race::owner_frame::Frame;
-use crate::race::replay_file_store::REPLAY_FILE;
-use crate::race::view_store::RACE_VIEW;
 use crate::scene::owner::scene;
 
 /// Whether the strip of the view block `handle` names is shown (see the header).
@@ -37,12 +35,20 @@ pub fn draw_view_strips(frame: &Frame) -> Result<(), Refused> {
     use crate::hud::draw_view_strip::{draw_view_strip, overlay_tail};
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
     {
-        if REPLAY_FILE.hold_car_revs.bits() == 0 {
-            if flashing(RACE_VIEW.view_blocks[0].get())? {
+        if crate::race::owner::race()
+            .shared
+            .replay_file
+            .hold_car_revs
+            .bits()
+            == 0
+        {
+            if flashing(crate::race::owner::race().shared.view.view_blocks[0].get())? {
                 drawing.scene.polygon_textures[0].set_bits(TEXTURES[0]);
                 draw_view_strip(frame, shown_layout())?;
             }
-            if shown_layout() != 0 && flashing(RACE_VIEW.view_blocks[1].get())? {
+            if shown_layout() != 0
+                && flashing(crate::race::owner::race().shared.view.view_blocks[1].get())?
+            {
                 drawing.scene.polygon_textures[0].set_bits(TEXTURES[1]);
                 draw_view_strip(frame, shown_layout().wrapping_add(SECOND_VIEW))?;
             }

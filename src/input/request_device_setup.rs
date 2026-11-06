@@ -11,7 +11,6 @@
 //! `menu::apply_controller`. Refuses (before anything) no first record (null pointer).
 
 use crate::errors::BadInput;
-use crate::input::store::DEVICES;
 
 /// The Rust version (see the header).
 pub fn request_device_setup(
@@ -21,7 +20,7 @@ pub fn request_device_setup(
     edx: u32,
     ebp: u32,
 ) -> Result<(), BadInput> {
-    let Some(record) = DEVICES.device(0) else {
+    let Some(record) = crate::input::owner::input().devices.device(0) else {
         return Err(BadInput("no first input device record"));
     };
     // Converted: `rc2k_core::input::joystick::device_setup`.
@@ -33,6 +32,6 @@ pub fn request_device_setup(
     record.strength.set(s.strength);
     record.dead_zone.set(s.dead_zone);
     record.end_zone.set(s.end_zone);
-    DEVICES.input_command.set(1);
+    crate::input::owner::input().devices.input_command.set(1);
     Ok(())
 }

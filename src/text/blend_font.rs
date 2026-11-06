@@ -38,9 +38,6 @@ pub static BLENDED_FONT: [Dword; 8] = [
 ];
 /// g_blendedPalette (0x4F3B74, 1024 bytes of which 15 entries are made): 0 at the start.
 pub static BLENDED_PALETTE: [Dword; 256] = [const { Dword::new(0) }; 256];
-/// g_fontBlendMode (0x4F3F74, the setting `textflashmode`, through `crate::moved::place`):
-/// 0 = no palette is made, 2 = eased. 3 in the image.
-pub static BLEND_MODE: Dword = Dword::new(3);
 const PALETTE_ENTRIES: u32 = 15;
 const FONT_LEN: usize = 0x20;
 
@@ -50,7 +47,7 @@ pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<
     if a.is_null() || b.is_null() {
         return Err(BadInput("a null font"));
     }
-    let mode: u32 = BLEND_MODE.get();
+    let mode: u32 = crate::strings::owner::strings().text.blend_mode.get();
     // Converted: `rc2k_core::text::pulse`.
     let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
     let (from, to) = if from_a { (a, b) } else { (b, a) };
@@ -102,7 +99,7 @@ mod tests {
             .flat_map(|w| w.get().to_le_bytes())
             .collect();
         assert_eq!(bytes, image_bytes(0x4F3B74, 0x400));
-        let mode = super::BLEND_MODE.get();
+        let mode = crate::strings::owner::strings().text.blend_mode.get();
         assert_eq!(mode.to_le_bytes().to_vec(), image_bytes(0x4F3F74, 4));
     }
 }

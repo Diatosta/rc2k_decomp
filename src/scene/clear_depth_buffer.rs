@@ -10,7 +10,6 @@
 //! rectangle and flag 2, the depth buffer; Direct3D, not ported). Three callers.
 
 use crate::scene::owner::scene;
-use crate::session::SCREEN;
 
 // ---- game data ----
 
@@ -24,7 +23,10 @@ pub fn clear_depth_buffer() {
     if scene.objects.tables.has_3d.get() == 0 {
         return;
     }
-    let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
+    let (width, height): (u32, u32) = (
+        crate::system::owner::system().session.screen.width.get(),
+        crate::system::owner::system().session.screen.height.get(),
+    );
     crate::session::write_bits(
         &scene.drawing.scene.cleared_rectangle,
         [0, 0, width, height],

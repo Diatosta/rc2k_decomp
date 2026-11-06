@@ -571,17 +571,21 @@ pub struct Screen {
     pub format: [Dword; 6], // g_surfaceFormat (a pixel format record, 24 bytes)
 }
 
-pub static SCREEN: Screen = Screen {
-    width: Dword::new(0),
-    height: Dword::new(0),
-    bits: Dword::new(0),
-    bytes: Dword::new(0),
-    row_bytes: Dword::new(0),
-    row_dwords: Dword::new(0),
-    depth_bits: Dword::new(0),
-    kind: Dword::new(0),
-    format: zeros(),
-};
+impl Screen {
+    pub const fn new() -> Self {
+        Screen {
+            width: Dword::new(0),
+            height: Dword::new(0),
+            bits: Dword::new(0),
+            bytes: Dword::new(0),
+            row_bytes: Dword::new(0),
+            row_dwords: Dword::new(0),
+            depth_bits: Dword::new(0),
+            kind: Dword::new(0),
+            format: zeros(),
+        }
+    }
+}
 
 pub const SCREEN_IDA: usize = 0x4F494C;
 pub const SCREEN_LEN: usize = core::mem::size_of::<Screen>();
@@ -603,18 +607,22 @@ pub struct Flags {
     pub paused: Dword, // dword_518398
 }
 
-pub static FLAGS: Flags = Flags {
-    f370: Dword::new(0),
-    window_active: Dword::new(0),
-    window_focused: Dword::new(0),
-    quitting: Dword::new(0),
-    lost: Dword::new(0),
-    no_task_switch: Dword::new(0),
-    keep_priority: Dword::new(0),
-    _gap_51838c: [Dword::new(0), Dword::new(0)],
-    f394: Dword::new(1),
-    paused: Dword::new(0),
-};
+impl Flags {
+    pub const fn new() -> Self {
+        Flags {
+            f370: Dword::new(0),
+            window_active: Dword::new(0),
+            window_focused: Dword::new(0),
+            quitting: Dword::new(0),
+            lost: Dword::new(0),
+            no_task_switch: Dword::new(0),
+            keep_priority: Dword::new(0),
+            _gap_51838c: [Dword::new(0), Dword::new(0)],
+            f394: Dword::new(1),
+            paused: Dword::new(0),
+        }
+    }
+}
 
 pub const FLAGS_IDA: usize = 0x518370;
 pub const FLAGS_LEN: usize = core::mem::size_of::<Flags>();
@@ -651,34 +659,38 @@ pub struct Machine {
     pub window: Dword,           // hWnd
 }
 
-pub static MACHINE: Machine = Machine {
-    has_mmx: Dword::new(0),
-    ignore_mmx: Dword::new(0),
-    has_sse: Dword::new(0),
-    ignore_katmai: Dword::new(0),
-    has_3dnow: Dword::new(0),
-    ignore_3dnow: Dword::new(0),
-    work: Dword::new(0),
-    work_float: Dword::new(0),
-    gap_c8: Dword::new(0),
-    scratch: Dword::new(0),
-    cpu_family: Dword::new(0),
-    cpu_signature: Dword::new(0),
-    cpu_vendor: zeros(),
-    gap_e4: Dword::new(0),
-    cpu_mhz: Dword::new(0),
-    has_fpu: Dword::new(0),
-    has_tsc: Dword::new(0),
-    has_cmov: Dword::new(0),
-    found_mmx: Dword::new(0),
-    found_sse: Dword::new(0),
-    found_3dnow: Dword::new(0),
-    keyboard_type: Dword::new(1),
-    version: zeros(),
-    exception_resume: Dword::new(0),
-    instance: Dword::new(0),
-    window: Dword::new(0),
-};
+impl Machine {
+    pub const fn new() -> Self {
+        Machine {
+            has_mmx: Dword::new(0),
+            ignore_mmx: Dword::new(0),
+            has_sse: Dword::new(0),
+            ignore_katmai: Dword::new(0),
+            has_3dnow: Dword::new(0),
+            ignore_3dnow: Dword::new(0),
+            work: Dword::new(0),
+            work_float: Dword::new(0),
+            gap_c8: Dword::new(0),
+            scratch: Dword::new(0),
+            cpu_family: Dword::new(0),
+            cpu_signature: Dword::new(0),
+            cpu_vendor: zeros(),
+            gap_e4: Dword::new(0),
+            cpu_mhz: Dword::new(0),
+            has_fpu: Dword::new(0),
+            has_tsc: Dword::new(0),
+            has_cmov: Dword::new(0),
+            found_mmx: Dword::new(0),
+            found_sse: Dword::new(0),
+            found_3dnow: Dword::new(0),
+            keyboard_type: Dword::new(1),
+            version: zeros(),
+            exception_resume: Dword::new(0),
+            instance: Dword::new(0),
+            window: Dword::new(0),
+        }
+    }
+}
 
 pub const MACHINE_IDA: usize = 0x5183A8;
 pub const MACHINE_LEN: usize = core::mem::size_of::<Machine>();
@@ -692,11 +704,15 @@ pub struct Clocks {
     pub setup_time: Dword, // dword_5189A0
 }
 
-pub static CLOCKS: Clocks = Clocks {
-    key_ticks: Dword::new(0),
-    frame: Dword::new(0),
-    setup_time: Dword::new(0),
-};
+impl Clocks {
+    pub const fn new() -> Self {
+        Clocks {
+            key_ticks: Dword::new(0),
+            frame: Dword::new(0),
+            setup_time: Dword::new(0),
+        }
+    }
+}
 
 pub const CLOCKS_IDA: usize = 0x518998;
 pub const CLOCKS_LEN: usize = core::mem::size_of::<Clocks>();
@@ -803,10 +819,22 @@ mod tests {
 
     #[test]
     fn the_blocks_start_as_the_images_bytes() {
-        assert_eq!(bytes_of(&SCREEN), image_bytes(SCREEN_IDA, SCREEN_LEN));
-        assert_eq!(bytes_of(&FLAGS), image_bytes(FLAGS_IDA, FLAGS_LEN));
-        assert_eq!(bytes_of(&MACHINE), image_bytes(MACHINE_IDA, MACHINE_LEN));
-        assert_eq!(bytes_of(&CLOCKS), image_bytes(CLOCKS_IDA, CLOCKS_LEN));
+        assert_eq!(
+            bytes_of(&crate::system::owner::system().session.screen),
+            image_bytes(SCREEN_IDA, SCREEN_LEN)
+        );
+        assert_eq!(
+            bytes_of(&crate::system::owner::system().session.flags),
+            image_bytes(FLAGS_IDA, FLAGS_LEN)
+        );
+        assert_eq!(
+            bytes_of(&crate::system::owner::system().session.machine),
+            image_bytes(MACHINE_IDA, MACHINE_LEN)
+        );
+        assert_eq!(
+            bytes_of(&crate::system::owner::system().session.clocks),
+            image_bytes(CLOCKS_IDA, CLOCKS_LEN)
+        );
     }
 
     #[test]

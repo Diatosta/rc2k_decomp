@@ -12,7 +12,6 @@
 use crate::errors::Refused;
 use crate::net::add_chat_line::add_chat_line;
 use crate::net::dplay_send::dplay_send;
-use crate::net::store::NET;
 use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
 use crate::pointers::GamePtr;
 
@@ -24,7 +23,10 @@ pub fn send_chat(player: u32, message: GamePtr) -> Result<(), Refused> {
     let text = crate::files::cstring(message, "a chat line")?;
     let mut line = vec![b'"'];
     line.extend_from_slice(&text);
-    NET.send_buffer.write_at(0, &line, "the send buffer")?;
-    dplay_send(NET.send_to.get(), &line);
+    crate::net::owner::net()
+        .vars
+        .send_buffer
+        .write_at(0, &line, "the send buffer")?;
+    dplay_send(crate::net::owner::net().vars.send_to.get(), &line);
     Ok(())
 }

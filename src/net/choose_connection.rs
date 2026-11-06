@@ -13,9 +13,6 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::store::NET;
-use crate::session::CLOCKS;
-use crate::session::FLAGS;
 use rc2k_core::net::screens::{self, ListKey};
 
 /// A list's up (0x66) or down (0x6B) on a list of `count` items: the highlight and the top
@@ -44,19 +41,26 @@ pub fn list_move(key: u8, count: u32) -> bool {
 
 /// The Rust version.
 pub fn choose_connection() -> Result<u32, Refused> {
-    let now = CLOCKS.key_ticks.get();
+    let now = crate::system::owner::system()
+        .session
+        .clocks
+        .key_ticks
+        .get();
     crate::install::owner::install().pages.move_clock.set(now);
     crate::install::owner::install().pages.key_clock.set(now);
     crate::install::owner::install().pages.choice_before.set(0);
     crate::install::owner::install().pages.choice.set(0);
     loop {
         run_frame(crate::net::connections_frame::connections_frame)?;
-        crate::install::owner::install()
-            .pages
-            .frame_clock
-            .set(CLOCKS.key_ticks.get());
+        crate::install::owner::install().pages.frame_clock.set(
+            crate::system::owner::system()
+                .session
+                .clocks
+                .key_ticks
+                .get(),
+        );
         let key = list_key()?;
-        if list_move(key, NET.connections.get()) {
+        if list_move(key, crate::net::owner::net().vars.connections.get()) {
             crate::install::owner::install()
                 .pages
                 .move_clock
@@ -68,7 +72,7 @@ pub fn choose_connection() -> Result<u32, Refused> {
         } else {
             other_key(key)?;
         }
-        if FLAGS.quitting.get() == 1 {
+        if crate::system::owner::system().session.flags.quitting.get() == 1 {
             break;
         }
     }

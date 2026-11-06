@@ -5,15 +5,14 @@
 //! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Caller: `net::start_link` (with the received messages' lock held).
 
-use crate::net::store::NET;
-
 /// The Rust version.
 pub fn clear_chat() {
     // Converted: `rc2k_core::net::chat::EMPTY`.
-    if let Err(e) = NET
-        .chat
-        .write_at(0, &rc2k_core::net::chat::EMPTY, "the chat line")
-    {
+    if let Err(e) = crate::net::owner::NET_OWNER.vars.chat.write_at(
+        0,
+        &rc2k_core::net::chat::EMPTY,
+        "the chat line",
+    ) {
         crate::fatal::raise::end("the chat line", e)
     }
 }

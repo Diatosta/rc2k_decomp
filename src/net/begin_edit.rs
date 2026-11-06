@@ -8,9 +8,8 @@
 //! Callers: `net::begin_setting_edit`, `net::begin_chat`.
 
 use crate::net::lobby::movsb;
-use crate::net::store::NET;
 
-/// The texts an edit works on (`NET.edit_text`, where the original keeps the address): the
+/// The texts an edit works on (`crate::net::owner::net().vars.edit_text`, where the original keeps the address): the
 /// settings' machine name, host address and players' count (written into the installer's
 /// first path), and the chat's input line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -26,16 +25,16 @@ impl EditedText {
     pub fn place(self) -> crate::pointers::GamePtr {
         use crate::pointers::GamePtr;
         match self {
-            EditedText::MachineName => GamePtr::to(&NET.machine_name),
-            EditedText::HostAddress => GamePtr::to(&NET.host_address),
+            EditedText::MachineName => GamePtr::to(&crate::net::owner::net().vars.machine_name),
+            EditedText::HostAddress => GamePtr::to(&crate::net::owner::net().vars.host_address),
             EditedText::MostPlayers => GamePtr::to(&crate::install::owner::install().paths.path_a),
-            EditedText::ChatInput => GamePtr::to(&NET.chat_input),
+            EditedText::ChatInput => GamePtr::to(&crate::net::owner::net().vars.chat_input),
         }
     }
 
-    /// The text `NET.edit_text` names (refused when none is).
+    /// The text `crate::net::owner::net().vars.edit_text` names (refused when none is).
     pub fn edited() -> Result<Self, crate::errors::BadInput> {
-        Ok(match NET.edit_text.get() {
+        Ok(match crate::net::owner::net().vars.edit_text.get() {
             1 => EditedText::MachineName,
             2 => EditedText::HostAddress,
             3 => EditedText::MostPlayers,
@@ -52,10 +51,10 @@ pub fn begin_edit(
     width: u32,
     font: crate::gfx::typefaces::FontId,
 ) -> Result<(), crate::errors::Refused> {
-    NET.edited.set(item);
-    NET.edit_text.set(text as u32);
-    NET.edit_width.set(width);
-    NET.edit_font.set(font);
+    crate::net::owner::net().vars.edited.set(item);
+    crate::net::owner::net().vars.edit_text.set(text as u32);
+    crate::net::owner::net().vars.edit_width.set(width);
+    crate::net::owner::net().vars.edit_font.set(font);
     movsb(
         &crate::install::owner::install().paths.script_path,
         text.place(),

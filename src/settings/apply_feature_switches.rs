@@ -12,14 +12,14 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::session::{Dword, MACHINE};
+use crate::session::Dword;
 
 // ---- game data ----
 
 /// (used, ignore setting, the processor has it): `g_hasMmx`, `dword_5183AC`, `dword_5183F8`;
 /// `g_hasSse`, `dword_5183B4`, `dword_5183FC`; `g_has3dNow`, `dword_5183BC`, `dword_518400`.
 fn features() -> [(&'static Dword, &'static Dword, &'static Dword); 3] {
-    let m = &MACHINE;
+    let m = &crate::system::owner::system().session.machine;
     [
         (&m.has_mmx, &m.ignore_mmx, &m.found_mmx),
         (&m.has_sse, &m.ignore_katmai, &m.found_sse),

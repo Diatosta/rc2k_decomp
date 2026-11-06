@@ -123,8 +123,10 @@ pub fn stage_record() -> Result<RecordRef, BadInput> {
     if kind >= KINDS {
         return Err(BadInput("a stage kind past off_735512's four"));
     }
-    let stages =
-        crate::records::stages_store::STAGE_TABLES.group_event_table(kind, get(STAGE_SUB))?;
+    let stages = crate::system::owner::system()
+        .records
+        .stage_tables
+        .group_event_table(kind, get(STAGE_SUB))?;
     crate::records::stages_store::row(stages, get(STAGE_NUMBER))
 }
 

@@ -18,7 +18,9 @@ use crate::records::stages_store::{RecordRef, TrackEntry};
 // ---- game data ----
 
 pub fn loaded_pack_id() -> u32 {
-    crate::records::stages_store::STAGE_TABLES
+    crate::system::owner::system()
+        .records
+        .stage_tables
         .trak_pak
         .pack_id
         .get()
@@ -54,7 +56,7 @@ pub fn trakpak_entry(
 pub fn record_entry(record: RecordRef) -> Result<crate::pointers::GamePtr, Refused> {
     let record = record.record()?;
     Ok(trakpak_entry(
-        crate::pointers::GamePtr::to(&crate::records::stages_store::STAGE_TABLES).offset(
+        crate::pointers::GamePtr::to(&crate::system::owner::system().records.stage_tables).offset(
             core::mem::offset_of!(crate::records::stages_store::StageTables, trak_pak) as u32,
         ),
         record.track(),
@@ -109,7 +111,9 @@ pub fn track_of(record: RecordRef) -> Result<Track, Refused> {
     let at = record_entry(record)?;
     let index = record.record()?.track() as usize;
     Ok(
-        match crate::records::stages_store::STAGE_TABLES
+        match crate::system::owner::system()
+            .records
+            .stage_tables
             .trak_pak
             .tracks
             .get(index)

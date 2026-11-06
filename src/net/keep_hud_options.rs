@@ -7,11 +7,12 @@
 //! Caller: `net::lets_race`.
 
 use crate::net::set_hud_options::own_block;
-use crate::race::state_store::RACE_STATE;
 
 /// The Rust version.
 pub fn keep_hud_options() -> Result<(), crate::errors::BadInput> {
-    RACE_STATE
+    crate::race::owner::race()
+        .shared
+        .state
         .results
         .hud_bits_current
         .set(crate::race::trap::car_at(own_block())?.option_bits.get());

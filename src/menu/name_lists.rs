@@ -46,7 +46,7 @@ pub fn savegame_name() -> Result<Place, BadInput> {
 /// The name of the highlighted replay.
 pub fn replay_name() -> Result<Place, BadInput> {
     highlighted(
-        &crate::race::replay::REPLAYS.names,
+        &crate::race::owner::race().shared.replays.names,
         REPLAY_PAGE_RVA,
         REPLAYS_PER_PAGE,
     )

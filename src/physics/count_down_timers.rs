@@ -13,8 +13,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
-use crate::race::vars_store::RACE_VARS;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
@@ -58,22 +56,22 @@ pub fn count_at(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.light_hold_steps as &dyn Cell32,
-        &CAR.value_jump_steps,
-        &CAR.run_ticks,
-        &CAR.finish_flag,
-        &CAR.go_stand_timer,
-        &CAR.started_stand_timer,
-        &RACE_VARS.run_kind,
-        &CAR.parts_present,
-        &CAR.gear,
-        &CAR.stopped_steps,
-        &CAR.tyre_change_state,
-        &CAR.wall_hit_timer,
-        &CAR.drive_cut_steps,
-        &CAR.engine_speed_scaled,
-        &CAR.top_speed,
-        &CAR.hit_cooldown,
+        &crate::race::owner::race().shared.car.light_hold_steps as &dyn Cell32,
+        &crate::race::owner::race().shared.car.value_jump_steps,
+        &crate::race::owner::race().shared.car.run_ticks,
+        &crate::race::owner::race().shared.car.finish_flag,
+        &crate::race::owner::race().shared.car.go_stand_timer,
+        &crate::race::owner::race().shared.car.started_stand_timer,
+        &crate::race::owner::race().shared.vars.run_kind,
+        &crate::race::owner::race().shared.car.parts_present,
+        &crate::race::owner::race().shared.car.gear,
+        &crate::race::owner::race().shared.car.stopped_steps,
+        &crate::race::owner::race().shared.car.tyre_change_state,
+        &crate::race::owner::race().shared.car.wall_hit_timer,
+        &crate::race::owner::race().shared.car.drive_cut_steps,
+        &crate::race::owner::race().shared.car.engine_speed_scaled,
+        &crate::race::owner::race().shared.car.top_speed,
+        &crate::race::owner::race().shared.car.hit_cooldown,
     ]
 }
 

@@ -44,7 +44,6 @@ use crate::input::layouts::layouts;
 use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
-use crate::session::MACHINE;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::same_text::set_case_table;
 use crate::strings::string_table::LEXICON_ROOM;
@@ -60,21 +59,21 @@ const KEYBOARD_FILES: &[u8] = b"files\\%locale\\*.kim";
 /// units. Out of the image since 2026-10-24 (phase 5; it was `g_localeFile`, 0x4E0798),
 /// with the image's first bytes (`tests::first_values_are_the_games`).
 pub const LOCALE_LEN: usize = 0x30;
-pub static LOCALE: Bytes<LOCALE_LEN> = Bytes::new([
+pub const LOCALE_INIT: [u8; LOCALE_LEN] = [
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x01, 0x01, 0x01, 0x2F, 0x2E, 0x2C, 0x00,
     0x64, 0x65, 0x66, 0x61, 0x75, 0x6C, 0x74, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-]);
+];
 
 /// `g_noticeKind` (the `.loc` file's byte +8, 0x4E07A0 in the image): which notice the
 /// language shows (2: the builds' notice; 7: Japan).
 pub fn notice_kind() -> u8 {
-    LOCALE.get(8)
+    crate::strings::owner::strings().language.locale.get(8)
 }
 
 /// `g_plainLetters` (0x4F0CC8 in the image until 2026-10-24): `g_lowerCase` with the
 /// accented letters made plain; made here, read by nothing now. The image's first values.
-pub static PLAIN_LETTERS: Bytes<256> = Bytes::new([
+pub const PLAIN_LETTERS_INIT: [u8; 256] = [
     0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D, 0x1E, 0x1F,
     0x20, 0x21, 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F,
@@ -91,7 +90,7 @@ pub static PLAIN_LETTERS: Bytes<256> = Bytes::new([
     0x64, 0x6E, 0x6F, 0x6F, 0x6F, 0x6F, 0x6F, 0xD7, 0x6F, 0x75, 0x75, 0x75, 0x75, 0x79, 0x74, 0x73,
     0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x61, 0x63, 0x65, 0x65, 0x65, 0x65, 0x69, 0x69, 0x69, 0x69,
     0x64, 0x6E, 0x6F, 0x6F, 0x6F, 0x6F, 0x6F, 0xF7, 0x6F, 0x75, 0x75, 0x75, 0x75, 0x79, 0x74, 0x79,
-]);
+];
 /// The `.kim` file (`g_keyboardFile`, dword_4F07C8), 0x400 bytes: +0 "KEYB", +8 a kind, +0xA
 /// the layout mode, +0xB the layout's number, +0x30 the layouts
 /// (`rc2k_core::input::layouts`).
@@ -114,7 +113,7 @@ fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
             "a string of the language's set-up longer than expected",
         ));
     }
-    let at = GamePtr::to(&crate::strings::text_buffer::TEXT_BUFFER.text);
+    let at = GamePtr::to(&crate::strings::owner::strings().text.buffer.text);
     at.write_bytes(&bytes, "the text buffer")?;
     if with_nul {
         at.offset(bytes.len() as u32)
@@ -128,7 +127,10 @@ fn make_case_tables() -> Result<(), BadInput> {
     let lower = CaseTable::for_language(&built(2, true)?)?;
     set_case_table(&lower.lower);
     let plain = lower.plain_letters(&built(3, true)?);
-    PLAIN_LETTERS.write(&plain.lower);
+    crate::strings::owner::strings()
+        .language
+        .plain_letters
+        .write(&plain.lower);
     Ok(())
 }
 
@@ -146,14 +148,17 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     compile()?;
     layouts().use_built_in();
 
-    let mut locale = LOCALE.read();
+    let mut locale = crate::strings::owner::strings().language.locale.read();
     let found = read_first_match(LOCALE_FILES, &mut locale, 0)?;
-    LOCALE.write(&locale);
+    crate::strings::owner::strings()
+        .language
+        .locale
+        .write(&locale);
     if found.is_none() {
         return Err(fatal(0x80E3_8381, ""));
     }
     // Converted: `rc2k_core::strings::language::Locale`.
-    let Ok(file) = Locale::parse(&LOCALE.read()) else {
+    let Ok(file) = Locale::parse(&crate::strings::owner::strings().language.locale.read()) else {
         return Err(fatal(0x80E3_8382, ""));
     };
     let units = file.units as u32;
@@ -181,7 +186,13 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     make_case_tables()?;
 
     // `sub_403462`: the NEC keyboard's head (its layout mode) and layout.
-    if MACHINE.keyboard_type.get() == 2 {
+    if crate::system::owner::system()
+        .session
+        .machine
+        .keyboard_type
+        .get()
+        == 2
+    {
         layouts().use_nec();
         crate::install::owner::install()
             .run
@@ -227,8 +238,14 @@ mod tests {
         );
         assert_eq!(
             image_bytes(0x4E0798, super::LOCALE_LEN),
-            super::LOCALE.read()
+            crate::strings::owner::strings().language.locale.read()
         );
-        assert_eq!(image_bytes(0x4F0CC8, 256), super::PLAIN_LETTERS.read());
+        assert_eq!(
+            image_bytes(0x4F0CC8, 256),
+            crate::strings::owner::strings()
+                .language
+                .plain_letters
+                .read()
+        );
     }
 }

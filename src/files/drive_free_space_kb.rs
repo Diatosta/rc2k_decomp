@@ -13,8 +13,6 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::files::scratch::SCRATCH;
-
 /// The free KB of drive `letter` (its low byte), or None when `GetDiskFreeSpaceA` failed
 /// (the original's carry; eax -1 then). The bytes a sector the original leaves in ebx are
 /// read by no caller.
@@ -27,7 +25,11 @@ pub fn drive_free_space_kb(letter: u32) -> Option<u32> {
     // Sectors a cluster, bytes a sector, free clusters, total clusters.
     let [sectors, bytes, free, total] = crate::os::disk_free(text)?;
     for (k, v) in [total, free, bytes, sectors].into_iter().enumerate() {
-        SCRATCH.buffer.set_u32(4 * k, v);
+        crate::system::owner::system()
+            .work
+            .files
+            .buffer
+            .set_u32(4 * k, v);
     }
     // Converted: `rc2k_core::files::log::free_kb`.
     Some(rc2k_core::files::log::free_kb(sectors, bytes, free))

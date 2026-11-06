@@ -17,7 +17,9 @@ pub fn pack_runs(source: &[u8]) -> Result<(Vec<u8>, u32), BadInput> {
     let len = packed.len() as u32;
     // The end mark is the first byte of a dword 0.
     packed.extend_from_slice(&[0, 0, 0]);
-    crate::files::scratch::SCRATCH
+    crate::system::owner::system()
+        .work
+        .files
         .buffer
         .write_at(0, &packed, "the packed bytes")?;
     Ok((packed, len))

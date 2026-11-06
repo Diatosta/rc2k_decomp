@@ -28,15 +28,14 @@
 //! (`rc2k_core::physics::patches`): each figure is one correctly rounded quotient or
 //! product at the game's double and extended precision.
 
-use crate::physics::tables_store::{PHYSICS, Surface};
+use crate::physics::tables_store::Surface;
 use crate::race::owner::race;
-use crate::race::work_store::RACE_WORK;
 use crate::session::Float;
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};
 
 /// The twelve ground records patched: `PHYSICS.surfaces[1 ..= 12]`.
 fn records() -> &'static [Surface] {
-    &PHYSICS.surfaces[1..13]
+    &crate::race::owner::race().shared.physics_tables.surfaces[1..13]
 }
 
 /// A record's three grips: slide, acceleration, brake.
@@ -46,18 +45,25 @@ fn grips(r: &'static Surface) -> [&'static Float; 3] {
 
 /// The two drags (10.0) the sticky grass setting keeps: grass, records 7 and 8.
 fn tens() -> [&'static Float; 2] {
-    [&PHYSICS.surfaces[7].drag, &PHYSICS.surfaces[8].drag]
+    [
+        &crate::race::owner::race().shared.physics_tables.surfaces[7].drag,
+        &crate::race::owner::race().shared.physics_tables.surfaces[8].drag,
+    ]
 }
 
 /// The game's patch state.
 fn load() -> Patches {
-    let w = &RACE_WORK;
+    let w = &crate::race::owner::race().shared.work;
     Patches {
         switch: w.patch_switch.get(),
         settings: std::array::from_fn(|n| w.patch_settings[n].get()),
         factors: std::array::from_fn(|n| w.patch_factors[n].bits()),
         applied: w.patches_applied.get(),
-        gravity: PHYSICS.gravity.bits(),
+        gravity: crate::race::owner::race()
+            .shared
+            .physics_tables
+            .gravity
+            .bits(),
         records: std::array::from_fn(|r| grips(&records()[r]).map(Float::bits)),
         tens: tens().map(Float::bits),
     }
@@ -66,7 +72,7 @@ fn load() -> Patches {
 /// The places that changed written back (the original writes only these, or the same
 /// value again).
 fn store(before: &Patches, after: &Patches) {
-    let w = &RACE_WORK;
+    let w = &crate::race::owner::race().shared.work;
     if before.applied != after.applied {
         w.patches_applied.set(after.applied);
     }
@@ -80,7 +86,11 @@ fn store(before: &Patches, after: &Patches) {
             f.set_bits(new);
         }
     };
-    put(&PHYSICS.gravity, before.gravity, after.gravity);
+    put(
+        &crate::race::owner::race().shared.physics_tables.gravity,
+        before.gravity,
+        after.gravity,
+    );
     for (r, record) in records().iter().enumerate() {
         for (n, f) in grips(record).into_iter().enumerate() {
             put(f, before.records[r][n], after.records[r][n]);

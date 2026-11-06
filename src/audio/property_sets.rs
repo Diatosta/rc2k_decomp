@@ -7,7 +7,6 @@
 //! `QuerySupport` for get and set, the voice manager's mode 2, the log line, `found` 1,
 //! the room's `Set`) is refused where it would be reached.
 
-use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
 use crate::session::Dword;
 
@@ -28,15 +27,15 @@ pub struct Opening {
 impl Opening {
     pub fn voice_manager() -> Self {
         Self {
-            setting: &AUDIO.ignore_dsv_setting,
-            object: &AUDIO.voice_manager,
+            setting: &crate::audio::owner::audio().state.ignore_dsv_setting,
+            object: &crate::audio::owner::audio().state.voice_manager,
         }
     }
 
     pub fn eax() -> Self {
         Self {
-            setting: &AUDIO.ignore_eax_setting,
-            object: &AUDIO.eax_properties,
+            setting: &crate::audio::owner::audio().state.ignore_eax_setting,
+            object: &crate::audio::owner::audio().state.eax_properties,
         }
     }
 }
@@ -58,7 +57,13 @@ pub fn open_property_set(o: &Opening, holder: u32) -> Result<bool, Refused> {
     if buffer == 0 {
         return Ok(false);
     }
-    match crate::platform_sound::query_interface(buffer, AUDIO.iid_property_set.get_u32(0)) {
+    match crate::platform_sound::query_interface(
+        buffer,
+        crate::audio::owner::audio()
+            .state
+            .iid_property_set
+            .get_u32(0),
+    ) {
         Err(_) => {
             o.object.set(0);
             Ok(false)
@@ -75,9 +80,9 @@ pub fn open_property_set(o: &Opening, holder: u32) -> Result<bool, Refused> {
 pub fn set_eax_room(room: u32) -> Result<crate::pointers::GamePtr, Refused> {
     // Converted: `rc2k_core::audio::levels::eax_room_offset`.
     // The room's entry by the core's byte offset into the table.
-    let at = crate::pointers::GamePtr::to(&AUDIO.eax_rooms)
+    let at = crate::pointers::GamePtr::to(&crate::audio::owner::audio().state.eax_rooms)
         .offset(rc2k_core::audio::levels::eax_room_offset(room)?);
-    let p = AUDIO.eax_properties.get();
+    let p = crate::audio::owner::audio().state.eax_properties.get();
     if p != 0 {
         // `IKsPropertySet::Set` of the reverb's property 0 with the room's 0x10 bytes.
         return Err(BadInput(NO_SETS).into());

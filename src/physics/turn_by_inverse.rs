@@ -12,10 +12,9 @@
 //! above are the original's, for reference.
 
 use crate::math::cells::Cells;
-use crate::physics::car_store::CAR;
 use crate::physics::turn_by_car_matrix::turn_cells;
 
 /// The Rust version.
 pub fn turn_by_inverse(v: &(impl Cells + ?Sized)) {
-    turn_cells(&CAR.car_inverse_matrix, v);
+    turn_cells(&crate::race::owner::race().shared.car.car_inverse_matrix, v);
 }

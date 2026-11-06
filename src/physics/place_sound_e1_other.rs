@@ -15,14 +15,16 @@ use crate::physics::car_sounds::{cue_plain, listed, object};
 use crate::physics::sound_band_3::TWIN;
 use crate::physics::sound_bands::band_value_plain;
 use crate::race::owner::Race;
-use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::sound_places::{FIRST, SOUND_E1};
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places`.
 pub fn place_sound_e1_other(race: &Race) -> Result<(), Refused> {
     if !listed(&race.frame, race.physics.contact.other_car_number.get())?
-        && !listed(&race.frame, RACE_WORK.current_car.get())?
+        && !listed(
+            &race.frame,
+            crate::race::owner::race().shared.work.current_car.get(),
+        )?
     {
         return Ok(());
     }

@@ -223,7 +223,7 @@ pub struct SoundObject {
 /// The current car's sound object (`g_raceSoundObjects[g_currentCar & 7]`).
 pub fn current_object() -> &'static SoundObject {
     &crate::sound::owner::sound().race.sounds.objects
-        [(crate::race::work_store::RACE_WORK.current_car.get() & 7) as usize]
+        [(crate::race::owner::race().shared.work.current_car.get() & 7) as usize]
 }
 
 impl SoundObject {

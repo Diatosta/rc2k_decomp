@@ -20,8 +20,6 @@ use crate::errors::Refused;
 use crate::files::handle;
 use crate::pointers::GamePtr;
 use crate::race::owner_replay::Replay;
-use crate::race::replay::REPLAYS;
-use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::replay_path;
 use crate::race::replay_work_store::REPLAY_WORK;
 
@@ -45,7 +43,13 @@ pub fn open_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
     let mut path = found.path;
     if last_race_missing(
         found.last_race,
-        || REPLAY_FILE.replay_closed.get(), /* dword_5BEC84: a replay was recorded */
+        || {
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .replay_closed
+                .get()
+        }, /* dword_5BEC84: a replay was recorded */
     ) {
         return failed();
     }
@@ -63,43 +67,93 @@ pub fn open_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
     let Some(file) = handle::open_by_mode(&path, 0)? else {
         return failed();
     };
-    REPLAY_FILE.replay_handle.set(file);
-    REPLAY_FILE.replay_open.set(1);
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_handle
+        .set(file);
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_open
+        .set(1);
     replay.replay_view.replay_block.set(0);
     replay.replay_view.replay_frame.set(0);
     // Whether a buffer's read is good (`read_good`), given its first word after.
     let good = |(n, ok): (u32, bool), len: u32, first: fn() -> u32, header: bool| {
         read_good(!ok, n, len, first(), header)
     };
-    let mut header = REPLAYS.header.read();
-    let got = handle::read_slice(REPLAY_FILE.replay_handle.get(), &mut header);
-    REPLAYS.header.write(&header);
-    if !good(got, HEADER_LEN, || REPLAYS.header.get_u32(0), true)
-        || !version_good(REPLAYS.header.get_u32(8))
+    let mut header = crate::race::owner::race().shared.replays.header.read();
+    let got = handle::read_slice(
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .replay_handle
+            .get(),
+        &mut header,
+    );
+    crate::race::owner::race()
+        .shared
+        .replays
+        .header
+        .write(&header);
+    if !good(
+        got,
+        HEADER_LEN,
+        || crate::race::owner::race().shared.replays.header.get_u32(0),
+        true,
+    ) || !version_good(crate::race::owner::race().shared.replays.header.get_u32(8))
     {
         return failed();
     }
     // The index is the file's last 0x3850 bytes.
     let at = {
         handle::seek(
-            REPLAY_FILE.replay_handle.get(),
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .replay_handle
+                .get(),
             INDEX_LEN.wrapping_neg() as i32,
             2,
         )
     };
     if at.is_none()
         || !good(
-            handle::read_cells(REPLAY_FILE.replay_handle.get(), REPLAY_FILE.index()),
+            handle::read_cells(
+                crate::race::owner::race()
+                    .shared
+                    .replay_file
+                    .replay_handle
+                    .get(),
+                crate::race::owner::race().shared.replay_file.index(),
+            ),
             INDEX_LEN,
-            || REPLAY_FILE.index_magic.get(),
+            || {
+                crate::race::owner::race()
+                    .shared
+                    .replay_file
+                    .index_magic
+                    .get()
+            },
             false,
         )
     {
         return failed();
     }
-    match index_blocks(REPLAY_FILE.index_block_count.get()) {
+    match index_blocks(
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .index_block_count
+            .get(),
+    ) {
         Blocks::Bad => return failed(),
-        Blocks::Held(n) => REPLAY_FILE.index_block_count.set(n),
+        Blocks::Held(n) => crate::race::owner::race()
+            .shared
+            .replay_file
+            .index_block_count
+            .set(n),
         Blocks::Kept => {}
     }
     let mut block = 0u32;
@@ -115,11 +169,23 @@ pub fn open_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
             CAMERA_DWORDS,
         )?;
         block += 1;
-        if block == REPLAY_FILE.index_block_count.get() {
+        if block
+            == crate::race::owner::race()
+                .shared
+                .replay_file
+                .index_block_count
+                .get()
+        {
             break;
         }
     }
-    let (mark_in, mark_out) = opened_marks(REPLAY_FILE.index_block_count.get());
+    let (mark_in, mark_out) = opened_marks(
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .index_block_count
+            .get(),
+    );
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .mark_in
         .set(mark_in);
@@ -133,7 +199,7 @@ pub fn open_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
         return failed();
     }
     // The file's header is bytes (a byte-level copy of its stage part).
-    GamePtr::to(&crate::race::replay::REPLAYS.header)
+    GamePtr::to(&crate::race::owner::race().shared.replays.header)
         .offset(0x30) // unk_528534
         .copy_to(
             GamePtr::to(&REPLAY_WORK.header_stage).unbounded(),

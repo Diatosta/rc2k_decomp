@@ -22,8 +22,6 @@ use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::race;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
 pub fn init_mark_step(effects: &Effects) -> Result<(), Refused> {
@@ -32,19 +30,22 @@ pub fn init_mark_step(effects: &Effects) -> Result<(), Refused> {
     {
         // In a network race `g_players` is 1 but this machine's car may be any: every car's
         // record is needed, or a joined machine's own has no marks (the original's slip).
-        let count: u32 = if crate::net::store::NET.session.get() == 1 {
-            RACE_VIEW.race_cars.bits()
+        let count: u32 = if crate::net::owner::net().vars.session.get() == 1 {
+            crate::race::owner::race().shared.view.race_cars.bits()
         } else {
-            RACE_VIEW.players.bits()
+            crate::race::owner::race().shared.view.players.bits()
         };
-        let block = |n: u32| RACE_WORK.car_block(n as usize);
-        let records = RACE_WORK.car_records_resolved()?;
+        let block = |n: u32| crate::race::owner::race().shared.work.car_block(n as usize);
+        let records = crate::race::owner::race()
+            .shared
+            .work
+            .car_records_resolved()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
         race::check_cars(count, |n| block(n) != 0)?;
         MARKS_SETTINGS
             .cars_copy
-            .set_bits(RACE_VIEW.race_cars.bits());
+            .set_bits(crate::race::owner::race().shared.view.race_cars.bits());
         // The one object the effects' shapes are made from: the player's car (the original's
         // fixed 0x50 is the first car, not a joined machine's).
         let own = crate::race::blocks_store::own_car_number() as u32;

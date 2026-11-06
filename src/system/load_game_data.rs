@@ -30,8 +30,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::name_lists::NAME_LEN;
-use crate::net::store::NET;
-use crate::race::tyre_store::TYRE_CHANGE;
 use crate::session::Bytes;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
@@ -119,7 +117,14 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
     outside(Call::LoadBestTimes)?;
     outside(Call::ReadSettings)?;
     outside(Call::ReadSku)?;
-    RUN_COUNT.runs.set(RUN_COUNT.runs.get().wrapping_add(1));
+    crate::system::owner::system().start.run_count.runs.set(
+        crate::system::owner::system()
+            .start
+            .run_count
+            .runs
+            .get()
+            .wrapping_add(1),
+    );
     outside(Call::ReadDriverNames)?;
     outside(Call::ApplyPatches)?;
     if removes_secret_cars(play.cheats.all_secret_cars.get()) {
@@ -150,13 +155,13 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
         default_name(name, NAME_LEN, id, &[])?;
     }
 
-    if NET.machine_name.get(0) == 0 {
-        let place = crate::pointers::GamePtr::to(&NET.machine_name);
+    if crate::net::owner::net().vars.machine_name.get(0) == 0 {
+        let place = crate::pointers::GamePtr::to(&crate::net::owner::net().vars.machine_name);
         outside(Call::ComputerName(place))?;
         copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
-        if NET.machine_name.get(0) == 0 {
+        if crate::net::owner::net().vars.machine_name.get(0) == 0 {
             default_name(
-                crate::pointers::GamePtr::to(&NET.machine_name),
+                crate::pointers::GamePtr::to(&crate::net::owner::net().vars.machine_name),
                 MACHINE_NAME_ROOM,
                 MACHINE_NAME_ID,
                 &[],
@@ -164,7 +169,13 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
         }
     }
 
-    if TYRE_CHANGE.record_name.get(0) == 0 {
+    if crate::race::owner::race()
+        .shared
+        .tyre_change
+        .record_name
+        .get(0)
+        == 0
+    {
         let mut draws = 0;
         let end = loop {
             let drawn = outside(Call::RandomBelow(DRIVER_NAME_IDS.1))?;
@@ -175,9 +186,19 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
             }
             // No NUL yet: a short name leaves what was there after it.
             for (k, &b) in name.iter().enumerate() {
-                TYRE_CHANGE.record_name.set(k, b);
+                crate::race::owner::race()
+                    .shared
+                    .tyre_change
+                    .record_name
+                    .set(k, b);
             }
-            if !drawn_again(std::array::from_fn(|k| TYRE_CHANGE.record_name.get(k))) {
+            if !drawn_again(std::array::from_fn(|k| {
+                crate::race::owner::race()
+                    .shared
+                    .tyre_change
+                    .record_name
+                    .get(k)
+            })) {
                 break name.len();
             }
             draws += 1;
@@ -185,8 +206,16 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
                 return Err(BadInput("no driver's name that can be taken").into());
             }
         };
-        TYRE_CHANGE.record_name.set(end, 0);
-        TYRE_CHANGE.record.set(TYRE_CHANGE_RECORD);
+        crate::race::owner::race()
+            .shared
+            .tyre_change
+            .record_name
+            .set(end, 0);
+        crate::race::owner::race()
+            .shared
+            .tyre_change
+            .record
+            .set(TYRE_CHANGE_RECORD);
     }
 
     for slot in 0..SLOTS {
@@ -196,12 +225,15 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
     for slot in 0..SLOTS {
         outside(Call::ReadReplaySlot(slot))?;
     }
-    number_empty_names(&crate::race::replay::REPLAYS.names, REPLAY_NAME_ID)?;
+    number_empty_names(
+        &crate::race::owner::race().shared.replays.names,
+        REPLAY_NAME_ID,
+    )?;
     for slot in 0..SLOTS {
         outside(Call::ReadSetupSlot(slot))?;
     }
     number_empty_names(
-        &crate::service::read_setup_slot::SET_UPS.names,
+        &crate::service::owner::service().set_ups.names,
         SETUP_NAME_ID,
     )?;
     Ok(())
@@ -267,9 +299,13 @@ pub struct RunCount {
     pub runs: Dword,
 }
 
-pub static RUN_COUNT: RunCount = RunCount {
-    runs: Dword::new(0x0),
-};
+impl RunCount {
+    pub const fn new() -> Self {
+        RunCount {
+            runs: Dword::new(0x0),
+        }
+    }
+}
 
 impl RunCount {
     pub const START: usize = 0x518BB0;
@@ -277,7 +313,8 @@ impl RunCount {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const RUN_COUNT) as usize
+        crate::pointers::game_address(&raw const crate::system::owner::system().start.run_count)
+            as usize
     }
 }
 

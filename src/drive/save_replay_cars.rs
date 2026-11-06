@@ -11,7 +11,7 @@ use crate::pointers::{Cells, GamePtr, copy_cells};
 use crate::race::blocks_store::{CAR_BLOCKS, REPLAY_STATE_OFFSET};
 use crate::race::groups_store::CarsAndReplay;
 use crate::race::owner_replay::Replay;
-use crate::race::work_store::{RACE_WORK, RaceWork};
+use crate::race::work_store::RaceWork;
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 
 /// Where a piece of the starting state is now: a car's block, the race slots (`g_raceSlots`) or
@@ -20,10 +20,9 @@ use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 pub fn piece_place(piece: StartPiece) -> GamePtr {
     match piece {
         StartPiece::Car(k) => GamePtr::to(&CAR_BLOCKS.cars[k as usize]),
-        StartPiece::RaceSlots => GamePtr::to(&RACE_WORK.race_slots),
-        StartPiece::Extra => {
-            GamePtr::to(&RACE_WORK).offset(core::mem::offset_of!(RaceWork, replay_extra) as u32)
-        }
+        StartPiece::RaceSlots => GamePtr::to(&crate::race::owner::race().shared.work.race_slots),
+        StartPiece::Extra => GamePtr::to(&crate::race::owner::race().shared.work)
+            .offset(core::mem::offset_of!(RaceWork, replay_extra) as u32),
     }
 }
 
@@ -38,13 +37,19 @@ pub fn copy_piece(replay: &Replay, piece: StartPiece, offset: usize, n: usize, s
     match piece {
         StartPiece::Car(k) => copy_between((&CAR_BLOCKS.cars[k as usize], 0), state, len, save),
         StartPiece::RaceSlots => copy_between(
-            (&RACE_WORK, core::mem::offset_of!(RaceWork, race_slots)),
+            (
+                &crate::race::owner::race().shared.work,
+                core::mem::offset_of!(RaceWork, race_slots),
+            ),
             state,
             len,
             save,
         ),
         StartPiece::Extra => copy_between(
-            (&RACE_WORK, core::mem::offset_of!(RaceWork, replay_extra)),
+            (
+                &crate::race::owner::race().shared.work,
+                core::mem::offset_of!(RaceWork, replay_extra),
+            ),
             state,
             len,
             save,

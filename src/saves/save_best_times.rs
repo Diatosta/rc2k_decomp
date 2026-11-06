@@ -35,7 +35,11 @@ pub fn in_game() -> Result<bool, Refused> {
     let head =
         rc2k_core::saves::kept::head(rc2k_core::saves::kept::BEST_TIMES, packed_local_time());
     for (n, &byte) in head.iter().enumerate() {
-        crate::files::scratch::SCRATCH.buffer.set(n, byte);
+        crate::system::owner::system()
+            .work
+            .files
+            .buffer
+            .set(n, byte);
     }
     let Some(file) = open_by_mode(
         &crate::saves::load_best_times::PATH[..crate::saves::load_best_times::PATH_LEN],
@@ -44,7 +48,7 @@ pub fn in_game() -> Result<bool, Refused> {
     else {
         return Ok(false);
     };
-    let scratch = GamePtr::to(&crate::files::scratch::SCRATCH.buffer);
+    let scratch = GamePtr::to(&crate::system::owner::system().work.files.buffer);
     write_from(file, scratch, HEAD_LEN, "the best times file's head")?;
     for table in WRITTEN {
         let bytes = crate::saves::best_times::typed(table).bytes()?;

@@ -34,13 +34,9 @@
 //! parts refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::CAR;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::race;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::face_sort_key;
 use crate::scene::owner::scene;
@@ -61,7 +57,11 @@ impl FaceWorld for GameFace {
         race().course.numbers.in_race.bits() != 0
     }
     fn object(&self) -> u32 {
-        FRAME_SWITCHES.object_number.bits()
+        crate::race::owner::race()
+            .shared
+            .switches
+            .object_number
+            .bits()
     }
     fn object_kind(&self, object: u32) -> u32 {
         scene().objects.tables.object_kind(object)
@@ -88,10 +88,10 @@ impl FaceWorld for GameFace {
         [15, 16].map(|k| race().course.course.group_masks[k].get())
     }
     fn group_mask(&self) -> u32 {
-        FRAME_SWITCHES.group_mask.bits()
+        crate::race::owner::race().shared.switches.group_mask.bits()
     }
     fn mask_kind(&self) -> u32 {
-        FRAME_SWITCHES.mask_kind.bits()
+        crate::race::owner::race().shared.switches.mask_kind.bits()
     }
     fn group_table(&self, group: u32) -> u32 {
         let draw_switches = &scene().draw_switches;
@@ -104,7 +104,11 @@ impl FaceWorld for GameFace {
         ))
     }
     fn no_second_mask(&self) -> u32 {
-        CAR.camera_switch_active.bits()
+        crate::race::owner::race()
+            .shared
+            .car
+            .camera_switch_active
+            .bits()
     }
     fn second_mask(&self) -> u32 {
         race().frame.view_and_records.view_vars.group_mask.bits()
@@ -131,7 +135,10 @@ impl FaceWorld for GameFace {
         {
             let which: u32 = race().frame.view_and_records.view_vars.drawn_car.bits();
             let block: u32 = if which < BLOCKS {
-                RACE_WORK.car_block(which as usize)
+                crate::race::owner::race()
+                    .shared
+                    .work
+                    .car_block(which as usize)
             } else {
                 0
             };
@@ -203,7 +210,7 @@ pub fn list_object_face(race: &crate::race::owner::Race, face: usize) -> Result<
     let entry = listed as usize * 4;
     let key = listed_key(bytes, scene.drawing.scene.face_sort_key.bits());
     for (k, v) in [
-        RACE_VARS.face_number.bits(),
+        crate::race::owner::race().shared.vars.face_number.bits(),
         key,
         scene.drawing.scene.entry_third.bits(),
         physics.ground.object_see_through.bits(),

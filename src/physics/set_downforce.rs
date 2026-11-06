@@ -9,21 +9,35 @@
 //! Caller: `sub_43B635` (0x43B728), every physics step.
 
 use crate::math::x87_run::{minus_one, square_times_plus_times};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 
 /// The Rust version.
 pub fn set_downforce() {
-    if CAR.rear_wheels_off.get() != 0 {
+    if crate::race::owner::race().shared.car.rear_wheels_off.get() != 0 {
         return;
     }
     let (load, negative) = square_times_plus_times(
-        CAR.local_velocity[2].bits(),
-        PHYSICS.downforce_factor.bits(),
-        PHYSICS.downforce_spec.bits(),
-        PHYSICS.gravity.bits(),
+        crate::race::owner::race().shared.car.local_velocity[2].bits(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .downforce_factor
+            .bits(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .downforce_spec
+            .bits(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .gravity
+            .bits(),
     );
-    PHYSICS.downforce.set_bits(load);
-    PHYSICS.forces[4].force[1].set_bits(negative);
-    PHYSICS.forces[4].point[2].set_bits(minus_one());
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .downforce
+        .set_bits(load);
+    crate::race::owner::race().shared.physics_tables.forces[4].force[1].set_bits(negative);
+    crate::race::owner::race().shared.physics_tables.forces[4].point[2].set_bits(minus_one());
 }

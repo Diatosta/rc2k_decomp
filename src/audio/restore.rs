@@ -3,9 +3,7 @@
 //! calls go through a `Part` (the place, eax, esi -> the carry), so that the tests can
 //! stand them in; in the game they are the Rust versions.
 
-use crate::audio::store::AUDIO;
 use crate::errors::{BadInput, Refused};
-use crate::session::{FLAGS, MACHINE};
 
 /// `restore_buffer` of the buffer `buffer`: true when it failed (the carry).
 fn restore_failed(buffer: u32) -> Result<bool, Refused> {
@@ -14,7 +12,7 @@ fn restore_failed(buffer: u32) -> Result<bool, Refused> {
 
 /// The voice `n`'s buffer refilled: true when it failed.
 fn refill_failed(n: usize) -> Result<bool, Refused> {
-    crate::audio::fill_buffer::fill_buffer(&AUDIO.voices[n].get())
+    crate::audio::fill_buffer::fill_buffer(&crate::audio::owner::audio().state.voices[n].get())
 }
 
 /// `audio::make_primary` on the game's variables: true when it failed (the carry).
@@ -58,7 +56,7 @@ pub fn restore_buffer(b: u32) -> Result<Restored, Refused> {
         // `Restore` may change edx as it likes (as any COM call): not the status any more.
         left.edx = None;
         if r != 0 {
-            AUDIO.sound_buffer_lost.set(1);
+            crate::audio::owner::audio().state.sound_buffer_lost.set(1);
             left.carry = true;
         }
     }
@@ -71,7 +69,7 @@ pub fn replay_looping() -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::voices::sounding_to_replay` (the list is walked before
     // any is played, so a list without its end plays none).
     let lists = rc2k_core::audio::voices::Lists {
-        playing: AUDIO.playing_voices.get(),
+        playing: crate::audio::owner::audio().state.playing_voices.get(),
         ..Default::default()
     };
     let mut pool = crate::audio::voices::GamePool;
@@ -89,15 +87,23 @@ pub fn restore_lost() -> Result<(), Refused> {
         return Err(BadInput("A3D (0x40CB0A)").into());
     }
     crate::system::sleep::sleep(1000);
-    if FLAGS.window_active.get() == 0 {
+    if crate::system::owner::system()
+        .session
+        .flags
+        .window_active
+        .get()
+        == 0
+    {
         return Ok(());
     }
-    AUDIO.sound_buffer_lost.set(0);
-    if restore_failed(AUDIO.primary_buffer.get())? {
+    crate::audio::owner::audio().state.sound_buffer_lost.set(0);
+    if restore_failed(crate::audio::owner::audio().state.primary_buffer.get())? {
         return Ok(());
     }
-    for n in 0..AUDIO.voice_count.get() as usize {
-        if restore_failed(AUDIO.voices[n].get().buffer)? || refill_failed(n)? {
+    for n in 0..crate::audio::owner::audio().state.voice_count.get() as usize {
+        if restore_failed(crate::audio::owner::audio().state.voices[n].get().buffer)?
+            || refill_failed(n)?
+        {
             return Ok(());
         }
     }
@@ -111,13 +117,18 @@ pub fn restore_lost() -> Result<(), Refused> {
 pub fn close_primary_mixer_in_game() -> Result<bool, Refused> {
     crate::audio::clear_channels::clear_channels();
     // Converted: `rc2k_core::audio::buffers::remakes_primary`.
-    if !rc2k_core::audio::buffers::remakes_primary(AUDIO.sound_mode.get(), || {
-        AUDIO.direct_sound.get()
-    }) {
+    if !rc2k_core::audio::buffers::remakes_primary(
+        crate::audio::owner::audio().state.sound_mode.get(),
+        || crate::audio::owner::audio().state.direct_sound.get(),
+    ) {
         return Ok(false);
     }
     crate::audio::sound_device::release_primary()?;
-    let ds = AUDIO.direct_sound.get();
-    crate::platform_sound::set_cooperative_level(ds, MACHINE.window.get(), 3);
+    let ds = crate::audio::owner::audio().state.direct_sound.get();
+    crate::platform_sound::set_cooperative_level(
+        ds,
+        crate::system::owner::system().session.machine.window.get(),
+        3,
+    );
     make_primary_failed()
 }

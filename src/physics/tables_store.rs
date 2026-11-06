@@ -3,7 +3,7 @@
 //! working figures, the force and contact records, the gearbox and the spec's figures.
 //! Named from the code's uses (2026-10-25); most names are readings, `unknown_*` runs are
 //! places no ported code names. `#[repr(C)]` with the image's layout, over the race block's
-//! bytes (`PHYSICS`, as `physics::car_store::CAR`) until the code reaching them by RVA from
+//! bytes (`PHYSICS`, as `crate::race::owner::race().shared.car`) until the code reaching them by RVA from
 //! `race::store::asm_base()` is typed.
 
 use crate::session::{Dword, Float};
@@ -525,10 +525,13 @@ const _: () = assert!(core::mem::size_of::<ForceRecord>() == 0x20);
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static PHYSICS: PhysicsTables =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl PhysicsTables {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 impl PhysicsTables {
     /// IDA's address of the first ground record (`off_613978`).
@@ -543,7 +546,9 @@ impl PhysicsTables {
     /// them over). A kind past the 16, or a name off the tables (or between two dwords), is
     /// refused.
     pub fn surface_table_index(n: u32) -> Result<usize, crate::errors::BadInput> {
-        let record = PHYSICS
+        let record = crate::race::owner::race()
+            .shared
+            .physics_tables
             .surfaces
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a ground kind past the 16"))?;
@@ -567,7 +572,9 @@ const _: () = assert!(END - START == core::mem::size_of::<PhysicsTables>());
 /// Where IDA 0x613828 is now (its own static).
 #[cfg(test)]
 pub fn tables_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&PHYSICS))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::race().shared.physics_tables,
+    ))
 }
 
 #[cfg(test)]
@@ -590,8 +597,20 @@ mod tests {
         assert_eq!(offset_of!(PhysicsTables, contacts), 0x614A50 - START);
         assert_eq!(offset_of!(PhysicsTables, gear_count), 0x614C10 - START);
         assert_eq!(offset_of!(PhysicsTables, pace_slot), 0x614D34 - START);
-        assert_eq!(PHYSICS.gravity.get(), 9.8);
-        assert_eq!(PHYSICS.surfaces[1].slide_grip.get(), 1.0);
+        assert_eq!(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .gravity
+                .get(),
+            9.8
+        );
+        assert_eq!(
+            crate::race::owner::race().shared.physics_tables.surfaces[1]
+                .slide_grip
+                .get(),
+            1.0
+        );
     }
 
     #[test]
@@ -600,14 +619,19 @@ mod tests {
             let ida = PhysicsTables::SURFACES + 0x30 * n as usize;
             let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
             // Kept as the image's name; resolved to the same table's place.
-            assert_eq!(PHYSICS.surfaces[n as usize].table.get(), image);
+            assert_eq!(
+                crate::race::owner::race().shared.physics_tables.surfaces[n as usize]
+                    .table
+                    .get(),
+                image
+            );
             let slot = (image as usize - PhysicsTables::TABLES) / 4;
             assert_eq!(PhysicsTables::surface_table_index(n).unwrap(), slot);
             assert!(slot.is_multiple_of(13) && slot < 104);
         }
         assert!(PhysicsTables::surface_table_index(16).is_err());
         assert_eq!(
-            PHYSICS.contacts[0].force[0].addr(),
+            crate::race::owner::race().shared.physics_tables.contacts[0].force[0].addr(),
             crate::framework::game_addr(crate::framework::rva(0x614A50))
         );
     }

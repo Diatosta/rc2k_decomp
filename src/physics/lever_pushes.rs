@@ -14,11 +14,8 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{lever_share, one_less};
-use crate::physics::car_store::CAR;
 use crate::physics::lever_push::lever_push;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
-use crate::race::switches_store::FRAME_SWITCHES;
 use std::cmp::Ordering;
 
 /// `fld limit; fld share; fcompp` and its C0: share below limit, or unordered.
@@ -31,45 +28,115 @@ fn below(share: u32, limit: u32) -> bool {
 
 /// The Rust version.
 pub fn lever_pushes(course: &Course) {
-    PHYSICS.lever_pushes[0].set(0);
-    PHYSICS.lever_pushes[1].set(0);
-    if FRAME_SWITCHES.levers_on.get() != 1 || CAR.all_wheels_off.get() != 0 {
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_pushes[0]
+        .set(0);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_pushes[1]
+        .set(0);
+    if crate::race::owner::race().shared.switches.levers_on.get() != 1
+        || crate::race::owner::race().shared.car.all_wheels_off.get() != 0
+    {
         return;
     }
-    PHYSICS.lever_push_vector[0].set(0);
-    PHYSICS.lever_push_vector[1].set(0);
-    PHYSICS.lever_share_start.set_bits(0);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_push_vector[0]
+        .set(0);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_push_vector[1]
+        .set(0);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_share_start
+        .set_bits(0);
     let (share, zero) = lever_share(
-        CAR.grip_forces[0].bits(),
-        CAR.grip_forces[3].bits(),
-        CAR.grip_forces[1].bits(),
-        CAR.grip_forces[2].bits(),
+        crate::race::owner::race().shared.car.grip_forces[0].bits(),
+        crate::race::owner::race().shared.car.grip_forces[3].bits(),
+        crate::race::owner::race().shared.car.grip_forces[1].bits(),
+        crate::race::owner::race().shared.car.grip_forces[2].bits(),
         course.numbers.zero.bits(),
     );
-    PHYSICS.lever_share_start.set_bits(share);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_share_start
+        .set_bits(share);
     if zero {
         return;
     }
-    if below(PHYSICS.lever_share_start.bits(), course.numbers.zero.bits()) {
-        PHYSICS
+    if below(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .lever_share_start
+            .bits(),
+        course.numbers.zero.bits(),
+    ) {
+        crate::race::owner::race()
+            .shared
+            .physics_tables
             .lever_share_start
             .set_bits(x87::loaded(course.numbers.zero.bits()));
     }
-    if !below(PHYSICS.lever_share_start.bits(), course.numbers.one.bits()) {
-        PHYSICS
+    if !below(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .lever_share_start
+            .bits(),
+        course.numbers.one.bits(),
+    ) {
+        crate::race::owner::race()
+            .shared
+            .physics_tables
             .lever_share_start
             .set_bits(x87::loaded(course.numbers.one.bits()));
     }
-    PHYSICS.lever_push_vector[2].set(x87::loaded(CAR.probe_point_z[3].bits()));
-    PHYSICS
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_push_vector[2]
+        .set(x87::loaded(
+            crate::race::owner::race().shared.car.probe_point_z[3].bits(),
+        ));
+    crate::race::owner::race()
+        .shared
+        .physics_tables
         .lever_share_left
-        .set_bits(x87::loaded(PHYSICS.lever_share_start.bits()));
+        .set_bits(x87::loaded(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .lever_share_start
+                .bits(),
+        ));
     lever_push(course);
-    PHYSICS.lever_push_vector[2].set(x87::loaded(CAR.probe_point_z[0].bits()));
-    PHYSICS.lever_share_left.set_bits(one_less(
-        crate::physics::tables_store::PHYSICS
-            .lever_share_left
-            .bits(),
-    ));
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_push_vector[2]
+        .set(x87::loaded(
+            crate::race::owner::race().shared.car.probe_point_z[0].bits(),
+        ));
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_share_left
+        .set_bits(one_less(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .lever_share_left
+                .bits(),
+        ));
     lever_push(course);
 }

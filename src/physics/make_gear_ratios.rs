@@ -17,9 +17,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
-use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::owner::scene;
@@ -68,24 +66,27 @@ pub fn ratios_at(course: &Course, v: &[&dyn Cell32]) -> Result<u32, Refused> {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &PHYSICS.gear_count as &dyn Cell32,
+        &crate::race::owner::race().shared.physics_tables.gear_count as &dyn Cell32,
         &GEAR.figures[3],
         &GEAR.figures[1],
         &GEAR.figures[2],
         &GEAR.figures[0],
-        &CAR.gear_ratio_setting,
-        &CAR.engine_speed_limit,
-        &PHYSICS.gear_ratios[0],
-        &PHYSICS.gear_ratios[1],
-        &PHYSICS.gear_ratios[2],
-        &PHYSICS.gear_ratios[3],
-        &PHYSICS.gear_ratios[4],
-        &PHYSICS.gear_ratios[5],
-        &PHYSICS.gear_ratios[6],
-        &PHYSICS.gear_ratios[7],
-        &PHYSICS.gear_ratios[8],
+        &crate::race::owner::race().shared.car.gear_ratio_setting,
+        &crate::race::owner::race().shared.car.engine_speed_limit,
+        &crate::race::owner::race().shared.physics_tables.gear_ratios[0],
+        &crate::race::owner::race().shared.physics_tables.gear_ratios[1],
+        &crate::race::owner::race().shared.physics_tables.gear_ratios[2],
+        &crate::race::owner::race().shared.physics_tables.gear_ratios[3],
+        &crate::race::owner::race().shared.physics_tables.gear_ratios[4],
+        &crate::race::owner::race().shared.physics_tables.gear_ratios[5],
+        &crate::race::owner::race().shared.physics_tables.gear_ratios[6],
+        &crate::race::owner::race().shared.physics_tables.gear_ratios[7],
+        &crate::race::owner::race().shared.physics_tables.gear_ratios[8],
         &scene().drawing.scene.scratch,
-        &PHYSICS.gear_ratio_step,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .gear_ratio_step,
     ]
 }
 

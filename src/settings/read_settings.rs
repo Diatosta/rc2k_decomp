@@ -93,27 +93,27 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"notaskswitch",
         0x518384,
-        dword!(crate::session::FLAGS.no_task_switch),
+        dword!(crate::system::owner::system().session.flags.no_task_switch),
     ),
     (
         b"noprichange",
         0x518388,
-        dword!(crate::session::FLAGS.keep_priority),
+        dword!(crate::system::owner::system().session.flags.keep_priority),
     ),
     (
         b"ignoremmx",
         0x5183AC,
-        dword!(crate::session::MACHINE.ignore_mmx),
+        dword!(crate::system::owner::system().session.machine.ignore_mmx),
     ),
     (
         b"ignorekatmai",
         0x5183B4,
-        dword!(crate::session::MACHINE.ignore_katmai),
+        dword!(crate::system::owner::system().session.machine.ignore_katmai),
     ),
     (
         b"ignoreamdk3d",
         0x5183BC,
-        dword!(crate::session::MACHINE.ignore_3dnow),
+        dword!(crate::system::owner::system().session.machine.ignore_3dnow),
     ),
     (
         b"altmemenable",
@@ -128,12 +128,12 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"noaudio",
         0x4F82B4,
-        dword!(crate::audio::store::AUDIO.no_audio),
+        dword!(crate::audio::owner::AUDIO_OWNER.state.no_audio),
     ),
     (
         b"nosound",
         0x4F82B4,
-        dword!(crate::audio::store::AUDIO.no_audio),
+        dword!(crate::audio::owner::AUDIO_OWNER.state.no_audio),
     ),
     (
         b"nocdaudio",
@@ -143,37 +143,37 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"nomusic",
         0x5069BC,
-        dword!(crate::audio::store::AUDIO.no_music),
+        dword!(crate::audio::owner::AUDIO_OWNER.state.no_music),
     ),
     (
         b"audiobasefreq",
         0x4F82D4,
-        dword!(crate::audio::store::AUDIO.mix_rate_setting),
+        dword!(crate::audio::owner::AUDIO_OWNER.state.mix_rate_setting),
     ),
     (
         b"ignoreds3d",
         0x506B42,
-        loose!(crate::audio::store::AUDIO.no_listener),
+        loose!(crate::audio::owner::AUDIO_OWNER.state.no_listener),
     ),
     (
         b"ignoredsv",
         0x506C50,
-        dword!(crate::audio::store::AUDIO.ignore_dsv_setting),
+        dword!(crate::audio::owner::AUDIO_OWNER.state.ignore_dsv_setting),
     ),
     (
         b"ignoreeax",
         0x506C6C,
-        dword!(crate::audio::store::AUDIO.ignore_eax_setting),
+        dword!(crate::audio::owner::AUDIO_OWNER.state.ignore_eax_setting),
     ),
     (
         b"ignorea3d",
         0x506C5C,
-        dword!(crate::audio::store::AUDIO.no_a3d_setting),
+        dword!(crate::audio::owner::AUDIO_OWNER.state.no_a3d_setting),
     ),
     (
         b"wavheapsize",
         0x5068EC,
-        dword!(crate::audio::store::AUDIO.sample_buffer_kb),
+        dword!(crate::audio::owner::AUDIO_OWNER.state.sample_buffer_kb),
     ),
     (
         b"bundleheapsize",
@@ -183,7 +183,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"imageheapsize",
         0x519554,
-        dword!(crate::strings::compile_lexicon::LEXICON.kilobytes),
+        dword!(crate::strings::owner::strings().lexicon.memory.kilobytes),
     ),
     (
         b"gamegfxheapsize",
@@ -193,52 +193,52 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"forcedx5",
         0x5AB958,
-        dword!(crate::d3d::cards_store::CARDS_3D.force_dx5),
+        dword!(crate::d3d::owner::d3d().cards.force_dx5),
     ),
     (
         b"forceno3dcard",
         0x5AB94C,
-        dword!(crate::d3d::cards_store::CARDS_3D.no_search),
+        dword!(crate::d3d::owner::d3d().cards.no_search),
     ),
     (
         b"ignoreprimary",
         0x5AB950,
-        dword!(crate::d3d::cards_store::CARDS_3D.not_primary),
+        dword!(crate::d3d::owner::d3d().cards.not_primary),
     ),
     (
         b"ignoresecondary",
         0x5AB954,
-        dword!(crate::d3d::cards_store::CARDS_3D.ignore_secondary),
+        dword!(crate::d3d::owner::d3d().cards.ignore_secondary),
     ),
     (
         b"agpmode",
         0x5AB95C,
-        dword!(crate::d3d::cards_store::CARDS_3D.agp_mode),
+        dword!(crate::d3d::owner::d3d().cards.agp_mode),
     ),
     (
         b"force3dtrans",
         0x5AB97C,
-        dword!(crate::d3d::cards_store::CARDS_3D.force_trans),
+        dword!(crate::d3d::owner::d3d().cards.force_trans),
     ),
     (
         b"force3dalpha",
         0x5AB984,
-        dword!(crate::d3d::cards_store::CARDS_3D.force_alpha),
+        dword!(crate::d3d::owner::d3d().cards.force_alpha),
     ),
     (
         b"force3dshadow",
         0x5AB980,
-        dword!(crate::d3d::cards_store::CARDS_3D.force_shadow),
+        dword!(crate::d3d::owner::d3d().cards.force_shadow),
     ),
     (
         b"force3dfogging",
         0x5AB988,
-        dword!(crate::d3d::cards_store::CARDS_3D.force_fogging),
+        dword!(crate::d3d::owner::d3d().cards.force_fogging),
     ),
     (
         b"textflashmode",
         0x4F3F74,
-        dword!(crate::text::blend_font::BLEND_MODE),
+        dword!(crate::strings::owner::strings().text.blend_mode),
     ),
     (
         b"videomodemain",
@@ -263,60 +263,64 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"nojoy",
         0x4F68DC,
-        dword!(crate::input::store::DEVICES.no_joysticks),
+        dword!(crate::input::owner::INPUT.devices.no_joysticks),
     ),
     (
         b"joymode",
         0x4F68E0,
-        dword!(crate::input::store::DEVICES.joy_mode),
+        dword!(crate::input::owner::INPUT.devices.joy_mode),
     ),
     (
         b"joycode",
         0x4F68E4,
-        dword!(crate::input::store::DEVICES.joy_code),
+        dword!(crate::input::owner::INPUT.devices.joy_code),
     ),
     (
         b"joylowerdz",
         0x4F68E8,
-        dword!(crate::input::store::DEVICES.joy_dead_zone),
+        dword!(crate::input::owner::INPUT.devices.joy_dead_zone),
     ),
     (
         b"joyupperdz",
         0x4F68EC,
-        dword!(crate::input::store::DEVICES.joy_end_zone),
+        dword!(crate::input::owner::INPUT.devices.joy_end_zone),
     ),
     (
         b"noforcefeedback",
         0x4F68F4,
-        dword!(crate::input::store::DEVICES.no_force_feedback),
+        dword!(crate::input::owner::INPUT.devices.no_force_feedback),
     ),
     (
         b"joyffgain",
         0x4F68F8,
-        dword!(crate::input::store::DEVICES.ff_gain),
+        dword!(crate::input::owner::INPUT.devices.ff_gain),
     ),
     (
         b"mergejoy",
         0x4F68FC,
-        dword!(crate::input::store::DEVICES.two_devices_one_player),
+        dword!(crate::input::owner::INPUT.devices.two_devices_one_player),
     ),
     (
         b"nonetwork",
         0x52A4B0,
-        dword!(crate::net::store::NET.receive_done),
+        dword!(crate::net::owner::net().vars.receive_done),
     ),
-    (b"inetport", 0x52AC24, dword!(crate::net::store::NET.port)),
+    (
+        b"inetport",
+        0x52AC24,
+        dword!(crate::net::owner::net().vars.port),
+    ),
     (b"screensnapshot", 0x4F52B4, dword!(gfx().shots.on)),
     (b"framecounter", 0x5EB100, dword!(race().frame.counter.show)),
     (
         b"noreplay",
         0x5BEC7C,
-        dword!(crate::race::replay_file_store::REPLAY_FILE.no_replay_switch),
+        dword!(crate::race::owner::RACE.shared.replay_file.no_replay_switch),
     ),
     (
         b"replaykeys",
         0x5BECA8,
-        dword!(crate::race::replay_file_store::REPLAY_FILE.viewer_editing),
+        dword!(crate::race::owner::RACE.shared.replay_file.viewer_editing),
     ),
     (
         b"logfile",
@@ -348,22 +352,27 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"noprecipitation",
         0x71C800,
-        dword!(crate::race::work_store::RACE_WORK.no_precipitation),
+        dword!(crate::race::owner::RACE.shared.work.no_precipitation),
     ),
     (
         b"seasoncode",
         0x5BECAC,
-        dword!(crate::race::replay_file_store::REPLAY_FILE.season_code),
+        dword!(crate::race::owner::RACE.shared.replay_file.season_code),
     ),
     (
         b"noautoneutral",
         0x61416C,
-        dword!(crate::physics::tables_store::PHYSICS.no_auto_neutral),
+        dword!(
+            crate::race::owner::RACE
+                .shared
+                .physics_tables
+                .no_auto_neutral
+        ),
     ),
     (
         b"nonlinearsteering",
         0x4F6900,
-        dword!(crate::input::store::DEVICES.nonlinear_steering),
+        dword!(crate::input::owner::INPUT.devices.nonlinear_steering),
     ),
     (
         b"wrreplayenable",
@@ -378,72 +387,72 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"alt2axcode",
         0x4F68F0,
-        dword!(crate::input::store::DEVICES.alt_axes_code),
+        dword!(crate::input::owner::INPUT.devices.alt_axes_code),
     ),
     (
         b"fizpatch",
         0x71C6D0,
-        dword!(crate::race::work_store::RACE_WORK.patch_switch),
+        dword!(crate::race::owner::RACE.shared.work.patch_switch),
     ),
     (
         b"patchmaxdrawdistance",
         0x71C6D4,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[0]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[0]),
     ),
     (
         b"patchstickygrass",
         0x71C6D8,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[1]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[1]),
     ),
     (
         b"patchgravity",
         0x71C6DC,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[2]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[2]),
     ),
     (
         b"patchdamages",
         0x71C6E0,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[3]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[3]),
     ),
     (
         b"patchbrakegrip",
         0x71C6E4,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[4]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[4]),
     ),
     (
         b"patchaccelgrip",
         0x71C6E8,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[5]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[5]),
     ),
     (
         b"patchslidegrip",
         0x71C6EC,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[6]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[6]),
     ),
     (
         b"patchgripgrass",
         0x71C6F0,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[7]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[7]),
     ),
     (
         b"patchgriptarmac",
         0x71C6F4,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[8]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[8]),
     ),
     (
         b"patchgripsnow",
         0x71C6F8,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[9]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[9]),
     ),
     (
         b"patchgripmud",
         0x71C6FC,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[10]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[10]),
     ),
     (
         b"patchgripgravel",
         0x71C700,
-        dword!(crate::race::work_store::RACE_WORK.patch_settings[11]),
+        dword!(crate::race::owner::RACE.shared.work.patch_settings[11]),
     ),
     (
         b"lexcontrol",

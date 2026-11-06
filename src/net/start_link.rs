@@ -60,10 +60,11 @@ fn link() -> Result<Way, Refused> {
     if !connecting::connecting(connection)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
-    if NET.mode.get() == 1 {
-        NET.own
-            .head
-            .set(PlayerRecord::STATE, NET.own.state() | 0x10);
+    if crate::net::owner::net().vars.mode.get() == 1 {
+        crate::net::owner::net().vars.own.head.set(
+            PlayerRecord::STATE,
+            crate::net::owner::net().vars.own.state() | 0x10,
+        );
         return Ok(if hosting::hosting()? {
             Way::On
         } else {
@@ -90,7 +91,7 @@ fn link() -> Result<Way, Refused> {
 pub fn start_link(mode: u32) -> Result<(), Refused> {
     use crate::net::*;
     log(VIEWER_PANEL.text_ptr(texts::NET_STARTING_LINK), true, 2);
-    NET.mode.set(mode);
+    crate::net::owner::net().vars.mode.set(mode);
     take_player_settings::take_player_settings();
     let play = &menus().play;
     fill_own_player::fill_own_player(play, &play.names.player_names)?;
@@ -99,16 +100,16 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
         Way::Message(n) => show_message::show_message(n)?,
         Way::End => {}
         Way::On => {
-            NET.session.set(1);
+            crate::net::owner::net().vars.session.set(1);
             lock_received::lock_received();
             clear_chat::clear_chat();
             unlock_received::unlock_received();
-            NET.sync.set(0);
-            NET.sequence.set(0x80);
-            NET.after_race.set(0);
+            crate::net::owner::net().vars.sync.set(0);
+            crate::net::owner::net().vars.sequence.set(0x80);
+            crate::net::owner::net().vars.after_race.set(0);
             loop {
-                NET.all_raced.set(0);
-                NET.race_over.set(0);
+                crate::net::owner::net().vars.all_raced.set(0);
+                crate::net::owner::net().vars.race_over.set(0);
                 crate::sound::play_tune_4::play_tune_4();
                 if (lobby_loop::lobby_loop()? as i32) < 0 {
                     break;

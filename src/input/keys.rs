@@ -8,8 +8,7 @@
 //! frames is pressed again each frame).
 
 use crate::framework::Regs;
-use crate::input::store::{DEVICES, KEYS as KEYS_LEN, MOUSE};
-use crate::physics::tables_store::PHYSICS;
+use crate::input::store::KEYS as KEYS_LEN;
 
 const SCREENSHOT_KEY: u32 = rc2k_core::input::frame::SCREENSHOT_KEY as u32; // byte_4F6BAE
 
@@ -20,17 +19,17 @@ use rc2k_core::input::frame::KeyTables;
 
 fn tables() -> KeyTables {
     KeyTables {
-        now: DEVICES.keys_now.read(),
-        before: DEVICES.keys_before.read(),
-        pressed: DEVICES.keys_pressed.read(),
-        repeat: DEVICES.key_repeat.read(),
+        now: crate::input::owner::input().devices.keys_now.read(),
+        before: crate::input::owner::input().devices.keys_before.read(),
+        pressed: crate::input::owner::input().devices.keys_pressed.read(),
+        repeat: crate::input::owner::input().devices.key_repeat.read(),
     }
 }
 
 /// `input::unpack_mouse` (0x4081FC): `g_mouseWord` as the buttons (low byte), the x
 /// (bits 8 .. 19) and the y (bits 20 .. 31), both signed (the original's ebx, ecx, edx).
 pub fn unpack_mouse() -> (u32, i32, i32) {
-    rc2k_core::input::frame::unpack_mouse(DEVICES.mouse_word.get())
+    rc2k_core::input::frame::unpack_mouse(crate::input::owner::input().devices.mouse_word.get())
 }
 
 /// `input::take_mouse` (0x42019C): `unpack_mouse` into `g_mouseX`, `g_mouseY`,
@@ -38,12 +37,12 @@ pub fn unpack_mouse() -> (u32, i32, i32) {
 /// gives.
 pub fn take_mouse() -> (u32, i32, i32) {
     let (buttons, x, y) = unpack_mouse();
-    MOUSE.x.set(x as u32);
-    MOUSE.y.set(y as u32);
+    crate::input::owner::input().mouse.x.set(x as u32);
+    crate::input::owner::input().mouse.y.set(y as u32);
     let [all, left, right] = rc2k_core::input::frame::buttons(buttons);
-    MOUSE.buttons.set(all);
-    MOUSE.left_button.set(left);
-    MOUSE.right_button.set(right);
+    crate::input::owner::input().mouse.buttons.set(all);
+    crate::input::owner::input().mouse.left_button.set(left);
+    crate::input::owner::input().mouse.right_button.set(right);
     (buttons, x, y)
 }
 
@@ -51,17 +50,20 @@ pub fn take_mouse() -> (u32, i32, i32) {
 /// edi past them, ecx 0).
 pub fn copy_keys() {
     let mut t = tables();
-    t.copy_keys(&DEVICES.keys_down.read());
-    DEVICES.keys_now.write(&t.now);
+    t.copy_keys(&crate::input::owner::input().devices.keys_down.read());
+    crate::input::owner::input().devices.keys_now.write(&t.now);
 }
 
 /// `input::buttons_to_keys` (0x420200): `g_leftButton` and `g_rightButton` (their low
 /// bytes) as keys 0x73 and 0x74; `g_rightButton` (the original's eax).
 pub fn buttons_to_keys() -> u32 {
-    let (left, right) = (MOUSE.left_button.get(), MOUSE.right_button.get());
+    let (left, right) = (
+        crate::input::owner::input().mouse.left_button.get(),
+        crate::input::owner::input().mouse.right_button.get(),
+    );
     let mut t = tables();
     t.buttons_to_keys(left, right);
-    DEVICES.keys_now.write(&t.now);
+    crate::input::owner::input().devices.keys_now.write(&t.now);
     right
 }
 
@@ -71,8 +73,14 @@ pub fn buttons_to_keys() -> u32 {
 pub fn find_pressed_keys() -> (u32, u32) {
     let mut t = tables();
     let found = t.find_pressed();
-    DEVICES.keys_before.write(&t.before);
-    DEVICES.keys_pressed.write(&t.pressed);
+    crate::input::owner::input()
+        .devices
+        .keys_before
+        .write(&t.before);
+    crate::input::owner::input()
+        .devices
+        .keys_pressed
+        .write(&t.pressed);
     found
 }
 
@@ -82,16 +90,25 @@ pub fn find_pressed_keys() -> (u32, u32) {
 pub fn repeat_keys() {
     let mut t = tables();
     t.repeat();
-    DEVICES.key_repeat.write(&t.repeat);
-    DEVICES.keys_pressed.write(&t.pressed);
+    crate::input::owner::input()
+        .devices
+        .key_repeat
+        .write(&t.repeat);
+    crate::input::owner::input()
+        .devices
+        .keys_pressed
+        .write(&t.pressed);
 }
 
 /// `input::take_mouse_clicks` (0x42028C): `g_leftClick` and `g_rightClick` from keys
 /// 0x73 and 0x74 pressed (low bits); the right (the original's eax).
 pub fn take_mouse_clicks() -> u32 {
     let clicks = tables().clicks();
-    MOUSE.left_click.set(clicks[0]);
-    MOUSE.right_click.set(clicks[1]);
+    crate::input::owner::input().mouse.left_click.set(clicks[0]);
+    crate::input::owner::input()
+        .mouse
+        .right_click
+        .set(clicks[1]);
     clicks[1]
 }
 
@@ -102,7 +119,12 @@ pub type Screenshot<'a> = &'a mut dyn FnMut();
 /// (in `g_keysNow`). Every register preserved.
 pub fn screenshot_if_key(shot: Screenshot) {
     // Converted: `rc2k_core::input::frame::screenshot_wanted`.
-    if rc2k_core::input::frame::screenshot_wanted(DEVICES.keys_now.get(SCREENSHOT_KEY as usize)) {
+    if rc2k_core::input::frame::screenshot_wanted(
+        crate::input::owner::input()
+            .devices
+            .keys_now
+            .get(SCREENSHOT_KEY as usize),
+    ) {
         shot();
     }
 }
@@ -114,7 +136,14 @@ pub fn end_frame(check: Screenshot) {
     let left = rc2k_core::input::frame::end_frame(crate::gfx::shots::on(), check);
     // Not the original's 0s once the debug overlay's keys are used (`debug::overlay`).
     let kept = crate::debug::overlay::words();
-    for ((cell, value), kept) in PHYSICS.debug.iter().zip(left).zip(kept) {
+    for ((cell, value), kept) in crate::race::owner::race()
+        .shared
+        .physics_tables
+        .debug
+        .iter()
+        .zip(left)
+        .zip(kept)
+    {
         cell.set(value | kept);
     }
 }
@@ -125,16 +154,25 @@ pub fn end_frame(check: Screenshot) {
 /// `find_pressed_keys`, `repeat_keys`, `take_mouse_clicks`, `end_frame`. The right click
 /// and the last key dword (the original's eax and edx).
 pub fn update_input(shot: Screenshot) -> (u32, u32) {
-    MOUSE.last_x.set(MOUSE.x.get());
-    MOUSE.last_y.set(MOUSE.y.get());
-    MOUSE.left_click.set(0);
-    MOUSE.right_click.set(0);
-    DEVICES.keys_pressed.write(&[0u8; KEYS_LEN]);
+    crate::input::owner::input()
+        .mouse
+        .last_x
+        .set(crate::input::owner::input().mouse.x.get());
+    crate::input::owner::input()
+        .mouse
+        .last_y
+        .set(crate::input::owner::input().mouse.y.get());
+    crate::input::owner::input().mouse.left_click.set(0);
+    crate::input::owner::input().mouse.right_click.set(0);
+    crate::input::owner::input()
+        .devices
+        .keys_pressed
+        .write(&[0u8; KEYS_LEN]);
     take_mouse();
     copy_keys();
     let mut t = tables();
     t.join_pairs();
-    DEVICES.keys_now.write(&t.now);
+    crate::input::owner::input().devices.keys_now.write(&t.now);
     buttons_to_keys();
     let (_, edx) = find_pressed_keys();
     repeat_keys();

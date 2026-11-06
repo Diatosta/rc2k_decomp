@@ -18,25 +18,22 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::auto_gearbox::auto_gearbox;
-use crate::physics::car_store::CAR;
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::manual_gearbox;
-use crate::physics::tables_store::PHYSICS;
 use crate::physics::take_asked_gear::take_asked_gear;
 use crate::race::owner_course::Course;
-use crate::race::vars_store::RACE_VARS;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
 pub fn gearbox_step(course: &Course) -> Result<(), Refused> {
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
-        CAR.finish_flag.get(),
-        || RACE_VARS.run_kind.get(),
-        || CAR.run_ticks.get(),
-        || CAR.driver_kind.get(),
-        || CAR.input_keys.get(),
-        || CAR.gearbox_kind.get(),
+        crate::race::owner::race().shared.car.finish_flag.get(),
+        || crate::race::owner::race().shared.vars.run_kind.get(),
+        || crate::race::owner::race().shared.car.run_ticks.get(),
+        || crate::race::owner::race().shared.car.driver_kind.get(),
+        || crate::race::owner::race().shared.car.input_keys.get(),
+        || crate::race::owner::race().shared.car.gearbox_kind.get(),
     );
     match turn {
         GearboxTurn::Idle => {}
@@ -47,11 +44,19 @@ pub fn gearbox_step(course: &Course) -> Result<(), Refused> {
         }
         GearboxTurn::Auto => auto_gearbox(course)?,
     }
-    if CAR.gear_changed.get() == 1 {
-        CAR.engine_speed.set_bits(x87::mul(
-            CAR.engine_speed.bits(),
-            PHYSICS.engine_ease.bits(),
-        ));
+    if crate::race::owner::race().shared.car.gear_changed.get() == 1 {
+        crate::race::owner::race()
+            .shared
+            .car
+            .engine_speed
+            .set_bits(x87::mul(
+                crate::race::owner::race().shared.car.engine_speed.bits(),
+                crate::race::owner::race()
+                    .shared
+                    .physics_tables
+                    .engine_ease
+                    .bits(),
+            ));
     }
     wheels()
 }

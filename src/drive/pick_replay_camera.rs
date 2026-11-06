@@ -14,7 +14,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::ViewVars;
 use rc2k_core::drive::replay_views::{MODES as MODE_COUNT, draw, fits, kept_mode, wish_kind};
 
@@ -48,7 +47,7 @@ pub fn pick_replay_camera(wish: u32) -> Result<Option<u32>, Refused> {
     let edx = kept_mode(
         edx,
         || CAR_BLOCKS.cars[0].car_kind.bits(),
-        || RACE_VIEW.players.get() != 1,
+        || crate::race::owner::race().shared.view.players.get() != 1,
         || CAR_BLOCKS.cars[1].car_kind.bits(),
     );
     Ok(Some(edx))

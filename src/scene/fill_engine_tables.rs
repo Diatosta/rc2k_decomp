@@ -29,7 +29,6 @@
 //! end's 3D set-up and at the ends of events).
 
 use crate::math::x87;
-use crate::physics::tables_store::PHYSICS;
 use crate::scene::angle_between::angle_of;
 use crate::scene::next_noise::next_noise;
 use crate::scene::owner::scene;
@@ -75,7 +74,11 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
         course.lists.exponent_root_table[n].set_bits(x87::sqrt((n as u32) << 23));
     }
     // sub_41F661
-    PHYSICS.noise_state.set_bits(SEED);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .noise_state
+        .set_bits(SEED);
     let word = |n: usize| &crate::scene::engine_tables_store::ENGINE_TABLES.shuffled_words[n];
     for n in 0..0x1_0000usize {
         word(n).set(n as u16);
@@ -87,7 +90,11 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
         word(other).set(here);
     }
     // sub_41F635
-    PHYSICS.noise_state.set_bits(SEED);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .noise_state
+        .set_bits(SEED);
     for n in 0..NOISE_LEN {
         crate::scene::engine_tables_store::ENGINE_TABLES
             .noise_bytes

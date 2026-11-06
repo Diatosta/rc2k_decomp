@@ -10,14 +10,13 @@
 //! See `net/mod.rs`. One caller, `net::race_step`. Calls nothing.
 
 use crate::net::apply_message::{glide_steps, place, three, wanted};
-use crate::net::store::NET;
 use rc2k_core::net::race;
 
 /// The Rust version.
 pub fn follow_remote() -> Result<(), crate::errors::BadInput> {
-    let car = &crate::physics::car_store::CAR;
+    let car = &crate::race::owner::race().shared.car;
     // Converted: `rc2k_core::net::race::glide` (the block read only with the race on).
-    if NET.session.get() == 0 {
+    if crate::net::owner::net().vars.session.get() == 0 {
         return Ok(());
     }
     let steps = glide_steps(car).get();

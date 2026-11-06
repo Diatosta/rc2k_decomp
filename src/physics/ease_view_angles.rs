@@ -15,9 +15,7 @@
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
-use crate::physics::car_store::CAR;
 use crate::race::owner_course::Course;
-use crate::race::tables_store::RACE_TABLES;
 use crate::scene::owner::scene;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
@@ -27,7 +25,13 @@ pub fn ease_view_angles(course: &Course) -> Result<(), crate::errors::BadInput> 
         return Ok(());
     }
     share_done(esi);
-    for (to, rate) in CAR.camera_offset_turns.iter().zip(&esi.turn_rates) {
+    for (to, rate) in crate::race::owner::race()
+        .shared
+        .car
+        .camera_offset_turns
+        .iter()
+        .zip(&esi.turn_rates)
+    {
         x87_1(course, rate.get());
         to.set(
             to.get()
@@ -45,7 +49,7 @@ pub fn ease_view_angles(course: &Course) -> Result<(), crate::errors::BadInput> 
 /// record's turn rate, passed by value)
 fn x87_1(course: &Course, rate: u32) {
     let t0 = ld(rate);
-    let t1 = ld(RACE_TABLES.view_share.bits());
+    let t1 = ld(crate::race::owner::race().shared.tables.view_share.bits());
     let t2 = t0 * t1;
     let t3 = ld(course.numbers.k65536.bits());
     let t4 = t2 * t3;

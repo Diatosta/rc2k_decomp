@@ -15,7 +15,6 @@ use crate::effects::owner::Effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner_course::Course;
-use crate::session::SCREEN;
 
 /// The table's entries; the kinds go to 0x21 (the other kinds' tables have 0x22).
 const KIND_FLOATS: u32 = 0x17;
@@ -60,7 +59,13 @@ pub fn init_marks(course: &Course, effects: &Effects, seed: u32) -> Result<(), R
         setup::tick_clock()?;
         effects.setup.frame.steps.set_bits(0u32);
         let less: u32 = effects.setup.floats.one.bits();
-        for (n, side) in [&SCREEN.width, &SCREEN.height].into_iter().enumerate() {
+        for (n, side) in [
+            &crate::system::owner::system().session.screen.width,
+            &crate::system::owner::system().session.screen.height,
+        ]
+        .into_iter()
+        .enumerate()
+        {
             let half = side.get() >> 1;
             // The screen's middle x, it less `flt_76516C`, the same for y.
             effects.clipping.clip.edges[2 * n].set_bits(x87::from_int(half as i32));

@@ -13,12 +13,14 @@ use crate::physics::car_sounds::{listed, object, place};
 use crate::physics::sound_band_1::TWIN;
 use crate::physics::sound_bands::band_value;
 use crate::race::owner::Race;
-use crate::race::work_store::RACE_WORK;
 
 /// The Rust version (the exact one, for `physics::wall_push_back` and
 /// `physics::wall_edge_contact`).
 pub fn place_sound_e1(race: &Race) -> Result<(), Refused> {
-    if !listed(&race.frame, RACE_WORK.current_car.bits())? {
+    if !listed(
+        &race.frame,
+        crate::race::owner::race().shared.work.current_car.bits(),
+    )? {
         return Ok(());
     }
     let b = band_value(&race.frame, TWIN);

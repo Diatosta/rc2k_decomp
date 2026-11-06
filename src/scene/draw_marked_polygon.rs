@@ -12,7 +12,6 @@
 
 use crate::errors::BadInput;
 use crate::race::owner::race;
-use crate::race::vars_store::RACE_VARS;
 
 // ---- game data ----
 const MARK: u32 = 0xFFFF_00FF;
@@ -22,11 +21,17 @@ const MARK: u32 = 0xFFFF_00FF;
 pub fn draw_marked_polygon(draw: &mut dyn FnMut() -> Result<(), BadInput>) -> Result<(), BadInput> {
     {
         let marked = race().course.course.polygon_flags.bits() & 0x8000_0000 != 0;
-        RACE_VARS
+        crate::race::owner::race()
+            .shared
+            .vars
             .polygon_mark
             .set_bits(if marked { MARK } else { 0 });
         let done = draw();
-        RACE_VARS.polygon_mark.set_bits(0u32);
+        crate::race::owner::race()
+            .shared
+            .vars
+            .polygon_mark
+            .set_bits(0u32);
         done
     }
 }

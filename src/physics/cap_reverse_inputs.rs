@@ -8,8 +8,6 @@
 //!
 //! Caller: `sub_43DFB1` (0x43E519).
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::drive_forces::cap_reverse;
@@ -48,8 +46,11 @@ pub fn cap_reverse_inputs_at(
 pub fn cap_reverse_inputs(course: &Course) {
     cap_reverse_inputs_at(
         course,
-        &CAR.gear,
-        &CAR.local_velocity[2],
-        [&PHYSICS.wheel_slips[0], &PHYSICS.wheel_slips[1]],
+        &crate::race::owner::race().shared.car.gear,
+        &crate::race::owner::race().shared.car.local_velocity[2],
+        [
+            &crate::race::owner::race().shared.physics_tables.wheel_slips[0],
+            &crate::race::owner::race().shared.physics_tables.wheel_slips[1],
+        ],
     );
 }

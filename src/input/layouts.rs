@@ -4,7 +4,7 @@
 //!
 //! The original kept the layouts in the keyboard file's block (`g_keyboardFile`, 0x4F07C8,
 //! 0x400 bytes) and the current layout as a pointer into it (`g_keyboardLayout`, 0x4F07D4),
-//! or into the built-in layout in `KEYBOARD` or the NEC one in `KEYBOARD_TABLES`.
+//! or into the built-in layout in `KEYBOARD` or the NEC one in `crate::strings::owner::strings().language.keyboard`.
 //! A later `load_language` keeps what an earlier one left, as the block did: the layouts
 //! stay unless a new file replaces them, and the new file is read over the old bytes.
 //! `strings::load_language` fills this at start: the built-in layout and mode 1, then the
@@ -12,8 +12,6 @@
 //! own layout. The readers are `input::key_to_char`, `append_key_name`, `yes_no_key` and the
 //! name editors.
 
-use crate::input::store::KEYBOARD;
-use crate::strings::keyboard_tables::KEYBOARD_TABLES;
 use rc2k_core::input::layouts::{FILE_LEN, File, Layout, Picked};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
@@ -62,7 +60,7 @@ pub fn layouts() -> MutexGuard<'static, Layouts> {
 /// IDA 0x4F0E10: the NEC layout block; its tables follow at +0x14 (plain), +0x94 (shifted)
 /// and +0x114 (key names, 0x100 bytes).
 const NEC_TABLES: (usize, usize, usize, usize) = (0x14, 0x94, 0x114, 0x214);
-/// `KEYBOARD_TABLES.nec_head`'s layout mode byte (+0xA).
+/// `crate::strings::owner::strings().language.keyboard.nec_head`'s layout mode byte (+0xA).
 const NEC_MODE_AT: usize = 0xA;
 
 impl Layouts {
@@ -92,9 +90,9 @@ impl Layouts {
     /// The start of `load_language`: the built-in layout, in mode 1.
     pub fn use_built_in(&mut self) {
         self.built_in = Layout::simple(
-            &KEYBOARD.plain.read(),
-            &KEYBOARD.shifted.read(),
-            &KEYBOARD.key_names.read(),
+            &crate::input::owner::input().keyboard.plain.read(),
+            &crate::input::owner::input().keyboard.shifted.read(),
+            &crate::input::owner::input().keyboard.key_names.read(),
         );
         self.current = Current::BuiltIn;
         self.mode = 1;
@@ -121,14 +119,17 @@ impl Layouts {
 
     /// Keyboard type 2: the NEC keyboard's head (its mode) and layout take the file's place.
     pub fn use_nec(&mut self) {
-        let tables = KEYBOARD_TABLES.nec_layout;
+        let tables = crate::strings::owner::strings()
+            .language
+            .keyboard
+            .nec_layout;
         let (plain, shifted, names, end) = NEC_TABLES;
         self.nec = Layout::simple(
             &tables[plain..shifted],
             &tables[shifted..names],
             &tables[names..end],
         );
-        let head = KEYBOARD_TABLES.nec_head;
+        let head = crate::strings::owner::strings().language.keyboard.nec_head;
         self.file_bytes[..head.len()].copy_from_slice(&head);
         self.mode = head[NEC_MODE_AT];
         self.current = Current::Nec;
@@ -153,9 +154,18 @@ mod tests {
         assert_eq!(word(&block, 8), KEYBOARD_IDA + 0x114);
         assert_eq!(word(&block, 12), 0);
         assert_eq!(word(&block, 16), KEYBOARD_IDA + 0x194);
-        assert_eq!(KEYBOARD.plain.read().len(), 0x80);
-        assert_eq!(KEYBOARD.shifted.read().len(), 0x80);
-        assert_eq!(KEYBOARD.key_names.read().len(), 0x100);
+        assert_eq!(
+            crate::input::owner::input().keyboard.plain.read().len(),
+            0x80
+        );
+        assert_eq!(
+            crate::input::owner::input().keyboard.shifted.read().len(),
+            0x80
+        );
+        assert_eq!(
+            crate::input::owner::input().keyboard.key_names.read().len(),
+            0x100
+        );
     }
 
     #[test]
@@ -169,7 +179,16 @@ mod tests {
         assert_eq!(word(&block, 12), 0);
         assert_eq!(word(&block, 16), at + names);
         assert_eq!(end - names, 0x100);
-        assert!(end <= KEYBOARD_TABLES.nec_layout.len());
-        assert_eq!(KEYBOARD_TABLES.nec_head[NEC_MODE_AT], 1);
+        assert!(
+            end <= crate::strings::owner::strings()
+                .language
+                .keyboard
+                .nec_layout
+                .len()
+        );
+        assert_eq!(
+            crate::strings::owner::strings().language.keyboard.nec_head[NEC_MODE_AT],
+            1
+        );
     }
 }

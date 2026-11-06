@@ -39,7 +39,10 @@ use rc2k_core::menu::stage_screens;
 
 /// The record `index` / `section` pick.
 fn stage_record(screens: &Screens) -> Result<RecordRef, Refused> {
-    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let table = crate::system::owner::system()
+        .records
+        .stage_tables
+        .championship();
     let section = screens.event.section.get();
     if !has_section(table, section, 600)? {
         return Err(BadInput("a section past the record table").into());

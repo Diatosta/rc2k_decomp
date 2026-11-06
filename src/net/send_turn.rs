@@ -21,7 +21,10 @@ pub fn send_turn() -> Result<(), Refused> {
     ];
     // Converted: `rc2k_core::net::race::Kind::due`.
     for (kind, send) in SENT.into_iter().zip(sends) {
-        if kind.due(crate::physics::car_store::CAR.step_clock.get()).0 {
+        if kind
+            .due(crate::race::owner::race().shared.car.step_clock.get())
+            .0
+        {
             send()?;
         }
     }

@@ -21,9 +21,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::store::DEVICES;
 use crate::input::store::device_of;
-use crate::race::view_store::RACE_VIEW;
 use crate::session::Dword;
 
 /// The variables it reads (the game's or a test's).
@@ -45,10 +43,10 @@ impl Vars {
             cars: &crate::sound::owner::sound().race.sounds.player_cars,
             one_player: &crate::sound::owner::sound().race.sounds.one_player,
             count: &crate::sound::owner::sound().race.sounds.count,
-            devices: &DEVICES.input_devices,
-            views: &RACE_VIEW.view_blocks,
+            devices: &crate::input::owner::input().devices.input_devices,
+            views: &crate::race::owner::race().shared.view.view_blocks,
             objects: &crate::sound::owner::sound().race.sounds.objects,
-            two_devices: &DEVICES.two_devices_one_player,
+            two_devices: &crate::input::owner::input().devices.two_devices_one_player,
         }
     }
 }

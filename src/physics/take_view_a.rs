@@ -16,7 +16,6 @@
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::camera_view::record;
-use crate::physics::car_store::CAR;
 use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
@@ -29,8 +28,14 @@ pub fn take_view_a(physics: &Physics, s: &ViewRecord) -> Result<(), crate::error
     for (put, v) in copies().iter().zip(s.taken()) {
         put(v);
     }
-    physics.camera.view_a_heading.set(CAR.car_heading.get());
-    let (mut eax, mut ebx) = (CAR.car_pitch.get(), CAR.car_roll.get());
+    physics
+        .camera
+        .view_a_heading
+        .set(crate::race::owner::race().shared.car.car_heading.get());
+    let (mut eax, mut ebx) = (
+        crate::race::owner::race().shared.car.car_pitch.get(),
+        crate::race::owner::race().shared.car.car_roll.get(),
+    );
     if record()?.halve_tilt.get() != 0 {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;

@@ -6,7 +6,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
-use crate::screens::controls_store::CONTROLS_SCREEN as C;
 
 /// `screens::classify_controller` (0x46B27A): from the controller's four values (ecx x, edx
 /// y, eax z, ebx the buttons): the button (its number + 1, when exactly one is down), and
@@ -21,9 +20,14 @@ pub fn classify_controller(screens: &Screens, z: u32, buttons: u32, x: u32, y: u
         x,
         y,
         z,
-        std::array::from_fn(|n| C.history[n].get()),
+        std::array::from_fn(|n| crate::screens::owner::screens().controls.history[n].get()),
     );
-    for (cell, v) in C.history.iter().zip(history) {
+    for (cell, v) in crate::screens::owner::screens()
+        .controls
+        .history
+        .iter()
+        .zip(history)
+    {
         cell.set(v);
     }
     screens.draw_work.figure.set(found);
@@ -38,7 +42,7 @@ pub fn classify_controller(screens: &Screens, z: u32, buttons: u32, x: u32, y: u
 /// every register. Refuses (before anything) a player without its record.
 pub fn learn_axis() -> Result<(), Refused> {
     let screens = &menus().screens;
-    if C.learning.get() != 1 {
+    if crate::screens::owner::screens().controls.learning.get() != 1 {
         return Ok(());
     }
     let Some(player) = crate::menu::player::player(screens.event.current_player.get()) else {
@@ -48,10 +52,14 @@ pub fn learn_axis() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
     // `CANCEL_KEY`, `binding`).
     use rc2k_core::screens::learning as l;
-    let since = crate::system::tick_count::tick_count().wrapping_sub(C.learn_start.get());
+    let since = crate::system::tick_count::tick_count()
+        .wrapping_sub(crate::screens::owner::screens().controls.learn_start.get());
     if l::timed_out(since) {
-        C.learned.set(l::TIMED_OUT);
-        C.learning.set(0);
+        crate::screens::owner::screens()
+            .controls
+            .learned
+            .set(l::TIMED_OUT);
+        crate::screens::owner::screens().controls.learning.set(0);
         return Ok(());
     }
     if screens.draw_work.blink.get() == 1 {
@@ -69,17 +77,17 @@ pub fn learn_axis() -> Result<(), Refused> {
         )?;
     }
     let mut take = true;
-    let control = C.learned.get();
+    let control = crate::screens::owner::screens().controls.learned.get();
     if l::by_axis(player.get().sensitivity_level, control) {
         let m = crate::input::axes::axis_moved(1)?;
         if !m.carry {
             let (byte, found) = l::pedal(control);
             player.update(|p| p.axis_codes[byte] = m.eax as u8);
-            crate::input::store::DEVICES.records[0]
+            crate::input::owner::input().devices.records[0]
                 .axis_code
                 .set(u32::from_le_bytes(player.get().axis_codes));
             screens.draw_work.figure.set(found);
-            C.learning.set(0);
+            crate::screens::owner::screens().controls.learning.set(0);
             take = false;
         }
     } else {
@@ -89,12 +97,12 @@ pub fn learn_axis() -> Result<(), Refused> {
     if take {
         if crate::input::take_key::take_key() == l::CANCEL_KEY {
             screens.draw_work.figure.set(0);
-            C.learning.set(0);
+            crate::screens::owner::screens().controls.learning.set(0);
         } else if screens.draw_work.figure.get() == 0 {
             return Ok(());
         }
     }
-    let Some(slot) = l::binding(C.learned.get()) else {
+    let Some(slot) = l::binding(crate::screens::owner::screens().controls.learned.get()) else {
         return Err(crate::errors::BadInput("a learned control past the bindings").into());
     };
     let figure = screens.draw_work.figure.get();
@@ -110,7 +118,7 @@ pub fn controller_page_refuses(
         return Err(crate::errors::BadInput("no current player record").into());
     };
     let device = player.get().controller;
-    if device != 0 && crate::input::store::DEVICES.device(0).is_none() {
+    if device != 0 && crate::input::owner::input().devices.device(0).is_none() {
         return Err(crate::errors::BadInput("no input device").into());
     }
     Ok(player)
@@ -147,7 +155,7 @@ pub fn draw_controller_page(
         // with a strength).
         let Some(entry) = (device as usize)
             .checked_sub(1)
-            .and_then(|n| crate::input::store::DEVICES.controllers.get(n))
+            .and_then(|n| crate::input::owner::input().devices.controllers.get(n))
         else {
             return Err(BadInput("a player's device past the controllers").into());
         };

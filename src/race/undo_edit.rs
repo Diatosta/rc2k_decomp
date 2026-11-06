@@ -12,7 +12,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner_replay::Replay;
-use crate::race::replay_file_store::REPLAY_FILE;
 
 /// The Rust version. What the original leaves its one caller, `viewer_action` (which
 /// keeps every register), does not read.
@@ -26,10 +25,16 @@ pub fn undo_edit(replay: &Replay) -> Result<(), Refused> {
     ) else {
         return Ok(());
     };
-    REPLAY_FILE.index_block_count.set(count);
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .index_block_count
+        .set(count);
     // As `rc2k_core::race::viewer_flow::copy_tables`, cell by cell.
     let buffers = &crate::race::viewer_buffers_store::VIEWER_BUFFERS;
-    for (k, (to, from)) in REPLAY_FILE
+    for (k, (to, from)) in crate::race::owner::race()
+        .shared
+        .replay_file
         .block_places
         .iter()
         .zip(&buffers.undo_places)

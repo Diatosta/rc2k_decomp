@@ -29,7 +29,7 @@ pub fn set_effect(
     b: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::input::effects::{request, wanted};
-    let race_on: u32 = crate::input::store::FORCE_FEEDBACK.race_on.get();
+    let race_on: u32 = crate::input::owner::input().force_feedback.race_on.get();
     if wanted(record.effects_on.get() == 1, race_on == 1, effect, what)? {
         record
             .effects

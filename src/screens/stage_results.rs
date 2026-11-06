@@ -14,10 +14,13 @@ use crate::text::draw_text::Canvas;
 /// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
 /// `dword_758812`), none: 0.
 fn records(menus: &Menus) -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = crate::records::stages_store::STAGE_TABLES.group_event_table(
-        menus.play.champ_view.switch_f8.get(),
-        menus.tables.captions.shown_group.get(),
-    )?;
+    let base = crate::system::owner::system()
+        .records
+        .stage_tables
+        .group_event_table(
+            menus.play.champ_view.switch_f8.get(),
+            menus.tables.captions.shown_group.get(),
+        )?;
     Ok((
         base,
         crate::records::stages_store::row(base, menus.tables.captions.shown_stage.get())?,
@@ -33,7 +36,10 @@ fn times_table(play: &Play) -> Result<Option<&'_ StageTable>, BadInput> {
     if play.champ_view.switch_fc.get() == 1 {
         n += 2;
     }
-    let p = crate::records::stages_store::STAGE_TABLES.result_table(n)?;
+    let p = crate::system::owner::system()
+        .records
+        .stage_tables
+        .result_table(n)?;
     use crate::saves::best_times as b;
     let v = &play.champ_view;
     let (_, table) = [
@@ -95,7 +101,10 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         (menus.play.champ_view.switch_f8.get() ^ 1) & (menus.play.champ_view.switch_fc.get() ^ 1);
     let fastest = if both_off == 1 {
         crate::records::find_stage_record::find_stage_record(
-            crate::records::stages_store::STAGE_TABLES.championship(),
+            crate::system::owner::system()
+                .records
+                .stage_tables
+                .championship(),
             menus.tables.captions.shown_group.get(),
             menus.tables.captions.shown_stage.get(),
         )?

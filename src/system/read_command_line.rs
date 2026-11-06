@@ -24,12 +24,9 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::audio::store::AUDIO;
-use crate::d3d::cards_store::CARDS_3D;
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
-use crate::system::start_texts::START_TEXTS;
 
 // ---- game data ----
 
@@ -56,11 +53,14 @@ pub fn show_version_and_leave() -> ! {
         .unwrap_or_else(|e| leave(e));
     let c_text = |at: GamePtr, what| crate::files::cstring(at, what).unwrap_or_else(|e| leave(e));
     // The text from its seventh byte up to its NUL.
-    let mut text = c_text(GamePtr::to(&START_TEXTS.version).offset(6), "the version");
+    let mut text = c_text(
+        GamePtr::to(&crate::system::owner::system().start.texts.version).offset(6),
+        "the version",
+    );
     text.extend(*b"\t\r\n");
     // The second text is empty: its NUL is its one byte.
     text.extend(c_text(
-        GamePtr::to(&START_TEXTS.second_text),
+        GamePtr::to(&crate::system::owner::system().start.texts.second_text),
         "the second text",
     ));
     let mut kept = text.clone();
@@ -81,14 +81,18 @@ pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
     // Converted: `rc2k_core::system::command_line::read`, the whole line read before
     // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
-    COMMAND_LINE.program_len.set(sw.program.1 as u32);
+    crate::system::owner::system()
+        .start
+        .command_line
+        .program_len
+        .set(sw.program.1 as u32);
     for (on, cell) in [
         (sw.u, &crate::install::owner::install().run.updating),
         (
             sw.installing,
             &crate::install::owner::install().run.installing,
         ),
-        (sw.no_audio, &AUDIO.no_audio),
+        (sw.no_audio, &crate::audio::owner::audio().state.no_audio),
     ] {
         if on {
             cell.set(1u32);
@@ -119,10 +123,10 @@ pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
             .set(i.digits[1]);
     }
     if sw.ignore_secondary {
-        CARDS_3D.ignore_secondary.set(1u32);
+        crate::d3d::owner::d3d().cards.ignore_secondary.set(1u32);
     }
     if sw.ignore_primary {
-        CARDS_3D.not_primary.set(1u32);
+        crate::d3d::owner::d3d().cards.not_primary.set(1u32);
     }
     Ok(if sw.version {
         Asked::Version
@@ -150,6 +154,10 @@ pub struct CommandLine {
     pub program_len: Dword,
 }
 
-pub static COMMAND_LINE: CommandLine = CommandLine {
-    program_len: Dword::new(0x0),
-};
+impl CommandLine {
+    pub const fn new() -> Self {
+        CommandLine {
+            program_len: Dword::new(0x0),
+        }
+    }
+}

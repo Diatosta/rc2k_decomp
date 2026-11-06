@@ -21,7 +21,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
-use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 
@@ -30,12 +29,24 @@ use crate::session::Dword;
 pub fn viewer_frame() -> Result<bool, Refused> {
     let race = race();
     let replay = &race.replay;
-    if REPLAY_FILE.replay_at_end.get() == 1 {
+    if crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_at_end
+        .get()
+        == 1
+    {
         crate::gfx::clear_back_surface::clear_back_surface()?;
     }
     // `d3d::begin_scene` cannot fail (its carry is clear).
     crate::platform_3d::begin_layer();
-    if REPLAY_FILE.replay_at_end.get() != 1 {
+    if crate::race::owner::race()
+        .shared
+        .replay_file
+        .replay_at_end
+        .get()
+        != 1
+    {
         crate::drive::replay_frame_marks::replay_frame_marks()?;
         crate::race::show_replay_still::show_replay_still(race)?;
     }
@@ -45,7 +56,13 @@ pub fn viewer_frame() -> Result<bool, Refused> {
         crate::platform_3d::end_layer();
         crate::race::viewer_snapshot::viewer_snapshot(replay)?;
     } else {
-        if REPLAY_FILE.viewer_stopped.get() == 1 {
+        if crate::race::owner::race()
+            .shared
+            .replay_file
+            .viewer_stopped
+            .get()
+            == 1
+        {
             stopped(replay)?;
         }
         crate::platform_3d::end_layer();
@@ -58,7 +75,13 @@ pub fn viewer_frame() -> Result<bool, Refused> {
 fn stopped(replay: &Replay) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
     use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
-    crate::d3d::set_texture::set_texture(REPLAY_FILE.viewer_list_texture.get());
+    crate::d3d::set_texture::set_texture(
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .viewer_list_texture
+            .get(),
+    );
     for (value, state) in LIST_STATES {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
@@ -86,7 +109,11 @@ fn stopped(replay: &Replay) -> Result<(), Refused> {
     };
     let v = &VIEWER_PANEL;
     quad(&v.frame_picture_rect, &v.bar_frame_rect, 0xFF_FFFF)?;
-    let blocks = REPLAY_FILE.index_block_count.get();
+    let blocks = crate::race::owner::race()
+        .shared
+        .replay_file
+        .index_block_count
+        .get();
     if blocks != 0 {
         let (w, x) = (
             VIEWER_PANEL.bar_rect[2].get(),

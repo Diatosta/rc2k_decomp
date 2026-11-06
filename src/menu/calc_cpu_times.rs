@@ -60,7 +60,10 @@ fn any_in_class(drivers: &[Driver], c: u32) -> bool {
 /// The current record (see `standings::current_event`'s checks).
 pub fn record(screens: &Screens) -> Result<RecordRef, BadInput> {
     current_event(screens)?;
-    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let table = crate::system::owner::system()
+        .records
+        .stage_tables
+        .championship();
     let (section, index): (u32, u32) = (SECTION_RVA.get(), INDEX_RVA.get());
     crate::records::find_record::find_record_in(table, index as i32, section)
 }

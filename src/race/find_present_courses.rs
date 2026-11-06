@@ -19,7 +19,6 @@ use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::race::switches_store::FRAME_SWITCHES;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
 fn paths(course: &Course) -> [crate::pointers::GamePtr; 2] {
@@ -40,7 +39,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
     for n in 0..COURSES {
         set_course_number(n)?;
         set_cdat_number(course, 0);
-        FRAME_SWITCHES.course_present[n as usize].set(0); // dword_621518, 100 flags
+        crate::race::owner::race().shared.switches.course_present[n as usize].set(0); // dword_621518, 100 flags
         let present = course_present(paths(course).len() as u32, |file| {
             BYTES_READ.set(0);
             let path = paths(course)[file as usize];
@@ -52,7 +51,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
             Ok::<u32, Refused>(BYTES_READ.get())
         })?;
         if present {
-            FRAME_SWITCHES.course_present[n as usize].set(1);
+            crate::race::owner::race().shared.switches.course_present[n as usize].set(1);
         }
     }
     Ok(())

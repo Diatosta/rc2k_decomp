@@ -13,7 +13,7 @@ use crate::errors::Refused;
 
 use crate::math::x87_float::{int, ld, st};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::session::{Dword, MACHINE, SCREEN};
+use crate::session::Dword;
 
 /// `d3d::set_texture` (0x41ACF5).
 pub fn set_texture(texture: u32) {
@@ -45,8 +45,11 @@ pub fn quad_tail(uv: [u32; 4]) {
     quad_tail_math(
         uv,
         &VERTICES.vertices[..4],
-        [SCREEN.width.get(), SCREEN.height.get()],
-        &MACHINE.scratch,
+        [
+            crate::system::owner::system().session.screen.width.get(),
+            crate::system::owner::system().session.screen.height.get(),
+        ],
+        &crate::system::owner::system().session.machine.scratch,
     );
 }
 

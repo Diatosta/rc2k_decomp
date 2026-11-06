@@ -21,8 +21,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::owner::scene;
 
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
@@ -31,7 +29,11 @@ fn check_object(course: &crate::race::owner_course::Course, object: u32) -> Resu
     let car = object.wrapping_sub(0x50);
     if course.numbers.in_race.bits() != 0
         && car < 0xA0
-        && RACE_WORK.car_block((car / 0x14) as usize) == 0
+        && crate::race::owner::race()
+            .shared
+            .work
+            .car_block((car / 0x14) as usize)
+            == 0
     {
         return Err(BadInput("a car without its block").into());
     }
@@ -72,11 +74,15 @@ fn draw_description(
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
     let shown = object <= 0x64
         && place < course.course.scene_point_count.get()
-        && !(FRAME_SWITCHES.other_way.get() != 0 && object == 0x3F);
+        && !(crate::race::owner::race().shared.switches.other_way.get() != 0 && object == 0x3F);
     if shown {
         check_object(course, object)?;
     }
-    FRAME_SWITCHES.object_number.set_bits(object);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .object_number
+        .set_bits(object);
     let end = || {
         scene.drawing.object_work.only_object.set(0u32);
         scene.drawing.object_work.object_place.set_bits(u32::MAX);
@@ -166,7 +172,11 @@ fn draw_description(
     scene.lights.state.view_kind.set(2u32);
     crate::race::frame_draw::place_object_matrix()?;
     scene.lights.work.light_kind.set(2u32);
-    let object: u32 = FRAME_SWITCHES.object_number.bits();
+    let object: u32 = crate::race::owner::race()
+        .shared
+        .switches
+        .object_number
+        .bits();
     let kind: u32 = scene.objects.tables.object_kind(object);
     let record = crate::scene::polygon::materials_ptr().offset(kind.wrapping_mul(0x80));
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {

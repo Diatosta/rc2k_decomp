@@ -27,8 +27,6 @@
 //! reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::scratch::SCRATCH;
-use crate::session::MACHINE;
 use rc2k_core::system::processor::{Var, test};
 
 // ---- game data ----
@@ -94,7 +92,7 @@ impl Processor for Real {
 
 /// Each variable but the FPU's word (the scratch buffer's first bytes).
 fn cell(v: Var) -> &'static crate::session::Dword {
-    let m = &MACHINE;
+    let m = &crate::system::owner::system().session.machine;
     match v {
         Var::Family => &m.cpu_family,
         Var::Signature => &m.cpu_signature,
@@ -115,15 +113,23 @@ pub fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
     // Converted: `rc2k_core::system::processor::test`.
     let mut put = |v: Var, value: u32| {
         if v == Var::FpuWord {
-            SCRATCH.buffer.set(0, value as u8);
-            SCRATCH.buffer.set(1, (value >> 8) as u8);
+            crate::system::owner::system()
+                .work
+                .files
+                .buffer
+                .set(0, value as u8);
+            crate::system::owner::system()
+                .work
+                .files
+                .buffer
+                .set(1, (value >> 8) as u8);
         } else {
             cell(v).set(value);
         }
     };
     let get = |v: Var| {
         if v == Var::FpuWord {
-            SCRATCH.buffer.get_u32(0)
+            crate::system::owner::system().work.files.buffer.get_u32(0)
         } else {
             cell(v).get()
         }

@@ -8,10 +8,12 @@
 
 use crate::errors::Refused;
 use crate::physics::clear_records::clear_records;
-use crate::physics::tables_store::PHYSICS;
 const COUNT: u32 = 7;
 
 /// The Rust version.
 pub fn clear_contacts() -> Result<(), Refused> {
-    clear_records(crate::pointers::GamePtr::to(&PHYSICS.contacts), COUNT)
+    clear_records(
+        crate::pointers::GamePtr::to(&crate::race::owner::race().shared.physics_tables.contacts),
+        COUNT,
+    )
 }

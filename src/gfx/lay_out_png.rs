@@ -44,7 +44,7 @@ pub fn lay_out_png() -> Result<(), BadInput> {
     pictures.decoder.pixels.set(pictures.picture.buffer.get());
     // Neither is null: both are the game's own tables.
     palette_to_dwords(
-        crate::pointers::GamePtr::to(&crate::files::scratch::SCRATCH.buffer)
+        crate::pointers::GamePtr::to(&crate::system::owner::system().work.files.buffer)
             .offset(offset_of!(PngInfo, palette) as u32),
         crate::pointers::GamePtr::to(&pictures.decoder.palette),
     )?;

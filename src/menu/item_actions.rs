@@ -24,7 +24,6 @@ use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::race::state_store::RACE_STATE;
 
 // ---- the Rust versions ----
 
@@ -76,7 +75,14 @@ pub fn view_stage_details(screens: &Screens) -> Result<(), Refused> {
 pub fn new_simulation_if_unlocked() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::simulation_unlocked`.
     use rc2k_core::menu::stage_screens::{REFUSED_SLEEP, REFUSED_SOUND, simulation_unlocked};
-    if simulation_unlocked(RACE_STATE.settings.a8_game.get()) {
+    if simulation_unlocked(
+        crate::race::owner::race()
+            .shared
+            .state
+            .settings
+            .a8_game
+            .get(),
+    ) {
         // (An item of the typed tables: it runs with no carried values, as the menus'
         // items do.)
         crate::menu::new_simulation_loop::run()?;

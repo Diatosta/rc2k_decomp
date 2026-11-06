@@ -16,7 +16,6 @@
 //! caller, `sub_45045D`. Refuses a face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -62,7 +61,11 @@ pub fn draw_object_faces(
             .ground
             .object_see_through
             .set_bits(listed_dword(entry + 3)?);
-        RACE_VARS.face_number.set_bits(listed_dword(entry)?);
+        crate::race::owner::race()
+            .shared
+            .vars
+            .face_number
+            .set_bits(listed_dword(entry)?);
         let head: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
         scene.drawing.scene.polygon_textures[0].set_bits(

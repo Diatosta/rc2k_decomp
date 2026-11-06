@@ -16,33 +16,36 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::count_down_start::count_down_start;
 use crate::physics::count_start_second::count_start_second;
 use crate::physics::count_stop_timers::count_stop_timers;
 use crate::physics::mark_car_started::mark_car_started;
 use crate::physics::start_go_notice::start_go_notice;
-use crate::physics::tables_store::PHYSICS;
 use crate::physics::take_split::take_split;
 use crate::physics::take_split_counted::take_split_counted;
 use crate::race::owner::Race;
-use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
 pub fn race_timers(race: &Race) -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
-    PHYSICS.weight.set_bits(1.0f32.to_bits());
-    let finished = CAR.finish_flag.get() != 0;
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .weight
+        .set_bits(1.0f32.to_bits());
+    let finished = crate::race::owner::race().shared.car.finish_flag.get() != 0;
     let factor = if finished {
         race.physics.split_tables.timer_factor.bits()
     } else {
         0
     };
-    PHYSICS
+    crate::race::owner::race()
+        .shared
+        .physics_tables
         .weight
         .set_bits(timer_rate(finished, f32::from_bits(factor)).to_bits());
-    let run = timer_run(RACE_VARS.run_kind.bits());
+    let run = timer_run(crate::race::owner::race().shared.vars.run_kind.bits());
     if run == TimerRun::None {
         return Ok(());
     }

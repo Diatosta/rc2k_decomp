@@ -206,7 +206,10 @@ pub fn counted_players(screens: &Screens) -> Result<Vec<PlayerCell>, BadInput> {
 /// in the stages' best times (`saves::best_times::STAGE_TIMES`); refused past the table's
 /// sections, with no table, or past it.
 pub fn current_event(screens: &Screens) -> Result<usize, BadInput> {
-    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let table = crate::system::owner::system()
+        .records
+        .stage_tables
+        .championship();
     let section: u32 = screens.event.section.get();
     let index: u32 = screens.event.index.get();
     if section >= 64

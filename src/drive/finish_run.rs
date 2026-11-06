@@ -16,15 +16,12 @@
 
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
-use crate::input::store::DEVICES;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::state_store::RACE_STATE;
 
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
@@ -40,30 +37,44 @@ fn lift_car(race: &Race) {
 pub fn finish_run(race: &Race) -> Result<(), Refused> {
     lift_car(race);
     restart_clock();
-    race.frame
-        .clock_ticks
-        .clock_a
-        .set(PHYSICS.scene_clock.get());
-    race.frame
-        .clock_ticks
-        .sound_tick_last
-        .set(PHYSICS.scene_clock.get());
+    race.frame.clock_ticks.clock_a.set(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .scene_clock
+            .get(),
+    );
+    race.frame.clock_ticks.sound_tick_last.set(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .scene_clock
+            .get(),
+    );
     for mark in &race.frame.clock_ticks.marks {
         mark.set(u32::MAX);
     }
     race.replay.replay_view.play_end.set(u32::MAX);
     restart_clock();
-    race.replay
-        .finish
-        .start_clock
-        .set(PHYSICS.scene_clock.get());
+    race.replay.finish.start_clock.set(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .scene_clock
+            .get(),
+    );
     loop {
         crate::sound::owner::sound().race.sounds.objects[0]
             .revs
             .set(0);
         input_update();
         crate::drive::finish_timing::finish_timing(race);
-        let n = RACE_STATE.results.finished.get();
+        let n = crate::race::owner::race()
+            .shared
+            .state
+            .results
+            .finished
+            .get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());
         }
@@ -73,7 +84,7 @@ pub fn finish_run(race: &Race) -> Result<(), Refused> {
         ) {
             break;
         }
-        let pressed = |key: usize| DEVICES.keys_pressed.get(key) != 0;
+        let pressed = |key: usize| crate::input::owner::input().devices.keys_pressed.get(key) != 0;
         if pressed(1) || pressed(0x1C) {
             break;
         }

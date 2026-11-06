@@ -6,12 +6,14 @@
 //!
 //! Caller: `sub_436790` (four calls).
 
-use crate::physics::car_store::CAR;
 use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
 fn game() -> Vec<&'static dyn Cell32> {
-    vec![&CAR.started_stand_timer as &dyn Cell32, &CAR.damage_failed]
+    vec![
+        &crate::race::owner::race().shared.car.started_stand_timer as &dyn Cell32,
+        &crate::race::owner::race().shared.car.damage_failed,
+    ]
 }
 
 /// The Rust version on the variables' cells.

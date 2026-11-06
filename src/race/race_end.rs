@@ -8,23 +8,18 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::state_store::RACE_STATE;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::tables_store::RACE_TABLES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 
 /// Where a header setting lives in the race's variables (its first place).
 pub fn setting_cell(s: rc2k_core::race::replay::Setting) -> &'static crate::session::Dword {
     use rc2k_core::race::replay::Setting::*;
     match s {
-        Seed => &RACE_TABLES.noise_seed,
-        StartPlace => &RACE_TABLES.start_place,
-        ArcadeCars => &RACE_TABLES.arcade_cars,
-        Stage => &RACE_VARS.stage_number,
-        Mode => &RACE_VARS.run_kind,
-        Players => &RACE_VIEW.players,
-        Cars => &RACE_VIEW.race_cars,
+        Seed => &crate::race::owner::race().shared.tables.noise_seed,
+        StartPlace => &crate::race::owner::race().shared.tables.start_place,
+        ArcadeCars => &crate::race::owner::race().shared.tables.arcade_cars,
+        Stage => &crate::race::owner::race().shared.vars.stage_number,
+        Mode => &crate::race::owner::race().shared.vars.run_kind,
+        Players => &crate::race::owner::race().shared.view.players,
+        Cars => &crate::race::owner::race().shared.view.race_cars,
         Kind(n) => &CAR_BLOCKS.cars[n as usize].car_kind,
         GameOver(n) => &CAR_BLOCKS.cars[n as usize].stop_state,
     }
@@ -284,7 +279,7 @@ pub fn tidy_stage() -> Result<(), Refused> {
         .view_and_records
         .view_vars
         .view_scale
-        .set_bits(RACE_VARS.kept_scale.get());
+        .set_bits(crate::race::owner::race().shared.vars.kept_scale.get());
     s.indent(-3);
     s.log(STAGE_WORDS[9]);
     Ok(())
@@ -311,8 +306,8 @@ pub fn tidy_everything() -> Result<(), Refused> {
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
     reset_race_sounds(&SoundVars::game())?;
-    RACE_VIEW.view_on[0].set(1u32);
-    RACE_VIEW.view_on[1].set(1u32);
+    crate::race::owner::race().shared.view.view_on[0].set(1u32);
+    crate::race::owner::race().shared.view.view_on[1].set(1u32);
     s.indent(-3);
     s.log(EVERYTHING_WORDS[6]);
     s.log(EVERYTHING_WORDS[7]);
@@ -332,21 +327,45 @@ pub fn tidy_everything() -> Result<(), Refused> {
 pub fn run_race(race: &Race) -> Result<(), Refused> {
     race.physics.split_tables.arcade_kind.set(1);
     crate::logfile::write_line::state::INDENT.set(0);
-    if RACE_STATE.results.race_stage.get() == 0 && RACE_STATE.settings.run_kind.get() == 2 {
-        RACE_TABLES
+    if crate::race::owner::race()
+        .shared
+        .state
+        .results
+        .race_stage
+        .get()
+        == 0
+        && crate::race::owner::race()
+            .shared
+            .state
+            .settings
+            .run_kind
+            .get()
+            == 2
+    {
+        crate::race::owner::race()
+            .shared
+            .tables
             .noise_seed
             .set(crate::math::next_random::next_random());
     }
-    FRAME_SWITCHES.editor_mode.set(0u32);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .editor_mode
+        .set(0u32);
     race.course.numbers.replay_mode.set_bits(1u32);
     crate::race::settings_copy::copy_settings_in()?;
     crate::race::race_cars::set_up_arcade_cars()?;
-    RACE_VARS.settings_words[1].set(1u32);
+    crate::race::owner::race().shared.vars.settings_words[1].set(1u32);
     crate::race::race_shell::set_start_states()?;
     crate::race::stage_loading::load_stage()?;
     record_replay_header();
     crate::race::replay::open_replay()?;
-    RACE_VIEW.after_credits.set(0u32);
+    crate::race::owner::race()
+        .shared
+        .view
+        .after_credits
+        .set(0u32);
     crate::drive::play_race::play_race()?;
     crate::race::replay::close_replay()?;
     tidy_everything()?;
@@ -366,7 +385,11 @@ pub fn release_textures() {
 
 /// `race::start_race` (0x4278B7): `dword_621870` 0, `race::run_race`.
 pub fn start_race(race: &Race) -> Result<(), Refused> {
-    FRAME_SWITCHES.mask_kind.set(0u32);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .mask_kind
+        .set(0u32);
     run_race(race)
 }
 

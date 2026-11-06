@@ -20,22 +20,27 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::files::scratch::SCRATCH;
 
 const CHUNK: u32 = 0x1_0000;
 
 /// The Rust version: whether it was all done.
 /// The paths without their NULs.
 pub fn copy_file(from: &[u8], to: &[u8]) -> Result<bool, BadInput> {
-    let mut buffer = SCRATCH
-        .buffer
-        .read_at(0, CHUNK as usize, "the scratch buffer")?;
+    let mut buffer = crate::system::owner::system().work.files.buffer.read_at(
+        0,
+        CHUNK as usize,
+        "the scratch buffer",
+    )?;
     let done = rc2k_core::files::io::copy_file(
         &mut crate::files::handle::GameFiles::new(),
         from,
         to,
         &mut buffer,
     )?;
-    SCRATCH.buffer.write_at(0, &buffer, "the scratch buffer")?;
+    crate::system::owner::system()
+        .work
+        .files
+        .buffer
+        .write_at(0, &buffer, "the scratch buffer")?;
     Ok(done)
 }

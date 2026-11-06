@@ -2,12 +2,11 @@
 //! data and the connection's compound address: blocks of the game's heap on `g_netMemory`),
 //! Rust's since phase 12 (2026-10-27): taken counted on the list as the game's blocks
 //! were (`allocate_lists`, `connection_found`, `build_address`), given back with it
-//! (`free_messages`). The counts stay in `NET.connections` / `NET.sessions`.
+//! (`free_messages`). The counts stay in `crate::net::owner::net().vars.connections` / `crate::net::owner::net().vars.sessions`.
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::owned::Owned;
 use crate::net::lobby::fatal;
-use crate::net::store::NET;
 use crate::net::types::Guid;
 use rc2k_core::net::lists::{
     MOST_LISTED, NO_CONNECTION, NO_CONNECTIONS, NO_SESSION, NO_SESSIONS, TABLES,
@@ -68,7 +67,7 @@ pub static NET_TABLES: Owned<NetTables> = Owned::new("no network lists");
 
 /// The network's list (`g_netMemory`).
 pub fn list() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&NET.memory)
+    crate::pointers::GamePtr::to(&crate::net::owner::net().vars.memory)
 }
 
 /// `allocate_lists`: both tables taken, counted as the game's two blocks.
@@ -98,7 +97,7 @@ fn listed(index: u32, count: u32, codes: [u32; 2]) -> Result<(), Refused> {
 pub fn with_connection<R>(index: u32, f: impl FnOnce(&mut Connection) -> R) -> Result<R, Refused> {
     listed(
         index,
-        NET.connections.get(),
+        crate::net::owner::net().vars.connections.get(),
         [NO_CONNECTION, NO_CONNECTIONS],
     )?;
     NET_TABLES
@@ -108,7 +107,11 @@ pub fn with_connection<R>(index: u32, f: impl FnOnce(&mut Connection) -> R) -> R
 
 /// `f` on session `index` (`net::session_entry`'s checks first).
 pub fn with_session<R>(index: u32, f: impl FnOnce(&mut Session) -> R) -> Result<R, Refused> {
-    listed(index, NET.sessions.get(), [NO_SESSION, NO_SESSIONS])?;
+    listed(
+        index,
+        crate::net::owner::net().vars.sessions.get(),
+        [NO_SESSION, NO_SESSIONS],
+    )?;
     NET_TABLES
         .with(|t| t.sessions.get_mut(index as usize).map(f))?
         .ok_or(BadInput("a session past the table").into())
@@ -141,14 +144,25 @@ mod tests {
     fn a_connection_is_found_kept_and_found_again() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let kept_list: Vec<u32> = NET.memory.iter().map(crate::session::Dword::get).collect();
+        let kept_list: Vec<u32> = crate::net::owner::net()
+            .vars
+            .memory
+            .iter()
+            .map(crate::session::Dword::get)
+            .collect();
         let bytes = |b: &crate::session::Bytes<16>| (0..16).map(|k| b.get(k)).collect::<Vec<u8>>();
-        let kept_saved = bytes(&NET.saved_connection);
-        let kept_name: Vec<u8> = (0..64).map(|k| NET.saved_name.get(k)).collect();
-        let kept_count = NET.connections.get();
-        NET.memory.iter().for_each(|d| d.set(0));
+        let kept_saved = bytes(&crate::net::owner::net().vars.saved_connection);
+        let kept_name: Vec<u8> = (0..64)
+            .map(|k| crate::net::owner::net().vars.saved_name.get(k))
+            .collect();
+        let kept_count = crate::net::owner::net().vars.connections.get();
+        crate::net::owner::net()
+            .vars
+            .memory
+            .iter()
+            .for_each(|d| d.set(0));
         take().unwrap();
-        NET.connections.set(0);
+        crate::net::owner::net().vars.connections.set(0);
         // DirectPlay's arguments: the provider's GUID, the data, the name record (+8 the
         // short name).
         let guid: [u8; 16] = std::array::from_fn(|k| k as u8 + 1);
@@ -156,7 +170,7 @@ mod tests {
         let found =
             crate::net::connection_found::connection_found(&guid, &data, b"Test Link\0").unwrap();
         assert_eq!(found, 1);
-        assert_eq!(NET.connections.get(), 1);
+        assert_eq!(crate::net::owner::net().vars.connections.get(), 1);
         let (name, provider, copied) =
             with_connection(0, |c| (c.name, c.provider, c.data.clone())).unwrap();
         assert_eq!(provider[..], guid[..]);
@@ -170,16 +184,21 @@ mod tests {
         );
         crate::net::free_messages::free_messages().unwrap();
         assert!(!NET_TABLES.is_taken());
-        NET.memory.iter().zip(kept_list).for_each(|(d, v)| d.set(v));
+        crate::net::owner::net()
+            .vars
+            .memory
+            .iter()
+            .zip(kept_list)
+            .for_each(|(d, v)| d.set(v));
         kept_saved
             .iter()
             .enumerate()
-            .for_each(|(k, &v)| NET.saved_connection.set(k, v));
+            .for_each(|(k, &v)| crate::net::owner::net().vars.saved_connection.set(k, v));
         kept_name
             .iter()
             .enumerate()
-            .for_each(|(k, &v)| NET.saved_name.set(k, v));
-        NET.connections.set(kept_count);
+            .for_each(|(k, &v)| crate::net::owner::net().vars.saved_name.set(k, v));
+        crate::net::owner::net().vars.connections.set(kept_count);
         crate::memory::with_figures(|f| *f = figures);
     }
 }

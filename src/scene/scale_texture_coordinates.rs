@@ -15,7 +15,6 @@
 use crate::errors::Refused;
 use crate::scene::owner::scene;
 use crate::scene::polygon::{Listed, listed};
-use crate::session::MACHINE;
 
 // ---- game data ----
 
@@ -45,8 +44,16 @@ pub fn scale_entries(entries: &Listed) -> Result<(), Refused> {
             for at in [8 + pair * 8, 0xC + pair * 8] {
                 let value = entry.word(at);
                 if let Some(float) = coordinates::float_of(value) {
-                    MACHINE.work.set(value);
-                    MACHINE.work_float.set(float);
+                    crate::system::owner::system()
+                        .session
+                        .machine
+                        .work
+                        .set(value);
+                    crate::system::owner::system()
+                        .session
+                        .machine
+                        .work_float
+                        .set(float);
                 }
                 entry.set_word(at, coordinates::scaled(value));
             }

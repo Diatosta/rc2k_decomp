@@ -21,13 +21,13 @@ pub struct EngineTables {
     pub shuffled_words: [Word; 0x10000],
 }
 
-/// The piece, a field of `race::buffers_store::BUFFERS`.
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = EngineTables;
     fn deref(&self) -> &EngineTables {
-        &crate::race::buffers_store::BUFFERS.engine_tables
+        &crate::race::owner::race().shared.buffers.engine_tables
     }
 }
 

@@ -10,8 +10,6 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{Cursor, FONT};
-use crate::net::store::NET;
-use crate::strings::text_buffer::TEXT_BUFFER;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::screens::{self, Value};
 
@@ -28,7 +26,7 @@ pub fn draw_setting_value(
     // Converted: `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
     // The core asks for the first byte only when it needs it: a refusal is kept and raised.
     let refused = std::cell::Cell::new(None);
-    let value = screens::text_value(item == NET.edited.get(), || {
+    let value = screens::text_value(item == crate::net::owner::net().vars.edited.get(), || {
         text.read(1, "a setting's text")
             .map(|b| b[0])
             .unwrap_or_else(|e| {
@@ -45,13 +43,13 @@ pub fn draw_setting_value(
             cursor.string(text);
             cursor.string_id(screens::CARET);
             cursor.nul()?;
-            crate::place::Place::from(&TEXT_BUFFER.text)
+            crate::place::Place::from(&crate::strings::owner::strings().text.buffer.text)
         }
         Value::Nothing => {
             let mut cursor = Cursor::text();
             cursor.string_id(screens::NOTHING);
             cursor.nul()?;
-            crate::place::Place::from(&TEXT_BUFFER.text)
+            crate::place::Place::from(&crate::strings::owner::strings().text.buffer.text)
         }
         Value::AsIs => text,
     };

@@ -14,7 +14,6 @@
 use crate::menu::owner::menus;
 use crate::race::owner::race;
 use crate::race::save_seal::seal_block;
-use crate::race::work_store::RACE_WORK;
 /// The time as sealed (converted: `rc2k_core::files::records::sealed_value`).
 pub fn sealed_value(time: u32, cheats: u32, patch_switch: u32) -> u32 {
     rc2k_core::files::records::sealed_value(time, cheats, patch_switch != 0)
@@ -31,7 +30,7 @@ pub fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
     let value = sealed_value(
         time,
         menus().play.cheats.cheats.get(),
-        RACE_WORK.patch_switch.bits(),
+        crate::race::owner::race().shared.work.patch_switch.bits(),
     );
     let bytes = block(value, bytes);
     replay.seal_work.block[0].set(u32::from_le_bytes(bytes[..4].try_into().unwrap()));

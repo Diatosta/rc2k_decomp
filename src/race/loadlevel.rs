@@ -10,9 +10,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::owner::scene;
 const BAR: u32 = 0x4467C7; // sub_4467C7: the loading bar's 3D frame
@@ -87,8 +84,12 @@ impl Steps {
     /// loading bar `loadlevel_init` puts there before its first mark (it is put away after
     /// the last).
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
-        RACE_VARS.bar_share.set_bits(mark);
-        if RACE_VARS.bar_function.bits() != self.v.bar {
+        crate::race::owner::race()
+            .shared
+            .vars
+            .bar_share
+            .set_bits(mark);
+        if crate::race::owner::race().shared.vars.bar_function.bits() != self.v.bar {
             return Err(BadInput("the loading bar's callback is not the loading bar").into());
         }
         crate::race::loading_bar_frame::loading_bar_frame()
@@ -134,17 +135,29 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.log();
     s.indent(3);
     race.frame.map.use_packed.set(1u32);
-    race.frame
-        .map
-        .packed_2
-        .set((FRAME_SWITCHES.editor_mode.bits() == 0) as u32);
-    let mut direction: u32 = RACE_VARS.direction.bits();
-    if [0x1F, 0x22, 0x51].contains(&RACE_VARS.stage_number.bits()) {
+    race.frame.map.packed_2.set(
+        (crate::race::owner::race()
+            .shared
+            .switches
+            .editor_mode
+            .bits()
+            == 0) as u32,
+    );
+    let mut direction: u32 = crate::race::owner::race().shared.vars.direction.bits();
+    if [0x1F, 0x22, 0x51].contains(&crate::race::owner::race().shared.vars.stage_number.bits()) {
         direction ^= 1;
     }
-    RACE_WORK.stage_direction.set(direction);
+    crate::race::owner::race()
+        .shared
+        .work
+        .stage_direction
+        .set(direction);
     race.course.numbers.in_race.set(1);
-    RACE_VARS.bar_function.set_bits(v.bar);
+    crate::race::owner::race()
+        .shared
+        .vars
+        .bar_function
+        .set_bits(v.bar);
     s.progress(0)?;
     s.indent(-3);
     s.step(
@@ -167,7 +180,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.log();
     s.indent(3);
     level::load_texture_info(&race.course)?;
-    level::set_course_number(RACE_VARS.stage_number.bits())?;
+    level::set_course_number(crate::race::owner::race().shared.vars.stage_number.bits())?;
     s.progress(6)?;
     s.indent(-3);
     s.step(&mut || stage_prefs::load_prefs(&race.course), Some(7))?;
@@ -197,8 +210,8 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.indent(3);
     crate::race::objects::reload_objects(race)?;
     s.progress(0x1E)?;
-    RACE_VARS.bar_span[0].set(0x1E); // dword_623634
-    RACE_VARS.bar_span[1].set(0x50); // dword_623638
+    crate::race::owner::race().shared.vars.bar_span[0].set(0x1E); // dword_623634
+    crate::race::owner::race().shared.vars.bar_span[1].set(0x50); // dword_623638
     s.indent(-3);
     s.step(
         &mut || crate::race::set_all_plates::set_all_plates(&race.course),
@@ -273,7 +286,11 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     crate::race::mud::init_mud(&race.course)?;
     s.progress(0x64)?;
     s.progress(0x64)?;
-    RACE_VARS.bar_function.set_bits(BAR_DONE);
+    crate::race::owner::race()
+        .shared
+        .vars
+        .bar_function
+        .set_bits(BAR_DONE);
     s.indent(-3);
     s.step(
         &mut || {
@@ -301,10 +318,18 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     }
     use crate::scene::find_object_of_kind::find_object_of_kind;
     let mut marker = find_object_of_kind(0x7A);
-    FRAME_SWITCHES.marker_object.set_bits(marker);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .marker_object
+        .set_bits(marker);
     if marker == 0 {
         marker = find_object_of_kind(0x79);
-        FRAME_SWITCHES.marker_object.set_bits(marker);
+        crate::race::owner::race()
+            .shared
+            .switches
+            .marker_object
+            .set_bits(marker);
     }
     // dword_719FD0 / D4.
     for cell in &REPLAY_WORK.camera_last_frame {

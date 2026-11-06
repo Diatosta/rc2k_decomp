@@ -17,7 +17,7 @@ use crate::race::owner::race;
 pub fn apply_torques(records: &[ForceRecord]) -> Result<(), Refused> {
     let physics = &race().physics;
     for rec in records {
-        apply_torque(physics, rec, &crate::physics::car_store::CAR);
+        apply_torque(physics, rec, &crate::race::owner::race().shared.car);
     }
     Ok(())
 }

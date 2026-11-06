@@ -8,7 +8,6 @@
 //! scene's colours) and put back. Two callers.
 
 use crate::race::owner::race;
-use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::fill_light_tables::fill_light_tables;
 
 // ---- game data ----
@@ -19,9 +18,17 @@ pub fn fill_scene_light_tables(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), crate::errors::BadInput> {
     let course = &race().course;
-    let kept: u32 = FRAME_SWITCHES.other_way.bits();
-    FRAME_SWITCHES.other_way.set_bits(1u32);
+    let kept: u32 = crate::race::owner::race().shared.switches.other_way.bits();
+    crate::race::owner::race()
+        .shared
+        .switches
+        .other_way
+        .set_bits(1u32);
     let done = fill_light_tables(scene, course);
-    FRAME_SWITCHES.other_way.set_bits(kept);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .other_way
+        .set_bits(kept);
     done
 }

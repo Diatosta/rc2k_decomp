@@ -11,11 +11,8 @@
 //! `race::draw_frame_rate`. The rate is worked out in plain floats. Fixed (2026-10-30,
 //! `wiki/Fixed-bugs.md`): the cycles from the whole counter, not its signed low halves.
 
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
-use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::owner::scene;
-use crate::session::MACHINE;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 /// The whole counter at the last measure (`dword_6214EC` holds its low half).
@@ -25,12 +22,16 @@ static LAST: AtomicU64 = AtomicU64::new(0);
 // Converted: `rc2k_core::race::frame_rate::frame_rate`.
 fn frame_rate_plain(course: &Course, cycles: u64) {
     let rate = rc2k_core::race::frame_rate::frame_rate(
-        MACHINE.cpu_mhz.get() as i32,
+        crate::system::owner::system().session.machine.cpu_mhz.get() as i32,
         course.numbers.thousand.get(),
         course.numbers.sixteen.get(),
         cycles,
     );
-    FRAME_SWITCHES.frame_rate.set_bits(rate.to_bits());
+    crate::race::owner::race()
+        .shared
+        .switches
+        .frame_rate
+        .set_bits(rate.to_bits());
 }
 
 /// The Rust version: the eax the original leaves when it changes it (on the 16th call, the
@@ -39,18 +40,36 @@ fn frame_rate_plain(course: &Course, cycles: u64) {
 pub fn measure_frame_rate(course: &Course) -> Option<u32> {
     // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
-    let (count, due) = count_frame(PHYSICS.frame_rate_count.bits());
-    PHYSICS.frame_rate_count.set(count);
+    let (count, due) = count_frame(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .frame_rate_count
+            .bits(),
+    );
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .frame_rate_count
+        .set(count);
     if !due {
         return None;
     }
     let whole = crate::arch::rdtsc();
     let now = whole as u32;
-    FRAME_SWITCHES.frame_now.set_bits(now);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .frame_now
+        .set_bits(now);
     if let Some(cycles) = cycles_since(whole, LAST.swap(whole, Relaxed)) {
         scene().drawing.scene.scratch.set_bits(cycles as u32);
         frame_rate_plain(course, cycles);
     }
-    FRAME_SWITCHES.frame_last.set_bits(now);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .frame_last
+        .set_bits(now);
     Some(now)
 }

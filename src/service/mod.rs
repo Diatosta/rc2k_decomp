@@ -18,6 +18,7 @@ pub mod load_background;
 pub mod load_setup_slot;
 pub mod load_setup_values;
 pub mod next_setup_page;
+pub mod owner;
 pub mod pages;
 pub mod read_setup_slot;
 pub mod repair_parts;

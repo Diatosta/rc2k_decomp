@@ -26,9 +26,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::math::x87_run::mul_status;
-use crate::physics::car_store::CAR;
 use crate::physics::flow::{abs_below_or_unordered, c3, ease_zero, hold_high, hold_low, negate};
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::scene::owner::scene;
@@ -36,7 +34,7 @@ use crate::session::Float;
 
 /// The steer angle's table index (the angle >> 20).
 fn steer_index() -> u32 {
-    CAR.steer_angle.get() >> 20
+    crate::race::owner::race().shared.car.steer_angle.get() >> 20
 }
 
 /// `a b` is below `c`, or one of them is not a number (the compare's C0).
@@ -47,41 +45,73 @@ fn product_below(a: u32, b: u32, c: u32) -> bool {
 /// The Rust version.
 pub fn drive_grip_forces(course: &Course) {
     let drawing = &scene().drawing;
-    let kind = CAR.drive_kind.get();
+    let kind = crate::race::owner::race().shared.car.drive_kind.get();
     // 0x43CD79: the share of +0x1F4 out of 50, from 1, held 0 ..= 1.
     drawing.scene.scratch.set(0x32);
     lever_share_from_timer(course);
-    hold_low(&PHYSICS.lever_share, &course.numbers.zero);
-    hold_high(&PHYSICS.lever_share, &course.numbers.one);
-    CAR.grip_forces[0].set_bits(0);
-    if CAR.front_wheels_off.get() == 0 {
+    hold_low(
+        &crate::race::owner::race().shared.physics_tables.lever_share,
+        &course.numbers.zero,
+    );
+    hold_high(
+        &crate::race::owner::race().shared.physics_tables.lever_share,
+        &course.numbers.one,
+    );
+    crate::race::owner::race().shared.car.grip_forces[0].set_bits(0);
+    if crate::race::owner::race().shared.car.front_wheels_off.get() == 0 {
         steer_sine_force(steer_index() as usize);
     }
     // The original takes the force a second time over.
     steer_sine_force(steer_index() as usize);
-    if !c3(CAR.local_velocity[2].bits(), course.numbers.zero.bits()) {
+    if !c3(
+        crate::race::owner::race().shared.car.local_velocity[2].bits(),
+        course.numbers.zero.bits(),
+    ) {
         // 0x43CE53: the slip limit, by the drive kind's factor.
         let factor = if kind == 1 {
-            &PHYSICS.grip_factor[1]
+            &crate::race::owner::race().shared.physics_tables.grip_factor[1]
         } else {
-            &PHYSICS.grip_factor[0]
+            &crate::race::owner::race().shared.physics_tables.grip_factor[0]
         };
         grip_limit_for(factor);
-        drawing.scene.scratch.set(CAR.grip_forces[0].bits());
+        drawing
+            .scene
+            .scratch
+            .set(crate::race::owner::race().shared.car.grip_forces[0].bits());
         // +0x210 held to ±the limit (the value negated in place between).
-        hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
-        negate(&CAR.grip_forces[0]);
-        hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
-        negate(&CAR.grip_forces[0]);
-        let slow = |v: &Float| abs_below_or_unordered(v.bits(), PHYSICS.grip_slow_speed.bits());
-        if !slow(&CAR.local_velocity[2]) && slow(&CAR.drive_speed_a) {
-            CAR.grip_forces[0].set_bits(0);
+        hold_high(
+            &crate::race::owner::race().shared.car.grip_forces[0],
+            &crate::race::owner::race().shared.physics_tables.grip_limit,
+        );
+        negate(&crate::race::owner::race().shared.car.grip_forces[0]);
+        hold_high(
+            &crate::race::owner::race().shared.car.grip_forces[0],
+            &crate::race::owner::race().shared.physics_tables.grip_limit,
+        );
+        negate(&crate::race::owner::race().shared.car.grip_forces[0]);
+        let slow = |v: &Float| {
+            abs_below_or_unordered(
+                v.bits(),
+                crate::race::owner::race()
+                    .shared
+                    .physics_tables
+                    .grip_slow_speed
+                    .bits(),
+            )
+        };
+        if !slow(&crate::race::owner::race().shared.car.local_velocity[2])
+            && slow(&crate::race::owner::race().shared.car.drive_speed_a)
+        {
+            crate::race::owner::race().shared.car.grip_forces[0].set_bits(0);
         }
-        if CAR.input_keys.get() & 0x1000 != 0 {
+        if crate::race::owner::race().shared.car.input_keys.get() & 0x1000 != 0 {
             if drawing.scene.scratch.get() == 0 {
-                CAR.steering.set(0);
+                crate::race::owner::race().shared.car.steering.set(0);
             } else {
-                divide_into_scratch(&CAR.grip_forces[0], &drawing.scene.scratch);
+                divide_into_scratch(
+                    &crate::race::owner::race().shared.car.grip_forces[0],
+                    &drawing.scene.scratch,
+                );
                 hold_high(&drawing.scene.scratch, &course.numbers.one);
                 hold_low(&drawing.scene.scratch, &course.numbers.zero);
                 scale_steering();
@@ -89,85 +119,169 @@ pub fn drive_grip_forces(course: &Course) {
         }
     }
     // 0x43CFB7
-    if CAR.parts_state.get() == 1 {
+    if crate::race::owner::race().shared.car.parts_state.get() == 1 {
         let k = if kind == 1 {
-            &PHYSICS.grip_rear_drive[0]
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_rear_drive[0]
         } else {
-            &PHYSICS.grip_rear_drive[1]
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_rear_drive[1]
         };
-        CAR.grip_forces[0].set_bits(x87::mul(CAR.grip_forces[0].bits(), k.bits()));
+        crate::race::owner::race().shared.car.grip_forces[0].set_bits(x87::mul(
+            crate::race::owner::race().shared.car.grip_forces[0].bits(),
+            k.bits(),
+        ));
     }
-    CAR.grip_forces[3].set_bits(0);
+    crate::race::owner::race().shared.car.grip_forces[3].set_bits(0);
     if kind == 0 {
         ground_speed_into_scratch();
-        hold_high(&drawing.scene.scratch, &PHYSICS.grip_ramp);
+        hold_high(
+            &drawing.scene.scratch,
+            &crate::race::owner::race().shared.physics_tables.grip_ramp,
+        );
         lean_force(course, steer_index() as usize);
     }
     // 0x43D08E: the engine braking.
     let braking_word = if kind != 0 {
         braking_count_geared(course);
-        ((CAR.brake.get().wrapping_sub(CAR.throttle.get()) as i32 >> 1) as u32)
+        ((crate::race::owner::race()
+            .shared
+            .car
+            .brake
+            .get()
+            .wrapping_sub(crate::race::owner::race().shared.car.throttle.get()) as i32
+            >> 1) as u32)
             .wrapping_add(0x80)
             .wrapping_add(drawing.scene.scratch.get())
-            .wrapping_add(CAR.handbrake.get())
+            .wrapping_add(crate::race::owner::race().shared.car.handbrake.get())
     } else {
         braking_count_neutral();
         0x100u32
-            .wrapping_sub(CAR.throttle.get())
+            .wrapping_sub(crate::race::owner::race().shared.car.throttle.get())
             .wrapping_add(drawing.scene.scratch.get())
-            .wrapping_add(CAR.handbrake.get())
+            .wrapping_add(crate::race::owner::race().shared.car.handbrake.get())
     };
-    PHYSICS.grip_drive_word.set(braking_word);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_drive_word
+        .set(braking_word);
     engine_braking_force(course);
     if product_below(
-        CAR.grip_forces[1].bits(),
-        CAR.grip_forces[0].bits(),
+        crate::race::owner::race().shared.car.grip_forces[1].bits(),
+        crate::race::owner::race().shared.car.grip_forces[0].bits(),
         course.numbers.zero.bits(),
     ) {
-        CAR.grip_forces[1].set_bits(x87::mul(
-            CAR.grip_forces[1].bits(),
-            PHYSICS.side_grip_share.bits(),
+        crate::race::owner::race().shared.car.grip_forces[1].set_bits(x87::mul(
+            crate::race::owner::race().shared.car.grip_forces[1].bits(),
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .side_grip_share
+                .bits(),
         ));
     }
-    if CAR.parts_state.get() == u32::MAX {
+    if crate::race::owner::race().shared.car.parts_state.get() == u32::MAX {
         let k = if kind == 1 {
-            &PHYSICS.grip_front_drive[0]
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_front_drive[0]
         } else {
-            &PHYSICS.grip_front_drive[1]
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_front_drive[1]
         };
-        CAR.grip_forces[1].set_bits(x87::mul(CAR.grip_forces[1].bits(), k.bits()));
+        crate::race::owner::race().shared.car.grip_forces[1].set_bits(x87::mul(
+            crate::race::owner::race().shared.car.grip_forces[1].bits(),
+            k.bits(),
+        ));
     }
-    CAR.grip_forces[2].set_bits(0);
+    crate::race::owner::race().shared.car.grip_forces[2].set_bits(0);
     if kind == 1 {
         abs_speed_into_work();
-        hold_high(&drawing.scene.work_float_a, &PHYSICS.grip_slip_limit);
+        hold_high(
+            &drawing.scene.work_float_a,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_slip_limit,
+        );
         yaw_share_from_limit();
-        drawing
-            .scene
-            .scratch
-            .set(x87::loaded(CAR.drive_slip_speed.bits()));
+        drawing.scene.scratch.set(x87::loaded(
+            crate::race::owner::race()
+                .shared
+                .car
+                .drive_slip_speed
+                .bits(),
+        ));
         // Held to ±`flt_613E80`, the limit negated in place between and put back.
-        hold_high(&drawing.scene.scratch, &PHYSICS.grip_force_limit);
-        negate(&PHYSICS.grip_force_limit);
-        hold_low(&drawing.scene.scratch, &PHYSICS.grip_force_limit);
-        negate(&PHYSICS.grip_force_limit);
-        divide_into_scratch(&drawing.scene.scratch, &PHYSICS.grip_force_limit);
+        hold_high(
+            &drawing.scene.scratch,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_force_limit,
+        );
+        negate(
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_force_limit,
+        );
+        hold_low(
+            &drawing.scene.scratch,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_force_limit,
+        );
+        negate(
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_force_limit,
+        );
+        divide_into_scratch(
+            &drawing.scene.scratch,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .grip_force_limit,
+        );
         yaw_force(course, steer_index() as usize);
     }
     // 0x43D2C9: the sum, and the yaw twist on the rear wheels.
     sum_grip_forces();
-    PHYSICS.forces[19].force[0].set_bits(0);
-    PHYSICS.forces[20].force[0].set_bits(0);
-    if CAR.all_wheels_off.get() != 0 {
+    crate::race::owner::race().shared.physics_tables.forces[19].force[0].set_bits(0);
+    crate::race::owner::race().shared.physics_tables.forces[20].force[0].set_bits(0);
+    if crate::race::owner::race().shared.car.all_wheels_off.get() != 0 {
         return;
     }
-    CAR.eased_yaw_spin.set_bits(x87::loaded(CAR.spin[1].bits()));
-    let old = CAR.eased_yaw_spin.bits();
-    course
-        .numbers
-        .grip_change
-        .set_bits(x87::sub(old, CAR.grip_force_sum.bits()));
-    ease_zero(&course.numbers.grip_change, &PHYSICS.grip_ease_step);
+    crate::race::owner::race()
+        .shared
+        .car
+        .eased_yaw_spin
+        .set_bits(x87::loaded(
+            crate::race::owner::race().shared.car.spin[1].bits(),
+        ));
+    let old = crate::race::owner::race().shared.car.eased_yaw_spin.bits();
+    course.numbers.grip_change.set_bits(x87::sub(
+        old,
+        crate::race::owner::race().shared.car.grip_force_sum.bits(),
+    ));
+    ease_zero(
+        &course.numbers.grip_change,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .grip_ease_step,
+    );
     ease_yaw_twist(course, old);
 }
 
@@ -178,41 +292,61 @@ pub fn drive_grip_forces(course: &Course) {
 /// `[rc + 0x31A1E8] = ([bf + e * 4 + 0x623AE4] * [rc + 0x31A184]) / [rc + 0x214BA0]`
 fn steer_sine_force(e: usize) {
     let t0 = ld(ENGINE_TABLES.sines[e].bits());
-    let t1 = ld(CAR.local_velocity[2].bits());
+    let t1 = ld(crate::race::owner::race().shared.car.local_velocity[2].bits());
     let t2 = t0 * t1;
-    let t3 = ld(PHYSICS.spec_grip.bits());
+    let t3 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .spec_grip
+        .bits());
     let t4 = t2 / t3;
-    CAR.grip_forces[0].set_bits(st(t4));
+    crate::race::owner::race().shared.car.grip_forces[0].set_bits(st(t4));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214768] = -((int [rc + 0x31A1CC] / int [rc + 0x22400C]) - [rc + 0x1C5D38])`
 fn lever_share_from_timer(course: &Course) {
-    let t0 = int(CAR.wall_hit_timer.bits() as i32);
+    let t0 = int(crate::race::owner::race().shared.car.wall_hit_timer.bits() as i32);
     let t1 = int(scene().drawing.scene.scratch.bits() as i32);
     let t2 = t0 / t1;
     let t3 = ld(course.numbers.one.bits());
     let t4 = t2 - t3;
     let t5 = -t4;
-    PHYSICS.lever_share.set_bits(st(t5));
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .lever_share
+        .set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214260] = |(((([rc + 0x2142A8] * [rc + 0x213FC8]) * [f + 0]) * [rc + 0x214B74]) / [rc + 0x31A184])|`
 fn grip_limit_for(f: &Float) {
-    let t0 = ld(PHYSICS.wheel_grips[4].bits());
-    let t1 = ld(PHYSICS.gravity.bits());
+    let t0 = ld(crate::race::owner::race().shared.physics_tables.wheel_grips[4].bits());
+    let t1 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .gravity
+        .bits());
     let t2 = t0 * t1;
     let t3 = ld(f.bits());
     let t4 = t2 * t3;
-    let t5 = ld(PHYSICS.grip_scale.bits());
+    let t5 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_scale
+        .bits());
     let t6 = t4 * t5;
-    let t7 = ld(CAR.local_velocity[2].bits());
+    let t7 = ld(crate::race::owner::race().shared.car.local_velocity[2].bits());
     let t8 = t6 / t7;
     let t9 = t8.abs();
-    PHYSICS.grip_limit.set_bits(st(t9));
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_limit
+        .set_bits(st(t9));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -230,18 +364,22 @@ fn divide_into_scratch(o0: &impl crate::session::Cell32, o1: &impl crate::sessio
 /// `int [rc + 0x31A61C] = [rc + 0x22400C] * int [rc + 0x31A61C]`
 fn scale_steering() {
     let t0 = ld(scene().drawing.scene.scratch.bits());
-    let t1 = int(CAR.steering.bits() as i32);
+    let t1 = int(crate::race::owner::race().shared.car.steering.bits() as i32);
     let t2 = t0 * t1;
-    CAR.steering.set_bits(to_int(t2) as u32);
+    crate::race::owner::race()
+        .shared
+        .car
+        .steering
+        .set_bits(to_int(t2) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = sqrt((([rc + 0x31A17C] * [rc + 0x31A17C]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
 fn ground_speed_into_scratch() {
-    let t0 = ld(CAR.local_velocity[0].bits());
+    let t0 = ld(crate::race::owner::race().shared.car.local_velocity[0].bits());
     let t1 = t0 * t0;
-    let t2 = ld(CAR.local_velocity[2].bits());
+    let t2 = ld(crate::race::owner::race().shared.car.local_velocity[2].bits());
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
@@ -252,34 +390,46 @@ fn ground_speed_into_scratch() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 fn lean_force(course: &Course, e: usize) {
-    let t0 = ld(PHYSICS.grip_ramp.bits());
+    let t0 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_ramp
+        .bits());
     let t1 = ld(scene().drawing.scene.scratch.bits());
     let t2 = t0 - t1;
-    let t3 = ld(PHYSICS.grip_ramp.bits());
+    let t3 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_ramp
+        .bits());
     let t4 = t2 / t3;
     let t5 = ld(ENGINE_TABLES.sines[e].bits());
     let t6 = t4 * t5;
-    let t7 = int(CAR.handbrake.bits() as i32);
+    let t7 = int(crate::race::owner::race().shared.car.handbrake.bits() as i32);
     let t8 = t6 * t7;
     let t9 = ld(course.numbers.k256.bits());
     let t10 = t8 / t9;
-    let t11 = ld(CAR.drive_speed_a.bits());
+    let t11 = ld(crate::race::owner::race().shared.car.drive_speed_a.bits());
     let t12 = t10 * t11;
-    let t13 = ld(PHYSICS.grip_ramp_share.bits());
+    let t13 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_ramp_share
+        .bits());
     let t14 = t12 * t13;
-    let t15 = int(CAR.throttle.bits() as i32);
+    let t15 = int(crate::race::owner::race().shared.car.throttle.bits() as i32);
     let t16 = t14 * t15;
     let t17 = ld(course.numbers.k256.bits());
     let t18 = t16 / t17;
-    CAR.grip_forces[3].set_bits(st(t18));
+    crate::race::owner::race().shared.car.grip_forces[3].set_bits(st(t18));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x214BF0] * int [rc + 0x31A614]) * [rc + 0x1C5DB4]`
 fn braking_count_geared(course: &Course) {
-    let t0 = ld(PHYSICS.handling[1].bits());
-    let t1 = int(CAR.brake.bits() as i32);
+    let t0 = ld(crate::race::owner::race().shared.physics_tables.handling[1].bits());
+    let t1 = int(crate::race::owner::race().shared.car.brake.bits() as i32);
     let t2 = t0 * t1;
     let t3 = ld(course.numbers.one_and_a_half.bits());
     let t4 = t2 * t3;
@@ -290,8 +440,8 @@ fn braking_count_geared(course: &Course) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x214BF0] * int [rc + 0x31A614]) + ([rc + 0x214BF0] * int [rc + 0x31A614])`
 fn braking_count_neutral() {
-    let t0 = ld(PHYSICS.handling[1].bits());
-    let t1 = int(CAR.brake.bits() as i32);
+    let t0 = ld(crate::race::owner::race().shared.physics_tables.handling[1].bits());
+    let t1 = int(crate::race::owner::race().shared.car.brake.bits() as i32);
     let t2 = t0 * t1;
     let t3 = t2 + t2;
     scene().drawing.scene.scratch.set_bits(to_int(t3) as u32);
@@ -301,24 +451,36 @@ fn braking_count_neutral() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A1EC] = (-((int [rc + 0x214164] / [rc + 0x1C5E2C]) * [rc + 0x31A1A0]) * [rc + 0x213ECC]) * [rc + 0x214B78]`
 fn engine_braking_force(course: &Course) {
-    let t0 = int(PHYSICS.grip_drive_word.bits() as i32);
+    let t0 = int(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_drive_word
+        .bits() as i32);
     let t1 = ld(course.numbers.k256.bits());
     let t2 = t0 / t1;
-    let t3 = ld(CAR.side_speed_held.bits());
+    let t3 = ld(crate::race::owner::race().shared.car.side_speed_held.bits());
     let t4 = t2 * t3;
     let t5 = -t4;
-    let t6 = ld(PHYSICS.side_force_scale.bits());
+    let t6 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .side_force_scale
+        .bits());
     let t7 = t5 * t6;
-    let t8 = ld(PHYSICS.side_grip_scale.bits());
+    let t8 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .side_grip_scale
+        .bits());
     let t9 = t7 * t8;
-    CAR.grip_forces[1].set_bits(st(t9));
+    crate::race::owner::race().shared.car.grip_forces[1].set_bits(st(t9));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22401C] = |[rc + 0x31A184]|`
 fn abs_speed_into_work() {
-    let t0 = ld(CAR.local_velocity[2].bits());
+    let t0 = ld(crate::race::owner::race().shared.car.local_velocity[2].bits());
     let t1 = t0.abs();
     scene().drawing.scene.work_float_a.set_bits(st(t1));
 }
@@ -328,10 +490,18 @@ fn abs_speed_into_work() {
 /// `[rc + 0x22401C] = ([rc + 0x213E7C] - [rc + 0x22401C]) / [rc + 0x213E7C]`
 fn yaw_share_from_limit() {
     let drawing = &scene().drawing;
-    let t0 = ld(PHYSICS.grip_slip_limit.bits());
+    let t0 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_slip_limit
+        .bits());
     let t1 = ld(drawing.scene.work_float_a.bits());
     let t2 = t0 - t1;
-    let t3 = ld(PHYSICS.grip_slip_limit.bits());
+    let t3 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_slip_limit
+        .bits());
     let t4 = t2 / t3;
     drawing.scene.work_float_a.set_bits(st(t4));
 }
@@ -342,9 +512,13 @@ fn yaw_share_from_limit() {
 fn yaw_force(course: &Course, e: usize) {
     let drawing = &scene().drawing;
     let t0 = ld(ENGINE_TABLES.sines[e].bits());
-    let t1 = ld(PHYSICS.spec_grip.bits());
+    let t1 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .spec_grip
+        .bits());
     let t2 = t0 / t1;
-    let t3 = int(CAR.throttle.bits() as i32);
+    let t3 = int(crate::race::owner::race().shared.car.throttle.bits() as i32);
     let t4 = t2 * t3;
     let t5 = ld(course.numbers.k256.bits());
     let t6 = t4 / t5;
@@ -352,23 +526,31 @@ fn yaw_force(course: &Course, e: usize) {
     let t8 = t6 * t7;
     let t9 = ld(drawing.scene.work_float_a.bits());
     let t10 = t8 * t9;
-    let t11 = ld(PHYSICS.grip_slide_scale.bits());
+    let t11 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .grip_slide_scale
+        .bits());
     let t12 = t10 * t11;
-    CAR.grip_forces[2].set_bits(st(t12));
+    crate::race::owner::race().shared.car.grip_forces[2].set_bits(st(t12));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A1DC] = (([rc + 0x31A1E8] + [rc + 0x31A1EC]) + [rc + 0x31A1F0]) + [rc + 0x31A1F4]`
 fn sum_grip_forces() {
-    let t0 = ld(CAR.grip_forces[0].bits());
-    let t1 = ld(CAR.grip_forces[1].bits());
+    let t0 = ld(crate::race::owner::race().shared.car.grip_forces[0].bits());
+    let t1 = ld(crate::race::owner::race().shared.car.grip_forces[1].bits());
     let t2 = t0 + t1;
-    let t3 = ld(CAR.grip_forces[2].bits());
+    let t3 = ld(crate::race::owner::race().shared.car.grip_forces[2].bits());
     let t4 = t2 + t3;
-    let t5 = ld(CAR.grip_forces[3].bits());
+    let t5 = ld(crate::race::owner::race().shared.car.grip_forces[3].bits());
     let t6 = t4 + t5;
-    CAR.grip_force_sum.set_bits(st(t6));
+    crate::race::owner::race()
+        .shared
+        .car
+        .grip_force_sum
+        .set_bits(st(t6));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -386,46 +568,54 @@ fn sum_grip_forces() {
 fn ease_yaw_twist(course: &Course, o: u32) {
     let drawing = &scene().drawing;
     let t0 = ld(course.numbers.grip_change.bits());
-    let t1 = ld(CAR.grip_force_sum.bits());
+    let t1 = ld(crate::race::owner::race().shared.car.grip_force_sum.bits());
     let t2 = t0 + t1;
-    CAR.eased_yaw_spin.set_bits(st(t2));
+    crate::race::owner::race()
+        .shared
+        .car
+        .eased_yaw_spin
+        .set_bits(st(t2));
     let t3 = ld(o);
-    let t4 = ld(CAR.eased_yaw_spin.bits());
+    let t4 = ld(crate::race::owner::race().shared.car.eased_yaw_spin.bits());
     let t5 = t3 - t4;
     let t6 = -t5;
     drawing.scene.scratch.set_bits(st(t6));
     let t7 = ld(drawing.scene.scratch.bits());
-    let t8 = ld(PHYSICS.step_time.bits());
+    let t8 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .step_time
+        .bits());
     let t9 = t7 / t8;
     let t10 = ld(course.numbers.half.bits());
     let t11 = t9 * t10;
-    let t12 = ld(PHYSICS.inertia[1].bits());
+    let t12 = ld(crate::race::owner::race().shared.physics_tables.inertia[1].bits());
     let t13 = t11 / t12;
-    PHYSICS.forces[19].force[0].set_bits(st(t13));
+    crate::race::owner::race().shared.physics_tables.forces[19].force[0].set_bits(st(t13));
     let t14 = -t13;
-    PHYSICS.forces[20].force[0].set_bits(st(t14));
+    crate::race::owner::race().shared.physics_tables.forces[20].force[0].set_bits(st(t14));
     let t15 = X(1.0);
-    PHYSICS.forces[19].point[2].set_bits(st(t15));
+    crate::race::owner::race().shared.physics_tables.forces[19].point[2].set_bits(st(t15));
     let t16 = -t15;
-    PHYSICS.forces[20].point[2].set_bits(st(t16));
-    let t17 = ld(PHYSICS.forces[19].force[0].bits());
-    let t18 = ld(CAR.probe_point_z[0].bits());
+    crate::race::owner::race().shared.physics_tables.forces[20].point[2].set_bits(st(t16));
+    let t17 = ld(crate::race::owner::race().shared.physics_tables.forces[19].force[0].bits());
+    let t18 = ld(crate::race::owner::race().shared.car.probe_point_z[0].bits());
     let t19 = t17 / t18;
-    PHYSICS.forces[19].force[0].set_bits(st(t19));
-    let t20 = ld(PHYSICS.forces[19].point[2].bits());
-    let t21 = ld(CAR.probe_point_z[0].bits());
+    crate::race::owner::race().shared.physics_tables.forces[19].force[0].set_bits(st(t19));
+    let t20 = ld(crate::race::owner::race().shared.physics_tables.forces[19].point[2].bits());
+    let t21 = ld(crate::race::owner::race().shared.car.probe_point_z[0].bits());
     let t22 = t20 * t21;
-    PHYSICS.forces[19].point[2].set_bits(st(t22));
-    let t23 = ld(PHYSICS.forces[20].force[0].bits());
-    let t24 = ld(CAR.probe_point_z[3].bits());
+    crate::race::owner::race().shared.physics_tables.forces[19].point[2].set_bits(st(t22));
+    let t23 = ld(crate::race::owner::race().shared.physics_tables.forces[20].force[0].bits());
+    let t24 = ld(crate::race::owner::race().shared.car.probe_point_z[3].bits());
     let t25 = t23 / t24;
     let t26 = -t25;
-    PHYSICS.forces[20].force[0].set_bits(st(t26));
-    let t27 = ld(PHYSICS.forces[20].point[2].bits());
-    let t28 = ld(CAR.probe_point_z[3].bits());
+    crate::race::owner::race().shared.physics_tables.forces[20].force[0].set_bits(st(t26));
+    let t27 = ld(crate::race::owner::race().shared.physics_tables.forces[20].point[2].bits());
+    let t28 = ld(crate::race::owner::race().shared.car.probe_point_z[3].bits());
     let t29 = t27 * t28;
     let t30 = -t29;
-    PHYSICS.forces[20].point[2].set_bits(st(t30));
+    crate::race::owner::race().shared.physics_tables.forces[20].point[2].set_bits(st(t30));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -546,7 +736,10 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0]) },
                 plain: |_| {
-                    divide_into_scratch(&CAR.grip_forces[0], &scene().drawing.scene.scratch);
+                    divide_into_scratch(
+                        &crate::race::owner::race().shared.car.grip_forces[0],
+                        &scene().drawing.scene.scratch,
+                    );
                 },
             },
             Block {
@@ -709,7 +902,13 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_12(a[0]) },
                 plain: |_| {
-                    divide_into_scratch(&scene().drawing.scene.scratch, &PHYSICS.grip_force_limit);
+                    divide_into_scratch(
+                        &scene().drawing.scene.scratch,
+                        &crate::race::owner::race()
+                            .shared
+                            .physics_tables
+                            .grip_force_limit,
+                    );
                 },
             },
             Block {

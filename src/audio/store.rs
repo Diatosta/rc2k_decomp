@@ -295,355 +295,373 @@ pub const CHANNEL_IDLE: MixerChannel = MixerChannel {
     gap_44: [0x0, 0x0, 0x0, 0x0, 0x0],
 };
 
-pub static AUDIO: AudioState = AudioState {
-    quality_modes: [
-        Dword::new(0x212),
-        Dword::new(0x222),
-        Dword::new(0x221),
-        Dword::new(0x220),
-    ],
-    _gap_82a4: Bytes::new([0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0x1, 0, 0, 0, 0x2]),
-    no_audio: Dword::new(0),
-    audio_turn_tick: Dword::new(0),
-    sound_mode: Dword::new(0),
-    opened_sound_mode: Dword::new(0),
-    menu_sound_mode: Dword::new(0),
-    race_sound_mode: Dword::new(0),
-    sound_buffer_lost: Dword::new(0),
-    commit_3d: Dword::new(0),
-    mix_rate_setting: Dword::new(0xac44),
-    master_volume: Dword::new(0x41),
-    primary_volume_kept: Dword::new(0x1),
-    sample_bits_flags: [
-        Dword::new(0x10),
-        Dword::new(0x8),
-        Dword::new(0x20),
-        Dword::new(0x10),
-    ],
-    sample_channel_flags: [
-        Dword::new(0x100),
-        Dword::new(0x1),
-        Dword::new(0x200),
-        Dword::new(0x2),
-    ],
-    sample_memory: Shared::new(List {
-        head: 0x0,
-        total: 0x0,
-        cursor: 0x0,
-        remaining: 0x0,
-    }),
-    _gap_8310: Bytes::new([0; 48]),
-    playing_voices: Dword::new(0),
-    stopping_voices: Dword::new(0),
-    voice_count: Dword::new(0),
-    voices: [const { Shared::new(VOICE_FREE) }; 512],
-    channel_count: Dword::new(0x8),
-    channels_used: Dword::new(0),
-    channels: [const { Shared::new(CHANNEL_IDLE) }; 16],
-    mix_rate: Dword::new(0),
-    primary_size: Dword::new(0x2000),
-    mix_most: Dword::new(0x1000),
-    mix_shift: Dword::new(0),
-    play_cursor: Dword::new(0),
-    write_cursor: Dword::new(0),
-    sample_buffer_kb: Dword::new(0x400),
-    sample_buffer_memory: Shared::new(List {
-        head: 0x0,
-        total: 0x0,
-        cursor: 0x0,
-        remaining: 0x0,
-    }),
-    _gap_6900: Bytes::new([0; 48]),
-    sample_buffer: Dword::new(0),
-    sample_buffer_size: Dword::new(0),
-    sample_file: Shared::new(SampleFile {
-        data: 0x0,
-        length: 0x0,
-        format: 0x0,
-        channels: 0x0,
-        rate: 0x0,
-        bits: 0x0,
-        frame_bytes: 0x0,
-        frames: 0x0,
-    }),
-    unit_volume_factor: Dword::new(0x40),
-    sound_list_loaded: Dword::new(0),
-    sound_stream: Shared::new(AudioStream {
-        playing: 0x0,
-        volume: 0x40,
-        buffer: 0x0,
-        open: 0x0,
-        file: 0x0,
-        play_cursor: 0x0,
-        write_at: 0x0,
-        format: 0x0,
-        bytes: 0x10000,
-        step: 0x8000,
-        tail: 0x8000,
-    }),
-    next_tune: Dword::new(0),
-    music_stream: Shared::new(AudioStream {
-        playing: 0x0,
-        volume: 0x40,
-        buffer: 0x0,
-        open: 0x0,
-        file: 0x0,
-        play_cursor: 0x0,
-        write_at: 0x0,
-        format: 0x0,
-        bytes: 0x10000,
-        step: 0x8000,
-        tail: 0x8000,
-    }),
-    no_music: Dword::new(0),
-    music_path: Bytes::new([
-        0x3b, 0x33, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x5c, 0x6d, 0x75, 0x73, 0x69, 0x63, 0x5c, 0x30,
-        0x30, 0x2e, 0x77, 0x61, 0x76, 0, 0, 0, 0,
-    ]),
-    stream_header: Dword::new(0),
-    stream_header_memory: Shared::new(List {
-        head: 0x0,
-        total: 0x0,
-        cursor: 0x0,
-        remaining: 0x0,
-    }),
-    _gap_69ec: Bytes::new([0; 48]),
-    command_count: Dword::new(0),
-    command_read: Dword::new(0),
-    command_write: Dword::new(0),
-    a3d_iid: Bytes::new([
-        0x83, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb, 0xe5, 0x60,
-    ]),
-    _gap_6a38: Bytes::new([
-        0x85, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb, 0xe5, 0x60,
-    ]),
-    iid_listener: Bytes::new([
-        0x84, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb, 0xe5, 0x60,
-    ]),
-    iid_sound_3d_buffer: Bytes::new([
-        0x86, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb, 0xe5, 0x60,
-    ]),
-    _gap_6a68: Bytes::new([
-        0x83, 0x7, 0x21, 0xb0, 0xcd, 0x89, 0xd0, 0x11, 0xaf, 0x8, 0, 0xa0, 0xc9, 0x25, 0xcd, 0x16,
-    ]),
-    iid_property_set: Bytes::new([
-        0x30, 0xac, 0xef, 0x31, 0x5c, 0x51, 0xd0, 0x11, 0xa9, 0xaa, 0, 0xaa, 0, 0x61, 0xbe, 0x93,
-    ]),
-    direct_sound: Dword::new(0),
-    primary_buffer: Dword::new(0),
-    sound_listener: Dword::new(0),
-    _gap_6a94: Bytes::new([0; 4]),
-    locked_parts: [const { Dword::new(0) }; 4],
-    sound_caps: Bytes::new([0; 96]),
-    primary_caps: Bytes::new([0; 20]),
-    buffer_description: Shared::new(BufferDescription {
-        size: 0x0,
-        flags: 0x0,
-        bytes: 0x0,
-        reserved: 0x0,
-        format: 0x0,
-    }),
-    wave_format: Shared::new(WaveFormat {
-        tag: 0x0,
-        channels: 0x0,
-        samples_per_second: 0x0,
-        bytes_per_second: 0x0,
-        block_align: 0x0,
-        bits: 0x0,
-        extra: 0x0,
-    }),
-    no_listener: Loose::new(0x0),
-    has_3d: Loose::new(0x0),
-    _gap_6b4a: Bytes::new([0; 2]),
-    volume_table: [
-        Dword::new(0xffffd8f0),
-        Dword::new(0xfffff1e4),
-        Dword::new(0xfffff43e),
-        Dword::new(0xfffff59e),
-        Dword::new(0xfffff698),
-        Dword::new(0xfffff75a),
-        Dword::new(0xfffff7f8),
-        Dword::new(0xfffff87e),
-        Dword::new(0xfffff8f2),
-        Dword::new(0xfffff958),
-        Dword::new(0xfffff9b4),
-        Dword::new(0xfffffa06),
-        Dword::new(0xfffffa52),
-        Dword::new(0xfffffa98),
-        Dword::new(0xfffffad8),
-        Dword::new(0xfffffb14),
-        Dword::new(0xfffffb4c),
-        Dword::new(0xfffffb81),
-        Dword::new(0xfffffbb2),
-        Dword::new(0xfffffbe1),
-        Dword::new(0xfffffc0e),
-        Dword::new(0xfffffc38),
-        Dword::new(0xfffffc62),
-        Dword::new(0xfffffc87),
-        Dword::new(0xfffffcac),
-        Dword::new(0xfffffcd0),
-        Dword::new(0xfffffcf2),
-        Dword::new(0xfffffd12),
-        Dword::new(0xfffffd32),
-        Dword::new(0xfffffd50),
-        Dword::new(0xfffffd6e),
-        Dword::new(0xfffffd8a),
-        Dword::new(0xfffffda6),
-        Dword::new(0xfffffdc1),
-        Dword::new(0xfffffddb),
-        Dword::new(0xfffffdf4),
-        Dword::new(0xfffffe0c),
-        Dword::new(0xfffffe24),
-        Dword::new(0xfffffe3b),
-        Dword::new(0xfffffe52),
-        Dword::new(0xfffffe68),
-        Dword::new(0xfffffe7d),
-        Dword::new(0xfffffe92),
-        Dword::new(0xfffffea7),
-        Dword::new(0xfffffebb),
-        Dword::new(0xfffffece),
-        Dword::new(0xfffffee0),
-        Dword::new(0xfffffef4),
-        Dword::new(0xffffff06),
-        Dword::new(0xffffff18),
-        Dword::new(0xffffff2a),
-        Dword::new(0xffffff3b),
-        Dword::new(0xffffff4c),
-        Dword::new(0xffffff5c),
-        Dword::new(0xffffff6c),
-        Dword::new(0xffffff7c),
-        Dword::new(0xffffff8c),
-        Dword::new(0xffffff9b),
-        Dword::new(0xffffffaa),
-        Dword::new(0xffffffb9),
-        Dword::new(0xffffffc8),
-        Dword::new(0xffffffd6),
-        Dword::new(0xffffffe4),
-        Dword::new(0xfffffff2),
-        Dword::new(0x0),
-    ],
-    ignore_dsv_setting: Dword::new(0),
-    voice_manager_on: Dword::new(0),
-    voice_manager: Dword::new(0),
-    no_a3d_setting: Dword::new(0x1),
-    a3d_splash_kept: Dword::new(0),
-    a3d_ready: Dword::new(0),
-    a3d_object: Dword::new(0),
-    ignore_eax_setting: Dword::new(0),
-    has_eax: Dword::new(0),
-    eax_properties: Dword::new(0),
-    eax_room: Dword::new(0x6),
-    eax_room_set: Dword::new(0x6),
-    environment_kept: Dword::new(0x3f800000),
-    sounds_held_back: Dword::new(0),
-    audio_options: Shared::new(AudioOptions {
-        kept: 0x0,
-        choice: [0x2, 0x0, 0x0, 0x0, 0x0, 0x0],
-        applied: [0x2, 0x0, 0x0, 0x0, 0x0, 0x0],
-        has_3d: 0x0,
-        has_a3d2: 0x0,
-        has_eax: 0x0,
-    }),
-    voice_manager_set: Bytes::new([
-        0xae, 0x9b, 0xa6, 0x62, 0x9d, 0xdf, 0xd1, 0x11, 0x99, 0xa6, 0, 0xc0, 0x4f, 0xc9, 0x9d, 0x46,
-    ]),
-    a3d_clsid: Bytes::new([
-        0xe0, 0xee, 0xf1, 0xd8, 0x34, 0xf6, 0xcf, 0x11, 0x87, 0, 0, 0xa0, 0x24, 0x5d, 0x91, 0x8b,
-    ]),
-    _gap_6ce8: Bytes::new([
-        0xe1, 0xee, 0xf1, 0xd8, 0x34, 0xf6, 0xcf, 0x11, 0x87, 0, 0, 0xa0, 0x24, 0x5d, 0x91, 0x8b,
-        0xe0, 0xd1, 0x80, 0xfb, 0xd3, 0x98, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1, 0xf4, 0x41,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        0, 0, 0x53, 0x4f, 0x46, 0x54, 0x57, 0x41, 0x52, 0x45, 0x5c, 0x41, 0x75, 0x72, 0x65, 0x61,
-        0x6c, 0x5c, 0x41, 0x33, 0x44, 0, 0x53, 0x70, 0x6c, 0x61, 0x73, 0x68, 0x53, 0x63, 0x72,
-        0x65, 0x65, 0x6e, 0, 0x53, 0x70, 0x6c, 0x61, 0x73, 0x68, 0x41, 0x75, 0x64, 0x69, 0x6f, 0,
-        0, 0, 0,
-    ]),
-    a3d2_interface: Dword::new(0),
-    has_a3d2: Dword::new(0),
-    use_a3d: Dword::new(0),
-    _gap_6d64: Bytes::new([0, 0, 0, 0, 0, 0, 0x80, 0x3c]),
-    a3d2_clsid: Bytes::new([
-        0x24, 0x2c, 0xfa, 0x92, 0x3c, 0x25, 0xd2, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1, 0xf4, 0x41,
-    ]),
-    _gap_6d7c: Bytes::new([
-        0x60, 0xe5, 0x98, 0xc3, 0xb, 0xd9, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1, 0xf4, 0x41,
-    ]),
-    a3d2_iid: Bytes::new([
-        0x80, 0x2, 0xc4, 0xe4, 0xba, 0xcc, 0xd2, 0x11, 0x9d, 0xcf, 0, 0x50, 0x4, 0x11, 0x58, 0x2f,
-    ]),
-    _gap_6d9c: Bytes::new([
-        0x63, 0xe5, 0x98, 0xc3, 0xb, 0xd9, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1, 0xf4, 0x41,
-    ]),
-    eax_reverb_set: Bytes::new([
-        0xc1, 0x6f, 0x4e, 0x4a, 0x41, 0xc3, 0xd1, 0x11, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54, 0, 0,
-    ]),
-    _gap_6dbc: Bytes::new([
-        0xc0, 0x6f, 0x4e, 0x4a, 0x41, 0xc3, 0xd1, 0x11, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54, 0, 0,
-    ]),
-    eax_rooms: [
-        EaxRoom {
-            environment: Dword::new(0x2),
-            volume: Float::from_bits(0x3f000000),
-            decay: Float::from_bits(0x3f000000),
-            damping: Float::from_bits(0x3f000000),
-        },
-        EaxRoom {
-            environment: Dword::new(0xf),
-            volume: Float::from_bits(0x3de353f8),
-            decay: Float::from_bits(0x404947ae),
-            damping: Float::from_bits(0x3ef1a9fc),
-        },
-        EaxRoom {
-            environment: Dword::new(0xf),
-            volume: Float::from_bits(0x3e800000),
-            decay: Float::from_bits(0x3dcccccd),
-            damping: Float::from_bits(0x3dcccccd),
-        },
-        EaxRoom {
-            environment: Dword::new(0xf),
-            volume: Float::from_bits(0x3f800000),
-            decay: Float::from_bits(0x3dcccccd),
-            damping: Float::from_bits(0x3dcccccd),
-        },
-        EaxRoom {
-            environment: Dword::new(0xf),
-            volume: Float::from_bits(0x0),
-            decay: Float::from_bits(0x3dcccccd),
-            damping: Float::from_bits(0x3f000000),
-        },
-        EaxRoom {
-            environment: Dword::new(0x13),
-            volume: Float::from_bits(0x3dc6a7f0),
-            decay: Float::from_bits(0x40311687),
-            damping: Float::from_bits(0x3e656042),
-        },
-        EaxRoom {
-            environment: Dword::new(0x10),
-            volume: Float::from_bits(0x3de353f8),
-            decay: Float::from_bits(0x40311687),
-            damping: Float::from_bits(0x3e656042),
-        },
-        EaxRoom {
-            environment: Dword::new(0x11),
-            volume: Float::from_bits(0x3e800000),
-            decay: Float::from_bits(0x40000000),
-            damping: Float::from_bits(0x3eb33333),
-        },
-        EaxRoom {
-            environment: Dword::new(0x11),
-            volume: Float::from_bits(0x3e800000),
-            decay: Float::from_bits(0x40800000),
-            damping: Float::from_bits(0x3eb33333),
-        },
-        EaxRoom {
-            environment: Dword::new(0x12),
-            volume: Float::from_bits(0x3f800000),
-            decay: Float::from_bits(0x3fbfdf3b),
-            damping: Float::from_bits(0x3f000000),
-        },
-    ],
-};
+impl AudioState {
+    pub const fn new() -> Self {
+        AudioState {
+            quality_modes: [
+                Dword::new(0x212),
+                Dword::new(0x222),
+                Dword::new(0x221),
+                Dword::new(0x220),
+            ],
+            _gap_82a4: Bytes::new([0, 0, 0, 0, 0, 0, 0x30, 0, 0, 0, 0x30, 0x1, 0, 0, 0, 0x2]),
+            no_audio: Dword::new(0),
+            audio_turn_tick: Dword::new(0),
+            sound_mode: Dword::new(0),
+            opened_sound_mode: Dword::new(0),
+            menu_sound_mode: Dword::new(0),
+            race_sound_mode: Dword::new(0),
+            sound_buffer_lost: Dword::new(0),
+            commit_3d: Dword::new(0),
+            mix_rate_setting: Dword::new(0xac44),
+            master_volume: Dword::new(0x41),
+            primary_volume_kept: Dword::new(0x1),
+            sample_bits_flags: [
+                Dword::new(0x10),
+                Dword::new(0x8),
+                Dword::new(0x20),
+                Dword::new(0x10),
+            ],
+            sample_channel_flags: [
+                Dword::new(0x100),
+                Dword::new(0x1),
+                Dword::new(0x200),
+                Dword::new(0x2),
+            ],
+            sample_memory: Shared::new(List {
+                head: 0x0,
+                total: 0x0,
+                cursor: 0x0,
+                remaining: 0x0,
+            }),
+            _gap_8310: Bytes::new([0; 48]),
+            playing_voices: Dword::new(0),
+            stopping_voices: Dword::new(0),
+            voice_count: Dword::new(0),
+            voices: [const { Shared::new(VOICE_FREE) }; 512],
+            channel_count: Dword::new(0x8),
+            channels_used: Dword::new(0),
+            channels: [const { Shared::new(CHANNEL_IDLE) }; 16],
+            mix_rate: Dword::new(0),
+            primary_size: Dword::new(0x2000),
+            mix_most: Dword::new(0x1000),
+            mix_shift: Dword::new(0),
+            play_cursor: Dword::new(0),
+            write_cursor: Dword::new(0),
+            sample_buffer_kb: Dword::new(0x400),
+            sample_buffer_memory: Shared::new(List {
+                head: 0x0,
+                total: 0x0,
+                cursor: 0x0,
+                remaining: 0x0,
+            }),
+            _gap_6900: Bytes::new([0; 48]),
+            sample_buffer: Dword::new(0),
+            sample_buffer_size: Dword::new(0),
+            sample_file: Shared::new(SampleFile {
+                data: 0x0,
+                length: 0x0,
+                format: 0x0,
+                channels: 0x0,
+                rate: 0x0,
+                bits: 0x0,
+                frame_bytes: 0x0,
+                frames: 0x0,
+            }),
+            unit_volume_factor: Dword::new(0x40),
+            sound_list_loaded: Dword::new(0),
+            sound_stream: Shared::new(AudioStream {
+                playing: 0x0,
+                volume: 0x40,
+                buffer: 0x0,
+                open: 0x0,
+                file: 0x0,
+                play_cursor: 0x0,
+                write_at: 0x0,
+                format: 0x0,
+                bytes: 0x10000,
+                step: 0x8000,
+                tail: 0x8000,
+            }),
+            next_tune: Dword::new(0),
+            music_stream: Shared::new(AudioStream {
+                playing: 0x0,
+                volume: 0x40,
+                buffer: 0x0,
+                open: 0x0,
+                file: 0x0,
+                play_cursor: 0x0,
+                write_at: 0x0,
+                format: 0x0,
+                bytes: 0x10000,
+                step: 0x8000,
+                tail: 0x8000,
+            }),
+            no_music: Dword::new(0),
+            music_path: Bytes::new([
+                0x3b, 0x33, 0x66, 0x69, 0x6c, 0x65, 0x73, 0x5c, 0x6d, 0x75, 0x73, 0x69, 0x63, 0x5c,
+                0x30, 0x30, 0x2e, 0x77, 0x61, 0x76, 0, 0, 0, 0,
+            ]),
+            stream_header: Dword::new(0),
+            stream_header_memory: Shared::new(List {
+                head: 0x0,
+                total: 0x0,
+                cursor: 0x0,
+                remaining: 0x0,
+            }),
+            _gap_69ec: Bytes::new([0; 48]),
+            command_count: Dword::new(0),
+            command_read: Dword::new(0),
+            command_write: Dword::new(0),
+            a3d_iid: Bytes::new([
+                0x83, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
+                0xe5, 0x60,
+            ]),
+            _gap_6a38: Bytes::new([
+                0x85, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
+                0xe5, 0x60,
+            ]),
+            iid_listener: Bytes::new([
+                0x84, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
+                0xe5, 0x60,
+            ]),
+            iid_sound_3d_buffer: Bytes::new([
+                0x86, 0xfa, 0x9a, 0x27, 0x81, 0x49, 0xce, 0x11, 0xa5, 0x21, 0, 0x20, 0xaf, 0xb,
+                0xe5, 0x60,
+            ]),
+            _gap_6a68: Bytes::new([
+                0x83, 0x7, 0x21, 0xb0, 0xcd, 0x89, 0xd0, 0x11, 0xaf, 0x8, 0, 0xa0, 0xc9, 0x25,
+                0xcd, 0x16,
+            ]),
+            iid_property_set: Bytes::new([
+                0x30, 0xac, 0xef, 0x31, 0x5c, 0x51, 0xd0, 0x11, 0xa9, 0xaa, 0, 0xaa, 0, 0x61, 0xbe,
+                0x93,
+            ]),
+            direct_sound: Dword::new(0),
+            primary_buffer: Dword::new(0),
+            sound_listener: Dword::new(0),
+            _gap_6a94: Bytes::new([0; 4]),
+            locked_parts: [const { Dword::new(0) }; 4],
+            sound_caps: Bytes::new([0; 96]),
+            primary_caps: Bytes::new([0; 20]),
+            buffer_description: Shared::new(BufferDescription {
+                size: 0x0,
+                flags: 0x0,
+                bytes: 0x0,
+                reserved: 0x0,
+                format: 0x0,
+            }),
+            wave_format: Shared::new(WaveFormat {
+                tag: 0x0,
+                channels: 0x0,
+                samples_per_second: 0x0,
+                bytes_per_second: 0x0,
+                block_align: 0x0,
+                bits: 0x0,
+                extra: 0x0,
+            }),
+            no_listener: Loose::new(0x0),
+            has_3d: Loose::new(0x0),
+            _gap_6b4a: Bytes::new([0; 2]),
+            volume_table: [
+                Dword::new(0xffffd8f0),
+                Dword::new(0xfffff1e4),
+                Dword::new(0xfffff43e),
+                Dword::new(0xfffff59e),
+                Dword::new(0xfffff698),
+                Dword::new(0xfffff75a),
+                Dword::new(0xfffff7f8),
+                Dword::new(0xfffff87e),
+                Dword::new(0xfffff8f2),
+                Dword::new(0xfffff958),
+                Dword::new(0xfffff9b4),
+                Dword::new(0xfffffa06),
+                Dword::new(0xfffffa52),
+                Dword::new(0xfffffa98),
+                Dword::new(0xfffffad8),
+                Dword::new(0xfffffb14),
+                Dword::new(0xfffffb4c),
+                Dword::new(0xfffffb81),
+                Dword::new(0xfffffbb2),
+                Dword::new(0xfffffbe1),
+                Dword::new(0xfffffc0e),
+                Dword::new(0xfffffc38),
+                Dword::new(0xfffffc62),
+                Dword::new(0xfffffc87),
+                Dword::new(0xfffffcac),
+                Dword::new(0xfffffcd0),
+                Dword::new(0xfffffcf2),
+                Dword::new(0xfffffd12),
+                Dword::new(0xfffffd32),
+                Dword::new(0xfffffd50),
+                Dword::new(0xfffffd6e),
+                Dword::new(0xfffffd8a),
+                Dword::new(0xfffffda6),
+                Dword::new(0xfffffdc1),
+                Dword::new(0xfffffddb),
+                Dword::new(0xfffffdf4),
+                Dword::new(0xfffffe0c),
+                Dword::new(0xfffffe24),
+                Dword::new(0xfffffe3b),
+                Dword::new(0xfffffe52),
+                Dword::new(0xfffffe68),
+                Dword::new(0xfffffe7d),
+                Dword::new(0xfffffe92),
+                Dword::new(0xfffffea7),
+                Dword::new(0xfffffebb),
+                Dword::new(0xfffffece),
+                Dword::new(0xfffffee0),
+                Dword::new(0xfffffef4),
+                Dword::new(0xffffff06),
+                Dword::new(0xffffff18),
+                Dword::new(0xffffff2a),
+                Dword::new(0xffffff3b),
+                Dword::new(0xffffff4c),
+                Dword::new(0xffffff5c),
+                Dword::new(0xffffff6c),
+                Dword::new(0xffffff7c),
+                Dword::new(0xffffff8c),
+                Dword::new(0xffffff9b),
+                Dword::new(0xffffffaa),
+                Dword::new(0xffffffb9),
+                Dword::new(0xffffffc8),
+                Dword::new(0xffffffd6),
+                Dword::new(0xffffffe4),
+                Dword::new(0xfffffff2),
+                Dword::new(0x0),
+            ],
+            ignore_dsv_setting: Dword::new(0),
+            voice_manager_on: Dword::new(0),
+            voice_manager: Dword::new(0),
+            no_a3d_setting: Dword::new(0x1),
+            a3d_splash_kept: Dword::new(0),
+            a3d_ready: Dword::new(0),
+            a3d_object: Dword::new(0),
+            ignore_eax_setting: Dword::new(0),
+            has_eax: Dword::new(0),
+            eax_properties: Dword::new(0),
+            eax_room: Dword::new(0x6),
+            eax_room_set: Dword::new(0x6),
+            environment_kept: Dword::new(0x3f800000),
+            sounds_held_back: Dword::new(0),
+            audio_options: Shared::new(AudioOptions {
+                kept: 0x0,
+                choice: [0x2, 0x0, 0x0, 0x0, 0x0, 0x0],
+                applied: [0x2, 0x0, 0x0, 0x0, 0x0, 0x0],
+                has_3d: 0x0,
+                has_a3d2: 0x0,
+                has_eax: 0x0,
+            }),
+            voice_manager_set: Bytes::new([
+                0xae, 0x9b, 0xa6, 0x62, 0x9d, 0xdf, 0xd1, 0x11, 0x99, 0xa6, 0, 0xc0, 0x4f, 0xc9,
+                0x9d, 0x46,
+            ]),
+            a3d_clsid: Bytes::new([
+                0xe0, 0xee, 0xf1, 0xd8, 0x34, 0xf6, 0xcf, 0x11, 0x87, 0, 0, 0xa0, 0x24, 0x5d, 0x91,
+                0x8b,
+            ]),
+            _gap_6ce8: Bytes::new([
+                0xe1, 0xee, 0xf1, 0xd8, 0x34, 0xf6, 0xcf, 0x11, 0x87, 0, 0, 0xa0, 0x24, 0x5d, 0x91,
+                0x8b, 0xe0, 0xd1, 0x80, 0xfb, 0xd3, 0x98, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8,
+                0xa1, 0xf4, 0x41, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x4, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0x53, 0x4f, 0x46, 0x54, 0x57, 0x41, 0x52, 0x45,
+                0x5c, 0x41, 0x75, 0x72, 0x65, 0x61, 0x6c, 0x5c, 0x41, 0x33, 0x44, 0, 0x53, 0x70,
+                0x6c, 0x61, 0x73, 0x68, 0x53, 0x63, 0x72, 0x65, 0x65, 0x6e, 0, 0x53, 0x70, 0x6c,
+                0x61, 0x73, 0x68, 0x41, 0x75, 0x64, 0x69, 0x6f, 0, 0, 0, 0,
+            ]),
+            a3d2_interface: Dword::new(0),
+            has_a3d2: Dword::new(0),
+            use_a3d: Dword::new(0),
+            _gap_6d64: Bytes::new([0, 0, 0, 0, 0, 0, 0x80, 0x3c]),
+            a3d2_clsid: Bytes::new([
+                0x24, 0x2c, 0xfa, 0x92, 0x3c, 0x25, 0xd2, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
+                0xf4, 0x41,
+            ]),
+            _gap_6d7c: Bytes::new([
+                0x60, 0xe5, 0x98, 0xc3, 0xb, 0xd9, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
+                0xf4, 0x41,
+            ]),
+            a3d2_iid: Bytes::new([
+                0x80, 0x2, 0xc4, 0xe4, 0xba, 0xcc, 0xd2, 0x11, 0x9d, 0xcf, 0, 0x50, 0x4, 0x11,
+                0x58, 0x2f,
+            ]),
+            _gap_6d9c: Bytes::new([
+                0x63, 0xe5, 0x98, 0xc3, 0xb, 0xd9, 0xd1, 0x11, 0x90, 0xfb, 0, 0x60, 0x8, 0xa1,
+                0xf4, 0x41,
+            ]),
+            eax_reverb_set: Bytes::new([
+                0xc1, 0x6f, 0x4e, 0x4a, 0x41, 0xc3, 0xd1, 0x11, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54,
+                0, 0,
+            ]),
+            _gap_6dbc: Bytes::new([
+                0xc0, 0x6f, 0x4e, 0x4a, 0x41, 0xc3, 0xd1, 0x11, 0xb7, 0x3a, 0x44, 0x45, 0x53, 0x54,
+                0, 0,
+            ]),
+            eax_rooms: [
+                EaxRoom {
+                    environment: Dword::new(0x2),
+                    volume: Float::from_bits(0x3f000000),
+                    decay: Float::from_bits(0x3f000000),
+                    damping: Float::from_bits(0x3f000000),
+                },
+                EaxRoom {
+                    environment: Dword::new(0xf),
+                    volume: Float::from_bits(0x3de353f8),
+                    decay: Float::from_bits(0x404947ae),
+                    damping: Float::from_bits(0x3ef1a9fc),
+                },
+                EaxRoom {
+                    environment: Dword::new(0xf),
+                    volume: Float::from_bits(0x3e800000),
+                    decay: Float::from_bits(0x3dcccccd),
+                    damping: Float::from_bits(0x3dcccccd),
+                },
+                EaxRoom {
+                    environment: Dword::new(0xf),
+                    volume: Float::from_bits(0x3f800000),
+                    decay: Float::from_bits(0x3dcccccd),
+                    damping: Float::from_bits(0x3dcccccd),
+                },
+                EaxRoom {
+                    environment: Dword::new(0xf),
+                    volume: Float::from_bits(0x0),
+                    decay: Float::from_bits(0x3dcccccd),
+                    damping: Float::from_bits(0x3f000000),
+                },
+                EaxRoom {
+                    environment: Dword::new(0x13),
+                    volume: Float::from_bits(0x3dc6a7f0),
+                    decay: Float::from_bits(0x40311687),
+                    damping: Float::from_bits(0x3e656042),
+                },
+                EaxRoom {
+                    environment: Dword::new(0x10),
+                    volume: Float::from_bits(0x3de353f8),
+                    decay: Float::from_bits(0x40311687),
+                    damping: Float::from_bits(0x3e656042),
+                },
+                EaxRoom {
+                    environment: Dword::new(0x11),
+                    volume: Float::from_bits(0x3e800000),
+                    decay: Float::from_bits(0x40000000),
+                    damping: Float::from_bits(0x3eb33333),
+                },
+                EaxRoom {
+                    environment: Dword::new(0x11),
+                    volume: Float::from_bits(0x3e800000),
+                    decay: Float::from_bits(0x40800000),
+                    damping: Float::from_bits(0x3eb33333),
+                },
+                EaxRoom {
+                    environment: Dword::new(0x12),
+                    volume: Float::from_bits(0x3f800000),
+                    decay: Float::from_bits(0x3fbfdf3b),
+                    damping: Float::from_bits(0x3f000000),
+                },
+            ],
+        }
+    }
+}
 
 /// (name, address) of every named field, for the layout test.
 #[cfg(test)]
@@ -826,7 +844,7 @@ const NAMES_LEAD: usize = 12;
 
 /// Where the name of `key` is (`name_key`).
 pub fn name_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
-    use crate::audio::names_store::{SAMPLE_NAMES, SampleNames};
+    use crate::audio::names_store::SampleNames;
     let at = key as usize;
     if !(NAMES_LEAD..NAMES_LEAD + SampleNames::LEN).contains(&at) {
         return Err(crate::errors::BadInput(
@@ -834,7 +852,7 @@ pub fn name_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadI
         ));
     }
     // A name's text by its key in the names buffer (read up to its NUL).
-    Ok(crate::pointers::GamePtr::to(&SAMPLE_NAMES).offset(at as u32))
+    Ok(crate::pointers::GamePtr::to(&crate::audio::owner::audio().sample_names).offset(at as u32))
 }
 
 /// A record's `volume_factor` (phase 13, handles): which level its voices take (the original
@@ -868,7 +886,7 @@ pub const fn level_code(ida: u32) -> u32 {
 pub fn volume_level(code: u32) -> Result<&'static Dword, crate::errors::BadInput> {
     let screens = &menus().screens;
     Ok(match code {
-        1 => &AUDIO.unit_volume_factor,
+        1 => &crate::audio::owner::audio().state.unit_volume_factor,
         2 => &screens.option_work.menu_sounds_a,
         3 => &screens.option_work.sounds_a,
         4 => &screens.option_work.sounds_b,
@@ -2319,9 +2337,13 @@ const fn first_records() -> [Shared<SampleRecord>; SAMPLE_COUNT] {
     out
 }
 
-pub static SAMPLE_RECORDS: SampleRecords = SampleRecords {
-    records: first_records(),
-};
+impl SampleRecords {
+    pub const fn new() -> Self {
+        SampleRecords {
+            records: first_records(),
+        }
+    }
+}
 
 pub const QUEUE_IDA: usize = 0x9566F8;
 pub const QUEUE_END: usize = 0x95E6F8;
@@ -2354,13 +2376,17 @@ pub struct CommandQueue {
     pub records: [Command; QUEUE_RECORDS],
 }
 
-pub static COMMANDS: CommandQueue = CommandQueue {
-    records: [const {
-        Command {
-            words: [const { Dword::new(0) }; 8],
+impl CommandQueue {
+    pub const fn new() -> Self {
+        CommandQueue {
+            records: [const {
+                Command {
+                    words: [const { Dword::new(0) }; 8],
+                }
+            }; QUEUE_RECORDS],
         }
-    }; QUEUE_RECORDS],
-};
+    }
+}
 
 /// `g_eaxEnvironment` (IDA 0x6D1DD4): the EAX environment the race asks for (the audio
 /// thread reads it).
@@ -2380,7 +2406,7 @@ mod tests {
     fn the_state_starts_as_the_games() {
         assert_eq!(size_of::<AudioState>(), STATE_END - STATE_IDA);
         assert_eq!(
-            bytes_of(&AUDIO, size_of::<AudioState>()),
+            bytes_of(&crate::audio::owner::audio().state, size_of::<AudioState>()),
             image_bytes(STATE_IDA, STATE_END - STATE_IDA)
         );
     }
@@ -2399,9 +2425,17 @@ mod tests {
     fn the_sample_records_start_as_the_games() {
         assert_eq!(size_of::<SampleRecords>(), SAMPLES_END - SAMPLES_IDA);
         // The name keys and volume levels are handles: compared by IDA's addresses.
-        let mut mine = bytes_of(&SAMPLE_RECORDS, size_of::<SampleRecords>());
+        let mut mine = bytes_of(
+            &crate::audio::owner::audio().sample_records,
+            size_of::<SampleRecords>(),
+        );
         let levels = [0, 0x506958u32, 0x755694, 0x75569C, 0x7556A0];
-        for (n, record) in SAMPLE_RECORDS.records.iter().enumerate() {
+        for (n, record) in crate::audio::owner::audio()
+            .sample_records
+            .records
+            .iter()
+            .enumerate()
+        {
             let r = record.get();
             let key = if r.data_key == 0 {
                 0
@@ -2421,7 +2455,10 @@ mod tests {
     fn the_queue_starts_as_the_games() {
         assert_eq!(size_of::<CommandQueue>(), QUEUE_END - QUEUE_IDA);
         assert_eq!(
-            bytes_of(&COMMANDS, size_of::<CommandQueue>()),
+            bytes_of(
+                &crate::audio::owner::audio().commands,
+                size_of::<CommandQueue>()
+            ),
             image_bytes(QUEUE_IDA, QUEUE_END - QUEUE_IDA)
         );
     }

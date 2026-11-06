@@ -15,7 +15,6 @@
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
-use crate::physics::car_store::CAR;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 use crate::scene::owner::scene;
@@ -28,9 +27,22 @@ pub fn take_view_b(physics: &Physics, s: &ViewRecord) {
     for (x, v) in copies(physics).iter().zip(s.taken()) {
         x.set_bits(v);
     }
-    physics.camera.view_b_heading.set(CAR.car_heading.get());
-    let (mut eax, mut ebx) = (CAR.car_pitch.get(), CAR.car_roll.get());
-    if !matches!(CAR.camera_blend_view.get(), 1..=3) {
+    physics
+        .camera
+        .view_b_heading
+        .set(crate::race::owner::race().shared.car.car_heading.get());
+    let (mut eax, mut ebx) = (
+        crate::race::owner::race().shared.car.car_pitch.get(),
+        crate::race::owner::race().shared.car.car_roll.get(),
+    );
+    if !matches!(
+        crate::race::owner::race()
+            .shared
+            .car
+            .camera_blend_view
+            .get(),
+        1..=3
+    ) {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }

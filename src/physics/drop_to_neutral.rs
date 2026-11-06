@@ -9,25 +9,45 @@
 //!
 //! Caller: `sub_43B635` (0x43B966), every physics step.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use rc2k_core::physics::gearing::drops_to_neutral;
 
 /// The Rust version (a compare of floats only: the same at any precision).
 // Converted: `rc2k_core::physics::gearing::drops_to_neutral`.
 pub fn drop_to_neutral() {
     if !drops_to_neutral(
-        CAR.contact_flag.get(),
-        CAR.gear.get(),
-        f32::from_bits(CAR.engine_speed.bits()),
-        f32::from_bits(PHYSICS.stall_engine_speed.bits()),
-        || PHYSICS.no_auto_neutral.get(),
+        crate::race::owner::race().shared.car.contact_flag.get(),
+        crate::race::owner::race().shared.car.gear.get(),
+        f32::from_bits(crate::race::owner::race().shared.car.engine_speed.bits()),
+        f32::from_bits(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .stall_engine_speed
+                .bits(),
+        ),
+        || {
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .no_auto_neutral
+                .get()
+        },
     ) {
         return;
     }
-    CAR.gear.set(0);
-    CAR.drive_cut_steps.set(PHYSICS.drive_cut_steps.get());
-    CAR.gear_change_hold.set(0x14);
-    CAR.gear_changed.set(1);
-    CAR.gear_changed_2.set(1);
+    crate::race::owner::race().shared.car.gear.set(0);
+    crate::race::owner::race().shared.car.drive_cut_steps.set(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .drive_cut_steps
+            .get(),
+    );
+    crate::race::owner::race()
+        .shared
+        .car
+        .gear_change_hold
+        .set(0x14);
+    crate::race::owner::race().shared.car.gear_changed.set(1);
+    crate::race::owner::race().shared.car.gear_changed_2.set(1);
 }

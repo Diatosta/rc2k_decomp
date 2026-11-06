@@ -12,56 +12,70 @@
 //! Caller: `net::lets_race`.
 
 use crate::gfx::owner::gfx;
-use crate::net::store::NET;
-use crate::race::state_store::RACE_STATE;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
 use rc2k_core::net::cars;
 
 /// The switches, in the original's order (their bits: `rc2k_core::net::cars::HUD_SWITCH_BITS`).
 const SWITCHES: [&Dword; 9] = [
-    &RACE_STATE.settings.cars[0].map_area,
-    &RACE_STATE.settings.cars[0].rear_mirror,
-    &RACE_STATE.settings.cars[0].rev_counter,
-    &RACE_STATE.settings.cars[0].message_display,
-    &RACE_STATE.settings.cars[0].driver_info,
-    &RACE_STATE.settings.cars[0].metric_units,
-    &RACE_STATE.settings.cars[0].progress_bar,
-    &RACE_STATE.settings.cars[0].car_info,
-    &RACE_STATE.settings.cars[0].pace_notes,
+    &crate::race::owner::RACE.shared.state.settings.cars[0].map_area,
+    &crate::race::owner::RACE.shared.state.settings.cars[0].rear_mirror,
+    &crate::race::owner::RACE.shared.state.settings.cars[0].rev_counter,
+    &crate::race::owner::RACE.shared.state.settings.cars[0].message_display,
+    &crate::race::owner::RACE.shared.state.settings.cars[0].driver_info,
+    &crate::race::owner::RACE.shared.state.settings.cars[0].metric_units,
+    &crate::race::owner::RACE.shared.state.settings.cars[0].progress_bar,
+    &crate::race::owner::RACE.shared.state.settings.cars[0].car_info,
+    &crate::race::owner::RACE.shared.state.settings.cars[0].pace_notes,
 ];
-/// The settings words copied to the race's variables (`RACE_VARS.settings_words`).
+/// The settings words copied to the race's variables (`crate::race::owner::race().shared.vars.settings_words`).
 const COPIED_WORDS: [&Dword; 5] = [
-    &RACE_STATE.settings.setting_0,
-    &RACE_STATE.settings.setting_1,
-    &RACE_STATE.settings.setting_2,
-    &RACE_STATE.settings.setting_3,
-    &RACE_STATE.settings.setting_4,
+    &crate::race::owner::RACE.shared.state.settings.setting_0,
+    &crate::race::owner::RACE.shared.state.settings.setting_1,
+    &crate::race::owner::RACE.shared.state.settings.setting_2,
+    &crate::race::owner::RACE.shared.state.settings.setting_3,
+    &crate::race::owner::RACE.shared.state.settings.setting_4,
 ];
 
 /// This machine's car's block.
 pub fn own_block() -> u32 {
-    RACE_WORK.car_block(NET.player.get() as usize)
+    crate::race::owner::race()
+        .shared
+        .work
+        .car_block(crate::net::owner::net().vars.player.get() as usize)
 }
 
 /// The Rust version.
 pub fn set_hud_options() -> Result<(), crate::errors::BadInput> {
     let block = own_block();
-    let mut bits = RACE_STATE.results.hud_bits_current.get();
+    let mut bits = crate::race::owner::race()
+        .shared
+        .state
+        .results
+        .hud_bits_current
+        .get();
     // Converted: `rc2k_core::net::cars::hud_bits`.
     if bits == cars::NOT_KEPT {
         bits = cars::hud_bits(SWITCHES.map(super::super::session::Dword::get));
     }
     let block = crate::race::trap::car_at(block)?;
     block.option_bits.set(bits);
-    block
-        .camera_view
-        .set(RACE_STATE.settings.cars[0].view.get());
-    RACE_VARS
+    block.camera_view.set(
+        crate::race::owner::race().shared.state.settings.cars[0]
+            .view
+            .get(),
+    );
+    crate::race::owner::race()
+        .shared
+        .vars
         .mip_setting
         .set(gfx().display.choices.mipmapping.get());
-    for (to, from) in RACE_VARS.settings_words.iter().zip(COPIED_WORDS) {
+    for (to, from) in crate::race::owner::race()
+        .shared
+        .vars
+        .settings_words
+        .iter()
+        .zip(COPIED_WORDS)
+    {
         to.set(from.get());
     }
     Ok(())

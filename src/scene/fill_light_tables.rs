@@ -12,7 +12,6 @@
 //! the four lamp tables the colours at `unk_60A54C`, `unk_60A558`, `dword_60A564`,
 //! `dword_60A570` scaled. Four callers.
 
-use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::light_tables::{fill_light_ramp, fill_light_scale};
 
 // ---- Rust version ----
@@ -35,9 +34,10 @@ pub fn fill_light_tables(
     use crate::race::prefs_store::StagePrefs;
     let t = &scene.light_tables;
     use core::mem::offset_of;
-    let plain = rc2k_core::scene::lamps::plain_light(FRAME_SWITCHES.other_way.bits(), || {
-        course.stage_prefs.lit_b.bits()
-    });
+    let plain = rc2k_core::scene::lamps::plain_light(
+        crate::race::owner::race().shared.switches.other_way.bits(),
+        || course.stage_prefs.lit_b.bits(),
+    );
     // `unk_62DB10`: two colours; `dword_6092B4`: two colours (the dark one and the lit).
     let p = &scene.lights.work.plain_light_colours;
     let ramp: [u32; 6] = if plain {

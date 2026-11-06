@@ -17,7 +17,6 @@ use crate::net::draw_number_value::draw_number_value;
 use crate::net::draw_setting_value::draw_setting_value;
 use crate::net::lobby::{PALETTE, blit, copy_picture, lock_surface};
 use crate::net::setting_label::setting_label;
-use crate::net::store::NET;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::screens;
 
@@ -35,10 +34,22 @@ pub fn settings_frame() -> Result<(), Refused> {
         Number(u32),
     }
     for (item, (label, value)) in [
-        (0x163, Value::Text(&NET.saved_name)),
-        (0x164, Value::Text(&NET.machine_name)),
-        (0x165, Value::Number(NET.most_players.get())),
-        (0x166, Value::Text(&NET.host_address)),
+        (
+            0x163,
+            Value::Text(&crate::net::owner::net().vars.saved_name),
+        ),
+        (
+            0x164,
+            Value::Text(&crate::net::owner::net().vars.machine_name),
+        ),
+        (
+            0x165,
+            Value::Number(crate::net::owner::net().vars.most_players.get()),
+        ),
+        (
+            0x166,
+            Value::Text(&crate::net::owner::net().vars.host_address),
+        ),
     ]
     .into_iter()
     .enumerate()

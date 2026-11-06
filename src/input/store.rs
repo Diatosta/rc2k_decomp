@@ -219,49 +219,53 @@ const fn rows(runs: Runs, at: usize) -> [[Dword; 4]; 14] {
     out
 }
 
-pub static DEVICES: Devices = {
-    use crate::input::store_data::DEVICES_RUNS as R;
-    Devices {
-        last_tick: dword(R, 0x0),
-        no_joysticks: dword(R, 0x4),
-        joy_mode: dword(R, 0x8),
-        joy_code: dword(R, 0xC),
-        joy_dead_zone: dword(R, 0x10),
-        joy_end_zone: dword(R, 0x14),
-        alt_axes_code: dword(R, 0x18),
-        no_force_feedback: dword(R, 0x1C),
-        ff_gain: dword(R, 0x20),
-        two_devices_one_player: dword(R, 0x24),
-        nonlinear_steering: dword(R, 0x28),
-        direct_input: dword(R, 0x2C),
-        _unused_6908: dwords(R, 0x30),
-        new_joystick: dword(R, 0x38),
-        new_joystick2: dword(R, 0x3C),
-        _gap_6918: bytes(R, 0x40),
-        device_state: dwords(R, 0x150),
-        joystick_caps: bytes(R, 0x1A0),
-        dword_property: bytes(R, 0x1CC),
-        range_property: bytes(R, 0x1E0),
-        dead_key: byte(R, 0x1F8),
-        _gap_6ad1: bytes(R, 0x1F9),
-        keys_down: bytes(R, 0x204),
-        keys_now: bytes(R, 0x284),
-        keys_before: bytes(R, 0x304),
-        _gap_6c5c: bytes(R, 0x384),
-        keys_pressed: bytes(R, 0x404),
-        key_repeat: bytes(R, 0x484),
-        _unused_6ddc: dwords(R, 0x504),
-        mouse_word: dword(R, 0x518),
-        _unused_6df4: dwords(R, 0x51C),
-        effect_rows: rows(R, 0x530),
-        input_devices: [Dword::new(DEVICE_TAG), Dword::new(DEVICE_TAG | 1)],
-        records: records(R, 0x618),
-        controller_count: dword(R, 0x1008),
-        controllers: controllers(R, 0x100C),
-        input_command: dword(R, 0x150C),
-        guids: bytes(R, 0x1510),
+impl Devices {
+    pub const fn new() -> Self {
+        {
+            use crate::input::store_data::DEVICES_RUNS as R;
+            Devices {
+                last_tick: dword(R, 0x0),
+                no_joysticks: dword(R, 0x4),
+                joy_mode: dword(R, 0x8),
+                joy_code: dword(R, 0xC),
+                joy_dead_zone: dword(R, 0x10),
+                joy_end_zone: dword(R, 0x14),
+                alt_axes_code: dword(R, 0x18),
+                no_force_feedback: dword(R, 0x1C),
+                ff_gain: dword(R, 0x20),
+                two_devices_one_player: dword(R, 0x24),
+                nonlinear_steering: dword(R, 0x28),
+                direct_input: dword(R, 0x2C),
+                _unused_6908: dwords(R, 0x30),
+                new_joystick: dword(R, 0x38),
+                new_joystick2: dword(R, 0x3C),
+                _gap_6918: bytes(R, 0x40),
+                device_state: dwords(R, 0x150),
+                joystick_caps: bytes(R, 0x1A0),
+                dword_property: bytes(R, 0x1CC),
+                range_property: bytes(R, 0x1E0),
+                dead_key: byte(R, 0x1F8),
+                _gap_6ad1: bytes(R, 0x1F9),
+                keys_down: bytes(R, 0x204),
+                keys_now: bytes(R, 0x284),
+                keys_before: bytes(R, 0x304),
+                _gap_6c5c: bytes(R, 0x384),
+                keys_pressed: bytes(R, 0x404),
+                key_repeat: bytes(R, 0x484),
+                _unused_6ddc: dwords(R, 0x504),
+                mouse_word: dword(R, 0x518),
+                _unused_6df4: dwords(R, 0x51C),
+                effect_rows: rows(R, 0x530),
+                input_devices: [Dword::new(DEVICE_TAG), Dword::new(DEVICE_TAG | 1)],
+                records: records(R, 0x618),
+                controller_count: dword(R, 0x1008),
+                controllers: controllers(R, 0x100C),
+                input_command: dword(R, 0x150C),
+                guids: bytes(R, 0x1510),
+            }
+        }
     }
-};
+}
 
 pub const DEVICES_IDA: usize = 0x4F68D8;
 pub const DEVICES_LEN: usize = core::mem::size_of::<Devices>();
@@ -269,7 +273,7 @@ pub const DEVICES_LEN: usize = core::mem::size_of::<Devices>();
 /// Where the devices are (`moved::MOVED`'s home for IDA 0x4F68D8).
 #[cfg(test)]
 pub fn devices_addr() -> u32 {
-    crate::pointers::game_address(&raw const DEVICES)
+    crate::pointers::game_address(&raw const crate::input::owner::INPUT.devices)
 }
 
 impl Devices {
@@ -328,7 +332,11 @@ pub fn device_of(handle: u32) -> Option<&'static InputDevice> {
     if handle == 0 {
         return None;
     }
-    match DEVICES.records.get((handle ^ DEVICE_TAG) as usize) {
+    match crate::input::owner::input()
+        .devices
+        .records
+        .get((handle ^ DEVICE_TAG) as usize)
+    {
         Some(record) => Some(record),
         None => crate::fatal::raise::end(
             "input::store::device_of",
@@ -366,21 +374,25 @@ pub struct Keyboard {
     pub _tail: Bytes<0xC>,
 }
 
-pub static KEYBOARD: Keyboard = {
-    use crate::input::store_data::KEYBOARD_RUNS as R;
-    Keyboard {
-        yes_no_key_given: dword(R, 0x0),
-        _built_in_layout: dwords(R, 0x4),
-        silent_keys: dwords(R, 0x18),
-        compose: bytes(R, 0x28),
-        plain: bytes(R, 0x94),
-        shifted: bytes(R, 0x114),
-        key_names: bytes(R, 0x194),
-        _unused_826c: dword(R, 0x294),
-        axes_rest: dwords(R, 0x298),
-        _tail: bytes(R, 0x2B0),
+impl Keyboard {
+    pub const fn new() -> Self {
+        {
+            use crate::input::store_data::KEYBOARD_RUNS as R;
+            Keyboard {
+                yes_no_key_given: dword(R, 0x0),
+                _built_in_layout: dwords(R, 0x4),
+                silent_keys: dwords(R, 0x18),
+                compose: bytes(R, 0x28),
+                plain: bytes(R, 0x94),
+                shifted: bytes(R, 0x114),
+                key_names: bytes(R, 0x194),
+                _unused_826c: dword(R, 0x294),
+                axes_rest: dwords(R, 0x298),
+                _tail: bytes(R, 0x2B0),
+            }
+        }
     }
-};
+}
 
 pub const KEYBOARD_IDA: usize = 0x4F7FD8;
 pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
@@ -388,7 +400,7 @@ pub const KEYBOARD_LEN: usize = core::mem::size_of::<Keyboard>();
 /// Where the keyboard is (`moved::MOVED`'s home for IDA 0x4F7FD8).
 #[cfg(test)]
 pub fn keyboard_addr() -> u32 {
-    crate::pointers::game_address(&raw const KEYBOARD)
+    crate::pointers::game_address(&raw const crate::input::owner::INPUT.keyboard)
 }
 
 // ---- the mouse: 0x5C6924 .. 0x5C6948 ----
@@ -412,17 +424,21 @@ pub struct Mouse {
     pub right_button: Dword,
 }
 
-pub static MOUSE: Mouse = Mouse {
-    x: Dword::new(0),
-    y: Dword::new(0),
-    last_x: Dword::new(0),
-    last_y: Dword::new(0),
-    left_click: Dword::new(0),
-    right_click: Dword::new(0),
-    buttons: Dword::new(0),
-    left_button: Dword::new(0),
-    right_button: Dword::new(0),
-};
+impl Mouse {
+    pub const fn new() -> Self {
+        Mouse {
+            x: Dword::new(0),
+            y: Dword::new(0),
+            last_x: Dword::new(0),
+            last_y: Dword::new(0),
+            left_click: Dword::new(0),
+            right_click: Dword::new(0),
+            buttons: Dword::new(0),
+            left_button: Dword::new(0),
+            right_button: Dword::new(0),
+        }
+    }
+}
 
 pub const MOUSE_IDA: usize = 0x5C6924;
 pub const MOUSE_LEN: usize = core::mem::size_of::<Mouse>();
@@ -430,7 +446,7 @@ pub const MOUSE_LEN: usize = core::mem::size_of::<Mouse>();
 /// Where the mouse is (`moved::MOVED`'s home for IDA 0x5C6924).
 #[cfg(test)]
 pub fn mouse_addr() -> u32 {
-    crate::pointers::game_address(&raw const MOUSE)
+    crate::pointers::game_address(&raw const crate::input::owner::INPUT.mouse)
 }
 
 /// The force-feedback effects' clock, surface kinds and constants (IDA 0x518084 .. 0x5180f0, the image's layout; phase 7, typed state).
@@ -461,36 +477,40 @@ pub struct ForceFeedback {
     pub effect_tenth: Float,
 }
 
-pub static FORCE_FEEDBACK: ForceFeedback = ForceFeedback {
-    last_time: Dword::new(0),
-    rate: Dword::new(0),
-    steps: Dword::new(0),
-    race_on: Dword::new(0),
-    _gap_94: [Dword::new(0), Dword::new(0)],
-    surface_effect_kinds: [
-        Dword::new(0),
-        Dword::new(1),
-        Dword::new(2),
-        Dword::new(3),
-        Dword::new(6),
-        Dword::new(9),
-        Dword::new(4),
-        Dword::new(0xD),
-        Dword::new(0xC),
-        Dword::new(8),
-        Dword::new(0xA),
-        Dword::new(7),
-        Dword::new(0xB),
-        Dword::new(0),
-        Dword::new(0),
-        Dword::new(0),
-    ],
-    effect_ten: Float::from_bits(0x41200000),
-    effect_angle_scale: Float::from_bits(0x4322F983),
-    effect_full: Float::from_bits(0x43800000),
-    _gap_e8: Dword::new(0x42200000),
-    effect_tenth: Float::from_bits(0x3DCCCCCD),
-};
+impl ForceFeedback {
+    pub const fn new() -> Self {
+        ForceFeedback {
+            last_time: Dword::new(0),
+            rate: Dword::new(0),
+            steps: Dword::new(0),
+            race_on: Dword::new(0),
+            _gap_94: [Dword::new(0), Dword::new(0)],
+            surface_effect_kinds: [
+                Dword::new(0),
+                Dword::new(1),
+                Dword::new(2),
+                Dword::new(3),
+                Dword::new(6),
+                Dword::new(9),
+                Dword::new(4),
+                Dword::new(0xD),
+                Dword::new(0xC),
+                Dword::new(8),
+                Dword::new(0xA),
+                Dword::new(7),
+                Dword::new(0xB),
+                Dword::new(0),
+                Dword::new(0),
+                Dword::new(0),
+            ],
+            effect_ten: Float::from_bits(0x41200000),
+            effect_angle_scale: Float::from_bits(0x4322F983),
+            effect_full: Float::from_bits(0x43800000),
+            _gap_e8: Dword::new(0x42200000),
+            effect_tenth: Float::from_bits(0x3DCCCCCD),
+        }
+    }
+}
 
 impl ForceFeedback {
     pub const START: usize = 0x518084;
@@ -499,7 +519,7 @@ impl ForceFeedback {
     #[cfg(test)]
     /// `moved::MOVED`'s home for `START`.
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const FORCE_FEEDBACK) as usize
+        crate::pointers::game_address(&raw const crate::input::owner::INPUT.force_feedback) as usize
     }
 }
 

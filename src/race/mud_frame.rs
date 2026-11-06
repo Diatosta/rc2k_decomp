@@ -9,24 +9,35 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version (see the header).
 pub fn mud_frame(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use crate::race::mud_texture_turn::mud_texture_turn;
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
-    let (frames, due) = count_frame(RACE_VARS.mud_frames.bits());
-    RACE_VARS.mud_frames.set_bits(frames);
+    let (frames, due) = count_frame(crate::race::owner::race().shared.vars.mud_frames.bits());
+    crate::race::owner::race()
+        .shared
+        .vars
+        .mud_frames
+        .set_bits(frames);
     if !due {
         return Ok(());
     }
-    RACE_VARS
+    crate::race::owner::race()
+        .shared
+        .vars
         .mud_texture
-        .set_bits(texture_turn(RACE_VARS.mud_texture.bits()));
+        .set_bits(texture_turn(
+            crate::race::owner::race().shared.vars.mud_texture.bits(),
+        ));
     mud_texture_turn(race)?;
-    RACE_VARS
+    crate::race::owner::race()
+        .shared
+        .vars
         .mud_texture
-        .set_bits(next_texture(RACE_VARS.mud_texture.bits()));
+        .set_bits(next_texture(
+            crate::race::owner::race().shared.vars.mud_texture.bits(),
+        ));
     Ok(())
 }

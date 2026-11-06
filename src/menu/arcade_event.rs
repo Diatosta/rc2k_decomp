@@ -3,7 +3,6 @@ use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
-use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
 
@@ -17,12 +16,12 @@ struct Game {
 /// The variables that are in the physics block.
 fn cell(v: Var) -> Option<&'static Dword> {
     Some(match v {
-        Var::RaceStage => &RACE_STATE.results.race_stage,
-        Var::RaceLevel => &RACE_STATE.results.race_level,
-        Var::CheatSwitch => &RACE_STATE.settings.direction,
-        Var::RaceResult => &RACE_STATE.results.results[0].result,
-        Var::RaceFigureFFC => &RACE_STATE.results.figure_ffc,
-        Var::RaceFigure000 => &RACE_STATE.results.figure_000,
+        Var::RaceStage => &crate::race::owner::race().shared.state.results.race_stage,
+        Var::RaceLevel => &crate::race::owner::race().shared.state.results.race_level,
+        Var::CheatSwitch => &crate::race::owner::race().shared.state.settings.direction,
+        Var::RaceResult => &crate::race::owner::race().shared.state.results.results[0].result,
+        Var::RaceFigureFFC => &crate::race::owner::race().shared.state.results.figure_ffc,
+        Var::RaceFigure000 => &crate::race::owner::race().shared.state.results.figure_000,
         _ => return None,
     })
 }
@@ -103,7 +102,9 @@ impl arcade::Arcade for Game {
             Step::ResultsLoop => self.screen(&m::arcade_results_loop::SCREEN)?,
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
-                let level = crate::records::stages_store::STAGE_TABLES
+                let level = crate::system::owner::system()
+                    .records
+                    .stage_tables
                     .level_table(play.arcade.level.get())?;
                 a::keep_arcade_stage_best(screens, level.row(play.arcade.stage.get())?)?;
             }

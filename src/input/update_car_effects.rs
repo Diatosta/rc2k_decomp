@@ -83,7 +83,7 @@ fn update_car_effects_with(
         last_strength: 0,
     };
     o.flag_ac.set(view.front_wheels_off.get());
-    let effects = &crate::input::store::FORCE_FEEDBACK;
+    let effects = &crate::input::owner::input().force_feedback;
     let ten = effects.effect_ten.bits();
     o.effect_in[0].set(mul_to_int(view.local_velocity[0].bits(), ten) as u32);
     o.effect_in[1].set(sub_mul_to_int(
@@ -207,7 +207,12 @@ pub fn update_car_effects(
     object: &crate::sound::store::SoundObject,
     device: &InputDevice,
 ) -> Result<(), Refused> {
-    update_car_effects_with(view, object, device, &crate::session::MACHINE.scratch)
+    update_car_effects_with(
+        view,
+        object,
+        device,
+        &crate::system::owner::system().session.machine.scratch,
+    )
 }
 
 #[cfg(all(test, target_arch = "x86"))]

@@ -36,10 +36,14 @@ pub struct Templates {
     pub own: [u8; 22],
 }
 
-pub static TEMPLATES: Templates = Templates {
-    saved: *b"savedata\\replay\\replay00\0",
-    own: *b"files\\replay\\replay00\0",
-};
+impl Templates {
+    pub const fn new() -> Self {
+        Templates {
+            saved: *b"savedata\\replay\\replay00\0",
+            own: *b"files\\replay\\replay00\0",
+        }
+    }
+}
 
 #[cfg(test)]
 mod block_tests {
@@ -50,7 +54,11 @@ mod block_tests {
         let image = crate::moved::image_bytes(LAST_RACE_START, LAST_RACE_LEN);
         assert_eq!(&race().replay.last_race[..], &image[..]);
         let image = crate::moved::image_bytes(TEMPLATES_START, TEMPLATES_LEN);
-        let mine = [&TEMPLATES.saved[..], &TEMPLATES.own[..]].concat();
+        let mine = [
+            &crate::race::owner::race().shared.replay_templates.saved[..],
+            &crate::race::owner::race().shared.replay_templates.own[..],
+        ]
+        .concat();
         assert_eq!(mine, image);
     }
 }
@@ -86,10 +94,18 @@ pub fn replay_path(replay: &Replay, slot: u32) -> Result<ReplayPath, Refused> {
                 last_race: true,
             });
         }
-        ReplayFile::Saved(_) => TEMPLATES.saved.to_vec(),
+        ReplayFile::Saved(_) => crate::race::owner::race()
+            .shared
+            .replay_templates
+            .saved
+            .to_vec(),
         ReplayFile::Own(n) => {
             number = n;
-            TEMPLATES.own.to_vec()
+            crate::race::owner::race()
+                .shared
+                .replay_templates
+                .own
+                .to_vec()
         }
     };
     let path =

@@ -960,8 +960,16 @@ mod comparison {
         };
         let commands = read_commands(&mut Reader(r.0));
 
-        crate::session::SCREEN.width.set(width as u32);
-        crate::session::SCREEN.height.set(height as u32);
+        crate::system::owner::system()
+            .session
+            .screen
+            .width
+            .set(width as u32);
+        crate::system::owner::system()
+            .session
+            .screen
+            .height
+            .set(height as u32);
         let soft = vec![0u8; width * height * 4];
         let soft_lent = crate::pointers::Lent::new(&soft);
         let target = Target {

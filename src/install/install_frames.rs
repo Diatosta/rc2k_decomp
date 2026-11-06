@@ -28,7 +28,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::install::installer::{copy_picture, draw_text, lock, show, unlock};
-use crate::strings::text_buffer::TEXT_BUFFER;
 
 const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 
@@ -79,10 +78,14 @@ pub fn progress_frame(g: &'static crate::install::owner::Install) -> Result<bool
         drawing.blit.clip.right.set(kept_clip);
         let mut text = crate::strings::append_percent::append_percent(width >> 2);
         text.push(0);
-        TEXT_BUFFER.text.write_at(0, &text, "the text buffer")?;
+        crate::strings::owner::strings()
+            .text
+            .buffer
+            .text
+            .write_at(0, &text, "the text buffer")?;
         draw_text(
             FONT,
-            &TEXT_BUFFER.text,
+            &crate::strings::owner::strings().text.buffer.text,
             x.wrapping_add(0xC8),
             g.pages.bar.get_u32(4).wrapping_add(2),
         )?;

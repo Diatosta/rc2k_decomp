@@ -13,7 +13,6 @@
 
 use crate::errors::BadInput;
 use crate::input::key_to_char::{has_layout, key_to_char_for_text};
-use crate::input::store::KEYBOARD;
 use crate::input::take_key::take_key;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::text_from_ids::TEXT_LEN;
@@ -49,7 +48,7 @@ pub fn answer_for_key(eax: u32) -> Result<u32, BadInput> {
     }
     Ok(rc2k_core::input::keyboard::answer(lower, |id| {
         let n = ANSWERS.iter().position(|&(i, _)| i == id).unwrap_or(0);
-        let buffer = &crate::strings::text_buffer::TEXT_BUFFER.text;
+        let buffer = &crate::strings::owner::strings().text.buffer.text;
         for (k, &b) in strings[n].iter().enumerate() {
             buffer.set(k, b);
         }
@@ -61,7 +60,7 @@ pub fn yes_no_key(given: u32) -> Result<u32, BadInput> {
     if !has_layout() {
         return Err(BadInput("no keyboard layout"));
     }
-    let eax = if KEYBOARD.yes_no_key_given.get() == 1 {
+    let eax = if crate::input::owner::input().keyboard.yes_no_key_given.get() == 1 {
         given
     } else {
         take_key() as u32

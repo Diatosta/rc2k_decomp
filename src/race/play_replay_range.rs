@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 /// The Rust version (every register kept).
@@ -30,13 +29,26 @@ pub fn play_replay_range(race: &Race) -> Result<(), Refused> {
     let key = crate::input::take_key::take_key() as u32 & 0xFF;
     replay.replay_view.key_after_play.set(key);
     replay.replay_view.wait_key_release.set(1);
-    if REPLAY_FILE.index_block_count.get() <= replay.replay_view.replay_block.get() {
-        replay
-            .replay_view
-            .replay_block
-            .set(REPLAY_FILE.index_block_count.get());
+    if crate::race::owner::race()
+        .shared
+        .replay_file
+        .index_block_count
+        .get()
+        <= replay.replay_view.replay_block.get()
+    {
+        replay.replay_view.replay_block.set(
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .index_block_count
+                .get(),
+        );
         replay.replay_view.replay_frame.set(0);
     }
-    REPLAY_FILE.viewer_stopped.set(1);
+    crate::race::owner::race()
+        .shared
+        .replay_file
+        .viewer_stopped
+        .set(1);
     Ok(())
 }

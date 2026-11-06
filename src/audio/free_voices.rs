@@ -11,14 +11,13 @@
 //! end), `audio::set_mode`, `audio::take_commands`.
 //! Refuses more than 0x200 voices in use.
 
-use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 use crate::audio::voices::{SAMPLES, VOICES};
 use crate::errors::{BadInput, Refused};
 
 // ---- Rust version ----
 
 pub fn free_voices() -> Result<(), Refused> {
-    let count = AUDIO.voice_count.get();
+    let count = crate::audio::owner::audio().state.voice_count.get();
     if count > VOICES {
         return Err(BadInput("more than 0x200 voices").into());
     }
@@ -31,18 +30,20 @@ pub fn free_voices() -> Result<(), Refused> {
                 n as u32,
             ));
         }
-        AUDIO.voice_count.set(0);
+        crate::audio::owner::audio().state.voice_count.set(0);
     }
     for n in 0..SAMPLES as usize {
-        SAMPLE_RECORDS.records[n].update(|r| r.first_voice = 0);
+        crate::audio::owner::audio().sample_records.records[n].update(|r| r.first_voice = 0);
     }
     crate::audio::clear_channels::clear_channels();
-    AUDIO.sound_buffer_lost.set(0);
-    AUDIO.commit_3d.set(0);
-    AUDIO.channels_used.set(0);
-    AUDIO.playing_voices.set(0);
-    AUDIO.stopping_voices.set(0);
-    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&AUDIO.sample_memory))?;
+    crate::audio::owner::audio().state.sound_buffer_lost.set(0);
+    crate::audio::owner::audio().state.commit_3d.set(0);
+    crate::audio::owner::audio().state.channels_used.set(0);
+    crate::audio::owner::audio().state.playing_voices.set(0);
+    crate::audio::owner::audio().state.stopping_voices.set(0);
+    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(
+        &crate::audio::owner::audio().state.sample_memory,
+    ))?;
     // The kept samples with it (and every data id: no voice is left).
     crate::audio::sample_data::forget_all();
     Ok(())

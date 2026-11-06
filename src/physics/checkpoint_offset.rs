@@ -15,9 +15,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::turn_point_xz::turn_point_xz;
-use crate::physics::car_store::CAR;
 use crate::race::owner_course::Course;
-use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
 /// The Rust version.
@@ -25,10 +23,19 @@ use rc2k_core::physics::progress::checkpoint_ahead;
 // `math::turn_point_xz`'s).
 pub fn checkpoint_offset(course: &Course) -> Result<(), Refused> {
     let course_store = course;
-    let c = CAR.checkpoint.get();
-    if checkpoint_ahead(c, RACE_VARS.checkpoint_count.get())?.is_none() {
-        CAR.checkpoint_offset[0].set(0);
-        CAR.checkpoint_offset[1].set(0);
+    let c = crate::race::owner::race().shared.car.checkpoint.get();
+    if checkpoint_ahead(
+        c,
+        crate::race::owner::race()
+            .shared
+            .vars
+            .checkpoint_count
+            .get(),
+    )?
+    .is_none()
+    {
+        crate::race::owner::race().shared.car.checkpoint_offset[0].set(0);
+        crate::race::owner::race().shared.car.checkpoint_offset[1].set(0);
         return Ok(());
     }
     if course_store.course.course_faces.get() == 0 || course_store.course.scene_points.get() == 0 {
@@ -37,14 +44,14 @@ pub fn checkpoint_offset(course: &Course) -> Result<(), Refused> {
     let angle = crate::race::checkpoints_store::angle(c as usize).get();
     let face = crate::race::checkpoints_store::face(c as usize).get();
     let point = crate::race::course_places::face_field::<u32>(face, 4, "a checkpoint face")?;
-    let x = CAR.position[0]
+    let x = crate::race::owner::race().shared.car.position[0]
         .get()
         .wrapping_sub(crate::race::scene_points::point_word(point, 0)?);
-    let z = CAR.position[2]
+    let z = crate::race::owner::race().shared.car.position[2]
         .get()
         .wrapping_sub(crate::race::scene_points::point_word(point, 2)?);
     let [x2, _, z2, _] = turn_point_xz(x as i32, point as i32, z as i32, angle.wrapping_neg());
-    CAR.checkpoint_offset[0].set(x2);
-    CAR.checkpoint_offset[1].set(z2);
+    crate::race::owner::race().shared.car.checkpoint_offset[0].set(x2);
+    crate::race::owner::race().shared.car.checkpoint_offset[1].set(z2);
     Ok(())
 }

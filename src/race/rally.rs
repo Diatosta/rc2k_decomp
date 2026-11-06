@@ -33,7 +33,9 @@ pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadI
     let screens = &menus().screens;
     {
         let kind = screens.event.stage_group.get();
-        let stages = crate::records::stages_store::STAGE_TABLES
+        let stages = crate::system::owner::system()
+            .records
+            .stage_tables
             .group_event_table(kind, screens.event.stage_sub.get())?;
         let stage = crate::records::stages_store::row(stages, screens.event.stage_number.get())?;
         let n = stage.record()?.event_slot() as usize;

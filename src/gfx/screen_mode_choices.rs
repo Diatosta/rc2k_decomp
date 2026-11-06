@@ -148,7 +148,7 @@ pub fn screen_mode_choices(display: &Display, try_choice: bool) -> Result<Flags,
             let worked = !tried.carry
                 && mc::kept(
                     display.choices.mipmapping.get(),
-                    crate::d3d::cards_store::CARDS_3D.mips.get(),
+                    crate::d3d::owner::d3d().cards.mips.get(),
                 );
             if worked {
                 crate::gfx::keep_race_screen_mode::keep_race_screen_mode(display, mode)?;
@@ -212,7 +212,7 @@ fn rebuild(display: &Display, current: u32, modes: Option<Vec<GamePtr>>) -> Resu
     display
         .choices
         .mip_limit
-        .set(crate::d3d::cards_store::CARDS_3D.mips.get());
+        .set(crate::d3d::owner::d3d().cards.mips.get());
     display.choices.listed.set(1);
     display
         .choices

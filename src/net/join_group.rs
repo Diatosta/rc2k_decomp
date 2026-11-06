@@ -9,12 +9,15 @@
 //! (`net::dplay`).
 
 use crate::net::create_group::join;
-use crate::net::store::NET;
 
 /// The Rust version.
 pub fn join_group() -> bool {
     let result = {
-        crate::net::dp_objects::enum_groups(NET.dplay.get(), crate::net::group_found::callback, 0)
+        crate::net::dp_objects::enum_groups(
+            crate::net::owner::net().vars.dplay.get(),
+            crate::net::group_found::callback,
+            0,
+        )
     };
     result == 0 && join()
 }

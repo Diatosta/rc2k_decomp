@@ -1,4 +1,4 @@
-//! `net::disable_new_players` (0x418D8A): on the host (state bit 0x10 of `byte_52AD64`), "NET:
+//! `net::disable_new_players` (0x418D8A): on the host (state bit 0x10 of `byte_52AD64`), "crate::net::owner::NET_OWNER.vars:
 //! Disable new players", and with DirectPlay's object there the session's description
 //! (`dword_5AB2AC`) given DPSESSION_NEWPLAYERSDISABLED and DPSESSION_JOINDISABLED (0x21) and
 //! set (`SetSessionDesc`, flags 0); its result logged.
@@ -9,14 +9,13 @@
 //! Caller: `net::close_if_host`.
 
 use crate::net::lobby::{log, log_hex};
-use crate::net::store::NET;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
 
 /// The Rust version.
 pub fn disable_new_players() {
-    if NET.own.state() & 0x10 == 0 {
+    if crate::net::owner::net().vars.own.state() & 0x10 == 0 {
         return;
     }
     log(
@@ -24,13 +23,19 @@ pub fn disable_new_players() {
         false,
         2,
     );
-    if NET.dplay.get() == 0 {
+    if crate::net::owner::net().vars.dplay.get() == 0 {
         return;
     }
-    NET.session_desc
+    crate::net::owner::net()
+        .vars
+        .session_desc
         .flags
-        .set(NET.session_desc.flags.get() | CLOSED);
-    let desc = crate::net::dp_objects::desc(&NET.session_desc, &NET.machine_name.read());
-    let result = crate::net::dp_objects::set_session_desc(NET.dplay.get(), &desc);
+        .set(crate::net::owner::net().vars.session_desc.flags.get() | CLOSED);
+    let desc = crate::net::dp_objects::desc(
+        &crate::net::owner::net().vars.session_desc,
+        &crate::net::owner::net().vars.machine_name.read(),
+    );
+    let result =
+        crate::net::dp_objects::set_session_desc(crate::net::owner::net().vars.dplay.get(), &desc);
     log_hex(result, true);
 }

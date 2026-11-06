@@ -25,7 +25,6 @@ use crate::errors::Refused;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
 use crate::gfx::owner::gfx;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
-use crate::session::SCREEN;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
@@ -51,7 +50,10 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> 
         Err(Refused::BadInput(_)) => false,
         Err(e) => return Err(e),
     };
-    let (width, height): (u32, u32) = (SCREEN.width.get(), SCREEN.height.get());
+    let (width, height): (u32, u32) = (
+        crate::system::owner::system().session.screen.width.get(),
+        crate::system::owner::system().session.screen.height.get(),
+    );
     crate::gfx::picture::set_size(sizes::screen(width, height));
     let pages = sizes::pages(gfx.display.mode.mode_flags.get());
     if !read {

@@ -17,8 +17,6 @@
 
 use crate::debug::wear_page::value_at;
 use crate::race::owner_frame::Frame;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::session::Dword;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
@@ -146,7 +144,7 @@ pub fn tab(frame: &Frame, ui: &Ui) {
 
 /// The value of `g_maskKind` itself: only 5 and 8 change what the game draws.
 fn mode_choice(ui: &Ui) {
-    let now = FRAME_SWITCHES.mask_kind.get();
+    let now = crate::race::owner::race().shared.switches.mask_kind.get();
     ui.text("The game's own mode:");
     for (name, mode) in [
         ("Off", 0),
@@ -155,7 +153,11 @@ fn mode_choice(ui: &Ui) {
     ] {
         ui.same_line();
         if ui.radio_button_bool(name, now == mode) {
-            FRAME_SWITCHES.mask_kind.set(mode);
+            crate::race::owner::race()
+                .shared
+                .switches
+                .mask_kind
+                .set(mode);
         }
     }
 }
@@ -306,7 +308,11 @@ fn checkpoint_place(n: usize) -> Option<[i32; 3]> {
 
 /// Mode 0xC: 25 checkpoints around the car's, heights less its own.
 fn heights(ui: &Ui) {
-    let count = RACE_VARS.checkpoint_count.get() as usize;
+    let count = crate::race::owner::race()
+        .shared
+        .vars
+        .checkpoint_count
+        .get() as usize;
     let here = dword(CAR_CHECKPOINT) as usize;
     let Some(own) = checkpoint_place(here).map(|p| p[1]) else {
         ui.text("No checkpoints");
@@ -326,7 +332,11 @@ fn heights(ui: &Ui) {
 
 /// Mode 0x12: the checkpoints' line from above and the car on it.
 fn course_map(ui: &Ui) {
-    let count = RACE_VARS.checkpoint_count.get() as usize;
+    let count = crate::race::owner::race()
+        .shared
+        .vars
+        .checkpoint_count
+        .get() as usize;
     let places: Vec<[i32; 3]> = (0..count)
         .step_by((count / 2000).max(1))
         .filter_map(checkpoint_place)

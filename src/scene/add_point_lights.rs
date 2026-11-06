@@ -17,9 +17,7 @@
 //! Refuses more than 0x100 lamps and lamps without the scene's points.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::view_store::RACE_VIEW;
 use crate::scene::owner::scene;
-use crate::session::MACHINE;
 
 // ---- game data ----
 const MOST: u32 = 0x100;
@@ -31,7 +29,7 @@ pub fn add_point_lights(race: &crate::race::owner::Race) -> Result<(), Refused> 
     let scene = scene();
     use rc2k_core::scene::lamps::{self, Lamp};
 
-    let lamps: u32 = RACE_VIEW.lamp_count.bits();
+    let lamps: u32 = crate::race::owner::race().shared.view.lamp_count.bits();
     if lamps == 0 {
         return Ok(());
     }
@@ -39,7 +37,7 @@ pub fn add_point_lights(race: &crate::race::owner::Race) -> Result<(), Refused> 
     if lamps > MOST || points == 0 {
         return Err(BadInput("more lamps than the list holds, or no points").into());
     }
-    let mmx = MACHINE.has_mmx.get() != 0;
+    let mmx = crate::system::owner::system().session.machine.has_mmx.get() != 0;
     let place: [u32; 3] = crate::session::read_bits(&scene.lights.state.lit_place);
     let reading = crate::scene::reading::Reading::new();
     let list = (0..lamps as usize).map(|n| {

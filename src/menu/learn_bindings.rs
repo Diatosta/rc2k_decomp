@@ -10,8 +10,6 @@
 //! Callers: the actions of the four controller pages' items (0x749C70 ..).
 //! The controller pages' items run `learn_binding(n)` (`menu::table_routes`).
 
-use crate::screens::controls_store::CONTROLS_SCREEN;
-
 /// The Rust version: control `control` learns from now.
 pub fn learn_binding(control: u32) {
     // Converted: `rc2k_core::input::devices::Learning`.
@@ -19,7 +17,13 @@ pub fn learn_binding(control: u32) {
         control,
         crate::system::tick_count::tick_count(),
     );
-    CONTROLS_SCREEN.learning.set(l.on);
-    CONTROLS_SCREEN.learn_start.set(l.started);
-    CONTROLS_SCREEN.learned.set(l.control);
+    crate::screens::owner::screens().controls.learning.set(l.on);
+    crate::screens::owner::screens()
+        .controls
+        .learn_start
+        .set(l.started);
+    crate::screens::owner::screens()
+        .controls
+        .learned
+        .set(l.control);
 }

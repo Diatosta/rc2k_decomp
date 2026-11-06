@@ -12,7 +12,6 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::movsb;
-use crate::net::store::NET;
 use rc2k_core::net::chat;
 
 /// The Rust version: the key `key` for the setting being edited. The registers the
@@ -25,9 +24,9 @@ pub fn setting_key(key: u8) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
     match crate::install::owner::install().pages.choice.get() {
         chat::NAME => {
-            if NET.machine_name.get(0) == 0 {
+            if crate::net::owner::net().vars.machine_name.get(0) == 0 {
                 movsb(
-                    &NET.machine_name,
+                    &crate::net::owner::net().vars.machine_name,
                     &crate::install::owner::install().paths.script_path,
                     0x40,
                 )?;
@@ -39,10 +38,13 @@ pub fn setting_key(key: u8) -> Result<(), Refused> {
                     &crate::install::owner::install().paths.path_a,
                 ))
             };
-            NET.most_players.set(chat::most_players(
-                number,
-                crate::strings::load_language::notice_kind(),
-            ));
+            crate::net::owner::net()
+                .vars
+                .most_players
+                .set(chat::most_players(
+                    number,
+                    crate::strings::load_language::notice_kind(),
+                ));
         }
         _ => {}
     }

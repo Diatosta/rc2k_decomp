@@ -23,7 +23,6 @@ use crate::errors::{BadInput, Refused};
 
 use crate::effects::owner::effects;
 use crate::math::x87;
-use crate::physics::tables_store::PHYSICS;
 const MASK_COUNT: u32 = 9;
 
 /// The Rust version (see the header).
@@ -33,13 +32,22 @@ pub fn run_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused>
     {
         pick_shapes(masks, drops)?;
         turn_all_shapes(masks, drops)?;
-        let clock: u32 = PHYSICS.scene_clock.bits();
+        let clock: u32 = crate::race::owner::race()
+            .shared
+            .physics_tables
+            .scene_clock
+            .bits();
         if clock as i32 >= drops.picks.next.get() as i32 {
             let r = next_c5(&setup.mask_constants.time_random);
-            drops
-                .picks
-                .next
-                .set((r & 0xFF).wrapping_add(PHYSICS.scene_clock.bits()));
+            drops.picks.next.set(
+                (r & 0xFF).wrapping_add(
+                    crate::race::owner::race()
+                        .shared
+                        .physics_tables
+                        .scene_clock
+                        .bits(),
+                ),
+            );
             let mask = marks.listener_switch_7.get();
             if mask >= MASK_COUNT {
                 return Err(BadInput("a mask number past dword_844E34's 9").into());

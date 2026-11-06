@@ -24,7 +24,6 @@ use crate::errors::Refused;
 use crate::framework::Regs;
 use crate::place::Place;
 use crate::session::{Bytes, Dword};
-use crate::strings::text_buffer::TEXT_BUFFER;
 
 // ---- game data (IDA addresses) ----
 
@@ -56,7 +55,9 @@ pub struct Cursor(pub Place);
 impl Cursor {
     /// The start of the game's text buffer.
     pub fn text() -> Self {
-        Self(Place::from(&TEXT_BUFFER.text))
+        Self(Place::from(
+            &crate::strings::owner::strings().text.buffer.text,
+        ))
     }
 
     /// `strings::str_append`: the NUL-ended text at `from`, its end the new cursor.

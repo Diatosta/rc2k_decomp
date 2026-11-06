@@ -6,9 +6,7 @@
 //! Out: every register kept
 //! Caller: `menu::release_controller`.
 
-use crate::input::store::DEVICES;
-
 /// The Rust version (see the header).
 pub fn request_device_release() {
-    DEVICES.input_command.set(2); // g_inputCommand
+    crate::input::owner::input().devices.input_command.set(2); // g_inputCommand
 }

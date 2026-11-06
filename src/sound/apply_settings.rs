@@ -9,7 +9,6 @@
 //! steps between 0 and 0x40 (`sub_467F00`, `sub_467F24`).
 //! Five callers; `system::main_loop` calls it once the window is there.
 
-use crate::audio::store::AUDIO;
 use rc2k_core::audio::commands::SoundList;
 
 // ---- Rust version ----
@@ -40,7 +39,7 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
         .done
         .set(MENUS);
     let steps = menus(
-        AUDIO.menu_sound_mode.get(),
+        crate::audio::owner::audio().state.menu_sound_mode.get(),
         SoundList::Menu,
         crate::menu::owner::menus()
             .screens
@@ -51,7 +50,7 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
     for s in steps {
         run_step(s)?;
     }
-    AUDIO.sounds_held_back.set(0);
+    crate::audio::owner::audio().state.sounds_held_back.set(0);
 
     Ok(())
 }

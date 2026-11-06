@@ -12,9 +12,13 @@ pub struct TextBuffer {
     pub text: Bytes<1024>,
 }
 
-pub static TEXT_BUFFER: TextBuffer = TextBuffer {
-    text: Bytes::new([0; 1024]),
-};
+impl TextBuffer {
+    pub const fn new() -> Self {
+        TextBuffer {
+            text: Bytes::new([0; 1024]),
+        }
+    }
+}
 
 impl TextBuffer {
     pub const START: usize = 0x93E430;
@@ -22,7 +26,8 @@ impl TextBuffer {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const TEXT_BUFFER) as usize
+        crate::pointers::game_address(&raw const crate::strings::owner::strings().text.buffer)
+            as usize
     }
 }
 

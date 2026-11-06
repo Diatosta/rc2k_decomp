@@ -12,7 +12,6 @@
 
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_times, ints_diff_80};
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
@@ -24,9 +23,18 @@ pub fn place_car_sound(race: &Race) -> Result<(), Refused> {
     so.slot_b.start.set(1);
     let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);
     let p = [
-        d(&CAR.position[0], &CAR.camera_position[0]),
-        d(&CAR.position[1], &CAR.camera_position[1]),
-        d(&CAR.position[2], &CAR.camera_position[2]),
+        d(
+            &crate::race::owner::race().shared.car.position[0],
+            &crate::race::owner::race().shared.car.camera_position[0],
+        ),
+        d(
+            &crate::race::owner::race().shared.car.position[1],
+            &crate::race::owner::race().shared.car.camera_position[1],
+        ),
+        d(
+            &crate::race::owner::race().shared.car.position[2],
+            &crate::race::owner::race().shared.car.camera_position[2],
+        ),
     ];
     let out = rotate_point(&race.frame.matrices.view_turn_matrix, p);
     let k = race.course.numbers.one_over_65536.bits();

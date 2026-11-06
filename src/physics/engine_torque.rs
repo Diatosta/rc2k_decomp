@@ -13,8 +13,6 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
 use crate::scene::owner::scene;
 use std::cmp::Ordering;
@@ -32,31 +30,78 @@ pub fn below(a: u32, b: u32) -> bool {
 pub fn engine_torque() {
     let drawing = &scene().drawing;
     let course = &race().course;
-    let s = x87::div(CAR.engine_speed.bits(), CAR.engine_speed_limit.bits());
+    let s = x87::div(
+        crate::race::owner::race().shared.car.engine_speed.bits(),
+        crate::race::owner::race()
+            .shared
+            .car
+            .engine_speed_limit
+            .bits(),
+    );
     drawing.scene.scratch.set(s);
     if below(s, course.numbers.one.bits()) && !below(s, course.numbers.zero.bits()) {
         let i = trunc_mul_to_int(s, course.numbers.eight.bits()) as u32;
         drawing.scene.work_dword.set(i);
         let k = i as usize;
-        PHYSICS.engine_force.set_bits(lerp_table(
-            s,
-            PHYSICS.torque_curve[k].bits(),
-            PHYSICS.torque_curve[k + 1].bits(),
-            PHYSICS.spec_torque[k].get(),
-            PHYSICS.spec_torque[k + 1].get(),
-        ));
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .engine_force
+            .set_bits(lerp_table(
+                s,
+                crate::race::owner::race()
+                    .shared
+                    .physics_tables
+                    .torque_curve[k]
+                    .bits(),
+                crate::race::owner::race()
+                    .shared
+                    .physics_tables
+                    .torque_curve[k + 1]
+                    .bits(),
+                crate::race::owner::race().shared.physics_tables.spec_torque[k].get(),
+                crate::race::owner::race().shared.physics_tables.spec_torque[k + 1].get(),
+            ));
     } else {
-        PHYSICS.engine_force.set_bits(x87::loaded(
-            crate::physics::tables_store::PHYSICS.spec_torque[0].get(),
-        ));
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .engine_force
+            .set_bits(x87::loaded(
+                crate::race::owner::race().shared.physics_tables.spec_torque[0].get(),
+            ));
     }
-    PHYSICS.engine_torque.set_bits(div_then_mul(
-        CAR.engine_speed.bits(),
-        CAR.engine_speed_limit.bits(),
-        PHYSICS.torque_ease.bits(),
-    ));
-    PHYSICS.engine_force.set_bits(x87::mul(
-        PHYSICS.engine_force.bits(),
-        CAR.engine_power_factor.bits(),
-    ));
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .engine_torque
+        .set_bits(div_then_mul(
+            crate::race::owner::race().shared.car.engine_speed.bits(),
+            crate::race::owner::race()
+                .shared
+                .car
+                .engine_speed_limit
+                .bits(),
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .torque_ease
+                .bits(),
+        ));
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .engine_force
+        .set_bits(x87::mul(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .engine_force
+                .bits(),
+            crate::race::owner::race()
+                .shared
+                .car
+                .engine_power_factor
+                .bits(),
+        ));
 }

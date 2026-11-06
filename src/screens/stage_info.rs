@@ -12,7 +12,10 @@ use crate::text::draw_text::Canvas;
 
 /// The page's stage record.
 pub fn stage_record(play: &Play) -> Result<RecordRef, BadInput> {
-    let base = crate::records::stages_store::STAGE_TABLES.level_table(play.arcade.level.get())?;
+    let base = crate::system::owner::system()
+        .records
+        .stage_tables
+        .level_table(play.arcade.level.get())?;
     crate::records::stages_store::row(base, play.arcade.stage.get())
 }
 

@@ -8,17 +8,16 @@
 //!
 //! Caller: `sub_436790` (four calls).
 
-use crate::physics::car_store::CAR;
 use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.tyre_change_state as &dyn Cell32,
-        &CAR.false_start_count,
-        &CAR.run_ticks,
-        &CAR.finish_flag,
-        &CAR.stage_time,
+        &crate::race::owner::race().shared.car.tyre_change_state as &dyn Cell32,
+        &crate::race::owner::race().shared.car.false_start_count,
+        &crate::race::owner::race().shared.car.run_ticks,
+        &crate::race::owner::race().shared.car.finish_flag,
+        &crate::race::owner::race().shared.car.stage_time,
     ]
 }
 

@@ -9,23 +9,29 @@
 
 use crate::math::x87_float::int;
 use crate::math::x87_float::st;
-use crate::physics::car_store::CAR;
-use crate::race::tables_store::RACE_TABLES;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::scene::owner::scene;
 
 /// esi as the original leaves it: the mode's record.
 pub fn record() -> Result<&'static ViewRecord, crate::errors::BadInput> {
-    let mode = (CAR.camera_view.get() as i32).clamp(0, 0x33);
+    let mode = (crate::race::owner::race().shared.car.camera_view.get() as i32).clamp(0, 0x33);
     ViewVars::record_of(mode as usize)
 }
 
 /// The share done (0x438498 .. 0x4384BD): eax as left (the time held).
 pub fn share_done(record: &ViewRecord) -> u32 {
-    let mut eax = CAR
+    let mut eax = crate::race::owner::race()
+        .shared
+        .car
         .step_clock
         .get()
-        .wrapping_sub(CAR.camera_switch_clock.get());
+        .wrapping_sub(
+            crate::race::owner::race()
+                .shared
+                .car
+                .camera_switch_clock
+                .get(),
+        );
     if (eax as i32) < 0 {
         eax = 0;
     }
@@ -48,7 +54,11 @@ fn x87_1(change_time: u32) {
     let t0 = int(scene().drawing.scene.scratch.bits() as i32);
     let t1 = int(change_time as i32);
     let t2 = t0 / t1;
-    RACE_TABLES.view_share.set_bits(st(t2));
+    crate::race::owner::race()
+        .shared
+        .tables
+        .view_share
+        .set_bits(st(t2));
 }
 
 #[cfg(all(test, target_arch = "x86"))]

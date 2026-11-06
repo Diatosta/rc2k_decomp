@@ -31,9 +31,8 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
-use crate::race::work_store::{RACE_WORK, RaceSlot};
+use crate::race::work_store::RaceSlot;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
 use crate::scene::owner::scene;
@@ -51,9 +50,13 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
 /// `popa`).
 pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let dt = PHYSICS.step_time.bits();
+    let dt = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .step_time
+        .bits();
     let k65536 = race.course.numbers.k65536.bits();
-    copy(&s.place, &RACE_WORK.slot_place);
+    copy(&s.place, &crate::race::owner::race().shared.work.slot_place);
     s.spin_length
         .set_bits(rounded(crate::physics::vector_length::vector_length(
             &s.spin,
@@ -82,7 +85,11 @@ pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
         s.place[k].set(s.place[k].get().wrapping_add(d));
     }
     s.motion[1].set_bits(neg_product_plus(
-        PHYSICS.gravity.bits(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .gravity
+            .bits(),
         dt,
         s.motion[1].bits(),
     ));
@@ -93,7 +100,7 @@ pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
     crate::physics::find_ground::find_ground(race)?;
     let face: u32 = race.course.course.ground_slot.get();
     if face == u32::MAX {
-        copy(&RACE_WORK.slot_place, &s.place);
+        copy(&crate::race::owner::race().shared.work.slot_place, &s.place);
         for cell in s.motion.iter().chain(&s.spin) {
             cell.set_bits(0);
         }
@@ -113,10 +120,16 @@ pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
         cell.set_bits(neg_mul(cell.bits(), half));
     }
     if abs_compare(s.motion[1].bits(), race.course.numbers.one.bits()) & 0x100 != 0 {
-        copy(&RACE_WORK.part_matrix_flat[..12], &s.matrix);
+        copy(
+            &crate::race::owner::race().shared.work.part_matrix_flat[..12],
+            &s.matrix,
+        );
         let n = s.part.get() % 20;
         if (n.wrapping_sub(5) as i32) >= 0 && (n.wrapping_sub(9) as i32) < 0 {
-            copy(&RACE_WORK.part_matrix_still[..12], &s.matrix);
+            copy(
+                &crate::race::owner::race().shared.work.part_matrix_still[..12],
+                &s.matrix,
+            );
             return Ok(());
         }
     }

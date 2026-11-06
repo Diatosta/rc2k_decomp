@@ -17,10 +17,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::physics::car_store::CAR;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner_course::Course;
-use crate::race::tables_store::RACE_TABLES;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
@@ -30,8 +28,8 @@ use rc2k_core::drive::start_places;
 /// check lets up to 0x400 through) reads on into the variables after it, as the original.
 pub fn car_number(start: usize) -> Result<u32, BadInput> {
     crate::session::read_on_in(
-        &RACE_TABLES,
-        &RACE_TABLES.arcade_car_numbers,
+        &crate::race::owner::race().shared.tables,
+        &crate::race::owner::race().shared.tables.arcade_car_numbers,
         start,
         "the start tables",
     )
@@ -43,42 +41,64 @@ pub fn car_number(start: usize) -> Result<u32, BadInput> {
 // turn stays x87).
 pub fn start_car_on_line(course: &Course, distance: u32) -> Result<(), Refused> {
     let lights = &scene().lights;
-    let start = RACE_TABLES.start_slot.get();
+    let start = crate::race::owner::race().shared.tables.start_slot.get();
     start_places::check_start(start)?;
-    CAR.start_slot_value.set(car_number(start as usize)?);
-    CAR.driver_kind.set(start_places::STARTED_MODE);
+    crate::race::owner::race()
+        .shared
+        .car
+        .start_slot_value
+        .set(car_number(start as usize)?);
+    crate::race::owner::race()
+        .shared
+        .car
+        .driver_kind
+        .set(start_places::STARTED_MODE);
     let checkpoint = start_places::start_checkpoint(CAR_BLOCKS.cars[0].checkpoint.get(), distance);
-    for cell in [&CAR.checkpoint, &CAR.reset_checkpoint, &CAR.last_pace_call] {
+    for cell in [
+        &crate::race::owner::race().shared.car.checkpoint,
+        &crate::race::owner::race().shared.car.reset_checkpoint,
+        &crate::race::owner::race().shared.car.last_pace_call,
+    ] {
         cell.set(checkpoint);
     }
     lights.state.line_place.set(checkpoint);
     lights.state.line_fraction.set(checkpoint);
     let share = start_places::start_share(
         start as i32,
-        RACE_TABLES.arcade_cars.get() as i32,
+        crate::race::owner::race().shared.tables.arcade_cars.get() as i32,
         course.numbers.one.get(),
-        RACE_TABLES.arcade_b.get(),
-        RACE_TABLES.arcade_a.get(),
+        crate::race::owner::race().shared.tables.arcade_b.get(),
+        crate::race::owner::race().shared.tables.arcade_a.get(),
     )
     .to_bits();
-    RACE_TABLES.start_share.set_bits(share);
-    CAR.start_share.set_bits(share);
+    crate::race::owner::race()
+        .shared
+        .tables
+        .start_share
+        .set_bits(share);
+    crate::race::owner::race()
+        .shared
+        .car
+        .start_share
+        .set_bits(share);
     crate::race::start_place::place_car_on_line(course)?;
     crate::race::car_starts::reset_car_motion()?;
-    CAR.local_velocity[0].set_bits(0);
-    CAR.local_velocity[1].set_bits(0);
-    CAR.local_velocity[2].set_bits(x87::loaded(RACE_TABLES.start_speed.bits()));
-    let m = &CAR.crash_matrix;
+    crate::race::owner::race().shared.car.local_velocity[0].set_bits(0);
+    crate::race::owner::race().shared.car.local_velocity[1].set_bits(0);
+    crate::race::owner::race().shared.car.local_velocity[2].set_bits(x87::loaded(
+        crate::race::owner::race().shared.tables.start_speed.bits(),
+    ));
+    let m = &crate::race::owner::race().shared.car.crash_matrix;
     let out = rotate_point(
         m,
         [
-            extended(CAR.local_velocity[0].bits()),
-            extended(CAR.local_velocity[1].bits()),
-            extended(CAR.local_velocity[2].bits()),
+            extended(crate::race::owner::race().shared.car.local_velocity[0].bits()),
+            extended(crate::race::owner::race().shared.car.local_velocity[1].bits()),
+            extended(crate::race::owner::race().shared.car.local_velocity[2].bits()),
         ],
     );
-    CAR.velocity[0].set_bits(rounded(out[0]));
-    CAR.velocity[1].set_bits(rounded(out[1]));
-    CAR.velocity[2].set_bits(rounded(out[2]));
+    crate::race::owner::race().shared.car.velocity[0].set_bits(rounded(out[0]));
+    crate::race::owner::race().shared.car.velocity[1].set_bits(rounded(out[1]));
+    crate::race::owner::race().shared.car.velocity[2].set_bits(rounded(out[2]));
     Ok(())
 }

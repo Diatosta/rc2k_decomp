@@ -18,11 +18,9 @@
 //! Refuses, before anything is done: a list without its -1 within 0x1000 entries, or with
 //! a sound of 0x1CD or more; A3D.
 
-use crate::audio::store::{AUDIO, SAMPLE_RECORDS};
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
-use crate::session::FLAGS;
 use crate::sound::sets_store::{MenuSounds, RaceSoundSets};
 use rc2k_core::audio::commands::SoundList;
 
@@ -34,35 +32,37 @@ struct GameLoader;
 impl GameLoader {
     /// The record's place, which the callees take for their ebx.
     fn record_at(&self, sound: u32) -> u32 {
-        SAMPLE_RECORDS.records[sound as usize].addr()
+        crate::audio::owner::audio().sample_records.records[sound as usize].addr()
     }
 }
 
 impl rc2k_core::audio::load::Loader for GameLoader {
     type Error = Refused;
     fn record(&mut self, sound: u32) -> SampleRecord {
-        SAMPLE_RECORDS.records[sound as usize].get()
+        crate::audio::owner::audio().sample_records.records[sound as usize].get()
     }
     fn set_first_voice(&mut self, sound: u32, voice: u32) {
-        SAMPLE_RECORDS.records[sound as usize].update(|r| r.first_voice = voice);
+        crate::audio::owner::audio().sample_records.records[sound as usize]
+            .update(|r| r.first_voice = voice);
     }
     fn full(&mut self) -> bool {
-        AUDIO.voice_count.get() == VOICES
+        crate::audio::owner::audio().state.voice_count.get() == VOICES
     }
     fn shared(&mut self, at: rc2k_core::audio::load::At) -> Result<u32, Refused> {
-        let count = AUDIO.voice_count.get();
+        let count = crate::audio::owner::audio().state.voice_count.get();
         Ok({
             crate::audio::samples::find_shared_voice(
-                &SAMPLE_RECORDS.records[at.sound as usize].get(),
+                &crate::audio::owner::audio().sample_records.records[at.sound as usize].get(),
                 count.min(VOICES),
             )
         })
     }
     fn read(&mut self, at: rc2k_core::audio::load::At) -> Result<bool, Refused> {
         use crate::audio::{read_sample_of, samples};
-        read_sample_of::read_sample_of(&SAMPLE_RECORDS.records[at.sound as usize].get(), &mut |p| {
-            samples::read_sample_in_game(crate::audio::store::name_at(p)?)
-        })
+        read_sample_of::read_sample_of(
+            &crate::audio::owner::audio().sample_records.records[at.sound as usize].get(),
+            &mut |p| samples::read_sample_in_game(crate::audio::store::name_at(p)?),
+        )
     }
     fn new_voice(&mut self, _: rc2k_core::audio::load::At, _: u32) -> Result<u32, Refused> {
         crate::audio::new_voice::new_voice_in_game()
@@ -76,7 +76,10 @@ impl rc2k_core::audio::load::Loader for GameLoader {
         use crate::audio::*;
         let record = self.record_at(at.sound);
         fill_voice::fill_voice_in_game(voice_at, self.record(at.sound), shared)?;
-        let mode = sample_mode::sample_mode_of(AUDIO.sound_mode.get(), voice(voice_at).sound)?;
+        let mode = sample_mode::sample_mode_of(
+            crate::audio::owner::audio().state.sound_mode.get(),
+            voice(voice_at).sound,
+        )?;
         update_voice(voice_at, |v| samples::prepare_sample(v, mode))?;
         update_voice(voice_at, keep_sample::keep_sample)?;
         make_buffer::make_buffer(voice_at, record)?;
@@ -88,7 +91,7 @@ impl rc2k_core::audio::load::Loader for GameLoader {
         update_voice(voice, |v| v.flags |= LOADED);
     }
     fn quitting(&mut self) -> bool {
-        FLAGS.quitting.get() == 1
+        crate::system::owner::system().session.flags.quitting.get() == 1
     }
 }
 

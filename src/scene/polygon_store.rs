@@ -165,13 +165,13 @@ pub struct PolygonWork {
     pub object_materials: [ObjectMaterial; 1200],
 }
 
-/// The piece, a field of `race::buffers_store::BUFFERS`.
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = PolygonWork;
     fn deref(&self) -> &PolygonWork {
-        &crate::race::buffers_store::BUFFERS.polygon
+        &crate::race::owner::race().shared.buffers.polygon
     }
 }
 

@@ -12,18 +12,16 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::time_mark;
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.engine_speed_scaled as &dyn Cell32,
-        &PHYSICS.time_marks[0],
-        &CAR.step_clock,
-        &PHYSICS.time_marks[1],
+        &crate::race::owner::race().shared.car.engine_speed_scaled as &dyn Cell32,
+        &crate::race::owner::race().shared.physics_tables.time_marks[0],
+        &crate::race::owner::race().shared.car.step_clock,
+        &crate::race::owner::race().shared.physics_tables.time_marks[1],
     ]
 }
 

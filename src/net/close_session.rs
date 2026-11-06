@@ -7,12 +7,10 @@
 //! Caller: `net::destroy_connection`. `Close` from Rust (`net::dplay`). Refuses
 //! nothing.
 
-use crate::net::store::NET;
-
 /// The Rust version.
 pub fn close_session() {
-    if NET.session_open.get() == 1 {
-        NET.session_open.set(0);
-        crate::net::dp_objects::close(NET.dplay.get());
+    if crate::net::owner::net().vars.session_open.get() == 1 {
+        crate::net::owner::net().vars.session_open.set(0);
+        crate::net::dp_objects::close(crate::net::owner::net().vars.dplay.get());
     }
 }

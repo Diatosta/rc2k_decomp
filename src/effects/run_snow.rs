@@ -24,7 +24,6 @@ use crate::effects::rain::Weather;
 use crate::effects::snow::SnowLight;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_frame::Frame;
 
 const MOST: i32 = 0x800;
@@ -95,13 +94,24 @@ pub fn run_snow(frame: &Frame, weather: &Weather) -> Result<(), Refused> {
         s.inverse.set_bits(inverse);
         let marks = crate::effects::setup::marks()?;
         if marks.other_marks_shown.get() != 0 {
-            let ticks = PHYSICS.scene_clock.get().wrapping_sub(s.last_clock.get());
+            let ticks = crate::race::owner::race()
+                .shared
+                .physics_tables
+                .scene_clock
+                .get()
+                .wrapping_sub(s.last_clock.get());
             let fall =
                 x87::int_times_plus_int_to_int(ticks as i32, l.fall_k.bits(), s.fall.get() as i32);
             s.fall.set(fall as u32);
         }
         s.fall.set(s.fall.get() & 0x0FFF_FFFF);
-        s.last_clock.set(PHYSICS.scene_clock.get());
+        s.last_clock.set(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .scene_clock
+                .get(),
+        );
         for (n, v) in s.matrix_copy.iter().enumerate() {
             for m in 0..4 {
                 s.wide_turn[n][m].set_bits(v.bits());

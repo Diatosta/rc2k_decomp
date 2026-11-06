@@ -48,7 +48,10 @@ pub fn selection() -> Result<Option<Selection>, BadInput> {
     let group: u32 = screens.event.stage_group.get();
     let index: u32 = screens.event.stage_number.get();
     let sub: u32 = screens.event.stage_sub.get();
-    let table = crate::records::stages_store::STAGE_TABLES.group_event_table(group, sub)?;
+    let table = crate::system::owner::system()
+        .records
+        .stage_tables
+        .group_event_table(group, sub)?;
     Ok(Some(Selection {
         group,
         sub,

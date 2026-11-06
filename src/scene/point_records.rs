@@ -118,7 +118,7 @@ fn cells(r: u32) -> Result<&'static [Dword; 8], BadInput> {
 fn far_cells(r: u32) -> Result<&'static [Dword; 8], BadInput> {
     let (all, k): (&'static [Dword], u32) = match r {
         _ if (QUAD_FIRST..POOL_FIRST).contains(&r) => (
-            &crate::race::vars_store::RACE_VARS.quad_vertices,
+            &crate::race::owner::race().shared.vars.quad_vertices,
             r - QUAD_FIRST,
         ),
         _ if (POOL_FIRST..POOL_FIRST + POOL).contains(&r) => (
@@ -213,7 +213,7 @@ mod tests {
         assert!(field(1, 0x20).is_err() && field(1, 2).is_err());
         // after the point records the quad vertices, then the clipper's pool, by their cells
         assert_eq!((of_quad(0), of_pool(0)), (COUNT + 1, COUNT + 1 + QUADS));
-        let quad = &crate::race::vars_store::RACE_VARS.quad_vertices;
+        let quad = &crate::race::owner::race().shared.vars.quad_vertices;
         let pool = &crate::scene::polygon_store::POLYGON_WORK.record_pool;
         let (kept_quad, kept_pool) = (get(of_quad(3)).unwrap(), get(of_pool(POOL - 1)).unwrap());
         put_field(of_quad(3), 0x1C, 7).unwrap();

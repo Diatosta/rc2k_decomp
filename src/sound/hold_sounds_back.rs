@@ -6,8 +6,6 @@
 //! Its twin `sound::let_sounds_play` (0x409B76) sets it to 0; `sound::play_sound` plays
 //! nothing while it is 1. One caller (0x40D388).
 
-use crate::audio::store::AUDIO;
-
 pub fn hold_sounds_back() {
-    AUDIO.sounds_held_back.set(1);
+    crate::audio::owner::audio().state.sounds_held_back.set(1);
 }

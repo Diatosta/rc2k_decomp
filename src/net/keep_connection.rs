@@ -8,14 +8,19 @@
 //! `net::lobby::connection` refuses (its fatal errors).
 
 use crate::errors::Refused;
-use crate::net::store::NET;
 use crate::net::tables::with_connection;
 
 /// The Rust version.
 pub fn keep_connection(number: u32) -> Result<(), Refused> {
     let (provider, name) = with_connection(number, |c| (c.provider, c.name))?;
-    NET.saved_connection
-        .write_at(0, &provider, "the saved connection")?;
-    NET.saved_name.write_at(0, &name, "the saved connection")?;
+    crate::net::owner::net().vars.saved_connection.write_at(
+        0,
+        &provider,
+        "the saved connection",
+    )?;
+    crate::net::owner::net()
+        .vars
+        .saved_name
+        .write_at(0, &name, "the saved connection")?;
     Ok(())
 }

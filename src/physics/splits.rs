@@ -11,8 +11,8 @@
 /// `split_times` (into the car's next fields), as the original writes them.
 pub fn put_split_time(split: usize, v: u32) -> Result<(), crate::errors::BadInput> {
     crate::session::write_on_in(
-        &crate::physics::car_store::CAR,
-        &crate::physics::car_store::CAR.split_times,
+        &crate::race::owner::race().shared.car,
+        &crate::race::owner::race().shared.car.split_times,
         split,
         v,
         "a split's time",

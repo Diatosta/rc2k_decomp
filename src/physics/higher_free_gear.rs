@@ -16,9 +16,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::bits_at;
-use crate::physics::tables_store::PHYSICS;
 
 /// The Rust version on the bits at `bits` and the count `count`.
 // Converted: `rc2k_core::physics::gearbox::GearBits::higher_free`.
@@ -33,5 +31,13 @@ pub fn higher_free_gear_at(
 
 /// The Rust version.
 pub fn higher_free_gear(gear: u32) -> Result<Option<u32>, Refused> {
-    higher_free_gear_at(&CAR.lost_gear_bits, PHYSICS.gear_count.bits(), gear)
+    higher_free_gear_at(
+        &crate::race::owner::race().shared.car.lost_gear_bits,
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .gear_count
+            .bits(),
+        gear,
+    )
 }

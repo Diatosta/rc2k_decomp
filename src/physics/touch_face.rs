@@ -20,7 +20,6 @@
 //! room); what `place_sound_object` refuses (its writes put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 
@@ -61,7 +60,10 @@ pub fn touch_face(race: &Race) -> Result<(), Refused> {
         let kind = race_owner.physics.contact.contact_kind.get();
         match touch(kind) {
             Touch::MarkIfFast => {
-                if c0(CAR.speed.bits(), race_owner.course.numbers.eight.bits()) {
+                if c0(
+                    crate::race::owner::race().shared.car.speed.bits(),
+                    race_owner.course.numbers.eight.bits(),
+                ) {
                     return Ok(());
                 }
                 mark(&race.physics, face, 1, true)?;

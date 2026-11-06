@@ -13,9 +13,13 @@ pub struct Scratch {
     pub buffer: Bytes<65536>,
 }
 
-pub static SCRATCH: Scratch = Scratch {
-    buffer: Bytes::new([0; 65536]),
-};
+impl Scratch {
+    pub const fn new() -> Self {
+        Scratch {
+            buffer: Bytes::new([0; 65536]),
+        }
+    }
+}
 
 impl Scratch {
     pub const START: usize = 0x93E8B0;
@@ -42,7 +46,7 @@ impl Scratch {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SCRATCH) as usize
+        crate::pointers::game_address(&raw const crate::system::owner::system().work.files) as usize
     }
 }
 

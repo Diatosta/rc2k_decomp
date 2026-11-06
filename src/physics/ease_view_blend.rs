@@ -18,9 +18,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
-use crate::race::tables_store::RACE_TABLES;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn ease_view_blend(race: &Race) -> Result<(), crate::errors::BadInput> {
@@ -43,9 +41,13 @@ pub fn ease_view_blend(race: &Race) -> Result<(), crate::errors::BadInput> {
 /// `[rc + 0x205260] = 1 - [rc + 0x205260]`
 fn x87_1() {
     let t0 = X(1.0);
-    let t1 = ld(RACE_TABLES.view_share.bits());
+    let t1 = ld(crate::race::owner::race().shared.tables.view_share.bits());
     let t2 = t0 - t1;
-    RACE_TABLES.view_share.set_bits(st(t2));
+    crate::race::owner::race()
+        .shared
+        .tables
+        .view_share
+        .set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -56,15 +58,19 @@ fn x87_2(race: &Race) {
     let t0 = ld(race.physics.camera.view_shift_b.bits());
     let t1 = ld(race.physics.camera.view_shift_a.bits());
     let t2 = t0 - t1;
-    let t3 = ld(RACE_TABLES.view_share.bits());
+    let t3 = ld(crate::race::owner::race().shared.tables.view_share.bits());
     let t4 = t2 * t3;
     let t5 = ld(race.physics.camera.view_shift_a.bits());
     let t6 = t4 + t5;
-    CAR.camera_zoom.set_bits(st(t6));
+    crate::race::owner::race()
+        .shared
+        .car
+        .camera_zoom
+        .set_bits(st(t6));
     let t7 = ld(race.physics.camera.view_shift_d.bits());
     let t8 = ld(race.physics.camera.view_shift_c.bits());
     let t9 = t7 - t8;
-    let t10 = ld(RACE_TABLES.view_share.bits());
+    let t10 = ld(crate::race::owner::race().shared.tables.view_share.bits());
     let t11 = t9 * t10;
     let t12 = ld(race.physics.camera.view_shift_c.bits());
     let t13 = t11 + t12;

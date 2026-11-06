@@ -13,8 +13,6 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
@@ -29,14 +27,29 @@ fn put(a: &dyn Cell32, v: u32) {
 /// word, its `sub eax, unk_71A000`).
 pub fn drive_torque_share_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
     let n = if v[1].bits() == 1 {
-        PHYSICS.torque_share_a.get()
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .torque_share_a
+            .get()
     } else {
-        PHYSICS.torque_share_b.get()
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .torque_share_b
+            .get()
     };
     v[0].set_bits(n);
     put(
         v[3],
-        abs_fidiv(v[2].bits(), PHYSICS.torque_share_c.get() as i32),
+        abs_fidiv(
+            v[2].bits(),
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .torque_share_c
+                .get() as i32,
+        ),
     );
     let one = course.numbers.one.bits();
     let below = !matches!(
@@ -58,13 +71,19 @@ fn game() -> Vec<&'static dyn Cell32> {
     let drawing = &scene().drawing;
     vec![
         &drawing.scene.scratch as &dyn Cell32,
-        &CAR.drive_kind,
-        &CAR.local_velocity[2],
+        &crate::race::owner::race().shared.car.drive_kind,
+        &crate::race::owner::race().shared.car.local_velocity[2],
         &drawing.scene.work_float_a,
         &drawing.scene.work_float_b,
-        &CAR.gear_ratio_setting,
-        &PHYSICS.torque_share,
-        &PHYSICS.drive_torque,
+        &crate::race::owner::race().shared.car.gear_ratio_setting,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .torque_share,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .drive_torque,
     ]
 }
 

@@ -49,7 +49,9 @@ pub struct InputGuids {
     pub _tail: Bytes<8>,
 }
 
-pub static INPUT_GUIDS: InputGuids = InputGuids {
+impl InputGuids {
+    pub const fn new() -> Self {
+        InputGuids {
     _lead: Bytes::new([0; 8]),
     device2: Bytes::new(with_runs::<16>(&[(0, b"\x82\xe6DY.\xc9\xcf\x11\xbf\xc7DEST")])),
     _gap_4f7e28: Bytes::new(with_runs::<16>(&[(0, b"\xc0\xf7\xe1\xe7\xd2\x88\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
@@ -68,7 +70,9 @@ pub static INPUT_GUIDS: InputGuids = InputGuids {
     friction: Bytes::new(with_runs::<16>(&[(0, b"*\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
     _gap_4f7fc8: Bytes::new(with_runs::<16>(&[(0, b"+\x1cT\x133\x8e\xd0\x11\x9a\xd0\x00\xa0\xc9\xa0n5")])),
     _tail: Bytes::new([0; 8]),
-};
+        }
+    }
+}
 
 impl InputGuids {
     pub const START: usize = 0x4F7E18;
@@ -76,7 +80,7 @@ impl InputGuids {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const INPUT_GUIDS) + 8) as usize
+        (crate::pointers::game_address(&raw const crate::input::owner::INPUT.guids) + 8) as usize
     }
 }
 
@@ -101,7 +105,7 @@ pub fn guid_of(handle: u32) -> Result<[u8; 16], crate::errors::BadInput> {
         ));
     }
     // A GUID by its handle, a byte offset into the block (not always a field's start).
-    crate::pointers::GamePtr::to(&INPUT_GUIDS)
+    crate::pointers::GamePtr::to(&crate::input::owner::input().guids)
         .offset(8 + at as u32)
         .read::<[u8; 16]>("an effect's GUID")
 }

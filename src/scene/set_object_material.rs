@@ -29,9 +29,6 @@
 use crate::errors::BadInput;
 use crate::math::next_random::next_random;
 use crate::math::x87;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -63,7 +60,11 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
         u32::from_le_bytes([b[4 * k], b[4 * k + 1], b[4 * k + 2], b[4 * k + 3]])
     });
     crate::session::write_bits(&scene.lights.work.phase_lengths, LENGTHS);
-    let clock: u32 = PHYSICS.scene_clock.bits();
+    let clock: u32 = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .scene_clock
+        .bits();
     time = time.wrapping_add(clock.wrapping_sub(last).min(100));
     while time >= length {
         time -= length;
@@ -77,7 +78,11 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
         3 => x87::one_less_int_ratio(time as i32, length as i32),
         _ => 0f32.to_bits(),
     };
-    RACE_VARS.move_fraction.set_bits(fraction);
+    crate::race::owner::race()
+        .shared
+        .vars
+        .move_fraction
+        .set_bits(fraction);
     scene.lights.work.phase_clock.set_bits(clock);
     crate::session::write_first(&scene.objects.slots.phase_work, &[length, time, phase]);
     let mut b = [0u8; 16];
@@ -90,7 +95,11 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
 
 pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
     let scene = scene();
-    let object: u32 = FRAME_SWITCHES.object_number.bits();
+    let object: u32 = crate::race::owner::race()
+        .shared
+        .switches
+        .object_number
+        .bits();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
@@ -102,15 +111,25 @@ pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }
-    RACE_VARS.move_by.set_bits(0u32);
+    crate::race::owner::race()
+        .shared
+        .vars
+        .move_by
+        .set_bits(0u32);
     scene.drawing.scene.polygon_colour.set_bits(0x00FF_FFFFu32);
-    FRAME_SWITCHES.other_way_kind.set_bits(way);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .other_way_kind
+        .set_bits(way);
     if let (4, Some(state)) = (way, state) {
         let points: [u32; 2] = [
             scene.objects.slots.first_point[object as usize].get(),
             scene.objects.slots.first_point[object as usize + 1].get(),
         ];
-        RACE_VARS
+        crate::race::owner::race()
+            .shared
+            .vars
             .move_by
             .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
         step_shape(state)?;

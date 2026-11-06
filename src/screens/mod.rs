@@ -74,6 +74,7 @@ pub mod game_screen;
 pub mod gearing_text;
 pub mod itinerary;
 pub mod locked_notes;
+pub mod owner;
 pub mod page_settings;
 pub mod player_number_text;
 pub mod players_results;

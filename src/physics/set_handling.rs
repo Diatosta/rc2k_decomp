@@ -16,9 +16,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::int_lerp;
-use crate::physics::car_store::CAR;
 use crate::physics::grade_or_reset::grade_or_reset;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
@@ -31,28 +29,52 @@ fn before() -> [(
 ); 4] {
     [
         (
-            &PHYSICS.handling[8],
-            &CAR.steering_sensitivity,
-            &PHYSICS.handling_ranges_a[3],
-            &PHYSICS.handling_ranges_a[2],
+            &crate::race::owner::race().shared.physics_tables.handling[8],
+            &crate::race::owner::race().shared.car.steering_sensitivity,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_a[3],
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_a[2],
         ),
         (
-            &PHYSICS.handling[7],
-            &CAR.steering_sensitivity,
-            &PHYSICS.handling_ranges_a[5],
-            &PHYSICS.handling_ranges_a[4],
+            &crate::race::owner::race().shared.physics_tables.handling[7],
+            &crate::race::owner::race().shared.car.steering_sensitivity,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_a[5],
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_a[4],
         ),
         (
-            &PHYSICS.handling[1],
-            &CAR.brake_balance,
-            &PHYSICS.handling_ranges_a[1],
-            &PHYSICS.handling_ranges_a[0],
+            &crate::race::owner::race().shared.physics_tables.handling[1],
+            &crate::race::owner::race().shared.car.brake_balance,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_a[1],
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_a[0],
         ),
         (
-            &PHYSICS.handling[2],
-            &CAR.ride_height,
-            &PHYSICS.handling_ranges_b[1],
-            &PHYSICS.handling_ranges_b[0],
+            &crate::race::owner::race().shared.physics_tables.handling[2],
+            &crate::race::owner::race().shared.car.ride_height,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_b[1],
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_b[0],
         ),
     ]
 }
@@ -64,28 +86,52 @@ fn after() -> [(
 ); 4] {
     [
         (
-            &PHYSICS.handling[0],
-            &CAR.suspension_stiffness,
-            &PHYSICS.handling_ranges_c[7],
-            &PHYSICS.handling_ranges_c[6],
+            &crate::race::owner::race().shared.physics_tables.handling[0],
+            &crate::race::owner::race().shared.car.suspension_stiffness,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_c[7],
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_c[6],
         ),
         (
-            &PHYSICS.handling[3],
-            &CAR.suspension_stiffness,
-            &PHYSICS.handling_ranges_c[1],
-            &PHYSICS.handling_ranges_c[0],
+            &crate::race::owner::race().shared.physics_tables.handling[3],
+            &crate::race::owner::race().shared.car.suspension_stiffness,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_c[1],
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_c[0],
         ),
         (
-            &PHYSICS.handling[5],
-            &CAR.suspension_stiffness,
-            &PHYSICS.handling_ranges_c[3],
-            &PHYSICS.handling_ranges_c[2],
+            &crate::race::owner::race().shared.physics_tables.handling[5],
+            &crate::race::owner::race().shared.car.suspension_stiffness,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_c[3],
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_c[2],
         ),
         (
-            &PHYSICS.handling[6],
-            &CAR.suspension_stiffness,
-            &PHYSICS.handling_ranges_c[5],
-            &PHYSICS.handling_ranges_c[4],
+            &crate::race::owner::race().shared.physics_tables.handling[6],
+            &crate::race::owner::race().shared.car.suspension_stiffness,
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_c[5],
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .handling_ranges_c[4],
         ),
     ]
 }
@@ -94,7 +140,7 @@ fn after() -> [(
 /// `physics::car_physics_step`).
 pub fn set_handling() -> Result<(), Refused> {
     let race = race();
-    let kind = CAR.drive_kind.get() as usize;
+    let kind = crate::race::owner::race().shared.car.drive_kind.get() as usize;
     if kind > 1 {
         return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());
     }
@@ -106,14 +152,24 @@ pub fn set_handling() -> Result<(), Refused> {
     for v in before() {
         lerp(v);
     }
-    let r = &PHYSICS.handling_ranges_b;
+    let r = &crate::race::owner::race()
+        .shared
+        .physics_tables
+        .handling_ranges_b;
     lerp((
-        &PHYSICS.handling[4],
-        &CAR.ride_height,
+        &crate::race::owner::race().shared.physics_tables.handling[4],
+        &crate::race::owner::race().shared.car.ride_height,
         &r[4 + kind],
         &r[2 + kind],
     ));
-    PHYSICS.handling[4].set_bits(x87::mul(PHYSICS.handling[4].bits(), PHYSICS.spec_a0.get()));
+    crate::race::owner::race().shared.physics_tables.handling[4].set_bits(x87::mul(
+        crate::race::owner::race().shared.physics_tables.handling[4].bits(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .spec_a0
+            .get(),
+    ));
     for v in after() {
         lerp(v);
     }

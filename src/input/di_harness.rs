@@ -3,7 +3,6 @@
 //! `make_effect`, `effect_objects`): the game's variables they use.
 
 use crate::errors::FatalError;
-use crate::input::store::DEVICES;
 
 pub const CAPS_LEN: usize = std::mem::size_of::<crate::input::types::DiDevCaps>();
 pub const CONTROLLERS: u32 = rc2k_core::input::joystick::CONTROLLERS;
@@ -13,7 +12,8 @@ pub const CONTROLLERS: u32 = rc2k_core::input::joystick::CONTROLLERS;
 pub fn entry_of(
     record: &crate::input::types::InputDevice,
 ) -> Result<&'static crate::input::types::Controller, crate::errors::BadInput> {
-    DEVICES
+    crate::input::owner::input()
+        .devices
         .controllers
         .get(record.controller.get() as usize)
         .ok_or(crate::errors::BadInput(

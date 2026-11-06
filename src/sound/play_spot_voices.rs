@@ -68,7 +68,7 @@ pub fn play_spot_voices(request: &SoundRequest) -> Result<(), Refused> {
                 if sound >= RECORDS {
                     return Err(BadInput("a sound past the sample records").into());
                 }
-                let looping = crate::audio::store::SAMPLE_RECORDS.records[sound as usize]
+                let looping = crate::audio::owner::audio().sample_records.records[sound as usize]
                     .get()
                     .voice_kind;
                 request.sound.set(going_on(request.sound.get(), looping));

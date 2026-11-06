@@ -20,7 +20,8 @@ pub fn begin_effects() -> Result<(), Refused> {
     if crate::sound::owner::sound().race.sounds.count.get() != 0 {
         crate::input::start_effects::start_effects()?;
     }
-    crate::input::store::FORCE_FEEDBACK
+    crate::input::owner::input()
+        .force_feedback
         .last_time
         .set(crate::system::tick_count::tick_count());
     Ok(())

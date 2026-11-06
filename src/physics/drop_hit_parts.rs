@@ -16,7 +16,6 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::physics::car_store::CAR;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
 use crate::race::owner_course::Course;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
@@ -32,13 +31,13 @@ pub fn hit_tests(
     timers: &Timers,
     act: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let word = CAR.noise_word.get();
+    let word = crate::race::owner::race().shared.car.noise_word.get();
     let (_, hit) = parts::hit_tests(
         tests,
         word,
         |k| timers[k].get(),
         || f32::from_bits(course.numbers.hundred.bits()),
-        || CAR.parts_present.get(),
+        || crate::race::owner::race().shared.car.parts_present.get(),
     );
     if let Hit::Act(k) = hit {
         act(tests[k].1)?;
@@ -50,13 +49,13 @@ pub fn hit_tests(
 /// The Rust version.
 // Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
 pub fn drop_hit_parts(course: &Course) -> Result<(), Refused> {
-    if CAR.car_kind.get() >= 0x17 {
+    if crate::race::owner::race().shared.car.car_kind.get() >= 0x17 {
         return Ok(());
     }
     hit_tests(
         course,
         &DROP_TESTS,
-        &CAR.wheel_hit_damage,
+        &crate::race::owner::race().shared.car.wheel_hit_damage,
         &mut fill_slot_on_bit,
     )
 }

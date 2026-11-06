@@ -12,8 +12,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::hold_spin;
 
@@ -38,14 +36,17 @@ pub fn hold_at(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.wheel_squeeze[0] as &dyn Cell32,
-        &CAR.wheel_squeeze[1],
-        &CAR.wheel_squeeze[2],
-        &CAR.wheel_squeeze[3],
-        &PHYSICS.ground_spin_limit,
-        &CAR.spin[0],
-        &CAR.spin[2],
-        &PHYSICS.ground_spin,
+        &crate::race::owner::race().shared.car.wheel_squeeze[0] as &dyn Cell32,
+        &crate::race::owner::race().shared.car.wheel_squeeze[1],
+        &crate::race::owner::race().shared.car.wheel_squeeze[2],
+        &crate::race::owner::race().shared.car.wheel_squeeze[3],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .ground_spin_limit,
+        &crate::race::owner::race().shared.car.spin[0],
+        &crate::race::owner::race().shared.car.spin[2],
+        &crate::race::owner::race().shared.physics_tables.ground_spin,
     ]
 }
 

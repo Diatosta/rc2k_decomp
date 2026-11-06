@@ -11,14 +11,13 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
-use crate::physics::car_store::CAR;
 use crate::physics::listed_car_flags::set_flag;
 use crate::race::owner_frame::Frame;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
 /// The Rust version.
 pub fn start_go_notice(frame: &Frame) -> Result<(), Refused> {
-    let c = &CAR;
+    let c = &crate::race::owner::race().shared.car;
     let facts = GoFacts {
         mode: c.driver_kind.get(),
         countdown: c.time_left.get(),

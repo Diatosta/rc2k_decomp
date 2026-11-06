@@ -14,21 +14,18 @@
 //! `physics::reset_car` refuses.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
-use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
 };
 
 fn clear_notice() {
     for cell in [
-        &CAR.notice_last,
-        &CAR.notice_id,
-        &CAR.notice_time,
-        &CAR.notice_shown,
+        &crate::race::owner::race().shared.car.notice_last,
+        &crate::race::owner::race().shared.car.notice_id,
+        &crate::race::owner::race().shared.car.notice_time,
+        &crate::race::owner::race().shared.car.notice_shown,
     ] {
         cell.set(0);
     }
@@ -38,32 +35,61 @@ fn clear_notice() {
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
 pub fn reset_request() -> Result<(), Refused> {
     let race = race();
-    if !reset_counts(CAR.run_ticks.get()) {
+    if !reset_counts(crate::race::owner::race().shared.car.run_ticks.get()) {
         return Ok(());
     }
-    if !reset_held(CAR.input_keys.get(), RACE_VARS.run_kind.get(), || {
-        c0(CAR.speed.bits(), PHYSICS.reset_speed_limit.bits())
-    }) {
-        if CAR.reset_key_count.get() != 0 {
+    if !reset_held(
+        crate::race::owner::race().shared.car.input_keys.get(),
+        crate::race::owner::race().shared.vars.run_kind.get(),
+        || {
+            c0(
+                crate::race::owner::race().shared.car.speed.bits(),
+                crate::race::owner::race()
+                    .shared
+                    .physics_tables
+                    .reset_speed_limit
+                    .bits(),
+            )
+        },
+    ) {
+        if crate::race::owner::race().shared.car.reset_key_count.get() != 0 {
             clear_notice();
-            CAR.reset_key_count.set(0);
+            crate::race::owner::race().shared.car.reset_key_count.set(0);
         }
         return Ok(());
     }
-    let (first, count, reset) = reset_step(CAR.reset_key_count.get());
+    let (first, count, reset) =
+        reset_step(crate::race::owner::race().shared.car.reset_key_count.get());
     if first {
-        CAR.notice_id.set(RESET_NOTICE);
-        CAR.notice_time_b.set(0x19);
-        CAR.notice_time.set(0x12C);
+        crate::race::owner::race()
+            .shared
+            .car
+            .notice_id
+            .set(RESET_NOTICE);
+        crate::race::owner::race()
+            .shared
+            .car
+            .notice_time_b
+            .set(0x19);
+        crate::race::owner::race().shared.car.notice_time.set(0x12C);
     }
-    CAR.reset_key_count.set(count);
+    crate::race::owner::race()
+        .shared
+        .car
+        .reset_key_count
+        .set(count);
     if !reset {
         return Ok(());
     }
-    CAR.stage_time.set(
-        CAR.stage_time
+    crate::race::owner::race().shared.car.stage_time.set(
+        crate::race::owner::race()
+            .shared
+            .car
+            .stage_time
             .get()
-            .wrapping_add(reset_penalty(CAR.stuck_count.get())),
+            .wrapping_add(reset_penalty(
+                crate::race::owner::race().shared.car.stuck_count.get(),
+            )),
     );
     clear_notice();
     { crate::physics::reset_car::reset_car(race) }?;

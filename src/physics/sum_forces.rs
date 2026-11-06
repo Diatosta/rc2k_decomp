@@ -10,15 +10,22 @@
 //! Caller: `sub_43B635` (0x43B995), every physics step.
 
 use crate::math::x87_run::sum_over;
-use crate::physics::tables_store::PHYSICS;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`.
 pub fn sum_at(v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
-    let g: u32 = PHYSICS.gravity.bits();
-    let dt: u32 = PHYSICS.step_time.bits();
+    let g: u32 = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .gravity
+        .bits();
+    let dt: u32 = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .step_time
+        .bits();
     put(13, sum_over(&[get(0)], &[g, dt]));
     put(14, sum_over(&[get(1)], &[g, dt]));
     put(15, sum_over(&[get(2), get(3)], &[g, dt]));
@@ -31,24 +38,24 @@ pub fn sum_at(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &PHYSICS.drive_slip[0] as &dyn Cell32,
-        &PHYSICS.drive_slip[1],
-        &PHYSICS.axle_slips[0],
-        &PHYSICS.axle_slips[1],
-        &PHYSICS.forces[6].force[1],
-        &PHYSICS.forces[7].force[1],
-        &PHYSICS.forces[8].force[1],
-        &PHYSICS.forces[9].force[1],
-        &PHYSICS.forces[0].force[1],
-        &PHYSICS.forces[1].force[1],
-        &PHYSICS.forces[2].force[1],
-        &PHYSICS.forces[3].force[1],
-        &PHYSICS.forces[4].force[1],
-        &PHYSICS.force_sums[0],
-        &PHYSICS.force_sums[1],
-        &PHYSICS.force_sums[2],
-        &PHYSICS.force_sums[3],
-        &PHYSICS.force_sums[4],
+        &crate::race::owner::race().shared.physics_tables.drive_slip[0] as &dyn Cell32,
+        &crate::race::owner::race().shared.physics_tables.drive_slip[1],
+        &crate::race::owner::race().shared.physics_tables.axle_slips[0],
+        &crate::race::owner::race().shared.physics_tables.axle_slips[1],
+        &crate::race::owner::race().shared.physics_tables.forces[6].force[1],
+        &crate::race::owner::race().shared.physics_tables.forces[7].force[1],
+        &crate::race::owner::race().shared.physics_tables.forces[8].force[1],
+        &crate::race::owner::race().shared.physics_tables.forces[9].force[1],
+        &crate::race::owner::race().shared.physics_tables.forces[0].force[1],
+        &crate::race::owner::race().shared.physics_tables.forces[1].force[1],
+        &crate::race::owner::race().shared.physics_tables.forces[2].force[1],
+        &crate::race::owner::race().shared.physics_tables.forces[3].force[1],
+        &crate::race::owner::race().shared.physics_tables.forces[4].force[1],
+        &crate::race::owner::race().shared.physics_tables.force_sums[0],
+        &crate::race::owner::race().shared.physics_tables.force_sums[1],
+        &crate::race::owner::race().shared.physics_tables.force_sums[2],
+        &crate::race::owner::race().shared.physics_tables.force_sums[3],
+        &crate::race::owner::race().shared.physics_tables.force_sums[4],
     ]
 }
 

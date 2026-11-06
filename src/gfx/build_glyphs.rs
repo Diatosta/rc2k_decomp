@@ -48,7 +48,6 @@ use crate::logfile::log_int_fmt::log_int_fmt;
 use crate::logfile::write_line::level;
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::session::Dword;
-use crate::strings::compile_lexicon::LEXICON;
 
 // ---- game data ----
 
@@ -288,7 +287,8 @@ pub fn build_glyphs(
         .iter()
         .position(|&b| b == 0)
         .unwrap_or(template.len())];
-    let work = crate::pointers::GamePtr::to(&LEXICON.memory);
+    let work =
+        crate::pointers::GamePtr::to(&crate::strings::owner::strings().lexicon.memory.memory);
     pictures.decoder.number.set(0u32);
     loop {
         if pictures.decoder.builder_flags.get() & WITH_ALPHA != 0 {

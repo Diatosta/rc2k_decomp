@@ -22,8 +22,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
 use rc2k_core::physics::walls::WheelsOff;
 
@@ -31,30 +29,50 @@ use rc2k_core::physics::walls::WheelsOff;
 /// esi its address) are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::WheelsOff`.
 pub fn feel_ground(race: &Race) -> Result<(), Refused> {
-    if CAR.probe_count.get() > rc2k_core::physics::walls::PROBE_ROOM {
+    if crate::race::owner::race().shared.car.probe_count.get()
+        > rc2k_core::physics::walls::PROBE_ROOM
+    {
         return Err(BadInput("more than 0x40 probe points").into());
     }
     crate::physics::note_surface_mode::note_surface_mode();
     crate::physics::probe_ground::probe_ground()?;
     crate::physics::lowest_body_point::lowest_body_point(race)?;
     let off = WheelsOff::of([
-        CAR.wheel_squeeze[0].bits(),
-        CAR.wheel_squeeze[1].bits(),
-        CAR.wheel_squeeze[2].bits(),
-        CAR.wheel_squeeze[3].bits(),
+        crate::race::owner::race().shared.car.wheel_squeeze[0].bits(),
+        crate::race::owner::race().shared.car.wheel_squeeze[1].bits(),
+        crate::race::owner::race().shared.car.wheel_squeeze[2].bits(),
+        crate::race::owner::race().shared.car.wheel_squeeze[3].bits(),
     ]);
-    CAR.front_wheels_off.set(u32::from(off.front));
-    CAR.rear_wheels_off.set(u32::from(off.back));
-    CAR.all_wheels_off.set(u32::from(off.all));
-    let driven = u32::from(off.driven(CAR.drive_kind.get()));
-    CAR.driven_wheels_off.set(driven);
+    crate::race::owner::race()
+        .shared
+        .car
+        .front_wheels_off
+        .set(u32::from(off.front));
+    crate::race::owner::race()
+        .shared
+        .car
+        .rear_wheels_off
+        .set(u32::from(off.back));
+    crate::race::owner::race()
+        .shared
+        .car
+        .all_wheels_off
+        .set(u32::from(off.all));
+    let driven = u32::from(off.driven(crate::race::owner::race().shared.car.drive_kind.get()));
+    crate::race::owner::race()
+        .shared
+        .car
+        .driven_wheels_off
+        .set(driven);
     if driven == 0 {
-        CAR.stuck_count.set(0);
+        crate::race::owner::race().shared.car.stuck_count.set(0);
     }
-    PHYSICS
+    crate::race::owner::race()
+        .shared
+        .physics_tables
         .feel_word
         .set(u32::from(crate::race::course_places::face_field::<u16>(
-            CAR.probe_point_face[4].get(),
+            crate::race::owner::race().shared.car.probe_point_face[4].get(),
             0x26,
             "a face's feel word",
         )?));

@@ -13,8 +13,6 @@
 //! `system::main_loop`. Calling it twice builds from the changed lines, as the original would. Rust
 //! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
 
-use crate::strings::text_buffer::TEXT_BUFFER;
-
 // ---- game data ----
 
 use rc2k_core::menu::notice::{
@@ -35,7 +33,11 @@ pub fn build_notice() {
         std::array::from_fn(|i| panels.notice.notice_second.get(SECOND_FROM + i));
     let built = notice(&first, &second);
     for (i, &byte) in built.iter().take(BUILT_LEN).enumerate() {
-        TEXT_BUFFER.text.set(i, byte);
+        crate::strings::owner::strings()
+            .text
+            .buffer
+            .text
+            .set(i, byte);
         panels.notice.notice_first.set(i, byte);
     }
     panels.notice.notice_second.set(0, 0);

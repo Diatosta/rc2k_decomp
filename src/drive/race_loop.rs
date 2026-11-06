@@ -21,13 +21,9 @@ use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
 };
 use crate::errors::{BadInput, Refused};
-use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
-use crate::session::{Dword, FLAGS};
+use crate::session::Dword;
 
 fn view_bit(view: &Dword) -> Result<bool, BadInput> {
     let car = crate::race::blocks_store::car_of(view.get()).ok_or(BadInput("a view's block"))?;
@@ -36,22 +32,24 @@ fn view_bit(view: &Dword) -> Result<bool, BadInput> {
 
 /// The network player's car block.
 fn net_player_car() -> Result<&'static crate::physics::car_store::Car, BadInput> {
-    let handle = RACE_WORK
+    let handle = crate::race::owner::race()
+        .shared
+        .work
         .car_blocks
-        .get(crate::net::store::NET.player.get() as usize)
+        .get(crate::net::owner::net().vars.player.get() as usize)
         .ok_or(BadInput("the network player's car"))?;
     crate::race::blocks_store::car_of(handle.get()).ok_or(BadInput("the network player's car"))
 }
 
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
 fn put_answer(answer: u32) -> Result<(), BadInput> {
-    if crate::net::store::NET.session.get() != 0 {
+    if crate::net::owner::net().vars.session.get() != 0 {
         net_player_car()?.stop_state.set_bits(answer);
         return Ok(());
     }
     CAR_BLOCKS.cars[0].stop_state.set_bits(answer);
     CAR_BLOCKS.cars[1].stop_state.set_bits(answer);
-    if RACE_VIEW.players.get() != 2 {
+    if crate::race::owner::race().shared.view.players.get() != 2 {
         return Ok(());
     }
     if CAR_BLOCKS.cars[0].finish_flag.bits() != 0 {
@@ -69,38 +67,58 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].reset_marker.set_bits(10);
     }
-    FLAGS.paused.set(0);
-    RACE_VARS.scene_switch.set(0);
+    crate::system::owner::system().session.flags.paused.set(0);
+    crate::race::owner::race().shared.vars.scene_switch.set(0);
     restart_clock();
-    race.frame
-        .clock_ticks
-        .clock_a
-        .set(PHYSICS.scene_clock.get());
-    race.frame
-        .clock_ticks
-        .sound_tick_last
-        .set(PHYSICS.scene_clock.get());
+    race.frame.clock_ticks.clock_a.set(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .scene_clock
+            .get(),
+    );
+    race.frame.clock_ticks.sound_tick_last.set(
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .scene_clock
+            .get(),
+    );
     for mark in &race.frame.clock_ticks.marks {
         mark.set(u32::MAX);
     }
     race.replay.replay_view.play_end.set(u32::MAX);
     loop {
         restart_clock();
-        PHYSICS
+        crate::race::owner::race()
+            .shared
+            .physics_tables
             .race_clock_base
-            .set(crate::physics::tables_store::PHYSICS.scene_clock.get());
+            .set(
+                crate::race::owner::race()
+                    .shared
+                    .physics_tables
+                    .scene_clock
+                    .get(),
+            );
         // 0x444DE9: a frame.
         let paused = loop {
-            if FLAGS.window_active.get() == 0 {
-                FLAGS.paused.set(1);
+            if crate::system::owner::system()
+                .session
+                .flags
+                .window_active
+                .get()
+                == 0
+            {
+                crate::system::owner::system().session.flags.paused.set(1);
             }
-            if FLAGS.paused.get() != 0 {
+            if crate::system::owner::system().session.flags.paused.get() != 0 {
                 break true;
             }
             let begun = crate::debug::timing::start();
             input_update();
             crate::debug::timing::stop(crate::debug::timing::Stage::Input, begun);
-            if RACE_WORK.in_credits.get() != 0 {
+            if crate::race::owner::race().shared.work.in_credits.get() != 0 {
                 if race.frame.credits.done.get() != 0 {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
@@ -120,36 +138,46 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: keys pressed [{}], down [{}], \
                          frame {}",
-                        keys(&crate::input::store::DEVICES.keys_pressed),
-                        keys(&crate::input::store::DEVICES.keys_down),
-                        PHYSICS.scene_clock.get()
+                        keys(&crate::input::owner::input().devices.keys_pressed),
+                        keys(&crate::input::owner::input().devices.keys_down),
+                        crate::race::owner::race()
+                            .shared
+                            .physics_tables
+                            .scene_clock
+                            .get()
                     ));
                     return Ok(());
                 }
             }
-            if crate::input::store::DEVICES.keys_pressed.get(1) != 0 {
+            if crate::input::owner::input().devices.keys_pressed.get(1) != 0 {
                 let answer = { crate::drive::quit_question::quit_question(&race.replay) }?;
                 if answer == 0 {
                     break false;
                 }
-                if RACE_WORK.in_credits.get() != 0 {
+                if crate::race::owner::race().shared.work.in_credits.get() != 0 {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: the quit question (Escape latched), answer {answer:#x}, frame {}",
-                        PHYSICS.scene_clock.get()
+                        crate::race::owner::race()
+                            .shared
+                            .physics_tables
+                            .scene_clock
+                            .get()
                     ));
                 }
                 put_answer(answer)?;
                 return Ok(());
             }
-            if RACE_VARS.hold_count.get() == 0 {
-                if view_bit(&RACE_VIEW.view_blocks[0])? {
+            if crate::race::owner::race().shared.vars.hold_count.get() == 0 {
+                if view_bit(&crate::race::owner::race().shared.view.view_blocks[0])? {
                     break true;
                 }
-                if RACE_VIEW.views.get() != 1 && view_bit(&RACE_VIEW.view_blocks[1])? {
+                if crate::race::owner::race().shared.view.views.get() != 1
+                    && view_bit(&crate::race::owner::race().shared.view.view_blocks[1])?
+                {
                     break true;
                 }
             }
-            if FLAGS.paused.get() != 0 {
+            if crate::system::owner::system().session.flags.paused.get() != 0 {
                 break true;
             }
             race_keys()?;
@@ -158,10 +186,14 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
             tyre_change()?;
             if players_all_out()? {
-                if RACE_WORK.in_credits.get() != 0 {
+                if crate::race::owner::race().shared.work.in_credits.get() != 0 {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
-                        PHYSICS.scene_clock.get()
+                        crate::race::owner::race()
+                            .shared
+                            .physics_tables
+                            .scene_clock
+                            .get()
                     ));
                 }
                 return Ok(());
@@ -172,11 +204,11 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
             continue;
         }
         // 0x444F0F: paused.
-        if crate::net::store::NET.session.get() != 0 {
+        if crate::net::owner::net().vars.session.get() != 0 {
             net_player_car()?.input_keys.set_bits(0);
         } else {
             { crate::drive::pause_until_key::pause_until_key() }?;
         }
-        FLAGS.paused.set(0);
+        crate::system::owner::system().session.flags.paused.set(0);
     }
 }

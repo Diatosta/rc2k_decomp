@@ -12,7 +12,6 @@
 //! Refuses A3D (the chunk at 0x40CDE8).
 
 use crate::audio::buffer_settings::a3d;
-use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
@@ -31,7 +30,7 @@ pub fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
     {
         let failed = |r: i32| {
             if lost_memory(r) {
-                AUDIO.sound_buffer_lost.set(1);
+                crate::audio::owner::audio().state.sound_buffer_lost.set(1);
             }
             false
         };
@@ -39,7 +38,12 @@ pub fn fill_buffer(v: &Voice) -> Result<bool, Refused> {
             Ok(parts) => parts,
             Err(r) => return Ok(failed(r)),
         };
-        for (cell, part) in AUDIO.locked_parts.iter().zip(locked) {
+        for (cell, part) in crate::audio::owner::audio()
+            .state
+            .locked_parts
+            .iter()
+            .zip(locked)
+        {
             cell.set(part);
         }
         // The copies from the data's start (an id: `audio::sample_data`) into the parts.

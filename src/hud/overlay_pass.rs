@@ -17,8 +17,6 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 
 /// The HUD's layout: `dword_6238A4`, or 0 while one view is drawn (`dword_63DB98` 1).
 /// The original reads `dword_6238A4` alone, which a replay after a split-screen race
@@ -26,10 +24,10 @@ use crate::race::view_store::RACE_VIEW;
 /// player's bars and strip stayed drawn (section 16, fixed 2026-10-23).
 pub fn shown_layout() -> u32 {
     {
-        if RACE_VIEW.views.bits() == 1 {
+        if crate::race::owner::race().shared.view.views.bits() == 1 {
             0
         } else {
-            RACE_VARS.split.bits()
+            crate::race::owner::race().shared.vars.split.bits()
         }
     }
 }
@@ -49,7 +47,7 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
         race.frame.panel_and_overlay.panel.hud_flags[0].get(),
         race.frame.panel_and_overlay.panel.hud_flags[1].get(),
     ];
-    if RACE_VIEW.views.bits() == 2 {
+    if crate::race::owner::race().shared.view.views.bits() == 2 {
         for n in 0..2 {
             if CAR_BLOCKS.cars[n].view_covered.get() != 0 {
                 race.frame.panel_and_overlay.panel.hud_flags[n]

@@ -5,12 +5,9 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::cells::copy_cells;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
 use crate::race::trap::car_at;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
 use crate::scene::owner::scene;
 use crate::session::Float;
@@ -26,7 +23,11 @@ fn axles(model: u32) -> Result<Option<[u32; 5]>, BadInput> {
     let record: [u32; 5] = std::array::from_fn(|k| axles[k].get());
     Ok(rc2k_core::race::car_parts::axles(
         record,
-        PHYSICS.ground_drop.get(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .ground_drop
+            .get(),
     ))
 }
 
@@ -53,8 +54,21 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
     };
     let shown = &c.shown_engine_speed;
     shown.set_bits(loaded(c.engine_speed.bits()));
-    if below_or_unordered(shown.bits(), PHYSICS.idle_engine_speed.bits()) {
-        shown.set_bits(loaded(PHYSICS.idle_engine_speed.bits()));
+    if below_or_unordered(
+        shown.bits(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .idle_engine_speed
+            .bits(),
+    ) {
+        shown.set_bits(loaded(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .idle_engine_speed
+                .bits(),
+        ));
     }
     let on = c.lights_on.bits();
     let s = mark_switches(&PartState {
@@ -172,12 +186,14 @@ pub fn ready_car_parts(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,
     // KEPT_MATRICES}`.
     use rc2k_core::race::car_parts::{KEPT_MATRICES, check_part_cars, parts_shown};
-    let count = RACE_VIEW.race_cars.get();
-    check_part_cars(count, |n| RACE_WORK.car_block(n as usize))?;
+    let count = crate::race::owner::race().shared.view.race_cars.get();
+    check_part_cars(count, |n| {
+        crate::race::owner::race().shared.work.car_block(n as usize)
+    })?;
     // The loop's test is at its end: no cars still looks at car 0.
     let mut c = 0u32;
     loop {
-        let car = RACE_WORK.car_block(c as usize);
+        let car = crate::race::owner::race().shared.work.car_block(c as usize);
         let block = car_at(car)?;
         if parts_shown(block.driver_kind.get()) {
             car_part_matrices(race, car)?;

@@ -23,13 +23,11 @@
 //! Converted 2026-10-21: the kind's way through `rc2k_core::scene::lamps::object_light`.
 
 use crate::errors::Refused;
-use crate::input::store::DEVICES;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::add_car_lights;
 use crate::scene::add_point_lights::add_point_lights;
 use crate::scene::owner::scene;
 use crate::scene::vertex_light::plus;
-use crate::session::MACHINE;
 
 // ---- game data ----
 
@@ -45,7 +43,7 @@ pub fn set_object_light(
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     scene.drawing.object_work.light_added.set_bits(0u32);
     let (clear_strength, own_car) = match object_light(scene.lights.work.light_kind.bits(), || {
-        DEVICES.keys_now.get(0x18) != 0 // byte_4F6B74
+        crate::input::owner::input().devices.keys_now.get(0x18) != 0 // byte_4F6B74
     }) {
         ObjectLight::White => {
             scene.drawing.object_work.light_added.set_bits(WHITE);
@@ -75,7 +73,7 @@ pub fn set_object_light(
     if own_car {
         race.physics.ground.drawn_car_light.set_bits(u32::MAX);
     }
-    let mmx = MACHINE.has_mmx.get() != 0;
+    let mmx = crate::system::owner::system().session.machine.has_mmx.get() != 0;
     scene.drawing.object_work.light_added.set_bits(plus(
         scene.lights.work.light_colour.bits(),
         scene.drawing.object_work.other_light.bits(),

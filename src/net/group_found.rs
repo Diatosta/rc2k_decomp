@@ -8,18 +8,20 @@
 //! Caller: DirectPlay, from `net::join_group` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;
-use crate::net::store::NET;
 
 /// The Rust version (see the header): the group's id, type and short name.
 pub fn group_found(id: u32, kind: u32, short: &[u8]) -> Result<u32, Refused> {
     if kind != 0 {
         return Ok(1);
     }
-    let order = crate::strings::same_text::compare_bytes(short, &NET.group_name.read());
+    let order = crate::strings::same_text::compare_bytes(
+        short,
+        &crate::net::owner::net().vars.group_name.read(),
+    );
     if order != std::cmp::Ordering::Equal {
         return Ok(1);
     }
-    NET.send_to.set(id);
+    crate::net::owner::net().vars.send_to.set(id);
     Ok(0)
 }
 

@@ -7,10 +7,9 @@
 //! what `finish_race` refuses.
 
 use crate::errors::Refused;
-use crate::race::switches_store::FRAME_SWITCHES;
 
 /// The Rust version.
 pub fn finish_race_0() -> Result<(), Refused> {
-    FRAME_SWITCHES.mask_kind.set(0);
+    crate::race::owner::race().shared.switches.mask_kind.set(0);
     crate::drive::finish_race::finish_race()
 }

@@ -13,8 +13,6 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, toward_one};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -24,7 +22,14 @@ pub fn blend_at(course: &Course, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
-    if less(get(0), PHYSICS.wheel_load_limit.bits()) {
+    if less(
+        get(0),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .wheel_load_limit
+            .bits(),
+    ) {
         return;
     }
     let zero: u32 = course.numbers.zero.bits();
@@ -48,19 +53,19 @@ pub fn blend_at(course: &Course, v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.contact_depth as &dyn Cell32,
-        &CAR.contact_point[0],
-        &CAR.contact_point[1],
-        &CAR.contact_point[2],
+        &crate::race::owner::race().shared.car.contact_depth as &dyn Cell32,
+        &crate::race::owner::race().shared.car.contact_point[0],
+        &crate::race::owner::race().shared.car.contact_point[1],
+        &crate::race::owner::race().shared.car.contact_point[2],
         &scene().drawing.scene.scratch,
-        &CAR.impact_octant_marks[0],
-        &CAR.impact_octant_marks[1],
-        &CAR.impact_octant_marks[2],
-        &CAR.impact_octant_marks[3],
-        &CAR.impact_octant_marks[4],
-        &CAR.impact_octant_marks[5],
-        &CAR.impact_octant_marks[6],
-        &CAR.impact_octant_marks[7],
+        &crate::race::owner::race().shared.car.impact_octant_marks[0],
+        &crate::race::owner::race().shared.car.impact_octant_marks[1],
+        &crate::race::owner::race().shared.car.impact_octant_marks[2],
+        &crate::race::owner::race().shared.car.impact_octant_marks[3],
+        &crate::race::owner::race().shared.car.impact_octant_marks[4],
+        &crate::race::owner::race().shared.car.impact_octant_marks[5],
+        &crate::race::owner::race().shared.car.impact_octant_marks[6],
+        &crate::race::owner::race().shared.car.impact_octant_marks[7],
     ]
 }
 

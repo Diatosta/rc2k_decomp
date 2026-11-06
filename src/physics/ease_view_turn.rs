@@ -13,7 +13,6 @@
 
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -33,17 +32,17 @@ pub fn ease_view_turn(race: &Race) {
     for (target, turn, share) in [
         (
             &race.physics.camera.start_heading,
-            &CAR.camera_heading,
+            &crate::race::owner::race().shared.car.camera_heading,
             &race.physics.camera.view_share_heading,
         ),
         (
             &race.physics.camera.start_pitch,
-            &CAR.camera_pitch,
+            &crate::race::owner::race().shared.car.camera_pitch,
             &race.physics.camera.view_share_pitch,
         ),
         (
             &race.physics.camera.start_roll,
-            &CAR.camera_roll_turn,
+            &crate::race::owner::race().shared.car.camera_roll_turn,
             &race.physics.camera.view_share_roll,
         ),
     ] {

@@ -112,8 +112,8 @@ const EXTRA_FIELDS: [Field; 9] = [
 
 /// The shared body: the car block `g_car`, the message built at `RaceWork::net_message`.
 pub fn send_fields(m: &Message) -> Result<(), Refused> {
-    let car = &crate::physics::car_store::CAR;
-    let message = GamePtr::to(&crate::race::work_store::RACE_WORK.net_message);
+    let car = &crate::race::owner::race().shared.car;
+    let message = GamePtr::to(&crate::race::owner::race().shared.work.net_message);
     log_send(m.text);
     // The tag, then the kind's fields' bits.
     let mut dwords = vec![m.kind.tag()];
@@ -138,7 +138,7 @@ mod tests {
     /// Each field sits where the core's table had its offset in the car's block.
     #[test]
     fn the_fields_sit_where_the_offsets_were() {
-        let car = &crate::physics::car_store::CAR;
+        let car = &crate::race::owner::race().shared.car;
         let base = GamePtr::to(car).addr();
         let offsets = |kind| -> Vec<u32> {
             fields(kind)
@@ -165,7 +165,7 @@ mod tests {
     /// The limits are the ranges the core's table matched by offset.
     #[test]
     fn the_limits_are_the_old_ranges() {
-        let car = &crate::physics::car_store::CAR;
+        let car = &crate::race::owner::race().shared.car;
         let base = GamePtr::to(car).addr();
         for kind in [Kind::Inputs, Kind::Position, Kind::Extra] {
             for (field, limit) in fields(kind) {

@@ -13,7 +13,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::files::handle::read_slice;
-use crate::files::scratch::SCRATCH;
 use crate::race::viewer_buffers_store::{BLOCK_BYTES, VIEWER_BUFFERS};
 
 /// The Rust version, into the replay block (`dword_9613A4`, the ebx of both callers):
@@ -31,10 +30,16 @@ pub fn read_packed(file: u32, count: u32) -> Result<(u32, bool, Option<bool>), R
         VIEWER_BUFFERS.put_in_block(0, &bytes[..n as usize], "a replay block read")?;
         return Ok((n, !ok, None));
     };
-    let (n, ok) = SCRATCH.read_from(file, packed, "a packed replay block")?;
+    let (n, ok) = crate::system::owner::system().work.files.read_from(
+        file,
+        packed,
+        "a packed replay block",
+    )?;
     if !ok {
         return Ok((n, true, None));
     }
-    let out = crate::drive::unpack_rle::unpack_rle(&SCRATCH.buffer.read())?;
+    let out = crate::drive::unpack_rle::unpack_rle(
+        &crate::system::owner::system().work.files.buffer.read(),
+    )?;
     Ok((out, false, Some(out == 0)))
 }

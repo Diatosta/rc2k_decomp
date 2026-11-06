@@ -7,19 +7,18 @@
 //!
 //! Caller: `physics::set_handling` (0x43EB5D), first.
 
-use crate::physics::car_store::CAR;
 use crate::physics::rate_damage::rate_damage;
 use crate::physics::reset_car_grades::reset_grades_at;
 use crate::race::owner::Race;
 
 /// The Rust version: `CAR.driver_kind` 2 resets the grades.
 pub fn grade_or_reset(race: &Race) {
-    if CAR.driver_kind.get() == 2 {
+    if crate::race::owner::race().shared.car.driver_kind.get() == 2 {
         reset_grades_at(
             &race.course,
-            crate::pointers::GamePtr::to(&CAR),
-            &CAR.suspension_stiffness,
-            &CAR.ride_height,
+            crate::pointers::GamePtr::to(&crate::race::owner::race().shared.car),
+            &crate::race::owner::race().shared.car.suspension_stiffness,
+            &crate::race::owner::race().shared.car.ride_height,
         );
     } else {
         rate_damage(&race.physics);

@@ -13,8 +13,13 @@ const _: () = assert!(core::mem::size_of::<Car>() == CAR_LEN);
 /// null (the original's `rep movsd` would fault there).
 pub fn current_block() -> Result<&'static Car, Refused> {
     use rc2k_core::drive::work_car::{car_block, car_slot};
-    let slot = car_slot(crate::race::work_store::RACE_WORK.current_car.get());
-    let block = car_block(crate::race::work_store::RACE_WORK.car_block(slot as usize))?;
+    let slot = car_slot(crate::race::owner::race().shared.work.current_car.get());
+    let block = car_block(
+        crate::race::owner::race()
+            .shared
+            .work
+            .car_block(slot as usize),
+    )?;
     Ok(Car::at(block))
 }
 

@@ -20,8 +20,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 
 /// What `show_frame` leaves: whether the frame was lost (the carry) and eax.
 pub struct Shown {
@@ -42,7 +40,7 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
     }
     // The sound tick with eax 0x13 (it reads no register).
     crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
-    if RACE_WORK.in_credits.get() != 0 {
+    if crate::race::owner::race().shared.work.in_credits.get() != 0 {
         crate::race::frame_text::roll_credits(
             frame,
             1,
@@ -59,8 +57,12 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
     // The sound tick with eax 0x14.
     crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
     let clock = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
-    let time = clock.wrapping_sub(RACE_VIEW.clock_base.bits());
-    RACE_VIEW.frame_time.set_bits(time);
+    let time = clock.wrapping_sub(crate::race::owner::race().shared.view.clock_base.bits());
+    crate::race::owner::race()
+        .shared
+        .view
+        .frame_time
+        .set_bits(time);
     // The measuring leaves eax the counter's low half on the 16th call, else as it was.
     let eax = { crate::race::measure_frame_rate::measure_frame_rate(course) }.unwrap_or(time);
     Ok(Shown { lost: false, eax })

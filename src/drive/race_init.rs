@@ -25,8 +25,6 @@ use crate::effects::owner::effects;
 use crate::errors::{FatalError, Refused};
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::race;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::race_steps;
 
 /// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
@@ -59,8 +57,14 @@ pub fn race_init() -> Result<(), Refused> {
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
     crate::race::best_line::build_best_line()?;
-    if race_steps::no_best_line(RACE_VARS.checkpoint_count.get()) {
-        if FRAME_SWITCHES.editor_mode.get() != 0 {
+    if race_steps::no_best_line(
+        crate::race::owner::race()
+            .shared
+            .vars
+            .checkpoint_count
+            .get(),
+    ) {
+        if crate::race::owner::race().shared.switches.editor_mode.get() != 0 {
             return Ok(());
         }
         return Err(FatalError {

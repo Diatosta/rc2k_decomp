@@ -9,13 +9,17 @@
 //! ever there: section 16).
 
 use crate::audio::mixer::*;
-use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 
 pub fn write_mix_in_game() -> Result<(), Refused> {
-    let parts = AUDIO
+    let parts = crate::audio::owner::audio()
+        .state
         .locked_parts
         .each_ref()
         .map(super::super::session::Dword::get);
-    write_mix(AUDIO.sound_mode.get(), AUDIO.primary_buffer.get(), parts)
+    write_mix(
+        crate::audio::owner::audio().state.sound_mode.get(),
+        crate::audio::owner::audio().state.primary_buffer.get(),
+        parts,
+    )
 }

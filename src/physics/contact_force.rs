@@ -36,7 +36,7 @@ use crate::physics::dot_product::dot_product;
 use crate::physics::flow::{hold_low, negate, p};
 use crate::physics::multiply_parts::multiply_parts;
 use crate::physics::scale_vector::scale_vector;
-use crate::physics::tables_store::{ForceRecord, PHYSICS};
+use crate::physics::tables_store::ForceRecord;
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
@@ -95,7 +95,7 @@ pub fn contact_force(race: &Race, record: &ForceRecord) {
     turn_by_inverse(&race.physics.contact.contact_scratch_a);
     multiply_parts(
         &race.physics.contact.contact_scratch_a,
-        &PHYSICS.inertia,
+        &crate::race::owner::race().shared.physics_tables.inertia,
         &race.physics.contact.contact_scratch_b,
     );
     turn_by_car_matrix(&race.physics.contact.contact_scratch_b);
@@ -149,7 +149,13 @@ pub fn contact_force(race: &Race, record: &ForceRecord) {
             &race.physics.contact.contact_side_speed,
         )));
     fill3(&race.physics.contact.contact_extra, 0);
-    if PHYSICS.contact_step.get() != 0 {
+    if crate::race::owner::race()
+        .shared
+        .physics_tables
+        .contact_step
+        .get()
+        != 0
+    {
         fill3(&race.physics.contact.contact_normal_push, 0);
         copy3(
             &race.physics.contact.contact_extra,
@@ -273,9 +279,17 @@ fn x87_4(physics: &Physics) {
 /// `ext [o + 0] = ([rc + 0x2D1DF8] * int [rc + 0x214148]) / int [rc + 0x21414C]`
 fn x87_5(physics: &Physics) -> [u8; 10] {
     let t0 = ld(physics.contact.contact_normal_factor.bits());
-    let t1 = int(PHYSICS.contact_step.bits() as i32);
+    let t1 = int(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .contact_step
+        .bits() as i32);
     let t2 = t0 * t1;
-    let t3 = int(PHYSICS.contact_steps.bits() as i32);
+    let t3 = int(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .contact_steps
+        .bits() as i32);
     let t4 = t2 / t3;
     f80(t4)
 }
@@ -329,15 +343,27 @@ fn x87_7(physics: &Physics) {
 /// `[d + 8] = [rc + 0x2D3158] / [rc + 0x21388C]`
 fn x87_8(physics: &Physics, d: &[Float; 3]) {
     let t0 = ld(physics.contact.contact_total[0].bits());
-    let t1 = ld(PHYSICS.step_time.bits());
+    let t1 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .step_time
+        .bits());
     let t2 = t0 / t1;
     d[0].set_bits(st(t2));
     let t3 = ld(physics.contact.contact_total[1].bits());
-    let t4 = ld(PHYSICS.step_time.bits());
+    let t4 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .step_time
+        .bits());
     let t5 = t3 / t4;
     d[1].set_bits(st(t5));
     let t6 = ld(physics.contact.contact_total[2].bits());
-    let t7 = ld(PHYSICS.step_time.bits());
+    let t7 = ld(crate::race::owner::race()
+        .shared
+        .physics_tables
+        .step_time
+        .bits());
     let t8 = t6 / t7;
     d[2].set_bits(st(t8));
 }

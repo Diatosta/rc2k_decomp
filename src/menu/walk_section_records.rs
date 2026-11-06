@@ -21,7 +21,10 @@ use rc2k_core::menu::section_walk::Step;
 
 /// The record at `index` of the current section.
 fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
-    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let table = crate::system::owner::system()
+        .records
+        .stage_tables
+        .championship();
     let section: u32 = SECTION_RVA.get();
     crate::records::find_record::find_record_in(table, index as i32, section)
 }

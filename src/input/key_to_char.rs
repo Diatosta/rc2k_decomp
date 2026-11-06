@@ -18,7 +18,6 @@
 
 use crate::errors::BadInput;
 use crate::input::layouts::{Current, layouts};
-use crate::input::store::{DEVICES, KEYBOARD};
 use crate::pointers::GamePtr;
 
 // ---- game data ----
@@ -32,7 +31,7 @@ const ALT: usize = 0x38;
 const ALT_GR: usize = 0x64;
 
 fn down(key: usize) -> bool {
-    DEVICES.keys_down.get(key) != 0
+    crate::input::owner::input().devices.keys_down.get(key) != 0
 }
 
 /// True if a keyboard layout is set.
@@ -86,17 +85,18 @@ fn typed(eax: u32, for_text: bool) -> Result<u32, BadInput> {
     let typed = keyboard::key_to_char(
         key,
         &layout.tables()?,
-        &GamePtr::to(&KEYBOARD.compose).bytes("the compose table")?,
-        &GamePtr::to(&KEYBOARD.silent_keys).bytes("the silent keys")?,
+        &GamePtr::to(&crate::input::owner::input().keyboard.compose).bytes("the compose table")?,
+        &GamePtr::to(&crate::input::owner::input().keyboard.silent_keys)
+            .bytes("the silent keys")?,
         down(LEFT_SHIFT) || down(RIGHT_SHIFT),
         down(ALT_GR),
-        DEVICES.dead_key.get(),
+        crate::input::owner::input().devices.dead_key.get(),
     )?;
     if let (Some(layout), false) = (switched, own_layout) {
         layouts.set_current(layout);
     }
     if let Some(pending) = typed.pending {
-        DEVICES.dead_key.set(pending);
+        crate::input::owner::input().devices.dead_key.set(pending);
     }
     Ok(typed.eax)
 }

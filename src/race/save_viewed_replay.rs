@@ -21,7 +21,6 @@
 use crate::errors::Refused;
 use crate::files::handle;
 use crate::race::owner_replay::Replay;
-use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::{last_race, replay_path};
 use crate::race::viewer::{TABLE_LEN, move_cells};
 
@@ -44,15 +43,21 @@ fn save(replay: &Replay, slot: u32) -> Result<bool, Refused> {
         CAMERA_DWORDS, HEADER_LEN, INDEX_HEAD_LEN, NAME_LEN, SAVED_HEADER, has_blocks, name_offset,
         next_offset,
     };
-    if !has_blocks(REPLAY_FILE.index_block_count.get()) {
+    if !has_blocks(
+        crate::race::owner::race()
+            .shared
+            .replay_file
+            .index_block_count
+            .get(),
+    ) {
         return Ok(false);
     }
-    let header = &crate::race::replay::REPLAYS.header;
+    let header = &crate::race::owner::race().shared.replays.header;
     for (k, word) in SAVED_HEADER.into_iter().enumerate() {
         header.set_u32(4 * k, word);
     }
     header.set_u32(0xC, crate::system::packed_local_time::packed_local_time());
-    let name = crate::race::replay::REPLAYS.names.read_at(
+    let name = crate::race::owner::race().shared.replays.names.read_at(
         name_offset(slot) as usize,
         NAME_LEN,
         "a replay's name",
@@ -101,7 +106,7 @@ fn save(replay: &Replay, slot: u32) -> Result<bool, Refused> {
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .to_file
             .get(),
-        &crate::race::replay::REPLAYS.header.read(),
+        &crate::race::owner::race().shared.replays.header.read(),
     )
     .1
     {
@@ -154,7 +159,13 @@ fn save(replay: &Replay, slot: u32) -> Result<bool, Refused> {
             .file_offset
             .set(next_offset(replay.replay_view.file_offset.get(), written));
         block += 1;
-        if block == REPLAY_FILE.index_block_count.get() {
+        if block
+            == crate::race::owner::race()
+                .shared
+                .replay_file
+                .index_block_count
+                .get()
+        {
             break;
         }
     }
@@ -162,7 +173,7 @@ fn save(replay: &Replay, slot: u32) -> Result<bool, Refused> {
         crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .to_file
             .get(),
-        &REPLAY_FILE.index()[..INDEX_HEAD_LEN as usize / 4],
+        &crate::race::owner::race().shared.replay_file.index()[..INDEX_HEAD_LEN as usize / 4],
     )
     .1 && handle::write_cells(
         crate::race::viewer_buffers_store::VIEWER_BUFFERS

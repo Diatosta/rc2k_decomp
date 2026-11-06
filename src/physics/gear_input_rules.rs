@@ -17,9 +17,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
-use crate::race::vars_store::RACE_VARS;
 use crate::session::Cell32;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
@@ -72,21 +69,36 @@ pub fn rules_at(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.tyre_change_state as &dyn Cell32,
-        &PHYSICS.input_gear_down,
-        &PHYSICS.input_gear_up,
-        &PHYSICS.input_throttle,
-        &PHYSICS.input_brake,
-        &PHYSICS.input_handbrake,
-        &CAR.gear,
-        &CAR.gearbox_kind,
-        &PHYSICS.input_gear_wanted,
-        &CAR.run_ticks,
-        &RACE_VARS.run_kind,
-        &PHYSICS.input_steer,
-        &CAR.go_stand_timer,
-        &CAR.started_stand_timer,
-        &CAR.finish_flag,
+        &crate::race::owner::race().shared.car.tyre_change_state as &dyn Cell32,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_gear_down,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_gear_up,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_throttle,
+        &crate::race::owner::race().shared.physics_tables.input_brake,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_handbrake,
+        &crate::race::owner::race().shared.car.gear,
+        &crate::race::owner::race().shared.car.gearbox_kind,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .input_gear_wanted,
+        &crate::race::owner::race().shared.car.run_ticks,
+        &crate::race::owner::race().shared.vars.run_kind,
+        &crate::race::owner::race().shared.physics_tables.input_steer,
+        &crate::race::owner::race().shared.car.go_stand_timer,
+        &crate::race::owner::race().shared.car.started_stand_timer,
+        &crate::race::owner::race().shared.car.finish_flag,
     ]
 }
 

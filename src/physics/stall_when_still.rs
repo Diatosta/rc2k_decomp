@@ -16,9 +16,7 @@
 //! above are the original's, for reference.
 
 use crate::math::x87_run::{abs_compare, compare_full, ext_div2};
-use crate::physics::car_store::CAR;
 use crate::physics::dot_product::dot_product;
-use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::rounded;
@@ -34,10 +32,28 @@ pub fn stall_at(course: &Course, v: &[&dyn Cell32]) {
     if compare_full(get(3), zero) & 0x4000 == 0 {
         put(7, ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)));
     }
-    if abs_compare(get(3), PHYSICS.stall_speed.bits()) & 0x100 != 0 {
+    if abs_compare(
+        get(3),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .stall_speed
+            .bits(),
+    ) & 0x100
+        != 0
+    {
         return;
     }
-    if compare_full(get(7), PHYSICS.stall_share.bits()) & 0x100 == 0 {
+    if compare_full(
+        get(7),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .stall_share
+            .bits(),
+    ) & 0x100
+        == 0
+    {
         return;
     }
     if get(8) != 0 {
@@ -50,18 +66,24 @@ pub fn stall_at(course: &Course, v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &PHYSICS.kept_motion[0] as &dyn Cell32,
-        &PHYSICS.kept_motion[1],
-        &PHYSICS.kept_motion[2],
+        &crate::race::owner::race().shared.physics_tables.kept_motion[0] as &dyn Cell32,
+        &crate::race::owner::race().shared.physics_tables.kept_motion[1],
+        &crate::race::owner::race().shared.physics_tables.kept_motion[2],
         &scene().drawing.scene.scratch,
-        &CAR.local_velocity[0],
-        &CAR.local_velocity[1],
-        &CAR.local_velocity[2],
-        &PHYSICS.stall_figure,
-        &PHYSICS.no_auto_neutral,
-        &CAR.gear,
-        &CAR.drive_speed_a,
-        &CAR.drive_speed_b,
+        &crate::race::owner::race().shared.car.local_velocity[0],
+        &crate::race::owner::race().shared.car.local_velocity[1],
+        &crate::race::owner::race().shared.car.local_velocity[2],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .stall_figure,
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .no_auto_neutral,
+        &crate::race::owner::race().shared.car.gear,
+        &crate::race::owner::race().shared.car.drive_speed_a,
+        &crate::race::owner::race().shared.car.drive_speed_b,
     ]
 }
 

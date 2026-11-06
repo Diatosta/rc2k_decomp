@@ -18,12 +18,10 @@
 //! is logged, the buffer shown by `sub_443AEC` and nothing drawn. Then, with 3D, the
 //! fan; a result other than 0 is logged as "drawtri" and the number.
 
-use crate::d3d::cards_store::CARDS_3D;
 use crate::d3d::draw_fan_unclipped::polygon;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::logfile::log_hex8::log_hex8;
 use crate::scene::owner::scene;
-use crate::session::SCREEN;
 
 // ---- game data ----
 const TEXTURES: u32 = 0x400;
@@ -67,7 +65,7 @@ pub fn submit_polygon(outside: &mut dyn Outside) {
         }
     } else {
         let texture = if texture >= TEXTURES { 0 } else { texture };
-        if texture != CARDS_3D.current_texture.get() && has_3d {
+        if texture != crate::d3d::owner::d3d().cards.current_texture.get() && has_3d {
             outside.set_texture(texture);
         }
     }
@@ -76,7 +74,11 @@ pub fn submit_polygon(outside: &mut dyn Outside) {
         // The check clears this before it looks at a vertex.
         scene.drawing.scene.scratch.set_bits(0u32);
     }
-    if !vertices_fit(&vertices, SCREEN.width.get(), SCREEN.height.get()) {
+    if !vertices_fit(
+        &vertices,
+        crate::system::owner::system().session.screen.width.get(),
+        crate::system::owner::system().session.screen.height.get(),
+    ) {
         outside.bad_vertex();
         return;
     }

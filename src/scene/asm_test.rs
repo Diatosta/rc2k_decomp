@@ -304,7 +304,7 @@ pub enum Operand {
         reads: &'static [(usize, In)],
         writes: &'static [(usize, Out)],
     },
-    /// The image's zeroed tail (`race::buffers_store::BUFFERS`), as `RaceBlock`: the places
+    /// The image's zeroed tail (`crate::race::owner::race().shared.buffers`), as `RaceBlock`: the places
     /// are RVAs; the register is the static's address less its first byte's RVA.
     Buffers {
         reads: &'static [(usize, In)],

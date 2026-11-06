@@ -22,8 +22,6 @@
 //! screens' loops and frames of the lobby too (conversion phase 3, 2026-10-24: no registers,
 //! no calls by place). DirectPlay's methods from Rust (`net::dplay`).
 
-use crate::net::store::NET;
-
 pub mod add_address_element;
 pub mod add_chat_line;
 pub mod allocate_lists;
@@ -89,6 +87,7 @@ pub mod lobby_loop;
 pub mod lock_received;
 pub mod message_frame;
 pub mod open_lobby;
+pub mod owner;
 pub mod player_found;
 pub mod post_call;
 pub mod race_over;
@@ -136,9 +135,9 @@ pub mod unlock_received;
 pub fn log_send(text: &std::ffi::CStr) {
     use crate::logfile::log_int::log_int;
     crate::logfile::log_write::log_nul(&text, false, 1);
-    log_int(NET.player.get() as i32, false, 1);
+    log_int(crate::net::owner::net().vars.player.get() as i32, false, 1);
     log_int(
-        crate::race::view_store::RACE_VIEW.local_car.get() as i32,
+        crate::race::owner::race().shared.view.local_car.get() as i32,
         true,
         1,
     );

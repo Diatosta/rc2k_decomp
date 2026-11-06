@@ -65,43 +65,47 @@ pub struct Cards3d {
     pub _tail: Bytes<8>,
 }
 
-pub static CARDS_3D: Cards3d = Cards3d {
-    _lead: Bytes::new([0; 4]),
-    secondary_card_guid: Bytes::new([0; 16]),
-    _gap_5ab4c4: Bytes::new(with_runs::<436>(&[(428, b"\x01")])),
-    d3d_device: Dword::new(0x0),
-    _gap_5ab67c: Bytes::new([0; 64]),
-    kept_states: [const { Dword::new(0xfffffc43) }; 160],
-    current_texture: Dword::new(0xfffffc43),
-    _gap_5ab940: Bytes::new(with_runs::<12>(&[(
-        0,
-        b"C\xfc\xff\xffC\xfc\xff\xffC\xfc\xff\xff",
-    )])),
-    no_search: Dword::new(0x0),
-    not_primary: Dword::new(0x0),
-    ignore_secondary: Dword::new(0x0),
-    force_dx5: Dword::new(0x0),
-    agp_mode: Dword::new(0x0),
-    in_scene: Dword::new(0x0),
-    fade_from: Dword::new(0x0),
-    _gap_5ab968: Bytes::new([0; 20]),
-    force_trans: Dword::new(0xffffffff),
-    force_shadow: Dword::new(0xffffffff),
-    force_alpha: Dword::new(0xffffffff),
-    force_fogging: Dword::new(0xffffffff),
-    mode_switches: [
-        Dword::new(0x1),
-        Dword::new(0x1),
-        Dword::new(0x1),
-        Dword::new(0x1),
-        Dword::new(0x0),
-    ],
-    fog_state: Dword::new(0x0),
-    mips: Dword::new(0x0),
-    mode_switches_end: [const { Dword::new(0x0) }; 2],
-    _gap_5ab9b0: Bytes::new(with_runs::<104>(&[(4, b"\x01")])),
-    _tail: Bytes::new([0; 8]),
-};
+impl Cards3d {
+    pub const fn new() -> Self {
+        Cards3d {
+            _lead: Bytes::new([0; 4]),
+            secondary_card_guid: Bytes::new([0; 16]),
+            _gap_5ab4c4: Bytes::new(with_runs::<436>(&[(428, b"\x01")])),
+            d3d_device: Dword::new(0x0),
+            _gap_5ab67c: Bytes::new([0; 64]),
+            kept_states: [const { Dword::new(0xfffffc43) }; 160],
+            current_texture: Dword::new(0xfffffc43),
+            _gap_5ab940: Bytes::new(with_runs::<12>(&[(
+                0,
+                b"C\xfc\xff\xffC\xfc\xff\xffC\xfc\xff\xff",
+            )])),
+            no_search: Dword::new(0x0),
+            not_primary: Dword::new(0x0),
+            ignore_secondary: Dword::new(0x0),
+            force_dx5: Dword::new(0x0),
+            agp_mode: Dword::new(0x0),
+            in_scene: Dword::new(0x0),
+            fade_from: Dword::new(0x0),
+            _gap_5ab968: Bytes::new([0; 20]),
+            force_trans: Dword::new(0xffffffff),
+            force_shadow: Dword::new(0xffffffff),
+            force_alpha: Dword::new(0xffffffff),
+            force_fogging: Dword::new(0xffffffff),
+            mode_switches: [
+                Dword::new(0x1),
+                Dword::new(0x1),
+                Dword::new(0x1),
+                Dword::new(0x1),
+                Dword::new(0x0),
+            ],
+            fog_state: Dword::new(0x0),
+            mips: Dword::new(0x0),
+            mode_switches_end: [const { Dword::new(0x0) }; 2],
+            _gap_5ab9b0: Bytes::new(with_runs::<104>(&[(4, b"\x01")])),
+            _tail: Bytes::new([0; 8]),
+        }
+    }
+}
 
 impl Cards3d {
     pub const START: usize = 0x5AB4B4;
@@ -109,7 +113,7 @@ impl Cards3d {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        (crate::pointers::game_address(&raw const CARDS_3D) + 4) as usize
+        (crate::pointers::game_address(&raw const crate::d3d::owner::D3D.cards) + 4) as usize
     }
 }
 

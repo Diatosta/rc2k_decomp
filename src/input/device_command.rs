@@ -19,14 +19,15 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::input::store::DEVICES;
-use crate::race::state_store::RACE_STATE;
 
 /// Device `n`'s record: a command names a device the table holds.
 fn device(n: usize) -> Result<&'static crate::input::types::InputDevice, crate::errors::BadInput> {
-    DEVICES.device(n).ok_or(crate::errors::BadInput(
-        "a device command for a device without a record",
-    ))
+    crate::input::owner::input()
+        .devices
+        .device(n)
+        .ok_or(crate::errors::BadInput(
+            "a device command for a device without a record",
+        ))
 }
 
 /// The command `command` (its low byte the command, the next the device; see the header).
@@ -37,26 +38,38 @@ pub fn device_command(command: u32) -> Result<(), Refused> {
         let steps = command_steps(
             command as u8,
             (command >> 8) as u8,
-            DEVICES.two_devices_one_player.get(),
+            crate::input::owner::input()
+                .devices
+                .two_devices_one_player
+                .get(),
             crate::sound::owner::sound().race.sounds.one_player.get(),
         )?;
         for step in steps {
             match step {
-                EffectsOn(on) => crate::input::store::FORCE_FEEDBACK.race_on.set(on as u32),
+                EffectsOn(on) => crate::input::owner::input()
+                    .force_feedback
+                    .race_on
+                    .set(on as u32),
                 Release(n) => crate::input::release_device::release_device(device(n)?)?,
                 Acquire(n) => crate::input::acquire_device::acquire_device(device(n)?)?,
                 EndEffects => crate::input::end_effects::end_effects()?,
                 Tick => crate::input::input_tick::input_tick()?,
                 SetUp(n) => crate::input::set_up_device::set_up_device(
                     device(n)?,
-                    &RACE_STATE.settings.cars[n],
+                    &crate::race::owner::race().shared.state.settings.cars[n],
                 )?,
                 Reading(n, on) => device(n)?.reading.set(on as u32),
                 SecondApart => {
-                    if RACE_STATE.settings.cars[0].controller.get()
-                        == RACE_STATE.settings.cars[1].controller.get()
+                    if crate::race::owner::race().shared.state.settings.cars[0]
+                        .controller
+                        .get()
+                        == crate::race::owner::race().shared.state.settings.cars[1]
+                            .controller
+                            .get()
                     {
-                        RACE_STATE.settings.cars[1].controller.set(0);
+                        crate::race::owner::race().shared.state.settings.cars[1]
+                            .controller
+                            .set(0);
                     }
                 }
                 Sleep(ms) => crate::system::sleep::sleep(ms),

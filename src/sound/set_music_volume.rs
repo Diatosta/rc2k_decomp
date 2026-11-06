@@ -9,7 +9,7 @@ pub fn set_music_volume(volume: u32) {
     // Converted: `rc2k_core::sound::senders::new_music_volume`.
     if rc2k_core::sound::senders::new_music_volume(
         volume,
-        crate::audio::store::AUDIO.music_stream.get().volume,
+        crate::audio::owner::audio().state.music_stream.get().volume,
     ) {
         send_and_wait(0xB, [0, 0, volume, 3]);
     }

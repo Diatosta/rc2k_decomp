@@ -8,8 +8,6 @@
 //! Callers: `sub_43B635` (0x43B827, 0x43B8A0), every physics step.
 
 use crate::math::x87_run::mul2_to_int;
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -25,7 +23,11 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 /// The Rust core on the variables' cells `v`: the last move.
 pub fn move_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
     let k65536: u32 = course.numbers.k65536.bits();
-    let dt: u32 = PHYSICS.step_time.bits();
+    let dt: u32 = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .step_time
+        .bits();
     let mut last = 0;
     for (motion, place) in [(0, 3), (2, 5), (1, 4)] {
         last = mul2_to_int(get(v, motion), k65536, dt) as u32;
@@ -37,12 +39,12 @@ pub fn move_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.velocity[0] as &dyn Cell32,
-        &CAR.velocity[1],
-        &CAR.velocity[2],
-        &CAR.position[0],
-        &CAR.position[1],
-        &CAR.position[2],
+        &crate::race::owner::race().shared.car.velocity[0] as &dyn Cell32,
+        &crate::race::owner::race().shared.car.velocity[1],
+        &crate::race::owner::race().shared.car.velocity[2],
+        &crate::race::owner::race().shared.car.position[0],
+        &crate::race::owner::race().shared.car.position[1],
+        &crate::race::owner::race().shared.car.position[2],
         &scene().drawing.scene.scratch,
     ]
 }

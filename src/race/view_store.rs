@@ -120,14 +120,17 @@ pub struct RaceView {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static RACE_VIEW: RaceView =
-    crate::pointers::cells_of_bytes(crate::race::blocks_store::with_block_refs(
-        crate::race::store::first_values::<{ END - START }>(START),
-        crate::race::blocks_store::VIEW_BLOCKS_IDA - START,
-        2,
-    ));
+impl RaceView {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::blocks_store::with_block_refs(
+            crate::race::store::first_values::<{ END - START }>(START),
+            crate::race::blocks_store::VIEW_BLOCKS_IDA - START,
+            2,
+        ))
+    }
+}
 
 impl RaceView {
     /// View `n`'s car block (`g_viewBlocks[n]`, kept by handle: `blocks_store::block_of`).
@@ -151,7 +154,7 @@ const _: () = assert!(END - START == core::mem::size_of::<RaceView>());
 /// Where IDA 0x63D9B8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&RACE_VIEW))
+    crate::pointers::game_address(core::ptr::from_ref(&crate::race::owner::race().shared.view))
 }
 
 #[cfg(test)]
@@ -162,14 +165,19 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         let at = crate::race::blocks_store::VIEW_BLOCKS_IDA - START;
-        crate::gfx::first_values_are_the_games_but(&RACE_VIEW, START, END, |image| {
-            for k in 0..2 {
-                let o = at + 4 * k;
-                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
-                image[o..o + 4]
-                    .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
-            }
-        });
+        crate::gfx::first_values_are_the_games_but(
+            &crate::race::owner::race().shared.view,
+            START,
+            END,
+            |image| {
+                for k in 0..2 {
+                    let o = at + 4 * k;
+                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                    image[o..o + 4]
+                        .copy_from_slice(&crate::race::blocks_store::block_ref(v).to_le_bytes());
+                }
+            },
+        );
     }
 
     #[test]

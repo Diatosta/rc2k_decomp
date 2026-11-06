@@ -21,7 +21,7 @@ use crate::errors::{BadInput, Refused};
 /// The force feedback's clock: once 40 ms have gone, the rate (a second over the gap,
 /// held to 1000 ms) kept and `input::update_effects`.
 pub fn step_effects_clock() -> Result<(), Refused> {
-    let effects = &crate::input::store::FORCE_FEEDBACK;
+    let effects = &crate::input::owner::input().force_feedback;
     let last = effects.last_time.get();
     let gap = crate::system::tick_count::tick_count().wrapping_sub(last);
     if (gap.wrapping_sub(0x28) as i32) < 0 {

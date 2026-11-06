@@ -23,7 +23,6 @@
 
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::work_store::RACE_WORK;
 use crate::scene::car_icon_number::car_icon_number;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::upload_car_icon::{CarIcon, upload_car_icon};
@@ -50,9 +49,9 @@ pub fn load_hud_car_icons(scene: &crate::scene::owner::Scene) -> Result<(), Refu
     if texture == u32::MAX {
         return Ok(());
     }
-    let player = if crate::net::store::NET.session.get() != 0 {
-        let car = car_icons::one_car(crate::net::store::NET.player.get())?;
-        let block: u32 = RACE_WORK.car_block(car);
+    let player = if crate::net::owner::net().vars.session.get() != 0 {
+        let car = car_icons::one_car(crate::net::owner::net().vars.player.get())?;
+        let block: u32 = crate::race::owner::race().shared.work.car_block(car);
         crate::race::blocks_store::block_at(block, "a car without its block")?
             .car_kind
             .bits()

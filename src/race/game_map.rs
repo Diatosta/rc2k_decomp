@@ -12,7 +12,6 @@
 //! dwords not all 0), and the map picture gives their pixels.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::files::scratch::SCRATCH;
 use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::pointers::GamePtr;
@@ -235,10 +234,16 @@ pub fn load_packed_game_map(frame: &Frame, path: GamePtr) -> Result<(), Refused>
         return Ok(());
     };
     let result = (|| -> Result<(), Refused> {
-        let (_, ok) = SCRATCH.read_from(file, 0x10, "the map's scratch buffer")?;
-        let head = SCRATCH
-            .buffer
-            .read_at(0, 0x10, "the map's scratch buffer")?;
+        let (_, ok) = crate::system::owner::system().work.files.read_from(
+            file,
+            0x10,
+            "the map's scratch buffer",
+        )?;
+        let head = crate::system::owner::system().work.files.buffer.read_at(
+            0,
+            0x10,
+            "the map's scratch buffer",
+        )?;
         if !ok || dword_in(&head, 0)? != MAGIC || dword_in(&head, 8)? != VERSION {
             return Ok(());
         }
@@ -248,13 +253,19 @@ pub fn load_packed_game_map(frame: &Frame, path: GamePtr) -> Result<(), Refused>
             return Err(BadInput("a packed map of no tiles or more than 0xFFFF").into());
         }
         take_pixels(frame, (count << 8).wrapping_mul(bytes))?;
-        let (_, ok) = SCRATCH.read_from(file, 0x8000, "the map's scratch buffer")?;
+        let (_, ok) = crate::system::owner::system().work.files.read_from(
+            file,
+            0x8000,
+            "the map's scratch buffer",
+        )?;
         if !ok {
             return Ok(());
         }
-        let words = SCRATCH
-            .buffer
-            .read_at(0, 2 * TILES as usize, "the map's tile words")?;
+        let words = crate::system::owner::system().work.files.buffer.read_at(
+            0,
+            2 * TILES as usize,
+            "the map's tile words",
+        )?;
         GAME_MAP.with(|m| {
             for (n, tile) in m.tiles.iter_mut().enumerate() {
                 let word = u16::from_le_bytes([words[2 * n], words[2 * n + 1]]) as u32;
@@ -270,16 +281,22 @@ pub fn load_packed_game_map(frame: &Frame, path: GamePtr) -> Result<(), Refused>
         while left != 0 {
             let n = left.min(0x40);
             left -= n;
-            let (got, ok) = SCRATCH.read_from(file, n * 0x300, "the map's scratch buffer")?;
+            let (got, ok) = crate::system::owner::system().work.files.read_from(
+                file,
+                n * 0x300,
+                "the map's scratch buffer",
+            )?;
             if !ok {
                 return Ok(());
             }
             if got == 0 || got % 3 != 0 {
                 return Err(BadInput("a packed map's short read, not whole pixels").into());
             }
-            let data = SCRATCH
-                .buffer
-                .read_at(0, got as usize + 1, "the map's pixels")?;
+            let data = crate::system::owner::system().work.files.buffer.read_at(
+                0,
+                got as usize + 1,
+                "the map's pixels",
+            )?;
             let mut chunk = Vec::new();
             for k in 0..got / 3 {
                 store_pixel(&mut chunk, bytes, &format, dword_in(&data, 3 * k as usize)?);

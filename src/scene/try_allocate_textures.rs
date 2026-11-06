@@ -28,7 +28,6 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 use crate::scene::texture_needs::TEXTURES;
 use crate::scene::texture_places_store::cell_at;
@@ -58,7 +57,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
         cell_at(&scene().objects.tables.level_sizes[0], level).get()
     }
     fn mips(&self) -> u32 {
-        RACE_VARS.mip_setting.bits()
+        crate::race::owner::race().shared.vars.mip_setting.bits()
     }
     fn level_mips(&self, level: u32) -> u32 {
         cell_at(&scene().objects.tables.level_mips[0], level).get()

@@ -10,10 +10,8 @@
 //! Callers: `sub_43907F` (seven).
 
 use crate::math::x87_float::{f80, int, ld};
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -28,7 +26,7 @@ type Turns = (
 
 /// The steps both versions share; `second` the second offset turned with the car.
 fn place_with(race: &Race, turns: Turns, second: &dyn Fn() -> [i32; 3]) {
-    let figures = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
+    let figures = if crate::race::owner::race().shared.vars.split.get() == SECOND_RECORD_MODE {
         &race.course.lights_data.place_second
     } else {
         &race.course.lights_data.place_usual
@@ -60,14 +58,14 @@ fn place_with(race: &Race, turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     );
     for (y_turn, z_turn, x_turn) in [
         (
-            &CAR.camera_offset_turns[2],
-            &CAR.camera_offset_turns[0],
-            &CAR.camera_offset_turns[1],
+            &crate::race::owner::race().shared.car.camera_offset_turns[2],
+            &crate::race::owner::race().shared.car.camera_offset_turns[0],
+            &crate::race::owner::race().shared.car.camera_offset_turns[1],
         ),
         (
-            &CAR.camera_roll_turn,
-            &CAR.camera_pitch,
-            &CAR.camera_heading,
+            &crate::race::owner::race().shared.car.camera_roll_turn,
+            &crate::race::owner::race().shared.car.camera_pitch,
+            &crate::race::owner::race().shared.car.camera_heading,
         ),
     ] {
         let i = |v: u32| v as i32;
@@ -81,9 +79,9 @@ fn place_with(race: &Race, turns: Turns, second: &dyn Fn() -> [i32; 3]) {
         x = new_x;
         z = new_z;
     }
-    CAR.camera_position[0].set(x);
-    CAR.camera_position[1].set(y);
-    CAR.camera_position[2].set(z);
+    crate::race::owner::race().shared.car.camera_position[0].set(x);
+    crate::race::owner::race().shared.car.camera_position[1].set(y);
+    crate::race::owner::race().shared.car.camera_position[2].set(z);
     // 0x438F14: the second offset, turned with the car.
     let whole = second();
     scene().drawing.scene.scratch.set(whole[2] as u32);
@@ -93,14 +91,14 @@ fn place_with(race: &Race, turns: Turns, second: &dyn Fn() -> [i32; 3]) {
         race.frame.frame_work.camera_car[2].get(),
     ];
     let place = [
-        CAR.camera_position[0].get(),
-        CAR.camera_position[1].get(),
-        CAR.camera_position[2].get(),
+        crate::race::owner::race().shared.car.camera_position[0].get(),
+        crate::race::owner::race().shared.car.camera_position[1].get(),
+        crate::race::owner::race().shared.car.camera_position[2].get(),
     ];
     let (_, place) = add_offset(place, whole, car);
-    CAR.camera_position[0].set(place[0]);
-    CAR.camera_position[1].set(place[1]);
-    CAR.camera_position[2].set(place[2]);
+    crate::race::owner::race().shared.car.camera_position[0].set(place[0]);
+    crate::race::owner::race().shared.car.camera_position[1].set(place[1]);
+    crate::race::owner::race().shared.car.camera_position[2].set(place[2]);
 }
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
@@ -113,7 +111,12 @@ pub fn place_camera(race: &Race) {
             &race.physics.camera.view_turn_z,
         ];
         let parts = turns.map(view_turn_part);
-        let turned = { crate::scene::rotate_point::rotate_point(&CAR.crash_matrix, parts) };
+        let turned = {
+            crate::scene::rotate_point::rotate_point(
+                &crate::race::owner::race().shared.car.crash_matrix,
+                parts,
+            )
+        };
         let k = race.course.numbers.k65536.bits();
         turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
     };

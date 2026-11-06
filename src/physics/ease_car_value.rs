@@ -11,20 +11,22 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::physics::car_store::CAR;
 use crate::physics::cells::set_changed;
-use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::easing::ease_value;
 
 /// The Rust version.
 pub fn ease_car_value() {
-    let was = CAR.eased_value.get();
+    let was = crate::race::owner::race().shared.car.eased_value.get();
     let mut value = was;
     ease_value(
-        RACE_VARS.scene_switch.get(),
-        CAR.value_jump_steps.get(),
-        CAR.eased_target.get(),
+        crate::race::owner::race().shared.vars.scene_switch.get(),
+        crate::race::owner::race().shared.car.value_jump_steps.get(),
+        crate::race::owner::race().shared.car.eased_target.get(),
         &mut value,
     );
-    set_changed(&CAR.eased_value, was, value);
+    set_changed(
+        &crate::race::owner::race().shared.car.eased_value,
+        was,
+        value,
+    );
 }

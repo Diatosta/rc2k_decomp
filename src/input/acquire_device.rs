@@ -30,11 +30,8 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::input::devices::Deferred;
 use crate::input::di_harness::{entry_of, fatal};
-use crate::input::guids::INPUT_GUIDS;
-use crate::input::store::DEVICES;
 use crate::input::types::{DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D};
 use crate::session::Dword;
-use crate::session::MACHINE;
 use rc2k_core::input::acquire::{
     Acquire, HAS_DEVICE, acquire, axis_offset, dead_zone_value, saturation, two_axes,
 };
@@ -75,12 +72,12 @@ fn settings(record: &D) -> Result<(), BadInput> {
     ];
     let [k, code, strength, dead, end, pick] = fields.map(Dword::get);
     let config = Config {
-        kind: DEVICES.joy_mode.get(),
-        axis_code: DEVICES.joy_code.get(),
-        dead_zone: DEVICES.joy_dead_zone.get(),
-        end_zone: DEVICES.joy_end_zone.get(),
-        axis_pick: DEVICES.alt_axes_code.get(),
-        strength: DEVICES.ff_gain.get(),
+        kind: crate::input::owner::input().devices.joy_mode.get(),
+        axis_code: crate::input::owner::input().devices.joy_code.get(),
+        dead_zone: crate::input::owner::input().devices.joy_dead_zone.get(),
+        end_zone: crate::input::owner::input().devices.joy_end_zone.get(),
+        axis_pick: crate::input::owner::input().devices.alt_axes_code.get(),
+        strength: crate::input::owner::input().devices.ff_gain.get(),
     };
     let late = Deferred::default();
     let s = settings(
@@ -186,7 +183,7 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
     let late = Deferred::default();
     let step = acquire(
         record.controller.get(),
-        DEVICES.controller_count.get(),
+        crate::input::owner::input().devices.controller_count.get(),
         || late.get(entry_of(record).map(|c| c.attached.get())),
         || record.device.get(),
     );
@@ -198,23 +195,38 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
     }
     settings(record)?;
     let instance: [u8; 16] = entry_of(record)?.instance.read();
-    let made = crate::input::di_objects::create_device(DEVICES.direct_input.get(), &instance);
+    let made = crate::input::di_objects::create_device(
+        crate::input::owner::input().devices.direct_input.get(),
+        &instance,
+    );
     if crate::input::di_objects::store(&record.device, made) != 0 {
         return Err(NO_OBJECT.into());
     }
     let device = record.device.get();
-    let made = crate::input::di_objects::query_interface(device, &INPUT_GUIDS.device2.read());
-    if crate::input::di_objects::store(&DEVICES.new_joystick2, made) != 0 {
+    let made = crate::input::di_objects::query_interface(
+        device,
+        &crate::input::owner::input().guids.device2.read(),
+    );
+    if crate::input::di_objects::store(&crate::input::owner::input().devices.new_joystick2, made)
+        != 0
+    {
         return Err(fatal(0x8023_8318).into());
     }
     crate::input::di_objects::release(device);
-    record.device.set(DEVICES.new_joystick2.get());
-    DEVICES.new_joystick2.set(0);
+    record
+        .device
+        .set(crate::input::owner::input().devices.new_joystick2.get());
+    crate::input::owner::input().devices.new_joystick2.set(0);
     let device = record.device.get();
     if crate::input::di_objects::set_data_format(device) != 0 {
         return Err(fatal(0x8023_8312).into());
     }
-    if crate::input::di_objects::set_cooperative_level(device, MACHINE.window.get(), 5) != 0 {
+    if crate::input::di_objects::set_cooperative_level(
+        device,
+        crate::system::owner::system().session.machine.window.get(),
+        5,
+    ) != 0
+    {
         return Err(fatal(0x8023_8313).into());
     }
     properties(record);

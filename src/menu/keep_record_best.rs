@@ -16,7 +16,10 @@ use crate::records::stages_store::{Holder, RecordRef};
 
 /// The current record (`g_recordTable`, `section`, `index`), refused past the table.
 fn current_record() -> Result<RecordRef, BadInput> {
-    let table = crate::records::stages_store::STAGE_TABLES.championship();
+    let table = crate::system::owner::system()
+        .records
+        .stage_tables
+        .championship();
     let section: u32 = SECTION_RVA.get();
     let index: u32 = INDEX_RVA.get();
     if section >= 64

@@ -16,7 +16,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
@@ -49,7 +48,7 @@ pub fn lowest_at(course: &Course, v: &[&dyn Cell32]) -> Result<(), Refused> {
 /// The addresses: the count, the lowest, its number, the share, then the 0x40 depths.
 fn game(physics: &Physics) -> Vec<&dyn Cell32> {
     let mut v = vec![
-        &CAR.probe_count as &dyn Cell32,
+        &crate::race::owner::race().shared.car.probe_count as &dyn Cell32,
         &physics.contact.lowest_depth,
         &physics.contact.lowest_point,
         &physics.contact.wheel_share,

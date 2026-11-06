@@ -13,7 +13,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::splits::put_split_time;
 use crate::race::owner::Race;
@@ -22,24 +21,46 @@ use rc2k_core::physics::progress::{FINISH_NOTICE, finished_at, split_due};
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
 pub fn take_split(race: &Race) -> Result<(), Refused> {
-    if CAR.finish_flag.get() != 0 {
+    if crate::race::owner::race().shared.car.finish_flag.get() != 0 {
         return Ok(());
     }
-    if !split_due(CAR.splits_recorded.get(), CAR.splits_passed.get())? {
+    if !split_due(
+        crate::race::owner::race().shared.car.splits_recorded.get(),
+        crate::race::owner::race().shared.car.splits_passed.get(),
+    )? {
         return Ok(());
     }
     split_by_mode(race)?;
-    put_split_time(CAR.splits_recorded.get() as usize, CAR.split_gaps[0].get())?;
-    CAR.splits_recorded.set(CAR.splits_passed.get());
+    put_split_time(
+        crate::race::owner::race().shared.car.splits_recorded.get() as usize,
+        crate::race::owner::race().shared.car.split_gaps[0].get(),
+    )?;
+    crate::race::owner::race()
+        .shared
+        .car
+        .splits_recorded
+        .set(crate::race::owner::race().shared.car.splits_passed.get());
     if finished_at(
-        CAR.splits_recorded.get(),
+        crate::race::owner::race().shared.car.splits_recorded.get(),
         race.physics.split_tables.split_colour_count.get(),
     ) {
-        CAR.finish_flag.set(1);
-        CAR.started_stand_timer.set(0);
-        CAR.notice_id.set(FINISH_NOTICE);
-        CAR.notice_time.set(u32::MAX);
-        CAR.notice_time_b.set(0);
+        crate::race::owner::race().shared.car.finish_flag.set(1);
+        crate::race::owner::race()
+            .shared
+            .car
+            .started_stand_timer
+            .set(0);
+        crate::race::owner::race()
+            .shared
+            .car
+            .notice_id
+            .set(FINISH_NOTICE);
+        crate::race::owner::race()
+            .shared
+            .car
+            .notice_time
+            .set(u32::MAX);
+        crate::race::owner::race().shared.car.notice_time_b.set(0);
     }
     Ok(())
 }

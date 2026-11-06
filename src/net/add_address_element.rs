@@ -13,7 +13,6 @@
 //! (`unk_52AC48`, which held pointers to the data) is no longer written.
 
 use crate::net::dp_objects::Element;
-use crate::net::store::NET;
 use crate::session::Bytes;
 use std::sync::Mutex;
 
@@ -22,7 +21,10 @@ static ELEMENTS: Mutex<Vec<Element>> = Mutex::new(Vec::new());
 
 /// The Rust version: the element of type `data_type` with `data`.
 pub fn add_address_element(data_type: &Bytes<16>, data: &[u8]) {
-    NET.elements.set(NET.elements.get().wrapping_add(1));
+    crate::net::owner::net()
+        .vars
+        .elements
+        .set(crate::net::owner::net().vars.elements.get().wrapping_add(1));
     ELEMENTS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -31,7 +33,7 @@ pub fn add_address_element(data_type: &Bytes<16>, data: &[u8]) {
 
 /// No elements (the count 0).
 pub fn clear() {
-    NET.elements.set(0);
+    crate::net::owner::net().vars.elements.set(0);
     ELEMENTS
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)

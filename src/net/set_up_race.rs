@@ -15,11 +15,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, log_int_nl};
-use crate::net::store::NET;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 use rc2k_core::net::record;
 
 const RULE: &std::ffi::CStr = c"------------------------"; // "------------------------"
@@ -41,8 +37,8 @@ const COUNTS: [(&std::ffi::CStr, Count); 11] = [
     (c"[shauncarnum8]", Count::Kind(7)),
 ];
 
-/// A count logged: `RACE_VIEW`'s car and player counts, this machine's player (`NET.player`), or
-/// a car's kind (`RACE_VARS.race_car_kinds`).
+/// A count logged: `crate::race::owner::race().shared.view`'s car and player counts, this machine's player (`crate::net::owner::net().vars.player`), or
+/// a car's kind (`crate::race::owner::race().shared.vars.race_car_kinds`).
 #[derive(Clone, Copy)]
 enum Count {
     RaceCars,
@@ -54,12 +50,16 @@ enum Count {
 /// The Rust version.
 pub fn set_up_race() -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
-    let players = record::race_players(NET.players.get())?;
-    RACE_VIEW.local_car.set(NET.player.get());
+    let players = record::race_players(crate::net::owner::net().vars.players.get())?;
+    crate::race::owner::race()
+        .shared
+        .view
+        .local_car
+        .set(crate::net::owner::net().vars.player.get());
     for n in 0..players {
-        let record = &NET.player_block(n).record;
+        let record = &crate::net::owner::net().vars.player_block(n).record;
         let seat = record::seat(|n| record.head.get(n));
-        let v = &RACE_VARS;
+        let v = &crate::race::owner::race().shared.vars;
         v.race_car_kinds[n as usize].set(seat.car);
         v.car_colours[n as usize].set(seat.colours);
         v.start_numbers[n as usize].set(seat.race_number);
@@ -68,18 +68,32 @@ pub fn set_up_race() -> Result<(), Refused> {
             v.direction.set(direction);
         }
     }
-    RACE_VARS.run_kind.set(0);
-    RACE_VIEW.race_cars.set(players);
-    RACE_VIEW.players.set(1);
-    FRAME_SWITCHES.editor_mode.set(0);
+    crate::race::owner::race().shared.vars.run_kind.set(0);
+    crate::race::owner::race()
+        .shared
+        .view
+        .race_cars
+        .set(players);
+    crate::race::owner::race().shared.view.players.set(1);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .editor_mode
+        .set(0);
     crate::net::reset_cars::reset_cars()?;
     crate::race::race_cars::set_up_arcade_cars()?;
     crate::race::race_shell::set_start_states()?;
     // Each stored block's gearbox kind and start slot value, from the race's tables.
-    for (car, colours) in CAR_BLOCKS.cars[..8].iter().zip(&RACE_VARS.car_colours) {
+    for (car, colours) in CAR_BLOCKS.cars[..8]
+        .iter()
+        .zip(&crate::race::owner::race().shared.vars.car_colours)
+    {
         car.gearbox_kind.set(colours.get());
     }
-    for (car, number) in CAR_BLOCKS.cars[..8].iter().zip(&RACE_VARS.start_numbers) {
+    for (car, number) in CAR_BLOCKS.cars[..8]
+        .iter()
+        .zip(&crate::race::owner::race().shared.vars.start_numbers)
+    {
         car.start_slot_value.set(number.get());
     }
     log_bytes(RULE.to_bytes(), true, 1);
@@ -87,10 +101,10 @@ pub fn set_up_race() -> Result<(), Refused> {
     for (label, value) in COUNTS {
         log_bytes(label.to_bytes(), false, 1);
         let value = match value {
-            Count::RaceCars => RACE_VIEW.race_cars.get(),
-            Count::Players => RACE_VIEW.players.get(),
-            Count::LocalPlayer => NET.player.get(),
-            Count::Kind(n) => RACE_VARS.race_car_kinds[n].get(),
+            Count::RaceCars => crate::race::owner::race().shared.view.race_cars.get(),
+            Count::Players => crate::race::owner::race().shared.view.players.get(),
+            Count::LocalPlayer => crate::net::owner::net().vars.player.get(),
+            Count::Kind(n) => crate::race::owner::race().shared.vars.race_car_kinds[n].get(),
         };
         log_int_nl(value, 1);
     }

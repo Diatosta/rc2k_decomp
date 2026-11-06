@@ -32,7 +32,7 @@ use crate::service::{
     step_tyre_down, step_tyre_up, toggle_gear_ratio_change, toggle_ride_height_change,
     toggle_suspension_stiffness_change, toggle_tyre_change,
 };
-use crate::session::{CLOCKS, Dword};
+use crate::session::Dword;
 use rc2k_core::menu::player::SetupField;
 
 pub const KEY_CONFIRM: u8 = 0x1C;
@@ -118,7 +118,9 @@ fn key_and_step(play: &Play, down: Stepper, up: Stepper) -> Result<u8, Refused> 
     if action == PageKey::None {
         return Ok(0);
     }
-    play.champ_view.last_key_time.set(CLOCKS.frame.get());
+    play.champ_view
+        .last_key_time
+        .set(crate::system::owner::system().session.clocks.frame.get());
     match action {
         PageKey::Down => {
             step(down)?;

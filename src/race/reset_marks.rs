@@ -11,7 +11,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner_replay::Replay;
-use crate::race::replay_file_store::REPLAY_FILE;
 
 /// The Rust version.
 pub fn reset_marks(replay: &Replay) -> Result<(), Refused> {
@@ -19,7 +18,11 @@ pub fn reset_marks(replay: &Replay) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::viewer::reset_marks`.
         let (block, mark_in, mark_out) = rc2k_core::race::viewer::reset_marks(
             replay.replay_view.replay_block.get(),
-            REPLAY_FILE.index_block_count.get(),
+            crate::race::owner::race()
+                .shared
+                .replay_file
+                .index_block_count
+                .get(),
         );
         replay.replay_view.replay_block.set(block);
         crate::race::viewer_buffers_store::VIEWER_BUFFERS

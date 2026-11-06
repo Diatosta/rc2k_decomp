@@ -22,7 +22,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
 use rc2k_core::physics::walls;
 
@@ -35,8 +34,12 @@ fn word(face: u32) -> Result<u32, Refused> {
 }
 
 fn after(race: &Race) -> Result<(), Refused> {
-    CAR.contact_flag.set(1);
-    CAR.wall_hit_timer.set(0x32);
+    crate::race::owner::race().shared.car.contact_flag.set(1);
+    crate::race::owner::race()
+        .shared
+        .car
+        .wall_hit_timer
+        .set(0x32);
     { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
     crate::physics::feel_ground::feel_ground(race)
 }
@@ -46,37 +49,47 @@ fn after(race: &Race) -> Result<(), Refused> {
 // Converted: `rc2k_core::physics::walls::walk`.
 pub fn steps(race: &Race) -> Result<(), Refused> {
     let physics_store = &race.physics;
-    let walked = walls::walk(CAR.probe_count.get(), |k| {
-        let k = k as usize;
-        let now = CAR.probe_point_face[k].get();
-        physics_store.contact.wall_face_now.set(now);
-        let now_word = word(now)?;
-        let before = physics_store.contact.probe_saved_faces[k].get();
-        let before_word = if now != before {
-            physics_store.contact.wall_face_before.set(before);
-            Some(word(before)?)
-        } else {
-            None
-        };
-        Ok::<_, Refused>(walls::ProbeFaces {
-            now_word,
-            before_word,
-        })
-    })?;
+    let walked = walls::walk(
+        crate::race::owner::race().shared.car.probe_count.get(),
+        |k| {
+            let k = k as usize;
+            let now = crate::race::owner::race().shared.car.probe_point_face[k].get();
+            physics_store.contact.wall_face_now.set(now);
+            let now_word = word(now)?;
+            let before = physics_store.contact.probe_saved_faces[k].get();
+            let before_word = if now != before {
+                physics_store.contact.wall_face_before.set(before);
+                Some(word(before)?)
+            } else {
+                None
+            };
+            Ok::<_, Refused>(walls::ProbeFaces {
+                now_word,
+                before_word,
+            })
+        },
+    )?;
     match walked {
         walls::Walk::Met { probe, .. } => {
             // 0x45D83E: a wall met.
             let k = probe as usize;
             physics_store.contact.probe_index.set(probe);
-            CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
-            CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
-            CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
+            crate::race::owner::race().shared.car.contact_point[0]
+                .set_bits(crate::race::owner::race().shared.car.probe_point_x[k].bits());
+            crate::race::owner::race().shared.car.contact_point[1]
+                .set_bits(crate::race::owner::race().shared.car.probe_point_y[k].bits());
+            crate::race::owner::race().shared.car.contact_point[2]
+                .set_bits(crate::race::owner::race().shared.car.probe_point_z[k].bits());
             crate::physics::wall_edge_contact::steps(race)?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
                 f32::from_bits(physics_store.contact.contact_speed_length.bits()),
-                f32::from_bits(CAR.contact_depth.bits()),
+                f32::from_bits(crate::race::owner::race().shared.car.contact_depth.bits()),
             ) {
-                CAR.contact_depth.set_bits(hit.to_bits());
+                crate::race::owner::race()
+                    .shared
+                    .car
+                    .contact_depth
+                    .set_bits(hit.to_bits());
             }
             after(race)
         }
@@ -89,9 +102,12 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
             if bits != walls::WALL_BITS {
                 return Ok(());
             }
-            CAR.contact_point[0].set_bits(crate::physics::car_store::CAR.local_velocity[0].bits());
-            CAR.contact_point[1].set_bits(crate::physics::car_store::CAR.local_velocity[1].bits());
-            CAR.contact_point[2].set_bits(crate::physics::car_store::CAR.local_velocity[2].bits());
+            crate::race::owner::race().shared.car.contact_point[0]
+                .set_bits(crate::race::owner::race().shared.car.local_velocity[0].bits());
+            crate::race::owner::race().shared.car.contact_point[1]
+                .set_bits(crate::race::owner::race().shared.car.local_velocity[1].bits());
+            crate::race::owner::race().shared.car.contact_point[2]
+                .set_bits(crate::race::owner::race().shared.car.local_velocity[2].bits());
             crate::physics::wall_push_back::steps(race)?;
             after(race)
         }
@@ -100,7 +116,9 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
 
 /// The probe count checked: 0 or past 0x40 refused.
 pub fn check() -> Result<(), Refused> {
-    Ok(walls::check_probe_count(CAR.probe_count.get())?)
+    Ok(walls::check_probe_count(
+        crate::race::owner::race().shared.car.probe_count.get(),
+    )?)
 }
 
 /// The Rust version.

@@ -18,7 +18,6 @@
 //! `set_mode` is called by the game's address (not ported). Refuses a read place past the
 //! queue.
 
-use crate::audio::store::{AUDIO, COMMANDS};
 use crate::errors::{BadInput, Refused};
 use std::sync::atomic::Ordering;
 
@@ -30,25 +29,32 @@ pub fn take_commands() -> Result<(), Refused> {
     use crate::audio::stream_commands::{music_command, stream_command};
     use rc2k_core::audio::commands::{Command, SoundList, decode, next_place};
     loop {
-        if AUDIO.command_count.get() == 0 {
+        if crate::audio::owner::audio().state.command_count.get() == 0 {
             return Ok(());
         }
-        let place = AUDIO.command_read.get();
-        let Some(command) = COMMANDS.records.get(place as usize) else {
+        let place = crate::audio::owner::audio().state.command_read.get();
+        let Some(command) = crate::audio::owner::audio()
+            .commands
+            .records
+            .get(place as usize)
+        else {
             return Err(BadInput("a command read place past the queue").into());
         };
         let record = command.get();
         let command = decode(&record);
         match command {
             Command::Start(sound) => crate::audio::start_voice::start_voice(sound, &record)?,
-            Command::Room(room) => AUDIO.eax_room.set(room),
+            Command::Room(room) => crate::audio::owner::audio().state.eax_room.set(room),
             Command::Load(list) => {
-                AUDIO.sound_list_loaded.set(list.map_or(0, SoundList::word));
+                crate::audio::owner::audio()
+                    .state
+                    .sound_list_loaded
+                    .set(list.map_or(0, SoundList::word));
                 crate::audio::load_sounds::load_sounds(list)?;
             }
             Command::Free => {
                 crate::audio::free_voices::free_voices()?;
-                AUDIO.sound_list_loaded.set(0);
+                crate::audio::owner::audio().state.sound_list_loaded.set(0);
             }
             Command::Mode(mode) => {
                 crate::audio::set_mode::set_mode(mode)?;
@@ -73,8 +79,15 @@ pub fn take_commands() -> Result<(), Refused> {
             } => music_command(tune, next, volume as i32, action)?,
             Command::EndOfTurn | Command::Other(_) => {}
         }
-        AUDIO.command_count.atomic().fetch_sub(1, Ordering::SeqCst);
-        AUDIO.command_read.set(next_place(place));
+        crate::audio::owner::audio()
+            .state
+            .command_count
+            .atomic()
+            .fetch_sub(1, Ordering::SeqCst);
+        crate::audio::owner::audio()
+            .state
+            .command_read
+            .set(next_place(place));
         if command == Command::EndOfTurn {
             return Ok(());
         }

@@ -8,7 +8,6 @@ use crate::gfx::owner::gfx;
 use crate::memory::{MemoryList, own_heap};
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::race::vars_store::RACE_VARS;
 
 /// One of the freeing functions: its list (where it is, found when it runs: the statics
 /// deref at run time), whether it counts, the pointers it clears.
@@ -91,7 +90,7 @@ pub const MUD: Freeing = Freeing {
     list: || crate::pointers::GamePtr::to(&race().course.lists.mud_list),
     counted: true,
     // g_mud
-    cleared: &[|| RACE_VARS.mud.set(0)],
+    cleared: &[|| crate::race::owner::RACE.shared.vars.mud.set(0)],
     given_back: || crate::race::mud::MUD.give_back(),
 };
 /// `race::free_game_fonts` (0x41B2BC; `pusha` / `popa`, not counted).

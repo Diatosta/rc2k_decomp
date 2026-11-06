@@ -106,7 +106,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x93E030, // dst: the numbers' text
         len: crate::logfile::numeric::SCRATCH_LEN,
-        home: Home::Store(&crate::logfile::numeric::SCRATCH),
+        home: Home::Store(&crate::system::owner::SYSTEM.work.numbers),
     },
     Moved {
         ida: 0x4E073A, // g_freeSpaceKb
@@ -123,7 +123,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x51839F, // byte_51839F, dword_5183A0, dword_5183A4
         len: crate::system::keep_start_time::KEPT_LEN,
-        home: Home::Store(&crate::system::keep_start_time::KEPT),
+        home: Home::Store(&crate::system::owner::SYSTEM.start.kept),
     },
     // strings
     Moved {
@@ -149,7 +149,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4E0798, // g_localeFile (g_noticeKind at +8)
         len: crate::strings::load_language::LOCALE_LEN,
-        home: Home::Store(&crate::strings::load_language::LOCALE),
+        home: Home::Store(&crate::strings::owner::STRINGS.language.locale),
     },
     Moved {
         ida: 0x4E07F8, // g_lexicon
@@ -164,12 +164,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F0CC8, // g_plainLetters
         len: 0x100,
-        home: Home::Store(&crate::strings::load_language::PLAIN_LETTERS),
+        home: Home::Store(&crate::strings::owner::STRINGS.language.plain_letters),
     },
     Moved {
         ida: 0x4F3034, // the record the empty messages share
         len: crate::strings::compile_lexicon::EMPTY_MESSAGE_LEN,
-        home: Home::Store(&crate::strings::compile_lexicon::EMPTY_MESSAGE),
+        home: Home::Store(&crate::strings::owner::STRINGS.lexicon.empty_message),
     },
     Moved {
         ida: 0x51DE2C, // g_isImperialUnits
@@ -179,7 +179,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x94EAB4, // dword_94EAB4: the lexicon compiler's work variables
         len: crate::strings::compile_lexicon::WORK_LEN,
-        home: Home::Store(&crate::strings::compile_lexicon::WORK),
+        home: Home::Store(&crate::strings::owner::STRINGS.lexicon.work),
     },
     // memory (the allocator's figures and own heap, `memory::state`)
     Moved {
@@ -221,12 +221,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x529DA5, // aName000: the driver names' key, made in place
         len: 8,
-        home: Home::Store(&crate::settings::read_driver_names::KEY),
+        home: Home::Store(&crate::strings::owner::STRINGS.drivers.key),
     },
     Moved {
         ida: 0x95ECF8, // dword_95ECF8 (a pointer a driver) and unk_95EFC8 (the names' pool), up to 0x960000
         len: 0x1308,
-        home: Home::Store(&crate::settings::read_driver_names::NAMES),
+        home: Home::Store(&crate::strings::owner::STRINGS.drivers.names),
     },
     Moved {
         ida: 0x5184F4, // the thread slots: input, audio, network, shutdown
@@ -242,7 +242,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x4F3F74, // g_fontBlendMode (a `var\ral.cfg` setting, `textflashmode`)
         len: 4,
-        home: Home::Store(&crate::text::blend_font::BLEND_MODE),
+        home: Home::Store(&crate::strings::owner::STRINGS.text.blend_mode),
     },
     Moved {
         ida: 0x51E384, // g_blendedFont
@@ -341,7 +341,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::strings::compile_lexicon::MEMORY_START, // The lexicon's memory (kilobytes, the list)
         len: crate::strings::compile_lexicon::MEMORY_LEN,
-        home: Home::Store(&crate::strings::compile_lexicon::LEXICON),
+        home: Home::Store(&crate::strings::owner::STRINGS.lexicon.memory),
     },
     Moved {
         ida: crate::gfx::build_glyphs::START, // The sheet builder's variables (sheet table, built table, glyph counts)
@@ -479,12 +479,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::net::store::NetVars::START, // NetVars
         len: crate::net::store::NetVars::LEN,
-        home: Home::Store(&crate::net::store::NET),
+        home: Home::Store(&crate::net::owner::NET_OWNER.vars),
     },
     Moved {
         ida: crate::net::store::Button::START, // Button
         len: crate::net::store::Button::LEN,
-        home: Home::Store(&crate::net::store::BUTTON),
+        home: Home::Store(&crate::net::owner::NET_OWNER.button),
     },
     Moved {
         ida: crate::gfx::typefaces::START, // The fonts (63 font objects)
@@ -499,12 +499,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::service::read_setup_slot::START, // The set-ups' file head and names
         len: crate::service::read_setup_slot::LEN,
-        home: Home::Store(&crate::service::read_setup_slot::SET_UPS),
+        home: Home::Store(&crate::service::owner::SERVICE.set_ups),
     },
     Moved {
         ida: crate::race::replay::START, // The replays' header and names
         len: crate::race::replay::LEN,
-        home: Home::Store(&crate::race::replay::REPLAYS),
+        home: Home::Store(&crate::race::owner::RACE.shared.replays),
     },
     Moved {
         ida: crate::install::installer::TEXTS_START, // The installer's texts
@@ -524,7 +524,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::service::read_setup_slot::TEMPLATE_START, // The set-up file name's template
         len: 27,
-        home: Home::Store(&crate::service::read_setup_slot::TEMPLATE),
+        home: Home::Store(&crate::service::owner::SERVICE.template),
     },
     Moved {
         ida: crate::race::find_snapshot_number::SNAPSHOT_START, // The snapshot picture's name
@@ -595,38 +595,38 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::session::SCREEN_IDA,
         len: crate::session::SCREEN_LEN,
-        home: Home::Store(&crate::session::SCREEN),
+        home: Home::Store(&crate::system::owner::SYSTEM.session.screen),
     },
     Moved {
         ida: crate::session::FLAGS_IDA,
         len: crate::session::FLAGS_LEN,
-        home: Home::Store(&crate::session::FLAGS),
+        home: Home::Store(&crate::system::owner::SYSTEM.session.flags),
     },
     Moved {
         ida: crate::session::MACHINE_IDA,
         len: crate::session::MACHINE_LEN,
-        home: Home::Store(&crate::session::MACHINE),
+        home: Home::Store(&crate::system::owner::SYSTEM.session.machine),
     },
     Moved {
         ida: crate::session::CLOCKS_IDA,
         len: crate::session::CLOCKS_LEN,
-        home: Home::Store(&crate::session::CLOCKS),
+        home: Home::Store(&crate::system::owner::SYSTEM.session.clocks),
     },
     // audio: the audio thread's variables and the sample records (`audio::store`)
     Moved {
         ida: crate::audio::store::STATE_IDA,
         len: crate::audio::store::STATE_END - crate::audio::store::STATE_IDA,
-        home: Home::Store(&crate::audio::store::AUDIO),
+        home: Home::Store(&crate::audio::owner::AUDIO_OWNER.state),
     },
     Moved {
         ida: crate::audio::store::SAMPLES_IDA,
         len: crate::audio::store::SAMPLES_END - crate::audio::store::SAMPLES_IDA,
-        home: Home::Store(&crate::audio::store::SAMPLE_RECORDS),
+        home: Home::Store(&crate::audio::owner::AUDIO_OWNER.sample_records),
     },
     Moved {
         ida: crate::audio::store::QUEUE_IDA,
         len: crate::audio::store::QUEUE_END - crate::audio::store::QUEUE_IDA,
-        home: Home::Store(&crate::audio::store::COMMANDS),
+        home: Home::Store(&crate::audio::owner::AUDIO_OWNER.commands),
     },
     Moved {
         ida: 0x6D1DD4, // g_eaxEnvironment
@@ -682,7 +682,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::input::store::ForceFeedback::START, // The force-feedback effects' clock, surface kinds and constants
         len: crate::input::store::ForceFeedback::LEN,
-        home: Home::Store(&crate::input::store::FORCE_FEEDBACK),
+        home: Home::Store(&crate::input::owner::INPUT.force_feedback),
     },
     Moved {
         ida: crate::sound::store::SoundOptions::START, // The kept sound options
@@ -698,17 +698,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::input::store::DEVICES_IDA,
         len: crate::input::store::DEVICES_LEN,
-        home: Home::Store(&crate::input::store::DEVICES),
+        home: Home::Store(&crate::input::owner::INPUT.devices),
     },
     Moved {
         ida: crate::input::store::KEYBOARD_IDA,
         len: crate::input::store::KEYBOARD_LEN,
-        home: Home::Store(&crate::input::store::KEYBOARD),
+        home: Home::Store(&crate::input::owner::INPUT.keyboard),
     },
     Moved {
         ida: crate::input::store::MOUSE_IDA,
         len: crate::input::store::MOUSE_LEN,
-        home: Home::Store(&crate::input::store::MOUSE),
+        home: Home::Store(&crate::input::owner::INPUT.mouse),
     },
     Moved {
         ida: 0x511B0C, // g_nextMenuSoundTime
@@ -739,7 +739,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::screens::controls_store::START,
         len: crate::screens::controls_store::END - crate::screens::controls_store::START,
-        home: Home::Store(&crate::screens::controls_store::CONTROLS_SCREEN),
+        home: Home::Store(&crate::screens::owner::SCREENS_OWNER.controls),
     },
     Moved {
         ida: crate::menu::players_store::START,
@@ -836,7 +836,7 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::records::stages_store::START,
         len: crate::records::stages_store::END - crate::records::stages_store::START,
         home: Home::Store(&crate::race::store::Window::new(
-            &crate::records::stages_store::STAGE_TABLES,
+            &crate::system::owner::SYSTEM.records.stage_tables,
             2,
         )),
     },
@@ -880,7 +880,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::tyre_store::TyreChange::START,
         len: crate::race::tyre_store::TyreChange::LEN,
-        home: Home::Store(&crate::race::tyre_store::TYRE_CHANGE),
+        home: Home::Store(&crate::race::owner::RACE.shared.tyre_change),
     },
     Moved {
         ida: crate::race::seal_store::SealWork::START,
@@ -893,18 +893,18 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::system::set_error_mode::ErrorMode::START,
         len: crate::system::set_error_mode::ErrorMode::LEN,
-        home: Home::Store(&crate::system::set_error_mode::ERROR_MODE),
+        home: Home::Store(&crate::system::owner::SYSTEM.start.error_mode),
     },
     Moved {
         ida: crate::system::start_texts::StartTexts::START,
         len: crate::system::start_texts::StartTexts::LEN,
-        home: Home::Store(&crate::system::start_texts::START_TEXTS),
+        home: Home::Store(&crate::system::owner::SYSTEM.start.texts),
     },
     Moved {
         ida: crate::input::guids::InputGuids::START,
         len: crate::input::guids::InputGuids::LEN,
         home: Home::Store(&crate::race::store::Window::new(
-            &crate::input::guids::INPUT_GUIDS,
+            &crate::input::owner::INPUT.guids,
             8,
         )),
     },
@@ -990,7 +990,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::system::load_game_data::RunCount::START,
         len: crate::system::load_game_data::RunCount::LEN,
-        home: Home::Store(&crate::system::load_game_data::RUN_COUNT),
+        home: Home::Store(&crate::system::owner::SYSTEM.start.run_count),
     },
     Moved {
         ida: crate::install::read_sku::Sku::START,
@@ -1000,12 +1000,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::strings::text_buffer::TextBuffer::START,
         len: crate::strings::text_buffer::TextBuffer::LEN,
-        home: Home::Store(&crate::strings::text_buffer::TEXT_BUFFER),
+        home: Home::Store(&crate::strings::owner::STRINGS.text.buffer),
     },
     Moved {
         ida: crate::files::scratch::Scratch::START,
         len: crate::files::scratch::Scratch::LEN,
-        home: Home::Store(&crate::files::scratch::SCRATCH),
+        home: Home::Store(&crate::system::owner::SYSTEM.work.files),
     },
     Moved {
         ida: crate::gfx::screen_state::ScreenMode::START,
@@ -1027,7 +1027,7 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::d3d::cards_store::Cards3d::START,
         len: crate::d3d::cards_store::Cards3d::LEN,
         home: Home::Store(&crate::race::store::Window::new(
-            &crate::d3d::cards_store::CARDS_3D,
+            &crate::d3d::owner::D3D.cards,
             4,
         )),
     },
@@ -1040,7 +1040,7 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::audio::names_store::SampleNames::START,
         len: crate::audio::names_store::SampleNames::LEN,
         home: Home::Store(&crate::race::store::Window::new(
-            &crate::audio::names_store::SAMPLE_NAMES,
+            &crate::audio::owner::AUDIO_OWNER.sample_names,
             12,
         )),
     },
@@ -1061,7 +1061,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::buffers_store::START,
         len: crate::race::buffers_store::END - crate::race::buffers_store::START,
-        home: Home::Store(&crate::race::buffers_store::BUFFERS),
+        home: Home::Store(&crate::race::owner::RACE.shared.buffers),
     },
     // race: the race core (`race::store`), the ranges around the holes and the left pieces
     Moved {
@@ -1273,7 +1273,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::replay_file_store::START,
         len: crate::race::replay_file_store::END - crate::race::replay_file_store::START,
-        home: Home::Store(&crate::race::replay_file_store::REPLAY_FILE),
+        home: Home::Store(&crate::race::owner::RACE.shared.replay_file),
     },
     Moved {
         ida: crate::race::viewer_state_store::START,
@@ -1323,7 +1323,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::tables_store::START,
         len: crate::race::tables_store::END - crate::race::tables_store::START,
-        home: Home::Store(&crate::race::tables_store::RACE_TABLES),
+        home: Home::Store(&crate::race::owner::RACE.shared.tables),
     },
     Moved {
         ida: crate::race::groups_store::VIEW_AND_RECORDS_RANGE.0,
@@ -1349,12 +1349,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::physics::tables_store::START,
         len: crate::physics::tables_store::END - crate::physics::tables_store::START,
-        home: Home::Store(&crate::physics::tables_store::PHYSICS),
+        home: Home::Store(&crate::race::owner::RACE.shared.physics_tables),
     },
     Moved {
         ida: crate::race::vars_store::START,
         len: crate::race::vars_store::END - crate::race::vars_store::START,
-        home: Home::Store(&crate::race::vars_store::RACE_VARS),
+        home: Home::Store(&crate::race::owner::RACE.shared.vars),
     },
     Moved {
         ida: crate::scene::draw_store::START,
@@ -1369,7 +1369,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::view_store::START,
         len: crate::race::view_store::END - crate::race::view_store::START,
-        home: Home::Store(&crate::race::view_store::RACE_VIEW),
+        home: Home::Store(&crate::race::owner::RACE.shared.view),
     },
     Moved {
         ida: crate::race::level_grid_store::START,
@@ -1399,12 +1399,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::physics::car_store::START,
         len: crate::physics::car_store::END - crate::physics::car_store::START,
-        home: Home::Store(&crate::physics::car_store::CAR),
+        home: Home::Store(&crate::race::owner::RACE.shared.car),
     },
     Moved {
         ida: crate::race::work_store::START,
         len: crate::race::work_store::END - crate::race::work_store::START,
-        home: Home::Store(&crate::race::work_store::RACE_WORK),
+        home: Home::Store(&crate::race::owner::RACE.shared.work),
     },
     Moved {
         ida: crate::race::text_state_store::START,
@@ -1434,7 +1434,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::switches_store::START,
         len: crate::race::switches_store::END - crate::race::switches_store::START,
-        home: Home::Store(&crate::race::switches_store::FRAME_SWITCHES),
+        home: Home::Store(&crate::race::owner::RACE.shared.switches),
     },
     Moved {
         ida: crate::scene::draw_switches_store::START,
@@ -1482,7 +1482,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::race::state_store::START,
         len: crate::race::state_store::END - crate::race::state_store::START,
-        home: Home::Store(&crate::race::state_store::RACE_STATE),
+        home: Home::Store(&crate::race::owner::RACE.shared.state),
     },
     Moved {
         ida: crate::physics::store::START,

@@ -22,7 +22,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::marks_settings_store::{MARKS_SETTINGS, MarkCar};
 use crate::race::mud::car_file_number;
 use crate::race::owner::race;
-use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::sharing;
 
 fn cars() -> Result<
@@ -33,10 +32,13 @@ fn cars() -> Result<
     ); 8],
     BadInput,
 > {
-    let records = RACE_WORK.car_records_resolved()?;
+    let records = crate::race::owner::race()
+        .shared
+        .work
+        .car_records_resolved()?;
     Ok(std::array::from_fn(|n| {
         (
-            RACE_WORK.car_block(n),
+            crate::race::owner::race().shared.work.car_block(n),
             records[n],
             &crate::sound::owner::sound().race.sounds.objects[n],
         )
@@ -70,7 +72,11 @@ pub fn share_all_cars() -> Result<(), Refused> {
     set_listener(race)?;
     keep_lead_car_values(&race.frame);
     for (n, (block, record, sound)) in cars()?.into_iter().enumerate() {
-        RACE_WORK.current_car.set(n as u32);
+        crate::race::owner::race()
+            .shared
+            .work
+            .current_car
+            .set(n as u32);
         share_car_state(
             &race.course,
             crate::physics::car_store::Car::at(block),
@@ -78,7 +84,10 @@ pub fn share_all_cars() -> Result<(), Refused> {
             sound,
         )?;
     }
-    let first_record = RACE_WORK.car_record(crate::race::blocks_store::own_car_number())?;
+    let first_record = crate::race::owner::race()
+        .shared
+        .work
+        .car_record(crate::race::blocks_store::own_car_number())?;
     MARKS_SETTINGS.sound_objects_shown.set_bits(0u32);
     let reading = crate::scene::reading::Reading::new();
     let (shown, _) =

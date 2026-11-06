@@ -24,9 +24,6 @@
 //! `rc2k_core::scene::shown` (the variables read where the tests read them).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::work_store::RACE_WORK;
 
 // ---- game data ----
 use crate::race::owner::race;
@@ -40,25 +37,33 @@ struct Game;
 
 impl rc2k_core::scene::shown::RaceObject for Game {
     fn object(&self) -> u32 {
-        FRAME_SWITCHES.object_number.bits()
+        crate::race::owner::race()
+            .shared
+            .switches
+            .object_number
+            .bits()
     }
     fn kind_switch(&self) -> u32 {
-        RACE_WORK.in_credits.bits()
+        crate::race::owner::race().shared.work.in_credits.bits()
     }
     fn kind_mode(&self) -> u32 {
-        RACE_VARS.run_kind.bits()
+        crate::race::owner::race().shared.vars.run_kind.bits()
     }
     fn kind(&self, object: u32) -> u32 {
         scene().objects.tables.object_kind(object)
     }
     fn other_way(&self) -> u32 {
-        FRAME_SWITCHES.other_way.bits()
+        crate::race::owner::race().shared.switches.other_way.bits()
     }
     fn shown(&self) -> u32 {
         race().course.stage_prefs.shown.bits()
     }
     fn which(&self) -> u32 {
-        RACE_WORK.stage_direction.bits()
+        crate::race::owner::race()
+            .shared
+            .work
+            .stage_direction
+            .bits()
     }
     fn only(&self) -> u32 {
         scene().drawing.object_work.only_object.bits()
@@ -77,7 +82,14 @@ pub fn draw_shown_object(
 ) -> Result<bool, Refused> {
     let scene = scene();
     let race = course.numbers.in_race.bits() != 0;
-    if race && FRAME_SWITCHES.object_number.bits() >= OBJECTS {
+    if race
+        && crate::race::owner::race()
+            .shared
+            .switches
+            .object_number
+            .bits()
+            >= OBJECTS
+    {
         return Err(BadInput("an object's number past the tables").into());
     }
     scene.lights.work.drawing_object.set_bits(1u32);

@@ -64,10 +64,13 @@ pub struct ReplayFileBlock {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static REPLAY_FILE: ReplayFileBlock =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl ReplayFileBlock {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// The index's dwords: "RCIB" .. the places, 0x3850 bytes.
 pub const INDEX_DWORDS: usize = 4 + 3600;
@@ -90,7 +93,9 @@ const _: () = assert!(END - START == core::mem::size_of::<ReplayFileBlock>());
 /// Where IDA 0x5BEC78 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&REPLAY_FILE))
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::race().shared.replay_file,
+    ))
 }
 
 #[cfg(test)]
@@ -100,7 +105,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&REPLAY_FILE, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().shared.replay_file,
+            START,
+            END,
+        );
     }
 
     #[test]

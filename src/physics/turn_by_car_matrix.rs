@@ -13,7 +13,6 @@
 //! above are the original's, for reference.
 
 use crate::math::cells::Cells;
-use crate::physics::car_store::CAR;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 
@@ -31,5 +30,5 @@ pub fn turn_cells(m: &(impl Cells + ?Sized), v: &(impl Cells + ?Sized)) {
 
 /// The Rust version.
 pub fn turn_by_car_matrix(v: &(impl Cells + ?Sized)) {
-    turn_cells(&CAR.crash_matrix, v);
+    turn_cells(&crate::race::owner::race().shared.car.crash_matrix, v);
 }

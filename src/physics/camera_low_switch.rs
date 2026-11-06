@@ -17,7 +17,6 @@
 
 use crate::errors::Refused;
 use crate::physics::camera_ground::probe_at;
-use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, over};
@@ -26,32 +25,70 @@ use rc2k_core::physics::camera_ground::{is_low, low_switch, low_switch_looks, ov
 // Converted: `rc2k_core::physics::camera_ground::{low_switch_looks, is_low, low_switch}`.
 pub fn camera_low_switch(race: &Race) -> Result<(), Refused> {
     if !low_switch_looks(
-        c0(CAR.crash_matrix[5].bits(), race.course.numbers.zero.bits()),
-        CAR.camera_switch_active.get(),
-        CAR.camera_view.get(),
+        c0(
+            crate::race::owner::race().shared.car.crash_matrix[5].bits(),
+            race.course.numbers.zero.bits(),
+        ),
+        crate::race::owner::race()
+            .shared
+            .car
+            .camera_switch_active
+            .get(),
+        crate::race::owner::race().shared.car.camera_view.get(),
     ) {
         return Ok(());
     }
     if !probe_at(
         race,
-        CAR.camera_position[0].get(),
-        CAR.camera_position[2].get(),
-        &CAR.camera_ground_faces[0],
+        crate::race::owner::race().shared.car.camera_position[0].get(),
+        crate::race::owner::race().shared.car.camera_position[2].get(),
+        &crate::race::owner::race().shared.car.camera_ground_faces[0],
     )? {
         return Ok(());
     }
     if !is_low(over(
-        CAR.camera_position[1].get(),
+        crate::race::owner::race().shared.car.camera_position[1].get(),
         race.physics.ground.ground_height.get(),
     )) {
         return Ok(());
     }
-    let s = low_switch(CAR.camera_blend_view.get(), CAR.step_clock.get());
-    CAR.camera_view_return.set(s.before);
-    CAR.camera_blend_view.set(s.mode);
-    CAR.camera_switch_active.set(s.switching);
-    CAR.camera_switch_share.set_bits(s.w674);
-    CAR.camera_switch_length.set(s.w670);
-    CAR.camera_switch_clock.set(s.clock);
+    let s = low_switch(
+        crate::race::owner::race()
+            .shared
+            .car
+            .camera_blend_view
+            .get(),
+        crate::race::owner::race().shared.car.step_clock.get(),
+    );
+    crate::race::owner::race()
+        .shared
+        .car
+        .camera_view_return
+        .set(s.before);
+    crate::race::owner::race()
+        .shared
+        .car
+        .camera_blend_view
+        .set(s.mode);
+    crate::race::owner::race()
+        .shared
+        .car
+        .camera_switch_active
+        .set(s.switching);
+    crate::race::owner::race()
+        .shared
+        .car
+        .camera_switch_share
+        .set_bits(s.w674);
+    crate::race::owner::race()
+        .shared
+        .car
+        .camera_switch_length
+        .set(s.w670);
+    crate::race::owner::race()
+        .shared
+        .car
+        .camera_switch_clock
+        .set(s.clock);
     Ok(())
 }

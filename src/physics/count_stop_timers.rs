@@ -10,7 +10,6 @@
 //!
 //! Caller: `sub_436790` (four calls).
 
-use crate::physics::car_store::CAR;
 use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::stop_timers;
@@ -34,11 +33,11 @@ pub fn count_stop_timers_at(course: &Course, v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.started_stand_timer as &dyn Cell32,
-        &CAR.go_stand_timer,
-        &CAR.finish_flag,
-        &CAR.speed,
-        &CAR.stop_state,
+        &crate::race::owner::race().shared.car.started_stand_timer as &dyn Cell32,
+        &crate::race::owner::race().shared.car.go_stand_timer,
+        &crate::race::owner::race().shared.car.finish_flag,
+        &crate::race::owner::race().shared.car.speed,
+        &crate::race::owner::race().shared.car.stop_state,
     ]
 }
 

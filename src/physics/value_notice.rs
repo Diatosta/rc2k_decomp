@@ -10,7 +10,6 @@
 //!
 //! Caller: `sub_43B635` (0x43B9AE), its last call, every physics step.
 
-use crate::physics::car_store::CAR;
 use crate::session::Cell32;
 use rc2k_core::physics::notices::Notice;
 
@@ -33,11 +32,11 @@ fn core(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.turned_steps as &dyn Cell32,
-        &CAR.notice_shown,
-        &CAR.notice_last,
-        &CAR.notice_id,
-        &CAR.notice_time,
+        &crate::race::owner::race().shared.car.turned_steps as &dyn Cell32,
+        &crate::race::owner::race().shared.car.notice_shown,
+        &crate::race::owner::race().shared.car.notice_last,
+        &crate::race::owner::race().shared.car.notice_id,
+        &crate::race::owner::race().shared.car.notice_time,
     ]
 }
 

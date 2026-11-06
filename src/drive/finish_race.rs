@@ -19,10 +19,6 @@ use crate::race::owner::RACE;
 use crate::race::owner::race;
 use crate::race::settings_copy::Place;
 use crate::race::settings_copy::var;
-use crate::race::state_store::RACE_STATE;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::ViewVars;
 use rc2k_core::drive::finish_routine::{self, Set, Var};
 
@@ -38,27 +34,27 @@ fn log_number(v: u32) {
 fn var(v: Var) -> Place {
     match v {
         Var::D60101C => var!(RACE.physics.split_tables.arcade_kind),
-        Var::D621514 => var!(FRAME_SWITCHES.editor_mode),
-        Var::D623854 => var!(RACE_VARS.direction),
-        Var::D6235FC => var!(RACE_VARS.car_tyres[0]),
-        Var::RaceMode => var!(RACE_VARS.run_kind),
-        Var::D6238A4 => var!(RACE_VARS.split),
-        Var::RaceCars => var!(RACE_VIEW.players),
-        Var::D63DB90 => var!(RACE_VIEW.race_cars),
-        Var::D6238A8 => var!(RACE_VARS.settings_words[0]),
-        Var::D6238AC => var!(RACE_VARS.settings_words[1]),
-        Var::D6238B0 => var!(RACE_VARS.settings_words[2]),
-        Var::D6238B4 => var!(RACE_VARS.settings_words[3]),
-        Var::D6238B8 => var!(RACE_VARS.settings_words[4]),
-        Var::D621890 => var!(FRAME_SWITCHES.view_marks_on),
-        Var::D6238CC => var!(RACE_VARS.race_level),
-        Var::D6238D0 => var!(RACE_VARS.race_stage),
+        Var::D621514 => var!(crate::race::owner::RACE.shared.switches.editor_mode),
+        Var::D623854 => var!(crate::race::owner::RACE.shared.vars.direction),
+        Var::D6235FC => var!(crate::race::owner::RACE.shared.vars.car_tyres[0]),
+        Var::RaceMode => var!(crate::race::owner::RACE.shared.vars.run_kind),
+        Var::D6238A4 => var!(crate::race::owner::RACE.shared.vars.split),
+        Var::RaceCars => var!(crate::race::owner::RACE.shared.view.players),
+        Var::D63DB90 => var!(crate::race::owner::RACE.shared.view.race_cars),
+        Var::D6238A8 => var!(crate::race::owner::RACE.shared.vars.settings_words[0]),
+        Var::D6238AC => var!(crate::race::owner::RACE.shared.vars.settings_words[1]),
+        Var::D6238B0 => var!(crate::race::owner::RACE.shared.vars.settings_words[2]),
+        Var::D6238B4 => var!(crate::race::owner::RACE.shared.vars.settings_words[3]),
+        Var::D6238B8 => var!(crate::race::owner::RACE.shared.vars.settings_words[4]),
+        Var::D621890 => var!(crate::race::owner::RACE.shared.switches.view_marks_on),
+        Var::D6238CC => var!(crate::race::owner::RACE.shared.vars.race_level),
+        Var::D6238D0 => var!(crate::race::owner::RACE.shared.vars.race_stage),
         Var::D64BB18 => Place::Var(|| &race().replay.finish.no_place),
         Var::D5C2F88 => var!(MARKS_SETTINGS.race_done),
         // View record 6's first two angles (the finish camera's).
         Var::D606744 => Place::Var(|| &ViewVars::record(6).angles[0]),
         Var::D606748 => Place::Var(|| &ViewVars::record(6).angles[1]),
-        Var::D63DB84 => var!(RACE_VIEW.after_credits),
+        Var::D63DB84 => var!(crate::race::owner::RACE.shared.view.after_credits),
     }
 }
 
@@ -90,25 +86,46 @@ pub fn finish_race() -> Result<(), Refused> {
     let race = race();
     let replay = &race.replay;
     // The stage index is not checked against the seven (a read past them is the original's).
-    RACE_VARS.stage_number.set(crate::session::read_on_in(
-        &replay.finish,
-        &replay.finish.finish_stages,
-        RACE_STATE.results.stage_index.get() as usize,
-        "the finish stages",
-    )?);
-    RACE_VARS.race_car_kinds[0].set(RACE_STATE.results.finish_kind.get());
+    crate::race::owner::race()
+        .shared
+        .vars
+        .stage_number
+        .set(crate::session::read_on_in(
+            &replay.finish,
+            &replay.finish.finish_stages,
+            crate::race::owner::race()
+                .shared
+                .state
+                .results
+                .stage_index
+                .get() as usize,
+            "the finish stages",
+        )?);
+    crate::race::owner::race().shared.vars.race_car_kinds[0].set(
+        crate::race::owner::race()
+            .shared
+            .state
+            .results
+            .finish_kind
+            .get(),
+    );
     CAR_BLOCKS.cars[0]
         .car_kind
-        .set_bits(RACE_VARS.race_car_kinds[0].get());
-    CAR_BLOCKS.cars[0]
-        .start_slot_value
-        .set_bits(RACE_STATE.results.finish_player.get());
+        .set_bits(crate::race::owner::race().shared.vars.race_car_kinds[0].get());
+    CAR_BLOCKS.cars[0].start_slot_value.set_bits(
+        crate::race::owner::race()
+            .shared
+            .state
+            .results
+            .finish_player
+            .get(),
+    );
     log_line(c"----------------------");
     log_line(c"CALLING FINISH ROUTINE");
     log_text(c"[shauntracknum]");
-    log_number(RACE_VARS.stage_number.get());
+    log_number(crate::race::owner::race().shared.vars.stage_number.get());
     log_text(c"[shauncarnum1]");
-    log_number(RACE_VARS.race_car_kinds[0].get());
+    log_number(crate::race::owner::race().shared.vars.race_car_kinds[0].get());
     log_text(c"[car1.ctd_carnum]");
     log_number(CAR_BLOCKS.cars[0].start_slot_value.bits());
     set_up()?;

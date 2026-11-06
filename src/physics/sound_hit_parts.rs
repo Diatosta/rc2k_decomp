@@ -11,7 +11,6 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::drop_hit_parts::hit_tests;
 use crate::physics::sound_on_bit::sound_on_bit;
 use crate::race::kind_store::KIND_TABLES;
@@ -21,15 +20,16 @@ use rc2k_core::physics::parts::{SOUND_TESTS, has_hit_sounds};
 /// The Rust version (its CF, set when the car has no hit sounds, is read by no caller).
 // Converted: `rc2k_core::physics::parts::{has_hit_sounds, hit_tests, SOUND_TESTS}`.
 pub fn sound_hit_parts(race: &Race) -> Result<(), Refused> {
-    if !has_hit_sounds(CAR.car_kind.get(), |kind| {
-        KIND_TABLES.kind_hit_sounds[kind as usize].get()
-    }) {
+    if !has_hit_sounds(
+        crate::race::owner::race().shared.car.car_kind.get(),
+        |kind| KIND_TABLES.kind_hit_sounds[kind as usize].get(),
+    ) {
         return Ok(());
     }
     hit_tests(
         &race.course,
         &SOUND_TESTS,
-        &CAR.part_hit_damage,
+        &crate::race::owner::race().shared.car.part_hit_damage,
         &mut |bit| {
             { sound_on_bit(race, bit & 0xFF) }?;
             Ok(())

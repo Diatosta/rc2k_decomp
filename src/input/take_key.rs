@@ -7,12 +7,11 @@
 //! other flags of the original's `test al, al` (sign, parity) are not reproduced; carry and
 //! zero are.
 
-use crate::input::store::DEVICES;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 /// `byte_4F6ADC`: the first byte of `g_keysDown`.
 pub fn pending_key() -> &'static AtomicU8 {
-    DEVICES.keys_down.atomic(0)
+    crate::input::owner::input().devices.keys_down.atomic(0)
 }
 
 // ---- Rust version ----

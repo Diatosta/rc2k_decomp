@@ -129,8 +129,8 @@ pub const CAR_BLOCKS_IDA: usize = 0x71B3B8;
 /// the first block's address wherever it means the player's car, so on a joined machine the
 /// cockpit's effects, the mud and the listener followed the host's car.
 pub fn own_car_number() -> usize {
-    if crate::net::store::NET.session.get() == 1 {
-        let local = crate::race::view_store::RACE_VIEW.local_car.get() as usize;
+    if crate::net::owner::net().vars.session.get() == 1 {
+        let local = crate::race::owner::race().shared.view.local_car.get() as usize;
         if local < 8 { local } else { 0 }
     } else {
         0

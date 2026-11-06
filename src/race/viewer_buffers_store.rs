@@ -44,13 +44,13 @@ pub struct ViewerBuffers {
     pub to_file: Dword,
 }
 
-/// The piece, a field of `race::buffers_store::BUFFERS`.
+/// The piece, a field of `crate::race::owner::race().shared.buffers`.
 pub struct InBuffers;
 
 impl core::ops::Deref for InBuffers {
     type Target = ViewerBuffers;
     fn deref(&self) -> &ViewerBuffers {
-        &crate::race::buffers_store::BUFFERS.viewer
+        &crate::race::owner::race().shared.buffers.viewer
     }
 }
 

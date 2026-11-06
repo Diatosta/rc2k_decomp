@@ -35,12 +35,18 @@ pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
         2 => {
             let table: u32 = menus.play.arcade.level.get();
             crate::records::stages_store::row(
-                crate::records::stages_store::STAGE_TABLES.level_table(table)?,
+                crate::system::owner::system()
+                    .records
+                    .stage_tables
+                    .level_table(table)?,
                 menus.play.arcade.stage.get(),
             )?
         }
         3 => crate::records::find_record::find_record_in(
-            crate::records::stages_store::STAGE_TABLES.championship(),
+            crate::system::owner::system()
+                .records
+                .stage_tables
+                .championship(),
             menus.screens.event.index.get() as i32,
             menus.screens.event.section.get(),
         )?,

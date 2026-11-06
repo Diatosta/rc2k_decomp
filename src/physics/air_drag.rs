@@ -10,8 +10,6 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_of, compare_full, square_times_over};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::session::Cell32;
 
@@ -20,7 +18,11 @@ pub fn drag_at(course: &Course, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let (k, d, zero) = (
-        PHYSICS.air_drag.bits(),
+        crate::race::owner::race()
+            .shared
+            .physics_tables
+            .air_drag
+            .bits(),
         course.numbers.k10000.bits(),
         course.numbers.zero.bits(),
     );
@@ -34,12 +36,12 @@ pub fn drag_at(course: &Course, v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.local_velocity[0] as &dyn Cell32,
-        &CAR.local_velocity[1],
-        &CAR.local_velocity[2],
-        &PHYSICS.forces[5].force[0],
-        &PHYSICS.forces[5].force[1],
-        &PHYSICS.forces[5].force[2],
+        &crate::race::owner::race().shared.car.local_velocity[0] as &dyn Cell32,
+        &crate::race::owner::race().shared.car.local_velocity[1],
+        &crate::race::owner::race().shared.car.local_velocity[2],
+        &crate::race::owner::race().shared.physics_tables.forces[5].force[0],
+        &crate::race::owner::race().shared.physics_tables.forces[5].force[1],
+        &crate::race::owner::race().shared.physics_tables.forces[5].force[2],
     ]
 }
 

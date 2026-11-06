@@ -34,7 +34,6 @@ use crate::gfx::owner::GFX;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::MENUS;
 use crate::race::settings_copy::{Place, var};
-use crate::race::state_store::RACE_STATE;
 use crate::sound::owner::SOUND;
 
 /// After a volume step.
@@ -423,7 +422,7 @@ switch!(
     0x12,
     var!(MENUS.screens.option_work.setting_0),
     Kind::SwitchCopy {
-        other: var!(RACE_STATE.settings.setting_0),
+        other: var!(crate::race::owner::RACE.shared.state.settings.setting_0),
         flip: false
     }
 );
@@ -434,7 +433,7 @@ switch!(
     0x12,
     var!(MENUS.screens.option_work.setting_1),
     Kind::SwitchCopy {
-        other: var!(RACE_STATE.settings.setting_1),
+        other: var!(crate::race::owner::RACE.shared.state.settings.setting_1),
         flip: false
     }
 );
@@ -445,7 +444,7 @@ switch!(
     0x12,
     var!(MENUS.screens.option_work.setting_2),
     Kind::SwitchCopy {
-        other: var!(RACE_STATE.settings.setting_2),
+        other: var!(crate::race::owner::RACE.shared.state.settings.setting_2),
         flip: false
     }
 );
@@ -456,7 +455,7 @@ switch!(
     0x12,
     var!(MENUS.screens.option_work.setting_4),
     Kind::SwitchCopy {
-        other: var!(RACE_STATE.settings.setting_4),
+        other: var!(crate::race::owner::RACE.shared.state.settings.setting_4),
         flip: false
     }
 );

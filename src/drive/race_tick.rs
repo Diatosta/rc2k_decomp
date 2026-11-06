@@ -14,9 +14,6 @@
 use crate::errors::{FatalError, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
@@ -28,15 +25,20 @@ pub fn race_tick(race: &Race) -> Result<(), Refused> {
         }
         .into());
     }
-    if FRAME_SWITCHES.levers_on.get() == 0 {
+    if crate::race::owner::race().shared.switches.levers_on.get() == 0 {
         return crate::drive::simple_car_step::simple_car_step(race);
     }
-    RACE_VARS
-        .race_ticks
-        .set(RACE_VARS.race_ticks.get().wrapping_add(1));
+    crate::race::owner::race().shared.vars.race_ticks.set(
+        crate::race::owner::race()
+            .shared
+            .vars
+            .race_ticks
+            .get()
+            .wrapping_add(1),
+    );
     if !rc2k_core::drive::race_ticks::tick_runs(
-        RACE_VARS.race_ticks.get(),
-        RACE_VIEW.after_credits.get(),
+        crate::race::owner::race().shared.vars.race_ticks.get(),
+        crate::race::owner::race().shared.view.after_credits.get(),
     ) {
         return Ok(());
     }

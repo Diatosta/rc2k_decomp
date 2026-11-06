@@ -15,7 +15,6 @@
 //! One caller, `sub_45188C`.
 
 use crate::errors::Refused;
-use crate::race::view_store::RACE_VIEW;
 use crate::scene::reflection_coordinates::reflection_coordinates;
 
 // ---- game data ----
@@ -29,7 +28,13 @@ const TABLE_CELLS: usize = 0x400;
 pub fn cached_reflection_coordinates(race: &crate::race::owner::Race) -> Result<(), Refused> {
     let physics = &race.physics;
     use rc2k_core::scene::reflection::{cache_place, cached};
-    if RACE_VIEW.reflections_kept.bits() == 0 {
+    if crate::race::owner::race()
+        .shared
+        .view
+        .reflections_kept
+        .bits()
+        == 0
+    {
         return Ok(reflection_coordinates(race)?);
     }
     let asked: [u32; 2] = [

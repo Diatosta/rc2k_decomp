@@ -5,14 +5,12 @@
 //! big for the buffer).
 //!
 //! In:  nothing
-//! Out: `Received`: the sender (eax; 0 a system message), the bytes (ebx: `unk_52A968`, `NET.receive_data`; not in `Received`), the
+//! Out: `Received`: the sender (eax; 0 a system message), the bytes (ebx: `unk_52A968`, `crate::net::owner::net().vars.receive_data`; not in `Received`), the
 //!      size (ecx; 0 none). The original keeps edx, esi, edi, ebp and leaves the flags of
 //!      `test eax, eax` on the method's result, which its one caller does not read (it tests
 //!      ecx next).
 //! Caller: `net::take_messages`. `Receive` from Rust (`net::dplay`). Refuses
 //! nothing (no check of `g_dplay`: its caller makes it).
-
-use crate::net::store::NET;
 
 /// The buffer's size.
 pub const ROOM: u32 = 0x100;
@@ -27,18 +25,20 @@ pub struct Received {
 
 /// The Rust version.
 pub fn receive_message() -> Received {
-    NET.received_size.set(ROOM);
+    crate::net::owner::net().vars.received_size.set(ROOM);
     let mut data = [0u8; ROOM as usize];
-    let r = crate::net::dp_objects::receive(NET.dplay.get(), &mut data);
+    let r = crate::net::dp_objects::receive(crate::net::owner::net().vars.dplay.get(), &mut data);
     if let Some((from, to)) = r.from_to {
-        NET.received_from.set(from);
-        NET.received_to.set(to);
+        crate::net::owner::net().vars.received_from.set(from);
+        crate::net::owner::net().vars.received_to.set(to);
     }
     if let Some(size) = r.size {
-        NET.received_size.set(size);
+        crate::net::owner::net().vars.received_size.set(size);
     }
     if r.result == 0 {
-        NET.receive_data
+        crate::net::owner::net()
+            .vars
+            .receive_data
             .write_at(
                 0,
                 &data[..r.size.unwrap_or(0) as usize],
@@ -48,10 +48,10 @@ pub fn receive_message() -> Received {
     }
     let result = r.result;
     if result != 0 {
-        NET.received_size.set(0);
+        crate::net::owner::net().vars.received_size.set(0);
     }
     Received {
-        from: NET.received_from.get(),
-        size: NET.received_size.get(),
+        from: crate::net::owner::net().vars.received_from.get(),
+        size: crate::net::owner::net().vars.received_size.get(),
     }
 }

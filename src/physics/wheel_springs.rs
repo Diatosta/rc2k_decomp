@@ -24,8 +24,6 @@
 
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, wheel_int};
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::scene::matrix3::extended;
@@ -43,7 +41,10 @@ fn below(x: u32, b: u32) -> bool {
 /// The Rust version (the exact one, for `physics::car_physics_step`).
 pub fn wheel_springs(race: &Race) {
     let drawing = &scene().drawing;
-    let (c, ph) = (&CAR, &PHYSICS);
+    let (c, ph) = (
+        &crate::race::owner::race().shared.car,
+        &crate::race::owner::race().shared.physics_tables,
+    );
     for k in 0..4 {
         let q = &c.wheel_squeeze[k];
         let (force, damping) = (&ph.spring_forces[k], &ph.spring_damping[k]);

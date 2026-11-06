@@ -37,7 +37,7 @@ pub fn rot13_into_text(from: GamePtr) -> Result<GamePtr, BadInput> {
         }
     }
     for (i, &b) in coded.iter().enumerate() {
-        crate::strings::text_buffer::TEXT_BUFFER.text.set(i, b);
+        crate::strings::owner::strings().text.buffer.text.set(i, b);
     }
     Ok(text_at())
 }

@@ -3,8 +3,6 @@
 //! sine table) and the race's sounds restarted or silenced. Here the steps.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::state_store::RACE_STATE;
-use crate::race::tyre_store::TYRE_CHANGE;
 use crate::session::{Dword, Float};
 use crate::sound::sets_store::SoundSet;
 
@@ -62,7 +60,7 @@ impl TableVars {
         Self {
             done: &crate::sound::owner::sound().race.surface.tables_done,
             sines: &crate::sound::owner::sound().race.kinds.sines,
-            scratch: &crate::session::MACHINE.scratch,
+            scratch: &crate::system::owner::system().session.machine.scratch,
         }
     }
 }
@@ -187,8 +185,8 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
 /// table)
 pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
     {
-        let one = crate::net::store::NET.session.get() == 1;
-        if one && crate::net::store::NET.player.get() > 7 {
+        let one = crate::net::owner::net().vars.session.get() == 1;
+        if one && crate::net::owner::net().vars.player.get() > 7 {
             return Err(crate::errors::BadInput("a chosen car past the eight").into());
         }
         // Converted: `rc2k_core::race::sound_objects::{sound_players, sound_objects,
@@ -196,13 +194,28 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
 
         use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
         prepare_sound_tables_plain(&TableVars::game())?;
-        let players = sound_players(RACE_STATE.settings.race_mode.get());
+        let players = sound_players(
+            crate::race::owner::race()
+                .shared
+                .state
+                .settings
+                .race_mode
+                .get(),
+        );
         crate::sound::owner::sound()
             .race
             .sounds
             .one_player
             .set(players);
-        let (count, arcade) = sound_objects(players, RACE_STATE.settings.run_kind.get());
+        let (count, arcade) = sound_objects(
+            players,
+            crate::race::owner::race()
+                .shared
+                .state
+                .settings
+                .run_kind
+                .get(),
+        );
         if arcade {
             crate::sound::owner::sound()
                 .race
@@ -215,12 +228,12 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
         crate::sound::owner::sound().race.sounds.player_cars[1].set(1);
         if one {
             crate::sound::owner::sound().race.sounds.player_cars[0]
-                .set(crate::net::store::NET.player.get());
+                .set(crate::net::owner::net().vars.player.get());
             crate::sound::owner::sound()
                 .race
                 .sounds
                 .count
-                .set(crate::net::store::NET.players.get());
+                .set(crate::net::owner::net().vars.players.get());
         }
         for (n, o) in v.objects.iter().enumerate() {
             o.sound_offset.set(object_mark(n as u32));
@@ -229,26 +242,42 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
             crate::sound::owner::sound().race.sounds.player_cars[0].get(),
         )?;
         first.sound_offset.set(0);
-        first.kind.set(RACE_STATE.settings.car_kind_current.get());
-        first
-            .cue_queue
-            .first
-            .set(RACE_STATE.settings.cars[0].codriver_sex.get());
+        first.kind.set(
+            crate::race::owner::race()
+                .shared
+                .state
+                .settings
+                .car_kind_current
+                .get(),
+        );
+        first.cue_queue.first.set(
+            crate::race::owner::race().shared.state.settings.cars[0]
+                .codriver_sex
+                .get(),
+        );
         if crate::sound::owner::sound().race.sounds.one_player.get() != 1 {
             let second = crate::sound::store::SoundObject::number(
                 crate::sound::owner::sound().race.sounds.player_cars[1].get(),
             )?;
             second.sound_offset.set(1);
-            second.kind.set(RACE_STATE.settings.car_kind_first.get());
-            second
-                .cue_queue
-                .first
-                .set(RACE_STATE.settings.cars[1].codriver_sex.get());
+            second.kind.set(
+                crate::race::owner::race()
+                    .shared
+                    .state
+                    .settings
+                    .car_kind_first
+                    .get(),
+            );
+            second.cue_queue.first.set(
+                crate::race::owner::race().shared.state.settings.cars[1]
+                    .codriver_sex
+                    .get(),
+            );
         }
         for o in v.objects {
             set_up_object(o);
         }
-        TYRE_CHANGE.drawn.set(0);
+        crate::race::owner::race().shared.tyre_change.drawn.set(0);
         restart_race_sounds()?;
     }
     Ok(())

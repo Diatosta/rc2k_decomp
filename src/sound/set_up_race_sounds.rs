@@ -7,7 +7,6 @@
 //! = 0 (`sub_409B76`). The menus' counterpart is `sound::apply_settings`.
 //! Nine callers (the events' starters, before a stage is loaded).
 
-use crate::audio::store::AUDIO;
 use crate::sound::apply_settings::run_step;
 
 // ---- Rust version ----
@@ -20,9 +19,9 @@ pub fn set_up_race_sounds() -> Result<(), crate::errors::Refused> {
         .settings_applied
         .done
         .set(RACE);
-    for s in race(AUDIO.race_sound_mode.get()) {
+    for s in race(crate::audio::owner::audio().state.race_sound_mode.get()) {
         run_step(s)?;
     }
-    AUDIO.sounds_held_back.set(0);
+    crate::audio::owner::audio().state.sounds_held_back.set(0);
     Ok(())
 }

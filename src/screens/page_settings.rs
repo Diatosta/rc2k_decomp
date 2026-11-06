@@ -29,7 +29,7 @@ pub fn pick_player(n: u32) -> Result<(), Refused> {
 pub fn load_audio_settings() {
     // Converted: `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions =
-        crate::audio::store::AUDIO.audio_options.get();
+        crate::audio::owner::audio().state.audio_options.get();
     menus()
         .screens
         .option_work
@@ -72,13 +72,19 @@ fn set_item(items: &[crate::menu::menus_store::MenuItem], n: u32, v: u32) -> Res
 /// The stage record `off_735512[a][b]` (its +0x38 the page's value), and the record + `c` x
 /// 0xA4 the line is about.
 fn stage_record(a: u32, b: u32, c: u32) -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = crate::records::stages_store::STAGE_TABLES.group_event_table(a, b)?;
+    let base = crate::system::owner::system()
+        .records
+        .stage_tables
+        .group_event_table(a, b)?;
     Ok((base, crate::records::stages_store::row(base, c)?))
 }
 
 /// What both stage pages read through: refused before anything.
 fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
-    crate::records::stages_store::STAGE_TABLES.group_event_table(a, b)?;
+    crate::system::owner::system()
+        .records
+        .stage_tables
+        .group_event_table(a, b)?;
     Ok(())
 }
 

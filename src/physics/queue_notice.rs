@@ -23,33 +23,53 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::cells::{set_changed, set_values_changed, values};
 use rc2k_core::physics::notices::NoticeQueue;
 
 /// The work car's notice queue.
 pub fn load() -> NoticeQueue {
     NoticeQueue {
-        count: CAR.notice_count.get(),
-        ids: values(&CAR.notice_ids),
-        values: values(&CAR.notice_values),
-        levels: values(&CAR.notice_ranks),
+        count: crate::race::owner::race().shared.car.notice_count.get(),
+        ids: values(&crate::race::owner::race().shared.car.notice_ids),
+        values: values(&crate::race::owner::race().shared.car.notice_values),
+        levels: values(&crate::race::owner::race().shared.car.notice_ranks),
     }
 }
 
 /// What changed from `was` to `now` stored back.
 pub fn store(was: &NoticeQueue, now: &NoticeQueue) {
-    set_values_changed(&CAR.notice_ids, &was.ids, &now.ids);
-    set_values_changed(&CAR.notice_values, &was.values, &now.values);
-    set_values_changed(&CAR.notice_ranks, &was.levels, &now.levels);
-    set_changed(&CAR.notice_count, was.count, now.count);
+    set_values_changed(
+        &crate::race::owner::race().shared.car.notice_ids,
+        &was.ids,
+        &now.ids,
+    );
+    set_values_changed(
+        &crate::race::owner::race().shared.car.notice_values,
+        &was.values,
+        &now.values,
+    );
+    set_values_changed(
+        &crate::race::owner::race().shared.car.notice_ranks,
+        &was.levels,
+        &now.levels,
+    );
+    set_changed(
+        &crate::race::owner::race().shared.car.notice_count,
+        was.count,
+        now.count,
+    );
 }
 
 /// The Rust version.
 pub fn queue_notice(notice: u32, rank: u32, value: u32) -> Result<(), Refused> {
     let was = load();
     let mut q = was;
-    q.queue(CAR.option_bits.get(), notice, rank, value)?;
+    q.queue(
+        crate::race::owner::race().shared.car.option_bits.get(),
+        notice,
+        rank,
+        value,
+    )?;
     store(&was, &q);
     Ok(())
 }

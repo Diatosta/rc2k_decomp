@@ -41,21 +41,30 @@ pub struct SetUps {
 }
 
 /// The set-ups' buffers; the first values are the image's (all zero).
-pub static SET_UPS: SetUps = SetUps {
-    file: Bytes::new([0; SETUP_FILE_LEN]),
-    names: Bytes::new([0; SLOT_COUNT as usize * NAME_LEN]),
-    kept: Dword::new(0),
-};
+impl SetUps {
+    pub const fn new() -> Self {
+        SetUps {
+            file: Bytes::new([0; SETUP_FILE_LEN]),
+            names: Bytes::new([0; SLOT_COUNT as usize * NAME_LEN]),
+            kept: Dword::new(0),
+        }
+    }
+}
 
 /// IDA's address of the file name's template.
 pub const TEMPLATE_START: usize = 0x529716;
 
 /// `aSavedataCarset`: the set-up file's name, the number's two digits last.
-pub static TEMPLATE: Bytes<27> = Bytes::new(*b"savedata\\carsetup\\carset00\0");
+pub const fn template() -> Bytes<27> {
+    Bytes::new(*b"savedata\\carsetup\\carset00\0")
+}
 
 // "CRSU"
 pub fn slot_name(slot: u32) -> crate::place::Place {
-    crate::place::Place::In(&SET_UPS.names, slot as usize * NAME_LEN)
+    crate::place::Place::In(
+        &crate::service::owner::service().set_ups.names,
+        slot as usize * NAME_LEN,
+    )
 }
 
 // ---- Rust version ----
@@ -66,9 +75,9 @@ pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("slot past the name table").into());
     }
     {
-        let template = TEMPLATE.read();
+        let template = crate::service::owner::service().template.read();
         let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
-        let file = &SET_UPS.file;
+        let file = &crate::service::owner::service().set_ups.file;
         let mut bytes = file.read();
         let read = read_file_into(&path[..], &mut bytes[..SETUP_FILE_LEN], 0)?;
         file.write(&bytes);
@@ -91,19 +100,33 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&SET_UPS, START, START + LEN);
-        crate::gfx::first_values_are_the_games(&TEMPLATE, TEMPLATE_START, TEMPLATE_START + 27);
+        crate::gfx::first_values_are_the_games(
+            &crate::service::owner::SERVICE.set_ups,
+            START,
+            START + LEN,
+        );
+        crate::gfx::first_values_are_the_games(
+            &crate::service::owner::SERVICE.template,
+            TEMPLATE_START,
+            TEMPLATE_START + 27,
+        );
     }
 
     #[test]
     fn moved_knows_the_block() {
         assert_eq!(offset_of!(SetUps, names), 0x527880 - START);
         assert_eq!(offset_of!(SetUps, kept), 0x528500 - START);
-        assert_eq!(crate::moved::place(START), SET_UPS.file.addr() as usize);
-        assert_eq!(crate::moved::place(0x527880), SET_UPS.names.addr() as usize);
+        assert_eq!(
+            crate::moved::place(START),
+            crate::service::owner::SERVICE.set_ups.file.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x527880),
+            crate::service::owner::SERVICE.set_ups.names.addr() as usize
+        );
         assert_eq!(
             crate::moved::place(TEMPLATE_START),
-            TEMPLATE.addr() as usize
+            crate::service::owner::SERVICE.template.addr() as usize
         );
     }
 }

@@ -127,7 +127,7 @@ pub fn grade_car_values(block: u32) -> Result<(), BadInput> {
 /// grade) are read by no caller (race init's one call).
 pub fn grade_all_cars() -> Result<(), BadInput> {
     for n in 0..8usize {
-        grade_car_values(crate::race::work_store::RACE_WORK.car_block(n))?;
+        grade_car_values(crate::race::owner::race().shared.work.car_block(n))?;
     }
     Ok(())
 }

@@ -18,9 +18,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::race::owner::race;
-use crate::race::vars_store::RACE_VARS;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 
 // ---- game data ----
 const BLOCKS: u32 = 8;
@@ -32,19 +29,19 @@ struct GameCars(crate::scene::reading::Reading);
 
 impl rc2k_core::scene::lamps::CarLights for GameCars {
     fn one_car(&self) -> bool {
-        crate::net::store::NET.session.get() != 0
+        crate::net::owner::net().vars.session.get() != 0
     }
     fn the_car(&self) -> u32 {
-        crate::net::store::NET.player.get()
+        crate::net::owner::net().vars.player.get()
     }
     fn all_cars(&self) -> bool {
-        RACE_VARS.settings_words[4].bits() == 1
+        crate::race::owner::race().shared.vars.settings_words[4].bits() == 1
     }
     fn near(&self) -> u32 {
-        RACE_VIEW.players.bits()
+        crate::race::owner::race().shared.view.players.bits()
     }
     fn view(&self) -> u32 {
-        RACE_VARS.run_kind.bits()
+        crate::race::owner::race().shared.vars.run_kind.bits()
     }
     fn drawn(&self) -> u32 {
         race().physics.ground.drawn_car_light.bits()
@@ -52,9 +49,9 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
     fn viewed(&self) -> u32 {
         // The store holds two views; the original's index is not held to them.
         self.0.keep(crate::session::read_on_in(
-            &RACE_VIEW,
-            &RACE_VIEW.view_cars,
-            RACE_VIEW.drawn_view.bits() as usize,
+            &crate::race::owner::race().shared.view,
+            &crate::race::owner::race().shared.view.view_cars,
+            crate::race::owner::race().shared.view.drawn_view.bits() as usize,
             "the drawn view's car",
         ))
     }
@@ -63,13 +60,16 @@ impl rc2k_core::scene::lamps::CarLights for GameCars {
 // Converted: `rc2k_core::scene::lamps::car_lights`
 pub fn add_car_lights(add: &mut dyn FnMut(&Car) -> Result<(), Refused>) -> Result<(), Refused> {
     {
-        let cars: u32 = RACE_VIEW.race_cars.bits();
+        let cars: u32 = crate::race::owner::race().shared.view.race_cars.bits();
         if cars == 0 || cars > BLOCKS {
             return Err(BadInput("no cars, or more than their blocks").into());
         }
         let lights = GameCars(crate::scene::reading::Reading::new());
         for car in 0..cars {
-            let block = RACE_WORK.car_block(car as usize);
+            let block = crate::race::owner::race()
+                .shared
+                .work
+                .car_block(car as usize);
             let lit = rc2k_core::scene::lamps::car_lights(&lights, car);
             lights.0.finish()?;
             if lit {

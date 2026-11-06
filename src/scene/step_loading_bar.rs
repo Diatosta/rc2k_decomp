@@ -10,7 +10,6 @@
 //! Refuses no function to call.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -22,7 +21,7 @@ const NOTHING: u32 = 0x4467C6; // nullsub_8
 // ---- Rust version ----
 
 fn ends() -> rc2k_core::scene::loading::BarEnds {
-    let [low, high] = crate::session::read_bits(&RACE_VARS.bar_span);
+    let [low, high] = crate::session::read_bits(&crate::race::owner::race().shared.vars.bar_span);
     rc2k_core::scene::loading::BarEnds { low, high }
 }
 
@@ -38,12 +37,16 @@ fn progress(done: u32) -> Option<u32> {
 /// (0x4467C7) or the empty function after it (0x4467C6); they read no register, so none of
 /// the original's (ebp the span, eax / edx / ebx the progress, esi the function) is passed.
 pub fn step_loading_bar(done: u32) -> Result<(), Refused> {
-    let show: u32 = RACE_VARS.bar_function.bits();
+    let show: u32 = crate::race::owner::race().shared.vars.bar_function.bits();
     if show == 0 {
         return Err(BadInput("no function to show the loading with").into());
     }
     if let Some(progress) = progress(done) {
-        RACE_VARS.bar_share.set_bits(progress);
+        crate::race::owner::race()
+            .shared
+            .vars
+            .bar_share
+            .set_bits(progress);
     }
     if show == BAR {
         crate::race::loading_bar_frame::loading_bar_frame()

@@ -18,8 +18,6 @@
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::vars_store::RACE_VARS;
 use crate::scene::owner::scene;
 
 const HEX8: u32 = 1;
@@ -33,9 +31,15 @@ const MOST: u32 = 64;
 
 /// (label, kind, value): the head's lines before the mask's clearing, and after.
 const HEAD: [(&std::ffi::CStr, u32, Value); 10] = [
-    (c"videox", HEX8, || crate::session::SCREEN.width.get()), // "videox" g_screenWidth
-    (c"videoy", HEX8, || crate::session::SCREEN.height.get()), // "videoy" g_screenHeight
-    (c"videoy", HEX8, || crate::session::SCREEN.height.get()), // "videoy" g_screenHeight
+    (c"videox", HEX8, || {
+        crate::system::owner::system().session.screen.width.get()
+    }), // "videox" g_screenWidth
+    (c"videoy", HEX8, || {
+        crate::system::owner::system().session.screen.height.get()
+    }), // "videoy" g_screenHeight
+    (c"videoy", HEX8, || {
+        crate::system::owner::system().session.screen.height.get()
+    }), // "videoy" g_screenHeight
     (c"r", FLOAT, || scene().drawing.scene.clip_screen[3].bits()), // "r" g_clipScreenRight
     (c"l", FLOAT, || scene().drawing.scene.clip_screen[2].bits()), // "l" g_clipScreenLeft
     (c"b", FLOAT, || scene().drawing.scene.clip_screen[1].bits()), // "b" g_clipScreenBottom
@@ -60,8 +64,16 @@ const POLYGON_NUMBER: [(&std::ffi::CStr, u32, Value); 1] = [(c"polynum", INT, ||
     race().course.course.current_course_face.bits()
 })]; // "polynum"
 const OBJECT: [(&std::ffi::CStr, u32, Value); 2] = [
-    (c"objdraw", INT, || FRAME_SWITCHES.object_number.bits()), // "objdraw" g_objectNumber
-    (c"objfaced", INT, || RACE_VARS.face_number.bits()),       // "objfaced" g_faceNumber
+    (c"objdraw", INT, || {
+        crate::race::owner::RACE
+            .shared
+            .switches
+            .object_number
+            .bits()
+    }), // "objdraw" g_objectNumber
+    (c"objfaced", INT, || {
+        crate::race::owner::RACE.shared.vars.face_number.bits()
+    }), // "objfaced" g_faceNumber
 ];
 /// A vertex's: (label, kind, offset).
 const VERTEX: [(&std::ffi::CStr, u32, u32); 8] = [

@@ -66,13 +66,19 @@ const _: () = {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The bytes, zero as in the image.
-pub static BUFFERS: Buffers = crate::pointers::cells_of_bytes([0u8; END - START]);
+impl Buffers {
+    /// The bytes, zero as in the image.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes([0u8; END - START])
+    }
+}
 
 /// Where IDA 0x960000 is now (the static).
 #[cfg(test)]
 pub fn home() -> usize {
-    crate::pointers::game_address(core::ptr::from_ref(&BUFFERS)) as usize
+    crate::pointers::game_address(core::ptr::from_ref(
+        &crate::race::owner::race().shared.buffers,
+    )) as usize
 }
 
 #[cfg(test)]

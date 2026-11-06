@@ -13,9 +13,7 @@
 //! Out: nothing its callers (`race::draw_race_scene`, `race::draw_mirror_view`) read
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::race::owner::Race;
-use crate::race::view_store::RACE_VIEW;
 use crate::scene::faces_store::FACES;
 use crate::scene::owner::scene;
 
@@ -23,8 +21,8 @@ use crate::scene::owner::scene;
 /// flare's entry is read as a description of 0x3C bytes, past its own 8
 /// (`scene::draw_described_object`), and the sort list's last entries past the store.
 fn faces_list(off: usize) -> crate::pointers::GamePtr {
-    use crate::race::buffers_store::{BUFFERS, Buffers};
-    crate::pointers::GamePtr::to(&BUFFERS)
+    use crate::race::buffers_store::Buffers;
+    crate::pointers::GamePtr::to(&crate::race::owner::race().shared.buffers)
         .offset((core::mem::offset_of!(Buffers, faces) + off) as u32)
 }
 
@@ -46,7 +44,7 @@ fn depth_list() -> crate::pointers::GamePtr {
 pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
     use crate::race::frame_draw::*;
     use crate::sound::race_sound_tick::race_sound_tick;
-    if CAR.view_covered.get() != 0 {
+    if crate::race::owner::race().shared.car.view_covered.get() != 0 {
         return draw_view_tint();
     }
     // dword_635014, dword_635018.
@@ -63,16 +61,23 @@ pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
     view_light()?;
     race_sound_tick(&race.frame)?; // 0x15
     reset_lamps()?;
-    RACE_VIEW.view_lamps.set_bits(0u32);
+    crate::race::owner::race()
+        .shared
+        .view
+        .view_lamps
+        .set_bits(0u32);
     prepare_course_view()?;
     gather_visible_faces()?;
     eax_environment()?;
     gather_lamps()?;
     lamps_wanted()?;
     race_sound_tick(&race.frame)?; // 0x16
-    sort_entries(&RACE_VIEW.sort_entry_count, &FACES.sort_entries)?;
+    sort_entries(
+        &crate::race::owner::race().shared.view.sort_entry_count,
+        &FACES.sort_entries,
+    )?;
     draw_entries(
-        &RACE_VIEW.sort_entry_count,
+        &crate::race::owner::race().shared.view.sort_entry_count,
         &FACES.sort_entries,
         sort_list(),
     )?;
@@ -82,10 +87,13 @@ pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
     crate::race::skidmarks::draw_skidmarks_if_on(race)?;
     car_lights()?;
     race_sound_tick(&race.frame)?; // 0x18
-    sort_entries(&RACE_VIEW.depth_entry_count, &FACES.depth_entries)?;
+    sort_entries(
+        &crate::race::owner::race().shared.view.depth_entry_count,
+        &FACES.depth_entries,
+    )?;
     race_sound_tick(&race.frame)?; // 0x19
     draw_entries(
-        &RACE_VIEW.depth_entry_count,
+        &crate::race::owner::race().shared.view.depth_entry_count,
         &FACES.depth_entries,
         depth_list(),
     )?;

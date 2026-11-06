@@ -7,7 +7,6 @@
 //!
 //! Caller: `sub_43703E` (0x4371BC, 0x43729B).
 
-use crate::physics::car_store::CAR;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -18,12 +17,12 @@ fn core(v: &[&dyn Cell32]) {
 
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
-        &CAR.driver_kind,
-        &CAR.checkpoint,
-        &CAR.engine_sound_speed_int,
-        &CAR.start_share,
-        &CAR.start_blend,
-        &CAR.unknown_44,
+        &crate::race::owner::race().shared.car.driver_kind,
+        &crate::race::owner::race().shared.car.checkpoint,
+        &crate::race::owner::race().shared.car.engine_sound_speed_int,
+        &crate::race::owner::race().shared.car.start_share,
+        &crate::race::owner::race().shared.car.start_blend,
+        &crate::race::owner::race().shared.car.unknown_44,
     ]
 }
 

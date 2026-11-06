@@ -25,9 +25,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::{Menus, menus};
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
-use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
@@ -57,7 +55,11 @@ pub fn draw_highlighted(
     if own.is_some_and(|own| own >= OWN) {
         return Err(BadInput("a kind past the records of the kinds' own places").into());
     }
-    let clock: u32 = PHYSICS.scene_clock.bits();
+    let clock: u32 = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .scene_clock
+        .bits();
     drawing.object_work.angles[1].set((clock << 3) & 0xFFFF);
     drawing.object_work.place[2].set(screens.state.carousel.z.get());
     drawing.object_work.place[0].set_bits(0u32);
@@ -73,7 +75,11 @@ pub fn draw_highlighted(
     }
     screens.state.carousel.kind.set(kind);
     let object = find_object_of_kind(kind);
-    FRAME_SWITCHES.object_number.set_bits(object);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .object_number
+        .set_bits(object);
     draw()
 }
 

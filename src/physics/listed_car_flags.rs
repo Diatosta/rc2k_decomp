@@ -17,7 +17,7 @@ use rc2k_core::physics::listed_cars::listed_entry;
 
 /// Sets `flag` to 1 when the current car is listed (`FRAME_WORK.listed_car_sounds`).
 pub fn set_flag(frame: &Frame, flag: &Dword) -> Result<(), Refused> {
-    let current = crate::race::work_store::RACE_WORK.current_car.get();
+    let current = crate::race::owner::race().shared.work.current_car.get();
     let (_, listed) = listed_entry(current, |car| {
         frame.frame_work.listed_car_sounds[car as usize].get()
     })?;

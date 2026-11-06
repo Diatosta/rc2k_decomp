@@ -21,10 +21,10 @@ pub fn read_text(
     path: impl crate::files::handle::GamePath,
 ) -> Result<Option<(GamePtr, u32)>, BadInput> {
     {
-        let text = GamePtr::to(&crate::files::scratch::SCRATCH.buffer);
+        let text = GamePtr::to(&crate::system::owner::system().work.files.buffer);
         let read = read_file(
             path,
-            GamePtr::to(&crate::files::scratch::SCRATCH.buffer),
+            GamePtr::to(&crate::system::owner::system().work.files.buffer),
             TEXT_ROOM,
             0,
         )?;

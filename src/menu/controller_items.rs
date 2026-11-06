@@ -26,7 +26,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::input::request_device_release::request_device_release;
 use crate::input::request_device_setup::request_device_setup;
-use crate::input::store::DEVICES;
 use crate::menu::player_settings::current;
 use crate::menu::standings::PlayerCell;
 
@@ -35,13 +34,13 @@ fn player() -> Result<PlayerCell, Refused> {
 }
 
 fn count() -> u32 {
-    DEVICES.controller_count.get()
+    crate::input::owner::input().devices.controller_count.get()
 }
 
 /// Whether the set-up would ask for the device; refused without a record to ask with.
 fn would_apply(controller: u32) -> Result<bool, Refused> {
     let applies = rc2k_core::menu::steps::listed(controller, count());
-    if applies && DEVICES.device(0).is_none() {
+    if applies && crate::input::owner::input().devices.device(0).is_none() {
         return Err(BadInput("no first input device record").into());
     }
     Ok(applies)

@@ -52,12 +52,15 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
     let best_times = &saves().best_times;
     allocate_best_times(
         best_times.list(),
-        crate::records::stages_store::STAGE_TABLES.championship(), // g_recordTable
+        crate::system::owner::system()
+            .records
+            .stage_tables
+            .championship(), // g_recordTable
     )?;
     let Some(file) = open_by_mode(&PATH[..PATH_LEN], 0)? else {
         return Ok(false);
     };
-    let scratch = GamePtr::to(&crate::files::scratch::SCRATCH.buffer);
+    let scratch = GamePtr::to(&crate::system::owner::system().work.files.buffer);
     if !read_or_close(file, scratch, HEAD_LEN)? {
         return Ok(false);
     }

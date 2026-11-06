@@ -5,12 +5,8 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::race;
-use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::view_store::RACE_VIEW;
-use crate::race::work_store::RACE_WORK;
 
 /// "------", "SHAUNINITEVERYTHING - START", ": loading screen / ..", ": loadlevel_init",
 /// ": doingamemusic", ": createcontrols", ": race init", "- FINIS", "------".
@@ -53,7 +49,7 @@ pub fn load_stage() -> Result<(), Refused> {
     log();
     log();
     indent(3);
-    if RACE_WORK.in_credits.get() == 0
+    if crate::race::owner::race().shared.work.in_credits.get() == 0
     /* dword_71C3E0 */
     {
         // As `menu::show_loading_picture`.
@@ -94,11 +90,23 @@ pub fn load_stage() -> Result<(), Refused> {
     indent(3);
     crate::drive::race_init::race_init()?;
     crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
-    let clock: u32 = PHYSICS.scene_clock.bits();
+    let clock: u32 = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .scene_clock
+        .bits();
     race.frame.clock_ticks.clock_b.set(clock);
     race.frame.clock_ticks.sound_ticks.set(0);
-    PHYSICS.race_clock_now.set(clock);
-    PHYSICS.race_clock_base.set(clock);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .race_clock_now
+        .set(clock);
+    crate::race::owner::race()
+        .shared
+        .physics_tables
+        .race_clock_base
+        .set(clock);
     race.frame.panel_and_overlay.overlay.start_lights_lit.set(0);
     race.frame.panel_and_overlay.panel.lights[0]
         .lit
@@ -112,11 +120,15 @@ pub fn load_stage() -> Result<(), Refused> {
     for car in &CAR_BLOCKS.cars[..8] {
         car.value_jump_steps.set(8);
     }
-    FRAME_SWITCHES.other_way.set(1);
-    FRAME_SWITCHES.view_marks_on.set(1);
+    crate::race::owner::race().shared.switches.other_way.set(1);
+    crate::race::owner::race()
+        .shared
+        .switches
+        .view_marks_on
+        .set(1);
     race.physics.ground.stage_loading.set(0);
-    RACE_VIEW.view_on[0].set(1);
-    RACE_VIEW.view_on[1].set(1);
+    crate::race::owner::race().shared.view.view_on[0].set(1);
+    crate::race::owner::race().shared.view.view_on[1].set(1);
     indent(-3);
     log();
     log();

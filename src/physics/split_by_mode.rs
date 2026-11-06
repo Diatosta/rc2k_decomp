@@ -12,20 +12,19 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::compare_split_times::compare_split_times;
 use crate::physics::rank_split_time::rank_split_time;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::splits::{SplitFigure, split_figure};
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::split_figure`.
 pub fn split_by_mode(race: &Race) -> Result<(), Refused> {
-    match split_figure(RACE_VARS.run_kind.get()) {
+    match split_figure(crate::race::owner::race().shared.vars.run_kind.get()) {
         SplitFigure::Place => {
-            CAR.split_gaps[0].set(CAR_BLOCKS.cars[0].mode2_place.get());
+            crate::race::owner::race().shared.car.split_gaps[0]
+                .set(CAR_BLOCKS.cars[0].mode2_place.get());
             Ok(())
         }
         SplitFigure::Rank => rank_split_time(race),

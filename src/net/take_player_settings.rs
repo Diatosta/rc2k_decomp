@@ -11,14 +11,14 @@
 //! Called by `net::start_link`.
 
 use crate::menu::owner::menus;
-use crate::race::state_store::{RACE_STATE, RaceState};
+use crate::race::state_store::RaceState;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
 /// Player 1's record into the network game's settings, its entry marked as taking part.
 pub fn take_player_settings() {
     let player = &menus().play.players.players[0];
     player.update(|p| p.entry = TAKES_PART);
-    copy_player_settings(&player.get(), &RACE_STATE);
+    copy_player_settings(&player.get(), &crate::race::owner::race().shared.state);
 }
 
 /// The record's fields into the state's settings and results.
@@ -197,7 +197,7 @@ mod tests {
             chunk.copy_from_slice(&(0x0101_0101 * (n as u32 + 1)).to_le_bytes());
         }
         let record = Player::from_le_bytes(bytes);
-        let whole = GamePtr::to(&RACE_STATE);
+        let whole = GamePtr::to(&crate::race::owner::race().shared.state);
         let before = whole
             .read_bytes(size_of::<RaceState>(), "the race state")
             .unwrap();
@@ -212,7 +212,7 @@ mod tests {
             let at = first + to;
             expected[at..at + len].copy_from_slice(&bytes[from..from + len]);
         }
-        copy_player_settings(&record, &RACE_STATE);
+        copy_player_settings(&record, &crate::race::owner::race().shared.state);
         let after = whole
             .read_bytes(size_of::<RaceState>(), "the race state")
             .unwrap();

@@ -9,8 +9,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_course::Course;
 use crate::session::{Cell32, Float};
 
@@ -29,13 +27,13 @@ pub struct GearPlaces {
 impl GearPlaces {
     pub fn game() -> Self {
         Self {
-            gear: &CAR.gear,
-            engine_speed: &CAR.engine_speed,
-            drive_speed: &CAR.drive_speed_a,
-            drive_speed_2: &CAR.drive_speed_b,
-            drive_kind: &CAR.drive_kind,
-            ratios: &PHYSICS.gear_ratios,
-            speed: &CAR.local_velocity[2],
+            gear: &crate::race::owner::race().shared.car.gear,
+            engine_speed: &crate::race::owner::race().shared.car.engine_speed,
+            drive_speed: &crate::race::owner::race().shared.car.drive_speed_a,
+            drive_speed_2: &crate::race::owner::race().shared.car.drive_speed_b,
+            drive_kind: &crate::race::owner::race().shared.car.drive_kind,
+            ratios: &crate::race::owner::race().shared.physics_tables.gear_ratios,
+            speed: &crate::race::owner::race().shared.car.local_velocity[2],
         }
     }
 }

@@ -21,7 +21,6 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 use crate::race::replay_work_store::REPLAY_WORK;
-use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
@@ -86,16 +85,16 @@ fn steps(replay: &Replay) -> Result<(), Refused> {
     }
     CAR_BLOCKS.cars[0]
         .option_bits
-        .set_bits(RACE_VIEW.player_options[0].get());
+        .set_bits(crate::race::owner::race().shared.view.player_options[0].get());
     CAR_BLOCKS.cars[1]
         .option_bits
-        .set_bits(RACE_VIEW.player_options[1].get());
+        .set_bits(crate::race::owner::race().shared.view.player_options[1].get());
     // The head's bytes 2 .. 5 into `dword_63DB74`, `63DB78`, `63DB84`, `63DB88`.
     for (k, to) in [
-        &RACE_VIEW.view_on[0],
-        &RACE_VIEW.view_on[1],
-        &RACE_VIEW.after_credits,
-        &RACE_VIEW.view_switch,
+        &crate::race::owner::race().shared.view.view_on[0],
+        &crate::race::owner::race().shared.view.view_on[1],
+        &crate::race::owner::race().shared.view.after_credits,
+        &crate::race::owner::race().shared.view.view_switch,
     ]
     .into_iter()
     .enumerate()

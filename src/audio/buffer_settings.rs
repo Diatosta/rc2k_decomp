@@ -2,17 +2,16 @@
 //! `set_buffer_place` share: a voice's settings to its DirectSound buffer (one COM call
 //! each).
 
-use crate::audio::store::AUDIO;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
 pub fn a3d() -> bool {
-    AUDIO.use_a3d.get() == 1
+    crate::audio::owner::audio().state.use_a3d.get() == 1
 }
 
 /// `g_volumeTable`'s entry `n`, for the core.
 pub fn volumes(n: u32) -> u32 {
-    AUDIO.volume_table[n as usize].get()
+    crate::audio::owner::audio().state.volume_table[n as usize].get()
 }
 
 fn buffer(v: &Voice) -> Result<u32, Refused> {
@@ -36,7 +35,7 @@ pub fn set_buffer_volume(v: &Voice) -> Result<i32, Refused> {
 /// `SetPan`, nothing in 3D: a pan below 0 is `g_volumeTable[pan + 0x40]`, else
 /// `-g_volumeTable[0x40 - pan]`. Returns eax, or `None` where the original leaves eax.
 pub fn set_buffer_pan(v: &Voice) -> Result<Option<i32>, Refused> {
-    if AUDIO.sound_mode.get() & MODE_3D != 0 {
+    if crate::audio::owner::audio().state.sound_mode.get() & MODE_3D != 0 {
         return Ok(None);
     }
     if a3d() {

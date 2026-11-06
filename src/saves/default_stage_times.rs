@@ -30,7 +30,10 @@ pub fn default_stage_times(ebp: u32, log: Log) -> Result<(), Refused> {
         }
         let mut tables = Vec::new();
         for n in 0..TABLES {
-            let records = crate::records::stages_store::STAGE_TABLES.level_table(n as u32)?;
+            let records = crate::system::owner::system()
+                .records
+                .stage_tables
+                .level_table(n as u32)?;
             let six = (0..6u32)
                 .map(|stage| read_record(records.row(stage + 1)?))
                 .collect::<Result<Vec<_>, _>>()?;

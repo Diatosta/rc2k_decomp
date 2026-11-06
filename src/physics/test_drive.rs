@@ -12,7 +12,6 @@
 //! menu writes ebx at 0x474AC7 before reading it).
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::test_drive_run;
 use crate::race::owner::race;
@@ -26,22 +25,41 @@ pub fn test_drive() -> Result<(), Refused> {
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.
     let kept = [
-        CAR.drive_speed_a.bits(),
-        CAR.drive_speed_b.bits(),
-        CAR.local_velocity[2].bits(),
-        CAR.gear.bits(),
-        CAR.engine_speed.bits(),
-        CAR.gearbox_kind.bits(),
+        crate::race::owner::race().shared.car.drive_speed_a.bits(),
+        crate::race::owner::race().shared.car.drive_speed_b.bits(),
+        crate::race::owner::race().shared.car.local_velocity[2].bits(),
+        crate::race::owner::race().shared.car.gear.bits(),
+        crate::race::owner::race().shared.car.engine_speed.bits(),
+        crate::race::owner::race().shared.car.gearbox_kind.bits(),
     ];
-    CAR.engine_power_factor
+    crate::race::owner::race()
+        .shared
+        .car
+        .engine_power_factor
         .set_bits(GEAR.test_power_factor.bits());
     test_drive_run::test_drive_run(course)?;
     let [a, b, speed, gear, engine, kind] = kept;
-    CAR.drive_speed_a.set_bits(a);
-    CAR.drive_speed_b.set_bits(b);
-    CAR.local_velocity[2].set_bits(speed);
-    CAR.gear.set_bits(gear);
-    CAR.engine_speed.set_bits(engine);
-    CAR.gearbox_kind.set_bits(kind);
+    crate::race::owner::race()
+        .shared
+        .car
+        .drive_speed_a
+        .set_bits(a);
+    crate::race::owner::race()
+        .shared
+        .car
+        .drive_speed_b
+        .set_bits(b);
+    crate::race::owner::race().shared.car.local_velocity[2].set_bits(speed);
+    crate::race::owner::race().shared.car.gear.set_bits(gear);
+    crate::race::owner::race()
+        .shared
+        .car
+        .engine_speed
+        .set_bits(engine);
+    crate::race::owner::race()
+        .shared
+        .car
+        .gearbox_kind
+        .set_bits(kind);
     Ok(())
 }

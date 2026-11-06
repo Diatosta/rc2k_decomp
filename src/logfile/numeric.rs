@@ -10,12 +10,10 @@
 //! `_l2_nl`) and jump to it, so they go through its hook.
 
 use crate::errors::BadInput;
-use crate::session::Bytes;
 
 /// `dst` (0x93E030 in the image, 0x50 bytes below the log's line buffer): where a number's
 /// text is made, and `start_log`'s date. Written under the log's lock.
 pub const SCRATCH_LEN: usize = 0x50;
-pub static SCRATCH: Bytes<SCRATCH_LEN> = Bytes::new([0; SCRATCH_LEN]);
 
 /// The text of a number, as it is left in the scratch buffer.
 pub struct NumberText {

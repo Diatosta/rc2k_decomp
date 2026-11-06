@@ -18,7 +18,6 @@ use crate::gfx::picture::has_picture;
 use crate::gfx::picture::set_size;
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::gfx::rescale_picture::rescale_picture;
-use crate::session::SCREEN;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
@@ -36,8 +35,11 @@ pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refuse
     set_size(sizes::READ);
     clear_picture()?;
     let read = read_picture_file(path);
-    let screen_width: u32 = SCREEN.width.get();
-    set_size(sizes::screen(screen_width, SCREEN.height.get()));
+    let screen_width: u32 = crate::system::owner::system().session.screen.width.get();
+    set_size(sizes::screen(
+        screen_width,
+        crate::system::owner::system().session.screen.height.get(),
+    ));
     if !read? {
         return Ok(false);
     }

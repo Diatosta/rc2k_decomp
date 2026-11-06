@@ -15,7 +15,6 @@ use crate::drive::race_parts::{stop_race_sounds, wake_car_sounds};
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner_replay::Replay;
-use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::race_ticks;
 
 /// The Rust version.
@@ -27,14 +26,14 @@ pub fn quit_question(replay: &Replay) -> Result<u32, Refused> {
     stop_race_sounds()?;
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer();
-    RACE_VARS.scene_switch.set(1);
+    crate::race::owner::race().shared.vars.scene_switch.set(1);
     // eax: the best frame, then each key's answer, then what the frame leaves; it goes
     // into `input::yes_no_key` (the key given, when one is).
     let (mut eax, _) = race_ticks::best_frame(CAR_BLOCKS.cars[0].step_clock.bits());
     if race_ticks::keeps_frame(eax, replay.replay_frames.last_kept.get()) {
         replay.replay_frames.last_kept.set(eax);
     }
-    let kind = race_ticks::quit_notice(RACE_VARS.no_replay.get() != 0);
+    let kind = race_ticks::quit_notice(crate::race::owner::race().shared.vars.no_replay.get() != 0);
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].notice_id.set_bits(kind);
     }
@@ -53,8 +52,8 @@ pub fn quit_question(replay: &Replay) -> Result<u32, Refused> {
         };
         match race_ticks::quit_answer(
             eax,
-            RACE_VARS.run_kind.get(),
-            RACE_VARS.no_replay.get() != 0,
+            crate::race::owner::race().shared.vars.run_kind.get(),
+            crate::race::owner::race().shared.vars.no_replay.get() != 0,
         ) {
             Some(answer) => break answer,
             None => eax = crate::drive::race_frame::race_frame(eax)?,
@@ -66,7 +65,7 @@ pub fn quit_question(replay: &Replay) -> Result<u32, Refused> {
             cell.set(0);
         }
     }
-    RACE_VARS.scene_switch.set(0);
+    crate::race::owner::race().shared.vars.scene_switch.set(0);
     wake_car_sounds()?;
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].input_keys.set_bits(0);

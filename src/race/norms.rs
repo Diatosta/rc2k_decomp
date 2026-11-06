@@ -8,7 +8,6 @@ use crate::math::x87;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::race::view_store::RACE_VIEW;
 use crate::scene::owner::scene;
 
 /// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit
@@ -99,7 +98,7 @@ pub fn store_face_normal(
         let corners = [0, 1, 2, 3].map(|n| f.point(n));
         let repeated = repeated_points(
             corners,
-            || RACE_VIEW.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
+            || crate::race::owner::race().shared.view.corners[3].bits() != u32::MAX, /* dword_63D9F8: -1 for faces of three points */
         );
         crate::race::course_places::update_face_number(face, what, |f| {
             f.set_switches(with_repeated(f.switches(), repeated));

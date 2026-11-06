@@ -14,28 +14,54 @@
 //! before writing.
 
 use crate::errors::Refused;
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::race::owner_physics::Physics;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The Rust version. Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
 pub fn restore_saved_car(physics: &Physics) -> Result<(), Refused> {
-    let n = restore_count(CAR.probe_count.get())?;
-    PHYSICS
+    let n = restore_count(crate::race::owner::race().shared.car.probe_count.get())?;
+    crate::race::owner::race()
+        .shared
+        .physics_tables
         .clear_place_count
-        .set(restored(PHYSICS.clear_place_count.get()));
-    for (to, from) in CAR.position.iter().zip(&PHYSICS.saved_place) {
+        .set(restored(
+            crate::race::owner::race()
+                .shared
+                .physics_tables
+                .clear_place_count
+                .get(),
+        ));
+    for (to, from) in crate::race::owner::race()
+        .shared
+        .car
+        .position
+        .iter()
+        .zip(&crate::race::owner::race().shared.physics_tables.saved_place)
+    {
         to.set(from.get());
     }
-    for (to, from) in CAR.crash_matrix.iter().zip(&PHYSICS.saved_matrix) {
+    for (to, from) in crate::race::owner::race()
+        .shared
+        .car
+        .crash_matrix
+        .iter()
+        .zip(
+            &crate::race::owner::race()
+                .shared
+                .physics_tables
+                .saved_matrix,
+        )
+    {
         to.set_bits(from.bits());
     }
     // By address: up to 0x7C dwords from a list of 0x40 (the original copies on into what
     // follows each).
     crate::session::copy_on_in(
         (&physics.contact, &physics.contact.probe_saved_faces),
-        (&CAR, &CAR.probe_point_face),
+        (
+            &crate::race::owner::race().shared.car,
+            &crate::race::owner::race().shared.car.probe_point_face,
+        ),
         n as usize,
         "the saved faces",
     )?;

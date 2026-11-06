@@ -11,8 +11,6 @@
 
 use crate::math::x87;
 use crate::math::x87_run::mul2_plus;
-use crate::physics::car_store::CAR;
-use crate::physics::tables_store::PHYSICS;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 
@@ -22,16 +20,28 @@ fn put(a: &dyn Cell32, v: u32) {
 
 /// The core on the variables' cells.
 pub fn add_drive_forces_at(v: &[&dyn Cell32]) {
-    let mut factor = PHYSICS.drive_force_factor[0].bits();
+    let mut factor = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .drive_force_factor[0]
+        .bits();
     if v[1].bits() != 0 {
         v[0].set_bits(x87::loaded(factor));
-        factor = PHYSICS.drive_force_factor[1].bits();
+        factor = crate::race::owner::race()
+            .shared
+            .physics_tables
+            .drive_force_factor[1]
+            .bits();
     }
     put(
         v[6],
         x87::sum4_times(v[2].bits(), v[3].bits(), v[4].bits(), v[5].bits(), factor),
     );
-    let scale = PHYSICS.drive_shares[2].bits();
+    let scale = crate::race::owner::race()
+        .shared
+        .physics_tables
+        .drive_shares[2]
+        .bits();
     v[9].set_bits(mul2_plus(v[7].bits(), v[6].bits(), scale, v[9].bits()));
     v[10].set_bits(mul2_plus(v[8].bits(), v[6].bits(), scale, v[10].bits()));
 }
@@ -39,16 +49,25 @@ pub fn add_drive_forces_at(v: &[&dyn Cell32]) {
 fn game() -> Vec<&'static dyn Cell32> {
     vec![
         &scene().drawing.scene.scratch as &dyn Cell32,
-        &CAR.drive_kind,
-        &PHYSICS.wheel_loads[0],
-        &PHYSICS.wheel_loads[1],
-        &PHYSICS.wheel_loads[2],
-        &PHYSICS.wheel_loads[3],
-        &PHYSICS.drive_force_scale,
-        &PHYSICS.wheel_slips[0],
-        &PHYSICS.wheel_slips[1],
-        &PHYSICS.drive_forces[0],
-        &PHYSICS.drive_forces[1],
+        &crate::race::owner::race().shared.car.drive_kind,
+        &crate::race::owner::race().shared.physics_tables.wheel_loads[0],
+        &crate::race::owner::race().shared.physics_tables.wheel_loads[1],
+        &crate::race::owner::race().shared.physics_tables.wheel_loads[2],
+        &crate::race::owner::race().shared.physics_tables.wheel_loads[3],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .drive_force_scale,
+        &crate::race::owner::race().shared.physics_tables.wheel_slips[0],
+        &crate::race::owner::race().shared.physics_tables.wheel_slips[1],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .drive_forces[0],
+        &crate::race::owner::race()
+            .shared
+            .physics_tables
+            .drive_forces[1],
     ]
 }
 

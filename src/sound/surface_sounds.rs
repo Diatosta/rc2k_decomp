@@ -48,12 +48,12 @@ fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Ref
         if second == 0 {
             x87_1(
                 &crate::sound::owner::sound().race.surface,
-                &crate::session::MACHINE.scratch,
+                &crate::system::owner::system().session.machine.scratch,
             );
         } else {
             x87_2(
                 &crate::sound::owner::sound().race.surface,
-                &crate::session::MACHINE.scratch,
+                &crate::system::owner::system().session.machine.scratch,
             );
         }
     }

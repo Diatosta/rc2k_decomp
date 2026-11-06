@@ -15,8 +15,6 @@
 //! piece of code (0x418A43, 0x418C5A, 0x418D77: Rust versions of them). It waits on
 //! another thread.
 
-use crate::net::store::NET;
-use crate::session::FLAGS;
 use std::sync::Mutex;
 use std::sync::atomic::Ordering;
 
@@ -25,29 +23,39 @@ static POSTED: Mutex<Option<fn() -> u32>> = Mutex::new(None);
 
 /// The Rust version.
 pub fn post_call(code: fn() -> u32) -> u32 {
-    if NET.posting.get() == 1 {
+    if crate::net::owner::net().vars.posting.get() == 1 {
         *POSTED
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(code);
-        NET.posted_call.set(1);
+        crate::net::owner::net().vars.posted_call.set(1);
         loop {
-            let answered = NET.posted_answered.atomic().swap(0, Ordering::SeqCst);
+            let answered = crate::net::owner::net()
+                .vars
+                .posted_answered
+                .atomic()
+                .swap(0, Ordering::SeqCst);
             if answered != 0 {
                 break;
             }
             crate::system::sleep::sleep(100);
             crate::platform::pump_messages_now();
-            if FLAGS.quitting.get() == 1 {
+            if crate::system::owner::system().session.flags.quitting.get() == 1 {
                 break;
             }
         }
     }
-    NET.posted_result.get()
+    crate::net::owner::net().vars.posted_result.get()
 }
 
 /// The call posted, taken by the receiving thread (none waiting: `None`).
 pub fn take_posted() -> Option<fn() -> u32> {
-    if NET.posted_call.atomic().swap(0, Ordering::SeqCst) == 0 {
+    if crate::net::owner::net()
+        .vars
+        .posted_call
+        .atomic()
+        .swap(0, Ordering::SeqCst)
+        == 0
+    {
         return None;
     }
     POSTED

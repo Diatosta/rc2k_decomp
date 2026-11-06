@@ -31,10 +31,13 @@ use crate::text::draw_text::Canvas;
 /// The stage's section's first record and the stage's record (`off_735512[dword_7558C8]
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.
 fn records(screens: &Screens) -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = crate::records::stages_store::STAGE_TABLES.group_event_table(
-        screens.event.stage_group.get(),
-        screens.event.stage_sub.get(),
-    )?;
+    let base = crate::system::owner::system()
+        .records
+        .stage_tables
+        .group_event_table(
+            screens.event.stage_group.get(),
+            screens.event.stage_sub.get(),
+        )?;
     Ok((
         base,
         crate::records::stages_store::row(base, screens.event.stage_number.get())?,

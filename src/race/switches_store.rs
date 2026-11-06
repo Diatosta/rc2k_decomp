@@ -62,10 +62,13 @@ pub struct FrameSwitches {
 // SAFETY: every field is a cell over a plain integer (`session`'s cells and records of
 // them): any bit pattern is a valid value.
 
-/// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
-/// `race::store::LEFT`), with the image's first values.
-pub static FRAME_SWITCHES: FrameSwitches =
-    crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START));
+impl FrameSwitches {
+    /// The piece: a static of its own since 2026-10-29 (it left the race block, phase 13:
+    /// `race::store::LEFT`), with the image's first values.
+    pub const fn new() -> Self {
+        crate::pointers::cells_of_bytes(crate::race::store::first_values::<{ END - START }>(START))
+    }
+}
 
 /// IDA 0x621480, the first byte of the piece.
 pub const START: usize = 0x621480;
@@ -77,7 +80,9 @@ const _: () = assert!(END - START == core::mem::size_of::<FrameSwitches>());
 /// Where IDA 0x621480 is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&FRAME_SWITCHES))
+    crate::pointers::game_address(std::ptr::from_ref(
+        &crate::race::owner::race().shared.switches,
+    ))
 }
 
 #[cfg(test)]
@@ -87,7 +92,11 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FRAME_SWITCHES, START, END);
+        crate::gfx::first_values_are_the_games(
+            &crate::race::owner::race().shared.switches,
+            START,
+            END,
+        );
     }
 
     #[test]
