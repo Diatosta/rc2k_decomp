@@ -148,6 +148,8 @@ def start(gpu, fresh, profile=False):
     renderer = 'RC2K_RENDERER=gpu ' if gpu else ''
     if profile:
         renderer += 'RC2K_PROFILE=1 '
+    if os.environ.get('RC2K_SLOW_FRAMES'):  # log each frame in a race slower than this many ms
+        renderer += f"RC2K_SLOW_FRAMES={int(os.environ['RC2K_SLOW_FRAMES'])} "
     if HOST:
         ssh(f'rm -rf {FOLDER}; mkdir -p {FOLDER}; cd {DEVICE_GAME}; '
             '[ -d .remote_kept ] || { mkdir .remote_kept; cp -r var savedata .remote_kept/; }; '

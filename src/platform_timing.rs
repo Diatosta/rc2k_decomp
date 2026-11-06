@@ -231,6 +231,13 @@ pub fn report_timing() {
                 (micros - m0) as f64 / 10000.0 / seconds
             ));
             *last = Some((now, frames, fans, micros, flushes, pixels));
+            log(&format!(
+                "platform: so far {} frames read back from the GPU, {} textures sent up ({} KB); {} GPU draws",
+                crate::render::READ_BACKS.load(Relaxed),
+                crate::render::UPLOADS.load(Relaxed),
+                crate::render::UPLOAD_BYTES.load(Relaxed) / 1024,
+                crate::render::GPU_DRAWS.load(Relaxed),
+            ));
             // The handheld's: where the time goes, and the samples so far.
             #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
             {

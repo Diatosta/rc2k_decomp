@@ -303,6 +303,15 @@ pub static TILE_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomic
 pub static FLUSHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 pub static PIXELS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
+/// The GPU's frames read back into the canvas, and the textures (and their bytes) sent up to
+/// it (for `platform::report_timing`): the costs that vary along a stage on the handheld.
+pub static READ_BACKS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static UPLOADS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static UPLOAD_BYTES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// The GPU's draw calls (a run of triangles drawn alike each): what the handheld's driver
+/// spends its time on.
+pub static GPU_DRAWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 #[cfg(test)]
 mod tests {
     use super::TextureChanges;

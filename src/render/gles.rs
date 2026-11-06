@@ -602,6 +602,10 @@ impl Gpu {
             size: (width, height),
         } = part;
         let batches = Batches::of(&commands, width as u32, height as u32);
+        super::GPU_DRAWS.fetch_add(
+            batches.batches.len() as u64,
+            std::sync::atomic::Ordering::Relaxed,
+        );
         if let Err(why) = self.set_size(width, height) {
             crate::fatal::raise::end(
                 "render::gles",
@@ -748,6 +752,8 @@ impl Gpu {
     }
 
     fn bring_texture_up(&mut self, note: &TextureNote, bytes: &[u8]) {
+        super::UPLOADS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        super::UPLOAD_BYTES.fetch_add(bytes.len() as u64, std::sync::atomic::Ordering::Relaxed);
         let known = self.textures.get(&note.pixels);
         let (width, height) = (note.width as i32, note.height as i32);
         let gl = &self.gl;
@@ -1005,6 +1011,7 @@ impl Front {
     /// The target's picture, with the canvas's written pixels, into the canvas (waits for the
     /// GL: the frame's whole work so far).
     pub fn bring_back(&mut self, canvas: &mut [u8]) {
+        super::READ_BACKS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         self.draw(canvas, Vec::new());
         let (answer, picture) = channel();
         self.send(Job::ReadTarget(answer));

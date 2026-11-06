@@ -383,6 +383,7 @@ pub fn poll(course: &Course) {
     let Some(folder) = folder() else { return };
     note_screen(course);
     let now = Instant::now();
+    note_slow_frame(course, now);
     pending().releases.retain(|(when, release)| {
         if *when > now {
             return true;
@@ -397,6 +398,35 @@ pub fn poll(course: &Course) {
     if let Ok(text) = std::fs::read_to_string(&path) {
         let _ = std::fs::remove_file(&path);
         text.lines().for_each(run);
+    }
+}
+
+/// With `RC2K_SLOW_FRAMES=<ms>`, a log line for each pump in a race that comes more than
+/// that many milliseconds after the one before, with the driven car's checkpoint: where on
+/// the stage the frame rate drops (the five-second lines smooth the drops away).
+fn note_slow_frame(course: &Course, now: Instant) {
+    static LIMIT: OnceLock<Option<u128>> = OnceLock::new();
+    static LAST: Mutex<Option<Instant>> = Mutex::new(None);
+    let Some(limit) = *LIMIT.get_or_init(|| {
+        std::env::var("RC2K_SLOW_FRAMES")
+            .ok()
+            .and_then(|v| v.trim().parse().ok())
+    }) else {
+        return;
+    };
+    let mut last = LAST
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let before = last.replace(now);
+    let Some(before) = before else { return };
+    let ms = now.duration_since(before).as_millis();
+    if ms > limit && course.numbers.in_race.get() != 0 {
+        let car = driven_car(course);
+        crate::framework::log(&format!(
+            "remote: slow frame {ms} ms at checkpoint {} (frame {})",
+            car.checkpoint.get(),
+            gfx().drawing.draw_surface.frames.get()
+        ));
     }
 }
 
