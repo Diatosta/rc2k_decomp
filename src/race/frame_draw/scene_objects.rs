@@ -15,7 +15,6 @@ use crate::race::matrices_store::{MATRICES, SceneMatrices};
 use crate::race::numbers_store::NUMBERS;
 use crate::race::prefs_store::STAGE_PREFS;
 use crate::race::switches_store::FRAME_SWITCHES;
-use crate::race::trap::Trap;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -686,21 +685,25 @@ pub fn draw_list_entry(at: GamePtr, flags_word: u32) -> Result<(), Refused> {
 /// `race::draw_sorted_entries` (0x454EAB) / `race::draw_depth_entries` (0x454E84): each
 /// entry of the list (`count` its count, `entries` its 8-byte entries) by
 /// `draw_list_entry`. Refuses (before anything) what `draw_list_entry` would for any.
-/// `entries` the list.
-pub fn draw_entries(count: &crate::session::Dword, entries: GamePtr) -> Result<(), Refused> {
-    let n: u32 = count.get();
-    let list = entries;
-    let trap = Trap::new();
-    let too_big = (0..n).any(|k| {
-        trap.read_at::<u32>(list.offset(8 * k + 4), "a draw list entry") & 0x7FFF_FFFF >= 0x400_0000
-    });
-    trap.finish()?;
-    if too_big {
+/// `cells` the list's cells; `list` the same list as a place (a flare's entry is read there
+/// as a description, past its own 8 bytes).
+pub fn draw_entries(
+    count: &crate::session::Dword,
+    cells: &[crate::session::Dword],
+    list: GamePtr,
+) -> Result<(), Refused> {
+    let entries = cells
+        .get(..2 * count.get() as usize)
+        .ok_or(BadInput("a draw list entry past the list"))?;
+    let (entries, _) = entries.as_chunks::<2>();
+    if entries
+        .iter()
+        .any(|entry| entry[1].get() & 0x7FFF_FFFF >= 0x400_0000)
+    {
         return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
-    for k in 0..n {
-        let at = list.offset(8 * k);
-        draw_list_entry(at, at.offset(4).read::<u32>("a draw list entry")?)?;
+    for (k, entry) in entries.iter().enumerate() {
+        draw_list_entry(list.offset(8 * k as u32), entry[1].get())?;
     }
     Ok(())
 }

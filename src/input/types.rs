@@ -90,6 +90,13 @@ const fn dwords_of<const N: usize>(b: &[u8], at: usize) -> [Dword; N] {
     out
 }
 
+/// The dwords `ds` written little-endian into `out` from `at`, bits as they are.
+fn put_dwords<'a>(out: &mut [u8], at: usize, ds: impl IntoIterator<Item = &'a Dword>) {
+    for (k, d) in ds.into_iter().enumerate() {
+        out[at + 4 * k..at + 4 * k + 4].copy_from_slice(&d.get().to_le_bytes());
+    }
+}
+
 /// DirectInput's `DIENVELOPE`.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -110,6 +117,22 @@ impl DiEnvelope {
             fade_level: dword_of(b, at + 12),
             fade_time: dword_of(b, at + 16),
         }
+    }
+
+    /// The fields written into `out` from `at` (the inverse of `at`).
+    fn put(&self, out: &mut [u8], at: usize) {
+        let Self {
+            size,
+            attack_level,
+            attack_time,
+            fade_level,
+            fade_time,
+        } = self;
+        put_dwords(
+            out,
+            at,
+            [size, attack_level, attack_time, fade_level, fade_time],
+        );
     }
 }
 
@@ -152,6 +175,44 @@ impl DiEffect {
             type_specific_size: dword_of(b, at + 44),
             type_specific: dword_of(b, at + 48),
         }
+    }
+
+    /// The fields written into `out` from `at` (the inverse of `at`).
+    fn put(&self, out: &mut [u8], at: usize) {
+        let Self {
+            size,
+            flags,
+            duration,
+            sample_period,
+            gain,
+            trigger_button,
+            trigger_repeat_interval,
+            axes_count,
+            axes,
+            directions,
+            envelope,
+            type_specific_size,
+            type_specific,
+        } = self;
+        put_dwords(
+            out,
+            at,
+            [
+                size,
+                flags,
+                duration,
+                sample_period,
+                gain,
+                trigger_button,
+                trigger_repeat_interval,
+                axes_count,
+                axes,
+                directions,
+                envelope,
+                type_specific_size,
+                type_specific,
+            ],
+        );
     }
 }
 
@@ -215,6 +276,34 @@ impl ForceEffect {
             envelope: DiEnvelope::at(b, at + 0x90),
         }
     }
+
+    /// The fields written into `out` from `at` (the inverse of `at`).
+    fn put(&self, out: &mut [u8], at: usize) {
+        put_dwords(
+            out,
+            at,
+            [&self.change, &self.kind, &self.wanted, &self.found],
+        );
+        for k in 0..16 {
+            out[at + 0x10 + k] = self.guid.get(k);
+        }
+        put_dwords(
+            out,
+            at + 0x20,
+            [
+                &self.eff_type,
+                &self.static_params,
+                &self.dynamic_params,
+                &self.pending,
+                &self.object,
+            ],
+        );
+        self.effect.put(out, at + 0x34);
+        put_dwords(out, at + 0x68, &self.type_specific);
+        put_dwords(out, at + 0x80, &self.axes);
+        put_dwords(out, at + 0x88, &self.directions);
+        self.envelope.put(out, at + 0x90);
+    }
 }
 
 /// A control's binding: its key, the axis's place in the record, its sign, a button's bit.
@@ -236,6 +325,11 @@ impl Binding {
             sign: dword_of(b, at + 8),
             button: dword_of(b, at + 12),
         }
+    }
+
+    /// The fields written into `out` from `at` (the inverse of `at`).
+    fn put(&self, out: &mut [u8], at: usize) {
+        put_dwords(out, at, [&self.key, &self.place, &self.sign, &self.button]);
     }
 }
 
@@ -328,6 +422,44 @@ impl InputDevice {
             stage: dword_of(b, 0x4F0),
             clock: dword_of(b, 0x4F4),
         }
+    }
+
+    /// The record's `RECORD_LEN` bytes, read from its fields (the inverse of `from_bytes`).
+    pub fn to_bytes(&self) -> [u8; 0x4F8] {
+        let mut b = [0u8; 0x4F8];
+        put_dwords(
+            &mut b,
+            0,
+            [
+                &self.controller,
+                &self.device,
+                &self.kind,
+                &self.strength,
+                &self.dead_zone,
+                &self.end_zone,
+                &self.axis_code,
+                &self.axis_pick,
+                &self.sensitivity,
+                &self.acquired,
+                &self.effects_on,
+            ],
+        );
+        put_dwords(&mut b, 0x2C, &self.axes);
+        put_dwords(&mut b, 0x38, [&self.buttons]);
+        for (k, effect) in self.effects.iter().enumerate() {
+            effect.put(&mut b, 0x3C + 0xA4 * k);
+        }
+        put_dwords(&mut b, 0x414, [&self.reading, &self.hat_kind]);
+        for (k, binding) in self.bindings.iter().enumerate() {
+            binding.put(&mut b, 0x41C + 16 * k);
+        }
+        put_dwords(&mut b, 0x4DC, &self.readings);
+        put_dwords(
+            &mut b,
+            0x4E8,
+            [&self.bits, &self.gauge, &self.stage, &self.clock],
+        );
+        b
     }
 
     /// Byte `n` of `axis_code`.

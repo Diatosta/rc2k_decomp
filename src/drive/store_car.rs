@@ -15,6 +15,6 @@ use crate::errors::Refused;
 /// The Rust version.
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
 pub fn store_car() -> Result<(), Refused> {
-    copy_car(&crate::physics::car_store::CAR, current_block()?)?;
+    copy_car(&crate::physics::car_store::CAR, current_block()?);
     Ok(())
 }

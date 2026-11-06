@@ -13,7 +13,7 @@
 
 use crate::drive::replay_frames_store::REPLAY_FRAMES;
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::pointers::copy_cells;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::numbers_store::NUMBERS;
 use rc2k_core::drive::replay_frames::{
@@ -34,15 +34,14 @@ pub fn keep_replay_frame() -> Result<(), BadInput> {
     }
     if REPLAY_FRAMES.tenth.get() == 0 {
         let offset = slot_offset(REPLAY_FRAMES.frame.get());
-        let to = GamePtr::to(&REPLAY_FRAMES.slots).offset(offset);
         // The first four blocks (`SLOT_SIZE` is four of them).
-        GamePtr::to(&crate::race::blocks_store::CAR_BLOCKS.cars).copy_to(
-            to,
+        copy_cells(
+            (&CAR_BLOCKS.cars, 0),
+            (&REPLAY_FRAMES.slots, offset as usize),
             SIZE,
-            "a car's block",
-        )?;
+        );
         if NUMBERS.replay_mode.get() == RECORDING {
-            crate::drive::save_replay_cars::save_replay_cars()?;
+            crate::drive::save_replay_cars::save_replay_cars();
         }
     }
     Ok(())

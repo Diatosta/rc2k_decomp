@@ -37,6 +37,6 @@ mod tests {
             expected[offset..offset + 4].copy_from_slice(&value.to_le_bytes());
         }
         clear_device_readings(&record);
-        assert!(record_bytes(&record).unwrap() == expected);
+        assert!(record_bytes(&record) == expected);
     }
 }

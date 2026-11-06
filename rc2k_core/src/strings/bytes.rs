@@ -13,13 +13,20 @@ pub trait Bytes {
         None
     }
 
+    /// Fills `out` with the bytes from `at`; `None` (with `out` unspecified) when any lies
+    /// past the end. The same bytes `byte` gives one by one, in one read where the holder
+    /// can.
+    fn copy_run(&self, at: usize, out: &mut [u8]) -> Option<()> {
+        for (i, place) in out.iter_mut().enumerate() {
+            *place = self.byte(at.checked_add(i)?)?;
+        }
+        Some(())
+    }
+
     fn u32_le(&self, at: usize) -> Option<u32> {
-        Some(u32::from_le_bytes([
-            self.byte(at)?,
-            self.byte(at + 1)?,
-            self.byte(at + 2)?,
-            self.byte(at + 3)?,
-        ]))
+        let mut word = [0; 4];
+        self.copy_run(at, &mut word)?;
+        Some(u32::from_le_bytes(word))
     }
 }
 

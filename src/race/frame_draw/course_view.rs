@@ -4,7 +4,6 @@ use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::pointers::GamePtr;
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::course_store::COURSE;
 use crate::race::frame_store::FRAME_WORK;
@@ -443,10 +442,13 @@ pub fn visible_records() -> Result<Vec<u32>, BadInput> {
 /// entries by their first dword, the largest first) from its first entry to its last.
 /// Refuses (before anything) a sort that would go past the
 /// list.
-/// `entries` the list.
-pub fn sort_entries(count: &crate::session::Dword, entries: GamePtr) -> Result<(), Refused> {
-    // Converted: `rc2k_core::race::quick_sort::quick_sort` (through `sort_records`).
+/// `entries` the list's cells.
+pub fn sort_entries(
+    count: &crate::session::Dword,
+    entries: &[crate::session::Dword],
+) -> Result<(), Refused> {
+    // Converted: `rc2k_core::race::quick_sort::quick_sort` (through `sort_cells`).
     use rc2k_core::race::quick_sort::Order;
     let n: u32 = count.get();
-    crate::race::sorting::sort_records::<2>(entries, n, 0, Order::Down)
+    crate::race::sorting::sort_cells::<2>(entries, n, 0, Order::Down)
 }

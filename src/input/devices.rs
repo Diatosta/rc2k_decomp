@@ -17,7 +17,6 @@
 use crate::errors::BadInput;
 use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
-use crate::pointers::GamePtr;
 
 /// The two records (`g_inputRecord1`, `g_inputRecord2`).
 pub fn records() -> &'static [InputDevice; 2] {
@@ -28,8 +27,8 @@ pub fn records() -> &'static [InputDevice; 2] {
 pub const STATE_LEN: usize = 0x50;
 
 /// A record's bytes, for the core (`rc2k_core::input::devices`).
-pub fn record_bytes(record: &InputDevice) -> Result<rc2k_core::input::devices::Record, BadInput> {
-    GamePtr::to(record).read("a device record")
+pub fn record_bytes(record: &InputDevice) -> rc2k_core::input::devices::Record {
+    record.to_bytes()
 }
 
 /// A refusal met inside a closure the core asks for a value (it has no failure to give):

@@ -8,16 +8,19 @@
 //! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
+use crate::pointers::copy_cells;
+use crate::race::blocks_store::REPLAY_STATE_OFFSET;
+use crate::race::groups_store::CARS_AND_REPLAY;
+use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 
 const DWORDS: usize = 0xA04;
 
 /// The Rust version.
 pub fn flush_replay() -> Result<(), Refused> {
-    crate::race::blocks_store::replay_state().copy_to(
-        GamePtr::to(&crate::race::viewer_buffers_store::VIEWER_BUFFERS.block),
+    copy_cells(
+        (&CARS_AND_REPLAY, REPLAY_STATE_OFFSET),
+        (&VIEWER_BUFFERS.block, 0),
         DWORDS * 4,
-        "a car's block",
-    )?;
+    );
     crate::drive::write_replay_frames::write_replay_frames()
 }

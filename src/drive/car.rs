@@ -3,9 +3,8 @@
 //! out to it (`drive::load_car`, `drive::store_car`). Fields of the copy met so far are
 //! named in IDA by their addresses (`g_carGear` 0x71A1AC, ...; `physics/gearing.rs`).
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::pointers::GamePtr;
 
 pub const CAR_LEN: usize = 0xFE0;
 const _: () = assert!(core::mem::size_of::<Car>() == CAR_LEN);
@@ -21,6 +20,6 @@ pub fn current_block() -> Result<&'static Car, Refused> {
 
 /// Copies `CAR_LEN` bytes, dword by dword upwards as `rep movsd` does (the two never
 /// overlap in the game; the order is kept anyway).
-pub fn copy_car(from: &Car, to: &Car) -> Result<(), BadInput> {
-    GamePtr::to(from).copy_to(GamePtr::to(to), CAR_LEN, "a car's block")
+pub fn copy_car(from: &Car, to: &Car) {
+    crate::pointers::copy_cells((from, 0), (to, 0), CAR_LEN);
 }

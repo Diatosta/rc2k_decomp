@@ -21,7 +21,6 @@ use crate::effects::tuning::MARKS_FRAME;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::course_lists_store::COURSE_LISTS;
 use crate::race::matrices_store::MATRICES;
 use crate::scene::matrix3::{extended, rounded};
@@ -57,7 +56,14 @@ pub fn draw_frame(effects: &Effects) -> Result<(), Refused> {
     }
     let what = "a stage record's corners";
     let corners = crate::race::course_places::info_bytes(CORNERS_FROM, CORNERS_LEN as usize, what)?;
-    GamePtr::to(&MARK_CORNERS.corners).write_bytes(&corners, what)?;
+    // 0x80 bytes of 16-bit little-endian words for each corner record.
+    let (records, _) = corners.as_chunks::<0x80>();
+    for (record, bytes) in MARK_CORNERS.corners.iter().zip(records) {
+        let (pairs, _) = bytes.as_chunks::<2>();
+        for (word, pair) in record.words.iter().zip(pairs) {
+            word.set(u16::from_le_bytes(*pair));
+        }
+    }
     let source: u32 = crate::scene::owner::scene()
         .draw_switches
         .marks_source

@@ -111,9 +111,8 @@ impl<B: Bytes + ?Sized> Runs<'_, B> {
                     (self.put)(dst, run);
                     return Ok(());
                 }
-                let out = (0..bytes)
-                    .map(|i| self.byte(src.wrapping_add(i)))
-                    .collect::<Result<Vec<u8>, _>>()?;
+                let mut out = vec![0; bytes];
+                self.record.copy_run(src, &mut out).ok_or(PAST)?;
                 (self.put)(dst, &out);
             }
             Format::Palette16 | Format::Palette32 => {

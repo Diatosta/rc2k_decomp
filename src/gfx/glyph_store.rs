@@ -143,6 +143,15 @@ impl rc2k_core::strings::bytes::Bytes for Glyphs {
             Glyphs::Held(b, from) => b.get(from.checked_add(at)?).copied(),
         }
     }
+    fn copy_run(&self, at: usize, out: &mut [u8]) -> Option<()> {
+        match self {
+            Glyphs::Game(b) => b.copy_run(at, out),
+            Glyphs::Held(..) => {
+                out.copy_from_slice(self.run(at, out.len())?);
+                Some(())
+            }
+        }
+    }
     fn run(&self, at: usize, len: usize) -> Option<&[u8]> {
         match self {
             Glyphs::Game(_) => None,

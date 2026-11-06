@@ -733,6 +733,47 @@ pub unsafe trait Cells {
     }
 }
 
+/// `len` bytes copied from byte `from.1` of one record of cells to byte `to.1` of another
+/// (two different records, forwards as a `rep movsd`): the typed form of
+/// `GamePtr::copy_to`, for two places known by their records, so no store is searched and
+/// no address checked. Runs of like cells at aligned offsets are copied cell by cell (a
+/// float by its bits); any other pair of runs through bytes.
+///
+/// # Panics
+/// When a range lies outside its record.
+pub fn copy_cells<F: Cells, T: Cells>(from: (&F, usize), to: (&T, usize), len: usize) {
+    assert!(from.1 + len <= size_of::<F>() && to.1 + len <= size_of::<T>());
+    let (mut a, mut b, mut left) = (from.1, to.1, len);
+    while left > 0 {
+        let (a_start, a_run) = from.0.cell_run(a);
+        let (b_start, b_run) = to.0.cell_run(b);
+        let (a_off, b_off) = (a - a_start, b - b_start);
+        let n = left.min(a_run.len() - a_off).min(b_run.len() - b_off);
+        copy_run_bytes(a_run, a_off, b_run, b_off, n);
+        (a, b, left) = (a + n, b + n, left - n);
+    }
+}
+
+/// `n` bytes from byte `a_off` of one run to byte `b_off` of another.
+fn copy_run_bytes(from: CellRun, a_off: usize, to: CellRun, b_off: usize, n: usize) {
+    let w = from.width();
+    if w == to.width() && w > 1 && [a_off, b_off, n].iter().all(|x| x.is_multiple_of(w)) {
+        for k in 0..n / w {
+            let bytes = cell_bytes(from.cell(a_off / w + k));
+            set_cell_bytes(to.cell(b_off / w + k), 0, &bytes[..w]);
+        }
+        return;
+    }
+    let mut buffer = [0u8; 256];
+    let mut done = 0;
+    while done < n {
+        let part = &mut buffer[..(n - done).min(256)];
+        from.load(a_off + done, part);
+        to.store(b_off + done, part);
+        done += part.len();
+    }
+}
+
 /// One primitive cell, as its atomic.
 #[derive(Clone, Copy)]
 enum CellRef<'a> {
@@ -1309,6 +1350,12 @@ impl rc2k_core::strings::bytes::Bytes for GameBytes {
         // `at` is inside the region (checked against its length).
         (at < self.len && load_at(self.start + at as u32, self.backing, &mut byte).is_ok())
             .then_some(byte[0])
+    }
+    fn copy_run(&self, at: usize, out: &mut [u8]) -> Option<()> {
+        let end = at.checked_add(out.len())?;
+        // Inside the region (checked against its length): one read for all of it.
+        (end <= self.len && load_at(self.start + at as u32, self.backing, out).is_ok())
+            .then_some(())
     }
 }
 

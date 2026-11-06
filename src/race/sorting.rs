@@ -52,3 +52,37 @@ pub fn sort_records<const N: usize>(
     }
     Ok(())
 }
+
+/// The `count` records of `N` dwords at the start of `cells` sorted as `sort_records` does,
+/// on the cells themselves (the changed records written back). Refuses (before anything)
+/// more records than `cells` holds.
+pub fn sort_cells<const N: usize>(
+    cells: &[crate::session::Dword],
+    count: u32,
+    key: usize,
+    order: Order,
+) -> Result<(), Refused> {
+    if count < 2 {
+        return Ok(());
+    }
+    let records = cells
+        .get(..N.saturating_mul(count as usize))
+        .ok_or(crate::errors::BadInput(
+            "more records to sort than the list holds",
+        ))?;
+    let (records, _) = records.as_chunks::<N>();
+    let mut list: Vec<[u32; N]> = records
+        .iter()
+        .map(|record| std::array::from_fn(|k| record[k].get()))
+        .collect();
+    let before = list.clone();
+    quick_sort(&mut list, key, order)?;
+    for ((now, was), record) in list.iter().zip(&before).zip(records) {
+        if now != was {
+            for (cell, value) in record.iter().zip(now) {
+                cell.set(*value);
+            }
+        }
+    }
+    Ok(())
+}

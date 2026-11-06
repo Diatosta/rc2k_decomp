@@ -153,6 +153,8 @@ pub fn block_at(address: u32, what: &'static str) -> Result<&'static Car, crate:
 
 /// The replay's starting state (`unk_7172EC`): its dwords, from car block 8 on.
 pub const REPLAY_STATE_DWORDS: usize = 0xA04;
+/// Where the replay's starting state begins in `CARS_AND_REPLAY`: car block 8.
+pub const REPLAY_STATE_OFFSET: usize = 8 * BLOCK_LEN;
 const _: () = assert!(
     8 * BLOCK_LEN + 4 * REPLAY_STATE_DWORDS
         <= core::mem::size_of::<crate::race::groups_store::CarsAndReplay>()
