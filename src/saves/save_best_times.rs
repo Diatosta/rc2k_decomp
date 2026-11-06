@@ -37,7 +37,7 @@ pub fn in_game() -> Result<bool, Refused> {
         crate::files::scratch::SCRATCH.buffer.set(n, byte);
     }
     let Some(file) = open_by_mode(
-        &crate::saves::load_best_times::PATH.read()[..crate::saves::load_best_times::PATH_LEN],
+        &crate::saves::load_best_times::PATH[..crate::saves::load_best_times::PATH_LEN],
         1,
     )?
     else {

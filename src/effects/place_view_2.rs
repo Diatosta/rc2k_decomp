@@ -24,7 +24,7 @@ fn second() -> ViewPlace {
         place: &s.view_place,
         matrix: &s.view_matrix,
         out: &s.view,
-        height: &l.height,
+        height: l.height.bits(),
         matrix_copy: &s.matrix_copy,
     }
 }

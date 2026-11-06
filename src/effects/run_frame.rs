@@ -41,7 +41,7 @@ fn share(at: usize, start: u32) {
     to.set_bits(x87::int_over_int_times(
         took,
         MARKS_FRAME.frame_cycles.bits() as i32,
-        FRAME_K.times[at].bits(),
+        FRAME_K.times[at].to_bits(),
     ));
 }
 
@@ -80,24 +80,24 @@ pub fn run_frame() -> Result<(), Refused> {
 
 /// The frame's time constants (IDA 0x93C8C0 .. 0x93C8D0, the image's layout; phase 7, typed state).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
 pub struct FrameK {
     /// 0x93C8C0: `flt_93C8C0`: the marks' share factor (`frame_marks`)
-    pub share_k: Float,
+    pub share_k: f32,
     /// 0x93C8C4: `flt_93C8C4`, `flt_93C8C8`, `flt_93C8CC`: the frame's time factors (`run_frame`)
-    pub times: [Float; 3],
+    pub times: [f32; 3],
 }
 
 /// FrameK's first values.
 pub static FRAME_K: FrameK = FrameK {
-    share_k: Float::from_bits(0x42C80000),
+    share_k: f32::from_bits(0x42C80000),
     times: [
-        Float::from_bits(0x42C80000),
-        Float::from_bits(0x42C80000),
-        Float::from_bits(0x42C80000),
+        f32::from_bits(0x42C80000),
+        f32::from_bits(0x42C80000),
+        f32::from_bits(0x42C80000),
     ],
 };
 
+#[cfg(test)]
 impl FrameK {
     pub const START: usize = 0x93C8C0;
     pub const LEN: usize = 0x10;

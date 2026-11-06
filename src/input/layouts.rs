@@ -121,14 +121,14 @@ impl Layouts {
 
     /// Keyboard type 2: the NEC keyboard's head (its mode) and layout take the file's place.
     pub fn use_nec(&mut self) {
-        let tables = KEYBOARD_TABLES.nec_layout.read();
+        let tables = KEYBOARD_TABLES.nec_layout;
         let (plain, shifted, names, end) = NEC_TABLES;
         self.nec = Layout::simple(
             &tables[plain..shifted],
             &tables[shifted..names],
             &tables[names..end],
         );
-        let head = KEYBOARD_TABLES.nec_head.read();
+        let head = KEYBOARD_TABLES.nec_head;
         self.file_bytes[..head.len()].copy_from_slice(&head);
         self.mode = head[NEC_MODE_AT];
         self.current = Current::Nec;
@@ -169,7 +169,7 @@ mod tests {
         assert_eq!(word(&block, 12), 0);
         assert_eq!(word(&block, 16), at + names);
         assert_eq!(end - names, 0x100);
-        assert!(end <= KEYBOARD_TABLES.nec_layout.read().len());
-        assert_eq!(KEYBOARD_TABLES.nec_head.read()[NEC_MODE_AT], 1);
+        assert!(end <= KEYBOARD_TABLES.nec_layout.len());
+        assert_eq!(KEYBOARD_TABLES.nec_head[NEC_MODE_AT], 1);
     }
 }

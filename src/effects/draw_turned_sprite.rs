@@ -21,7 +21,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::rounded;
-use crate::session::Float;
 
 use crate::d3d::vertices_store::VERTICES;
 const ANGLES: u32 = 0x1000;
@@ -64,8 +63,8 @@ pub fn draw_turned_sprite(
         for n in 0..4 {
             let v = &VERTICES.vertices[n];
             v.colour.set(colour);
-            v.u.set_bits(x87::loaded(SPRITE_UV.uv[2 * n].bits()));
-            v.v.set_bits(x87::loaded(SPRITE_UV.uv[2 * n + 1].bits()));
+            v.u.set_bits(x87::loaded(SPRITE_UV.uv[2 * n].to_bits()));
+            v.v.set_bits(x87::loaded(SPRITE_UV.uv[2 * n + 1].to_bits()));
             v.z.set_bits(sq[1]);
             v.x.set_bits(sq[10 + n]);
             v.y.set_bits(sq[6 + n]);
@@ -84,26 +83,26 @@ pub fn draw_turned_sprite(
 
 /// The turned sprite's texture places (IDA 0x93A21A .. 0x93A23A, the image's layout; phase 7, typed state).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
 pub struct SpriteUv {
     /// 0x93A21A: `flt_93A21A` .. `flt_93A236`: four (u, v) pairs, one per corner
-    pub uv: [Float; 8],
+    pub uv: [f32; 8],
 }
 
 /// SpriteUv's first values.
 pub static SPRITE_UV: SpriteUv = SpriteUv {
     uv: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F7FF972),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F7FF972),
-        Float::from_bits(0x3F7FF972),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F7FF972),
+        f32::from_bits(0x0),
+        f32::from_bits(0x0),
+        f32::from_bits(0x3F7FF972),
+        f32::from_bits(0x0),
+        f32::from_bits(0x3F7FF972),
+        f32::from_bits(0x3F7FF972),
+        f32::from_bits(0x0),
+        f32::from_bits(0x3F7FF972),
     ],
 };
 
+#[cfg(test)]
 impl SpriteUv {
     pub const START: usize = 0x93A21A;
     pub const LEN: usize = 0x20;

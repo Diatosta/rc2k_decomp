@@ -165,7 +165,7 @@ pub fn load_mask_pictures() -> Result<(), Refused> {
         return Err(BadInput("a mask surface wider than 256").into());
     }
     let kind = (MARKS_KIND.kind.bits() as i32).clamp(0, MOST_KIND) as u32;
-    let number: u32 = KIND_PICTURES.numbers[kind as usize].get();
+    let number: u32 = KIND_PICTURES.numbers[kind as usize];
     let digits = [
         ((number / 10) as u8).wrapping_add(b'0'),
         (number % 10) as u8 + b'0',

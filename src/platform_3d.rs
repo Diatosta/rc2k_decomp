@@ -56,38 +56,32 @@ const NOT_THERE: i32 = 0x8876_0000u32 as i32 | 0x1C2;
 // ---- DirectX interface ids (nothing reads them) ----
 
 /// IDA's address of the first interface ids (four of 16 bytes and five zero dwords).
+#[cfg(test)]
 pub const GUIDS_A_START: usize = 0x5BE81C;
 /// Their length.
+#[cfg(test)]
 pub const GUIDS_A_LEN: usize = 0x5BE870 - GUIDS_A_START;
 /// IDA's address of the last two interface ids.
+#[cfg(test)]
 pub const GUIDS_B_START: usize = 0x5BE874;
 /// Their length.
+#[cfg(test)]
 pub const GUIDS_B_LEN: usize = 0x20;
 
 /// The ids the original passed to `QueryInterface` (DirectDraw and Direct3D); the
 /// standalone's platform does not use them.
-pub static GUIDS_A: [crate::session::Dword; 21] = crate::gfx::dwords([
+#[cfg(test)]
+pub static GUIDS_A: [u32; 21] = [
     0xb3a6f3e0, 0x11cf2b43, 0xaa00dea2, 0x5633b900, 0x57805885, 0x11cf6eec, 0x23a84194, 0x270ec103,
     0x6aae1ec1, 0x11d0662a, 0xaa009d88, 0x6ab7bb00, 0x93281502, 0x11d08cf8, 0xa000ab89, 0x294105c9,
     0, 0, 0, 0, 0,
-]);
+];
 
 /// The last two.
-pub static GUIDS_B: [crate::session::Dword; 8] = crate::gfx::dwords([
+#[cfg(test)]
+pub static GUIDS_B: [u32; 8] = [
     0xa35ff56a, 0x11d09fda, 0xc000df8f, 0x9d18d94f, 0xa35ff56b, 0x11d09fda, 0xc000df8f, 0x9d18d94f,
-]);
-
-/// Where the first ids are (`moved::MOVED`'s home for IDA 0x5BE81C).
-#[cfg(test)]
-pub fn guids_a_home() -> usize {
-    (crate::pointers::game_address(GUIDS_A.as_ptr())) as usize
-}
-
-/// Where the last two are (`moved::MOVED`'s home for IDA 0x5BE874).
-#[cfg(test)]
-pub fn guids_b_home() -> usize {
-    (crate::pointers::game_address(GUIDS_B.as_ptr())) as usize
-}
+];
 
 // ---- the texture formats ----
 
@@ -893,7 +887,5 @@ mod block_tests {
             GUIDS_B_START,
             GUIDS_B_START + GUIDS_B_LEN,
         );
-        assert_eq!(crate::moved::place(GUIDS_A_START), guids_a_home());
-        assert_eq!(crate::moved::place(GUIDS_B_START), guids_b_home());
     }
 }

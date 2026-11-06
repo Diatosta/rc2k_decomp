@@ -28,36 +28,35 @@ use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::scene::fog_at::fog_at;
-use crate::session::Dword;
 
 const STREAK: u32 = 0x12;
 
 /// The colour table used while `MARKS_KIND_FLOATS.other` is 0: 257 colours (past `SURFACE`'s
 /// 128: the table `SURFACE.colours` is the one in use while it is not).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
 pub struct Colours257 {
     /// 0x939DB2 .. 0x93A1B6: the 257 colours
-    pub colours: [Dword; 257],
+    pub colours: [u32; 257],
 }
 
 /// The 257 colours as the image has them: 0x00FFFF00 + 2 i for the first 128, then 0x00FFFFFF.
 pub static COLOURS_257: Colours257 = Colours257 {
     colours: {
-        let mut colours = [const { Dword::new(0) }; 257];
+        let mut colours = [0; 257];
         let mut i = 0;
         while i < 257 {
-            colours[i] = Dword::new(if i < 128 {
+            colours[i] = if i < 128 {
                 0x00FF_FF00 + 2 * i as u32
             } else {
                 0x00FF_FFFF
-            });
+            };
             i += 1;
         }
         colours
     },
 };
 
+#[cfg(test)]
 impl Colours257 {
     pub const START: usize = 0x939DB2;
     pub const LEN: usize = 0x404;
@@ -65,12 +64,12 @@ impl Colours257 {
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
 fn first_frame(e: u32) {
-    first_frame_x87(e, &CLOCK);
+    first_frame_x87(e, &CLOCK, RING_KINDS.ribbon_a);
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
 fn move_(e: u32) {
-    move_x87(e, &CLOCK);
+    move_x87(e, &CLOCK, RING_KINDS.ribbon_b);
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
@@ -93,7 +92,7 @@ fn colour_at(i: usize) -> u32 {
     if MARKS_KIND_FLOATS.other.bits() != 0 {
         SURFACE.colours[i].get()
     } else {
-        COLOURS_257.colours[i].get()
+        COLOURS_257.colours[i]
     }
 }
 
@@ -210,13 +209,12 @@ pub fn run_ribbons() -> Result<(), Refused> {
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::effects::frame_state::{DRAW_WORK, DrawWork};
-use crate::effects::plain::ld_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::int;
 use crate::race::matrices_store::MATRICES;
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
-fn first_frame_x87(e: u32, c: &MarksClock) {
+fn first_frame_x87(e: u32, c: &MarksClock, ribbon_a: f32) {
     let t0 = eld(e, 0x18);
     let t1 = eld(e, 0x14);
     let t2 = eld(e, 0x10);
@@ -262,14 +260,14 @@ fn first_frame_x87(e: u32, c: &MarksClock) {
     let t37 = t36 * int(c.frame_ticks.get() as i32);
     let t38 = t37 + eld(e, 0x18);
     est(e, 0x18, t38);
-    let t39 = ld_cell(&RING_KINDS.ribbon_a);
+    let t39 = bh::ld(ribbon_a.to_bits());
     let t40 = t39 * int(c.frame_ticks.get() as i32);
     let t41 = t40 + eld(e, 0x30);
     est(e, 0x30, t41);
 }
 
 /// `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
-fn move_x87(e: u32, c: &MarksClock) {
+fn move_x87(e: u32, c: &MarksClock, ribbon_b: f32) {
     let t0 = eld(e, 0x2C);
     let t1 = t0 * int(c.frame_ticks.get() as i32);
     let t2 = t1 + eld(e, 0x10);
@@ -282,7 +280,7 @@ fn move_x87(e: u32, c: &MarksClock) {
     let t7 = t6 * int(c.frame_ticks.get() as i32);
     let t8 = t7 + eld(e, 0x18);
     est(e, 0x18, t8);
-    let t9 = ld_cell(&RING_KINDS.ribbon_b);
+    let t9 = bh::ld(ribbon_b.to_bits());
     let t10 = t9 * int(c.frame_ticks.get() as i32);
     let t11 = t10 + eld(e, 0x30);
     est(e, 0x30, t11);
@@ -481,23 +479,9 @@ mod asm_differential {
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::frame_state::DrawWork;
-    use crate::effects::run_ring::RING_KINDS;
-    use crate::session::Float;
 
     fn word(at: usize) -> u32 {
         unsafe { crate::pointers::host_at(at).cast::<u32>().read_unaligned() }
-    }
-
-    /// Runs `f` with the ring kinds' cells holding the given bits, then as they were.
-    fn with_kinds(cells: &[(&Float, u32)], f: impl FnOnce()) {
-        let saved: Vec<u32> = cells.iter().map(|(c, _)| c.bits()).collect();
-        for (c, v) in cells {
-            c.set_bits(*v);
-        }
-        f();
-        for ((c, _), v) in cells.iter().zip(saved) {
-            c.set_bits(v);
-        }
     }
 
     #[test]
@@ -562,9 +546,11 @@ mod asm_differential {
             |b| reference::first_frame_x87(b[0], b[1], b[2], b[3]),
             |b| {
                 crate::effects::ring_entries::with_entry_at(b[2], 0x10, 0x38, |e| {
-                    with_kinds(&[(&RING_KINDS.ribbon_a, word(b[3] + 0x94))], || {
-                        super::first_frame_x87(e, crate::effects::setup::clock_at(b[1]));
-                    });
+                    super::first_frame_x87(
+                        e,
+                        crate::effects::setup::clock_at(b[1]),
+                        f32::from_bits(word(b[3] + 0x94)),
+                    );
                 });
             },
         );
@@ -607,9 +593,11 @@ mod asm_differential {
             |b| reference::move_x87(b[0], b[1], b[2]),
             |b| {
                 crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x38, |e| {
-                    with_kinds(&[(&RING_KINDS.ribbon_b, word(b[2] + 0x98))], || {
-                        super::move_x87(e, crate::effects::setup::clock_at(b[0]));
-                    });
+                    super::move_x87(
+                        e,
+                        crate::effects::setup::clock_at(b[0]),
+                        f32::from_bits(word(b[2] + 0x98)),
+                    );
                 });
             },
         );

@@ -90,7 +90,7 @@ pub fn run_rain() -> Result<(), Refused> {
         }
         // `clear_texture`: what it returns went only to eax, which nothing here reads.
         crate::scene::clear_texture::clear_texture();
-        let rhw = RAIN_RULES.rhw.get();
+        let rhw = RAIN_RULES.rhw;
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = &VERTICES.vertices[n];
             DRAW.scratch.set_bits(rhw);
@@ -124,7 +124,7 @@ pub fn run_rain() -> Result<(), Refused> {
         if MARKS_KIND_FLOATS.running.bits() != 0 {
             let clock = PHYSICS.scene_clock.get() & 0xF_FFFF;
             r.drift
-                .set(x87::int_times_to_int(clock as i32, RAIN_RULES.drift_k.bits()) as u32);
+                .set(x87::int_times_to_int(clock as i32, RAIN_RULES.drift_k.to_bits()) as u32);
         }
         for k in (0..drops.max(0) as usize).rev() {
             let drift = r.drift.get();
@@ -160,16 +160,16 @@ fn box_moved_x87(i: usize, r: &RainState, k: &RainRules) {
     {
         let t0 = bh::int(r.view[0].get() as i32);
         let t1 = t0 - bh::int(r.last_views[i][0].get() as i32);
-        let t2 = t1 * bh::ld(k.move_scale[0].bits());
+        let t2 = t1 * bh::ld(k.move_scale[0].to_bits());
         r.moves[i][0].set_bits(bh::st(t2));
         let t3 = bh::int(r.view[1].get() as i32);
         let t4 = t3 + bh::int(r.drift.get() as i32);
         let t5 = t4 - bh::int(r.last_views[i][1].get() as i32);
-        let t6 = t5 * bh::ld(k.move_scale[1].bits());
+        let t6 = t5 * bh::ld(k.move_scale[1].to_bits());
         r.moves[i][1].set_bits(bh::st(t6));
         let t7 = bh::int(r.view[2].get() as i32);
         let t8 = t7 - bh::int(r.last_views[i][2].get() as i32);
-        let t9 = t8 * bh::ld(k.move_scale[2].bits());
+        let t9 = t8 * bh::ld(k.move_scale[2].to_bits());
         r.moves[i][2].set_bits(bh::st(t9));
     }
 }
@@ -186,22 +186,22 @@ fn move_length_x87(r: &RainState, k: &RainRules) {
     let t7 = t1 + t6;
     let t8 = t7.sqrt();
     r.depth.set_bits(bh::st(t8));
-    crate::effects::plain::set_status(bh::compare(t8, bh::ld(k.move_limit.bits())));
+    crate::effects::plain::set_status(bh::compare(t8, bh::ld(k.move_limit.to_bits())));
 }
 
 /// `move_held`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.
 fn move_held_x87(r: &RainState, k: &RainRules) {
     {
         let t0 = bh::ld(r.depth.bits());
-        let t1 = bh::ld(k.move_held.bits()) / t0;
+        let t1 = bh::ld(k.move_held.to_bits()) / t0;
         let t2 = t1 * bh::ld(r.motion[0].bits());
-        let t3 = t2 * bh::ld(k.move_factors[0].bits());
+        let t3 = t2 * bh::ld(k.move_factors[0].to_bits());
         r.motion[0].set_bits(bh::st(t3));
         let t4 = t1 * bh::ld(r.motion[1].bits());
-        let t5 = t4 * bh::ld(k.move_factors[1].bits());
+        let t5 = t4 * bh::ld(k.move_factors[1].to_bits());
         r.motion[1].set_bits(bh::st(t5));
         let t6 = t1 * bh::ld(r.motion[2].bits());
-        let t7 = t6 * bh::ld(k.move_factors[2].bits());
+        let t7 = t6 * bh::ld(k.move_factors[2].to_bits());
         r.motion[2].set_bits(bh::st(t7));
     }
 }

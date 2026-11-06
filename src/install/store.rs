@@ -107,39 +107,41 @@ impl DriveRows {
     pub const LEN: usize = 0x1A1;
 }
 
-/// IDA 0x5AB419 .. 0x5AB490.
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
+/// IDA 0x5AB419 .. 0x5AB490: plain immutable texts, each NUL-ended in its room (read with
+/// `text_of`).
 pub struct LobbyKeys {
     /// 0x5AB419: `aSoftwareMicros`: "SOFTWARE\Microsoft\DirectPlay\Applications\RC" (`install::register_lobby`).
-    pub registry_key: Bytes<74>,
+    pub registry_key: [u8; 74],
     /// 0x5AB463: `aGuid`.
-    pub name_guid: Bytes<5>,
+    pub name_guid: [u8; 5],
     /// 0x5AB468: `aFile`.
-    pub name_file: Bytes<5>,
+    pub name_file: [u8; 5],
     /// 0x5AB46D: `aCommandline`.
-    pub name_command_line: Bytes<12>,
+    pub name_command_line: [u8; 12],
     /// 0x5AB479: `aPath`.
-    pub name_path: Bytes<5>,
+    pub name_path: [u8; 5],
     /// 0x5AB47E: `aCurrentdirecto`.
-    pub name_current_directory: Bytes<17>,
+    pub name_current_directory: [u8; 17],
     /// 0x5AB48F: Not named: 1 bytes (a gap, or text or data nothing reads here).
-    pub _gap_5ab48f: Bytes<1>,
+    pub _gap_5ab48f: [u8; 1],
 }
 
 pub static LOBBY_KEYS: LobbyKeys = LobbyKeys {
-    registry_key: Bytes::new(with_runs::<74>(&[(
-        0,
-        b"SOFTWARE\\Microsoft\\DirectPlay\\Applications\\RC",
-    )])),
-    name_guid: Bytes::new(with_runs::<5>(&[(0, b"Guid")])),
-    name_file: Bytes::new(with_runs::<5>(&[(0, b"File")])),
-    name_command_line: Bytes::new(with_runs::<12>(&[(0, b"CommandLine")])),
-    name_path: Bytes::new(with_runs::<5>(&[(0, b"Path")])),
-    name_current_directory: Bytes::new(with_runs::<17>(&[(0, b"CurrentDirectory")])),
-    _gap_5ab48f: Bytes::new([0; 1]),
+    registry_key: with_runs::<74>(&[(0, b"SOFTWARE\\Microsoft\\DirectPlay\\Applications\\RC")]),
+    name_guid: with_runs::<5>(&[(0, b"Guid")]),
+    name_file: with_runs::<5>(&[(0, b"File")]),
+    name_command_line: with_runs::<12>(&[(0, b"CommandLine")]),
+    name_path: with_runs::<5>(&[(0, b"Path")]),
+    name_current_directory: with_runs::<17>(&[(0, b"CurrentDirectory")]),
+    _gap_5ab48f: [0; 1],
 };
 
+/// The bytes up to the first NUL (or all of them): a text kept in a field of `LobbyKeys`.
+pub fn text_of(field: &[u8]) -> &[u8] {
+    &field[..field.iter().position(|&c| c == 0).unwrap_or(field.len())]
+}
+
+#[cfg(test)]
 impl LobbyKeys {
     pub const START: usize = 0x5AB419;
     pub const LEN: usize = 0x77;
@@ -218,36 +220,20 @@ mod tests {
             offset_of!(DriveRows, drive_rows),
             0x52A30F - DriveRows::START
         );
-        check(
-            (&raw const LOBBY_KEYS).cast::<u8>(),
-            size_of::<LobbyKeys>(),
-            0,
-            LobbyKeys::START,
-            LobbyKeys::LEN,
-        );
+        let keys = &LOBBY_KEYS;
+        let mine = [
+            &keys.registry_key[..],
+            &keys.name_guid,
+            &keys.name_file,
+            &keys.name_command_line,
+            &keys.name_path,
+            &keys.name_current_directory,
+            &keys._gap_5ab48f,
+        ]
+        .concat();
         assert_eq!(
-            offset_of!(LobbyKeys, registry_key),
-            0x5AB419 - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_guid),
-            0x5AB463 - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_file),
-            0x5AB468 - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_command_line),
-            0x5AB46D - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_path),
-            0x5AB479 - LobbyKeys::START
-        );
-        assert_eq!(
-            offset_of!(LobbyKeys, name_current_directory),
-            0x5AB47E - LobbyKeys::START
+            mine,
+            crate::moved::image_bytes(LobbyKeys::START, LobbyKeys::LEN)
         );
     }
 }

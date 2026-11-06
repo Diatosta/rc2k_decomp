@@ -58,7 +58,7 @@ pub fn frame_marks() -> Result<(), Refused> {
         let share = x87::int_over_int_times(
             end.wrapping_sub(start) as i32,
             MARKS_FRAME.frame_cycles.bits() as i32,
-            FRAME_K.share_k.bits(),
+            FRAME_K.share_k.to_bits(),
         );
         MARKS_FRAME.step_share.set_bits(share);
     }

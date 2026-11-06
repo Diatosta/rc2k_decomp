@@ -170,52 +170,21 @@ impl PictureCopy {
 
 /// The picture number of each kind (IDA 0x934EA8 .. 0x934F30; phase 7, typed state). The offsets are from its start.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
 pub struct KindPictures {
     /// +0x0: `g_marksKindPictureNumbers`: per kind, the number in the mask and picture paths' two digits
-    pub numbers: [Dword; 34],
+    pub numbers: [u32; 34],
 }
 
 /// The pictures' numbers; the first values are the image's.
 pub static KIND_PICTURES: KindPictures = KindPictures {
     numbers: [
-        Dword::new(0x0),
-        Dword::new(0x1),
-        Dword::new(0x2),
-        Dword::new(0x3),
-        Dword::new(0x4),
-        Dword::new(0x5),
-        Dword::new(0x6),
-        Dword::new(0x7),
-        Dword::new(0x8),
-        Dword::new(0x9),
-        Dword::new(0xA),
-        Dword::new(0xB),
-        Dword::new(0xC),
-        Dword::new(0xD),
-        Dword::new(0xE),
-        Dword::new(0xF),
-        Dword::new(0x10),
-        Dword::new(0x11),
-        Dword::new(0x12),
-        Dword::new(0x13),
-        Dword::new(0x14),
-        Dword::new(0x15),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x16),
-        Dword::new(0x0),
+        0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xA, 0xB, 0xC, 0xD, 0xE, 0xF, 0x10, 0x11,
+        0x12, 0x13, 0x14, 0x15, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16, 0x16,
+        0x0,
     ],
 };
 
+#[cfg(test)]
 impl KindPictures {
     pub const START: usize = 0x934EA8;
     pub const LEN: usize = 0x88;

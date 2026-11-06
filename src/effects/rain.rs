@@ -197,65 +197,65 @@ impl RainState {
 
 /// The rain's constants (IDA 0x8C5F91 .. 0x8C5FFD, the image's layout; phase 7, typed state).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
 pub struct RainRules {
     /// 0x8C5F91: `dword_8C5F91`: the quad vertices' rhw (a whole number's bits).
-    pub rhw: Dword,
+    pub rhw: u32,
     /// 0x8C5F95: `flt_8C5F95` ..: the view's move since the last frame is scaled by them (30.0 each).
-    pub move_scale: [Float; 3],
+    pub move_scale: [f32; 3],
     /// 0x8C5FA1: `flt_8C5FA1`: a move longer than this is held (100000.0).
-    pub move_limit: Float,
+    pub move_limit: f32,
     /// 0x8C5FA5: `flt_8C5FA5`: the length a long move is held to (1.0).
-    pub move_held: Float,
+    pub move_held: f32,
     /// 0x8C5FA9: `flt_8C5FA9` ..: a held move's factors (100000.0 each).
-    pub move_factors: [Float; 3],
+    pub move_factors: [f32; 3],
     /// 0x8C5FB5: `flt_8C5FB5`: the clock's low 20 bits times it is the drift (-500.0).
-    pub drift_k: Float,
+    pub drift_k: f32,
     /// 0x8C5FB9: Not named: 24 bytes (a gap, or unreferenced data).
-    pub _gap_8c5fb9: Bytes<24>,
+    pub _gap_8c5fb9: [u8; 24],
     /// 0x8C5FD1: `flt_8C5FD1`, `flt_8C5FD5`: the drift targets' scales (10.0).
-    pub target_scale: [Float; 2],
+    pub target_scale: [f32; 2],
     /// 0x8C5FD9: `flt_8C5FD9`, `flt_8C5FDD`: how fast the pace follows its target (0.05).
-    pub ease: [Float; 2],
+    pub ease: [f32; 2],
     /// 0x8C5FE1: `flt_8C5FE1`: 131072.0, the view's height (`effects::place_view`).
-    pub height: Float,
+    pub height: f32,
     /// 0x8C5FE5: `flt_8C5FE5`, `flt_8C5FE9`: the streak's ends' screen scale (500.0 each).
-    pub view_scale: [Float; 2],
+    pub view_scale: [f32; 2],
     /// 0x8C5FED: `flt_8C5FED`: the streak's half width (1.0).
-    pub half_width: Float,
+    pub half_width: f32,
     /// 0x8C5FF1: Not named: 12 bytes (a gap, or unreferenced data).
-    pub _gap_8c5ff1: Bytes<12>,
+    pub _gap_8c5ff1: [u8; 12],
 }
 
 pub static RAIN_RULES: RainRules = RainRules {
-    rhw: Dword::new(0x43800000),
+    rhw: 0x43800000,
     move_scale: [
-        Float::from_bits(0x41F00000),
-        Float::from_bits(0x41F00000),
-        Float::from_bits(0x41F00000),
+        f32::from_bits(0x41F00000),
+        f32::from_bits(0x41F00000),
+        f32::from_bits(0x41F00000),
     ],
-    move_limit: Float::from_bits(0x47C35000),
-    move_held: Float::from_bits(0x3F800000),
+    move_limit: f32::from_bits(0x47C35000),
+    move_held: f32::from_bits(0x3F800000),
     move_factors: [
-        Float::from_bits(0x47C35000),
-        Float::from_bits(0x47C35000),
-        Float::from_bits(0x47C35000),
+        f32::from_bits(0x47C35000),
+        f32::from_bits(0x47C35000),
+        f32::from_bits(0x47C35000),
     ],
-    drift_k: Float::from_bits(0xC3FA0000),
-    _gap_8c5fb9: Bytes::new([
+    drift_k: f32::from_bits(0xC3FA0000),
+    _gap_8c5fb9: [
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x6F, 0x12, 0x83,
         0x3A, 0x6F, 0x12, 0x03, 0x3B, 0xA6, 0x9B, 0x44, 0x3B,
-    ]),
-    target_scale: [Float::from_bits(0x41200000), Float::from_bits(0x41200000)],
-    ease: [Float::from_bits(0x3D4CCCCD), Float::from_bits(0x3D4CCCCD)],
-    height: Float::from_bits(0x48000000),
-    view_scale: [Float::from_bits(0x43FA0000), Float::from_bits(0x43FA0000)],
-    half_width: Float::from_bits(0x3F800000),
-    _gap_8c5ff1: Bytes::new([
+    ],
+    target_scale: [f32::from_bits(0x41200000), f32::from_bits(0x41200000)],
+    ease: [f32::from_bits(0x3D4CCCCD), f32::from_bits(0x3D4CCCCD)],
+    height: f32::from_bits(0x48000000),
+    view_scale: [f32::from_bits(0x43FA0000), f32::from_bits(0x43FA0000)],
+    half_width: f32::from_bits(0x3F800000),
+    _gap_8c5ff1: [
         0x00, 0x00, 0xC8, 0x4A, 0x33, 0x33, 0x33, 0x3F, 0x00, 0x00, 0x00, 0x00,
-    ]),
+    ],
 };
 
+#[cfg(test)]
 impl RainRules {
     pub const START: usize = 0x8C5F91;
     pub const LEN: usize = 0x6C;

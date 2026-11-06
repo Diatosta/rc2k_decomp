@@ -482,11 +482,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::net::store::NET),
     },
     Moved {
-        ida: crate::install::store::LobbyKeys::START, // LobbyKeys
-        len: crate::install::store::LobbyKeys::LEN,
-        home: Home::Store(&crate::install::store::LOBBY_KEYS),
-    },
-    Moved {
         ida: crate::net::store::Button::START, // Button
         len: crate::net::store::Button::LEN,
         home: Home::Store(&crate::net::store::BUTTON),
@@ -495,11 +490,6 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::gfx::typefaces::START, // The fonts (63 font objects)
         len: crate::gfx::typefaces::LEN,
         home: Home::Store(&crate::gfx::typefaces::FONTS),
-    },
-    Moved {
-        ida: crate::strings::unit_labels::START, // The unit labels' string ids
-        len: crate::strings::unit_labels::LEN,
-        home: Home::Store(&crate::strings::unit_labels::LABEL_IDS),
     },
     Moved {
         ida: crate::saves::write_savegame_slot::START, // The saved games' file buffer and names
@@ -527,16 +517,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::saves::load_options::PATH),
     },
     Moved {
-        ida: crate::saves::load_best_times::PATH_START, // var\hst.dat
-        len: 12,
-        home: Home::Store(&crate::saves::load_best_times::PATH),
-    },
-    Moved {
-        ida: crate::race::replay_path::LAST_RACE_START, // The last race's replay file name
-        len: crate::race::replay_path::LAST_RACE_LEN,
-        home: Home::Store(&crate::race::replay_path::LAST_RACE),
-    },
-    Moved {
         ida: crate::saves::write_savegame_slot::TEMPLATE_START, // The saved game file name's template
         len: 27,
         home: Home::Store(&crate::saves::write_savegame_slot::TEMPLATE),
@@ -550,11 +530,6 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::race::find_snapshot_number::SNAPSHOT_START, // The snapshot picture's name
         len: 26,
         home: Home::Store(&crate::race::find_snapshot_number::SNAPSHOT),
-    },
-    Moved {
-        ida: crate::race::replay_path::TEMPLATES_START, // The replay file names' templates
-        len: crate::race::replay_path::TEMPLATES_LEN,
-        home: Home::Store(&crate::race::replay_path::TEMPLATES),
     },
     Moved {
         ida: crate::menu::play_films::FILMS_START, // The films' file names
@@ -582,19 +557,9 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::gfx::texture_upload::TEXTURE_TABLES),
     },
     Moved {
-        ida: crate::platform_3d::GUIDS_A_START, // DirectX interface ids (nothing reads them)
-        len: crate::platform_3d::GUIDS_A_LEN,
-        home: Home::Store(&crate::platform_3d::GUIDS_A),
-    },
-    Moved {
         ida: crate::film::NO_FMV_START, // g_noFmv
         len: 4,
         home: Home::Store(&crate::film::NO_FMV),
-    },
-    Moved {
-        ida: crate::platform_3d::GUIDS_B_START, // DirectX interface ids (nothing reads them)
-        len: crate::platform_3d::GUIDS_B_LEN,
-        home: Home::Store(&crate::platform_3d::GUIDS_B),
     },
     Moved {
         ida: crate::gfx::build_game_fonts::START, // The game fonts' memory (`gamegfxheapsize`, the list)
@@ -1028,14 +993,6 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::install::read_sku::Sku::START,
         len: crate::install::read_sku::Sku::LEN,
         home: Home::Store(&crate::install::read_sku::SKU),
-    },
-    Moved {
-        ida: crate::strings::keyboard_tables::KeyboardTables::START,
-        len: crate::strings::keyboard_tables::KeyboardTables::LEN,
-        home: Home::Store(&crate::race::store::Window::new(
-            &crate::strings::keyboard_tables::KEYBOARD_TABLES,
-            8,
-        )),
     },
     Moved {
         ida: crate::strings::text_buffer::TextBuffer::START,
@@ -1907,11 +1864,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::effects::rain::RAIN),
     },
     Moved {
-        ida: crate::effects::rain::RainRules::START,
-        len: crate::effects::rain::RainRules::LEN,
-        home: Home::Store(&crate::effects::rain::RAIN_RULES),
-    },
-    Moved {
         ida: crate::effects::snow::SnowTables::START,
         len: crate::effects::snow::SnowTables::LEN,
         home: Home::Store(&crate::effects::snow::SNOW_TABLES),
@@ -2012,11 +1964,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::effects::blocks::CORNER_SLOPES),
     },
     Moved {
-        ida: crate::effects::run_particles::TrailColours::START,
-        len: crate::effects::run_particles::TrailColours::LEN,
-        home: Home::Store(&crate::effects::run_particles::TRAIL_PALETTE),
-    },
-    Moved {
         ida: crate::effects::spread_point::SpreadRandom::START,
         len: crate::effects::spread_point::SpreadRandom::LEN,
         home: Home::Store(&crate::effects::spread_point::SPREAD_RANDOM),
@@ -2027,19 +1974,9 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::effects::kind_store::QUAD_1),
     },
     Moved {
-        ida: crate::effects::kind_store::Tables1::START,
-        len: crate::effects::kind_store::Tables1::LEN,
-        home: Home::Store(&crate::effects::kind_store::TABLES_1),
-    },
-    Moved {
         ida: crate::effects::kind_store::KindExtras1::START,
         len: crate::effects::kind_store::KindExtras1::LEN,
         home: Home::Store(&crate::effects::kind_store::EXTRAS_1),
-    },
-    Moved {
-        ida: crate::effects::kind_store::Consts1::START,
-        len: crate::effects::kind_store::Consts1::LEN,
-        home: Home::Store(&crate::effects::kind_store::CONSTS_1),
     },
     Moved {
         ida: crate::effects::kind_store::Quad2::START,
@@ -2047,19 +1984,9 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::effects::kind_store::QUAD_2),
     },
     Moved {
-        ida: crate::effects::kind_store::Tables2::START,
-        len: crate::effects::kind_store::Tables2::LEN,
-        home: Home::Store(&crate::effects::kind_store::TABLES_2),
-    },
-    Moved {
         ida: crate::effects::kind_store::KindExtra2::START,
         len: crate::effects::kind_store::KindExtra2::LEN,
         home: Home::Store(&crate::effects::kind_store::EXTRA_2),
-    },
-    Moved {
-        ida: crate::effects::kind_store::Consts2::START,
-        len: crate::effects::kind_store::Consts2::LEN,
-        home: Home::Store(&crate::effects::kind_store::CONSTS_2),
     },
     Moved {
         ida: crate::effects::kind_store::Quad3::START,
@@ -2080,16 +2007,6 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::effects::mask_store::PictureCopy::START,
         len: crate::effects::mask_store::PictureCopy::LEN,
         home: Home::Store(&crate::effects::mask_store::PICTURE_COPY),
-    },
-    Moved {
-        ida: crate::effects::mask_store::KindPictures::START,
-        len: crate::effects::mask_store::KindPictures::LEN,
-        home: Home::Store(&crate::effects::mask_store::KIND_PICTURES),
-    },
-    Moved {
-        ida: crate::effects::draw_plane::PlaneTuning::START,
-        len: crate::effects::draw_plane::PlaneTuning::LEN,
-        home: Home::Store(&crate::effects::draw_plane::PLANE_TUNING),
     },
     Moved {
         ida: crate::effects::mark_slots::MarkSlots::START,
@@ -2122,11 +2039,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::effects::surface_store::SURFACE),
     },
     Moved {
-        ida: crate::effects::run_ribbons::Colours257::START,
-        len: crate::effects::run_ribbons::Colours257::LEN,
-        home: Home::Store(&crate::effects::run_ribbons::COLOURS_257),
-    },
-    Moved {
         ida: crate::effects::emit_particle_19::TwinState::START,
         len: crate::effects::emit_particle_19::TwinState::LEN,
         home: Home::Store(&crate::effects::emit_particle_19::TWIN_STATE),
@@ -2140,11 +2052,6 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::effects::set_up_surface::MaskList::START,
         len: crate::effects::set_up_surface::MaskList::LEN,
         home: Home::Store(&crate::effects::set_up_surface::MASK_LIST),
-    },
-    Moved {
-        ida: crate::effects::draw_turned_sprite::SpriteUv::START,
-        len: crate::effects::draw_turned_sprite::SpriteUv::LEN,
-        home: Home::Store(&crate::effects::draw_turned_sprite::SPRITE_UV),
     },
     Moved {
         ida: crate::effects::emit_particle_5::Kind5Set::START,
@@ -2197,11 +2104,6 @@ pub(crate) const MOVED: &[Moved] = &[
         home: Home::Store(&crate::effects::emit_particle_22::TWENTY_SECOND_TUNING),
     },
     Moved {
-        ida: crate::effects::run_ring::RingKinds::START,
-        len: crate::effects::run_ring::RingKinds::LEN,
-        home: Home::Store(&crate::effects::run_ring::RING_KINDS),
-    },
-    Moved {
         ida: crate::effects::blocks::RingPool::START,
         len: crate::effects::blocks::RingPool::LEN,
         home: Home::Store(&crate::effects::blocks::RING_POOL),
@@ -2235,11 +2137,6 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::effects::lines::LinesWork::START,
         len: crate::effects::lines::LinesWork::LEN,
         home: Home::Store(&crate::effects::lines::LINES_WORK),
-    },
-    Moved {
-        ida: crate::effects::run_frame::FrameK::START,
-        len: crate::effects::run_frame::FrameK::LEN,
-        home: Home::Store(&crate::effects::run_frame::FRAME_K),
     },
     Moved {
         ida: crate::effects::setup::ClockK::START,

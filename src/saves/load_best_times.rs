@@ -22,10 +22,11 @@ use crate::saves::best_times_store::BEST_TIMES;
 // ---- game data ----
 
 /// IDA's address of the best times file's name.
+#[cfg(test)]
 pub const PATH_START: usize = 0x5295E4;
 
 /// `aVarHstDat`: the best times file's name.
-pub static PATH: crate::session::Bytes<12> = crate::session::Bytes::new(*b"var\\hst.dat\0");
+pub static PATH: [u8; 12] = *b"var\\hst.dat\0";
 /// The path's length without its NUL.
 pub const PATH_LEN: usize = 11;
 
@@ -52,7 +53,7 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
         BEST_TIMES.list(),
         crate::records::stages_store::STAGE_TABLES.championship(), // g_recordTable
     )?;
-    let Some(file) = open_by_mode(&PATH.read()[..PATH_LEN], 0)? else {
+    let Some(file) = open_by_mode(&PATH[..PATH_LEN], 0)? else {
         return Ok(false);
     };
     let scratch = GamePtr::to(&crate::files::scratch::SCRATCH.buffer);
@@ -88,6 +89,5 @@ mod path_tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(&PATH, PATH_START, PATH_START + 12);
-        assert_eq!(crate::moved::place(PATH_START), PATH.addr() as usize);
     }
 }

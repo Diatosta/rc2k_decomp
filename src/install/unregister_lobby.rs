@@ -11,5 +11,7 @@
 use crate::install::read_registry::Registry;
 
 pub fn unregister_lobby(registry: &mut dyn Registry) {
-    registry.delete(&crate::install::store::LOBBY_KEYS.registry_key.text());
+    registry.delete(crate::install::store::text_of(
+        &crate::install::store::LOBBY_KEYS.registry_key,
+    ));
 }

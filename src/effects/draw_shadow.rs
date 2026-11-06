@@ -184,7 +184,7 @@ pub fn draw_shadow_with(sh: &Shadow, depth: bool) -> Result<(), Refused> {
         let vertex = &VERTICES.vertices[n];
         vertex.x.set_bits(q.corners[n][0].bits());
         vertex.y.set_bits(q.corners[n][1].bits());
-        let depth = x87_run::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].bits(), z_k);
+        let depth = x87_run::sub_mul(q.corners[n][2].bits(), sh.consts.lifts[n].to_bits(), z_k);
         vertex.z.set_bits(depth);
     }
     crate::effects::clip_quad::draw_fan();
@@ -198,9 +198,9 @@ use crate::scene::draw_store::DRAW;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.
 fn light_turned_x87(s: &Shadow, m: &[Float; 9], t: &[Float; 2]) {
-    let t0 = bh::ld(s.consts.light[0].bits());
-    let t1 = bh::ld(s.consts.light[1].bits());
-    let t2 = bh::ld(s.consts.light[2].bits());
+    let t0 = bh::ld(s.consts.light[0].to_bits());
+    let t1 = bh::ld(s.consts.light[1].to_bits());
+    let t2 = bh::ld(s.consts.light[2].to_bits());
     let t3 = t2 * ld_cell(&m[0]);
     let t4 = t1 * ld_cell(&m[1]);
     let t5 = t0 * ld_cell(&m[2]);

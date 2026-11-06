@@ -16,12 +16,12 @@ pub const KINDS: u32 = 0x22;
 /// `effects::kind_store`).
 pub struct KindSet {
     /// Tables of 0x22 three-float entries: `to`, `from`, `copied`.
-    pub triples: [&'static [[Float; 3]; KINDS as usize]; 3],
+    pub triples: [&'static [[f32; 3]; KINDS as usize]; 3],
     /// Tables of 0x22 floats: `size`, `divisor`, `low`, `high`, `start`, `middle`, `end`,
     /// `spread`, `extra`.
-    pub values: [&'static [Float; KINDS as usize]; 9],
+    pub values: [&'static [f32; KINDS as usize]; 9],
     /// The table of 0x22 dwords: `count`.
-    pub count: &'static [Dword; KINDS as usize],
+    pub count: &'static [u32; KINDS as usize],
     /// The constants.
     pub consts: &'static KindConsts,
     /// The quad the values are put in.
@@ -82,42 +82,42 @@ pub fn set_kind_values(k: &KindSet) -> Result<(), Refused> {
     let q = k.quad;
     let c = k.consts;
     let [size, divisor, low, high, start, middle, end, spread, extra] =
-        k.values.map(|table| table[n].bits());
-    let count = k.count[n].get();
+        k.values.map(|table| table[n].to_bits());
+    let count = k.count[n];
     q.corner.set(count);
-    let (scaled, ratio) = x87::mul_and_div(size, c.size_k.bits(), divisor);
+    let (scaled, ratio) = x87::mul_and_div(size, c.size_k.to_bits(), divisor);
     q.size.set_bits(scaled);
     q.ratio.set_bits(ratio);
     q.low.set_bits(low);
     q.high.set_bits(high);
-    q.start.set_bits(x87::mul(start, c.start_k.bits()));
+    q.start.set_bits(x87::mul(start, c.start_k.to_bits()));
     q.step
-        .set_bits(x87::sub_div_mul(middle, start, low, c.step_k.bits()));
-    q.middle.set_bits(x87::mul(middle, c.middle_k.bits()));
+        .set_bits(x87::sub_div_mul(middle, start, low, c.step_k.to_bits()));
+    q.middle.set_bits(x87::mul(middle, c.middle_k.to_bits()));
     q.slope.set_bits(x87::diff_ratio_mul(
         end,
         middle,
         high,
         low,
-        c.slope_k.bits(),
+        c.slope_k.to_bits(),
     ));
-    q.spread.set_bits(x87::mul(spread, c.spread_k.bits()));
-    k.extra.set_bits(x87::mul(extra, c.extra_k.bits()));
+    q.spread.set_bits(x87::mul(spread, c.spread_k.to_bits()));
+    k.extra.set_bits(x87::mul(extra, c.extra_k.to_bits()));
     if let Some(copy) = k.divisor_copy {
         copy.set(divisor);
     }
-    let triple = |t: usize, part: usize| k.triples[t][n][part].bits();
+    let triple = |t: usize, part: usize| k.triples[t][n][part].to_bits();
     let lerp = |part: usize, less: Option<u32>| {
         x87::lerp_scaled_less(
             triple(0, part),
             triple(1, part),
-            c.place_k[2 * part].bits(),
-            c.place_k[2 * part + 1].bits(),
+            c.place_k[2 * part].to_bits(),
+            c.place_k[2 * part + 1].to_bits(),
             less,
         )
     };
     q.place[0].set_bits(lerp(2, None));
-    q.place[1].set_bits(lerp(1, Some(c.place_less.bits())));
+    q.place[1].set_bits(lerp(1, Some(c.place_less.to_bits())));
     q.place[2].set_bits(lerp(0, None));
     // The first side is the kind's `copied` triple; the second side's first float is the 0
     // that goes with it (the original wrote the four as one), then the two differences.

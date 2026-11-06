@@ -40,8 +40,8 @@ fn entry_flag(marks: &MarksSettings, tag: u32) -> Result<u32, BadInput> {
     marks.at(tag.wrapping_add(0x60)).read("a mark's field")
 }
 
-fn k(cell: &Float) -> u32 {
-    cell.bits()
+fn k(cell: &f32) -> u32 {
+    cell.to_bits()
 }
 
 /// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
@@ -88,21 +88,21 @@ fn box_place(e: u32, car: &MarkCar) {
 
 /// The kinds' constants: (the y gain, the three dampings, the size's rate).
 struct Kind {
-    gain: Option<&'static Float>,
-    damp: [&'static Float; 3],
-    pull: Option<&'static Float>,
+    gain: Option<&'static f32>,
+    damp: [&'static f32; 3],
+    pull: Option<&'static f32>,
 }
 
 impl Kind {
     /// The size's rate (the kinds that pull the size have one; the original would read
     /// address 0 for one that has none: refused).
-    fn pull(&self) -> Result<&'static Float, BadInput> {
+    fn pull(&self) -> Result<&'static f32, BadInput> {
         self.pull
             .ok_or(BadInput("a ring kind that pulls the size without a rate"))
     }
 
     /// The y gain (the kinds that gain have one; as `pull`).
-    fn gain(&self) -> Result<&'static Float, BadInput> {
+    fn gain(&self) -> Result<&'static f32, BadInput> {
         self.gain
             .ok_or(BadInput("a ring kind that gains without a gain"))
     }
@@ -277,7 +277,7 @@ fn spin_and_move(e: u32, spin: bool) -> Result<(), Refused> {
     Ok(())
 }
 
-fn gain_y(e: u32, k_addr: &Float) -> Result<(), Refused> {
+fn gain_y(e: u32, k_addr: &f32) -> Result<(), Refused> {
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
         ep(e, 0x30, x87::plus_times_int(eg(e, 0x30)?, k(k_addr), t))?;
@@ -286,7 +286,7 @@ fn gain_y(e: u32, k_addr: &Float) -> Result<(), Refused> {
 }
 
 /// The three dampings (a part that changes sign stops at 0).
-fn damp3(e: u32, ks: [&Float; 3]) -> Result<(), Refused> {
+fn damp3(e: u32, ks: [&f32; 3]) -> Result<(), Refused> {
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
         for (o, kk) in [0x2Cu32, 0x30, 0x34].into_iter().zip(ks) {
@@ -303,7 +303,7 @@ fn damp3(e: u32, ks: [&Float; 3]) -> Result<(), Refused> {
 }
 
 /// The size pulled toward +0x70.
-fn pull_size(e: u32, k_addr: &Float) -> Result<(), Refused> {
+fn pull_size(e: u32, k_addr: &f32) -> Result<(), Refused> {
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
         let (w, f) = x87::approach(eg(e, 0x70)? as i32, eg(e, 0x60)?, k(k_addr), t);
@@ -360,7 +360,7 @@ fn draw(
 }
 
 /// Kinds 5 and 0xB (draw 1 or 2; their y gain, size and alpha gains): whether it dies.
-fn drift_kind(e: u32, place: u32, ks: [&Float; 3]) -> Result<bool, Refused> {
+fn drift_kind(e: u32, place: u32, ks: [&f32; 3]) -> Result<bool, Refused> {
     {
         if aged(e, true)? {
             return Ok(true);
@@ -466,7 +466,7 @@ fn pull_toward(e: u32) -> Result<(), Refused> {
 }
 
 /// Kinds 0x10, 0x11 (draw 3): boxed, no ground test of their own first. Whether it dies.
-fn boxed_kind(e: u32, gain: &Float, both: bool) -> Result<bool, Refused> {
+fn boxed_kind(e: u32, gain: &f32, both: bool) -> Result<bool, Refused> {
     if aged(e, true)? {
         return Ok(true);
     }
@@ -670,7 +670,7 @@ fn pull_length_x87(e: u32, whole: &[Float; 16], l: &mut [u8; 10], w: &RingWork, 
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
-    let t15 = t14 - ld_cell(&rk.near_less);
+    let t15 = t14 - bh::ld(rk.near_less.to_bits());
     w.near.set_bits(bh::st(t15));
     *l = bh::f80(t14);
 }
@@ -722,14 +722,14 @@ fn pull_strength_x87(
     rk: &RingKinds,
 ) {
     let t0 = ldi_cell(&car.head[0x88 / 4]);
-    let t1 = t0 * ld_cell(&rk.near_scale);
+    let t1 = t0 * bh::ld(rk.near_scale.to_bits());
     let t2 = t1 + bh::ld(f.one.bits());
     let t3 = bh::ld(f.one.bits()) / t2;
     let t4 = bh::ld(f.one.bits()) - t3;
     w.whole.set_bits(bh::st(t4));
     let t5 = bh::ld(f.two_pow_16.bits());
     let t6 = t5 - eld(e, 0x64);
-    let t7 = ld_cell(&rk.near_rate);
+    let t7 = bh::ld(rk.near_rate.to_bits());
     let t8 = t7 * bh::ld(w.whole.bits());
     let t9 = t6 * t8;
     let t10 = t9 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
@@ -775,115 +775,116 @@ fn box_place_x87(w: &RingWork, e: u32, car: &MarkCar) {
 
 /// The ring kinds' constants (`run_ring`, and the ribbons' two) (IDA 0x93A4DA .. 0x93A576, the image's layout; phase 7, typed state).
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
+#[derive(Clone, Copy)]
 pub struct RingKinds {
     /// 0x93A4DA: `flt_93A4DA`, `flt_93A4DE`, `dword_93A4E2`: kind 5's drift factors
-    pub drift5: [Float; 3],
+    pub drift5: [f32; 3],
     /// 0x93A4E6: `flt_93A4E6`, `flt_93A4EA`, `dword_93A4EE`: kind 0xB's drift factors
-    pub drift_b: [Float; 3],
+    pub drift_b: [f32; 3],
     /// 0x93A4F2: `flt_93A4F2` .. `flt_93A4FA`: kind 6's three dampings
-    pub k6_damp: [Float; 3],
+    pub k6_damp: [f32; 3],
     /// 0x93A4FE: `flt_93A4FE`: kind 6's size rate
-    pub k6_pull: Float,
+    pub k6_pull: f32,
     /// 0x93A502: `flt_93A502` .. `flt_93A50A`: kind 0x15's three dampings
-    pub k15_damp: [Float; 3],
+    pub k15_damp: [f32; 3],
     /// 0x93A50E: `flt_93A50E`: kind 0x15's size rate
-    pub k15_pull: Float,
+    pub k15_pull: f32,
     /// 0x93A512: `flt_93A512`: kind 1's size factor (+0x64 times it)
-    pub k1_size: Float,
+    pub k1_size: f32,
     /// 0x93A516: `flt_93A516` .. `flt_93A51E`: kind 1's three dampings
-    pub k1_damp: [Float; 3],
+    pub k1_damp: [f32; 3],
     /// 0x93A522: `flt_93A522`: kind 1's size rate
-    pub k1_pull: Float,
+    pub k1_pull: f32,
     /// 0x93A526: `flt_93A526`: less this from the length to the object (`pull_length`)
-    pub near_less: Float,
+    pub near_less: f32,
     /// 0x93A52A: `flt_93A52A`: the strength's pull scale (`pull_strength`)
-    pub near_scale: Float,
+    pub near_scale: f32,
     /// 0x93A52E: `flt_93A52E`: the strength's pull rate (`pull_strength`)
-    pub near_rate: Float,
+    pub near_rate: f32,
     /// 0x93A532: `flt_93A532`: kind 0xD's y gain
-    pub kd_gain: Float,
+    pub kd_gain: f32,
     /// 0x93A536: `flt_93A536` .. `flt_93A53E`: kind 0xD's three dampings
-    pub kd_damp: [Float; 3],
+    pub kd_damp: [f32; 3],
     /// 0x93A542: `flt_93A542`: kind 0xD's size rate
-    pub kd_pull: Float,
+    pub kd_pull: f32,
     /// 0x93A546: `flt_93A546` .. `flt_93A54E`: kind 0x13's three dampings
-    pub k13_damp: [Float; 3],
+    pub k13_damp: [f32; 3],
     /// 0x93A552: `flt_93A552`: kind 0x13's y gain
-    pub k13_gain: Float,
+    pub k13_gain: f32,
     /// 0x93A556: `flt_93A556` .. `flt_93A55E`: kind 0x16's three dampings
-    pub k16_damp: [Float; 3],
+    pub k16_damp: [f32; 3],
     /// 0x93A562: `flt_93A562`: kind 0x16's y gain
-    pub k16_gain: Float,
+    pub k16_gain: f32,
     /// 0x93A566: `flt_93A566`: kind 0x10's y gain
-    pub k10_gain: Float,
+    pub k10_gain: f32,
     /// 0x93A56A: `flt_93A56A`: kind 0x11's y gain
-    pub k11_gain: Float,
+    pub k11_gain: f32,
     /// 0x93A56E: `flt_93A56E`: a ribbon's y gain (`run_ribbons::first_frame`)
-    pub ribbon_a: Float,
+    pub ribbon_a: f32,
     /// 0x93A572: `flt_93A572`: a ribbon's y gain per frame (`run_ribbons::move_`)
-    pub ribbon_b: Float,
+    pub ribbon_b: f32,
 }
 
 /// RingKinds's first values.
 pub static RING_KINDS: RingKinds = RingKinds {
     drift5: [
-        Float::from_bits(0xC0000000),
-        Float::from_bits(0x42B80000),
-        Float::from_bits(0xFF800000),
+        f32::from_bits(0xC0000000),
+        f32::from_bits(0x42B80000),
+        f32::from_bits(0xFF800000),
     ],
     drift_b: [
-        Float::from_bits(0xC0000000),
-        Float::from_bits(0x42B80000),
-        Float::from_bits(0xFF800000),
+        f32::from_bits(0xC0000000),
+        f32::from_bits(0x42B80000),
+        f32::from_bits(0xFF800000),
     ],
     k6_damp: [
-        Float::from_bits(0x3A83126F),
-        Float::from_bits(0x3A83126F),
-        Float::from_bits(0x3A83126F),
+        f32::from_bits(0x3A83126F),
+        f32::from_bits(0x3A83126F),
+        f32::from_bits(0x3A83126F),
     ],
-    k6_pull: Float::from_bits(0x3C23D70A),
+    k6_pull: f32::from_bits(0x3C23D70A),
     k15_damp: [
-        Float::from_bits(0x3A83126F),
-        Float::from_bits(0x3A83126F),
-        Float::from_bits(0x3A83126F),
+        f32::from_bits(0x3A83126F),
+        f32::from_bits(0x3A83126F),
+        f32::from_bits(0x3A83126F),
     ],
-    k15_pull: Float::from_bits(0x3C23D70A),
-    k1_size: Float::from_bits(0x3F800000),
+    k15_pull: f32::from_bits(0x3C23D70A),
+    k1_size: f32::from_bits(0x3F800000),
     k1_damp: [
-        Float::from_bits(0x3B449BA6),
-        Float::from_bits(0x3B449BA6),
-        Float::from_bits(0x3B449BA6),
+        f32::from_bits(0x3B449BA6),
+        f32::from_bits(0x3B449BA6),
+        f32::from_bits(0x3B449BA6),
     ],
-    k1_pull: Float::from_bits(0x3AC49BA6),
-    near_less: Float::from_bits(0x47D8F000),
-    near_scale: Float::from_bits(0x3951B717),
-    near_rate: Float::from_bits(0x3BA3D70A),
-    kd_gain: Float::from_bits(0x3C23D70A),
+    k1_pull: f32::from_bits(0x3AC49BA6),
+    near_less: f32::from_bits(0x47D8F000),
+    near_scale: f32::from_bits(0x3951B717),
+    near_rate: f32::from_bits(0x3BA3D70A),
+    kd_gain: f32::from_bits(0x3C23D70A),
     kd_damp: [
-        Float::from_bits(0x3B83126F),
-        Float::from_bits(0x3B83126F),
-        Float::from_bits(0x3B83126F),
+        f32::from_bits(0x3B83126F),
+        f32::from_bits(0x3B83126F),
+        f32::from_bits(0x3B83126F),
     ],
-    kd_pull: Float::from_bits(0x3C23D70A),
+    kd_pull: f32::from_bits(0x3C23D70A),
     k13_damp: [
-        Float::from_bits(0x3B449BA6),
-        Float::from_bits(0x3B449BA6),
-        Float::from_bits(0x3B449BA6),
+        f32::from_bits(0x3B449BA6),
+        f32::from_bits(0x3B449BA6),
+        f32::from_bits(0x3B449BA6),
     ],
-    k13_gain: Float::from_bits(0x41800000),
+    k13_gain: f32::from_bits(0x41800000),
     k16_damp: [
-        Float::from_bits(0x3B449BA6),
-        Float::from_bits(0x3B449BA6),
-        Float::from_bits(0x3B449BA6),
+        f32::from_bits(0x3B449BA6),
+        f32::from_bits(0x3B449BA6),
+        f32::from_bits(0x3B449BA6),
     ],
-    k16_gain: Float::from_bits(0x41800000),
-    k10_gain: Float::from_bits(0xBF000000),
-    k11_gain: Float::from_bits(0xBF000000),
-    ribbon_a: Float::from_bits(0xBF000000),
-    ribbon_b: Float::from_bits(0xBF000000),
+    k16_gain: f32::from_bits(0x41800000),
+    k10_gain: f32::from_bits(0xBF000000),
+    k11_gain: f32::from_bits(0xBF000000),
+    ribbon_a: f32::from_bits(0xBF000000),
+    ribbon_b: f32::from_bits(0xBF000000),
 };
 
+#[cfg(test)]
 impl RingKinds {
     pub const START: usize = 0x93A4DA;
     pub const LEN: usize = 0x9C;
@@ -1245,18 +1246,6 @@ mod asm_differential {
         car_with(at, 0x94, &offsets)
     }
 
-    /// Runs `f` with the ring kinds' cells holding the given bits, then as they were.
-    fn with_kinds(cells: &[(&Float, u32)], f: impl FnOnce()) {
-        let saved: Vec<u32> = cells.iter().map(|(c, _)| c.bits()).collect();
-        for (c, v) in cells {
-            c.set_bits(*v);
-        }
-        f();
-        for ((c, _), v) in cells.iter().zip(saved) {
-            c.set_bits(v);
-        }
-    }
-
     /// A whole matrix whose translation (+0x30 ..) is the buffer's at `at` + 0x30 (`at` the
     /// matrix's place, as the original reads it).
     fn whole_at(at: usize) -> [Float; 16] {
@@ -1421,15 +1410,11 @@ mod asm_differential {
                 with_copy(b[0], RingWork::START, |w| {
                     crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x1C, |e| {
                         let mut length = [0xAA; 10];
-                        with_kinds(&[(&super::RING_KINDS.near_less, word(b[4] + 0x4C))], || {
-                            super::pull_length_x87(
-                                e,
-                                &whole_at(b[2]),
-                                &mut length,
-                                w,
-                                &super::RING_KINDS,
-                            );
-                        });
+                        let kinds = super::RingKinds {
+                            near_less: f32::from_bits(word(b[4] + 0x4C)),
+                            ..super::RING_KINDS
+                        };
+                        super::pull_length_x87(e, &whole_at(b[2]), &mut length, w, &kinds);
                         unsafe {
                             crate::pointers::host_at(b[3])
                                 .copy_from_nonoverlapping(length.as_ptr(), 10);
@@ -1537,20 +1522,19 @@ mod asm_differential {
                     with_copy(b[0], RingWork::START, |w| {
                         crate::effects::ring_entries::with_entry_at(b[1], 0x64, 0x68, |e| {
                             let car = car_with(b[2], 0, &[0x88]);
-                            let rates = [
-                                (&super::RING_KINDS.near_scale, word(b[3] + 0x50)),
-                                (&super::RING_KINDS.near_rate, word(b[3] + 0x54)),
-                            ];
-                            with_kinds(&rates, || {
-                                super::pull_strength_x87(
-                                    e,
-                                    &car,
-                                    crate::effects::setup::clock_at(b[0]),
-                                    f,
-                                    w,
-                                    &super::RING_KINDS,
-                                );
-                            });
+                            let kinds = super::RingKinds {
+                                near_scale: f32::from_bits(word(b[3] + 0x50)),
+                                near_rate: f32::from_bits(word(b[3] + 0x54)),
+                                ..super::RING_KINDS
+                            };
+                            super::pull_strength_x87(
+                                e,
+                                &car,
+                                crate::effects::setup::clock_at(b[0]),
+                                f,
+                                w,
+                                &kinds,
+                            );
                         });
                     });
                 });

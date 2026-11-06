@@ -5,42 +5,29 @@
 //! The converted `strings` functions have the ids as constants (`rc2k_core::strings`);
 //! nothing reads these.
 
-use crate::session::Word;
-
 /// IDA's address of the tables.
+#[cfg(test)]
 pub const START: usize = 0x51EB84;
 /// Their length.
+#[cfg(test)]
 pub const LEN: usize = 0x2C;
 
-const fn words<const N: usize>(values: [u16; N]) -> [Word; N] {
-    let mut out = [const { Word::new(0) }; N];
-    let mut i = 0;
-    while i < N {
-        out[i] = Word::new(values[i]);
-        i += 1;
-    }
-    out
-}
-
-/// The label ids by table and units setting.
-pub static LABEL_IDS: [Word; 22] = words([
+/// The label ids by table and units setting (read by nothing: kept for the test against the
+/// image).
+#[cfg(test)]
+pub static LABEL_IDS: [u16; 22] = [
     1398, 1397, 1395, 1396, 1367, 1368, 1372, 1373, 1375, 1374, 581, 582, 583, 584, 621, 620, 613,
     610, 611, 617, 616, 615,
-]);
-
-/// Where the tables are (`moved::MOVED`'s home for IDA 0x51EB84).
-#[cfg(test)]
-pub fn home() -> usize {
-    (crate::pointers::game_address(LABEL_IDS.as_ptr())) as usize
-}
+];
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&LABEL_IDS, START, START + LEN);
-        assert_eq!(crate::moved::place(START), home());
+    fn values_are_the_games() {
+        let image = crate::moved::image_bytes(START, LEN);
+        let ours: Vec<u8> = LABEL_IDS.iter().flat_map(|id| id.to_le_bytes()).collect();
+        assert_eq!(ours, image);
     }
 }

@@ -34,9 +34,9 @@ pub fn drift_offsets() {
         if since >= r.drift_wait.get() {
             let s = next_seed();
             let x = (s & 0xFFF).wrapping_sub(0x7FF);
-            r.drift_target[0].set_bits(x87::int_times(x as i32, k.target_scale[0].bits()));
+            r.drift_target[0].set_bits(x87::int_times(x as i32, k.target_scale[0].to_bits()));
             let y = ((s >> 12) & 0xFFF).wrapping_sub(0x7FF);
-            r.drift_target[2].set_bits(x87::int_times(y as i32, k.target_scale[1].bits()));
+            r.drift_target[2].set_bits(x87::int_times(y as i32, k.target_scale[1].to_bits()));
             r.drift_wait.set(((s >> 24) + 0x40) * 5);
             r.drift_since.set(PHYSICS.scene_clock.bits());
             let s = next_seed();
@@ -47,7 +47,7 @@ pub fn drift_offsets() {
             let pace = x87::ease(
                 r.drift_target[at].bits(),
                 r.drift_pace[at].bits(),
-                k.ease[n].bits(),
+                k.ease[n].to_bits(),
             );
             r.drift_pace[at].set_bits(pace);
             let offset = x87::int_plus_to_int(r.view[at].get() as i32, pace);

@@ -31,7 +31,7 @@ pub fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
-    let template = crate::race::replay_path::TEMPLATES.saved.read();
+    let template = crate::race::replay_path::TEMPLATES.saved;
     let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
     let mut bytes = REPLAYS.header.read();
     let read = read_file_into(&path[..], &mut bytes[..HEAD_LEN], 0)?;

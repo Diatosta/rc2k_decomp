@@ -11,7 +11,7 @@
 //! `numbered_path` refuses.
 
 use crate::errors::Refused;
-use crate::session::{Bytes, with_runs};
+use crate::session::with_runs;
 
 /// IDA's address of the last race's replay file's name.
 pub const LAST_RACE_START: usize = 0x5295F0;
@@ -19,26 +19,26 @@ pub const LAST_RACE_START: usize = 0x5295F0;
 pub const LAST_RACE_LEN: usize = 0x5296FB - LAST_RACE_START;
 
 /// `aVarTmprpl` (room for 0x10B bytes): the last race's replay file's name.
-pub static LAST_RACE: Bytes<LAST_RACE_LEN> = Bytes::new(with_runs(&[(0, b"var\\tmprpl\0")]));
+pub static LAST_RACE: [u8; LAST_RACE_LEN] = with_runs(&[(0, b"var\\tmprpl\0")]);
 
 /// IDA's address of the replay files' names' templates.
+#[cfg(test)]
 pub const TEMPLATES_START: usize = 0x52974B;
 /// Their length.
+#[cfg(test)]
 pub const TEMPLATES_LEN: usize = 0x52977A - TEMPLATES_START;
 
 /// The replay files' names, the number's two digits last.
-#[repr(C)]
-#[derive(rc2k_derive::Cells)]
 pub struct Templates {
     /// `aSavedataReplay`: "savedata\replay\replay00".
-    pub saved: Bytes<25>,
+    pub saved: [u8; 25],
     /// `aFilesReplayRep`: "files\replay\replay00".
-    pub own: Bytes<22>,
+    pub own: [u8; 22],
 }
 
 pub static TEMPLATES: Templates = Templates {
-    saved: Bytes::new(*b"savedata\\replay\\replay00\0"),
-    own: Bytes::new(*b"files\\replay\\replay00\0"),
+    saved: *b"savedata\\replay\\replay00\0",
+    own: *b"files\\replay\\replay00\0",
 };
 
 #[cfg(test)]
@@ -46,29 +46,19 @@ mod block_tests {
     use super::*;
 
     #[test]
-    fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
-            &LAST_RACE,
-            LAST_RACE_START,
-            LAST_RACE_START + LAST_RACE_LEN,
-        );
-        crate::gfx::first_values_are_the_games(
-            &TEMPLATES,
-            TEMPLATES_START,
-            TEMPLATES_START + TEMPLATES_LEN,
-        );
-        assert_eq!(
-            crate::moved::place(LAST_RACE_START),
-            LAST_RACE.addr() as usize
-        );
-        assert_eq!(crate::moved::place(0x529764), TEMPLATES.own.addr() as usize);
+    fn values_are_the_games() {
+        let image = crate::moved::image_bytes(LAST_RACE_START, LAST_RACE_LEN);
+        assert_eq!(&LAST_RACE[..], &image[..]);
+        let image = crate::moved::image_bytes(TEMPLATES_START, TEMPLATES_LEN);
+        let mine = [&TEMPLATES.saved[..], &TEMPLATES.own[..]].concat();
+        assert_eq!(mine, image);
     }
 }
 // `numbered_path`'s buffer
 
 /// The last race's file's name (without its NUL).
 pub fn last_race() -> Vec<u8> {
-    let bytes = LAST_RACE.read();
+    let bytes = &LAST_RACE;
     bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())].to_vec()
 }
 
@@ -96,10 +86,10 @@ pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
                 last_race: true,
             });
         }
-        ReplayFile::Saved(_) => TEMPLATES.saved.read().to_vec(),
+        ReplayFile::Saved(_) => TEMPLATES.saved.to_vec(),
         ReplayFile::Own(n) => {
             number = n;
-            TEMPLATES.own.read().to_vec()
+            TEMPLATES.own.to_vec()
         }
     };
     let path =

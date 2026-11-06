@@ -34,7 +34,6 @@ use crate::race::numbers_store::NUMBERS;
 use crate::scene::cross_product3::cross;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::vector3::normalise;
-use crate::session::Float;
 
 use crate::d3d::vertices_store::VERTICES;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
@@ -42,37 +41,36 @@ const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
 /// The plane's constants (IDA 0x934F30 .. 0x934F7C; phase 7, typed state). The offsets are from its start.
 #[repr(C)]
-#[derive(rc2k_derive::Cells)]
 pub struct PlaneTuning {
     /// +0x0: what the settings' rate is multiplied by into the first axis' scale (`flt_934F30`)
-    pub rate_k: Float,
+    pub rate_k: f32,
     /// +0x4: what the two axes' lengths are divided by (`flt_934F34`, `flt_934F38`)
-    pub shares: [Float; 2],
+    pub shares: [f32; 2],
     /// +0xC: the four corners' texture places (u, v) (`flt_934F3C`, `flt_934F40` ..)
-    pub places: [[Float; 2]; 4],
+    pub places: [[f32; 2]; 4],
     /// +0x2C: what each corner's depth is raised by (`flt_934F5C`, `flt_934F60` ..)
-    pub lifts: [Float; 4],
+    pub lifts: [f32; 4],
     /// +0x3C: what one over each corner's depth is multiplied by (`flt_934F6C`, `flt_934F70` ..)
-    pub rhw_k: [Float; 4],
+    pub rhw_k: [f32; 4],
 }
 
 /// The plane's constants; the first values are the image's.
 pub static PLANE_TUNING: PlaneTuning = PlaneTuning {
-    rate_k: Float::from_bits(0x3F800000),
-    shares: [Float::from_bits(0x45000000), Float::from_bits(0x44800000)],
+    rate_k: f32::from_bits(0x3F800000),
+    shares: [f32::from_bits(0x45000000), f32::from_bits(0x44800000)],
     places: [
-        [Float::from_bits(0x0), Float::from_bits(0x3F008000)],
-        [Float::from_bits(0x3F7FF972), Float::from_bits(0x3F008000)],
-        [const { Float::from_bits(0x3F7FF972) }; 2],
-        [Float::from_bits(0x0), Float::from_bits(0x3F7FF972)],
+        [f32::from_bits(0x0), f32::from_bits(0x3F008000)],
+        [f32::from_bits(0x3F7FF972), f32::from_bits(0x3F008000)],
+        [f32::from_bits(0x3F7FF972); 2],
+        [f32::from_bits(0x0), f32::from_bits(0x3F7FF972)],
     ],
-    lifts: [const { Float::from_bits(0x43FA0000) }; 4],
-    rhw_k: [const { Float::from_bits(0x43800000) }; 4],
+    lifts: [f32::from_bits(0x43FA0000); 4],
+    rhw_k: [f32::from_bits(0x43800000); 4],
 };
 
+#[cfg(all(test, target_arch = "x86"))]
 impl PlaneTuning {
     pub const START: usize = 0x934F30;
-    pub const LEN: usize = 0x4C;
 }
 
 /// The original's 0x4C8F6A .. 0x4C9000: the rate (`flt_89CA34`), the place (`flt_89CEF6` ..) and the first axis (`flt_89CF1A` ..) from the settings, its length over `flt_934F34` into `flt_89CEEE`.
@@ -154,10 +152,10 @@ pub fn draw_plane() -> Result<(), Refused> {
         let vertex = &VERTICES.vertices[n];
         vertex
             .u
-            .set_bits(x87::loaded(PLANE_TUNING.places[n][0].bits()));
+            .set_bits(x87::loaded(PLANE_TUNING.places[n][0].to_bits()));
         vertex
             .v
-            .set_bits(x87::loaded(PLANE_TUNING.places[n][1].bits()));
+            .set_bits(x87::loaded(PLANE_TUNING.places[n][1].to_bits()));
     }
     let light: u32 = FRAME_WORK.view_light.bits();
     for n in 0..4 {
@@ -179,15 +177,16 @@ pub fn draw_plane() -> Result<(), Refused> {
         vertex.z.set_bits(x87::sum3_times(
             depth,
             kind,
-            PLANE_TUNING.lifts[n].bits(),
+            PLANE_TUNING.lifts[n].to_bits(),
             z_k,
         ));
     }
     for n in 0..4 {
         let depth: u32 = QUAD_3.corners[n][2].bits();
-        VERTICES.vertices[n]
-            .rhw
-            .set_bits(x87::reciprocal_times(depth, PLANE_TUNING.rhw_k[n].bits()));
+        VERTICES.vertices[n].rhw.set_bits(x87::reciprocal_times(
+            depth,
+            PLANE_TUNING.rhw_k[n].to_bits(),
+        ));
     }
     crate::effects::clip_quad::draw_fan();
     crate::scene::depth_test_on::depth_test_on();
@@ -209,7 +208,7 @@ fn plane_axes_x87(
     pt: &PlaneTuning,
 ) {
     let t0 = ldi_cell(&m.listener_switch_3);
-    let t1 = t0 * bh::ld(pt.rate_k.bits());
+    let t1 = t0 * bh::ld(pt.rate_k.to_bits());
     sti.rate.set_bits(bh::st(t1));
     let t2 = ldi_cell(&m.listener_point_b_negated[0]);
     let t3 = ldi_cell(&m.listener_point_b_negated[1]);
@@ -235,7 +234,7 @@ fn plane_axes_x87(
     let t17 = t14 + t16;
     let t18 = t12 + t17;
     let t19 = t18.sqrt();
-    let t20 = t19 / bh::ld(pt.shares[0].bits());
+    let t20 = t19 / bh::ld(pt.shares[0].to_bits());
     sq.lengths[0].set_bits(bh::st(t20));
 }
 
@@ -259,7 +258,7 @@ fn plane_up_x87(m: &MarksSettings, sq: &WindscreenFlakeTables, pt: &PlaneTuning)
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
-    let t15 = t14 / bh::ld(pt.shares[1].bits());
+    let t15 = t14 / bh::ld(pt.shares[1].to_bits());
     sq.lengths[1].set_bits(bh::st(t15));
 }
 
