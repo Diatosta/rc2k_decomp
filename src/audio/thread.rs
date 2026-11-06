@@ -44,12 +44,12 @@ pub fn audio_thread() -> Result<(), Refused> {
             audio.state.no_audio.get() == 0
         }
         && {
-            thread_parts::take_sample_buffer()?;
-            start::start()?
+            thread_parts::take_sample_buffer(&audio.state)?;
+            start::start(audio)?
         };
     if started {
-        a3d::splash()?;
-        set_mode::set_mode(audio.state.menu_sound_mode.get())?;
+        a3d::splash(&audio.state)?;
+        set_mode::set_mode(audio, audio.state.menu_sound_mode.get())?;
         set_priority(0xF);
         audio.state.audio_turn_tick.set(tick_count());
         loop {
@@ -60,17 +60,17 @@ pub fn audio_thread() -> Result<(), Refused> {
             crate::system::sleep::sleep(rc2k_core::audio::device::turn_sleep(last, now));
             let begun = crate::debug::timing::start();
             // The turn's feeds (action 1, which reads nothing else).
-            stream_commands::stream_command(0, 0, 1)?;
-            stream_commands::music_command(0, 0, 0, 1)?;
-            take_commands::take_commands()?;
-            update_voices::update_voices()?;
-            stray_voices::check();
+            stream_commands::stream_command(audio, 0, 0, 1)?;
+            stream_commands::music_command(&audio.state, 0, 0, 0, 1)?;
+            take_commands::take_commands(audio)?;
+            update_voices::update_voices(audio)?;
+            stray_voices::check(&audio.state);
             if begun.is_some() {
-                crate::debug::timing::note_voices(stray_voices::on_lists());
+                crate::debug::timing::note_voices(stray_voices::on_lists(&audio.state));
             }
             crate::debug::timing::stop(crate::debug::timing::Stage::AudioTurn, begun);
             if audio.state.sound_buffer_lost.get() != 0 {
-                restore::restore_lost()?;
+                restore::restore_lost(audio)?;
             }
             if system().session.flags.quitting.get() == 1 {
                 break;
@@ -78,9 +78,9 @@ pub fn audio_thread() -> Result<(), Refused> {
         }
     }
     audio.state.no_audio.set(1);
-    close_all::close_all()?;
-    thread_parts::free_sample_buffer()?;
-    a3d::splash()?;
+    close_all::close_all(audio)?;
+    thread_parts::free_sample_buffer(&audio.state)?;
+    a3d::splash(&audio.state)?;
     sound_device::log_text(QUIT_TEXT, true);
     set_priority(0);
     running.set(0);

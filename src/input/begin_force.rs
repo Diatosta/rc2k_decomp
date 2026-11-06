@@ -20,6 +20,7 @@ use crate::input::di_harness::entry_of;
 use crate::input::di_objects::{Property, set_property};
 
 use crate::input::di_harness::fatal;
+use crate::input::owner::Input;
 use crate::input::types::{DiPropDword, DiPropHeader, InputDevice};
 use rc2k_core::input::acquire::gain;
 use std::mem::size_of;
@@ -40,8 +41,8 @@ pub fn dword_property(data: u32) -> DiPropDword {
 }
 
 /// The Rust version (see the header).
-pub fn begin_force(record: &InputDevice) -> Result<(), Refused> {
-    if entry_of(record)?.force_feedback.get() != 1 {
+pub fn begin_force(input: &Input, record: &InputDevice) -> Result<(), Refused> {
+    if entry_of(&input.devices, record)?.force_feedback.get() != 1 {
         return Ok(());
     }
     crate::logfile::log_write::log_nul(&USING_TEXT_RVA, true, 2);
@@ -59,11 +60,11 @@ pub fn begin_force(record: &InputDevice) -> Result<(), Refused> {
     }
     crate::input::di_objects::enum_effects(
         device,
-        |info| crate::input::effect_found::callback(info, record),
+        |info| crate::input::effect_found::callback(&input.guids, info, record),
         0,
     );
     for (n, effect) in record.effects.iter().enumerate() {
-        crate::input::make_effect::make_effect(record, effect, n as u32)?;
+        crate::input::make_effect::make_effect(&input.devices, record, effect, n as u32)?;
     }
     record.effects_on.set(1);
     Ok(())

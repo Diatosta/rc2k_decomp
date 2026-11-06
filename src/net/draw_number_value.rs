@@ -10,15 +10,15 @@
 use crate::errors::Refused;
 use crate::net::draw_setting_value::draw_setting_value;
 use crate::net::lobby::Cursor;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::strings::owner::strings;
 use rc2k_core::net::screens::{self, Number};
 
 /// The Rust version: the number `number` for item `item` at `y`, as the text being typed,
 /// "nothing" or its digits; returns the next y (`draw_setting_value`'s).
-pub fn draw_number_value(number: u32, item: u32, y: u32) -> Result<u32, Refused> {
+pub fn draw_number_value(vars: &NetVars, number: u32, item: u32, y: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens` (`number_value`, `Number`, `NOTHING`).
-    let shown = screens::number_value(item == net().vars.edited.get(), number);
+    let shown = screens::number_value(item == vars.edited.get(), number);
     let text = if shown == Number::Typed {
         crate::place::Place::from(&crate::install::owner::install().paths.path_a)
     } else {
@@ -31,5 +31,5 @@ pub fn draw_number_value(number: u32, item: u32, y: u32) -> Result<u32, Refused>
         cursor.nul()?;
         crate::place::Place::from(&strings().text.buffer.text)
     };
-    draw_setting_value(text, item, y)
+    draw_setting_value(vars, text, item, y)
 }

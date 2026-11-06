@@ -15,7 +15,7 @@ use crate::errors::Refused;
 use crate::menu::owner::Play;
 use crate::menu::player::Player;
 use crate::net::lobby::copy_printable;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::net::record;
@@ -103,8 +103,11 @@ const MORE: [(&Dword, &Dword); 5] = [
 ];
 
 /// The Rust version.
-pub fn fill_own_player(play: &Play, name: impl Into<crate::place::Place>) -> Result<(), Refused> {
-    let net = net();
+pub fn fill_own_player(
+    net: &'static Net,
+    play: &Play,
+    name: impl Into<crate::place::Place>,
+) -> Result<(), Refused> {
     let race = race();
     copy_printable(name, &net.vars.player_name, 0x1F)?;
     // Converted: `rc2k_core::net::record::own_record`.

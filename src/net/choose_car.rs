@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
 use crate::session::Dword;
 
@@ -21,8 +21,7 @@ pub const ESCAPED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escaped
 /// The Rust version. The car screen is handed the list of cars (the original's esi); the
 /// car it starts from its set-up finds itself (the current player's record,
 /// `menu::car_choice::find_player_car`).
-pub fn choose_car() -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn choose_car(vars: &NetVars) -> Result<(), Refused> {
     let menus = menus();
     let play = &menus.play;
     CLEARED.set(0);
@@ -41,6 +40,6 @@ pub fn choose_car() -> Result<(), Refused> {
             play.players.players[0].get().gearing as u8,
         );
     }
-    crate::net::show_background::show_background()?;
+    crate::net::show_background::show_background(vars)?;
     Ok(())
 }

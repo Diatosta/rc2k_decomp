@@ -83,7 +83,7 @@ pub fn set_up_device(record: &InputDevice, car: &RaceCar) -> Result<(), Refused>
         record
             .kind
             .set(rc2k_core::input::devices::device_kind(kind));
-        crate::input::acquire_device::acquire_device(record)?;
+        crate::input::acquire_device::acquire_device(crate::input::owner::input(), record)?;
     }
     // Converted: `rc2k_core::input::devices::binding` over `DEVICE_BINDINGS`.
     for (binding, (key, controls_word, _)) in record

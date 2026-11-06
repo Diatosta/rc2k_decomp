@@ -19,8 +19,8 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
-use crate::net::owner::net;
 use crate::net::send_inputs::fields;
+use crate::net::store::NetVars;
 use crate::physics::car_store::Car;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
@@ -61,9 +61,9 @@ fn note_unbelievable(player: u32) {
 }
 
 /// The Rust version.
-pub fn apply_message(player: u32, message: GamePtr) -> Result<(), BadInput> {
+pub fn apply_message(vars: &NetVars, player: u32, message: GamePtr) -> Result<(), BadInput> {
     let race = race();
-    log_int(net().vars.player.get() as i32, false, 1);
+    log_int(vars.player.get() as i32, false, 1);
     log_int(race.shared.view.local_car.get() as i32, false, 1);
     log_int(message.read::<u8>("a received message")? as i32, false, 1);
     crate::logfile::log_write::log_nul(&TEXT, false, 1);

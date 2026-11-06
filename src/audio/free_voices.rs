@@ -11,33 +11,33 @@
 //! end), `audio::set_mode`, `audio::take_commands`.
 //! Refuses more than 0x200 voices in use.
 
-use crate::audio::owner::audio;
+use crate::audio::owner::Audio;
 use crate::audio::voices::{SAMPLES, VOICES};
 use crate::errors::{BadInput, Refused};
 
 // ---- Rust version ----
 
-pub fn free_voices() -> Result<(), Refused> {
-    let audio = audio();
+pub fn free_voices(audio: &Audio) -> Result<(), Refused> {
     let count = audio.state.voice_count.get();
     if count > VOICES {
         return Err(BadInput("more than 0x200 voices").into());
     }
     if count != 0 {
-        crate::audio::release_eax::release_eax();
-        crate::audio::release_voice_manager::release_voice_manager();
+        crate::audio::release_eax::release_eax(&audio.state);
+        crate::audio::release_voice_manager::release_voice_manager(&audio.state);
         // The voices by their places, as the original steps over them.
         for n in 0..count as usize {
-            crate::audio::release_voice::release_voice_in_game(crate::audio::voices::voice_id(
-                n as u32,
-            ));
+            crate::audio::release_voice::release_voice_in_game(
+                &audio.state,
+                crate::audio::voices::voice_id(n as u32),
+            );
         }
         audio.state.voice_count.set(0);
     }
     for n in 0..SAMPLES as usize {
         audio.sample_records.records[n].update(|r| r.first_voice = 0);
     }
-    crate::audio::clear_channels::clear_channels();
+    crate::audio::clear_channels::clear_channels(audio);
     audio.state.sound_buffer_lost.set(0);
     audio.state.commit_3d.set(0);
     audio.state.channels_used.set(0);

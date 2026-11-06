@@ -15,7 +15,8 @@
 //! pointers: `first_voice`, `source`, `next_copy`, `next`, a channel's `voice`, the lists),
 //! never by an address.
 
-use crate::audio::owner::audio;
+use crate::audio::owner::{Audio, audio};
+use crate::audio::store::{AudioState, SampleRecords};
 use crate::session::Shared;
 
 pub use rc2k_core::audio::voices::{SAMPLES, VOICES};
@@ -38,14 +39,12 @@ fn place_of(id: u32, len: usize, what: &'static str) -> usize {
 }
 
 /// The voice's place in the pool for id `id`.
-fn voice_place(id: u32) -> &'static Shared<Voice> {
-    let state = &audio().state;
+fn voice_place(state: &AudioState, id: u32) -> &Shared<Voice> {
     &state.voices[place_of(id, state.voices.len(), "a voice id past the pool")]
 }
 
 /// The mixer channel's place for id `id` (its place in `g_channels` + 1).
-fn channel_place(id: u32) -> &'static Shared<MixerChannel> {
-    let state = &audio().state;
+fn channel_place(state: &AudioState, id: u32) -> &Shared<MixerChannel> {
     &state.channels[place_of(
         id,
         state.channels.len(),
@@ -55,8 +54,8 @@ fn channel_place(id: u32) -> &'static Shared<MixerChannel> {
 
 /// The sample record's place (the original indexes the table unchecked; a number past it ends
 /// the program).
-fn sample_place(number: u32) -> &'static Shared<SampleRecord> {
-    let Some(r) = audio().sample_records.records.get(number as usize) else {
+fn sample_place(records: &SampleRecords, number: u32) -> &Shared<SampleRecord> {
+    let Some(r) = records.records.get(number as usize) else {
         crate::fatal::raise::end(
             "audio::voices",
             crate::errors::BadInput("a sound number past the sample records"),
@@ -65,15 +64,21 @@ fn sample_place(number: u32) -> &'static Shared<SampleRecord> {
     r
 }
 
-/// The voice of id `id` (its place in `g_voices` + 1), as it is now.
+/// The voice of id `id` (its place in `g_voices` + 1), as it is now. Entry point: the sound
+/// commands' side asks for a voice without the owner.
 pub fn voice(id: u32) -> Voice {
-    voice_place(id).get()
+    voice_of(&audio().state, id)
+}
+
+/// The voice of id `id`, as it is now.
+pub fn voice_of(state: &AudioState, id: u32) -> Voice {
+    voice_place(state, id).get()
 }
 
 /// The voice of id `id` changed (read, changed, written back): `change` must not change it by
 /// another way.
-pub fn update_voice<R>(id: u32, change: impl FnOnce(&mut Voice) -> R) -> R {
-    let place = voice_place(id);
+pub fn update_voice<R>(state: &AudioState, id: u32, change: impl FnOnce(&mut Voice) -> R) -> R {
+    let place = voice_place(state, id);
     let mut v = place.get();
     let answer = change(&mut v);
     place.set(v);
@@ -81,8 +86,8 @@ pub fn update_voice<R>(id: u32, change: impl FnOnce(&mut Voice) -> R) -> R {
 }
 
 /// The voice being changed stored now, for what reads it by address; its `buffer_3d`'s address.
-pub fn stored_buffer_3d(id: u32, v: &Voice) -> u32 {
-    let place = voice_place(id);
+pub fn stored_buffer_3d(state: &AudioState, id: u32, v: &Voice) -> u32 {
+    let place = voice_place(state, id);
     place.set(*v);
     place.addr() + core::mem::offset_of!(Voice, buffer_3d) as u32
 }
@@ -93,47 +98,59 @@ pub fn voice_id(n: u32) -> u32 {
 }
 
 /// The mixer channel of id `id`, as it is now.
-pub fn channel(id: u32) -> MixerChannel {
-    channel_place(id).get()
+pub fn channel(state: &AudioState, id: u32) -> MixerChannel {
+    channel_place(state, id).get()
 }
 
 /// The mixer channel of id `id` changed, as `update_voice`.
-pub fn update_channel(id: u32, change: impl FnOnce(&mut MixerChannel)) {
-    channel_place(id).update(change);
+pub fn update_channel(state: &AudioState, id: u32, change: impl FnOnce(&mut MixerChannel)) {
+    channel_place(state, id).update(change);
 }
 
 /// The sample record of sound `number`, as it is now.
-pub fn sample(number: u32) -> SampleRecord {
-    sample_place(number).get()
+pub fn sample(records: &SampleRecords, number: u32) -> SampleRecord {
+    sample_place(records, number).get()
 }
 
 /// The core's `Pool` over the stores: voices and channels by their ids (place + 1).
-pub struct GamePool;
+pub struct GamePool<'a> {
+    pub state: &'a AudioState,
+    pub records: &'a SampleRecords,
+}
 
-impl rc2k_core::audio::voices::Pool for GamePool {
+impl<'a> GamePool<'a> {
+    /// The pool over the audio's stores.
+    pub fn new(audio: &'a Audio) -> Self {
+        GamePool {
+            state: &audio.state,
+            records: &audio.sample_records,
+        }
+    }
+}
+
+impl rc2k_core::audio::voices::Pool for GamePool<'_> {
     fn voice(&self, at: u32) -> Voice {
-        voice_place(at).get()
+        voice_place(self.state, at).get()
     }
     fn set_voice(&mut self, at: u32, v: Voice) {
-        voice_place(at).set(v);
+        voice_place(self.state, at).set(v);
     }
     fn channel(&self, at: u32) -> MixerChannel {
-        channel_place(at).get()
+        channel_place(self.state, at).get()
     }
     fn set_channel(&mut self, at: u32, c: MixerChannel) {
-        channel_place(at).set(c);
+        channel_place(self.state, at).set(c);
     }
     fn channel_at(&self, n: u32) -> u32 {
         n + 1
     }
     fn record(&self, n: u32) -> SampleRecord {
-        sample_place(n).get()
+        sample_place(self.records, n).get()
     }
 }
 
 /// The playing and stopping lists, the channels held and their count, read.
-pub fn lists() -> rc2k_core::audio::voices::Lists {
-    let state = &audio().state;
+pub fn lists(state: &AudioState) -> rc2k_core::audio::voices::Lists {
     rc2k_core::audio::voices::Lists {
         playing: state.playing_voices.get(),
         stopping: state.stopping_voices.get(),
@@ -143,11 +160,10 @@ pub fn lists() -> rc2k_core::audio::voices::Lists {
 }
 
 /// The lists stored back (the channel count is not written).
-pub fn store_lists(l: &rc2k_core::audio::voices::Lists) {
-    let audio = audio();
-    audio.state.playing_voices.set(l.playing);
-    audio.state.stopping_voices.set(l.stopping);
-    audio.state.channels_used.set(l.channels_used);
+pub fn store_lists(state: &AudioState, l: &rc2k_core::audio::voices::Lists) {
+    state.playing_voices.set(l.playing);
+    state.stopping_voices.set(l.stopping);
+    state.channels_used.set(l.channels_used);
 }
 
 #[cfg(test)]

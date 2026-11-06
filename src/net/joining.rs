@@ -7,9 +7,10 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
+use crate::net::owner::Net;
 
 /// The Rust version.
-pub fn joining(session: u32) -> Result<bool, Refused> {
+pub fn joining(net: &Net, session: u32) -> Result<bool, Refused> {
     crate::net::connecting::status(0x153)?;
-    crate::net::join_session::join_session(session)
+    crate::net::join_session::join_session(net, session)
 }

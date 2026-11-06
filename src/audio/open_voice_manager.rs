@@ -10,9 +10,10 @@
 //! 0x800000.
 
 use crate::audio::property_sets::*;
+use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 /// True for the carry clear.
-pub fn open_voice_manager(holder: u32) -> Result<bool, Refused> {
-    open_property_set(&Opening::voice_manager(), holder)
+pub fn open_voice_manager(state: &AudioState, holder: u32) -> Result<bool, Refused> {
+    open_property_set(state, &Opening::voice_manager(state), holder)
 }

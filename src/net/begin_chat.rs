@@ -7,16 +7,17 @@
 //!      `pusha`
 //! Caller: `net::lobby_loop`.
 
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CHAT_LINE;
 
 /// The Rust version. The registers the original leaves (eax the item, ebx the input, ecx
 /// 0x30C, edx the font) are read by no caller (`lobby_loop` only; liveness: ebp, edi, edx,
 /// esi live after, edx the caller's own).
-pub fn begin_chat() -> Result<(), crate::errors::Refused> {
-    net().vars.chat_input.set(0, 0);
+pub fn begin_chat(vars: &NetVars) -> Result<(), crate::errors::Refused> {
+    vars.chat_input.set(0, 0);
     crate::net::begin_edit::begin_edit(
+        vars,
         crate::install::owner::install().pages.choice.get(),
         crate::net::begin_edit::EditedText::ChatInput,
         0x30C,

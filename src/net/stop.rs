@@ -11,12 +11,11 @@
 //! thread. Refuses what `net::destroy_connection` refuses.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::system::owner::system;
 
 /// The Rust version.
-pub fn stop() -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn stop(vars: &NetVars) -> Result<(), Refused> {
     vars.session.set(0);
     while vars.receiving.get() != 0 {
         crate::system::sleep::sleep(1);
@@ -25,5 +24,5 @@ pub fn stop() -> Result<(), Refused> {
             break;
         }
     }
-    crate::net::destroy_connection::destroy_connection()
+    crate::net::destroy_connection::destroy_connection(vars)
 }

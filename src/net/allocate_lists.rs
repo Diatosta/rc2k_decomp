@@ -8,12 +8,11 @@
 //! for the second. Caller: `net::find_connections`.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 /// The Rust version (`memory::allocate` refuses rather than come back with the carry, so
 /// the fatal errors 0x80E68021 / 0x80E68022 are not reached).
-pub fn allocate_lists() -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn allocate_lists(vars: &NetVars) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::lists::TABLES` (the tables Rust's, `net::tables`).
     crate::net::tables::take()?;
     vars.connections.set(0);

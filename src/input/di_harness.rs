@@ -3,18 +3,18 @@
 //! `make_effect`, `effect_objects`): the game's variables they use.
 
 use crate::errors::FatalError;
-use crate::input::owner::input;
+use crate::input::store::Devices;
 
 pub const CAPS_LEN: usize = std::mem::size_of::<crate::input::types::DiDevCaps>();
 pub const CONTROLLERS: u32 = rc2k_core::input::joystick::CONTROLLERS;
 
 /// The controller's entry for a record (`g_controllers` + 0x50 its number). The original
 /// does not check the number (`imul edi, [esi], 50h`); a number past the table is refused.
-pub fn entry_of(
+pub fn entry_of<'a>(
+    devices: &'a Devices,
     record: &crate::input::types::InputDevice,
-) -> Result<&'static crate::input::types::Controller, crate::errors::BadInput> {
-    input()
-        .devices
+) -> Result<&'a crate::input::types::Controller, crate::errors::BadInput> {
+    devices
         .controllers
         .get(record.controller.get() as usize)
         .ok_or(crate::errors::BadInput(

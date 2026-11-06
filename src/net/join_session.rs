@@ -14,7 +14,7 @@
 use crate::errors::Refused;
 use crate::net::host_session::{OPEN_JOIN, finish, open};
 use crate::net::lobby::{log, log_int_nl};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
@@ -28,8 +28,7 @@ fn join_group() -> Result<bool, Refused> {
 }
 
 /// The Rust version.
-pub fn join_session(number: u32) -> Result<bool, Refused> {
-    let net = net();
+pub fn join_session(net: &Net, number: u32) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_JOIN_SESSION), false, 2);
     log_int_nl(number, 1);
     if net.vars.dplay.get() == 0 {
@@ -50,6 +49,7 @@ pub fn join_session(number: u32) -> Result<bool, Refused> {
     net.vars.session_desc.size.set(0x50);
     put_bytes(&net.vars.session_desc.instance, &net.vars.joined.read());
     finish(
+        net,
         posted_open_join,
         join_group,
         VIEWER_PANEL.text_ptr(texts::NET_JOIN_COMPLETE),

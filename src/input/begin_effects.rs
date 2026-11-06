@@ -13,15 +13,15 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::input::owner::input;
+use crate::input::owner::Input;
 
 /// The effects started with sound objects in use (`g_raceSoundObjectCount`), and the
 /// effects' clock set.
-pub fn begin_effects() -> Result<(), Refused> {
+pub fn begin_effects(input: &Input) -> Result<(), Refused> {
     if crate::sound::owner::sound().race.sounds.count.get() != 0 {
-        crate::input::start_effects::start_effects()?;
+        crate::input::start_effects::start_effects(input)?;
     }
-    input()
+    input
         .force_feedback
         .last_time
         .set(crate::system::tick_count::tick_count());

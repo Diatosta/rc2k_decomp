@@ -21,26 +21,25 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
+use crate::input::owner::Input;
 use crate::input::store::device_of;
 use crate::race::owner::race;
 use crate::session::Dword;
 
 /// The variables it reads (the game's or a test's).
 #[derive(Clone, Copy)]
-pub struct Vars {
-    pub cars: &'static [Dword; 2],
-    pub one_player: &'static Dword,
-    pub count: &'static Dword,
-    pub devices: &'static [Dword; 2],
-    pub views: &'static [Dword; 2],
-    pub objects: &'static [crate::sound::store::SoundObject; 8],
-    pub two_devices: &'static Dword,
+pub struct Vars<'a> {
+    pub cars: &'a [Dword; 2],
+    pub one_player: &'a Dword,
+    pub count: &'a Dword,
+    pub devices: &'a [Dword; 2],
+    pub views: &'a [Dword; 2],
+    pub objects: &'a [crate::sound::store::SoundObject; 8],
+    pub two_devices: &'a Dword,
 }
 
-impl Vars {
-    pub fn game() -> Self {
-        let input = input();
+impl<'a> Vars<'a> {
+    pub fn game(input: &'a Input) -> Self {
         Self {
             // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount.
             cars: &crate::sound::owner::sound().race.sounds.player_cars,
@@ -57,7 +56,7 @@ impl Vars {
 /// The Rust version on the variables in `v`.
 /// Converted: `rc2k_core::input::effects::loads` (the way worked out before any call:
 /// nothing a call changes decides it).
-pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
+pub fn update_effects_with(input: &Input, v: &Vars<'_>) -> Result<(), Refused> {
     use rc2k_core::input::effects::{Players, loads};
     if v.count.get() == 0 {
         return Ok(());
@@ -72,7 +71,7 @@ pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
         one_players_devices: v.two_devices.get() != 0,
     };
     let loaded = loads(&p, |device| {
-        device_of(device).is_some_and(|record| record.effects_on.get() == 1)
+        device_of(&input.devices, device).is_some_and(|record| record.effects_on.get() == 1)
     })?;
     for load in loaded {
         if load.update {
@@ -80,16 +79,22 @@ pub fn update_effects_with(v: &Vars) -> Result<(), Refused> {
                 .objects
                 .get(load.car as usize)
                 .ok_or(BadInput("a car past the sound objects' table"))?;
-            let device = device_of(load.device).ok_or(BadInput("a load on a null device"))?;
+            let device = device_of(&input.devices, load.device)
+                .ok_or(BadInput("a load on a null device"))?;
             let view = crate::race::blocks_store::car_of(load.view)
                 .ok_or(BadInput("a load on no view block"))?;
-            crate::input::update_car_effects::update_car_effects(view, object, device)?;
+            crate::input::update_car_effects::update_car_effects(
+                &input.force_feedback,
+                view,
+                object,
+                device,
+            )?;
         }
     }
     Ok(())
 }
 
 /// The race's force feedback brought up to date.
-pub fn update_effects() -> Result<(), Refused> {
-    update_effects_with(&Vars::game())
+pub fn update_effects(input: &Input) -> Result<(), Refused> {
+    update_effects_with(input, &Vars::game(input))
 }

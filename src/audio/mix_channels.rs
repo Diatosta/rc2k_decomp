@@ -7,12 +7,12 @@
 //! See `audio/mixer.rs`.
 
 use crate::audio::mixer::*;
-use crate::audio::owner::audio;
+use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
-pub fn mix_channels_in_game(bytes: u32) -> Result<(), Refused> {
-    let state = &audio().state;
+pub fn mix_channels_in_game(state: &AudioState, bytes: u32) -> Result<(), Refused> {
     mix_channels(
+        state,
         bytes,
         state.mix_shift.get(),
         // The first channel's id.

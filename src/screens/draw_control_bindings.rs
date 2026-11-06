@@ -25,16 +25,18 @@ use crate::text::draw_text::Canvas;
 // byte_A8BC54
 
 /// The directions' names (`word_755200`, `word_755212`).
-fn direction_names() -> rc2k_core::screens::controls::DirectionNames {
-    let screens = screens();
+fn direction_names(
+    controls: &crate::screens::controls_store::ControlsScreen,
+) -> rc2k_core::screens::controls::DirectionNames {
     rc2k_core::screens::controls::DirectionNames {
-        pad: screens.controls.pad(),
-        stick: screens.controls.stick(),
+        pad: controls.pad(),
+        stick: controls.stick(),
     }
 }
 
 /// Row n's text (without its NUL). Converted: `rc2k_core::screens::controls::binding_text`.
 pub fn binding_text(
+    controls: &crate::screens::controls_store::ControlsScreen,
     player: crate::menu::standings::PlayerCell,
     n: u32,
 ) -> Result<Vec<u8>, Refused> {
@@ -53,22 +55,22 @@ pub fn binding_text(
         &mut s,
         &b,
         n as usize,
-        &direction_names(),
+        &direction_names(controls),
     )?)
 }
 
 /// Returns the carry.
 pub fn draw_control_bindings(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let screens = screens();
+    let controls = &screens().controls;
     let Some(player) = crate::menu::player::player(menus().screens.event.current_player.get())
     else {
         return Err(BadInput("no current player").into());
     };
-    let learning: u32 = screens.controls.learning.get();
-    let row: u32 = screens.controls.learned.get();
+    let learning: u32 = controls.learning.get();
+    let row: u32 = controls.learned.get();
     let mut texts: [Vec<u8>; 10] = Default::default();
     for (n, text) in texts.iter_mut().enumerate() {
-        *text = binding_text(player, n as u32)?;
+        *text = binding_text(controls, player, n as u32)?;
     }
     // Converted: `rc2k_core::screens::controls::control_bindings`.
     let learnt = (learning == 1 && (1..=10).contains(&row)).then(|| row as usize - 1);

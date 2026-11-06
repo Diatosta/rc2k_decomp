@@ -11,17 +11,17 @@
 //! stopped (action 0); the original hands on the thread's edx, 1 (a feed), so the music
 //! and the stream were left playing on the DirectSound it then closes.
 
-use crate::audio::owner::audio;
+use crate::audio::owner::Audio;
 use crate::errors::Refused;
 
-pub fn close_all() -> Result<(), Refused> {
-    let state = &audio().state;
+pub fn close_all(audio: &Audio) -> Result<(), Refused> {
+    let state = &audio.state;
     use crate::audio::sound_device::*;
-    crate::audio::stop_streams::stop_streams()?;
-    crate::audio::free_voices::free_voices()?;
-    crate::audio::mixer_set_up::close_way(state.sound_mode.get())?;
-    release_primary()?;
-    close_sound()?;
+    crate::audio::stop_streams::stop_streams(audio)?;
+    crate::audio::free_voices::free_voices(audio)?;
+    crate::audio::mixer_set_up::close_way(audio, state.sound_mode.get())?;
+    release_primary(state)?;
+    close_sound(state)?;
     state.sound_mode.set(0);
     Ok(())
 }

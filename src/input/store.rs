@@ -25,7 +25,6 @@
 //! shared (atomic cells and volatile bytes).
 
 use crate::errors::BadInput;
-use crate::input::owner::input;
 use crate::input::types::{Controller, InputDevice};
 use crate::pointers::GamePtr;
 use crate::session::{Byte, Bytes, Dword, Float};
@@ -289,15 +288,15 @@ impl Devices {
 
     /// Device `n`'s record (`g_inputDevices[n]`, by handle: `device_of`); `None` for a
     /// device the table holds as 0.
-    pub fn device(&self, n: usize) -> Option<&'static InputDevice> {
-        device_of(self.input_devices[n].get())
+    pub fn device(&self, n: usize) -> Option<&InputDevice> {
+        device_of(self, self.input_devices[n].get())
     }
 
     /// `g_inputDevices[n]` as the original indexes it: past the two pointers (`n` up to 7)
     /// it reads the first record's bytes (the drive code only refuses `n` past 7). What
     /// those hold is no handle: a 0 is no device, any other value the original would
     /// follow as an address, which is refused here.
-    pub fn input_device(&self, n: usize) -> Result<Option<&'static InputDevice>, BadInput> {
+    pub fn input_device(&self, n: usize) -> Result<Option<&InputDevice>, BadInput> {
         if n < self.input_devices.len() {
             return Ok(self.device(n));
         }
@@ -329,11 +328,11 @@ impl Devices {
 pub const DEVICE_TAG: u32 = 0xCE00_0000;
 
 /// The record a handle names (`None` for 0). A value that is no handle ends the program.
-pub fn device_of(handle: u32) -> Option<&'static InputDevice> {
+pub fn device_of(devices: &Devices, handle: u32) -> Option<&InputDevice> {
     if handle == 0 {
         return None;
     }
-    match input().devices.records.get((handle ^ DEVICE_TAG) as usize) {
+    match devices.records.get((handle ^ DEVICE_TAG) as usize) {
         Some(record) => Some(record),
         None => crate::fatal::raise::end(
             "input::store::device_of",

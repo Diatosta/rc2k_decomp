@@ -12,6 +12,8 @@
 
 use crate::errors::Refused;
 use crate::net::log_send;
+use crate::net::owner::Net;
+use crate::net::owner::net;
 use crate::net::send_message::send_message;
 use crate::physics::car_store::Car;
 use crate::pointers::GamePtr;
@@ -112,11 +114,11 @@ const EXTRA_FIELDS: [Field; 9] = [
 ];
 
 /// The shared body: the car block `g_car`, the message built at `RaceWork::net_message`.
-pub fn send_fields(m: &Message) -> Result<(), Refused> {
+pub fn send_fields(net: &Net, m: &Message) -> Result<(), Refused> {
     let shared = &race().shared;
     let car = &shared.car;
     let message = GamePtr::to(&shared.work.net_message);
-    log_send(m.text);
+    log_send(&net.vars, m.text);
     // The tag, then the kind's fields' bits.
     let mut dwords = vec![m.kind.tag()];
     dwords.extend(fields(m.kind).iter().map(|(field, _)| field(car).bits()));
@@ -125,12 +127,13 @@ pub fn send_fields(m: &Message) -> Result<(), Refused> {
             .offset(4 * n as u32)
             .write(v, "the network message")?;
     }
-    send_message(message, 4 * dwords.len() as u32)
+    send_message(net, message, 4 * dwords.len() as u32)
 }
 
 /// The Rust version.
 pub fn send_inputs() -> Result<(), Refused> {
-    send_fields(&INPUTS)
+    let net = net();
+    send_fields(net, &INPUTS)
 }
 
 #[cfg(test)]

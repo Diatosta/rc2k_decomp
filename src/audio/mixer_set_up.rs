@@ -2,7 +2,7 @@
 //! `audio::set_up_primary_mixer` (0x40BAD2), `audio::open_way` (0x40AC3A),
 //! `audio::close_way` (0x40AC58).
 
-use crate::audio::owner::audio;
+use crate::audio::owner::Audio;
 use crate::errors::Refused;
 use crate::system::owner::system;
 
@@ -17,20 +17,19 @@ const WRITE_PRIMARY: u32 = 4;
 /// align, 40 ms), the shift (block / 2), the cursors; `GetCaps` (+0xC) of the primary into
 /// `g_primaryCaps`, whose bytes are `g_primarySize`; `clear_channels`. A failure:
 /// `close_primary_mixer` and false (the carry).
-pub fn set_up_primary_mixer() -> Result<bool, Refused> {
-    let audio = audio();
+pub fn set_up_primary_mixer(audio: &Audio) -> Result<bool, Refused> {
     if audio.state.sound_mode.get() & MODE_MIXER == 0 {
         return Ok(true);
     }
-    let failed = || crate::audio::restore::close_primary_mixer_in_game().map(|_| false);
-    crate::audio::sound_device::release_primary()?;
+    let failed = || crate::audio::restore::close_primary_mixer_in_game(audio).map(|_| false);
+    crate::audio::sound_device::release_primary(&audio.state)?;
     let ds = audio.state.direct_sound.get();
     if crate::platform_sound::set_cooperative_level(
         ds,
         system().session.machine.window.get(),
         WRITE_PRIMARY,
     ) != 0
-        || crate::audio::primary::make_primary().map(|made| !made)?
+        || crate::audio::primary::make_primary(&audio.state).map(|made| !made)?
     {
         return failed();
     }
@@ -38,7 +37,7 @@ pub fn set_up_primary_mixer() -> Result<bool, Refused> {
     use rc2k_core::audio::device::{mixer_figures, mixer_formats};
     let mut chosen = None;
     for mode in mixer_formats(audio.state.sound_mode.get()) {
-        if crate::audio::sound_device::set_primary_format(mode)? {
+        if crate::audio::sound_device::set_primary_format(&audio.state, mode)? {
             chosen = Some(mode);
             break;
         }
@@ -73,37 +72,37 @@ pub fn set_up_primary_mixer() -> Result<bool, Refused> {
         }
     }
     audio.state.primary_size.set(caps.get_u32(8));
-    crate::audio::clear_channels::clear_channels();
+    crate::audio::clear_channels::clear_channels(audio);
     Ok(true)
 }
 
 /// `audio::open_way`: the voices' own buffers: `clear_channels`; the mixer:
 /// `set_up_primary_mixer`; neither: the carry. Returns the carry.
-pub fn open_way(mode: u32) -> Result<bool, Refused> {
+pub fn open_way(audio: &Audio, mode: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::audio::device::way`.
     use rc2k_core::audio::device::{Way, way};
     match way(mode) {
         // A jump into it: the carry is the one it leaves.
         Some(Way::OwnBuffers) => {
-            crate::audio::clear_channels::clear_channels();
+            crate::audio::clear_channels::clear_channels(audio);
             Ok(false)
         }
-        Some(Way::Mixer) => Ok(!set_up_primary_mixer()?),
+        Some(Way::Mixer) => Ok(!set_up_primary_mixer(audio)?),
         None => Ok(true),
     }
 }
 
 /// `audio::close_way`: as `open_way`, with `close_primary_mixer` for the mixer.
-pub fn close_way(mode: u32) -> Result<bool, Refused> {
+pub fn close_way(audio: &Audio, mode: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::audio::device::way`.
     use rc2k_core::audio::device::{Way, way};
     match way(mode) {
         // A jump into it: the carry is the one it leaves.
         Some(Way::OwnBuffers) => {
-            crate::audio::clear_channels::clear_channels();
+            crate::audio::clear_channels::clear_channels(audio);
             Ok(false)
         }
-        Some(Way::Mixer) => crate::audio::restore::close_primary_mixer_in_game(),
+        Some(Way::Mixer) => crate::audio::restore::close_primary_mixer_in_game(audio),
         None => Ok(true),
     }
 }

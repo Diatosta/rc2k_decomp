@@ -10,14 +10,13 @@
 use crate::errors::Refused;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::choose_car::ESCAPED;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
 use crate::race::owner::race;
 
 /// The Rust version. The stage screen is handed the lobby loop's leftovers in its carried
 /// registers (see `net::choose_car`): all 0 here.
-pub fn choose_stage() -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn choose_stage(vars: &NetVars) -> Result<(), Refused> {
     let race = race();
     ESCAPED.set(0);
     { run_screen(&crate::menu::select_stage_loop::SCREEN, &Entry::default()) }?;
@@ -31,6 +30,6 @@ pub fn choose_stage() -> Result<(), Refused> {
             race.shared.state.settings.direction.get() as u8,
         );
     }
-    crate::net::show_background::show_background()?;
+    crate::net::show_background::show_background(vars)?;
     Ok(())
 }

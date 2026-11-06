@@ -7,13 +7,12 @@
 //! asked for and the room set (`g_eaxRoom`, `g_eaxRoomSet`) both 6. Callers: `audio::start`
 //! (0x40A0D1) and `audio::free_voices`.
 
-use crate::audio::owner::audio;
+use crate::audio::store::AudioState;
 
 // ---- Rust version ----
 
 /// The property set released, and the room asked for and the room set back to 6.
-pub fn release_eax() {
-    let state = &audio().state;
+pub fn release_eax(state: &AudioState) {
     let object = state.eax_properties.get();
     if object != 0 {
         crate::platform_sound::release(object);

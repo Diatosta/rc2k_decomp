@@ -7,13 +7,13 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 /// The Rust version.
-pub fn stopping() -> Result<(), Refused> {
-    if net().vars.session.get() == 1 {
-        crate::net::show_background::show_background()?;
+pub fn stopping(vars: &NetVars) -> Result<(), Refused> {
+    if vars.session.get() == 1 {
+        crate::net::show_background::show_background(vars)?;
         crate::net::connecting::status(0x157)?;
     }
-    crate::net::stop::stop()
+    crate::net::stop::stop(vars)
 }

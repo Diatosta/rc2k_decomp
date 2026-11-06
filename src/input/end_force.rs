@@ -11,11 +11,12 @@
 //! original's).
 
 use crate::input::di_harness::entry_of;
+use crate::input::store::Devices;
 use crate::input::types::InputDevice;
 
 /// The Rust version (see the header).
-pub fn end_force(record: &InputDevice) -> Result<(), crate::errors::BadInput> {
-    if entry_of(record)?.force_feedback.get() != 1 {
+pub fn end_force(devices: &Devices, record: &InputDevice) -> Result<(), crate::errors::BadInput> {
+    if entry_of(devices, record)?.force_feedback.get() != 1 {
         return Ok(());
     }
     let prop = crate::input::begin_force::dword_property(1);

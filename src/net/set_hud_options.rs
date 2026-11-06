@@ -12,7 +12,7 @@
 //! Caller: `net::lets_race`.
 
 use crate::gfx::owner::gfx;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::net::cars;
@@ -39,17 +39,14 @@ const COPIED_WORDS: [&Dword; 5] = [
 ];
 
 /// This machine's car's block.
-pub fn own_block() -> u32 {
-    race()
-        .shared
-        .work
-        .car_block(net().vars.player.get() as usize)
+pub fn own_block(vars: &NetVars) -> u32 {
+    race().shared.work.car_block(vars.player.get() as usize)
 }
 
 /// The Rust version.
-pub fn set_hud_options() -> Result<(), crate::errors::BadInput> {
+pub fn set_hud_options(vars: &NetVars) -> Result<(), crate::errors::BadInput> {
     let race = race();
-    let block = own_block();
+    let block = own_block(vars);
     let mut bits = race.shared.state.results.hud_bits_current.get();
     // Converted: `rc2k_core::net::cars::hud_bits`.
     if bits == cars::NOT_KEPT {

@@ -11,19 +11,19 @@
 use crate::errors::Refused;
 use crate::net::build_address::build_address;
 use crate::net::lobby::{log, log_hex, log_int_nl};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
-pub fn init_connection(connection: u32) -> Result<bool, Refused> {
-    let vars = &net().vars;
+pub fn init_connection(net: &Net, connection: u32) -> Result<bool, Refused> {
+    let vars = &net.vars;
     log(
         VIEWER_PANEL.text_ptr(texts::NET_INIT_CONNECTION_INDEX),
         false,
         2,
     );
     log_int_nl(connection, 2);
-    if vars.dplay.get() == 0 || !build_address(connection)? {
+    if vars.dplay.get() == 0 || !build_address(net, connection)? {
         return Ok(false);
     }
     let result = {

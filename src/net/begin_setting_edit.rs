@@ -10,12 +10,12 @@
 
 use crate::net::begin_edit::EditedText;
 use crate::net::lobby::{Cursor, PALETTE};
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use rc2k_core::net::editing::{self, Setting};
 
 /// The Rust version. The registers the original leaves when an edit starts (eax the item,
 /// ebx the text, ecx the width, edx the font) are read by no caller (`settings_loop`).
-pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
+pub fn begin_setting_edit(vars: &NetVars) -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::net::editing` (`Setting`, `WIDTH`).
     let item = crate::install::owner::install().pages.choice.get();
     let text = match Setting::of(item) {
@@ -26,7 +26,7 @@ pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
                 &crate::install::owner::install().paths.path_a,
             ));
             cursor.bytes(&crate::strings::format_u32::format_u32(
-                net().vars.most_players.get(),
+                vars.most_players.get(),
                 0,
             ))?;
             cursor.nul()?;
@@ -34,5 +34,5 @@ pub fn begin_setting_edit() -> Result<(), crate::errors::Refused> {
         }
         Setting::None => return Ok(()),
     };
-    crate::net::begin_edit::begin_edit(item, text, editing::WIDTH, PALETTE)
+    crate::net::begin_edit::begin_edit(vars, item, text, editing::WIDTH, PALETTE)
 }

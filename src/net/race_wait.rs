@@ -12,13 +12,13 @@
 
 use crate::errors::Refused;
 use crate::net::lobby_loop::{all_states, sync};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::store::PlayerRecord;
 use rc2k_core::net::players;
 
 /// The Rust version.
-pub fn race_wait() -> Result<u32, Refused> {
-    let vars = &net().vars;
+pub fn race_wait(net: &Net) -> Result<u32, Refused> {
+    let vars = &net.vars;
     // Converted: `rc2k_core::net::players` (`waiting`, `all_in_state` in `all_states`).
     vars.own
         .head
@@ -27,13 +27,15 @@ pub fn race_wait() -> Result<u32, Refused> {
     let now = crate::system::tick_count::tick_count();
     if (now.wrapping_sub(vars.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
         vars.clock_a.set(now);
-        crate::net::list_players::list_players_regs()?;
+        crate::net::list_players::list_players_regs(&net.vars)?;
     }
     if vars.own.state() & players::HOST != 0 {
         if vars.players.get() == 0 {
             return Ok(vars.race_over.get());
         }
-        if all_states(players::WAITING, vars.players.get()) == players::WAITING && sync(b'P')? {
+        if all_states(&net.vars, players::WAITING, vars.players.get()) == players::WAITING
+            && sync(net, b'P')?
+        {
             vars.race_over.set(1);
         }
     }

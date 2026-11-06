@@ -37,7 +37,7 @@ use crate::session::Bytes;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::copy_printable;
-use crate::system::owner::system;
+use crate::system::owner::{Start, system};
 
 // ---- game data ----
 
@@ -115,20 +115,18 @@ fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), B
     Ok(())
 }
 
-pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
+pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
     let race = race();
     let net = net();
-    let system = system();
     let play = &menus().play;
     outside(Call::LoadOptions)?;
     outside(Call::LoadBestTimes)?;
     outside(Call::ReadSettings)?;
     outside(Call::ReadSku)?;
-    system
-        .start
+    start
         .run_count
         .runs
-        .set(system.start.run_count.runs.get().wrapping_add(1));
+        .set(start.run_count.runs.get().wrapping_add(1));
     outside(Call::ReadDriverNames)?;
     outside(Call::ApplyPatches)?;
     if removes_secret_cars(play.cheats.all_secret_cars.get()) {
@@ -264,7 +262,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
 
 /// The Rust version on the game's own calls.
 pub fn load_in_game() -> Result<(), Refused> {
-    load_game_data(&mut in_game)
+    load_game_data(&system().start, &mut in_game)
 }
 
 /// How many times the game was run (IDA 0x518BB0 .. 0x518BB4, the image's layout).

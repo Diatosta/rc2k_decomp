@@ -16,7 +16,7 @@ use std::sync::atomic::Ordering;
 /// The Rust version.
 pub fn shut_down() -> Result<(), Refused> {
     let vars = &net().vars;
-    crate::net::stop::stop()?;
+    crate::net::stop::stop(vars)?;
     for cell in [&vars.mutex, &vars.event] {
         let handle = cell.atomic().swap(0, Ordering::SeqCst);
         if handle != 0 {

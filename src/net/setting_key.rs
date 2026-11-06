@@ -12,15 +12,14 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::movsb;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use rc2k_core::net::chat;
 
 /// The Rust version: the key `key` for the setting being edited. The registers the
 /// original leaves (the item or the number in eax, the copy's esi, edi and ecx) are read by
 /// no caller (`settings_loop`).
-pub fn setting_key(key: u8) -> Result<(), Refused> {
-    let net = net();
-    if !crate::net::edit_key::edit_key(key)? {
+pub fn setting_key(net: &'static Net, key: u8) -> Result<(), Refused> {
+    if !crate::net::edit_key::edit_key(net, key)? {
         return Ok(());
     }
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).

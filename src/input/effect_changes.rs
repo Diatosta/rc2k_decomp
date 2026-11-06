@@ -33,7 +33,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
+use crate::input::store::Devices;
 use crate::input::types::{ForceEffect, InputDevice};
 
 // sub_409AEE
@@ -43,6 +43,7 @@ use crate::input::types::{ForceEffect, InputDevice};
 /// The change `what` (with `a`, `b`) of the effect `effect` of the device `record`, by
 /// the effect's function `number` (`input::effect_N_change`).
 pub fn effect_change(
+    devices: &Devices,
     number: u32,
     record: &InputDevice,
     effect: &ForceEffect,
@@ -62,7 +63,7 @@ pub fn effect_change(
         || record.sensitivity.get(),
         // the core asks only for a row inside the table
         |n| {
-            input().devices.effect_rows[n as usize]
+            devices.effect_rows[n as usize]
                 .each_ref()
                 .map(crate::session::Dword::get)
         },
@@ -98,6 +99,7 @@ const FUNCTIONS: [u32; 6] = [0x409708, 0x4097FA, 0x409754, 0x4097B4, 0x409871, 0
 /// The effect's function (`ForceEffect::change`, the game's address of one of the six)
 /// with the change.
 pub fn effect_change_at(
+    devices: &Devices,
     function: u32,
     record: &InputDevice,
     effect: &ForceEffect,
@@ -108,5 +110,5 @@ pub fn effect_change_at(
     let Some(number) = FUNCTIONS.iter().position(|&f| f == function) else {
         return Err(BadInput("an effect's function that is none of the six").into());
     };
-    effect_change(number as u32, record, effect, what, a, b)
+    effect_change(devices, number as u32, record, effect, what, a, b)
 }

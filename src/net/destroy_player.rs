@@ -9,11 +9,10 @@
 //! Caller: `net::destroy_connection`. `DestroyPlayer` from Rust (`net::dplay`).
 //! Refuses nothing.
 
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 /// The Rust version.
-pub fn destroy_player() {
-    let vars = &net().vars;
+pub fn destroy_player(vars: &NetVars) {
     let id = vars.player_id.get();
     if id == 0 {
         crate::net::dp_objects::destroy_player(vars.dplay.get(), id);

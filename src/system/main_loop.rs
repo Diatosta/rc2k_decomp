@@ -33,7 +33,7 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
-use crate::system::owner::system;
+use crate::system::owner::{Session, system};
 
 /// `word_51D752` when the installer's script is set up.
 const INSTALLER_MARK: u16 = 0xBD;
@@ -58,21 +58,18 @@ fn quit_and_leave() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn main_loop() -> Result<(), Refused> {
-    let system = system();
+pub fn main_loop(session: &Session) -> Result<(), Refused> {
     log_line(c"");
     log_line(c"Entering main loop...");
     // Wait for the window to be the active one and the key thread to have run; the quit
     // switch leaves without asking to quit.
     loop {
         crate::system::sleep::sleep(1000);
-        if system.session.flags.quitting.get() == 1 {
+        if session.flags.quitting.get() == 1 {
             log_line(c"Leaving main loop...");
             return Ok(());
         }
-        if system.session.flags.window_active.get() != 0
-            && system.session.clocks.key_ticks.get() != 0
-        {
+        if session.flags.window_active.get() != 0 && session.clocks.key_ticks.get() != 0 {
             break;
         }
     }
@@ -105,7 +102,7 @@ pub fn main_loop() -> Result<(), Refused> {
     crate::files::is_cd_drive::is_cd_drive(base_drive());
     crate::menu::run_front_end::run_front_end()?;
     crate::sound::stop_music::stop_music();
-    if system.session.flags.quitting.get() == 1 {
+    if session.flags.quitting.get() == 1 {
         // The original leaves here without saving: the window closed (or any quit by the
         // switch) lost the options and best times changed since the last save (section 16,
         // fixed 2026-10-29).
@@ -121,7 +118,7 @@ pub fn main_loop() -> Result<(), Refused> {
 /// The Rust version, logged on the way in and out.
 pub fn main_loop_in_game() -> Result<(), Refused> {
     log("system::main_loop: the Rust version runs");
-    main_loop()?;
+    main_loop(&system().session)?;
     log("system::main_loop: the Rust version has come back");
     Ok(())
 }

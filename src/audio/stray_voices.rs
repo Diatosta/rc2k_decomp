@@ -7,8 +7,8 @@
 //! looked for on the two lists; one on neither is logged once ("audio: stray voice"), with
 //! what it holds, until it is quiet again.
 
-use crate::audio::owner::audio;
-use crate::audio::voices::{VOICES, voice};
+use crate::audio::store::AudioState;
+use crate::audio::voices::{VOICES, voice_of};
 use crate::framework::log;
 use crate::session::Dword;
 use std::collections::HashSet;
@@ -23,47 +23,45 @@ static TURNS: AtomicU32 = AtomicU32::new(0);
 static LOGGED: Mutex<Vec<u32>> = Mutex::new(Vec::new());
 
 /// A list's voices, from the head `head` holds (at most the pool's count).
-fn list(head: &Dword) -> HashSet<u32> {
+fn list(state: &AudioState, head: &Dword) -> HashSet<u32> {
     let mut out = HashSet::new();
     let mut at = head.get();
     while at != 0 && out.len() <= VOICES as usize && out.insert(at) {
-        at = voice(at).next;
+        at = voice_of(state, at).next;
     }
     out
 }
 
 /// The voices on the playing and stopping lists (the debug UI's, on the audio thread).
-pub fn on_lists() -> (u32, u32) {
-    let state = &audio().state;
+pub fn on_lists(state: &AudioState) -> (u32, u32) {
     (
-        list(&state.playing_voices).len() as u32,
-        list(&state.stopping_voices).len() as u32,
+        list(state, &state.playing_voices).len() as u32,
+        list(state, &state.stopping_voices).len() as u32,
     )
 }
 
 /// Called after each turn's update.
-pub fn check() {
-    let audio = audio();
+pub fn check(state: &AudioState) {
     if !TURNS.fetch_add(1, Ordering::Relaxed).is_multiple_of(EVERY) {
         return;
     }
-    if audio.state.use_a3d.get() == 1 || audio.state.sound_mode.get() & 0x1_0000 == 0 {
+    if state.use_a3d.get() == 1 || state.sound_mode.get() & 0x1_0000 == 0 {
         return;
     }
     let (playing, stopping) = (
-        list(&audio.state.playing_voices),
-        list(&audio.state.stopping_voices),
+        list(state, &state.playing_voices),
+        list(state, &state.stopping_voices),
     );
     let listed: HashSet<u32> = playing.union(&stopping).copied().collect();
-    let count = audio.state.voice_count.get().min(VOICES);
+    let count = state.voice_count.get().min(VOICES);
     let mut strays = Vec::new();
     for n in 0..count {
         let at = crate::audio::voices::voice_id(n);
-        let v = voice(at);
+        let v = voice_of(state, at);
         if v.flags & 1 == 0 || v.buffer == 0 || listed.contains(&at) {
             continue;
         }
-        if crate::audio::buffer_play::is_playing(&v).is_ok_and(|s| s & 1 != 0) {
+        if crate::audio::buffer_play::is_playing(state, &v).is_ok_and(|s| s & 1 != 0) {
             strays.push(n);
             let mut logged = LOGGED.lock().unwrap();
             if !logged.contains(&n) {

@@ -14,7 +14,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::write_file::write_file_from;
-use crate::service::owner::service;
+use crate::service::owner::Service;
 use crate::service::pages::{
     BRAKE_BALANCE, GEAR_RATIO, RIDE_HEIGHT, STEERING_SENSITIVITY, SUSPENSION_STIFFNESS, TYRE,
 };
@@ -25,8 +25,7 @@ use crate::system::packed_local_time::packed_local_time;
 // ---- Rust version ----
 
 /// True if the file was written.
-pub fn write_setup_slot(slot: u32) -> Result<bool, Refused> {
-    let service = service();
+pub fn write_setup_slot(service: &Service, slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }

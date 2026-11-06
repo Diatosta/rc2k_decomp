@@ -15,13 +15,12 @@
 //! `net::list_players_regs`, `net::open_lobby`. DirectPlay's calls from Rust (`net::dplay`).
 
 use crate::errors::{BadInput, Refused};
-use crate::net::owner::net;
 use crate::net::sort_players::{bubble_blocks, swap_blocks};
+use crate::net::store::NetVars;
 use rc2k_core::net::players;
 
 /// The Rust version.
-pub fn list_players() -> Result<bool, Refused> {
-    let vars = &net().vars;
+pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
     if vars.dplay.get() == 0 {
         return Ok(false);
     }
@@ -78,7 +77,7 @@ pub fn list_players() -> Result<bool, Refused> {
 /// eax it keeps, inside `pusha` .. `popa`: the carry it gives is lost, so its callers'
 /// `jb` after it are never taken (section 16). Callers: `net::lets_rally`,
 /// `net::race_wait`, `net::race_over`, `net::lobby_loop`.
-pub fn list_players_regs() -> Result<(), Refused> {
-    list_players()?;
+pub fn list_players_regs(vars: &NetVars) -> Result<(), Refused> {
+    list_players(vars)?;
     Ok(())
 }

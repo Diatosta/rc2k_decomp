@@ -10,16 +10,18 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::input::owner::Input;
+use crate::input::store::Devices;
 
 /// Both device records.
-pub fn records() -> &'static [crate::input::types::InputDevice; 2] {
-    crate::input::devices::records()
+pub fn records(devices: &Devices) -> &[crate::input::types::InputDevice; 2] {
+    crate::input::devices::records(devices)
 }
 
 /// Both devices' effects started.
-pub fn start_effects() -> Result<(), Refused> {
-    for record in records() {
-        crate::input::start_device_effects::start_device_effects(record)?;
+pub fn start_effects(input: &Input) -> Result<(), Refused> {
+    for record in records(&input.devices) {
+        crate::input::start_device_effects::start_device_effects(&input.force_feedback, record)?;
     }
     Ok(())
 }

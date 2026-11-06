@@ -15,21 +15,20 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::log;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::net::{allocate_lists, create_dplay, open_lobby};
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 /// The Rust version.
-pub fn find_connections() -> Result<bool, Refused> {
-    let vars = &net().vars;
+pub fn find_connections(vars: &NetVars) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_FIND_CONNECTIONS), true, 2);
-    if vars.receive_done.get() == 1 || !open_lobby::open_lobby()? {
+    if vars.receive_done.get() == 1 || !open_lobby::open_lobby(vars)? {
         return Ok(false);
     }
-    if !create_dplay::create_dplay() {
+    if !create_dplay::create_dplay(vars) {
         return Ok(false);
     }
-    allocate_lists::allocate_lists()?;
+    allocate_lists::allocate_lists(vars)?;
     vars.connections.set(0);
     let result =
         { crate::net::dp_objects::enum_connections(crate::net::connection_found::callback, 0) };

@@ -7,14 +7,15 @@
 //! Caller: `net::settings_loop`. Long-running (a list screen).
 
 use crate::errors::Refused;
+use crate::net::store::NetVars;
 
 /// The Rust version.
-pub fn settings_link() -> Result<(), Refused> {
-    if crate::net::find_connections::find_connections()? {
-        let chosen = crate::net::choose_connection::choose_connection()?;
+pub fn settings_link(vars: &NetVars) -> Result<(), Refused> {
+    if crate::net::find_connections::find_connections(vars)? {
+        let chosen = crate::net::choose_connection::choose_connection(vars)?;
         if (chosen as i32) >= 0 {
             crate::net::keep_connection::keep_connection(chosen)?;
         }
     }
-    crate::net::stop::stop()
+    crate::net::stop::stop(vars)
 }

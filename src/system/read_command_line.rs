@@ -29,7 +29,7 @@ use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
-use crate::system::owner::system;
+use crate::system::owner::{Start, system};
 
 // ---- game data ----
 
@@ -46,8 +46,7 @@ pub enum Asked {
 }
 
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
-pub fn show_version_and_leave() -> ! {
-    let system = system();
+pub fn show_version_and_leave(start: &Start) -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
     let caption = GamePtr::to(&crate::fatal::state::CAPTION);
     // byte_4F6702: its `:` (a byte of the caption text)
@@ -57,14 +56,11 @@ pub fn show_version_and_leave() -> ! {
         .unwrap_or_else(|e| leave(e));
     let c_text = |at: GamePtr, what| crate::files::cstring(at, what).unwrap_or_else(|e| leave(e));
     // The text from its seventh byte up to its NUL.
-    let mut text = c_text(
-        GamePtr::to(&system.start.texts.version).offset(6),
-        "the version",
-    );
+    let mut text = c_text(GamePtr::to(&start.texts.version).offset(6), "the version");
     text.extend(*b"\t\r\n");
     // The second text is empty: its NUL is its one byte.
     text.extend(c_text(
-        GamePtr::to(&system.start.texts.second_text),
+        GamePtr::to(&start.texts.second_text),
         "the second text",
     ));
     let mut kept = text.clone();
@@ -81,16 +77,12 @@ pub fn show_version_and_leave() -> ! {
 
 /// The Rust version on a command line (its text with the NUL; kept for the program's
 /// life, as the game keeps a pointer into it).
-pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
+pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> {
     let d3d = d3d();
     // Converted: `rc2k_core::system::command_line::read`, the whole line read before
     // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
-    system()
-        .start
-        .command_line
-        .program_len
-        .set(sw.program.1 as u32);
+    start.command_line.program_len.set(sw.program.1 as u32);
     for (on, cell) in [
         (sw.u, &crate::install::owner::install().run.updating),
         (
@@ -146,8 +138,9 @@ pub fn read_command_line(line: &[u8]) -> Result<Asked, BadInput> {
 pub fn read_own_command_line() -> Result<(), BadInput> {
     let mut line = crate::os::command_line();
     line.push(0);
-    if read_command_line(&line)? == Asked::Version {
-        show_version_and_leave();
+    let start = &system().start;
+    if read_command_line(start, &line)? == Asked::Version {
+        show_version_and_leave(start);
     }
     Ok(())
 }

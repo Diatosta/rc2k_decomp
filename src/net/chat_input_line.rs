@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::Cursor;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::strings::owner::strings;
 use crate::text::draw_text::GameCanvas;
 
@@ -17,16 +17,22 @@ pub const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::font
 /// The Rust version: the chat's input `text` for item `item` at `y` (x 0xA), with the caret
 /// while it is the item being edited; returns the next y (y + 0x1E, the original's ebp).
 pub fn chat_input_line(
+    vars: &NetVars,
     text: impl Into<crate::place::Place>,
     item: u32,
     y: u32,
 ) -> Result<u32, Refused> {
     let text = text.into();
-    chat_input_line_at(text, item, y)
+    chat_input_line_at(vars, text, item, y)
 }
 
-fn chat_input_line_at(text: crate::place::Place, item: u32, y: u32) -> Result<u32, Refused> {
-    let shown = if item == net().vars.edited.get() {
+fn chat_input_line_at(
+    vars: &NetVars,
+    text: crate::place::Place,
+    item: u32,
+    y: u32,
+) -> Result<u32, Refused> {
+    let shown = if item == vars.edited.get() {
         let mut cursor = Cursor::text();
         cursor.string(text);
         cursor.string_id(4);

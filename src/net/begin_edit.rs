@@ -9,6 +9,7 @@
 
 use crate::net::lobby::movsb;
 use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 /// The texts an edit works on (`crate::net::owner::net().vars.edit_text`, where the original keeps the address): the
 /// settings' machine name, host address and players' count (written into the installer's
@@ -48,12 +49,12 @@ impl EditedText {
 
 /// The Rust version.
 pub fn begin_edit(
+    vars: &NetVars,
     item: u32,
     text: EditedText,
     width: u32,
     font: crate::gfx::typefaces::FontId,
 ) -> Result<(), crate::errors::Refused> {
-    let vars = &net().vars;
     vars.edited.set(item);
     vars.edit_text.set(text as u32);
     vars.edit_width.set(width);

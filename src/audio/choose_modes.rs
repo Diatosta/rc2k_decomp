@@ -20,6 +20,7 @@
 //! Refuses a quality past `g_qualityModes` (the original reads past it).
 
 use crate::audio::owner::audio;
+use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes"; // "AUD: New modes"
@@ -27,20 +28,18 @@ const NEW_MODES_TEXT: &std::ffi::CStr = c"AUD: New modes"; // "AUD: New modes"
 pub use rc2k_core::audio::modes::{AudioOptions, Facts};
 
 /// The machine's facts as the game holds them.
-pub fn game_facts() -> Facts {
-    let audio = audio();
+pub fn game_facts(state: &AudioState) -> Facts {
     Facts {
-        qualities: audio
-            .state
+        qualities: state
             .quality_modes
             .each_ref()
             .map(super::super::session::Dword::get),
-        has_3d: audio.state.has_3d.get(),
-        has_a3d2: audio.state.has_a3d2.get(),
-        has_eax: audio.state.has_eax.get(),
+        has_3d: state.has_3d.get(),
+        has_a3d2: state.has_a3d2.get(),
+        has_eax: state.has_eax.get(),
         // `g_soundCaps`' free hardware 3D buffers (+0x24).
-        hw_3d_buffers: audio.state.sound_caps.get_u32(0x24),
-        voice_manager_on: audio.state.voice_manager_on.get(),
+        hw_3d_buffers: state.sound_caps.get_u32(0x24),
+        voice_manager_on: state.voice_manager_on.get(),
     }
 }
 
@@ -66,7 +65,7 @@ pub fn in_game(log: Log) -> Result<(), Refused> {
     // The options and the two modes are worked on in place, as the original does.
     let mut o = state.audio_options.get();
     let (mut race, mut menu) = (state.race_sound_mode.get(), state.menu_sound_mode.get());
-    let done = choose_modes(&mut o, &mut race, &mut menu, &game_facts(), log);
+    let done = choose_modes(&mut o, &mut race, &mut menu, &game_facts(state), log);
     state.audio_options.set(o);
     state.race_sound_mode.set(race);
     state.menu_sound_mode.set(menu);

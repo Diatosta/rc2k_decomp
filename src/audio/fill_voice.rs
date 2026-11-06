@@ -14,16 +14,17 @@
 //! channel, no list link. One caller, command 3 (`sub_40AEB9`).
 //! Refuses a shared voice for a record without voices, a chain without its end.
 
-use crate::audio::owner::audio;
+use crate::audio::owner::Audio;
 use crate::audio::samples::fill_voice;
 use crate::errors::Refused;
 
 pub fn fill_voice_in_game(
+    audio: &Audio,
     at: u32,
     record: crate::audio::voices::SampleRecord,
     shared: u32,
 ) -> Result<(), Refused> {
-    let state = &audio().state;
+    let state = &audio.state;
     let file = state.sample_file.get();
-    fill_voice(at, record, shared, &file, state.sound_mode.get())
+    fill_voice(audio, at, record, shared, &file, state.sound_mode.get())
 }

@@ -16,13 +16,14 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
+use crate::input::store::ForceFeedback;
 use crate::input::types::InputDevice;
 
 /// Effect `effect` (0 .. 5) of the device `record` told `what` (2 start, 3 set, 4
 /// stop) with the numbers `a` and `b`; "set" only while the race runs (`dword_518090`).
 /// Converted: `rc2k_core::input::effects::wanted` and `request`.
 pub fn set_effect(
+    feedback: &ForceFeedback,
     record: &InputDevice,
     effect: u32,
     what: u32,
@@ -30,7 +31,7 @@ pub fn set_effect(
     b: u32,
 ) -> Result<(), Refused> {
     use rc2k_core::input::effects::{request, wanted};
-    let race_on: u32 = input().force_feedback.race_on.get();
+    let race_on: u32 = feedback.race_on.get();
     if wanted(record.effects_on.get() == 1, race_on == 1, effect, what)? {
         record
             .effects

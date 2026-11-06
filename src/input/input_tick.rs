@@ -15,25 +15,24 @@
 
 use crate::errors::Refused;
 use crate::input::devices::records;
-use crate::input::owner::input;
+use crate::input::owner::Input;
 use crate::input::types::InputDevice;
 use crate::session::Dword;
 
 /// A tick of the devices (see the header).
-pub fn input_tick() -> Result<(), Refused> {
-    let input = input();
+pub fn input_tick(input: &Input) -> Result<(), Refused> {
     let command = input
         .devices
         .input_command
         .atomic()
         .swap(0, std::sync::atomic::Ordering::SeqCst);
     if command != 0 {
-        return crate::input::device_command::device_command(command);
+        return crate::input::device_command::device_command(input, command);
     }
-    let records = records();
+    let records = records(&input.devices);
     for record in records {
-        crate::input::read_device::read_device(record)?;
-        crate::input::device_effects::device_effects(record)?;
+        crate::input::read_device::read_device(&input.devices, record)?;
+        crate::input::device_effects::device_effects(&input.devices, record)?;
     }
     if input.devices.two_devices_one_player.get() != 0 {
         // Converted: `rc2k_core::input::devices::merge_readings`.
@@ -53,6 +52,6 @@ pub fn input_tick() -> Result<(), Refused> {
 }
 
 /// For the standalone's input thread.
-pub fn input_tick_in_game() -> Result<(), Refused> {
-    input_tick()
+pub fn input_tick_in_game(input: &Input) -> Result<(), Refused> {
+    input_tick(input)
 }

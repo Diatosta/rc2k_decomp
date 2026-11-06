@@ -22,6 +22,7 @@
 
 use crate::errors::Refused;
 use crate::input::devices::records;
+use crate::input::owner::{Input, input};
 use crate::system::owner::system;
 
 const START_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:START"; // "INPUTTDB:START"
@@ -34,7 +35,7 @@ fn log(text: &std::ffi::CStr) {
 }
 
 /// The thread's work up to its `ExitThread` (see the header).
-pub fn input_thread() -> Result<(), Refused> {
+pub fn input_thread(input: &Input) -> Result<(), Refused> {
     let system = system();
     use crate::threading::set_priority::set_priority;
     let flag = &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::INPUT)?.flag;
@@ -46,20 +47,20 @@ pub fn input_thread() -> Result<(), Refused> {
         log(START_TEXT_RVA);
         // DirectInput made (in Rust, on SDL's joysticks); the keyboard and the mouse are
         // SDL's events: nothing to make for them.
-        let input = crate::input::di_objects::create_input();
-        crate::input::owner::input().devices.direct_input.set(input);
-        if input == 0 {
+        let direct_input = crate::input::di_objects::create_input();
+        input.devices.direct_input.set(direct_input);
+        if direct_input == 0 {
             break 'work;
         }
-        crate::input::list_joysticks::list_joysticks();
+        crate::input::list_joysticks::list_joysticks(input);
         set_priority(2);
         let mut last = crate::system::tick_count::tick_count();
-        crate::input::owner::input().devices.last_tick.set(last);
+        input.devices.last_tick.set(last);
         loop {
             let mut gone;
             loop {
                 crate::system::sleep::sleep(5);
-                last = crate::input::owner::input().devices.last_tick.get();
+                last = input.devices.last_tick.get();
                 gone = crate::system::tick_count::tick_count().wrapping_sub(last);
                 if gone >= TICK_MS {
                     break;
@@ -77,8 +78,8 @@ pub fn input_thread() -> Result<(), Refused> {
                     break;
                 }
             }
-            crate::input::owner::input().devices.last_tick.set(last);
-            crate::input::input_tick::input_tick_in_game()?;
+            input.devices.last_tick.set(last);
+            crate::input::input_tick::input_tick_in_game(input)?;
             if system.session.flags.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
             }
@@ -87,13 +88,13 @@ pub fn input_thread() -> Result<(), Refused> {
             }
         }
     }
-    for record in records() {
-        { crate::input::release_device::release_device_in_game(record) }?;
+    for record in records(&input.devices) {
+        { crate::input::release_device::release_device_in_game(&input.devices, record) }?;
     }
-    let input = crate::input::owner::input().devices.direct_input.get();
-    if input != 0 {
-        crate::input::di_objects::release(input);
-        crate::input::owner::input().devices.direct_input.set(0);
+    let direct_input = input.devices.direct_input.get();
+    if direct_input != 0 {
+        crate::input::di_objects::release(direct_input);
+        input.devices.direct_input.set(0);
     }
     log(QUIT_TEXT_RVA);
     set_priority(0);
@@ -104,5 +105,5 @@ pub fn input_thread() -> Result<(), Refused> {
 /// The thread's routine as its slot starts it (by address: `routes.rs`): the work; its end
 /// ends the thread (the original's `ExitThread`).
 pub fn thread_routine() -> Result<(), Refused> {
-    input_thread()
+    input_thread(input())
 }

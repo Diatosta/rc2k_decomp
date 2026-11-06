@@ -15,26 +15,29 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
+use crate::input::store::Devices;
 use crate::input::types::{Controller, InputDevice};
 
 pub const CONTROLLERS: u32 = 16;
 
 /// The record's controller entry, or the refusal.
-pub fn controller(record: &InputDevice) -> Result<&'static Controller, Refused> {
+pub fn controller<'a>(
+    devices: &'a Devices,
+    record: &InputDevice,
+) -> Result<&'a Controller, Refused> {
     let n = record.controller.get();
     if n >= CONTROLLERS {
         return Err(BadInput("a controller number past the table's 16").into());
     }
-    Ok(&input().devices.controllers[n as usize])
+    Ok(&devices.controllers[n as usize])
 }
 
 /// The pending changes of the device `record`'s effects.
-pub fn device_effects(record: &InputDevice) -> Result<(), Refused> {
+pub fn device_effects(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     if record.effects_on.get() != 1 || record.device.get() == 0 {
         return Ok(());
     }
-    if controller(record)?.force_feedback.get() != 1 {
+    if controller(devices, record)?.force_feedback.get() != 1 {
         return Ok(());
     }
     for effect in &record.effects {
@@ -50,7 +53,7 @@ pub fn device_effects(record: &InputDevice) -> Result<(), Refused> {
         let (what, a, b) = rc2k_core::input::effects::change(change);
         let function = effect.change.get();
         crate::input::effect_changes::effect_change_at(
-            function, record, effect, what, a as u32, b as u32,
+            devices, function, record, effect, what, a as u32, b as u32,
         )?;
     }
     Ok(())

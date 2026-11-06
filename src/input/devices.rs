@@ -15,12 +15,12 @@
 //!   `drive::device_axes` reads.
 
 use crate::errors::BadInput;
-use crate::input::owner::input;
+use crate::input::store::Devices;
 use crate::input::types::InputDevice;
 
 /// The two records (`g_inputRecord1`, `g_inputRecord2`).
-pub fn records() -> &'static [InputDevice; 2] {
-    &input().devices.records
+pub fn records(devices: &Devices) -> &[InputDevice; 2] {
+    &devices.records
 }
 
 /// The device's state (`g_deviceState`), 0x50 bytes.
@@ -56,13 +56,13 @@ pub fn refused_here(name: &str, e: impl Into<crate::errors::Refused>) {
 }
 
 /// The key table and the device's state, for the core.
-pub fn key_table() -> rc2k_core::input::devices::KeyTable {
-    input().devices.key_table()
+pub fn key_table(devices: &Devices) -> rc2k_core::input::devices::KeyTable {
+    devices.key_table()
 }
 
-pub fn joy_state() -> rc2k_core::input::devices::State {
+pub fn joy_state(devices: &Devices) -> rc2k_core::input::devices::State {
     let mut state = [0u8; STATE_LEN];
-    for (n, dword) in input().devices.device_state.iter().enumerate() {
+    for (n, dword) in devices.device_state.iter().enumerate() {
         state[4 * n..4 * n + 4].copy_from_slice(&dword.get().to_le_bytes());
     }
     state

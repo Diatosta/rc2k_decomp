@@ -9,6 +9,7 @@
 //! See `net/mod.rs` and `net::send_inputs` (the shared body). One caller, `net::send_turn`
 //! (step 1 of 256).
 use crate::errors::Refused;
+use crate::net::owner::net;
 use crate::net::send_inputs::{Message, send_fields};
 
 pub const EXTRA: Message = Message {
@@ -18,6 +19,7 @@ pub const EXTRA: Message = Message {
 
 /// The Rust version.
 pub fn send_extra() -> Result<(), Refused> {
+    let net = net();
     // Converted: `rc2k_core::net::race::Kind::pack` (in `send_fields`).
-    send_fields(&EXTRA)
+    send_fields(net, &EXTRA)
 }

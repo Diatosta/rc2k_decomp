@@ -7,6 +7,8 @@ use crate::errors::{BadInput, Refused};
 use crate::input::owner::input;
 use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
+use crate::screens::controls_store::ControlsScreen;
+use crate::screens::owner::screens as screens_owner;
 
 /// `screens::classify_controller` (0x46B27A): from the controller's four values (ecx x, edx
 /// y, eax z, ebx the buttons): the button (its number + 1, when exactly one is down), and
@@ -14,21 +16,23 @@ use crate::menu::owner::menus;
 /// (`dword_7551E4` ..: a 1 for "under 0x80"); a direction held over 0x1D of the last 32 polls
 /// while the others were not (its history empty) gives 0x400 / 0x800 / 0x100 / 0x200 with the
 /// button, else 0; into `dword_7559EC`. Every register kept.
-pub fn classify_controller(screens: &Screens, z: u32, buttons: u32, x: u32, y: u32) {
+pub fn classify_controller(
+    controls: &ControlsScreen,
+    screens: &Screens,
+    z: u32,
+    buttons: u32,
+    x: u32,
+    y: u32,
+) {
     // Converted: `rc2k_core::input::devices::classify`.
     let (history, found) = rc2k_core::input::devices::classify(
         buttons,
         x,
         y,
         z,
-        std::array::from_fn(|n| crate::screens::owner::screens().controls.history[n].get()),
+        std::array::from_fn(|n| controls.history[n].get()),
     );
-    for (cell, v) in crate::screens::owner::screens()
-        .controls
-        .history
-        .iter()
-        .zip(history)
-    {
+    for (cell, v) in controls.history.iter().zip(history) {
         cell.set(v);
     }
     screens.draw_work.figure.set(found);
@@ -42,8 +46,9 @@ pub fn classify_controller(screens: &Screens, z: u32, buttons: u32, x: u32, y: u
 /// nothing; anything found goes to the player's +0x50 + 4 x (control - 1). The original keeps
 /// every register. Refuses (before anything) a player without its record.
 pub fn learn_axis() -> Result<(), Refused> {
+    let controls = &screens_owner().controls;
     let screens = &menus().screens;
-    if crate::screens::owner::screens().controls.learning.get() != 1 {
+    if controls.learning.get() != 1 {
         return Ok(());
     }
     let Some(player) = crate::menu::player::player(screens.event.current_player.get()) else {
@@ -53,14 +58,10 @@ pub fn learn_axis() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::learning` (`timed_out`, `by_axis`, `pedal`,
     // `CANCEL_KEY`, `binding`).
     use rc2k_core::screens::learning as l;
-    let since = crate::system::tick_count::tick_count()
-        .wrapping_sub(crate::screens::owner::screens().controls.learn_start.get());
+    let since = crate::system::tick_count::tick_count().wrapping_sub(controls.learn_start.get());
     if l::timed_out(since) {
-        crate::screens::owner::screens()
-            .controls
-            .learned
-            .set(l::TIMED_OUT);
-        crate::screens::owner::screens().controls.learning.set(0);
+        controls.learned.set(l::TIMED_OUT);
+        controls.learning.set(0);
         return Ok(());
     }
     if screens.draw_work.blink.get() == 1 {
@@ -78,7 +79,7 @@ pub fn learn_axis() -> Result<(), Refused> {
         )?;
     }
     let mut take = true;
-    let control = crate::screens::owner::screens().controls.learned.get();
+    let control = controls.learned.get();
     if l::by_axis(player.get().sensitivity_level, control) {
         let m = crate::input::axes::axis_moved(1)?;
         if !m.carry {
@@ -88,22 +89,22 @@ pub fn learn_axis() -> Result<(), Refused> {
                 .axis_code
                 .set(u32::from_le_bytes(player.get().axis_codes));
             screens.draw_work.figure.set(found);
-            crate::screens::owner::screens().controls.learning.set(0);
+            controls.learning.set(0);
             take = false;
         }
     } else {
         let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state()?;
-        classify_controller(screens, eax, ebx, ecx, edx);
+        classify_controller(controls, screens, eax, ebx, ecx, edx);
     }
     if take {
         if crate::input::take_key::take_key() == l::CANCEL_KEY {
             screens.draw_work.figure.set(0);
-            crate::screens::owner::screens().controls.learning.set(0);
+            controls.learning.set(0);
         } else if screens.draw_work.figure.get() == 0 {
             return Ok(());
         }
     }
-    let Some(slot) = l::binding(crate::screens::owner::screens().controls.learned.get()) else {
+    let Some(slot) = l::binding(controls.learned.get()) else {
         return Err(crate::errors::BadInput("a learned control past the bindings").into());
     };
     let figure = screens.draw_work.figure.get();

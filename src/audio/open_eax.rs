@@ -9,9 +9,10 @@
 //! bug, `notes/bugs.md`: refused when no pointer).
 
 use crate::audio::property_sets::*;
+use crate::audio::store::AudioState;
 use crate::errors::Refused;
 
 /// True for the carry clear.
-pub fn open_eax(holder: u32) -> Result<bool, Refused> {
-    open_property_set(&Opening::eax(), holder)
+pub fn open_eax(state: &AudioState, holder: u32) -> Result<bool, Refused> {
+    open_property_set(state, &Opening::eax(state), holder)
 }

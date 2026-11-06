@@ -26,14 +26,15 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::owner::net;
+use crate::net::owner::Net;
+use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
 use crate::system::owner::system;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
 /// `bits`, as the original's al: over `count` players (at least one turn: `count` > 0).
-pub fn all_states(bits: u8, count: u32) -> u8 {
-    let state = |n: u32| net().vars.player_block(n).record.state();
+pub fn all_states(vars: &NetVars, bits: u8, count: u32) -> u8 {
+    let state = |n: u32| vars.player_block(n).record.state();
     // Converted: `rc2k_core::net::players::all_in_state`.
     rc2k_core::net::players::all_in_state(bits, count, state)
 }
@@ -41,8 +42,7 @@ pub fn all_states(bits: u8, count: u32) -> u8 {
 /// The sync with the other players (the host's): the table cleared the first time (this
 /// player answered), once a second message `kind` and the sync counter sent to each player
 /// that has not answered; true when all have. Shared with `net::race_wait`.
-pub fn sync(kind: u8) -> Result<bool, Refused> {
-    let net = net();
+pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
     let first = net.vars.sync_first.get();
     net.vars.sync_first.set(0);
     if first != 0 {
@@ -65,7 +65,11 @@ pub fn sync(kind: u8) -> Result<bool, Refused> {
                 let id = net.vars.player_block(n).id.get();
                 net.vars.send_buffer.set(0, kind);
                 net.vars.send_buffer.set(1, net.vars.sync.get());
-                crate::net::dplay_send::dplay_send(id, &net.vars.send_buffer.read()[..2]);
+                crate::net::dplay_send::dplay_send(
+                    &net.vars,
+                    id,
+                    &net.vars.send_buffer.read()[..2],
+                );
             }
             n += 1;
             if n >= net.vars.players.get() {
@@ -86,8 +90,7 @@ pub fn sync(kind: u8) -> Result<bool, Refused> {
 }
 
 /// An item move: from the highlight by `step` while it lands on an item that is off.
-fn step_item(step: u32) {
-    let vars = &net().vars;
+fn step_item(vars: &NetVars, step: u32) {
     loop {
         crate::install::owner::install().pages.choice.set(
             crate::install::owner::install()
@@ -108,12 +111,11 @@ fn step_item(step: u32) {
 }
 
 /// The Rust version: 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
-pub fn lobby_loop() -> Result<u32, Refused> {
-    let net = net();
+pub fn lobby_loop(net: &Net) -> Result<u32, Refused> {
     let system = system();
     net.vars.players.set(0);
     net.vars.racing.set(0);
-    crate::net::show_background::show_background()?;
+    crate::net::show_background::show_background(&net.vars)?;
     let now = system.session.clocks.key_ticks.get();
     crate::install::owner::install().pages.move_clock.set(now);
     crate::install::owner::install().pages.key_clock.set(now);
@@ -136,7 +138,7 @@ pub fn lobby_loop() -> Result<u32, Refused> {
             net.vars.clock_a.set(tick);
             // The original's `jb` after it is never taken (`list_players_regs` loses
             // the carry, section 16).
-            crate::net::list_players::list_players_regs()?;
+            crate::net::list_players::list_players_regs(&net.vars)?;
         }
         crate::install::owner::install()
             .pages
@@ -145,11 +147,11 @@ pub fn lobby_loop() -> Result<u32, Refused> {
         let key = list_key()?;
         let mut moved = false;
         if net.vars.edited.get() != u32::MAX {
-            crate::net::chat_key::chat_key(key)?;
+            crate::net::chat_key::chat_key(net, key)?;
         } else {
             let ready = net.vars.own.state() & 1 != 0;
             if !ready && key == 0x69 {
-                step_item(u32::MAX);
+                step_item(&net.vars, u32::MAX);
                 if net.vars.after_race.get() == 1
                     && (crate::install::owner::install().pages.choice.get() as i32) < 1
                 {
@@ -160,7 +162,7 @@ pub fn lobby_loop() -> Result<u32, Refused> {
                 }
                 moved = true;
             } else if !ready && key == 0x68 {
-                step_item(1);
+                step_item(&net.vars, 1);
                 if (crate::install::owner::install().pages.choice.get() as i32) > 3 {
                     crate::install::owner::install().pages.choice.set(3);
                 }
@@ -177,15 +179,15 @@ pub fn lobby_loop() -> Result<u32, Refused> {
                     }
                     1 | 2 => {
                         if crate::install::owner::install().pages.choice.get() == 1 {
-                            crate::net::choose_car::choose_car()?;
+                            crate::net::choose_car::choose_car(&net.vars)?;
                         } else {
-                            crate::net::choose_stage::choose_stage()?;
+                            crate::net::choose_stage::choose_stage(&net.vars)?;
                         }
-                        crate::net::list_players::list_players_regs()?;
+                        crate::net::list_players::list_players_regs(&net.vars)?;
                         moved = true;
                     }
                     3 => {
-                        crate::net::begin_chat::begin_chat()?;
+                        crate::net::begin_chat::begin_chat(&net.vars)?;
                         moved = true;
                     }
                     _ => {}
@@ -208,8 +210,8 @@ pub fn lobby_loop() -> Result<u32, Refused> {
         }
         if net.vars.own.state() & 0x10 != 0
             && net.vars.players.get() >= 2
-            && all_states(1, net.vars.players.get()) == 1
-            && sync(b'@')?
+            && all_states(&net.vars, 1, net.vars.players.get()) == 1
+            && sync(net, b'@')?
         {
             net.vars.all_raced.set(1);
         }
@@ -217,7 +219,7 @@ pub fn lobby_loop() -> Result<u32, Refused> {
             crate::install::owner::install().pages.choice.set(1);
             return Ok(crate::install::owner::install().pages.choice.get());
         }
-        if net.vars.players.get() >= 1 && all_states(4, net.vars.players.get()) == 4 {
+        if net.vars.players.get() >= 1 && all_states(&net.vars, 4, net.vars.players.get()) == 4 {
             net.vars.after_race.set(0);
         }
         if system.session.flags.quitting.get() == 1 {

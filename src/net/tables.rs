@@ -8,6 +8,7 @@ use crate::errors::{BadInput, Refused};
 use crate::memory::owned::Owned;
 use crate::net::lobby::fatal;
 use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::net::types::Guid;
 use rc2k_core::net::lists::{
     MOST_LISTED, NO_CONNECTION, NO_CONNECTIONS, NO_SESSION, NO_SESSIONS, TABLES,
@@ -67,19 +68,21 @@ impl NetTables {
 pub static NET_TABLES: Owned<NetTables> = Owned::new("no network lists");
 
 /// The network's list (`g_netMemory`).
-pub fn list() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&net().vars.memory)
+pub fn list(vars: &NetVars) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&vars.memory)
 }
 
 /// `allocate_lists`: both tables taken, counted as the game's two blocks.
 pub fn take() -> Result<(), Refused> {
-    NET_TABLES.take(list(), TABLES[0].0, NetTables::new())?;
-    crate::memory::owned::count_on(list(), TABLES[1].0)
+    let vars = &net().vars;
+    NET_TABLES.take(list(vars), TABLES[0].0, NetTables::new())?;
+    crate::memory::owned::count_on(list(vars), TABLES[1].0)
 }
 
 /// `bytes` more counted on the network's list (a block the original takes there).
 pub fn count(bytes: u32) -> Result<(), Refused> {
-    crate::memory::owned::count_on(list(), bytes)
+    let vars = &net().vars;
+    crate::memory::owned::count_on(list(vars), bytes)
 }
 
 /// The original's `net::connection_entry` checks: a number not below the count, then no

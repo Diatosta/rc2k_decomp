@@ -12,7 +12,7 @@
 //! Caller: `net::take_messages`. `Receive` from Rust (`net::dplay`). Refuses
 //! nothing (no check of `g_dplay`: its caller makes it).
 
-use crate::net::owner::net;
+use crate::net::owner::Net;
 
 /// The buffer's size.
 pub const ROOM: u32 = 0x100;
@@ -26,8 +26,7 @@ pub struct Received {
 }
 
 /// The Rust version.
-pub fn receive_message() -> Received {
-    let net = net();
+pub fn receive_message(net: &Net) -> Received {
     net.vars.received_size.set(ROOM);
     let mut data = [0u8; ROOM as usize];
     let r = crate::net::dp_objects::receive(net.vars.dplay.get(), &mut data);

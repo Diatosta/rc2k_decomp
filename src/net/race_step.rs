@@ -24,9 +24,9 @@ pub fn race_step() -> Result<(), Refused> {
     }
     if race().shared.work.current_car.get() == vars.player.get() {
         send_turn::send_turn()?;
-        apply_received::apply_received()
+        apply_received::apply_received(vars)
     } else {
-        follow_remote::follow_remote()?;
+        follow_remote::follow_remote(vars)?;
         Ok(())
     }
 }

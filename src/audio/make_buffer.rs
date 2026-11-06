@@ -23,7 +23,7 @@
 
 use crate::audio::buffer_settings::{a3d, set_buffer_frequency, set_buffer_pan, set_buffer_volume};
 use crate::audio::describe_wave_format::describe_wave_format;
-use crate::audio::owner::audio;
+use crate::audio::store::AudioState;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
@@ -46,20 +46,19 @@ pub struct BufferDescription {
 
 /// True for the carry clear. `ebx`: the caller's, which the original leaves in ebx (or
 /// replaces, as below) when it calls the EAX parts: they read through it.
-pub fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
-    let audio = audio();
-    if a3d() {
+pub fn make_buffer(state: &AudioState, at: u32, ebx: u32) -> Result<bool, Refused> {
+    if a3d(state) {
         return Err(BadInput("A3D (the chunk at 0x40CC88)").into());
     }
-    let mode = audio.state.sound_mode.get();
+    let mode = state.sound_mode.get();
     if mode & MODE_OWN_BUFFERS == 0 {
         return Ok(true);
     }
-    let ds = audio.state.direct_sound.get();
+    let ds = state.direct_sound.get();
     if ds == 0 {
         return Ok(false);
     }
-    update_voice(at, |v| -> Result<bool, Refused> {
+    update_voice(state, at, |v| -> Result<bool, Refused> {
         // What the settings would refuse, before anything is made.
         let level = (v.volume as i32).wrapping_mul(v.volume_factor as i32) >> 6;
         if !(0..=0x40).contains(&level) || !(-0x40..=0x40).contains(&v.pan) {
@@ -70,7 +69,7 @@ pub fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
         let mut ebx = ebx;
         let mut made = false;
         if v.source != 0 {
-            match crate::platform_sound::duplicate_sound_buffer(voice(v.source).buffer) {
+            match crate::platform_sound::duplicate_sound_buffer(voice_of(state, v.source).buffer) {
                 Ok(b) => {
                     v.buffer = b;
                     made = true;
@@ -80,10 +79,10 @@ pub fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
         }
         if !made {
             ebx = v.frequency;
-            describe_wave_format(v.format, v.frequency)?;
+            describe_wave_format(state, v.format, v.frequency)?;
             // Converted: `rc2k_core::audio::voices::buffer_flags`.
             let flags = rc2k_core::audio::voices::buffer_flags(mode, v.flags);
-            audio.state.buffer_description.set(BufferDescription {
+            state.buffer_description.set(BufferDescription {
                 size: 0x14,
                 flags,
                 bytes: v.length,
@@ -93,16 +92,16 @@ pub fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
             v.buffer = crate::platform_sound::create_sound_buffer(
                 flags,
                 v.length,
-                Some(crate::audio::describe_wave_format::platform_format()),
+                Some(crate::audio::describe_wave_format::platform_format(state)),
             );
         }
-        set_buffer_volume(v)?;
-        set_buffer_pan(v)?;
-        set_buffer_frequency(v)?;
+        set_buffer_volume(state, v)?;
+        set_buffer_pan(state, v)?;
+        set_buffer_frequency(state, v)?;
         if mode & MODE_3D != 0 {
             match crate::platform_sound::query_interface(
                 v.buffer,
-                audio.state.iid_sound_3d_buffer.get_u32(0),
+                state.iid_sound_3d_buffer.get_u32(0),
             ) {
                 Ok(b) => v.buffer_3d = b,
                 Err(r) => {
@@ -112,13 +111,13 @@ pub fn make_buffer(at: u32, ebx: u32) -> Result<bool, Refused> {
             }
             crate::audio::buffer_settings::set_buffer_place(v)?;
             crate::audio::set_buffer_min_distance::set_buffer_min_distance(v)?;
-            audio.state.commit_3d.set(1);
+            state.commit_3d.set(1);
             if mode & MODE_HARDWARE_3D != 0 {
-                ebx = stored_buffer_3d(at, v);
-                crate::audio::open_voice_manager::open_voice_manager(ebx)?;
+                ebx = stored_buffer_3d(state, at, v);
+                crate::audio::open_voice_manager::open_voice_manager(state, ebx)?;
             }
-            if mode & MODE_EAX != 0 && crate::audio::open_eax::open_eax(ebx)? {
-                crate::audio::set_eax_room::in_game()?;
+            if mode & MODE_EAX != 0 && crate::audio::open_eax::open_eax(state, ebx)? {
+                crate::audio::set_eax_room::in_game(state)?;
             }
         }
         Ok(true)

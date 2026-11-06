@@ -11,26 +11,25 @@
 //! stops. Each function begins `cmp g_useA3d, 1; jz` an A3D twin: refused.
 
 use crate::audio::buffer_settings::a3d;
-use crate::audio::owner::audio;
+use crate::audio::store::AudioState;
 use crate::errors::{BadInput, Refused};
 
 pub const HEADER_LEN: u32 = 0xC00;
 
 pub use rc2k_core::audio::streams::AudioStream;
 
-pub fn not_a3d(twin: &'static str) -> Result<(), Refused> {
-    if a3d() {
+pub fn not_a3d(state: &AudioState, twin: &'static str) -> Result<(), Refused> {
+    if a3d(state) {
         return Err(BadInput(twin).into());
     }
     Ok(())
 }
 
-pub fn volume_of(index: u32) -> Result<u32, Refused> {
+pub fn volume_of(state: &AudioState, index: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::audio::levels::stream_volume`.
-    Ok(rc2k_core::audio::levels::stream_volume(
-        index,
-        crate::audio::buffer_settings::volumes,
-    )?)
+    Ok(rc2k_core::audio::levels::stream_volume(index, |n| {
+        crate::audio::buffer_settings::volumes(state, n)
+    })?)
 }
 
 /// What `fill_stream_part` did: `None`, nothing (no place or no bytes); else the bytes read
@@ -63,8 +62,8 @@ fn written(filled: Filled, bytes: usize) -> usize {
 }
 
 /// `audio::stop_stream`: not playing; the buffer stopped and released; the file closed.
-pub fn stop_stream(s: &mut AudioStream) -> Result<(), Refused> {
-    not_a3d("A3D (0x40D1D0)")?;
+pub fn stop_stream(state: &AudioState, s: &mut AudioStream) -> Result<(), Refused> {
+    not_a3d(state, "A3D (0x40D1D0)")?;
     // Converted: `rc2k_core::audio::streams::AudioStream::stop`.
     let (buffer, file) = s.stop();
     if let Some(b) = buffer {
@@ -78,44 +77,48 @@ pub fn stop_stream(s: &mut AudioStream) -> Result<(), Refused> {
 }
 
 /// `audio::set_stream_volume`: `SetVolume` with the player's volume.
-pub fn set_stream_volume(s: &AudioStream) -> Result<(), Refused> {
-    not_a3d("A3D (0x40D247)")?;
+pub fn set_stream_volume(state: &AudioState, s: &AudioStream) -> Result<(), Refused> {
+    not_a3d(state, "A3D (0x40D247)")?;
     if s.buffer == 0 {
         return Err(BadInput("a stream without its buffer").into());
     }
-    let v = volume_of(s.volume)?;
+    let v = volume_of(state, s.volume)?;
     crate::platform_sound::set_volume(s.buffer, v as i32);
     Ok(())
 }
 
 /// `audio::start_stream`: the file at `path` opened and played. False for the carry (the
 /// player stopped).
-pub fn start_stream(s: &mut AudioStream, path: crate::pointers::GamePtr) -> Result<bool, Refused> {
-    let audio = audio();
+pub fn start_stream(
+    state: &AudioState,
+    s: &mut AudioStream,
+    path: crate::pointers::GamePtr,
+) -> Result<bool, Refused> {
     use crate::audio::describe_wave_format::describe_wave_format;
     use crate::audio::make_buffer::BufferDescription;
-    not_a3d("A3D (0x40CF6B)")?;
+    not_a3d(state, "A3D (0x40CF6B)")?;
     // Checked before anything is done: the volume it sets.
-    let volume = volume_of(s.volume)?;
-    let failed = |s: &mut AudioStream| stop_stream(s).map(|_| false);
-    let ds = audio.state.direct_sound.get();
+    let volume = volume_of(state, s.volume)?;
+    let failed = |s: &mut AudioStream| stop_stream(state, s).map(|_| false);
+    let ds = state.direct_sound.get();
     if ds == 0 {
         return failed(s);
     }
     // The header's buffer: Rust's (`audio::sample_data`), taken once and counted as the
     // game's block was (`g_streamHeader` 1 once it is there, no address).
     use crate::audio::sample_data::{self as data, Buffer};
-    if audio.state.stream_header.get() == 0 {
+    if state.stream_header.get() == 0 {
         data::take(Buffer::Header, HEADER_LEN);
-        crate::memory::count_owned(&audio.state.stream_header_memory, HEADER_LEN);
-        audio.state.stream_header.set(1);
+        crate::memory::count_owned(&state.stream_header_memory, HEADER_LEN);
+        state.stream_header.set(1);
     }
     data::with_buffer(Buffer::Header, |b| b[..HEADER_LEN as usize].fill(0));
     if !crate::audio::samples::read_sample(
+        state,
         path,
         Buffer::Header,
         HEADER_LEN,
-        &audio.state.sample_file,
+        &state.sample_file,
     )? {
         return failed(s);
     }
@@ -124,10 +127,10 @@ pub fn start_stream(s: &mut AudioStream, path: crate::pointers::GamePtr) -> Resu
     };
     s.file = h;
     s.open = 1;
-    let f = audio.state.sample_file.get();
+    let f = state.sample_file.get();
     crate::files::handle::seek(h, data::offset(f.data)? as i32, 0);
-    describe_wave_format(f.format, f.rate)?;
-    audio.state.buffer_description.set(BufferDescription {
+    describe_wave_format(state, f.format, f.rate)?;
+    state.buffer_description.set(BufferDescription {
         size: 0x14,
         flags: 0x80,
         bytes: s.bytes,
@@ -137,7 +140,7 @@ pub fn start_stream(s: &mut AudioStream, path: crate::pointers::GamePtr) -> Resu
     s.buffer = crate::platform_sound::create_sound_buffer(
         0x80,
         s.bytes,
-        Some(crate::audio::describe_wave_format::platform_format()),
+        Some(crate::audio::describe_wave_format::platform_format(state)),
     );
     crate::platform_sound::set_volume(s.buffer, volume as i32);
     // Converted: `rc2k_core::audio::streams::AudioStream::start_ring`.
@@ -151,9 +154,9 @@ pub fn start_stream(s: &mut AudioStream, path: crate::pointers::GamePtr) -> Resu
 
 /// `audio::feed_stream`: the bytes the play cursor moved over refilled, through the locked
 /// parts (`g_lockedParts`). False for the carry (the player stopped).
-pub fn feed_stream(s: &mut AudioStream) -> Result<bool, Refused> {
-    not_a3d("A3D (0x40D0C0)")?;
-    let failed = |s: &mut AudioStream| stop_stream(s).map(|_| false);
+pub fn feed_stream(state: &AudioState, s: &mut AudioStream) -> Result<bool, Refused> {
+    not_a3d(state, "A3D (0x40D0C0)")?;
+    let failed = |s: &mut AudioStream| stop_stream(state, s).map(|_| false);
     if s.buffer == 0 {
         return failed(s);
     }
@@ -168,7 +171,7 @@ pub fn feed_stream(s: &mut AudioStream) -> Result<bool, Refused> {
     let Ok(parts) = crate::platform_sound::lock(b, s.write_at, moved, 0) else {
         return failed(s);
     };
-    for (cell, part) in audio().state.locked_parts.iter().zip(parts) {
+    for (cell, part) in state.locked_parts.iter().zip(parts) {
         cell.set(part);
     }
     s.advance(moved);

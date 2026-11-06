@@ -7,9 +7,9 @@
 //!      `lq -s 0x418481`)
 //! Six callers, those of `net::lock_received`. Refuses nothing.
 
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 /// The Rust version.
-pub fn unlock_received() {
-    crate::sync::release_mutex(net().vars.mutex.get());
+pub fn unlock_received(vars: &NetVars) {
+    crate::sync::release_mutex(vars.mutex.get());
 }

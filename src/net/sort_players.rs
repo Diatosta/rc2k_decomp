@@ -11,7 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::movsb;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::net::store::PlayerBlock;
 use crate::pointers::GamePtr;
 use rc2k_core::net::players::{self, Standing};
@@ -59,8 +59,7 @@ pub fn bubble_blocks(
 }
 
 /// The Rust version (the original keeps every register).
-pub fn sort_players() -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn sort_players(vars: &NetVars) -> Result<(), Refused> {
     let players = vars.players.get();
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());

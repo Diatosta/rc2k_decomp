@@ -21,6 +21,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::input::store::Devices;
 use crate::input::types::{ForceEffect, InputDevice};
 
 /// What a `DIEFFECT` pointer (`axes`, `directions`, `envelope`, `type_specific`) holds when
@@ -68,14 +69,19 @@ pub fn fill_parameters(e: &ForceEffect) {
 }
 
 /// The device `record`'s effect `n`, `effect`, made (see the header).
-pub fn make_effect(record: &InputDevice, effect: &ForceEffect, n: u32) -> Result<(), Refused> {
+pub fn make_effect(
+    devices: &Devices,
+    record: &InputDevice,
+    effect: &ForceEffect,
+    n: u32,
+) -> Result<(), Refused> {
     let e = effect;
     if e.object.get() != 0 {
         crate::input::effect_objects::release_effect(e);
     }
     fill_parameters(e);
     // The effect's function with a change of 1, ecx the effect's number, edx 0.
-    crate::input::effect_changes::effect_change_at(e.change.get(), record, e, 1, n, 0)?;
+    crate::input::effect_changes::effect_change_at(devices, e.change.get(), record, e, 1, n, 0)?;
     if e.found.get() == 1 {
         // The GUID and the `DIEFFECT`'s parts, as DirectInput takes them; the object's
         // cell as `CreateEffect` leaves it.

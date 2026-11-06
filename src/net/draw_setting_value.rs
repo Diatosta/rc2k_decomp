@@ -10,7 +10,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{Cursor, FONT};
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::strings::owner::strings;
 use crate::text::draw_text::GameCanvas;
 use rc2k_core::net::screens::{self, Value};
@@ -20,6 +20,7 @@ use rc2k_core::net::screens::{self, Value};
 /// original's ebp). The registers it leaves are read by no caller (`settings_frame`,
 /// `draw_number_value`).
 pub fn draw_setting_value(
+    vars: &NetVars,
     text: impl Into<crate::place::Place>,
     item: u32,
     y: u32,
@@ -29,7 +30,7 @@ pub fn draw_setting_value(
     // Converted: `rc2k_core::net::screens` (`text_value`, `Value`, `CARET`, `NOTHING`).
     // The core asks for the first byte only when it needs it: a refusal is kept and raised.
     let refused = std::cell::Cell::new(None);
-    let value = screens::text_value(item == net().vars.edited.get(), || {
+    let value = screens::text_value(item == vars.edited.get(), || {
         text.read(1, "a setting's text")
             .map(|b| b[0])
             .unwrap_or_else(|e| {

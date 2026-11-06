@@ -18,7 +18,8 @@
 
 use crate::errors::BadInput;
 use crate::input::layouts::{Current, layouts};
-use crate::input::owner::input;
+use crate::input::owner::{Input, input};
+use crate::input::store::Devices;
 use crate::pointers::GamePtr;
 
 // ---- game data ----
@@ -31,8 +32,8 @@ const RIGHT_SHIFT: usize = 0x36;
 const ALT: usize = 0x38;
 const ALT_GR: usize = 0x64;
 
-fn down(key: usize) -> bool {
-    input().devices.keys_down.get(key) != 0
+fn down(devices: &Devices, key: usize) -> bool {
+    devices.keys_down.get(key) != 0
 }
 
 /// True if a keyboard layout is set.
@@ -44,18 +45,18 @@ pub fn has_layout() -> bool {
 
 /// eax as the original leaves it; the character is its low byte.
 pub fn key_to_char(eax: u32) -> Result<u32, BadInput> {
-    typed(eax, false)
+    typed(input(), eax, false)
 }
 
 /// The same for the name editors and the yes/no question, which in layout mode 2 always use
 /// the keyboard file's first layout and leave the current one as it was (the original put
 /// that layout in place for the call and the old one back after).
 pub fn key_to_char_for_text(eax: u32) -> Result<u32, BadInput> {
-    typed(eax, true)
+    typed(input(), eax, true)
 }
 
-fn typed(eax: u32, for_text: bool) -> Result<u32, BadInput> {
-    let input = input();
+fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {
+    let down = |key| down(&input.devices, key);
     use rc2k_core::input::keyboard::{self, Switch};
     let key = eax as u8;
     if key & 0x80 != 0 {

@@ -14,14 +14,13 @@
 
 use crate::errors::Refused;
 use crate::net::destroy_connection::destroy_connection;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
 use rc2k_core::net::players::{A_PLAYER, System, made_host};
 
 /// The Rust version.
 /// The message is in `crate::net::owner::net().vars.receive_data` (`unk_52A968`).
-pub fn system_message() -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn system_message(vars: &NetVars) -> Result<(), Refused> {
     let get = |at: usize| vars.receive_data.get_u32(at);
     let kind = get(0);
     // Converted: `rc2k_core::net::players` (`System`, `made_host`).
@@ -37,7 +36,7 @@ pub fn system_message() -> Result<(), Refused> {
                 );
             }
         }
-        System::SessionLost => destroy_connection()?,
+        System::SessionLost => destroy_connection(vars)?,
         System::Host => {
             vars.own
                 .head

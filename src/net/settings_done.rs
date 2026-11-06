@@ -10,12 +10,11 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::zero;
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 /// The Rust version.
-pub fn settings_done() -> Result<(), Refused> {
-    let vars = &net().vars;
-    let saved = if crate::net::find_connections::find_connections()? {
+pub fn settings_done(vars: &'static NetVars) -> Result<(), Refused> {
+    let saved = if crate::net::find_connections::find_connections(vars)? {
         crate::net::find_saved_connection::find_saved_connection()?
     } else {
         None
@@ -27,5 +26,5 @@ pub fn settings_done() -> Result<(), Refused> {
             zero(&vars.saved_name, 0x40)?;
         }
     }
-    crate::net::stop::stop()
+    crate::net::stop::stop(vars)
 }

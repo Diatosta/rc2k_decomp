@@ -5,7 +5,6 @@
 //! (`input::store::Devices`) name the effects' GUIDs by handle (`guid_ref`; the original kept
 //! their addresses).
 
-use crate::input::owner::input;
 use crate::session::{Bytes, with_runs};
 
 /// The DirectInput GUIDs (IDA 0x4F7E18 .. 0x4F7FD8, the image's layout).
@@ -98,7 +97,7 @@ pub const fn guid_ref(ida: u32) -> u32 {
 
 /// The GUID a handle names. Refused: what is no handle (the original reads the GUID at what
 /// it holds as an address).
-pub fn guid_of(handle: u32) -> Result<[u8; 16], crate::errors::BadInput> {
+pub fn guid_of(guids: &InputGuids, handle: u32) -> Result<[u8; 16], crate::errors::BadInput> {
     let at = (handle ^ GUID_TAG) as usize;
     if at + 16 > InputGuids::LEN {
         return Err(crate::errors::BadInput(
@@ -106,7 +105,7 @@ pub fn guid_of(handle: u32) -> Result<[u8; 16], crate::errors::BadInput> {
         ));
     }
     // A GUID by its handle, a byte offset into the block (not always a field's start).
-    crate::pointers::GamePtr::to(&input().guids)
+    crate::pointers::GamePtr::to(guids)
         .offset(8 + at as u32)
         .read::<[u8; 16]>("an effect's GUID")
 }

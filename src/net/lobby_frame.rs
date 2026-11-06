@@ -48,8 +48,9 @@ fn time_text(cursor: &mut Cursor, time: u32, gaps: bool, first: u32) -> Result<(
 /// The Rust version (the original keeps every register). Called through
 /// `screens::run_frame` by `net::lobby_loop`.
 pub fn lobby_frame() -> Result<(), Refused> {
+    let net = net();
     let text = &strings().text;
-    let vars = &net().vars;
+    let vars = &net.vars;
     // Converted: `rc2k_core::net::screens` (`shown_time`, `flag_sprite`, `car_sprite`,
     // `NO_TIME`, `lobby_buttons`), the ready bit and no time of `rc2k_core::net::players`.
     if !lock_surface() {
@@ -72,7 +73,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     }
     y += 0x1D;
     if vars.players.get() != 0 {
-        crate::net::sort_players::sort_players()?;
+        crate::net::sort_players::sort_players(&net.vars)?;
         let gaps = vars.show_gaps.get() == 1;
         let (first_time, first_total) = (
             vars.sorted[0].record.race_time.get(),
@@ -157,7 +158,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
         }
     }
     y = 0x158;
-    crate::net::lock_received::lock_received();
+    crate::net::lock_received::lock_received(&net.vars);
     {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.game_ptr(),
@@ -167,9 +168,9 @@ pub fn lobby_frame() -> Result<(), Refused> {
             &mut canvas,
         )
     }?;
-    crate::net::unlock_received::unlock_received();
+    crate::net::unlock_received::unlock_received(&net.vars);
     y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
-    crate::net::chat_input_line::chat_input_line(&vars.chat_input, 3, y)?;
+    crate::net::chat_input_line::chat_input_line(&net.vars, &vars.chat_input, 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
     for (n, (id, shown)) in screens::lobby_buttons(vars.car_item.get(), vars.stage_item.get())
@@ -177,7 +178,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
         .enumerate()
     {
         if shown {
-            x = crate::net::lobby_button::lobby_button(id, item, x, 0x223)?;
+            x = crate::net::lobby_button::lobby_button(net, id, item, x, 0x223)?;
         }
         if n != 3 {
             item += 1;

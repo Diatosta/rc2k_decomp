@@ -11,14 +11,14 @@
 //! `volume_factor` 0x40, `min_distance` 1.0. Callers: `audio::start` (0x40A0DB) and
 //! `audio::free_voices`.
 
-use crate::audio::owner::audio;
+use crate::audio::store::AudioState;
 use crate::audio::voices::*;
 use crate::platform_sound as ds;
 
 // ---- Rust version ----
 
-pub fn release_voice(at: u32, a3d: bool) {
-    update_voice(at, |v| {
+pub fn release_voice(state: &AudioState, at: u32, a3d: bool) {
+    update_voice(state, at, |v| {
         if a3d {
             // A3D's source objects (`Stop` at +0x38, `Release`): A3D is never there
             // (`audio::a3d`), so no voice has one.
@@ -45,6 +45,6 @@ pub fn release_voice(at: u32, a3d: bool) {
 }
 
 /// With the game's A3D switch.
-pub fn release_voice_in_game(at: u32) {
-    release_voice(at, audio().state.use_a3d.get() == 1);
+pub fn release_voice_in_game(state: &AudioState, at: u32) {
+    release_voice(state, at, state.use_a3d.get() == 1);
 }

@@ -13,6 +13,7 @@ use crate::net::owner::net;
 
 /// The Rust version.
 pub fn join_group() -> bool {
+    let vars = &net().vars;
     let result = {
         crate::net::dp_objects::enum_groups(
             net().vars.dplay.get(),
@@ -20,5 +21,5 @@ pub fn join_group() -> bool {
             0,
         )
     };
-    result == 0 && join()
+    result == 0 && join(vars)
 }

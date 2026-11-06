@@ -10,6 +10,7 @@
 //! See `net/mod.rs` and `net::send_inputs` (the shared body). One caller, `net::send_turn`
 //! (step 2 of 32).
 use crate::errors::Refused;
+use crate::net::owner::net;
 use crate::net::send_inputs::{Message, send_fields};
 
 pub const POSITION: Message = Message {
@@ -19,6 +20,7 @@ pub const POSITION: Message = Message {
 
 /// The Rust version.
 pub fn send_position() -> Result<(), Refused> {
+    let net = net();
     // Converted: `rc2k_core::net::race::Kind::pack` (in `send_fields`).
-    send_fields(&POSITION)
+    send_fields(net, &POSITION)
 }

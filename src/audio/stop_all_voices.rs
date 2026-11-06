@@ -8,15 +8,16 @@
 //! keep their `used` marks: the turn's update frees them as it stops the voices.
 //! Refuses a playing list that does not end within 0x200 voices.
 
+use crate::audio::owner::Audio;
 use crate::audio::voices::{GamePool, lists, store_lists};
 use crate::errors::Refused;
 
 // ---- Rust version ----
 
-pub fn stop_all_voices() -> Result<(), Refused> {
+pub fn stop_all_voices(audio: &Audio) -> Result<(), Refused> {
     // Converted: `rc2k_core::audio::voices::stop_all`.
-    let mut l = lists();
-    rc2k_core::audio::voices::stop_all(&mut GamePool, &mut l)?;
-    store_lists(&l);
+    let mut l = lists(&audio.state);
+    rc2k_core::audio::voices::stop_all(&mut GamePool::new(audio), &mut l)?;
+    store_lists(&audio.state, &l);
     Ok(())
 }

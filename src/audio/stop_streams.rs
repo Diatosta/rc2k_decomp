@@ -10,11 +10,12 @@
 //! Plain since 2026-10-23 (phase 3): action 0 (both callers now stop: section 16), with
 //! which neither command reads its other arguments.
 
+use crate::audio::owner::Audio;
 use crate::audio::stream_commands::{music_command, stream_command};
 use crate::errors::Refused;
 
 /// Both streams stopped.
-pub fn stop_streams() -> Result<(), Refused> {
-    stream_command(0, 0, 0)?;
-    music_command(0, 0, 0, 0)
+pub fn stop_streams(audio: &Audio) -> Result<(), Refused> {
+    stream_command(audio, 0, 0, 0)?;
+    music_command(&audio.state, 0, 0, 0, 0)
 }

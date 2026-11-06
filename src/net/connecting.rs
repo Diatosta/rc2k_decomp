@@ -10,6 +10,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{lock_surface, run_frame};
+use crate::net::owner::Net;
 
 pub const STATUS_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::STAGE_TITLE;
 
@@ -26,7 +27,7 @@ pub fn status(id: u32) -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn connecting(connection: u32) -> Result<bool, Refused> {
+pub fn connecting(net: &Net, connection: u32) -> Result<bool, Refused> {
     status(0x14F)?;
-    crate::net::init_connection::init_connection(connection)
+    crate::net::init_connection::init_connection(net, connection)
 }

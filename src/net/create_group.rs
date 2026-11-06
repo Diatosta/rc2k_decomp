@@ -12,10 +12,10 @@
 
 use crate::errors::Refused;
 use crate::net::owner::net;
+use crate::net::store::NetVars;
 
 /// The player put in the group (`AddPlayerToGroup`): whether it went.
-pub fn join() -> bool {
-    let vars = &net().vars;
+pub fn join(vars: &NetVars) -> bool {
     crate::net::dp_objects::add_player_to_group(
         vars.dplay.get(),
         vars.send_to.get(),
@@ -30,5 +30,5 @@ pub fn create_group() -> Result<bool, Refused> {
     if let Ok(id) = made {
         vars.send_to.set(id);
     }
-    Ok(made.is_ok() && join())
+    Ok(made.is_ok() && join(vars))
 }

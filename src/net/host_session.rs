@@ -18,6 +18,7 @@
 use crate::errors::Refused;
 use crate::net::find_sessions::{posted_or_called, zeroed_description};
 use crate::net::lobby::{log, log_bytes, log_hex};
+use crate::net::owner::Net;
 use crate::net::owner::net;
 use crate::net::store::put_bytes;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
@@ -38,8 +39,7 @@ pub fn posted_open_host() -> u32 {
 }
 
 /// The Rust version.
-pub fn host_session() -> Result<bool, Refused> {
-    let net = net();
+pub fn host_session(net: &Net) -> Result<bool, Refused> {
     log(VIEWER_PANEL.text_ptr(texts::NET_HOST), false, 2);
     log_bytes(&net.vars.machine_name.read(), true, 2);
     if net.vars.dplay.get() == 0 {
@@ -51,7 +51,7 @@ pub fn host_session() -> Result<bool, Refused> {
     net.vars
         .joined_password
         .write(&net.vars.session_password.read());
-    zeroed_description()?;
+    zeroed_description(&net.vars)?;
     let desc = &net.vars.session_desc;
     desc.flags.set(0x44);
     put_bytes(&desc.application, &net.vars.app_guid.read());
@@ -59,6 +59,7 @@ pub fn host_session() -> Result<bool, Refused> {
     // The name goes to `open` as text (the description's pointer is left 0).
     put_bytes(&desc.user, &net.vars.session_password.read());
     finish(
+        net,
         posted_open_host,
         crate::net::create_group::create_group,
         VIEWER_PANEL.text_ptr(texts::NET_HOST_COMPLETE),
@@ -69,18 +70,19 @@ pub fn host_session() -> Result<bool, Refused> {
 /// window restored; `dword_52ACFC` 1, the player made, then `then` (the group made or
 /// joined) and `done` logged. Shared with `net::join_session`. Whether all of it worked.
 pub fn finish(
+    net: &Net,
     posted: fn() -> u32,
     then: fn() -> Result<bool, Refused>,
     done: crate::pointers::GamePtr,
 ) -> Result<bool, Refused> {
-    let result = posted_or_called(posted);
+    let result = posted_or_called(net, posted);
     log(VIEWER_PANEL.text_ptr(texts::NET_OPEN), false, 2);
     log_hex(result, true);
     crate::system::restore_window::restore_window();
     if result != 0 {
         return Ok(false);
     }
-    net().vars.session_open.set(1);
+    net.vars.session_open.set(1);
     if !crate::net::create_player::create_player()? || !then()? {
         return Ok(false);
     }

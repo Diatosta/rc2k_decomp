@@ -45,7 +45,7 @@ use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::owner::strings;
+use crate::strings::owner::{Strings, Text, strings};
 use crate::strings::same_text::set_case_table;
 use crate::strings::string_table::LEXICON_ROOM;
 use crate::system::owner::system;
@@ -107,7 +107,7 @@ fn fatal(code: u32, message: &'static str) -> Refused {
 }
 
 /// String `id` as the original builds it: in the text buffer. Returns its bytes.
-fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
+fn built(text: &Text, id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
     let mut bytes = Vec::new();
     push_string(&mut bytes, id)?;
     if bytes.len() >= 0x100 {
@@ -115,7 +115,7 @@ fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
             "a string of the language's set-up longer than expected",
         ));
     }
-    let at = GamePtr::to(&strings().text.buffer.text);
+    let at = GamePtr::to(&text.buffer.text);
     at.write_bytes(&bytes, "the text buffer")?;
     if with_nul {
         at.offset(bytes.len() as u32)
@@ -125,11 +125,11 @@ fn built(id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
 }
 
 /// `sub_4034C2` (converted: `rc2k_core::strings::case::CaseTable::{for_language, plain_letters}`).
-fn make_case_tables() -> Result<(), BadInput> {
-    let lower = CaseTable::for_language(&built(2, true)?)?;
+fn make_case_tables(strings: &Strings) -> Result<(), BadInput> {
+    let lower = CaseTable::for_language(&built(&strings.text, 2, true)?)?;
     set_case_table(&lower.lower);
-    let plain = lower.plain_letters(&built(3, true)?);
-    strings().language.plain_letters.write(&plain.lower);
+    let plain = lower.plain_letters(&built(&strings.text, 3, true)?);
+    strings.language.plain_letters.write(&plain.lower);
     Ok(())
 }
 
@@ -180,7 +180,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
         layouts().use_file(rc2k_core::input::layouts::parse(&keyboard)?);
     }
 
-    make_case_tables()?;
+    make_case_tables(strings)?;
 
     // `sub_403462`: the NEC keyboard's head (its layout mode) and layout.
     if system().session.machine.keyboard_type.get() == 2 {

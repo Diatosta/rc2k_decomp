@@ -12,12 +12,13 @@
 //! Caller: DirectInput, from `input::begin_force`.
 
 use crate::errors::BadInput;
+use crate::input::guids::InputGuids;
 use crate::input::types::{DiEffectInfo, InputDevice};
 
 /// `effect_found` as DirectInput calls it: what Rust callers hand `EnumEffects`, the
 /// device record the effects are listed for.
-pub fn callback(info: &DiEffectInfo, record: &InputDevice) -> u32 {
-    match effect_found(info, record) {
+pub fn callback(guids: &InputGuids, info: &DiEffectInfo, record: &InputDevice) -> u32 {
+    match effect_found(guids, info, record) {
         Ok(eax) => eax,
         Err(e) => {
             crate::input::devices::refused_here("input::effect_found", e);
@@ -27,7 +28,11 @@ pub fn callback(info: &DiEffectInfo, record: &InputDevice) -> u32 {
 }
 
 /// The Rust version: eax.
-pub fn effect_found(info: &DiEffectInfo, record: &InputDevice) -> Result<u32, BadInput> {
+pub fn effect_found(
+    guids: &InputGuids,
+    info: &DiEffectInfo,
+    record: &InputDevice,
+) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::input::force::take_listed`.
     use rc2k_core::input::force::{Found, Listed, take_listed};
     let listed = Listed {
@@ -49,7 +54,7 @@ pub fn effect_found(info: &DiEffectInfo, record: &InputDevice) -> Result<u32, Ba
         // The wanted GUID is read only where the core asks for it.
         let failed = std::cell::Cell::new(None);
         let taken = take_listed(e.kind.get(), &mut f, &listed, || {
-            crate::input::guids::guid_of(e.wanted.get()).unwrap_or_else(|err| {
+            crate::input::guids::guid_of(guids, e.wanted.get()).unwrap_or_else(|err| {
                 failed.set(Some(err));
                 [0; 16]
             })

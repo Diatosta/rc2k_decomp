@@ -31,6 +31,7 @@ use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::set_length;
 use crate::service::backspace_setup_name::{backspace_setup_name, entry};
 use crate::service::load_setup_slot::highlighted_slot;
+use crate::service::owner::service;
 use crate::service::state::current_player_of;
 use crate::service::write_setup_slot::write_setup_slot;
 use crate::strings::append_string_by_id::push_string;
@@ -94,7 +95,7 @@ pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             }
             screens.option_work.typing.set(0u32);
             end_name(screens, name)?;
-            write_setup_slot(slot)?;
+            write_setup_slot(service(), slot)?;
             end_name(screens, name)?;
             screens.option_work.typing.set(0u32);
             return Ok(());

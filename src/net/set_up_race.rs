@@ -15,7 +15,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, log_int_nl};
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::race;
 use rc2k_core::net::record;
@@ -50,8 +50,7 @@ enum Count {
 }
 
 /// The Rust version.
-pub fn set_up_race() -> Result<(), Refused> {
-    let vars = &net().vars;
+pub fn set_up_race(vars: &NetVars) -> Result<(), Refused> {
     let race = race();
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(vars.players.get())?;

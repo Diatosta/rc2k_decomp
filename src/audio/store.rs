@@ -843,8 +843,17 @@ pub const fn name_key(ida: u32) -> u32 {
 /// The bytes `SampleNames` has before IDA's `START` (its `_lead`).
 const NAMES_LEAD: usize = 12;
 
-/// Where the name of `key` is (`name_key`).
+/// Where the name of `key` is (`name_key`). Entry point: the menus and the sound commands
+/// ask without the owner.
 pub fn name_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
+    name_in(&audio().sample_names, key)
+}
+
+/// Where the name of `key` is in `names`.
+pub fn name_in(
+    names: &crate::audio::names_store::SampleNames,
+    key: u32,
+) -> Result<crate::pointers::GamePtr, crate::errors::BadInput> {
     use crate::audio::names_store::SampleNames;
     let at = key as usize;
     if !(NAMES_LEAD..NAMES_LEAD + SampleNames::LEN).contains(&at) {
@@ -853,7 +862,7 @@ pub fn name_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadI
         ));
     }
     // A name's text by its key in the names buffer (read up to its NUL).
-    Ok(crate::pointers::GamePtr::to(&audio().sample_names).offset(at as u32))
+    Ok(crate::pointers::GamePtr::to(names).offset(at as u32))
 }
 
 /// A record's `volume_factor` (phase 13, handles): which level its voices take (the original
@@ -884,10 +893,10 @@ pub const fn level_code(ida: u32) -> u32 {
 }
 
 /// The level a record's `volume_factor` names (`level_code`; 0 is no level).
-pub fn volume_level(code: u32) -> Result<&'static Dword, crate::errors::BadInput> {
+pub fn volume_level(state: &AudioState, code: u32) -> Result<&Dword, crate::errors::BadInput> {
     let screens = &menus().screens;
     Ok(match code {
-        1 => &audio().state.unit_volume_factor,
+        1 => &state.unit_volume_factor,
         2 => &screens.option_work.menu_sounds_a,
         3 => &screens.option_work.sounds_a,
         4 => &screens.option_work.sounds_b,

@@ -8,18 +8,19 @@
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 
 /// The Rust version: the key `key` for the chat message being typed; once it ends the
 /// editing, a message typed is sent and the input cleared. The registers the original
 /// leaves (eax the player, ebx the input) are read by no caller (`lobby_loop`).
-pub fn chat_key(key: u8) -> Result<(), Refused> {
-    let vars = &net().vars;
-    if !crate::net::edit_key::edit_key(key)? {
+pub fn chat_key(net: &Net, key: u8) -> Result<(), Refused> {
+    let vars = &net.vars;
+    if !crate::net::edit_key::edit_key(net, key)? {
         return Ok(());
     }
     if vars.chat_input.get(0) != 0 {
         crate::net::send_chat::send_chat(
+            net,
             vars.player.get(),
             crate::pointers::GamePtr::to(&vars.chat_input),
         )?;

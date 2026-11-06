@@ -4,6 +4,7 @@
 //! phase 12), then clipped into the primary buffer's format. The standalone program will
 //! mix this way.
 
+use crate::audio::store::AudioState;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
@@ -21,7 +22,13 @@ static MIX: std::sync::Mutex<[i32; MIX_BUFFER_LEN as usize / 4]> =
 /// channel (kind 1) goes back to 0 (the fraction kept), any other is no longer used and
 /// stops there. Positions are stored back. Refuses no channels, no frames with a channel
 /// used (both counts run 2^32 times in the original), more frames than the buffer holds.
-pub fn mix_channels(bytes: u32, shift: u32, channels: u32, count: u32) -> Result<(), Refused> {
+pub fn mix_channels(
+    state: &AudioState,
+    bytes: u32,
+    shift: u32,
+    channels: u32,
+    count: u32,
+) -> Result<(), Refused> {
     use rc2k_core::audio::mixer::Channel;
     // Channel ids (place + 1) on from the first's.
     let at = |n: u32| channels.wrapping_add(n);
@@ -29,7 +36,7 @@ pub fn mix_channels(bytes: u32, shift: u32, channels: u32, count: u32) -> Result
     // where the channels point.
     let mut loaded: Vec<(Channel, u32)> = (0..count)
         .map(|n| {
-            let c = channel(at(n));
+            let c = channel(state, at(n));
             let core = Channel {
                 used: c.used,
                 format: c.format,
@@ -87,7 +94,7 @@ pub fn mix_channels(bytes: u32, shift: u32, channels: u32, count: u32) -> Result
         .copy_from_slice(&buffer);
     for (n, core) in cores.iter().enumerate() {
         // Only the channels that played: the original stores no others.
-        update_channel(at(n as u32), |c| {
+        update_channel(state, at(n as u32), |c| {
             if c.used == 1 {
                 c.used = core.used;
                 c.position = core.position;

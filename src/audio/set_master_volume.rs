@@ -8,20 +8,21 @@
 //! held to 0x40 (unsigned). Callers: `sub_40A54B` (the mode's set-up) and
 //! `audio::volume_command`.
 
-use crate::audio::owner::audio;
+use crate::audio::store::AudioState;
 
 // ---- Rust version ----
 
-pub fn set_master_volume_in_game(volume: u32) {
-    if crate::audio::buffer_settings::a3d() {
+pub fn set_master_volume_in_game(state: &AudioState, volume: u32) {
+    if crate::audio::buffer_settings::a3d(state) {
         return;
     }
-    let buffer = audio().state.primary_buffer.get();
+    let buffer = state.primary_buffer.get();
     if buffer == 0 {
         return;
     }
     // Converted: `rc2k_core::audio::levels::master_volume`.
-    let level =
-        rc2k_core::audio::levels::master_volume(volume, crate::audio::buffer_settings::volumes);
+    let level = rc2k_core::audio::levels::master_volume(volume, |n| {
+        crate::audio::buffer_settings::volumes(state, n)
+    });
     crate::platform_sound::set_volume(buffer, level as i32);
 }

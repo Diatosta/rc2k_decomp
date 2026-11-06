@@ -15,7 +15,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::lobby::movsb;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::pointers::GamePtr;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
@@ -26,8 +26,7 @@ fn set_byte(at: GamePtr, v: u8) -> Result<(), BadInput> {
 }
 
 /// The Rust version.
-pub fn edit_key(key: u8) -> Result<bool, Refused> {
-    let net = net();
+pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
     if net.vars.edited.get() != editing::NOT_EDITING {

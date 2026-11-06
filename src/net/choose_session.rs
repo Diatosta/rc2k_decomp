@@ -16,7 +16,7 @@
 use crate::errors::Refused;
 use crate::net::choose_connection::list_move;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::tables::with_session;
 use crate::pointers::GamePtr;
 use crate::system::owner::system;
@@ -24,8 +24,7 @@ use rc2k_core::net::screens::{self, ListKey};
 
 /// The sessions listed again (not posted), the highlight kept on the same one; false for
 /// a failed listing.
-fn refresh() -> Result<bool, Refused> {
-    let net = net();
+fn refresh(net: &Net) -> Result<bool, Refused> {
     let listed = net.vars.sessions.get();
     if listed != 0 {
         let instance = with_session(crate::install::owner::install().pages.choice.get(), |s| {
@@ -37,7 +36,7 @@ fn refresh() -> Result<bool, Refused> {
     }
     let posting = net.vars.posting.get();
     net.vars.posting.set(0);
-    let found = crate::net::find_sessions::find_sessions()?;
+    let found = crate::net::find_sessions::find_sessions(net)?;
     net.vars.posting.set(posting);
     if !found {
         return Ok(false);
@@ -77,8 +76,7 @@ fn refresh() -> Result<bool, Refused> {
 }
 
 /// The Rust version.
-pub fn choose_session() -> Result<u32, Refused> {
-    let net = net();
+pub fn choose_session(net: &Net) -> Result<u32, Refused> {
     let system = system();
     let now = system.session.clocks.key_ticks.get();
     crate::install::owner::install().pages.move_clock.set(now);
@@ -93,7 +91,7 @@ pub fn choose_session() -> Result<u32, Refused> {
         let tick = crate::system::tick_count::tick_count();
         if (tick.wrapping_sub(net.vars.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
             net.vars.clock_a.set(tick);
-            if !refresh()? {
+            if !refresh(net)? {
                 crate::install::owner::install()
                     .pages
                     .choice

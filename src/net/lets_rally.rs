@@ -20,15 +20,14 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{log, run_frame};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::race::owner::race;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::record;
 
 /// The Rust version: true when the original ends with the carry set (no player but the
 /// host, Escape, or the car not finished: the link ends).
-pub fn lets_rally() -> Result<bool, Refused> {
-    let net = net();
+pub fn lets_rally(net: &Net) -> Result<bool, Refused> {
     let race = race();
     use crate::race::sound_tables;
     log(VIEWER_PANEL.text_ptr(texts::NET_LETS_RALLY), true, 2);
@@ -55,12 +54,12 @@ pub fn lets_rally() -> Result<bool, Refused> {
     crate::menu::show_loading_picture::show_loading_picture()?;
     sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
     crate::sound::set_up_race_sounds::set_up_race_sounds()?;
-    crate::net::set_up_race::set_up_race()?;
+    crate::net::set_up_race::set_up_race(&net.vars)?;
     let tick = crate::system::tick_count::tick_count();
     net.vars.clock_a.set(tick);
     net.vars.sync_clock.set(tick);
     net.vars.sync_first.set(1);
-    crate::net::list_players::list_players_regs()?;
+    crate::net::list_players::list_players_regs(&net.vars)?;
     // The race's time and whether the car did not finish (the original's eax and ebx);
     // Escape leaves ebx 1.
     let (time, not_finished) = loop {
@@ -68,10 +67,10 @@ pub fn lets_rally() -> Result<bool, Refused> {
         if crate::input::take_key::take_key() == 1 {
             break (1, 1);
         }
-        if crate::net::race_wait::race_wait()? != 0 {
+        if crate::net::race_wait::race_wait(net)? != 0 {
             crate::gfx::clear_front_surface::clear_front_surface()?;
-            crate::net::copy_received::copy_received()?;
-            break crate::net::lets_race::lets_race()?;
+            crate::net::copy_received::copy_received(&net.vars)?;
+            break crate::net::lets_race::lets_race(&net.vars)?;
         }
     };
     crate::race::race_end::tidy_everything()?;
@@ -86,6 +85,6 @@ pub fn lets_rally() -> Result<bool, Refused> {
     if not_finished != 0 {
         return Ok(true);
     }
-    crate::net::race_over::race_over(time)?;
+    crate::net::race_over::race_over(net, time)?;
     Ok(false)
 }

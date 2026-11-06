@@ -9,15 +9,16 @@
 //! Refuses a sound of 0x1CD or more.
 
 use crate::audio::samples::sample_mode;
+use crate::audio::store::SampleRecords;
 use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 
-pub fn sample_mode_of(mode: u32, sound: u32) -> Result<u32, Refused> {
+pub fn sample_mode_of(records: &SampleRecords, mode: u32, sound: u32) -> Result<u32, Refused> {
     if (sound as i32) < 0 {
         return Ok(mode);
     }
     if sound >= SAMPLES {
         return Err(BadInput("a sound of 0x1CD or more").into());
     }
-    Ok(sample_mode(mode, Some(&sample(sound))))
+    Ok(sample_mode(mode, Some(&sample(records, sound))))
 }

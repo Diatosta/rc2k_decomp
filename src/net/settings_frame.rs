@@ -24,7 +24,8 @@ use rc2k_core::net::screens;
 /// The Rust version (the original keeps every register). Called through
 /// `screens::run_frame` by `net::settings_loop`.
 pub fn settings_frame() -> Result<(), Refused> {
-    let vars = &net().vars;
+    let net = net();
+    let vars = &net.vars;
     if !lock_surface() {
         return Ok(());
     }
@@ -45,10 +46,10 @@ pub fn settings_frame() -> Result<(), Refused> {
     .enumerate()
     {
         let item = item as u32;
-        y = setting_label(label, item, y)?;
+        y = setting_label(net, label, item, y)?;
         y = match value {
-            Value::Number(n) => draw_number_value(n, item, y)?,
-            Value::Text(text) => draw_setting_value(text, item, y)?,
+            Value::Number(n) => draw_number_value(&net.vars, n, item, y)?,
+            Value::Text(text) => draw_setting_value(&net.vars, text, item, y)?,
         };
     }
     // The last item's string measured (the x the original hands it is `draw_text`'s x of the
@@ -80,7 +81,7 @@ pub fn settings_frame() -> Result<(), Refused> {
         }
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
-    draw_centred_item(0x16F, 4, text_x, 0x21D)?;
+    draw_centred_item(&net.vars, 0x16F, 4, text_x, 0x21D)?;
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();
     Ok(())

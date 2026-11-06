@@ -27,15 +27,21 @@
 
 use crate::errors::Refused;
 use crate::input::devices::{joy_state, key_table, record_bytes};
+use crate::input::store::Devices;
 use crate::input::types::InputDevice;
 
 /// The device `record` read (see the header). Converted: `rc2k_core::input::devices::read_device`; the bindings are checked before the poll,
 /// the record read again after it.
-pub fn read_device(record: &InputDevice) -> Result<(), Refused> {
+pub fn read_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     use rc2k_core::input::devices;
     devices::check_bindings(&record_bytes(record))?;
-    { crate::input::poll_device::poll_device(record) }?;
-    let Some(r) = devices::read_device(&record_bytes(record), &key_table(), &joy_state())? else {
+    { crate::input::poll_device::poll_device(devices, record) }?;
+    let Some(r) = devices::read_device(
+        &record_bytes(record),
+        &key_table(devices),
+        &joy_state(devices),
+    )?
+    else {
         return Ok(());
     };
     record.readings[0].set(r.steering);

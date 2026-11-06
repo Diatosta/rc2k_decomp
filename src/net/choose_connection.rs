@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};
-use crate::net::owner::net;
+use crate::net::store::NetVars;
 use crate::system::owner::system;
 use rc2k_core::net::screens::{self, ListKey};
 
@@ -42,7 +42,7 @@ pub fn list_move(key: u8, count: u32) -> bool {
 }
 
 /// The Rust version.
-pub fn choose_connection() -> Result<u32, Refused> {
+pub fn choose_connection(vars: &NetVars) -> Result<u32, Refused> {
     let system = system();
     let now = system.session.clocks.key_ticks.get();
     crate::install::owner::install().pages.move_clock.set(now);
@@ -56,7 +56,7 @@ pub fn choose_connection() -> Result<u32, Refused> {
             .frame_clock
             .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
-        if list_move(key, net().vars.connections.get()) {
+        if list_move(key, vars.connections.get()) {
             crate::install::owner::install()
                 .pages
                 .move_clock

@@ -14,6 +14,7 @@
 //! lock held).
 
 use crate::errors::{BadInput, Refused};
+use crate::net::owner::Net;
 use crate::net::owner::net;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
@@ -53,8 +54,7 @@ fn said_text(name: &[u8], message: &[u8]) -> Vec<u8> {
 }
 
 /// The Rust version.
-pub fn add_chat_line(player: u32, message: GamePtr) -> Result<(), Refused> {
-    let net = net();
+pub fn add_chat_line(net: &Net, player: u32, message: GamePtr) -> Result<(), Refused> {
     if message.read::<u8>("the chat's text")? == 0 {
         return Ok(());
     }

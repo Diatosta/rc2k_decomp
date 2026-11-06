@@ -25,6 +25,8 @@
 use crate::errors::Refused;
 use crate::menu::owner::menus;
 use crate::net::lobby::log;
+use crate::net::owner::Net;
+use crate::net::owner::net;
 use crate::net::store::PlayerRecord;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
@@ -41,16 +43,16 @@ enum Way {
     End,
 }
 
-fn link() -> Result<Way, Refused> {
-    let vars = &net().vars;
+fn link(net: &Net) -> Result<Way, Refused> {
+    let vars = &net.vars;
     use crate::net::*;
-    if !find_connections::find_connections()? {
+    if !find_connections::find_connections(&net.vars)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
     let connection = match find_saved_connection::find_saved_connection()? {
         Some(saved) => saved,
         None => {
-            let chosen = choose_connection::choose_connection()?;
+            let chosen = choose_connection::choose_connection(&net.vars)?;
             if (chosen as i32) < 0 {
                 return Ok(Way::End);
             }
@@ -58,29 +60,29 @@ fn link() -> Result<Way, Refused> {
         }
     };
     keep_connection::keep_connection(connection)?;
-    if !connecting::connecting(connection)? {
+    if !connecting::connecting(net, connection)? {
         return Ok(Way::Message(NO_CONNECTION));
     }
     if vars.mode.get() == 1 {
         vars.own
             .head
             .set(PlayerRecord::STATE, vars.own.state() | 0x10);
-        return Ok(if hosting::hosting()? {
+        return Ok(if hosting::hosting(net)? {
             Way::On
         } else {
             Way::Message(NO_SESSION)
         });
     }
-    if !find_sessions::find_sessions()? {
+    if !find_sessions::find_sessions(net)? {
         return Ok(Way::Message(NO_SESSION));
     }
-    let session = choose_session::choose_session()?;
+    let session = choose_session::choose_session(net)?;
     // Escape (a negative choice) sets the carry as a failure does, so it shows the
     // message too (the original's slip, `notes/bugs.md`).
     if (session as i32) < 0 {
         return Ok(Way::Message(NO_SESSION));
     }
-    Ok(if joining::joining(session)? {
+    Ok(if joining::joining(net, session)? {
         Way::On
     } else {
         Way::Message(NO_SESSION)
@@ -89,22 +91,23 @@ fn link() -> Result<Way, Refused> {
 
 /// The Rust version: a network game in `mode` (1 host, 2 join).
 pub fn start_link(mode: u32) -> Result<(), Refused> {
-    let vars = &net().vars;
+    let net = net();
+    let vars = &net.vars;
     use crate::net::*;
     log(VIEWER_PANEL.text_ptr(texts::NET_STARTING_LINK), true, 2);
     vars.mode.set(mode);
     take_player_settings::take_player_settings();
     let play = &menus().play;
-    fill_own_player::fill_own_player(play, &play.names.player_names)?;
-    show_background::show_background()?;
-    match link()? {
+    fill_own_player::fill_own_player(net, play, &play.names.player_names)?;
+    show_background::show_background(&net.vars)?;
+    match link(net)? {
         Way::Message(n) => show_message::show_message(n)?,
         Way::End => {}
         Way::On => {
             vars.session.set(1);
-            lock_received::lock_received();
+            lock_received::lock_received(&net.vars);
             clear_chat::clear_chat();
-            unlock_received::unlock_received();
+            unlock_received::unlock_received(&net.vars);
             vars.sync.set(0);
             vars.sequence.set(0x80);
             vars.after_race.set(0);
@@ -112,18 +115,18 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
                 vars.all_raced.set(0);
                 vars.race_over.set(0);
                 crate::sound::play_tune_4::play_tune_4();
-                if (lobby_loop::lobby_loop()? as i32) < 0 {
+                if (lobby_loop::lobby_loop(net)? as i32) < 0 {
                     break;
                 }
-                close_if_host::close_if_host();
-                if lets_rally::lets_rally()? {
+                close_if_host::close_if_host(net);
+                if lets_rally::lets_rally(net)? {
                     break;
                 }
             }
         }
     }
     log(VIEWER_PANEL.text_ptr(texts::NET_STOPPING_LINK), true, 2);
-    stopping::stopping()?;
+    stopping::stopping(&net.vars)?;
     crate::sound::play_tune_3::play_tune_3();
     Ok(())
 }

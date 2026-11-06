@@ -30,7 +30,8 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::input::devices::Deferred;
 use crate::input::di_harness::{entry_of, fatal};
-use crate::input::owner::input;
+use crate::input::owner::Input;
+use crate::input::store::Devices;
 use crate::input::types::{DiPropDword as W, DiPropHeader, DiPropRange as R, InputDevice as D};
 use crate::session::Dword;
 use crate::system::owner::system;
@@ -61,8 +62,7 @@ fn log_int(v: u32, newline: bool) {
 }
 
 /// The settings from the configuration, and the log's line.
-fn settings(record: &D) -> Result<(), BadInput> {
-    let input = input();
+fn settings(devices: &Devices, record: &D) -> Result<(), BadInput> {
     use rc2k_core::input::acquire::{Config, Settings, settings};
     // Converted: `rc2k_core::input::acquire::settings`.
     let fields = [
@@ -75,12 +75,12 @@ fn settings(record: &D) -> Result<(), BadInput> {
     ];
     let [k, code, strength, dead, end, pick] = fields.map(Dword::get);
     let config = Config {
-        kind: input.devices.joy_mode.get(),
-        axis_code: input.devices.joy_code.get(),
-        dead_zone: input.devices.joy_dead_zone.get(),
-        end_zone: input.devices.joy_end_zone.get(),
-        axis_pick: input.devices.alt_axes_code.get(),
-        strength: input.devices.ff_gain.get(),
+        kind: devices.joy_mode.get(),
+        axis_code: devices.joy_code.get(),
+        dead_zone: devices.joy_dead_zone.get(),
+        end_zone: devices.joy_end_zone.get(),
+        axis_pick: devices.alt_axes_code.get(),
+        strength: devices.ff_gain.get(),
     };
     let late = Deferred::default();
     let s = settings(
@@ -92,7 +92,7 @@ fn settings(record: &D) -> Result<(), BadInput> {
             end_zone: end,
             axis_pick: pick,
         },
-        || late.get(entry_of(record).map(|c| c.axes.get())),
+        || late.get(entry_of(devices, record).map(|c| c.axes.get())),
         &config,
     );
     late.finish()?;
@@ -109,8 +109,8 @@ fn settings(record: &D) -> Result<(), BadInput> {
     }
     log_text(JOY_RVA);
     log_int(record.controller.get(), false);
-    log_int(entry_of(record)?.axes.get(), false);
-    log_int(entry_of(record)?.buttons.get(), false);
+    log_int(entry_of(devices, record)?.axes.get(), false);
+    log_int(entry_of(devices, record)?.buttons.get(), false);
     log_text(AXMODE_RVA);
     log_int(record.kind.get(), false);
     log_text(AXCODE_RVA);
@@ -119,7 +119,7 @@ fn settings(record: &D) -> Result<(), BadInput> {
     log_int(record.dead_zone.get(), false);
     log_int(record.end_zone.get(), false);
     log_text(FF_RVA);
-    log_int(entry_of(record)?.force_feedback.get(), false);
+    log_int(entry_of(devices, record)?.force_feedback.get(), false);
     log_int(record.strength.get(), true);
     Ok(())
 }
@@ -181,14 +181,13 @@ fn properties(record: &D) {
 }
 
 /// The Rust version (see the header).
-pub fn acquire_device(record: &D) -> Result<(), Refused> {
-    let input = input();
+pub fn acquire_device(input: &Input, record: &D) -> Result<(), Refused> {
     // Converted: `rc2k_core::input::acquire::acquire`.
     let late = Deferred::default();
     let step = acquire(
         record.controller.get(),
         input.devices.controller_count.get(),
-        || late.get(entry_of(record).map(|c| c.attached.get())),
+        || late.get(entry_of(&input.devices, record).map(|c| c.attached.get())),
         || record.device.get(),
     );
     late.finish()?;
@@ -197,8 +196,8 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
         Acquire::HasDevice => return Err(fatal(HAS_DEVICE).into()),
         Acquire::Acquire => {}
     }
-    settings(record)?;
-    let instance: [u8; 16] = entry_of(record)?.instance.read();
+    settings(&input.devices, record)?;
+    let instance: [u8; 16] = entry_of(&input.devices, record)?.instance.read();
     let made = crate::input::di_objects::create_device(input.devices.direct_input.get(), &instance);
     if crate::input::di_objects::store(&record.device, made) != 0 {
         return Err(NO_OBJECT.into());
@@ -224,8 +223,8 @@ pub fn acquire_device(record: &D) -> Result<(), Refused> {
         return Err(fatal(0x8023_8313).into());
     }
     properties(record);
-    if entry_of(record)?.force_feedback.get() == 1 {
-        crate::input::begin_force::begin_force(record)?;
+    if entry_of(&input.devices, record)?.force_feedback.get() == 1 {
+        crate::input::begin_force::begin_force(input, record)?;
     }
     crate::input::di_objects::acquire(device);
     crate::input::clear_device_readings::clear_device_readings(record);

@@ -8,12 +8,11 @@
 //! Caller: `net::lets_rally`.
 
 use crate::errors::Refused;
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::net::store::PlayerRecord;
 
 /// The Rust version.
-pub fn race_over(time: u32) -> Result<(), Refused> {
-    let net = net();
+pub fn race_over(net: &Net, time: u32) -> Result<(), Refused> {
     net.vars.all_raced.set(0);
     net.vars.race_over.set(0);
     net.vars.own.race_time.set(time);
@@ -27,5 +26,5 @@ pub fn race_over(time: u32) -> Result<(), Refused> {
         rc2k_core::net::players::raced(net.vars.own.state()),
     );
     net.vars.after_race.set(1);
-    crate::net::list_players::list_players_regs()
+    crate::net::list_players::list_players_regs(&net.vars)
 }

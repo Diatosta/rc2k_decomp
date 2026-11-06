@@ -16,7 +16,8 @@
 
 use crate::errors::Refused;
 use crate::net::lobby::PALETTE;
-use crate::net::owner::net;
+use crate::net::owner::Net;
+use crate::net::store::NetVars;
 use rc2k_core::net::screens::{self, ButtonFont};
 
 pub const FONT_PLAIN: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BUTTON;
@@ -26,6 +27,7 @@ const FONT_DIM: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BU
 /// The font of item `item`'s text: lit when it is the highlighted item and being edited
 /// or in the blink's lit half.
 pub fn item_font(
+    vars: &NetVars,
     item: u32,
     plain: crate::gfx::typefaces::FontId,
     lit: crate::gfx::typefaces::FontId,
@@ -40,7 +42,7 @@ pub fn item_font(
     if screens::item_lit(
         item,
         crate::install::owner::install().pages.choice.get(),
-        || net().vars.edited.get(),
+        || vars.edited.get(),
         blink,
     ) {
         lit
@@ -50,8 +52,14 @@ pub fn item_font(
 }
 
 /// The Rust version.
-pub fn draw_button(string: u32, flags: u32, x: u32, y: u32, item: u32) -> Result<(), Refused> {
-    let net = net();
+pub fn draw_button(
+    net: &Net,
+    string: u32,
+    flags: u32,
+    x: u32,
+    y: u32,
+    item: u32,
+) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     net.button.text.set(string);
     net.button.flags.set(flags);

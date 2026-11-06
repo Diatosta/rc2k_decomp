@@ -9,14 +9,13 @@
 //! Caller: `net::close_if_host`.
 
 use crate::net::lobby::{log, log_hex};
-use crate::net::owner::net;
+use crate::net::owner::Net;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 
 const CLOSED: u32 = 0x21; // DPSESSION_NEWPLAYERSDISABLED | DPSESSION_JOINDISABLED
 
 /// The Rust version.
-pub fn disable_new_players() {
-    let net = net();
+pub fn disable_new_players(net: &Net) {
     if net.vars.own.state() & 0x10 == 0 {
         return;
     }

@@ -7,9 +7,10 @@
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;
+use crate::net::owner::Net;
 
 /// The Rust version.
-pub fn hosting() -> Result<bool, Refused> {
+pub fn hosting(net: &Net) -> Result<bool, Refused> {
     crate::net::connecting::status(0x151)?;
-    crate::net::host_session::host_session()
+    crate::net::host_session::host_session(net)
 }

@@ -16,16 +16,17 @@
 use crate::errors::Refused;
 use crate::input::clear_device_readings::clear_device_readings;
 use crate::input::device_effects::controller;
+use crate::input::store::Devices;
 use crate::input::types::InputDevice;
 
 /// The device `record` given back.
-pub fn release_device(record: &InputDevice) -> Result<(), Refused> {
+pub fn release_device(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
     let device = record.device.get();
     if device != 0 {
-        let effects = controller(record)?.force_feedback.get() == 1;
+        let effects = controller(devices, record)?.force_feedback.get() == 1;
         crate::input::di_objects::unacquire(device);
         if effects {
-            crate::input::end_force::end_force(record)?;
+            crate::input::end_force::end_force(devices, record)?;
         }
         crate::input::di_objects::release(device);
         record.device.set(0);
@@ -37,6 +38,6 @@ pub fn release_device(record: &InputDevice) -> Result<(), Refused> {
 }
 
 /// The Rust version for Rust callers.
-pub fn release_device_in_game(record: &InputDevice) -> Result<(), Refused> {
-    release_device(record)
+pub fn release_device_in_game(devices: &Devices, record: &InputDevice) -> Result<(), Refused> {
+    release_device(devices, record)
 }
