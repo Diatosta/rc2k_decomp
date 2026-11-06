@@ -12,9 +12,9 @@
 //!   (the most bytes), and cut again if the text is then wider than `[record+6]`
 //!   (`text::measure_text` with the font of the record's kind: `byte_51D52D`, `dword_51D4C4`).
 //!
-//! The key word is the key in its low byte and its bits in the next; what comes back is
-//! that word as the caller reads it, and whether the key was a plain edit (not Escape or
-//! Enter, the keys that set bit 3). Caller `install::page_key`.
+//! The key word is the key in its low byte and its bits in the next. What comes back is
+//! an `EditOutcome`: the word as the caller goes on reading it, and whether the key was a
+//! plain edit (not Escape or Enter, the keys that end the edit). Caller `install::page_key`.
 
 use crate::errors::Refused;
 use crate::install::installer::{append_string_by_id, measure_text, rb, wb};
@@ -51,13 +51,30 @@ fn clear(text: Place, most: u32) {
     }
 }
 
-/// `key`: the key and its bits (see above). Returns the key word as the caller reads it
-/// and whether the key was a plain edit: true, but for Escape and Enter (bit 3 set).
-pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
+/// What `edit_key` tells its caller.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EditOutcome {
+    /// The key word the caller goes on reading: the key itself, with bit 3 of its bits set
+    /// when the edit ended; after an edit that took a character, the original leaves the
+    /// field's allowed width here (the callers read only the low byte as a key).
+    pub key_word: u32,
+    /// True for a key that was only an edit, false for Escape and Enter (the edit ended).
+    pub plain_edit: bool,
+}
+
+/// `key`: the key and its bits (see above).
+pub fn edit_key(key: u32, item: ListItem) -> Result<EditOutcome, Refused> {
     let text = item.text();
     let record = item.edit_field();
     let most = crate::install::folders::field_most(text, record.most()) as u32;
-    let with_bit_3 = (key | 0x800, false);
+    let plain = |key_word| EditOutcome {
+        key_word,
+        plain_edit: true,
+    };
+    let ended = EditOutcome {
+        key_word: key | 0x800,
+        plain_edit: false,
+    };
     let backspace = || {
         if rb(text) != 0 {
             wb(text.add(past_nul(text).wrapping_sub(2)), 0);
@@ -74,7 +91,7 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
                 for n in 0..most + 2 {
                     wb(text.add(n), rb(Place::from(backup).add(n)));
                 }
-                return Ok(with_bit_3);
+                return Ok(ended);
             }
             EditKey::Enter => {
                 record.set_flags(record.flags() & !EDITING);
@@ -93,17 +110,17 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
                         }
                     }
                 }
-                return Ok(with_bit_3);
+                return Ok(ended);
             }
             EditKey::Clear => {
                 clear(text, most);
-                return Ok((key, true));
+                return Ok(plain(key));
             }
             EditKey::Backspace => {
                 backspace();
-                return Ok((key, true));
+                return Ok(plain(key));
             }
-            EditKey::Arrow => return Ok((key, true)),
+            EditKey::Arrow => return Ok(plain(key)),
             EditKey::Other => {
                 let out = crate::input::key_to_char::key_to_char_for_text(key);
                 out? as u8
@@ -111,12 +128,12 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
         }
     };
     if ch < 0x20 {
-        return Ok((key, true));
+        return Ok(plain(key));
     }
     let end = past_nul(text);
     let length = end.wrapping_sub(1) as usize;
     if !edits::takes(ch, length, most as u8) {
-        return Ok((key, true));
+        return Ok(plain(key));
     }
     wb(text.add(end.wrapping_sub(1)), ch);
     wb(text.add(end), 0);
@@ -130,5 +147,5 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
     if edits::too_wide(width, widest) {
         backspace();
     }
-    Ok((widest as u32, true))
+    Ok(plain(widest as u32))
 }

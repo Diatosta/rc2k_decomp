@@ -15,12 +15,12 @@ use crate::math::x87_float::{int, ld, st};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::{Dword, MACHINE, SCREEN};
 
-/// `d3d::set_texture` (0x41ACF5): eax the texture.
+/// `d3d::set_texture` (0x41ACF5).
 pub fn set_texture(texture: u32) {
     crate::d3d::set_texture::set_texture(texture);
 }
 
-/// `d3d::set_render_state` (0x41AB5B): eax the value, ebx the state.
+/// `d3d::set_render_state` (0x41AB5B).
 pub fn set_render_state(value: u32, state: u32) {
     crate::d3d::set_render_state::set_render_state(value, state);
 }
@@ -38,9 +38,9 @@ pub fn quad_words(colour: u32) {
 }
 
 /// The quads' shared tail (0x41DDA1 ..): the texture places from the rectangle `uv`
-/// (x, y, w, h, whole numbers) x `flt_5C2C64`, and the places scaled to the screen
-/// (`g_screenWidth` x `flt_5C2C68`, `g_screenHeight` x `flt_5C2C6C`, through
-/// `dword_5183CC`).
+/// (x, y, w, h, whole numbers) times the panel's texel scale, and the corners scaled to
+/// the screen (width and height times the panel's two smaller scales, through the
+/// machine's scratch float).
 pub fn quad_tail(uv: [u32; 4]) {
     quad_tail_math(
         uv,
@@ -50,35 +50,36 @@ pub fn quad_tail(uv: [u32; 4]) {
     );
 }
 
-/// The tail's arithmetic: `s` the texture rectangle (whole numbers), `v` the four vertices,
-/// `sc` the screen size (whole numbers), `t` a scratch float (the scale
-/// `VIEWER_PANEL.texel_scale`).
-fn quad_tail_math(s: [u32; 4], v: &[Vertex], sc: [u32; 2], t: &Dword) {
-    let k = ld(VIEWER_PANEL.texel_scale.bits());
-    let whole = |n: usize| int(s[n] as i32);
-    let left = whole(0) * k;
-    v[0].u.set_bits(st(left));
-    v[2].u.set_bits(st(left));
-    let right = (whole(0) + whole(2)) * ld(VIEWER_PANEL.texel_scale.bits());
-    v[1].u.set_bits(st(right));
-    v[3].u.set_bits(st(right));
-    let top = whole(1) * ld(VIEWER_PANEL.texel_scale.bits());
-    v[0].v.set_bits(st(top));
-    v[1].v.set_bits(st(top));
-    let bottom = (whole(1) + whole(3)) * ld(VIEWER_PANEL.texel_scale.bits());
-    v[2].v.set_bits(st(bottom));
-    v[3].v.set_bits(st(bottom));
-    t.set_bits(st(
-        int(sc[0] as i32) * ld(VIEWER_PANEL.texel_scale_small.bits())
-    ));
-    for vertex in &v[..4] {
-        vertex.x.set_bits(st(ld(vertex.x.bits()) * ld(t.bits())));
+/// The tail's arithmetic: `rect` the texture rectangle (x, y, width, height, whole
+/// numbers), `vertices` the four corners (left top, right top, left bottom, right bottom),
+/// `screen` the screen size (whole numbers), `scratch` the float the screen scales pass
+/// through (stored as a single, as the original does).
+fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch: &Dword) {
+    let [x, y, width, height] = rect.map(|n| int(n as i32));
+    let texel = ld(VIEWER_PANEL.texel_scale.bits());
+    let (left, right) = (x * texel, (x + width) * texel);
+    let (top, bottom) = (y * texel, (y + height) * texel);
+    for (corner, vertex) in vertices[..4].iter().enumerate() {
+        let at_right = corner % 2 == 1;
+        let at_bottom = corner >= 2;
+        vertex.u.set_bits(st(if at_right { right } else { left }));
+        vertex.v.set_bits(st(if at_bottom { bottom } else { top }));
     }
-    t.set_bits(st(
-        int(sc[1] as i32) * ld(VIEWER_PANEL.texel_scale_smaller.bits())
+    scratch.set_bits(st(
+        int(screen[0] as i32) * ld(VIEWER_PANEL.texel_scale_small.bits())
     ));
-    for vertex in &v[..4] {
-        vertex.y.set_bits(st(ld(vertex.y.bits()) * ld(t.bits())));
+    for vertex in &vertices[..4] {
+        vertex
+            .x
+            .set_bits(st(ld(vertex.x.bits()) * ld(scratch.bits())));
+    }
+    scratch.set_bits(st(
+        int(screen[1] as i32) * ld(VIEWER_PANEL.texel_scale_smaller.bits())
+    ));
+    for vertex in &vertices[..4] {
+        vertex
+            .y
+            .set_bits(st(ld(vertex.y.bits()) * ld(scratch.bits())));
     }
 }
 

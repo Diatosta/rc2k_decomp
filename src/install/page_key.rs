@@ -31,8 +31,9 @@ pub fn page_key(key: u32, item: ListItem, list: ListMenu) -> Result<(u32, bool),
     };
     let kind = item.kind();
     let edited = items::takes_every_key(kind, || item.edit_field().flags() & 1 != 0);
-    let (eax, zero) = if edited {
-        i::edit_key::edit_key(key, item)?
+    let (key, plain_edit) = if edited {
+        let outcome = i::edit_key::edit_key(key, item)?;
+        (outcome.key_word, outcome.plain_edit)
     } else {
         let taken = match way {
             PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(item)?),
@@ -58,10 +59,10 @@ pub fn page_key(key: u32, item: ListItem, list: ListMenu) -> Result<(u32, bool),
         // cmp al, 1: another key
         (key, false)
     };
-    if crate::gfx::shots::on_byte() != 0 && eax as u8 == items::SCREENSHOT_KEY {
+    if crate::gfx::shots::on_byte() != 0 && key as u8 == items::SCREENSHOT_KEY {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
-    Ok((eax, took(zero)))
+    Ok((key, took(plain_edit)))
 }
 
 /// `jnz` out, else the key marked as taken (zero set).
