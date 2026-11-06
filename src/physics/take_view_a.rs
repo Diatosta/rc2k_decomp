@@ -16,6 +16,7 @@
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::camera_view::record;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
@@ -23,23 +24,25 @@ use crate::scene::owner::scene;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The registers it leaves are read by none of its callers.
-pub fn take_view_a(physics: &Physics, s: &ViewRecord) -> Result<(), crate::errors::BadInput> {
-    let shared = &race().shared;
-    x87_1(physics, s.offset_bits());
+pub fn take_view_a(race: &Race, s: &ViewRecord) -> Result<(), crate::errors::BadInput> {
+    x87_1(&race.physics, s.offset_bits());
     for (put, v) in copies().iter().zip(s.taken()) {
         put(v);
     }
-    physics
+    race.physics
         .camera
         .view_a_heading
-        .set(shared.car.car_heading.get());
-    let (mut eax, mut ebx) = (shared.car.car_pitch.get(), shared.car.car_roll.get());
-    if record()?.halve_tilt.get() != 0 {
+        .set(race.shared.car.car_heading.get());
+    let (mut eax, mut ebx) = (
+        race.shared.car.car_pitch.get(),
+        race.shared.car.car_roll.get(),
+    );
+    if record(&race.shared)?.halve_tilt.get() != 0 {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
-    physics.camera.view_a_pitch.set(eax);
-    physics.camera.view_a_roll.set(ebx);
+    race.physics.camera.view_a_pitch.set(eax);
+    race.physics.camera.view_a_roll.set(ebx);
     Ok(())
 }
 

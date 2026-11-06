@@ -16,6 +16,8 @@ use crate::race::owner::race;
 /// The Rust version.
 // Converted: `rc2k_core::drive::work_car::{car_slot, car_block}`.
 pub fn store_car() -> Result<(), Refused> {
-    copy_car(&race().shared.car, current_block()?);
+    let shared = &race().shared;
+    copy_car(&shared.car, current_block(shared)?);
+
     Ok(())
 }

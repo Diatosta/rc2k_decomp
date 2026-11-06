@@ -27,7 +27,7 @@ pub fn sound_hit_parts(race: &Race) -> Result<(), Refused> {
         return Ok(());
     }
     hit_tests(
-        &race.course,
+        race,
         &SOUND_TESTS,
         &shared.car.part_hit_damage,
         &mut |bit| {

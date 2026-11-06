@@ -30,21 +30,16 @@ use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::listener;
 
 /// The car file's six figures times 65536 over 1000, or the refusal (before anything).
-fn figures() -> Result<[i32; 6], Refused> {
-    let viewed = crate::race::owner::race().shared.view.drawn_view.get();
-    listener::check_viewed(viewed, || {
-        crate::race::owner::race()
-            .shared
-            .work
-            .car_block(viewed as usize)
-            != 0
-    })?;
+fn figures(shared: &Shared) -> Result<[i32; 6], Refused> {
+    let viewed = shared.view.drawn_view.get();
+    listener::check_viewed(viewed, || shared.work.car_block(viewed as usize) != 0)?;
     let n = car_file_number(crate::race::blocks_store::own_car().car_kind.get());
     rc2k_core::drive::sharing::check_light_record(n)?;
     let mut out = [0i32; 6];
@@ -61,7 +56,7 @@ fn figures() -> Result<[i32; 6], Refused> {
 pub fn set_listener(race: &Race) -> Result<(), Refused> {
     let scene = scene();
     let physics = &race.physics;
-    let f = figures()?;
+    let f = figures(&race.shared)?;
     let car = crate::race::blocks_store::own_car();
     let s = crate::race::blocks_store::block_at(
         race.shared

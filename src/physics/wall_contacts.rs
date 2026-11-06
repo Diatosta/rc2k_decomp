@@ -23,7 +23,7 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::physics::walls;
 
 fn word(face: u32) -> Result<u32, Refused> {
@@ -37,7 +37,7 @@ fn word(face: u32) -> Result<u32, Refused> {
 fn after(race: &Race) -> Result<(), Refused> {
     race.shared.car.contact_flag.set(1);
     race.shared.car.wall_hit_timer.set(0x32);
-    { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
+    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
     crate::physics::feel_ground::feel_ground(race)
 }
 
@@ -99,14 +99,12 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
 }
 
 /// The probe count checked: 0 or past 0x40 refused.
-pub fn check() -> Result<(), Refused> {
-    Ok(walls::check_probe_count(
-        race().shared.car.probe_count.get(),
-    )?)
+pub fn check(shared: &Shared) -> Result<(), Refused> {
+    Ok(walls::check_probe_count(shared.car.probe_count.get())?)
 }
 
 /// The Rust version.
 pub fn wall_contacts(race: &Race) -> Result<(), Refused> {
-    check()?;
+    check(&race.shared)?;
     steps(race)
 }

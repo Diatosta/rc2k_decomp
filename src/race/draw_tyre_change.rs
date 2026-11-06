@@ -27,7 +27,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::input::types::InputDevice;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 use crate::strings::owner::strings;
@@ -70,16 +70,14 @@ fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
 
 /// The rectangle at `dword_5C2A1C` filled with colour 0 (`gfx::fill_rect`, palette
 /// `unk_5BEC2C`).
-fn fill(x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
+fn fill(shared: &Shared, x: u32, y: u32, width: u32, height: u32) -> Result<(), Refused> {
     for (cell, v) in VIEWER_PANEL.texture_rect.iter().zip([x, y, width, height]) {
         cell.set(v);
     }
     crate::gfx::rect::fill_rect(
         crate::gfx::rect::rect_of(&VIEWER_PANEL.texture_rect),
         0,
-        crate::gfx::rect::Palette::Of(crate::pointers::GamePtr::to(
-            &race().shared.tyre_change.palette,
-        )),
+        crate::gfx::rect::Palette::Of(crate::pointers::GamePtr::to(&shared.tyre_change.palette)),
     )
 }
 
@@ -110,8 +108,7 @@ fn three_times(x: u32, y: u32) -> Result<(), Refused> {
 
 /// The Rust version, for the device `device` (esi). The registers it leaves (ebp = esi,
 /// the copy's flags) are read by no caller.
-pub fn draw_tyre_change(device: &InputDevice) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn draw_tyre_change(shared: &Shared, device: &InputDevice) -> Result<(), Refused> {
     let gfx = gfx();
     let clips = (
         clip(&gfx.drawing.blit.clip.left),
@@ -151,13 +148,18 @@ pub fn draw_tyre_change(device: &InputDevice) -> Result<(), Refused> {
             }
         }
         set_clip(&gfx.drawing.blit.clip.left, 0x80);
-        fill(0x80, 0x32, 0x80, 0x4B)?;
+        fill(shared, 0x80, 0x32, 0x80, 0x4B)?;
         { build_text(0x12E, Some(shared.tyre_change.record.get())) }?;
         three_times(0x84, 0x32)?;
         set_clip(&gfx.drawing.blit.clip.left, 0);
-        fill(0, 0x99, 0x100, 0x19)?;
+        fill(shared, 0, 0x99, 0x100, 0x19)?;
         gfx.fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0xF8);
-        text(font(), &shared.tyre_change.record_name, 4, 0x99)?;
+        text(
+            font(),
+            &crate::race::owner::race().shared.tyre_change.record_name,
+            4,
+            0x99,
+        )?;
         let x = if shared.tyre_change.player.get() == 0 {
             set_clip(&gfx.drawing.blit.clip.right, 0x7F);
             0
@@ -165,7 +167,7 @@ pub fn draw_tyre_change(device: &InputDevice) -> Result<(), Refused> {
             set_clip(&gfx.drawing.blit.clip.left, 0x80);
             0x80
         };
-        fill(x, 0xB2, 0x80, 0x4B)?;
+        fill(shared, x, 0xB2, 0x80, 0x4B)?;
         if device.stage.get() == 1 {
             let time = device.clock.get();
             { build_text(0x12D, Some(time)) }?;

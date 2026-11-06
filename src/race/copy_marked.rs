@@ -12,12 +12,12 @@
 //! outside the tables).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::viewer::move_cells;
 
 /// The Rust version: the count copied (edx), none when the marks are not in order. Of
 /// what the original leaves, its caller `viewer_action` reads only edx, in the cut.
-pub fn copy_marked() -> Result<Option<u32>, Refused> {
+pub fn copy_marked(shared: &Shared) -> Result<Option<u32>, Refused> {
     // Converted: `rc2k_core::race::viewer::clip`.
     let first = crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .mark_in
@@ -40,7 +40,7 @@ pub fn copy_marked() -> Result<Option<u32>, Refused> {
     move_cells(
         &v.clip_places,
         0,
-        &race().shared.replay_file.block_places,
+        &shared.replay_file.block_places,
         first,
         dwords,
     )?;

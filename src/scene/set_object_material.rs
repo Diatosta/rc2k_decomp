@@ -29,7 +29,7 @@
 use crate::errors::BadInput;
 use crate::math::next_random::next_random;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -53,8 +53,7 @@ fn state(course: &crate::race::owner_course::Course) -> Option<u32> {
 const STATE: u32 = 0x30;
 
 /// `sub_45079A`, on the state of face `face`.
-fn step_shape(face: u32) -> Result<(), BadInput> {
-    let shared = &race().shared;
+fn step_shape(shared: &Shared, face: u32) -> Result<(), BadInput> {
     let scene = scene();
     use crate::race::course_places::{face_field, write_face_field};
     let b: [u8; 16] = face_field(face, STATE, "an object's state")?;
@@ -87,8 +86,8 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
-    let shared = &race().shared;
+pub fn set_object_material(race: &crate::race::owner::Race) -> Result<(), BadInput> {
+    let shared = &race.shared;
     let scene = scene();
     let object: u32 = shared.switches.object_number.bits();
     if object >= OBJECTS {
@@ -98,7 +97,7 @@ pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result
     let material = crate::scene::polygon::materials_ptr()
         .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
     let way = material.offset(0x20).read::<u8>("an object's material")? as u32;
-    let state = state(course);
+    let state = state(&race.course);
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }
@@ -114,7 +113,7 @@ pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result
             .vars
             .move_by
             .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
-        step_shape(state)?;
+        step_shape(shared, state)?;
     }
     scene
         .drawing

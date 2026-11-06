@@ -12,7 +12,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
 /// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
@@ -23,8 +23,7 @@ const PALETTES: [crate::gfx::typefaces::FontId; 6] = {
 };
 
 /// The Rust version.
-pub fn viewer_palettes() -> Result<(), BadInput> {
-    let shared = &race().shared;
+pub fn viewer_palettes(shared: &Shared) -> Result<(), BadInput> {
     let textures = &scene().textures;
     // The textures and slots kept: (to, from).
     for (to, from) in [

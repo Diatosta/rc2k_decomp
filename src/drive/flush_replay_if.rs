@@ -17,7 +17,7 @@ pub fn flush_replay_if(race: &Race) -> Result<(), Refused> {
         race.course.numbers.replay_mode.get(),
         race.replay.replay_frames.tenth.get(),
     ) {
-        return crate::drive::flush_replay::flush_replay(&race.replay);
+        return crate::drive::flush_replay::flush_replay(race);
     }
     Ok(())
 }

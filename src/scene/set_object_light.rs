@@ -87,7 +87,7 @@ pub fn set_object_light(
 /// With the lamps' Rust versions.
 pub fn set_object_light_in_game(race: &crate::race::owner::Race) -> Result<(), Refused> {
     set_object_light(race, &mut || {
-        add_car_lights(&mut |car| {
+        add_car_lights(race, &mut |car| {
             add_car_light(&race.course, car);
             Ok(())
         })?;

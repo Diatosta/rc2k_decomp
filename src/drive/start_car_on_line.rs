@@ -18,8 +18,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
@@ -27,8 +27,7 @@ use rc2k_core::drive::start_places;
 
 /// `dword_605034`[start]: each car's number. The table holds 90; a start past it (the
 /// check lets up to 0x400 through) reads on into the variables after it, as the original.
-pub fn car_number(start: usize) -> Result<u32, BadInput> {
-    let shared = &race().shared;
+pub fn car_number(shared: &Shared, start: usize) -> Result<u32, BadInput> {
     crate::session::read_on_in(
         &shared.tables,
         &shared.tables.arcade_car_numbers,
@@ -41,15 +40,14 @@ pub fn car_number(start: usize) -> Result<u32, BadInput> {
 /// leaves are read by no caller (`drive::start_cars_behind` sets them again).
 // Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
 // turn stays x87).
-pub fn start_car_on_line(course: &Course, distance: u32) -> Result<(), Refused> {
-    let race = race();
+pub fn start_car_on_line(race: &Race, distance: u32) -> Result<(), Refused> {
     let lights = &scene().lights;
     let start = race.shared.tables.start_slot.get();
     start_places::check_start(start)?;
     race.shared
         .car
         .start_slot_value
-        .set(car_number(start as usize)?);
+        .set(car_number(&race.shared, start as usize)?);
     race.shared.car.driver_kind.set(start_places::STARTED_MODE);
     let checkpoint = start_places::start_checkpoint(CAR_BLOCKS.cars[0].checkpoint.get(), distance);
     for cell in [
@@ -64,14 +62,14 @@ pub fn start_car_on_line(course: &Course, distance: u32) -> Result<(), Refused> 
     let share = start_places::start_share(
         start as i32,
         race.shared.tables.arcade_cars.get() as i32,
-        course.numbers.one.get(),
+        race.course.numbers.one.get(),
         race.shared.tables.arcade_b.get(),
         race.shared.tables.arcade_a.get(),
     )
     .to_bits();
     race.shared.tables.start_share.set_bits(share);
     race.shared.car.start_share.set_bits(share);
-    crate::race::start_place::place_car_on_line(course)?;
+    crate::race::start_place::place_car_on_line(&race.course)?;
     crate::race::car_starts::reset_car_motion()?;
     race.shared.car.local_velocity[0].set_bits(0);
     race.shared.car.local_velocity[1].set_bits(0);

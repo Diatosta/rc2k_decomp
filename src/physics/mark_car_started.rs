@@ -6,12 +6,11 @@
 //!
 //! Caller: `sub_436790` (four calls).
 
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let shared = &race().shared;
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.started_stand_timer as &dyn Cell32,
         &shared.car.damage_failed,
@@ -32,6 +31,6 @@ fn core(v: &[&dyn Cell32]) {
 }
 
 /// The Rust version.
-pub fn mark_car_started() {
-    core(&game());
+pub fn mark_car_started(shared: &Shared) {
+    core(&game(shared));
 }

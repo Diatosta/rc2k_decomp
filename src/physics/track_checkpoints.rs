@@ -27,8 +27,8 @@ pub fn track_checkpoints(race: &Race) -> Result<(), Refused> {
     check_tracked(checkpoint, race.shared.car.splits_passed.get())?;
     race.shared.car.checkpoint.set(checkpoint);
     scene().lights.state.line_place.set(checkpoint);
-    { crate::physics::checkpoint_offset::checkpoint_offset(&race.course) }?;
-    crate::physics::off_line_warnings::off_line_warnings(&race.frame)?;
+    { crate::physics::checkpoint_offset::checkpoint_offset(race) }?;
+    crate::physics::off_line_warnings::off_line_warnings(race)?;
     let next = crate::race::checkpoints_store::cell_in(
         &crate::race::checkpoints_store::CHECKPOINTS.check_counts,
         race.shared.car.checkpoint.get() as usize,

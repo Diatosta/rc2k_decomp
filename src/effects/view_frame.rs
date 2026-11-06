@@ -13,9 +13,10 @@ use crate::effects::{
     aim_vector, keep_vectors, run_splines, scale_kept_vectors, shapes_frame, view_step,
 };
 use crate::errors::{BadInput, Refused};
+use crate::race::owner_shared::Shared;
 
 /// The Rust version (see the header).
-pub fn view_frame(effects: &Effects) -> Result<(), Refused> {
+pub fn view_frame(shared: &Shared, effects: &Effects) -> Result<(), Refused> {
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -25,7 +26,7 @@ pub fn view_frame(effects: &Effects) -> Result<(), Refused> {
         scale_kept_vectors::scale_kept_vectors();
         view_step::view_step();
         aim_vector::aim_vector();
-        shapes_frame::shapes_frame(&effects.masks, &effects.windscreen_drops)?;
+        shapes_frame::shapes_frame(shared, &effects.masks, &effects.windscreen_drops)?;
         run_splines::run_splines(&effects.paths)
     }
 }

@@ -31,7 +31,7 @@ pub fn play_replay_frame(race: &Race) -> Result<(), Refused> {
     };
     if whole {
         { crate::drive::load_replay_frame::load_replay_frame(&race.replay) }?;
-        crate::drive::replay_check::compare_frame(&race.replay)?;
+        crate::drive::replay_check::compare_frame(race)?;
         crate::drive::load_replay_cars::load_replay_cars();
     }
     crate::drive::replay_cameras::replay_cameras()

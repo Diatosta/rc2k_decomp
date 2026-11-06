@@ -5,7 +5,6 @@ use crate::audio::store::ENVIRONMENT;
 use crate::errors::BadInput;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::scene::owner::scene;
@@ -100,15 +99,14 @@ pub fn eax_face_weight(race: &Race, face: u32) -> Result<(), BadInput> {
 /// `race().frame.sound_spots.eax_face_count` 0, then the 3 x 3 grid cells around the middle (from
 /// `hold_to_limit(race().course.stage_prefs.grid_reach)` - 1 on each axis; `sub_45C84C` each): every face of
 /// each cell's course record (numbers below 0x0FFFFFFF) weighed by `eax_face_weight`.
-pub fn eax_environment() -> Result<(), BadInput> {
-    let race = race();
+pub fn eax_environment(race: &Race) -> Result<(), BadInput> {
     {
         ENVIRONMENT.set(0);
         race.frame.sound_spots.eax_face_count.set_bits(0u32);
         // Converted: `rc2k_core::race::view::{cells_from, record_faces}`.
         use rc2k_core::race::view::{NO_RECORD, cells_from, record_faces};
         for cell in cells_from(
-            hold_to_limit(race.course.stage_prefs.grid_reach.bits()).wrapping_sub(1),
+            hold_to_limit(&race.shared, race.course.stage_prefs.grid_reach.bits()).wrapping_sub(1),
             3,
         ) {
             // `sub_45C84C`.

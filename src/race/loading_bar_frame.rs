@@ -18,8 +18,6 @@
 //! by address goes through `routes.rs`.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
@@ -44,7 +42,6 @@ pub fn shown() -> (u64, u64) {
 
 /// The Rust version (see the header), timed.
 pub fn loading_bar_frame() -> Result<(), Refused> {
-    let course = &race().course;
     use std::sync::atomic::Ordering::Relaxed;
     // Not the original's: some 30 frames a second at most, and the last. Every step's frame
     // was 3/4 of a load (882 ms of 1231, 2026-10-30).
@@ -60,15 +57,16 @@ pub fn loading_bar_frame() -> Result<(), Refused> {
         }
         *last = Some(begun);
     }
-    let result = frame(course);
+    let result = frame();
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
 }
 
-fn frame(course: &Course) -> Result<(), Refused> {
+fn frame() -> Result<(), Refused> {
+    let race = crate::race::owner::race();
     let session = &system().session;
-    let shared = &race().shared;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
     use crate::scene::*;
     use rc2k_core::race::loading::{FRAME_MARK, frame_tried};
@@ -92,7 +90,7 @@ fn frame(course: &Course) -> Result<(), Refused> {
         shared.switches.editor_mode.set_bits(0u32);
         choose_view_window::choose_view_window();
         shared.switches.editor_mode.set_bits(framed);
-        crate::race::loading_bar_quad::loading_bar_quad(course)?;
+        crate::race::loading_bar_quad::loading_bar_quad(race)?;
         end_scene::end_scene();
         if lock_frame::lock_frame().0 < 1 {
             break 'frame false;

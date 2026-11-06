@@ -51,7 +51,8 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`
 pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let gfx_grading = &gfx().grading;
-    let course = &race().course;
+    let race = race();
+    let course = &race.course;
     let textures: u32 = scene.textures.places.totals[3].get();
     if textures == 0 || textures > TEXTURES {
         return Err(BadInput("no system textures, or more than the table has").into());
@@ -81,14 +82,14 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
         let grading = &gfx_grading;
         grading.scale.set(scale);
         grading.saturation.set(saturation);
-        load_changed_texture_picture_in_game(course, texture)?;
-        step_loading_bar(texture)?;
+        load_changed_texture_picture_in_game(race, texture)?;
+        step_loading_bar(&race.shared, texture)?;
     }
     let grading = &gfx_grading;
     grading.reading.set(0u32);
     grading.scale.set(0x100);
     grading.saturation.set(0x100);
-    load_hud_car_icons(scene)?;
+    load_hud_car_icons(scene, &race.shared)?;
     crate::logfile::log_write::log_nul(&TEXTS[2], true, 1);
     crate::logfile::log_write::log_nul(&TEXTS[3], true, 1);
     Ok(())

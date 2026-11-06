@@ -18,8 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::{Race, race};
 use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
@@ -44,8 +43,9 @@ fn wish_of(byte: usize) -> Result<u32, BadInput> {
 }
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
-fn steps(replay: &Replay) -> Result<(), Refused> {
-    let shared = &race().shared;
+fn steps(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
+    let replay = &race.replay;
     replay
         .replay_frames
         .camera_word_0
@@ -66,7 +66,8 @@ fn steps(replay: &Replay) -> Result<(), Refused> {
             WishStep::Draw(_) => {
                 REPLAY_WORK.camera_last_frame[c].set(replay.replay_view.replay_block.get());
                 // `Draw` comes only for the wishes that draw: the mode is there.
-                if let Some(mode) = { crate::drive::pick_replay_camera::pick_replay_camera(wish) }?
+                if let Some(mode) =
+                    { crate::drive::pick_replay_camera::pick_replay_camera(shared, wish) }?
                 {
                     car.camera_view.set(mode);
                 }
@@ -107,8 +108,7 @@ fn steps(replay: &Replay) -> Result<(), Refused> {
 
 /// The Rust version.
 pub fn replay_cameras() -> Result<(), Refused> {
-    let replay = &race().replay;
-    steps(replay)
+    steps(race())
 }
 
 #[cfg(test)]

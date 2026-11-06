@@ -17,6 +17,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
@@ -68,8 +69,7 @@ pub fn rules_at(v: &[&dyn Cell32]) {
     }
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let race = race();
+fn game(race: &Race) -> Vec<&dyn Cell32> {
     vec![
         &race.shared.car.tyre_change_state as &dyn Cell32,
         &race.shared.physics_tables.input_gear_down,
@@ -91,5 +91,7 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version.
 pub fn gear_input_rules() {
-    rules_at(&game());
+    let race = race();
+
+    rules_at(&game(race));
 }

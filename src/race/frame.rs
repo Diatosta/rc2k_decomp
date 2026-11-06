@@ -9,6 +9,7 @@ use crate::menu::owner::menus;
 use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
 fn block(n: u32) -> u32 {
@@ -70,14 +71,18 @@ pub fn view_car(n: usize) -> &'static crate::session::Dword {
 /// `race::load_car_a` / `_b` / `_c` (0x45422F, 0x454241, 0x454277): `g_currentCar` the
 /// view car's number, `drive::load_car`. (Its callers, `race::draw_race_scene` and
 /// `race::scroll_maps`, read no register it leaves.)
-pub fn load_view_car(n: usize) -> Result<(), Refused> {
-    with_view_car(n, crate::drive::load_car::load_car)
+pub fn load_view_car(shared: &Shared, n: usize) -> Result<(), Refused> {
+    with_view_car(shared, n, crate::drive::load_car::load_car)
 }
 
 /// `g_currentCar` the view car's number, then `then`; on a refusal `g_currentCar` is put
 /// back, so a refusing call has written nothing.
-fn with_view_car(n: usize, then: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> {
-    let current = &race().shared.work.current_car;
+fn with_view_car(
+    shared: &Shared,
+    n: usize,
+    then: impl FnOnce() -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let current = &shared.work.current_car;
     let was = current.get();
     current.set(view_car(n).get());
     let result = then();
@@ -91,7 +96,8 @@ fn with_view_car(n: usize, then: impl FnOnce() -> Result<(), Refused>) -> Result
 /// view car's number, `drive::store_car`. (Its one caller, `race::scroll_maps`, reads no
 /// register it leaves.)
 pub fn store_view_car(n: usize) -> Result<(), Refused> {
-    with_view_car(n, crate::drive::store_car::store_car)
+    let shared = &crate::race::owner::race().shared;
+    with_view_car(shared, n, crate::drive::store_car::store_car)
 }
 
 // The race keys, by scan code in `g_keysPressed`; the second view's keys is `g_keysNow`'s 0x1D
@@ -227,13 +233,13 @@ pub fn tyre_change() -> Result<(), Refused> {
         && car.tyre_change_state.get() == 0
         && car.stopped_steps.get() >= 0x12C
     {
-        tyre_change_gauge(true, 0)?;
+        tyre_change_gauge(shared, true, 0)?;
         car.tyre_change_state.set(1);
     }
     if car.tyre_change_state.get() != 1 {
         return Ok(());
     }
-    let time = tyre_change_gauge(false, 0)?;
+    let time = tyre_change_gauge(shared, false, 0)?;
     if time == 0 {
         return Ok(());
     }

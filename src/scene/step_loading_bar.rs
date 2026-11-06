@@ -10,7 +10,7 @@
 //! Refuses no function to call.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -21,29 +21,28 @@ const NOTHING: u32 = 0x4467C6; // nullsub_8
 
 // ---- Rust version ----
 
-fn ends() -> rc2k_core::scene::loading::BarEnds {
-    let [low, high] = crate::session::read_bits(&race().shared.vars.bar_span);
+fn ends(shared: &Shared) -> rc2k_core::scene::loading::BarEnds {
+    let [low, high] = crate::session::read_bits(&shared.vars.bar_span);
     rc2k_core::scene::loading::BarEnds { low, high }
 }
 
 /// The progress, or None where it is left as it is. Converted:
 /// `rc2k_core::scene::loading::BarEnds::progress`.
-fn progress(done: u32) -> Option<u32> {
+fn progress(shared: &Shared, done: u32) -> Option<u32> {
     let textures: u32 = scene().textures.places.totals[3].get();
-    ends().progress(done, textures)
+    ends(shared).progress(done, textures)
 }
 
 /// The Rust version: `done` of the system textures are done. The function
 /// `dword_623704` names is one of the two the loading puts there: `race::loading_bar_frame`
 /// (0x4467C7) or the empty function after it (0x4467C6); they read no register, so none of
 /// the original's (ebp the span, eax / edx / ebx the progress, esi the function) is passed.
-pub fn step_loading_bar(done: u32) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn step_loading_bar(shared: &Shared, done: u32) -> Result<(), Refused> {
     let show: u32 = shared.vars.bar_function.bits();
     if show == 0 {
         return Err(BadInput("no function to show the loading with").into());
     }
-    if let Some(progress) = progress(done) {
+    if let Some(progress) = progress(shared, done) {
         shared.vars.bar_share.set_bits(progress);
     }
     if show == BAR {

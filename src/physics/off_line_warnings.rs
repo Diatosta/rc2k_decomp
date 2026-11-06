@@ -16,16 +16,15 @@
 //! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
-use crate::race::owner_frame::Frame;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
 };
 use rc2k_core::physics::x87::below as x87_below;
 
 /// The counters: off, turned, their times.
-fn counters() -> [&'static crate::session::Dword; 4] {
-    let shared = &race().shared;
+fn counters(shared: &Shared) -> [&crate::session::Dword; 4] {
     [
         &shared.car.off_line_steps,
         &shared.car.turned_steps,
@@ -34,8 +33,9 @@ fn counters() -> [&'static crate::session::Dword; 4] {
     ]
 }
 
-fn load() -> Warnings {
-    let [off, turned, off_time, turned_time] = counters().map(super::super::session::Dword::get);
+fn load(shared: &Shared) -> Warnings {
+    let [off, turned, off_time, turned_time] =
+        counters(shared).map(super::super::session::Dword::get);
     Warnings {
         off,
         turned,
@@ -44,8 +44,8 @@ fn load() -> Warnings {
     }
 }
 
-fn store(w: &Warnings) {
-    for (c, v) in counters()
+fn store(shared: &Shared, w: &Warnings) {
+    for (c, v) in counters(shared)
         .into_iter()
         .zip([w.off, w.turned, w.off_time, w.turned_time])
     {
@@ -55,8 +55,7 @@ fn store(w: &Warnings) {
 
 /// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
-pub fn off_line_warnings(frame: &Frame) -> Result<(), Refused> {
-    let race = race();
+pub fn off_line_warnings(race: &Race) -> Result<(), Refused> {
     if race.shared.car.finish_flag.get() != 0 || race.shared.car.go_stand_timer.get() != 0 {
         return Ok(());
     }
@@ -73,7 +72,7 @@ pub fn off_line_warnings(frame: &Frame) -> Result<(), Refused> {
         ) as f64,
         f32::from_bits(race.shared.physics_tables.off_line_distance.bits()) as f64,
     );
-    let mut w = load();
+    let mut w = load(&race.shared);
     w.count_off(off_line(near, || {
         spread(cp, race.shared.car.reset_checkpoint.get())
     }));
@@ -84,7 +83,7 @@ pub fn off_line_warnings(frame: &Frame) -> Result<(), Refused> {
         ),
         race.shared.physics_tables.off_line_word.get(),
     );
-    store(&w);
+    store(&race.shared, &w);
     if race.shared.replay_file.hold_car_revs.get() != 0 {
         return Ok(());
     }
@@ -102,7 +101,7 @@ pub fn off_line_warnings(frame: &Frame) -> Result<(), Refused> {
     ] {
         if let Some(next) = cue_due(count.get(), time.get()) {
             time.set(next);
-            crate::physics::cue_listed_car_sound::cue_listed_car_sound(frame, cue)?;
+            crate::physics::cue_listed_car_sound::cue_listed_car_sound(race, cue)?;
         }
     }
     Ok(())

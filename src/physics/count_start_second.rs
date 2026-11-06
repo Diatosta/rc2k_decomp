@@ -8,19 +8,17 @@
 //!
 //! Caller: `sub_436790` (four calls).
 
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 use rc2k_core::physics::start::CarStart;
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let shared_store = &race().shared;
-
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
-        &shared_store.car.tyre_change_state as &dyn Cell32,
-        &shared_store.car.false_start_count,
-        &shared_store.car.run_ticks,
-        &shared_store.car.finish_flag,
-        &shared_store.car.stage_time,
+        &shared.car.tyre_change_state as &dyn Cell32,
+        &shared.car.false_start_count,
+        &shared.car.run_ticks,
+        &shared.car.finish_flag,
+        &shared.car.stage_time,
     ]
 }
 
@@ -41,6 +39,6 @@ fn core(v: &[&dyn Cell32]) {
 }
 
 /// The Rust version.
-pub fn count_start_second() {
-    core(&game());
+pub fn count_start_second(shared: &Shared) {
+    core(&game(shared));
 }

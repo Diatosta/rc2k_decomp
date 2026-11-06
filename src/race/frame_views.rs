@@ -12,6 +12,7 @@ use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
+use crate::race::owner_shared::Shared;
 use crate::race::trap::{Trap, car_at};
 use crate::scene::owner::scene;
 use crate::system::owner::system;
@@ -94,7 +95,7 @@ pub fn mirror_view_window(race: &Race) -> Result<(), Refused> {
     scene.drawing.scene.cleared_rectangle[3].set(y.wrapping_add(sy));
     scene.drawing.scene.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window();
-    crate::race::frame_draw::set_up_fog()?;
+    crate::race::frame_draw::set_up_fog(race)?;
     scene.lights.state.draw_mode.set(0);
     race.physics.ground.view_mirrored.set(1);
     Ok(())
@@ -266,8 +267,9 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 /// `byte_4F6B74` uploaded (`sub_44E828`, esi `dword_A12AE4`, eax the slot). Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a null
 /// view block or a slot past 0x3FF.
-pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn forget_view_textures(race: &Race) -> Result<(), Refused> {
+    let frame = &race.frame;
+    let shared = &race.shared;
     let textures = &scene().textures;
     // Converted: `rc2k_core::race::view_steps::{FORGET_ORDER, forgets, mirror_on,
     // check_slots}` (each switch read where the original reads it).
@@ -362,8 +364,7 @@ pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
 }
 
 /// The quad's corners the view window's size from (0, 0).
-fn window_corners() {
-    let shared = &race().shared;
+fn window_corners(shared: &Shared) {
     let drawing = &scene().drawing;
     shared.vars.quad_corners[0].set(0);
     shared.vars.quad_corners[4].set(0);
@@ -381,7 +382,7 @@ pub fn draw_screen_tint(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
     if race.shared.work.in_credits.get() != 0 {
         race.shared.vars.quad_colour[1].set(NIGHT_ALPHA);
-        window_corners();
+        window_corners(&race.shared);
         race.shared.vars.quad_colour[0].set(NIGHT_COLOUR);
         return crate::scene::draw_tinted_quad::draw_tinted_quad();
     }
@@ -390,7 +391,7 @@ pub fn draw_screen_tint(race: &Race) -> Result<(), Refused> {
     race.shared.vars.quad_colour[1].set(a);
     let mut done = Ok(());
     if a != 0 {
-        window_corners();
+        window_corners(&race.shared);
         // The two glare bytes (byte_60A574, byte_60A578): the low bytes of two dwords.
         let byte = |k: usize| race.course.stage_prefs.unknown_18c0[k].get() as u8;
         race.shared.vars.quad_colour[0].set(glare_colour(

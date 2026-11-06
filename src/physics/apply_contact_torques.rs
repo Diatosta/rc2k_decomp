@@ -12,14 +12,14 @@
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;
 use crate::physics::tables_store::ForceRecord;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 const COUNT: usize = 7;
 
 /// The Rust core, the switch given, `run` doing the records (`apply_torques`).
-pub fn apply_contact_torques_with(
+pub fn apply_contact_torques_with<'a>(
     switch: u32,
-    records: &'static [ForceRecord],
-    run: impl FnOnce(&'static [ForceRecord]) -> Result<(), Refused>,
+    records: &'a [ForceRecord],
+    run: impl FnOnce(&'a [ForceRecord]) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     if switch != 0 {
         return Ok(());
@@ -28,12 +28,10 @@ pub fn apply_contact_torques_with(
 }
 
 /// The Rust version.
-pub fn apply_contact_torques() -> Result<(), Refused> {
-    let shared_store = &race().shared;
-
+pub fn apply_contact_torques(race: &Race) -> Result<(), Refused> {
     apply_contact_torques_with(
-        shared_store.physics_tables.contact_step.get(),
-        &shared_store.physics_tables.contacts[..COUNT],
-        apply_torques,
+        race.shared.physics_tables.contact_step.get(),
+        &race.shared.physics_tables.contacts[..COUNT],
+        |records| apply_torques(race, records),
     )
 }

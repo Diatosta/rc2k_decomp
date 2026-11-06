@@ -36,7 +36,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::owner::race;
 use crate::scene::face_faces_away::face_faces_away;
 use crate::scene::face_sort_key::face_sort_key;
 use crate::scene::owner::scene;
@@ -50,14 +49,14 @@ const LIST_ROOM: u32 = 0x1000;
 // ---- Rust version ----
 
 /// The game's variables the tests read and write.
-struct GameFace(crate::scene::reading::Reading);
+struct GameFace<'a>(&'a crate::race::owner::Race, crate::scene::reading::Reading);
 
-impl FaceWorld for GameFace {
+impl FaceWorld for GameFace<'_> {
     fn in_race(&self) -> bool {
-        race().course.numbers.in_race.bits() != 0
+        self.0.course.numbers.in_race.bits() != 0
     }
     fn object(&self) -> u32 {
-        race().shared.switches.object_number.bits()
+        self.0.shared.switches.object_number.bits()
     }
     fn object_kind(&self, object: u32) -> u32 {
         scene().objects.tables.object_kind(object)
@@ -67,7 +66,7 @@ impl FaceWorld for GameFace {
     }
     fn kind_groups(&self, place: usize) -> [u32; 2] {
         // `dword_5C90DC`, `dword_5C90E0`: groups [6] and [7] of the place's record.
-        self.0.keep(
+        self.1.keep(
             LIGHT_RECORDS
                 .record_ptr(place as u32)
                 .offset(0x70)
@@ -75,24 +74,24 @@ impl FaceWorld for GameFace {
         )
     }
     fn hidden_groups(&self) -> [u32; 2] {
-        crate::session::read_first(&race().course.course.group_masks[13..15])
+        crate::session::read_first(&self.0.course.course.group_masks[13..15])
     }
     fn set_hidden_groups(&mut self, groups: [u32; 2]) {
-        crate::session::write_first(&race().course.course.group_masks[13..15], &groups);
+        crate::session::write_first(&self.0.course.course.group_masks[13..15], &groups);
     }
     fn other_groups(&self) -> [u32; 2] {
-        [15, 16].map(|k| race().course.course.group_masks[k].get())
+        [15, 16].map(|k| self.0.course.course.group_masks[k].get())
     }
     fn group_mask(&self) -> u32 {
-        race().shared.switches.group_mask.bits()
+        self.0.shared.switches.group_mask.bits()
     }
     fn mask_kind(&self) -> u32 {
-        race().shared.switches.mask_kind.bits()
+        self.0.shared.switches.mask_kind.bits()
     }
     fn group_table(&self, group: u32) -> u32 {
         let draw_switches = &scene().draw_switches;
         // The table is typed by its first dword only.
-        self.0.keep(crate::session::read_on_in(
+        self.1.keep(crate::session::read_on_in(
             draw_switches,
             std::slice::from_ref(&draw_switches.group_table),
             group as usize,
@@ -100,37 +99,34 @@ impl FaceWorld for GameFace {
         ))
     }
     fn no_second_mask(&self) -> u32 {
-        race().shared.car.camera_switch_active.bits()
+        self.0.shared.car.camera_switch_active.bits()
     }
     fn second_mask(&self) -> u32 {
-        race().frame.view_and_records.view_vars.group_mask.bits()
+        self.0.frame.view_and_records.view_vars.group_mask.bits()
     }
     fn lone_group(&self) -> u32 {
-        race().course.course.group_masks[17].bits()
+        self.0.course.course.group_masks[17].bits()
     }
     fn lone_group_on(&self) -> u32 {
         scene().lights.work.marks_mask.bits()
     }
     fn groups_which(&self) -> u32 {
-        race().frame.sound_spots.groups_which.bits()
+        self.0.frame.sound_spots.groups_which.bits()
     }
     fn see_through_on(&self) -> u32 {
-        race().physics.ground.object_fading.bits()
+        self.0.physics.ground.object_fading.bits()
     }
     fn see_through_value(&self) -> u32 {
-        race().physics.ground.object_fade[0].bits()
+        self.0.physics.ground.object_fade[0].bits()
     }
     fn set_see_through(&mut self, value: u32) {
-        race().physics.ground.object_see_through.set_bits(value);
+        self.0.physics.ground.object_see_through.set_bits(value);
     }
     fn line_value(&self, extra: u32) -> Result<u32, rc2k_core::Invalid> {
         {
-            let which: u32 = race().frame.view_and_records.view_vars.drawn_car.bits();
+            let which: u32 = self.0.frame.view_and_records.view_vars.drawn_car.bits();
             let block: u32 = if which < BLOCKS {
-                crate::race::owner::race()
-                    .shared
-                    .work
-                    .car_block(which as usize)
+                self.0.shared.work.car_block(which as usize)
             } else {
                 0
             };
@@ -147,7 +143,7 @@ impl FaceWorld for GameFace {
     }
     fn kind_byte(&self, kind: u32) -> u32 {
         let objects = &scene().objects;
-        self.0.keep(crate::session::read_on_in(
+        self.1.keep(crate::session::read_on_in(
             &objects.tables,
             &objects.tables.car_mark_textures,
             kind as usize,
@@ -180,9 +176,9 @@ pub fn list_object_face(race: &crate::race::owner::Race, face: usize) -> Result<
     }
     physics.ground.object_see_through.set_bits(0x100u32);
     let bytes = face_bytes(face)?;
-    let mut world = GameFace(crate::scene::reading::Reading::new());
+    let mut world = GameFace(race, crate::scene::reading::Reading::new());
     let answer = dropped(&mut world, bytes);
-    world.0.finish()?;
+    world.1.finish()?;
     match answer {
         Ok(true) => return Ok(()),
         Ok(false) => {}

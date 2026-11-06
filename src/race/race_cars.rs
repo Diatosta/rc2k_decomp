@@ -10,16 +10,15 @@ use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::owner_course::Course;
-use crate::race::owner_physics::Physics;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::{Cell32, Dword};
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
 /// Player n's (0, 1) kind, tyre and colours word: `car_kinds[n]`, `car_tyres[n]`,
 /// `car_colours[n]`.
-fn player_kinds(n: usize) -> [&'static Dword; 3] {
-    let v = &race().shared.vars;
+fn player_kinds(shared: &Shared, n: usize) -> [&Dword; 3] {
+    let v = &shared.vars;
     [&v.race_car_kinds[n], &v.car_tyres[n], &v.car_colours[n]]
 }
 /// The text the digits are read from (`byte_6047B8`, 0x708 bytes).
@@ -70,8 +69,9 @@ fn reset_block(n: u32, cars: u32, number: u32) -> Vec<(Field, u32)> {
 /// +0x25C 1 for the race's cars (`g_raceCars`, unsigned) else 0, +0x38 1, +0x8C
 /// `dword_601430` x 100, the others in `CLEARED` 0; then each block's +0x24 (fixed
 /// addresses) its kind from `g_raceCarKinds`.
-pub fn reset_car_blocks(physics: &Physics) -> Result<(), BadInput> {
-    let shared = &race().shared;
+pub fn reset_car_blocks(race: &Race) -> Result<(), BadInput> {
+    let physics = &race.physics;
+    let shared = &race.shared;
     use rc2k_core::race::cars::CAR_BLOCKS as BLOCK_COUNT;
     {
         let cars: u32 = shared.view.race_cars.bits();
@@ -94,8 +94,7 @@ pub fn reset_car_blocks(physics: &Physics) -> Result<(), BadInput> {
 /// `race::drop_absent_player` (0x436402): unless `dword_62389C` is 2 or 4, with
 /// `dword_63DB94` 2 (two players): the first player whose block's +0xB0 is not 0 (the
 /// first, else the second) is out: +0x25C 0, +0xFA8 1. Every register kept.
-pub fn drop_absent_player() {
-    let shared = &race().shared;
+pub fn drop_absent_player(shared: &Shared) {
     // Converted: `rc2k_core::race::cars::absent_player`.
     {
         let out = rc2k_core::race::cars::absent_player(
@@ -112,11 +111,11 @@ pub fn drop_absent_player() {
 
 /// `race::set_player_car_kinds` (0x43670F): the two players' blocks' +0x24, +0x2C, +0x38
 /// from `PLAYER_KINDS`. Every register kept.
-pub fn set_player_car_kinds() {
+pub fn set_player_car_kinds(shared: &Shared) {
     for n in 0..2 {
         let car = &CAR_BLOCKS.cars[n];
         let to = [&car.car_kind, &car.tyre_kind, &car.gearbox_kind];
-        for (to, from) in to.into_iter().zip(player_kinds(n)) {
+        for (to, from) in to.into_iter().zip(player_kinds(shared, n)) {
             to.set(from.get());
         }
     }
@@ -124,17 +123,17 @@ pub fn set_player_car_kinds() {
 
 /// The cars' data text from its start, as the original reads it (past the buffer's end
 /// too).
-fn text_data() -> Result<crate::pointers::GameBytes, BadInput> {
-    GamePtr::to(&race().shared.tables.car_data_text).bytes("the cars' data text")
+fn text_data(shared: &Shared) -> Result<crate::pointers::GameBytes, BadInput> {
+    GamePtr::to(&shared.tables.car_data_text).bytes("the cars' data text")
 }
 
 /// `race::set_up_race_cars` (0x4364AD): `reset_car_blocks`, `drop_absent_player`,
 /// `set_player_car_kinds`.
-pub fn set_up_race_cars(physics: &Physics) -> Result<(), BadInput> {
-    reset_car_blocks(physics)?;
+pub fn set_up_race_cars(race: &Race) -> Result<(), BadInput> {
+    reset_car_blocks(race)?;
     {
-        drop_absent_player();
-        set_player_car_kinds();
+        drop_absent_player(&race.shared);
+        set_player_car_kinds(&race.shared);
     }
     Ok(())
 }
@@ -182,13 +181,14 @@ fn word(n: usize) -> &'static std::ffi::CStr {
 /// numbers four apart (`parse_3_digits`) into `g_stageCarNumbers` and summed into
 /// `g_stageCarTotal`, up to the text's end or a non-digit. Refuses more than 0x100
 /// numbers (worked out before anything is written).
-pub fn read_stage_car_numbers(physics: &Physics) -> Result<(), Refused> {
+pub fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
+    let physics = &race.physics;
     // Converted: `rc2k_core::race::stage::stage_car_numbers`.
     let len = TEXT_LEN as u32;
     let found = rc2k_core::race::stage::stage_car_numbers(
-        &text_data()?,
+        &text_data(&race.shared)?,
         len,
-        race().shared.vars.stage_number.bits(),
+        race.shared.vars.stage_number.bits(),
     )?;
     crate::files::state::BYTES_READ.set(len);
     let mut total = 0u32;
@@ -206,10 +206,11 @@ pub fn read_stage_car_numbers(physics: &Physics) -> Result<(), Refused> {
 /// +0x30 its h, +0x34 its s, +0x28 its +0xC less one, +0x2C its +8, each logged with its
 /// range, then a line break. Refuses stage 0x14 (the original's `sub` then makes an index
 /// of 0x9999999B: a read far outside), before anything.
-pub fn auto_set_up_car(course: &Course, b: u32) -> Result<(), Refused> {
+pub fn auto_set_up_car(race: &Race, b: u32) -> Result<(), Refused> {
+    let course = &race.course;
     {
         // Converted: `rc2k_core::race::cars::set_up_pick`.
-        let stage: u32 = race().shared.vars.stage_number.bits();
+        let stage: u32 = race.shared.vars.stage_number.bits();
         let pick = rc2k_core::race::cars::set_up_pick(stage)?;
         let car = crate::race::trap::car_at(b)?;
         car.brake_balance.set(0x80);
@@ -252,10 +253,11 @@ pub fn auto_set_up_car(course: &Course, b: u32) -> Result<(), Refused> {
 
 /// `dword_75AD2C` / `dword_75AE98` held for a block's +0x3C: below 0 is 0, 100 or more
 /// 0x100, else times 2.56 (`fild` / `fmul` / `fistp`).
-fn brake_value(course: &Course, n: usize) -> u32 {
+fn brake_value(race: &Race, n: usize) -> u32 {
+    let course = &race.course;
     // Converted: `rc2k_core::race::cars::held_brake` (the product the x87's).
     rc2k_core::race::cars::held_brake(
-        race().shared.state.settings.cars[n]
+        race.shared.state.settings.cars[n]
             .steering_sensitivity
             .get() as i32,
         |v| crate::math::x87::int_times_to_int(v, course.numbers.brake_scale.bits()) as u32,
@@ -273,26 +275,23 @@ pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::cars::{every_car_set_up, held_brake}`.
         let cars: u32 = race.shared.view.race_cars.bits();
         let all = rc2k_core::race::cars::every_car_set_up(net().vars.session.get() != 0, cars)?;
-        reset_car_blocks(&race.physics)?;
+        reset_car_blocks(race)?;
         if !all {
-            drop_absent_player();
-            set_player_car_kinds();
+            drop_absent_player(&race.shared);
+            set_player_car_kinds(&race.shared);
             for n in 0..2 {
-                auto_set_up_car(
-                    &race.course,
-                    crate::race::blocks_store::block_addr(n as usize),
-                )?;
+                auto_set_up_car(race, crate::race::blocks_store::block_addr(n as usize))?;
             }
             for n in 0..2 {
                 CAR_BLOCKS.cars[n]
                     .steering_sensitivity
-                    .set_bits(brake_value(&race.course, n));
+                    .set_bits(brake_value(race, n));
             }
         } else {
             for n in 0..cars {
-                auto_set_up_car(&race.course, race.shared.work.car_block(n as usize))?;
+                auto_set_up_car(race, race.shared.work.car_block(n as usize))?;
             }
-            set_player_car_kinds();
+            set_player_car_kinds(&race.shared);
         }
     }
     Ok(())
@@ -300,12 +299,12 @@ pub fn set_up_mode_0_cars(race: &Race) -> Result<(), Refused> {
 
 /// `race::set_up_mode_1_cars` (0x43645B): `reset_car_blocks`, `drop_absent_player`,
 /// `set_player_car_kinds`; the two players' +0x88 from `dword_75B004` / `dword_75B008`.
-pub fn set_up_mode_1_cars(physics: &Physics) -> Result<(), BadInput> {
-    let shared = &race().shared;
+pub fn set_up_mode_1_cars(race: &Race) -> Result<(), BadInput> {
+    let shared = &race.shared;
     {
-        reset_car_blocks(physics)?;
-        drop_absent_player();
-        set_player_car_kinds();
+        reset_car_blocks(race)?;
+        drop_absent_player(&race.shared);
+        set_player_car_kinds(&race.shared);
         for (n, from) in [
             &shared.state.results.service_spent_current,
             &shared.state.results.service_spent_first,
@@ -321,15 +320,15 @@ pub fn set_up_mode_1_cars(physics: &Physics) -> Result<(), BadInput> {
 
 /// `race::set_up_mode_4_cars` (0x43647F): `g_raceCars`, `dword_63DB94`, `dword_63DB98`
 /// 1; `reset_car_blocks`, `drop_absent_player`, `set_player_car_kinds`.
-pub fn set_up_mode_4_cars(physics: &Physics) -> Result<(), BadInput> {
-    let shared = &race().shared;
+pub fn set_up_mode_4_cars(race: &Race) -> Result<(), BadInput> {
+    let shared = &race.shared;
     {
         shared.view.race_cars.set_bits(1u32);
         shared.view.players.set_bits(1u32);
         shared.view.views.set_bits(1u32);
-        reset_car_blocks(physics)?;
-        drop_absent_player();
-        set_player_car_kinds();
+        reset_car_blocks(race)?;
+        drop_absent_player(&race.shared);
+        set_player_car_kinds(&race.shared);
     }
     Ok(())
 }
@@ -339,8 +338,8 @@ pub fn set_up_mode_4_cars(physics: &Physics) -> Result<(), BadInput> {
 /// `race::clear_race_tables` (0x4632D4): entries 9 .. 0 of the thirteen tables 0 (four
 /// of them overlap, one dword apart: the points' tables from entries 0 .. 3). Every
 /// register kept (`pusha` / `popa`).
-pub fn clear_race_tables() {
-    let w = &race().shared.work;
+pub fn clear_race_tables(shared: &Shared) {
+    let w = &shared.work;
     let tables: [(&[Dword], usize); 13] = [
         (&w.driver_bend_to, 0),
         (&w.driver_bend_noted, 0),
@@ -530,8 +529,8 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     race.shared.view.views.set_bits(1u32);
     race.shared.view.players.set_bits(1u32);
     race.shared.view.race_cars.set_bits(4u32);
-    reset_car_blocks(&race.physics)?;
-    drop_absent_player();
+    reset_car_blocks(race)?;
+    drop_absent_player(&race.shared);
     for n in 1..4 {
         CAR_BLOCKS.cars[n as usize]
             .steering_sensitivity
@@ -540,7 +539,7 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     for n in 1..4 {
         CAR_BLOCKS.cars[n as usize].driver_kind.set_bits(0u32);
     }
-    set_player_car_kinds();
+    set_player_car_kinds(&race.shared);
     race.shared
         .physics_tables
         .noise_state
@@ -572,16 +571,13 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
         race.shared.tables.arcade_car_numbers[car as usize].set(other);
         race.shared.tables.arcade_car_numbers[other_car as usize].set(mine);
     }
-    clear_race_tables();
+    clear_race_tables(&race.shared);
     for n in 0..4 {
-        auto_set_up_car(
-            &race.course,
-            crate::race::blocks_store::block_addr(n as usize),
-        )?;
+        auto_set_up_car(race, crate::race::blocks_store::block_addr(n as usize))?;
     }
     CAR_BLOCKS.cars[0]
         .steering_sensitivity
-        .set_bits(brake_value(&race.course, 0));
+        .set_bits(brake_value(race, 0));
     let lead = &CAR_BLOCKS.cars[0];
     for cell in [&lead.pace_placed, &lead.pace_cars[0], &lead.pace_cars[1]] {
         cell.set(0);
@@ -618,7 +614,6 @@ const PLAYER_RESETS: [(Field, u32); 6] = [
 /// by no caller (conversion phase 3, 2026-10-24).
 pub fn set_up_cars() -> Result<(), Refused> {
     let race = race();
-    let physics = &race.physics;
     text(c"gamemode", false);
     number(race.shared.vars.run_kind.bits(), true);
     // Converted: `rc2k_core::race::cars::cars_steps`.
@@ -631,13 +626,13 @@ pub fn set_up_cars() -> Result<(), Refused> {
     }
     for &step in cars_steps(race.shared.vars.run_kind.bits()) {
         match step {
-            CarsStep::Numbers => read_stage_car_numbers(physics)?,
+            CarsStep::Numbers => read_stage_car_numbers(race)?,
             CarsStep::Times => set_car_times(race)?,
             CarsStep::SetUp(0) => set_up_mode_0_cars(race)?,
-            CarsStep::SetUp(1) => set_up_mode_1_cars(physics)?,
+            CarsStep::SetUp(1) => set_up_mode_1_cars(race)?,
             CarsStep::SetUp(2) => set_up_mode_2_cars(race)?,
-            CarsStep::SetUp(3) => set_up_race_cars(physics)?,
-            CarsStep::SetUp(_) => set_up_mode_4_cars(physics)?,
+            CarsStep::SetUp(3) => set_up_race_cars(race)?,
+            CarsStep::SetUp(_) => set_up_mode_4_cars(race)?,
             CarsStep::ClearArcadeTable => {
                 for k in 0..0x40 {
                     race.physics.split_tables.kept_times[k].set(0);
@@ -659,14 +654,15 @@ const SETUP_ARCADE_WORD_RVA: &std::ffi::CStr = c"SETUPARCADECARS"; // "SETUPARCA
 
 /// The kinds a draw (0 .. 0x21) can give that `choose_arcade_opponents` takes: usable
 /// (`kind_unusable` clear) and within 5 places (`index_of_kind`) of the first car's.
-fn opponent_kinds(first: u32) -> Result<Vec<u32>, BadInput> {
+fn opponent_kinds(shared: &Shared, first: u32) -> Result<Vec<u32>, BadInput> {
     use crate::race::race_shell::{index_of_kind, kind_unusable};
     {
-        let first_place = index_of_kind(first)?;
+        let first_place = index_of_kind(shared, first)?;
         let mut kinds = Vec::new();
         for k in 0..0x22u32 {
             if !kind_unusable(k).0
-                && rc2k_core::race::cars::opponent_distance(index_of_kind(k)?, first_place).1
+                && rc2k_core::race::cars::opponent_distance(index_of_kind(shared, k)?, first_place)
+                    .1
                 && k != first
             {
                 kinds.push(k);
@@ -682,17 +678,16 @@ fn opponent_kinds(first: u32) -> Result<Vec<u32>, BadInput> {
 /// usable, within 5 places of the first's and not taken: the second, third and fourth
 /// cars' (`dword_62385C`, `60`, `64`), each logged with its place. Refuses, before
 /// anything, a first kind with fewer than three such kinds (the original draws for ever).
-pub fn choose_arcade_opponents() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn choose_arcade_opponents(shared: &Shared) -> Result<(), Refused> {
     use crate::race::race_shell::{index_of_kind, kind_unusable};
     if shared.vars.run_kind.bits() != 2 {
         return Ok(());
     }
     let first: u32 = shared.vars.race_car_kinds[0].bits();
-    if opponent_kinds(first)?.len() < 3 {
+    if opponent_kinds(shared, first)?.len() < 3 {
         return Err(BadInput("fewer than three opponents can be drawn").into());
     }
-    let first_place = index_of_kind(first)?;
+    let first_place = index_of_kind(shared, first)?;
     text(SEED_WORD_RVA, false);
     number(shared.tables.noise_seed.bits(), true);
     text(OPPONENT_WORDS[0], false);
@@ -716,7 +711,7 @@ pub fn choose_arcade_opponents() -> Result<(), Refused> {
             if kind_unusable(kind).0 {
                 continue;
             }
-            let place = index_of_kind(kind)?;
+            let place = index_of_kind(shared, kind)?;
             let (_, close) = rc2k_core::race::cars::opponent_distance(place, first_place);
             if !close || taken.contains(&kind) {
                 continue;
@@ -743,7 +738,7 @@ pub fn set_up_arcade_cars() -> Result<(), Refused> {
         text(SETUP_ARCADE_WORD_RVA, true);
         let indent = crate::logfile::write_line::state::INDENT.atomic();
         indent.fetch_add(3, std::sync::atomic::Ordering::Relaxed);
-        choose_arcade_opponents()?;
+        choose_arcade_opponents(shared)?;
         indent.fetch_sub(3, std::sync::atomic::Ordering::Relaxed);
         shared.view.race_cars.set_bits(4u32);
     }

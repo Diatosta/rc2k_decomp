@@ -25,50 +25,46 @@ use crate::math::x87_run::ext_to_int;
 use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::gear_change_sound::gear_change_sound;
 use crate::race::owner::Race;
-use crate::race::owner_course::Course;
 use crate::scene::matrix3::extended;
 use crate::scene::owner::scene;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
 /// 0x43DC72 .. 0x43DCC6: the speed figures (the original's `test` / `jz` is the `if`).
-fn run(course: &Course) {
-    run_at(course);
+fn run(race: &Race) {
+    run_at(race);
 }
 
 /// The run over the work car's figures:
 /// +0x31AEE0 the speed x `flt_5C5D00`; +0x31AA88 that (x `flt_5C5E08` with bit 8 of
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
 /// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
-fn run_at(course: &Course) {
-    let shared_store = &crate::race::owner::race().shared;
-
-    shared_store
+fn run_at(race: &Race) {
+    race.shared
         .car
         .engine_speed_scaled
-        .set_bits(st(ld(shared_store.car.local_velocity[2].bits())
-            * ld(course.numbers.two_and_a_quarter.bits())));
-    let speed = ld(shared_store.car.engine_speed_scaled.bits());
-    let flags = shared_store.car.option_bits.get();
+        .set_bits(st(ld(race.shared.car.local_velocity[2].bits())
+            * ld(race.course.numbers.two_and_a_quarter.bits())));
+    let speed = ld(race.shared.car.engine_speed_scaled.bits());
+    let flags = race.shared.car.option_bits.get();
     let scaled = if flags & 0x100 != 0 {
-        speed * ld(course.numbers.kilometres_in_mile.bits())
+        speed * ld(race.course.numbers.kilometres_in_mile.bits())
     } else {
         speed
     };
-    shared_store
+    race.shared
         .car
         .engine_sound_speed_int
         .set_bits(to_int(scaled) as u32);
     let (z, x, y) = (
-        ld(shared_store.car.velocity[2].bits()),
-        ld(shared_store.car.velocity[0].bits()),
-        ld(shared_store.car.velocity[1].bits()),
+        ld(race.shared.car.velocity[2].bits()),
+        ld(race.shared.car.velocity[0].bits()),
+        ld(race.shared.car.velocity[1].bits()),
     );
     let sum = z * z + (x * x + y * y);
-    shared_store
-        .car
-        .sound_speed
-        .set_bits(st(sum.sqrt() * ld(course.numbers.two_and_a_quarter.bits())));
+    race.shared.car.sound_speed.set_bits(st(
+        sum.sqrt() * ld(race.course.numbers.two_and_a_quarter.bits())
+    ));
 }
 
 /// The Rust version.
@@ -79,7 +75,7 @@ pub fn engine_sound(race: &Race) -> Result<(), Refused> {
     if race.shared.view.players.get() == 1 && race.shared.view.view_block(0) == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }
-    run(&race.course);
+    run(race);
     drawing
         .scene
         .scratch
@@ -100,12 +96,13 @@ pub fn engine_sound(race: &Race) -> Result<(), Refused> {
     );
     race.shared.car.engine_sound_revs.set(revs);
     { car_sound_state(race) }?;
-    gear_change_sound()
+    gear_change_sound(&race.shared)
 }
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     reference!(ref_0(rc)
@@ -149,7 +146,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0]) },
-            plain: |_| run_at(&crate::race::owner::race().course),
+            plain: |_| run_at(race()),
         }];
         sparse(&blocks, 4000, 200);
     }

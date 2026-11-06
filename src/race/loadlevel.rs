@@ -169,7 +169,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     level::set_course_number(race.shared.vars.stage_number.bits())?;
     s.progress(6)?;
     s.indent(-3);
-    s.step(&mut || stage_prefs::load_prefs(&race.course), Some(7))?;
+    s.step(&mut || stage_prefs::load_prefs(race), Some(7))?;
     s.step(&mut || level::load_error_list(&race.frame), Some(8))?;
     s.step(
         &mut || crate::scene::texture_levels::init_texture_levels(),
@@ -200,7 +200,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     race.shared.vars.bar_span[1].set(0x50); // dword_623638
     s.indent(-3);
     s.step(
-        &mut || crate::race::set_all_plates::set_all_plates(&race.course),
+        &mut || crate::race::set_all_plates::set_all_plates(race),
         Some(0x50),
     )?;
     // loadgamemap.
@@ -269,7 +269,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     // initmud: mark 0x64 twice, then the callback put away.
     s.log();
     s.indent(3);
-    crate::race::mud::init_mud(&race.course)?;
+    crate::race::mud::init_mud(race)?;
     s.progress(0x64)?;
     s.progress(0x64)?;
     race.shared.vars.bar_function.set_bits(BAR_DONE);
@@ -287,9 +287,9 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     crate::race::norms::store_norms(race, &mut crate::race::norms::game_normal)?;
     if race.replay.finish.no_place.get() == 0 {
         s.indent(-3);
-        s.step(&mut || level::init_checkpoints(&race.physics), None)?;
+        s.step(&mut || level::init_checkpoints(race), None)?;
         s.step(
-            &mut || crate::race::init_pace_notes::init_pace_notes(),
+            &mut || crate::race::init_pace_notes::init_pace_notes(&race.shared),
             None,
         )?;
         s.log();

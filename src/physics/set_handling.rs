@@ -17,17 +17,12 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::int_lerp;
 use crate::physics::grade_or_reset::grade_or_reset;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// (out, setting, hi, lo) in the original's order, but the drive kind's.
-fn before() -> [(
-    &'static Float,
-    &'static Dword,
-    &'static Float,
-    &'static Float,
-); 4] {
-    let race = race();
+fn before(race: &Race) -> [(&Float, &Dword, &Float, &Float); 4] {
     [
         (
             &race.shared.physics_tables.handling[8],
@@ -55,13 +50,7 @@ fn before() -> [(
         ),
     ]
 }
-fn after() -> [(
-    &'static Float,
-    &'static Dword,
-    &'static Float,
-    &'static Float,
-); 4] {
-    let race = race();
+fn after(race: &Race) -> [(&Float, &Dword, &Float, &Float); 4] {
     [
         (
             &race.shared.physics_tables.handling[0],
@@ -103,7 +92,7 @@ pub fn set_handling() -> Result<(), Refused> {
     let lerp = |(out, n, hi, lo): (&Float, &Dword, &Float, &Float)| {
         out.set_bits(int_lerp(n.get() as i32, k256, hi.bits(), lo.bits()));
     };
-    for v in before() {
+    for v in before(race) {
         lerp(v);
     }
     let r = &race.shared.physics_tables.handling_ranges_b;
@@ -117,7 +106,7 @@ pub fn set_handling() -> Result<(), Refused> {
         race.shared.physics_tables.handling[4].bits(),
         race.shared.physics_tables.spec_a0.get(),
     ));
-    for v in after() {
+    for v in after(race) {
         lerp(v);
     }
     Ok(())

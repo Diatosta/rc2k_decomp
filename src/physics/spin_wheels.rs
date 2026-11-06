@@ -9,8 +9,8 @@
 //! Caller: `sub_43B635` (0x43B90A), every physics step.
 
 use crate::math::x87_run::div_mul3_to_int;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 
@@ -23,13 +23,12 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 }
 
 /// The Rust core on the variables' cells `v`: the last turn added.
-pub fn spin_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
-    let race = race();
+pub fn spin_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     let (wheel, dt, k65536, scale) = (
         race.shared.physics_tables.wheel_spin_share.bits(),
         race.shared.physics_tables.step_time.bits(),
-        course.numbers.k65536.bits(),
-        course.numbers.one_over_pi.bits(),
+        race.course.numbers.k65536.bits(),
+        race.course.numbers.one_over_pi.bits(),
     );
     let mut last = 0;
     for (speed, turn) in [(0, 2), (1, 3)] {
@@ -40,8 +39,7 @@ pub fn spin_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
     last
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let shared = &race().shared;
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.drive_speed_a as &dyn Cell32,
         &shared.car.drive_speed_b,
@@ -52,6 +50,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn spin_wheels(course: &Course) -> u32 {
-    spin_at(course, &game())
+pub fn spin_wheels(race: &Race) -> u32 {
+    spin_at(race, &game(&race.shared))
 }

@@ -51,7 +51,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
     race.shared.car.contact_point[0].set_bits(race.shared.car.probe_point_x[n].bits());
     race.shared.car.contact_point[1].set_bits(race.shared.car.probe_point_y[n].bits());
     race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[n].bits());
-    take_contact(&race.physics, n)?;
+    take_contact(race, n)?;
     physics_store.contact.contact_slide_limit.set_bits(0);
     contact_force(race, &race.shared.physics_tables.contacts[2]);
     { place_sound_e1(race) }?;
@@ -66,7 +66,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         &race.shared.physics_tables.contacts[2].force,
     );
     if sign(physics_store.contact.lowest_depth.get()) {
-        { restore_saved_car(&race.physics) }?;
+        { restore_saved_car(race) }?;
         { feel_ground(race) }?;
     }
     Ok(())

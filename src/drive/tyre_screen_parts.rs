@@ -9,7 +9,7 @@
 //! Caller: `drive::tyre_screen`.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 use rc2k_core::drive::tyre_screen::fixed_parts;
@@ -22,8 +22,7 @@ fn set(cells: &[Dword; 4], v: [u32; 4]) {
 
 /// The Rust version: its quads (`drive::tyre_quad`); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::fixed_parts`.
-pub fn tyre_screen_parts() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn tyre_screen_parts(shared: &Shared) -> Result<(), Refused> {
     let parts = std::array::from_fn(|k| shared.tyre_change.parts[k].get());
     let wheel = std::array::from_fn(|k| shared.tyre_change.wheel[k].get());
     for (uv, rect) in fixed_parts(parts, wheel, shared.tyre_change.player.get() != 0) {

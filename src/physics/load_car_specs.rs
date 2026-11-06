@@ -26,9 +26,6 @@ use crate::math::x87_float::to_int;
 use crate::physics::gear_store::GEAR;
 use crate::race::car_specs_store::CarSpec;
 use crate::race::owner::Race;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
-use crate::race::owner_physics::Physics;
 use crate::scene::owner::scene;
 use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
@@ -43,14 +40,13 @@ fn below(a: u32, b: u32) -> bool {
 }
 
 /// The record of the work car's kind (`record_of` holds it to the last).
-fn record(physics: &Physics) -> &CarSpec {
-    &physics.car_specs.cars[record_of(race().shared.car.car_kind.get()) as usize]
+fn record(race: &Race) -> &CarSpec {
+    &race.physics.car_specs.cars[record_of(race.shared.car.car_kind.get()) as usize]
 }
 
 /// The whole-number steps both versions share, after the floats: the torque curve, the
 /// gear count (held), the words copied.
-fn words(spec: &CarSpec) {
-    let race = race();
+fn words(race: &Race, spec: &CarSpec) {
     for (to, from) in race
         .shared
         .physics_tables
@@ -95,11 +91,11 @@ fn words(spec: &CarSpec) {
 pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let kind = race.shared.car.car_kind.get();
-    let spec = record(&race.physics);
+    let spec = record(race);
     let drive = check_drive(spec.drive_kind.get())?;
     race.shared.car.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    load_figures_and_shift_points(&race.course, spec);
+    load_figures_and_shift_points(race, spec);
     if below(
         race.shared.car.engine_speed_limit.bits(),
         course.numbers.thousand.bits(),
@@ -114,12 +110,12 @@ pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
             figure.set_bits(x87::loaded(course.numbers.eight.bits()));
         }
     }
-    words(spec);
+    words(race, spec);
     // 0x4216C5 .. 0x421704
-    scale_record_ratios(&race.course, spec);
+    scale_record_ratios(race, spec);
     if kind < OWN_FIGURES_FROM {
         // 0x42170D .. 0x421755
-        scale_default_ratios(&race.course);
+        scale_default_ratios(race);
     }
     race.shared
         .physics_tables
@@ -134,14 +130,14 @@ pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
         .spec_wheel
         .set_bits(race.shared.physics_tables.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
-    scale_record_grips(spec);
+    scale_record_grips(race, spec);
     scene().drawing.scene.scratch.set(spec.scratch_value.get());
     race.shared
         .physics_tables
         .downforce_spec
         .set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
-    set_rev_limits(&race.course, drive as usize);
+    set_rev_limits(race, drive as usize);
     Ok(())
 }
 
@@ -161,8 +157,7 @@ pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
 /// `[rc + 0x1CB960] = [s + 0xAC] + [rc + 0x1C5DDC]`
 /// `[rc + 0x1CB968] = (int [s + 0x78] * [rc + 0x213EB8]) / [rc + 0x31A1B4]`
 /// `[rc + 0x214104] = [rc + 0x31A1B4] * [rc + 0x213FE4]`
-fn load_figures_and_shift_points(course: &Course, s: &CarSpec) {
-    let race = race();
+fn load_figures_and_shift_points(race: &Race, s: &CarSpec) {
     let t0 = int(s.figures[0].get() as i32);
     GEAR.figures[0].set_bits(st(t0));
     let t1 = int(s.figures[1].get() as i32);
@@ -181,11 +176,11 @@ fn load_figures_and_shift_points(course: &Course, s: &CarSpec) {
     let t8 = t6 * t7;
     GEAR.shift_ratio_figure.set_bits(st(t8));
     let t9 = ld(s.shift_points[1].bits());
-    let t10 = ld(course.numbers.tenths[0].bits());
+    let t10 = ld(race.course.numbers.tenths[0].bits());
     let t11 = t9 + t10;
     GEAR.shift_down_point.set_bits(st(t11));
     let t12 = ld(s.shift_points[2].bits());
-    let t13 = ld(course.numbers.tenths[0].bits());
+    let t13 = ld(race.course.numbers.tenths[0].bits());
     let t14 = t12 + t13;
     GEAR.shift_down_clutch_point.set_bits(st(t14));
     let t15 = int(s.over_top.get() as i32);
@@ -205,26 +200,25 @@ fn load_figures_and_shift_points(course: &Course, s: &CarSpec) {
 /// `int [rc + 0x214BC0] = (int [s + 0x40] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC4] = (int [s + 0x44] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [s + 0x48] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
-fn scale_record_ratios(course: &Course, s: &CarSpec) {
-    let shared = &race().shared;
+fn scale_record_ratios(race: &Race, s: &CarSpec) {
     let t0 = int(s.whole_figures[0].get() as i32);
-    let t1 = ld(course.numbers.k65536.bits());
+    let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 * t1;
-    let t3 = ld(course.numbers.thousand.bits());
+    let t3 = ld(race.course.numbers.thousand.bits());
     let t4 = t2 / t3;
-    shared.physics_tables.spec_ints[0].set_bits(to_int(t4) as u32);
+    race.shared.physics_tables.spec_ints[0].set_bits(to_int(t4) as u32);
     let t5 = int(s.whole_figures[1].get() as i32);
-    let t6 = ld(course.numbers.k65536.bits());
+    let t6 = ld(race.course.numbers.k65536.bits());
     let t7 = t5 * t6;
-    let t8 = ld(course.numbers.thousand.bits());
+    let t8 = ld(race.course.numbers.thousand.bits());
     let t9 = t7 / t8;
-    shared.physics_tables.spec_ints[1].set_bits(to_int(t9) as u32);
+    race.shared.physics_tables.spec_ints[1].set_bits(to_int(t9) as u32);
     let t10 = int(s.whole_figures[2].get() as i32);
-    let t11 = ld(course.numbers.k65536.bits());
+    let t11 = ld(race.course.numbers.k65536.bits());
     let t12 = t10 * t11;
-    let t13 = ld(course.numbers.thousand.bits());
+    let t13 = ld(race.course.numbers.thousand.bits());
     let t14 = t12 / t13;
-    shared.physics_tables.spec_ints[2].set_bits(to_int(t14) as u32);
+    race.shared.physics_tables.spec_ints[2].set_bits(to_int(t14) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -232,24 +226,23 @@ fn scale_record_ratios(course: &Course, s: &CarSpec) {
 /// `int [rc + 0x214BC0] = (int [rc + 0x213F04] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC4] = (int [rc + 0x213F08] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [rc + 0x213F0C] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
-fn scale_default_ratios(course: &Course) {
-    let race = race();
+fn scale_default_ratios(race: &Race) {
     let t0 = int(race.shared.physics_tables.spec_default_bc0[0].bits() as i32);
-    let t1 = ld(course.numbers.k65536.bits());
+    let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 * t1;
-    let t3 = ld(course.numbers.thousand.bits());
+    let t3 = ld(race.course.numbers.thousand.bits());
     let t4 = t2 / t3;
     race.shared.physics_tables.spec_ints[0].set_bits(to_int(t4) as u32);
     let t5 = int(race.shared.physics_tables.spec_default_bc0[1].bits() as i32);
-    let t6 = ld(course.numbers.k65536.bits());
+    let t6 = ld(race.course.numbers.k65536.bits());
     let t7 = t5 * t6;
-    let t8 = ld(course.numbers.thousand.bits());
+    let t8 = ld(race.course.numbers.thousand.bits());
     let t9 = t7 / t8;
     race.shared.physics_tables.spec_ints[1].set_bits(to_int(t9) as u32);
     let t10 = int(race.shared.physics_tables.spec_default_bc0[2].bits() as i32);
-    let t11 = ld(course.numbers.k65536.bits());
+    let t11 = ld(race.course.numbers.k65536.bits());
     let t12 = t10 * t11;
-    let t13 = ld(course.numbers.thousand.bits());
+    let t13 = ld(race.course.numbers.thousand.bits());
     let t14 = t12 / t13;
     race.shared.physics_tables.spec_ints[2].set_bits(to_int(t14) as u32);
 }
@@ -258,8 +251,7 @@ fn scale_default_ratios(course: &Course) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214BAC] = [s + 0x38] * [rc + 0x213FC8]`
 /// `[rc + 0x214BB0] = [s + 0x3C] * [rc + 0x213FC8]`
-fn scale_record_grips(s: &CarSpec) {
-    let race = race();
+fn scale_record_grips(race: &Race, s: &CarSpec) {
     let t0 = ld(s.weights[0].bits());
     let t1 = ld(race.shared.physics_tables.gravity.bits());
     let t2 = t0 * t1;
@@ -276,8 +268,7 @@ fn scale_record_grips(s: &CarSpec) {
 /// `[rc + 0x2140FC] = [rc + k * 4 + 0x213FB8] + [rc + 0x1C5D14]`
 /// `k` is the drive kind (0 .. 2): kind 2 reads past the two rev limits into `camera_drop`,
 /// as the original (`notes/bugs.md`).
-fn set_rev_limits(course: &Course, k: usize) {
-    let race = race();
+fn set_rev_limits(race: &Race, k: usize) {
     let limit = [
         &race.shared.physics_tables.rev_limits[0],
         &race.shared.physics_tables.rev_limits[1],
@@ -288,7 +279,7 @@ fn set_rev_limits(course: &Course, k: usize) {
         .physics_tables
         .idle_engine_speed
         .set_bits(st(t0));
-    let t1 = ld(course.numbers.hundred.bits());
+    let t1 = ld(race.course.numbers.hundred.bits());
     let t2 = t0 + t1;
     race.shared
         .physics_tables
@@ -374,7 +365,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
-                    load_figures_and_shift_points(&race().course, &spec_at(a[0], 0x64, 0xB0));
+                    load_figures_and_shift_points(race(), &spec_at(a[0], 0x64, 0xB0));
                 },
             },
             Block {
@@ -392,7 +383,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
-                    scale_record_ratios(&race().course, &spec_at(a[0], 0x40, 0x4C));
+                    scale_record_ratios(race(), &spec_at(a[0], 0x40, 0x4C));
                 },
             },
             Block {
@@ -409,7 +400,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| scale_default_ratios(&race().course),
+                plain: |_| scale_default_ratios(race()),
             },
             Block {
                 name: "load_car_specs line 182",
@@ -425,7 +416,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| scale_record_grips(&spec_at(a[0], 0x38, 0x40)),
+                plain: |a| scale_record_grips(race(), &spec_at(a[0], 0x38, 0x40)),
             },
             Block {
                 name: "load_car_specs line 194 idx k=0",
@@ -438,7 +429,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| set_rev_limits(&race().course, a[1]),
+                plain: |a| set_rev_limits(race(), a[1]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=1",
@@ -451,7 +442,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| set_rev_limits(&race().course, a[1]),
+                plain: |a| set_rev_limits(race(), a[1]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=2 (camera_drop)",
@@ -464,7 +455,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| set_rev_limits(&race().course, a[1]),
+                plain: |a| set_rev_limits(race(), a[1]),
             },
         ]
     }

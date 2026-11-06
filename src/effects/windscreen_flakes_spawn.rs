@@ -18,6 +18,7 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::race::owner_shared::Shared;
 
 const MOST: i32 = 0x80;
 
@@ -28,6 +29,7 @@ fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
 
 /// The Rust version (see the header).
 pub fn windscreen_flakes_spawn(
+    shared: &Shared,
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
 ) -> Result<(), Refused> {
@@ -42,7 +44,7 @@ pub fn windscreen_flakes_spawn(
             let v: u32 = fl.timing.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                pick_windscreen_flake(fl)?;
+                pick_windscreen_flake(shared, fl)?;
             }
             let share = x87::fraction_times_to_int(v, fl.state.share_k.bits());
             let s = fl
@@ -53,7 +55,7 @@ pub fn windscreen_flakes_spawn(
                 .wrapping_add(0x5D);
             fl.state.spawn_random.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
-                pick_windscreen_flake(fl)?;
+                pick_windscreen_flake(shared, fl)?;
             }
         }
         x87::set_control(old);

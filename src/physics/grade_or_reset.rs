@@ -22,6 +22,6 @@ pub fn grade_or_reset(race: &Race) {
             &shared.car.ride_height,
         );
     } else {
-        rate_damage(&race.physics);
+        rate_damage(race);
     }
 }

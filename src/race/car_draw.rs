@@ -8,9 +8,9 @@ use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
+use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::matrix::multiply_matrices;
@@ -366,7 +366,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
             and(!race.course.course.group_masks[11].bits());
         }
     }
-    let mut ecx = 0x60u32.wrapping_add(near_size());
+    let mut ecx = 0x60u32.wrapping_add(near_size(&race.shared));
     race.shared.work.car_draw_word.set(ecx);
     if state & 0x100 != 0 {
         if state & 6 == 0 {
@@ -438,7 +438,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
     car_body_matrix(&race.frame);
     crate::race::frame_draw::start_kept_reflections(&race.physics)?;
     crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(&race.frame)))?;
-    crate::race::frame_draw::end_kept_reflections();
+    crate::race::frame_draw::end_kept_reflections(&race.shared);
     scene.lights.work.light_kind_extra.set(1);
     if below(race.frame.frame_work.car_depth.bits(), 0x3C_0000) {
         for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100]
@@ -503,10 +503,10 @@ fn nearness(race: &Race) {
 
 /// `sub_4616AA`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
 /// `dword_62400C`).
-fn near_size() -> u32 {
+fn near_size(shared: &Shared) -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
     {
-        let size = to_int(int(0x90) * ld(race().shared.work.car_nearness.bits()));
+        let size = to_int(int(0x90) * ld(shared.work.car_nearness.bits()));
         scene().drawing.scene.scratch.set(size as u32);
         size as u32
     }
@@ -597,6 +597,7 @@ mod asm_reference {
     use super::*;
     use crate::framework::{game_read, rva};
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
+    use crate::race::owner::race;
 
     // The original blocks, verbatim (with the clamps between them).
     pub(super) unsafe fn nearness_asm() {
@@ -718,7 +719,7 @@ mod asm_reference {
                 assert_eq!(state(), before);
                 nearness(race);
                 assert_eq!(state(), want, "nearness from {before:x?}");
-                let size_got = near_size();
+                let size_got = near_size(&race.shared);
                 assert_eq!(size_got, size_want, "size from {before:x?}");
                 assert_eq!(state(), want_size_place);
             }

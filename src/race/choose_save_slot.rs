@@ -10,12 +10,13 @@
 //! Caller: `race::viewer_action` (0x16).
 
 use crate::errors::Refused;
+use crate::race::owner_shared::Shared;
 
 /// The Rust version: the slot chosen (eax; -1 for none).
-pub fn choose_save_slot() -> Result<u32, Refused> {
+pub fn choose_save_slot(shared: &Shared) -> Result<u32, Refused> {
     // Both keep every register.
-    crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
+    crate::race::viewer_tidy_stage::viewer_tidy_stage(shared)?;
     let slot = crate::menu::replay_slot_loop::replay_slot_loop(true)?;
-    crate::race::viewer_load_stage::viewer_load_stage()?;
+    crate::race::viewer_load_stage::viewer_load_stage(shared)?;
     Ok(slot)
 }

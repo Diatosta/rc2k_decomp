@@ -22,16 +22,12 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::physics::corner_hits_car::corner_hits_car;
 use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::matrix::{multiply_matrices, set_place};
 
 /// The cars looked at: `g_raceCars`, at least one (the loop runs once).
-fn cars() -> u32 {
-    crate::race::owner::race()
-        .shared
-        .view
-        .race_cars
-        .get()
-        .max(1)
+fn cars(shared: &Shared) -> u32 {
+    shared.view.race_cars.get().max(1)
 }
 
 /// The Rust version. The registers it leaves (ebx the cars looked at) are read by none
@@ -41,7 +37,7 @@ pub fn car_collisions(race: &Race) -> Result<(), Refused> {
     if !matches!(race.shared.vars.run_kind.get(), 0 | 2) {
         return Ok(());
     }
-    let n = cars();
+    let n = cars(&race.shared);
     if n > 8 {
         return Err(BadInput("more than eight cars (g_carBlocks' room)").into());
     }

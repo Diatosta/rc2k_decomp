@@ -21,31 +21,27 @@ use crate::errors::Refused;
 use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
-use crate::race::owner::race;
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
 pub fn init_mark_step(effects: &Effects) -> Result<(), Refused> {
-    let course = &race().course;
+    let race = crate::race::owner::race();
     use rc2k_core::effects::race;
     {
         // In a network race `g_players` is 1 but this machine's car may be any: every car's
         // record is needed, or a joined machine's own has no marks (the original's slip).
         let count: u32 = if crate::net::owner::net().vars.session.get() == 1 {
-            crate::race::owner::race().shared.view.race_cars.bits()
+            race.shared.view.race_cars.bits()
         } else {
-            crate::race::owner::race().shared.view.players.bits()
+            race.shared.view.players.bits()
         };
-        let block = |n: u32| crate::race::owner::race().shared.work.car_block(n as usize);
-        let records = crate::race::owner::race()
-            .shared
-            .work
-            .car_records_resolved()?;
+        let block = |n: u32| race.shared.work.car_block(n as usize);
+        let records = race.shared.work.car_records_resolved()?;
         // `check_cars` holds the count to 8 before `record` is asked.
         let record = |n: u32| records[n as usize];
         race::check_cars(count, |n| block(n) != 0)?;
         MARKS_SETTINGS
             .cars_copy
-            .set_bits(crate::race::owner::race().shared.view.race_cars.bits());
+            .set_bits(race.shared.view.race_cars.bits());
         // The one object the effects' shapes are made from: the player's car (the original's
         // fixed 0x50 is the first car, not a joined machine's).
         let own = crate::race::blocks_store::own_car_number() as u32;
@@ -71,7 +67,7 @@ pub fn init_mark_step(effects: &Effects) -> Result<(), Refused> {
             }
         }
         // The file number is left in eax: `init_marks`' seed.
-        crate::effects::init_marks::init_marks(course, effects, file)?;
+        crate::effects::init_marks::init_marks(race, effects, file)?;
     }
     Ok(())
 }

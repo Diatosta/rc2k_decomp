@@ -10,13 +10,12 @@
 //! Caller: `drive::replay_step`.
 
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::drive::places;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::places::two_car_order`.
-pub fn two_car_order() -> Result<(), crate::errors::BadInput> {
-    let shared = &race().shared;
+pub fn two_car_order(shared: &Shared) -> Result<(), crate::errors::BadInput> {
     // g_carBlockStore: the figures of car block `car`.
     let figure = |car: usize, o: u32| {
         let block = &CAR_BLOCKS.cars[car];

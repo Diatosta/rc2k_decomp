@@ -31,84 +31,80 @@ use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::reverse;
 use crate::physics::pick_start_gear::pick_start_gear;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C66D).
-fn up(course: &Course) -> Result<Shift, Refused> {
-    let shared_store = &race().shared;
-
+fn up(race: &Race) -> Result<Shift, Refused> {
     if let Some(shift) = shifts::auto_up(
-        shared_store.car.gear.get(),
-        shared_store.physics_tables.gear_count.get(),
+        race.shared.car.gear.get(),
+        race.shared.physics_tables.gear_count.get(),
     ) {
         return Ok(shift);
     }
-    wheels()?;
-    shared_store
+    wheels(&race.shared)?;
+    race.shared
         .car
         .gear
-        .set(shared_store.car.gear.get().wrapping_add(1));
-    revs(course)?;
-    settle();
+        .set(race.shared.car.gear.get().wrapping_add(1));
+    revs(race)?;
+    settle(race);
     Ok(Shift::Done)
 }
 
 /// Down (0x43C6B7).
-fn down(course: &Course) -> Result<Shift, Refused> {
-    let shared_store = &race().shared;
-
-    wheels()?;
-    shared_store
+fn down(race: &Race) -> Result<Shift, Refused> {
+    wheels(&race.shared)?;
+    race.shared
         .car
         .gear
-        .set(shared_store.car.gear.get().wrapping_sub(1));
-    revs(course)?;
+        .set(race.shared.car.gear.get().wrapping_sub(1));
+    revs(race)?;
     if below(
-        shared_store.car.engine_speed.bits(),
-        shared_store.physics_tables.rev_limit.bits(),
+        race.shared.car.engine_speed.bits(),
+        race.shared.physics_tables.rev_limit.bits(),
     ) {
-        settle();
+        settle(race);
         return Ok(Shift::Done);
     }
-    shared_store
+    race.shared
         .car
         .gear
-        .set(shared_store.car.gear.get().wrapping_add(1));
-    revs(course)?;
+        .set(race.shared.car.gear.get().wrapping_add(1));
+    revs(race)?;
     Ok(Shift::Neutral)
 }
 
 /// The automatic's tests (0x43C798).
-fn tests() -> Result<Shift, Refused> {
-    let shared_store = &race().shared;
-
+fn tests(race: &Race) -> Result<Shift, Refused> {
     let drawing = &scene().drawing;
     // `revs_from_speed` leaves ebx the gear it reads: the same.
-    let gear = shared_store.car.gear.get();
-    let kept = shared_store.car.engine_speed.bits();
-    revs_speed()?;
-    drawing.scene.scratch.set(over_top());
-    shared_store.car.engine_speed.set_bits(kept);
+    let gear = race.shared.car.gear.get();
+    let kept = race.shared.car.engine_speed.bits();
+    revs_speed(&race.shared)?;
+    drawing.scene.scratch.set(over_top(race));
+    race.shared.car.engine_speed.set_bits(kept);
     shifts::auto_tests(
         gear,
-        || shared_store.car.all_wheels_off.get() != 0,
-        || shared_store.car.brake.get() != 0,
+        || race.shared.car.all_wheels_off.get() != 0,
+        || race.shared.car.brake.get() != 0,
         || !below(drawing.scene.scratch.get(), GEAR.shift_up_point.bits()),
         || {
             !below(
-                shared_store.car.local_velocity[2].bits(),
-                shared_store.physics_tables.auto_gear_speed_down.bits(),
+                race.shared.car.local_velocity[2].bits(),
+                race.shared.physics_tables.auto_gear_speed_down.bits(),
             )
         },
         || {
-            drawing.scene.scratch.set(over_top());
+            drawing.scene.scratch.set(over_top(race));
             if !shifts::above_first(gear) {
                 return Ok(false);
             }
-            let (rb, rl) = (ratio(gear)?, ratio(gear.wrapping_sub(1))?);
+            let (rb, rl) = (
+                ratio(&race.shared, gear)?,
+                ratio(&race.shared, gear.wrapping_sub(1))?,
+            );
             if mul_div_status(
                 drawing.scene.scratch.get(),
                 rb,
@@ -119,7 +115,7 @@ fn tests() -> Result<Shift, Refused> {
             {
                 return Ok(false);
             }
-            let point = if shifts::down_point_clutch(shared_store.car.brake.get()) {
+            let point = if shifts::down_point_clutch(race.shared.car.brake.get()) {
                 GEAR.shift_down_clutch_point.bits()
             } else {
                 GEAR.shift_down_point.bits()
@@ -128,8 +124,8 @@ fn tests() -> Result<Shift, Refused> {
         },
         || {
             below(
-                shared_store.car.local_velocity[2].bits(),
-                shared_store.physics_tables.auto_gear_speed_up.bits(),
+                race.shared.car.local_velocity[2].bits(),
+                race.shared.physics_tables.auto_gear_speed_up.bits(),
             )
         },
     )
@@ -137,67 +133,65 @@ fn tests() -> Result<Shift, Refused> {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn auto_gearbox(course: &Course) -> Result<(), Refused> {
-    let shared_store = &race().shared;
-
-    shared_store.car.gear_changed.set(0);
+pub fn auto_gearbox(race: &Race) -> Result<(), Refused> {
+    race.shared.car.gear_changed.set(0);
     let mut to = 'first: {
-        if bit(shared_store.car.gear.get())? {
+        if bit(&race.shared, race.shared.car.gear.get())? {
             break 'first Shift::Neutral;
         }
-        if shared_store.car.gear.get() != 0
+        if race.shared.car.gear.get() != 0
             && below(
-                shared_store.car.engine_speed.bits(),
-                shared_store.physics_tables.idle_engine_speed.bits(),
+                race.shared.car.engine_speed.bits(),
+                race.shared.physics_tables.idle_engine_speed.bits(),
             )
         {
             break 'first Shift::Neutral;
         }
-        if shared_store.car.gear.get() == 0 {
+        if race.shared.car.gear.get() == 0 {
             if mul_status(
-                shared_store.car.engine_speed_limit.bits(),
-                shared_store.physics_tables.auto_gear_engine_share.bits(),
-                shared_store.car.engine_speed.bits(),
+                race.shared.car.engine_speed_limit.bits(),
+                race.shared.physics_tables.auto_gear_engine_share.bits(),
+                race.shared.car.engine_speed.bits(),
             ) & 0x100
                 == 0
             {
                 return Ok(());
             }
-            break 'first if shared_store.physics_tables.input_gear_wanted.get() == u32::MAX {
+            break 'first if race.shared.physics_tables.input_gear_wanted.get() == u32::MAX {
                 Shift::Reverse
             } else {
                 Shift::Start
             };
         }
-        if shared_store.car.forced_neutral.get() != 0 {
+        if race.shared.car.forced_neutral.get() != 0 {
             break 'first Shift::Neutral;
         }
-        if shared_store.car.gear_change_hold.get() != 0 {
-            shared_store
+        if race.shared.car.gear_change_hold.get() != 0 {
+            race.shared
                 .car
                 .gear_change_hold
-                .set(shared_store.car.gear_change_hold.get().wrapping_sub(1));
+                .set(race.shared.car.gear_change_hold.get().wrapping_sub(1));
             return Ok(());
         }
-        if shared_store.car.gear_change_blocked.get() != 0 {
+        if race.shared.car.gear_change_blocked.get() != 0 {
             return Ok(());
         }
-        tests()?
+        tests(race)?
     };
     loop {
         to = match to {
-            Shift::Up => up(course)?,
-            Shift::Down => down(course)?,
+            Shift::Up => up(race)?,
+            Shift::Down => down(race)?,
             Shift::Neutral => {
-                neutral();
+                neutral(race);
                 Shift::Done
             }
             Shift::Start => {
-                pick_start_gear(course)?;
+                pick_start_gear(race)?;
                 Shift::Done
             }
             Shift::Reverse => {
-                reverse(course, false)?;
+                reverse(race, false)?;
                 Shift::Done
             }
             Shift::Done => return Ok(()),

@@ -12,8 +12,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::hud::overlay_pass::shown_layout;
-use crate::race::owner::race;
-use crate::race::owner_frame::Frame;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 
 /// Whether the strip of the view block `handle` names is shown (see the header).
@@ -31,8 +30,7 @@ fn flashing(handle: u32) -> Result<bool, BadInput> {
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::strips`
-pub fn draw_view_strips(frame: &Frame) -> Result<(), Refused> {
-    let race = race();
+pub fn draw_view_strips(race: &Race) -> Result<(), Refused> {
     let drawing = &scene().drawing;
     use crate::hud::draw_view_strip::{draw_view_strip, overlay_tail};
     use rc2k_core::hud::strips::{SECOND_VIEW, TEXTURES};
@@ -40,13 +38,13 @@ pub fn draw_view_strips(frame: &Frame) -> Result<(), Refused> {
         if race.shared.replay_file.hold_car_revs.bits() == 0 {
             if flashing(race.shared.view.view_blocks[0].get())? {
                 drawing.scene.polygon_textures[0].set_bits(TEXTURES[0]);
-                draw_view_strip(frame, shown_layout())?;
+                draw_view_strip(race, shown_layout(&race.shared))?;
             }
-            if shown_layout() != 0 && flashing(race.shared.view.view_blocks[1].get())? {
+            if shown_layout(&race.shared) != 0 && flashing(race.shared.view.view_blocks[1].get())? {
                 drawing.scene.polygon_textures[0].set_bits(TEXTURES[1]);
-                draw_view_strip(frame, shown_layout().wrapping_add(SECOND_VIEW))?;
+                draw_view_strip(race, shown_layout(&race.shared).wrapping_add(SECOND_VIEW))?;
             }
         }
-        overlay_tail(frame)
+        overlay_tail(race)
     }
 }

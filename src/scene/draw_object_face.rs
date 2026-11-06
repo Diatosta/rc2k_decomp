@@ -133,7 +133,7 @@ pub fn draw_object_face(
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
-            vertex_light(&race.course, fw(vertex + 0xC))?
+            vertex_light(race, fw(vertex + 0xC))?
         } else {
             0x00FF_FFFF
         };

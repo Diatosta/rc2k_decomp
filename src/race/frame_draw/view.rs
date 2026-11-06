@@ -136,9 +136,8 @@ pub fn fog_table(race: &Race) -> Result<(), Refused> {
 /// and added); `fog_table`; the colour with 0xFF000000 to the device. None of it reads a
 /// register at entry, and its callers (`race::draw_view_scene`, `race::mirror_view_window`)
 /// read none it leaves. Refuses (before anything) what `fog_table` would.
-pub fn set_up_fog() -> Result<(), Refused> {
+pub fn set_up_fog(race: &Race) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let race = race();
     let course = &race.course;
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
@@ -376,8 +375,7 @@ pub fn view_matrices(race: &Race) -> Result<(), BadInput> {
 /// `race().frame.matrices.view_work` and `g_crashMatrix`, the place the car's raised by 0x8000), written as
 /// whole numbers and floats (also to `g_car` +0x734 ..), and `scene::set_view_window`; then
 /// `view_matrices`.
-pub fn camera_view() -> Result<(), BadInput> {
-    let race = race();
+pub fn camera_view(race: &Race) -> Result<(), BadInput> {
     use crate::math::x87::from_int;
     race.frame
         .view_and_records
@@ -461,11 +459,10 @@ pub fn camera_view() -> Result<(), BadInput> {
 /// `race().course.numbers.k4096_a`) its place on the screen (`race().frame.frame_work.sun_place` / `race().frame.frame_work.sun_hit`
 /// ..), `race().frame.frame_work.sun_on_screen` 1 when on the screen, `race().frame.frame_work.sun_size` its size (256
 /// less half its distance from the centre, at least 0).
-pub fn draw_sky() -> Result<(), Refused> {
+pub fn draw_sky(race: &Race) -> Result<(), Refused> {
     let scene = scene();
-    let race = race();
     let frame = &race.frame;
-    fetch_view_value()?;
+    fetch_view_value(race)?;
     race.course.course.polygon_flags.set(0u32);
     let mode: u32 = scene.lights.state.draw_mode.get();
     if mode == 1 || mode == 2 {

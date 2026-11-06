@@ -17,8 +17,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
-use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 use crate::strings::owner::strings;
@@ -30,9 +29,10 @@ const FONT_D: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANE
 const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANEL_E;
 
 /// The Rust version (the original keeps every register of its caller).
-pub fn draw_viewer_panel(replay: &Replay) -> Result<(), Refused> {
+pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
+    let replay = &race.replay;
     let text_stores = &strings().text;
-    let shared = &race().shared;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{shown_time, replay_length, camera_name,
     // switch_lights}`.
     use rc2k_core::race::viewer_flow::{camera_name, replay_length, shown_time, switch_lights};

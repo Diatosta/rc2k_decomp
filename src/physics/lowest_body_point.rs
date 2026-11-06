@@ -17,9 +17,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::race::owner_physics::Physics;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers it leaves (ebx the count, eax
@@ -47,15 +45,15 @@ pub fn lowest_at(course: &Course, v: &[&dyn Cell32]) -> Result<(), Refused> {
 }
 
 /// The addresses: the count, the lowest, its number, the share, then the 0x40 depths.
-fn game(physics: &Physics) -> Vec<&dyn Cell32> {
+fn game(race: &Race) -> Vec<&dyn Cell32> {
     let mut v = vec![
-        &race().shared.car.probe_count as &dyn Cell32,
-        &physics.contact.lowest_depth,
-        &physics.contact.lowest_point,
-        &physics.contact.wheel_share,
+        &race.shared.car.probe_count as &dyn Cell32,
+        &race.physics.contact.lowest_depth,
+        &race.physics.contact.lowest_point,
+        &race.physics.contact.wheel_share,
     ];
     v.extend(
-        physics.contact.probe_height[..0x40]
+        race.physics.contact.probe_height[..0x40]
             .iter()
             .map(|c| c as &dyn Cell32),
     );
@@ -65,5 +63,5 @@ fn game(physics: &Physics) -> Vec<&dyn Cell32> {
 /// The Rust version (the exact one, for `physics::feel_ground`, `ground_contact`,
 /// `find_clear_place`, `crash_contact`).
 pub fn lowest_body_point(race: &Race) -> Result<(), Refused> {
-    lowest_at(&race.course, &game(&race.physics))
+    lowest_at(&race.course, &game(race))
 }

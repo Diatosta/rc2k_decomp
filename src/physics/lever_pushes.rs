@@ -15,8 +15,7 @@
 use crate::math::x87;
 use crate::math::x87_run::{lever_share, one_less};
 use crate::physics::lever_push::lever_push;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
 use std::cmp::Ordering;
 
 /// `fld limit; fld share; fcompp` and its C0: share below limit, or unordered.
@@ -28,8 +27,7 @@ fn below(share: u32, limit: u32) -> bool {
 }
 
 /// The Rust version.
-pub fn lever_pushes(course: &Course) {
-    let race = race();
+pub fn lever_pushes(race: &Race) {
     race.shared.physics_tables.lever_pushes[0].set(0);
     race.shared.physics_tables.lever_pushes[1].set(0);
     if race.shared.switches.levers_on.get() != 1 || race.shared.car.all_wheels_off.get() != 0 {
@@ -43,7 +41,7 @@ pub fn lever_pushes(course: &Course) {
         race.shared.car.grip_forces[3].bits(),
         race.shared.car.grip_forces[1].bits(),
         race.shared.car.grip_forces[2].bits(),
-        course.numbers.zero.bits(),
+        race.course.numbers.zero.bits(),
     );
     race.shared.physics_tables.lever_share_start.set_bits(share);
     if zero {
@@ -51,21 +49,21 @@ pub fn lever_pushes(course: &Course) {
     }
     if below(
         race.shared.physics_tables.lever_share_start.bits(),
-        course.numbers.zero.bits(),
+        race.course.numbers.zero.bits(),
     ) {
         race.shared
             .physics_tables
             .lever_share_start
-            .set_bits(x87::loaded(course.numbers.zero.bits()));
+            .set_bits(x87::loaded(race.course.numbers.zero.bits()));
     }
     if !below(
         race.shared.physics_tables.lever_share_start.bits(),
-        course.numbers.one.bits(),
+        race.course.numbers.one.bits(),
     ) {
         race.shared
             .physics_tables
             .lever_share_start
-            .set_bits(x87::loaded(course.numbers.one.bits()));
+            .set_bits(x87::loaded(race.course.numbers.one.bits()));
     }
     race.shared.physics_tables.lever_push_vector[2]
         .set(x87::loaded(race.shared.car.probe_point_z[3].bits()));
@@ -75,12 +73,12 @@ pub fn lever_pushes(course: &Course) {
         .set_bits(x87::loaded(
             race.shared.physics_tables.lever_share_start.bits(),
         ));
-    lever_push(course);
+    lever_push(race);
     race.shared.physics_tables.lever_push_vector[2]
         .set(x87::loaded(race.shared.car.probe_point_z[0].bits()));
     race.shared
         .physics_tables
         .lever_share_left
         .set_bits(one_less(race.shared.physics_tables.lever_share_left.bits()));
-    lever_push(course);
+    lever_push(race);
 }

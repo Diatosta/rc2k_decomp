@@ -7,6 +7,7 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
 use crate::session::Dword;
@@ -119,8 +120,7 @@ pub fn reset_car_race_state() -> Result<(), BadInput> {
 /// +0x26 is not 0, looked for up to `g_lastCheckpoint` (not included); 0 for none or with
 /// `g_checkpointCount` - 2 negative. Refuses a look that would run past the list (the
 /// original runs on until it finds one: `g_lastCheckpoint` 0 or 1).
-pub fn first_check_checkpoint() -> Result<u32, Refused> {
-    let shared = &race().shared;
+pub fn first_check_checkpoint(shared: &Shared) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::checkpoints::first_check_checkpoint`.
     let count: u32 = shared.vars.checkpoint_count.bits();
     let last = || shared.vars.last_checkpoint.bits();

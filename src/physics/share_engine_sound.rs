@@ -11,13 +11,12 @@
 //! sound object.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::physics::engine::shares_figures;
 
 /// The Rust version (a compare of floats only: the same at any precision).
 // Converted: `rc2k_core::physics::engine::shares_figures`.
-pub fn share_engine_sound() -> Result<(), Refused> {
-    let race = race();
+pub fn share_engine_sound(race: &Race) -> Result<(), Refused> {
     let so = crate::sound::store::current_object();
     if shares_figures(
         race.shared.car.contact_depth.get(),

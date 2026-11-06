@@ -17,7 +17,7 @@
 use crate::effects::owner::effects;
 use crate::effects::rain::Weather;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The marks' random: times 0x9D plus 0x47.
 fn next_seed() -> u32 {
@@ -28,8 +28,7 @@ fn next_seed() -> u32 {
 }
 
 /// The Rust version (see the header).
-pub fn drift_offsets(weather: &Weather) {
-    let race = race();
+pub fn drift_offsets(race: &Race, weather: &Weather) {
     let (r, k) = (&weather.rain, &weather.rain_rules);
     {
         let since = race

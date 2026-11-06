@@ -14,27 +14,26 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The switches and the scratch: the game's or a test's.
 #[derive(Clone, Copy)]
-pub struct SettlePlaces {
+pub struct SettlePlaces<'a> {
     /// `dword_71A220`: settle the first driven speed (in neutral).
-    pub first: &'static dyn Cell32,
+    pub first: &'a dyn Cell32,
     /// `dword_71A224`: settle the second.
-    pub second: &'static dyn Cell32,
+    pub second: &'a dyn Cell32,
     /// `dword_71A614`: the big step.
-    pub fast: &'static dyn Cell32,
+    pub fast: &'a dyn Cell32,
     /// `dword_62400C`.
-    pub scratch: &'static dyn Cell32,
+    pub scratch: &'a dyn Cell32,
 }
 
-impl SettlePlaces {
-    pub fn game() -> Self {
-        let shared = &race().shared;
+impl<'a> SettlePlaces<'a> {
+    pub fn game(shared: &'a Shared) -> Self {
         Self {
             first: &shared.car.front_wheels_off,
             second: &shared.car.rear_wheels_off,
@@ -68,11 +67,10 @@ fn settle(v: &dyn Cell32, step: &dyn Cell32) {
 
 /// The Rust core.
 pub fn settle_drive_speeds_at(
-    course: &Course,
-    g: &GearPlaces,
-    s: &SettlePlaces,
+    race: &Race,
+    g: &GearPlaces<'_>,
+    s: &SettlePlaces<'_>,
 ) -> Result<(), Refused> {
-    let race = race();
     let gear = g.gear.bits();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
@@ -93,12 +91,16 @@ pub fn settle_drive_speeds_at(
         settle(g.drive_speed_2, s.scratch);
     }
     if gear != 0 {
-        return revs_from_wheels_at(course, g);
+        return revs_from_wheels_at(&race.course, g);
     }
     Ok(())
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn settle_drive_speeds(course: &Course) -> Result<(), Refused> {
-    settle_drive_speeds_at(course, &GearPlaces::game(), &SettlePlaces::game())
+pub fn settle_drive_speeds(race: &Race) -> Result<(), Refused> {
+    settle_drive_speeds_at(
+        race,
+        &GearPlaces::game(&race.shared),
+        &SettlePlaces::game(&race.shared),
+    )
 }

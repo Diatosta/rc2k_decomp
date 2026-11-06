@@ -13,6 +13,7 @@ use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
+use crate::race::owner_shared::Shared;
 use crate::race::state_store::RaceCar;
 use crate::session::{Dword, Float};
 use std::ffi::{CStr, CString};
@@ -168,8 +169,7 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         Ok(())
     }
     fn call(&mut self, a: Place) -> Result<(), Refused> {
-        let course = &race().course;
-        let physics = &race().physics;
+        let race = crate::race::owner::race();
         let Place::Routine(routine) = a else {
             unreachable!("a call of a variable");
         };
@@ -180,8 +180,8 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         {
             match routine {
                 Routine::ClearPlayerAbsences => clear_player_absences(),
-                Routine::CopyLeagueTable => copy_league_table(course)?,
-                Routine::StoreResultsByMode => store_results_by_mode(physics),
+                Routine::CopyLeagueTable => copy_league_table(race)?,
+                Routine::StoreResultsByMode => store_results_by_mode(race),
             }
         }
         Ok(())
@@ -461,8 +461,8 @@ const IMPACT_MARKS: [CarFloat; 8] = [
 ];
 
 /// Car `car`'s eight impact marks in the results record (`results[car].field_24c`).
-fn result_marks(car: usize) -> &'static [Dword; 8] {
-    &race().shared.state.results.results[car].field_24c
+fn result_marks(shared: &Shared, car: usize) -> &[Dword; 8] {
+    &shared.state.results.results[car].field_24c
 }
 
 /// The steps of `copy_settings_in` (the front end's settings into the race's), in the
@@ -537,7 +537,7 @@ pub fn graham_to_shaun() -> Vec<Step<Place>> {
                 Cell(setting(&shared.state.settings.cars[car])),
             ));
         }
-        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(car)) {
+        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(shared, car)) {
             b.push(Copy(CarBits(car, mark), Cell(cell)));
         }
     }
@@ -742,7 +742,7 @@ pub fn shaun_to_graham() -> Vec<Step<Place>> {
                 CarBits(car, field),
             ));
         }
-        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(car)) {
+        for (mark, cell) in IMPACT_MARKS.into_iter().zip(result_marks(shared, car)) {
             b.push(Copy(Cell(cell), CarBits(car, mark)));
         }
     }

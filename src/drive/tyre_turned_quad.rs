@@ -14,7 +14,7 @@ use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
 use crate::input::types::InputDevice;
 use crate::math::x87_float::{int, ld, st};
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::tyre_store::TyreChange;
 use crate::session::{Dword, Float};
 use crate::system::owner::system;
@@ -54,6 +54,7 @@ fn turn(ty: &TyreChange, e: &InputDevice, d: &[Float; 4], v: &[Vertex], t: &Dwor
 /// (ebx), the colour `colour` (ecx), the input device `device` (esi; its +0x4EC turns
 /// the quad); every register kept.
 pub fn tyre_turned_quad(
+    shared: &Shared,
     uv: [u32; 4],
     rect: &[Float; 4],
     colour: u32,
@@ -62,7 +63,7 @@ pub fn tyre_turned_quad(
     let system = system();
     system.session.machine.scratch.set(0x40C9_0FDB);
     turn(
-        &race().shared.tyre_change,
+        &shared.tyre_change,
         device,
         rect,
         &VERTICES.vertices[..4],

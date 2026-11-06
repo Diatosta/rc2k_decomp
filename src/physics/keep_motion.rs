@@ -6,7 +6,7 @@
 //!
 //! Caller: `sub_43B635` (0x43B87E), every physics step.
 
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -15,8 +15,7 @@ fn core(v: &[&dyn Cell32]) {
     }
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let shared = &race().shared;
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.local_velocity[0] as &dyn Cell32,
         &shared.car.local_velocity[1],
@@ -28,6 +27,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 }
 
 /// The Rust version.
-pub fn keep_motion() {
-    core(&game());
+pub fn keep_motion(shared: &Shared) {
+    core(&game(shared));
 }

@@ -24,7 +24,6 @@
 use crate::errors::Refused;
 use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
 use crate::scene::car_icon_number::car_icon_number;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::upload_car_icon::{CarIcon, upload_car_icon};
@@ -45,7 +44,10 @@ const NAMES: [usize; 4] = [
 /// kind 0xC1 has no texture) are read by no caller (taint at its one site, in
 /// `reload_system_textures`: 0 read points).
 // Converted: `rc2k_core::scene::car_icons`
-pub fn load_hud_car_icons(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn load_hud_car_icons(
+    scene: &crate::scene::owner::Scene,
+    shared: &crate::race::owner_shared::Shared,
+) -> Result<(), Refused> {
     let vars = &net().vars;
     use rc2k_core::scene::car_icons;
     let texture: u32 = scene.textures.kinds.kind_first_textures[193].bits();
@@ -54,7 +56,7 @@ pub fn load_hud_car_icons(scene: &crate::scene::owner::Scene) -> Result<(), Refu
     }
     let player = if vars.session.get() != 0 {
         let car = car_icons::one_car(vars.player.get())?;
-        let block: u32 = race().shared.work.car_block(car);
+        let block: u32 = shared.work.car_block(car);
         crate::race::blocks_store::block_at(block, "a car without its block")?
             .car_kind
             .bits()

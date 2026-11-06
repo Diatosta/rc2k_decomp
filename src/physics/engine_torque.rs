@@ -28,10 +28,10 @@ pub fn below(a: u32, b: u32) -> bool {
 /// The Rust version (the exact one, for `physics::engine_torque_or_cut`, `drive_force`,
 /// `free_rev*`, `test_drive_run`).
 pub fn engine_torque() {
-    let shared_store = &crate::race::owner::race().shared;
-
+    let race = race();
+    let shared_store = &race.shared;
     let drawing = &scene().drawing;
-    let course = &race().course;
+    let course = &race.course;
     let s = x87::div(
         shared_store.car.engine_speed.bits(),
         shared_store.car.engine_speed_limit.bits(),

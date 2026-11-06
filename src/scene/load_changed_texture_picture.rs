@@ -45,10 +45,10 @@ pub fn load_changed_texture_picture(
 }
 
 pub fn load_changed_texture_picture_in_game(
-    course: &'static crate::race::owner_course::Course,
+    race: &'static crate::race::owner::Race,
     texture: u32,
 ) -> Result<(), Refused> {
     load_changed_texture_picture(texture, &mut |picture, texture| {
-        load_texture_picture_in_game(course, picture, texture)
+        load_texture_picture_in_game(race, picture, texture)
     })
 }

@@ -26,36 +26,36 @@
 use crate::errors::{BadInput, Refused};
 
 // ---- game data ----
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use rc2k_core::scene::shown::OBJECTS;
 
 // ---- Rust version ----
 
 /// The game's variables for the race's tests.
-struct Game;
+struct Game<'a>(&'a Race);
 
-impl rc2k_core::scene::shown::RaceObject for Game {
+impl rc2k_core::scene::shown::RaceObject for Game<'_> {
     fn object(&self) -> u32 {
-        race().shared.switches.object_number.bits()
+        self.0.shared.switches.object_number.bits()
     }
     fn kind_switch(&self) -> u32 {
-        race().shared.work.in_credits.bits()
+        self.0.shared.work.in_credits.bits()
     }
     fn kind_mode(&self) -> u32 {
-        race().shared.vars.run_kind.bits()
+        self.0.shared.vars.run_kind.bits()
     }
     fn kind(&self, object: u32) -> u32 {
         scene().objects.tables.object_kind(object)
     }
     fn other_way(&self) -> u32 {
-        race().shared.switches.other_way.bits()
+        self.0.shared.switches.other_way.bits()
     }
     fn shown(&self) -> u32 {
-        race().course.stage_prefs.shown.bits()
+        self.0.course.stage_prefs.shown.bits()
     }
     fn which(&self) -> u32 {
-        race().shared.work.stage_direction.bits()
+        self.0.shared.work.stage_direction.bits()
     }
     fn only(&self) -> u32 {
         scene().drawing.object_work.only_object.bits()
@@ -69,24 +69,17 @@ impl rc2k_core::scene::shown::RaceObject for Game {
 /// the tests leave in the registers `draw_object` does not read.
 // Converted: `rc2k_core::scene::shown::race_shown`
 pub fn draw_shown_object(
-    course: &crate::race::owner_course::Course,
+    race: &Race,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<bool, Refused> {
     let scene = scene();
-    let race = course.numbers.in_race.bits() != 0;
-    if race
-        && crate::race::owner::race()
-            .shared
-            .switches
-            .object_number
-            .bits()
-            >= OBJECTS
-    {
+    let in_race = race.course.numbers.in_race.bits() != 0;
+    if in_race && race.shared.switches.object_number.bits() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }
     scene.lights.work.drawing_object.set_bits(1u32);
-    let show = if race {
-        rc2k_core::scene::shown::race_shown(&Game)
+    let show = if in_race {
+        rc2k_core::scene::shown::race_shown(&Game(race))
     } else {
         for (cell, byte) in scene
             .objects

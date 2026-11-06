@@ -22,6 +22,7 @@ use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
@@ -35,7 +36,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         race.shared.car.camera_view.get(),
         race.shared.car.all_wheels_off.get(),
     ) {
-        x87_1();
+        x87_1(&race.shared);
         hold_high(
             &scene.lights.state.camera_frame_b,
             &race.shared.physics_tables.camera_frame_limit,
@@ -72,11 +73,9 @@ pub fn camera_frame() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x23763C] = [rc + 0x31A8E4] * [rc + 0x214098]`
-fn x87_1() {
-    let shared_store = &crate::race::owner::race().shared;
-
-    let t0 = ld(shared_store.car.unknown_90c.bits());
-    let t1 = ld(shared_store.physics_tables.camera_frame_scale.bits());
+fn x87_1(shared: &Shared) {
+    let t0 = ld(shared.car.unknown_90c.bits());
+    let t1 = ld(shared.physics_tables.camera_frame_scale.bits());
     let t2 = t0 * t1;
     scene().lights.state.camera_frame_b.set_bits(st(t2));
 }
@@ -117,7 +116,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |_| x87_1(),
+                plain: |_| x87_1(&race().shared),
             },
             Block {
                 name: "camera_frame line 37",

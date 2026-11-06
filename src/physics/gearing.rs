@@ -9,25 +9,24 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::race::owner_shared::Shared;
 use crate::session::{Cell32, Float};
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
 #[derive(Clone, Copy)]
-pub struct GearPlaces {
-    pub gear: &'static dyn Cell32,
-    pub engine_speed: &'static dyn Cell32,
-    pub drive_speed: &'static dyn Cell32,
-    pub drive_speed_2: &'static dyn Cell32,
-    pub drive_kind: &'static dyn Cell32,
-    pub ratios: &'static [Float; 9],
-    pub speed: &'static dyn Cell32,
+pub struct GearPlaces<'a> {
+    pub gear: &'a dyn Cell32,
+    pub engine_speed: &'a dyn Cell32,
+    pub drive_speed: &'a dyn Cell32,
+    pub drive_speed_2: &'a dyn Cell32,
+    pub drive_kind: &'a dyn Cell32,
+    pub ratios: &'a [Float; 9],
+    pub speed: &'a dyn Cell32,
 }
 
-impl GearPlaces {
-    pub fn game() -> Self {
-        let shared = &race().shared;
+impl<'a> GearPlaces<'a> {
+    pub fn game(shared: &'a Shared) -> Self {
         Self {
             gear: &shared.car.gear,
             engine_speed: &shared.car.engine_speed,
@@ -41,7 +40,7 @@ impl GearPlaces {
 }
 
 /// The gear (None for neutral) and its ratio; refused outside the ratio table (-1 ..= 7).
-fn gear_ratio(p: &GearPlaces) -> Result<Option<(u32, u32)>, Refused> {
+fn gear_ratio(p: &GearPlaces<'_>) -> Result<Option<(u32, u32)>, Refused> {
     let gear = p.gear.bits();
     if gear == 0 {
         return Ok(None);
@@ -54,7 +53,7 @@ fn gear_ratio(p: &GearPlaces) -> Result<Option<(u32, u32)>, Refused> {
 
 /// `physics::revs_from_wheels` (0x43C0C9): in gear, engine speed = the driven speed (with
 /// drive kind 1 the two driven speeds' sum times 0.5) over the gear's ratio.
-pub fn revs_from_wheels_at(course: &Course, p: &GearPlaces) -> Result<(), Refused> {
+pub fn revs_from_wheels_at(course: &Course, p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
@@ -75,7 +74,7 @@ pub fn revs_from_wheels_at(course: &Course, p: &GearPlaces) -> Result<(), Refuse
 /// `physics::wheels_from_revs` (0x43C124): in gear, driven speed = engine speed times the
 /// gear's ratio; with drive kind 1 the second driven speed the same (reloaded: `fld;
 /// fstp`).
-pub fn wheels_from_revs_at(p: &GearPlaces) -> Result<(), Refused> {
+pub fn wheels_from_revs_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
@@ -89,7 +88,7 @@ pub fn wheels_from_revs_at(p: &GearPlaces) -> Result<(), Refused> {
 
 /// `physics::revs_from_speed` (0x43C101): in gear, engine speed = `g_carSpeed` over the
 /// gear's ratio.
-pub fn revs_from_speed_at(p: &GearPlaces) -> Result<(), Refused> {
+pub fn revs_from_speed_at(p: &GearPlaces<'_>) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };

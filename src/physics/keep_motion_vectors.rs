@@ -8,7 +8,7 @@
 //!
 //! Caller: `sub_43B635` (0x43B89B), every physics step.
 
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -20,8 +20,7 @@ fn core(v: &[&dyn Cell32]) {
     }
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let race = race();
+fn game(race: &Race) -> Vec<&dyn Cell32> {
     vec![
         &race.shared.physics_tables.contact_step as &dyn Cell32,
         &race.shared.car.velocity[0],
@@ -40,6 +39,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 }
 
 /// The Rust version.
-pub fn keep_motion_vectors() {
-    core(&game());
+pub fn keep_motion_vectors(race: &Race) {
+    core(&game(race));
 }

@@ -12,7 +12,7 @@
 //! number past the table and a face that is not there.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -21,9 +21,9 @@ use crate::scene::owner::scene;
 
 // Converted: `rc2k_core::scene::objects::object_faces`
 pub fn list_object_faces(
+    shared: &Shared,
     list: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let shared = &race().shared;
     let scene = scene();
     {
         let (first, count): (u32, u32) = (

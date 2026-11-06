@@ -9,20 +9,20 @@
 //!
 //! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`).
 
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::race_end::{header_cell, setting_cell};
 use crate::session::Dword;
 use rc2k_core::race::replay::{HEADER_SETTINGS, Setting, read_logged};
 
 /// The race's places a header setting goes back to, in the original's order (a kind
 /// into its block and into `g_raceCarKinds`).
-fn targets(s: Setting) -> Vec<&'static Dword> {
+fn targets(shared: &Shared, s: Setting) -> Vec<&Dword> {
     match s {
         Setting::Kind(n) => vec![
-            setting_cell(s),
-            &race().shared.vars.race_car_kinds[n as usize],
+            setting_cell(shared, s),
+            &shared.vars.race_car_kinds[n as usize],
         ],
-        _ => vec![setting_cell(s)],
+        _ => vec![setting_cell(shared, s)],
     }
 }
 
@@ -50,11 +50,11 @@ fn log_text(text: &std::ffi::CStr, newline: bool) {
 
 /// The Rust version. Reads no register and keeps every one (liveness), so its only
 /// caller, `race::viewer_load_stage`, calls it plainly.
-pub fn read_replay_header() {
+pub fn read_replay_header(shared: &Shared) {
     // Converted: `rc2k_core::race::replay::{HEADER_SETTINGS, read_logged}`.
     log_text(TITLE, true);
     for s in HEADER_SETTINGS {
-        for to in targets(s) {
+        for to in targets(shared, s) {
             to.set(header_cell(s).get());
         }
     }

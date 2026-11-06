@@ -13,9 +13,10 @@
 use crate::effects::spawn_windscreen_flake::spawn_windscreen_flake;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::Refused;
+use crate::race::owner_shared::Shared;
 
 /// The Rust version (see the header).
-pub fn pick_windscreen_flake(fl: &WindscreenFlakes) -> Result<(), Refused> {
+pub fn pick_windscreen_flake(shared: &Shared, fl: &WindscreenFlakes) -> Result<(), Refused> {
     {
         let s = fl
             .state
@@ -24,7 +25,7 @@ pub fn pick_windscreen_flake(fl: &WindscreenFlakes) -> Result<(), Refused> {
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
         fl.state.pick_random.set(s);
-        spawn_windscreen_flake(fl, s & 0x7FF, (s >> 11) & 0x3FF, (s >> 21) & 7)?;
+        spawn_windscreen_flake(shared, fl, s & 0x7FF, (s >> 11) & 0x3FF, (s >> 21) & 7)?;
     }
     Ok(())
 }

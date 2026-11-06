@@ -13,23 +13,20 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
-use crate::race::owner_physics::Physics;
+use crate::race::owner::Race;
 
 /// The steps, not guarded. The registers left are read by none of the callers.
 // Converted: `rc2k_core::physics::ground_search::cells_around`.
-pub fn face_contacts_around(physics: &Physics) -> Result<(), Refused> {
-    let shared_store = &race().shared;
-
-    let physics_store = physics;
+pub fn face_contacts_around(race: &Race) -> Result<(), Refused> {
+    let physics_store = &race.physics;
     physics_store
         .ground
         .ground_x
-        .set(shared_store.car.position[0].get());
+        .set(race.shared.car.position[0].get());
     physics_store
         .ground
         .ground_z
-        .set(shared_store.car.position[2].get());
+        .set(race.shared.car.position[2].get());
     rc2k_core::physics::ground_search::cells_around(
         || {
             (
@@ -37,6 +34,6 @@ pub fn face_contacts_around(physics: &Physics) -> Result<(), Refused> {
                 physics_store.ground.ground_z.get(),
             )
         },
-        crate::physics::cell_face_contacts::steps,
+        |x, z| crate::physics::cell_face_contacts::steps(race, x, z),
     )
 }

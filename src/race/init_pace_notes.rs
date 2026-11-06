@@ -15,6 +15,7 @@
 //! Nothing is written then.
 
 use crate::errors::Refused;
+use crate::race::owner_shared::Shared;
 use crate::race::pace_notes::{Course, Machine};
 
 /// The Rust version on a course. The original reads no register at entry and keeps them
@@ -28,6 +29,6 @@ pub fn init_pace_notes_on(course: Course) -> Result<(), Refused> {
 }
 
 /// The Rust version on the game's course.
-pub fn init_pace_notes() -> Result<(), Refused> {
-    init_pace_notes_on(crate::race::pace_notes::game_course())
+pub fn init_pace_notes(shared: &Shared) -> Result<(), Refused> {
+    init_pace_notes_on(crate::race::pace_notes::game_course(shared))
 }

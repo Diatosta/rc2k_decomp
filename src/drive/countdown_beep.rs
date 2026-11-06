@@ -12,14 +12,13 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::race::owner::race;
-use crate::race::owner_frame::Frame;
+use crate::race::owner::Race;
 use crate::race::panel_store::Loose32;
 use rc2k_core::drive::countdown::{self, Beep};
 
 /// The Rust version: the car block `block`, the second into `to`.
 // Converted: `rc2k_core::drive::countdown::countdown_beep`.
-pub fn countdown_beep(frame: &Frame, block: &Car, to: &Loose32) -> Result<(), Refused> {
+pub fn countdown_beep(race: &Race, block: &Car, to: &Loose32) -> Result<(), Refused> {
     let beep = countdown::countdown_beep(
         block.false_start_count.bits(),
         block.driver_kind.bits(),
@@ -27,7 +26,7 @@ pub fn countdown_beep(frame: &Frame, block: &Car, to: &Loose32) -> Result<(), Re
             block
                 .run_ticks
                 .bits()
-                .wrapping_sub(frame.panel_and_overlay.overlay.countdown_start.get())
+                .wrapping_sub(race.frame.panel_and_overlay.overlay.countdown_start.get())
         },
     );
     let (second, cue) = match beep {
@@ -36,9 +35,9 @@ pub fn countdown_beep(frame: &Frame, block: &Car, to: &Loose32) -> Result<(), Re
     };
     to.set(second);
     if cue {
-        let sound = frame.panel_and_overlay.overlay.countdown_sounds[second as usize].get(); // dword_6D1818, the cue is only for 0 .. SECONDS
-        race().shared.physics_tables.countdown_sound.set(sound);
-        crate::drive::countdown_cue::countdown_cue(frame, sound)?;
+        let sound = race.frame.panel_and_overlay.overlay.countdown_sounds[second as usize].get(); // dword_6D1818, the cue is only for 0 .. SECONDS
+        race.shared.physics_tables.countdown_sound.set(sound);
+        crate::drive::countdown_cue::countdown_cue(race, sound)?;
     }
     Ok(())
 }

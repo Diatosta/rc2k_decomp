@@ -28,7 +28,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture_to_texture::load_picture_to_texture_in_game;
 use crate::logfile::log_int::log_int;
 use crate::place::Place;
-use crate::race::owner::race;
 
 // ---- game data ----
 
@@ -88,12 +87,12 @@ fn write_names(
 
 // Converted: `rc2k_core::scene::pictures`
 pub fn load_texture_picture(
-    course: &'static crate::race::owner_course::Course,
+    race: &'static crate::race::owner::Race,
     number: u32,
     texture: u32,
     call: &mut dyn FnMut(Call) -> bool,
 ) -> Result<(), BadInput> {
-    let shared = &race().shared;
+    let (course, shared) = (&race.course, &race.shared);
     {
         write_names(course, number, texture)?;
         let mut gravel_chosen = false;
@@ -132,12 +131,12 @@ pub fn load_texture_picture(
 
 /// With the game's log, files and loading.
 pub fn load_texture_picture_in_game(
-    course: &'static crate::race::owner_course::Course,
+    race: &'static crate::race::owner::Race,
     number: u32,
     texture: u32,
 ) -> Result<(), Refused> {
     let mut refused = None;
-    load_texture_picture(course, number, texture, &mut |call| {
+    load_texture_picture(race, number, texture, &mut |call| {
         match call {
             Call::Text(text) => crate::logfile::log_write::log_nul(&text[..], false, 1),
             Call::Number(number) => log_int(number as i32, false, 1),

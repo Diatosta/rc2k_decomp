@@ -7,7 +7,7 @@ use crate::effects::paths::Paths;
 use crate::effects::rain::Weather;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::{Bytes, Dword, Float};
 
 /// The marks' clock (`effects::tick_clock`) (IDA 0x764FC8 .. 0x764FFC, the image's layout; phase 7, typed state).
@@ -147,11 +147,11 @@ pub fn clear_slots() {
 /// `g_marksSettings` +0x10 is 1), a quarter and a sixteenth of them (shifted), the
 /// reciprocal one over them (`fidiv`) and that times `flt_7651BC`, and the ticks' bits
 /// taken as a float (section 16) times `flt_93CC14`.
-pub fn tick_clock() -> Result<(), Refused> {
+pub fn tick_clock(shared: &Shared) -> Result<(), Refused> {
     let setup = &effects().setup;
     let c = &setup.clock;
     {
-        let clock: u32 = race().shared.physics_tables.scene_clock.bits();
+        let clock: u32 = shared.physics_tables.scene_clock.bits();
         if c.started.get() == 0 {
             c.started.set(1);
             for r in [&c.last, &c.now, &c.before] {

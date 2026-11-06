@@ -20,7 +20,6 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::race::owner::race;
 use crate::scene::owner::scene;
 use crate::scene::point_records::field;
 use crate::scene::project_point::make_scene_record;
@@ -41,10 +40,10 @@ fn record_at() -> Option<u32> {
 
 /// The two words of the object's kind, and whether the object's place is looked at;
 /// None for an object's number past the tables.
-fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
+fn words(shared: &crate::race::owner_shared::Shared) -> Result<Option<(u32, u32, bool)>, BadInput> {
     let scene = scene();
     {
-        let object: u32 = race().shared.switches.object_number.bits();
+        let object: u32 = shared.switches.object_number.bits();
         if object >= OBJECTS {
             return Ok(None);
         }
@@ -66,7 +65,7 @@ fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
 
 pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> {
     let scene = scene();
-    let Some((other_kind, distance, needs_record)) = words()? else {
+    let Some((other_kind, distance, needs_record)) = words(&race.shared)? else {
         return Err(BadInput("an object's number past the tables"));
     };
     let place: u32 = scene.drawing.object_work.object_place.bits();

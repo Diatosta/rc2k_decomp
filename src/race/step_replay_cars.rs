@@ -14,11 +14,10 @@
 //! of 0 or past 8 (0 goes round 2^32 times).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 
 /// The Rust version (the original leaves registers nothing reads).
-pub fn step_replay_cars() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn step_replay_cars(shared: &Shared) -> Result<(), Refused> {
     use crate::drive::*;
     // Converted: `rc2k_core::race::viewer_flow::{check_replay_cars, car_block, car_runs,
     // RUN_STEPS, next_car}`.

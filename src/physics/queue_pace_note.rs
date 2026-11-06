@@ -64,11 +64,8 @@ pub fn queue_pace_note(race: &Race, checkpoint: u32) -> Result<(), Refused> {
                 return Ok(());
             }
             Code::Call => {
-                crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(
-                    &race.frame,
-                    byte,
-                )?;
-                { crate::physics::queue_listed_event::queue_listed_event(byte) }?;
+                crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(race, byte)?;
+                { crate::physics::queue_listed_event::queue_listed_event(race, byte) }?;
                 at = at.wrapping_add(1);
             }
         }

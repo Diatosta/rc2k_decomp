@@ -19,8 +19,8 @@
 //! `screens::run_frame` (eax, from `race::replay_viewer`).
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
 
@@ -45,7 +45,7 @@ pub fn viewer_frame() -> Result<bool, Refused> {
         crate::race::viewer_snapshot::viewer_snapshot(replay)?;
     } else {
         if race.shared.replay_file.viewer_stopped.get() == 1 {
-            stopped(replay)?;
+            stopped(race)?;
         }
         crate::platform_3d::end_layer();
     }
@@ -54,8 +54,9 @@ pub fn viewer_frame() -> Result<bool, Refused> {
 }
 
 /// The list, the bar and the panel (stopped).
-fn stopped(replay: &Replay) -> Result<(), Refused> {
-    let shared = &race().shared;
+fn stopped(race: &Race) -> Result<(), Refused> {
+    let replay = &race.replay;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x}`.
     use rc2k_core::race::viewer_flow::{LIST_STATES, bar_places, mark_x, place_x};
     crate::d3d::set_texture::set_texture(shared.replay_file.viewer_list_texture.get());
@@ -117,7 +118,7 @@ fn stopped(replay: &Replay) -> Result<(), Refused> {
         quad(&v.button_picture_rect, &v.button_rect_c, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_b, 0xFF_FFFF)?;
         quad(&v.button_body_rect, &v.button_rect_d, 0xFF_FFFF)?;
-        crate::race::draw_viewer_panel::draw_viewer_panel(replay)?;
+        crate::race::draw_viewer_panel::draw_viewer_panel(race)?;
     }
     Ok(())
 }

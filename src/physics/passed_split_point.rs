@@ -23,7 +23,6 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::scene::owner::scene;
 use rc2k_core::physics::progress;
 use std::cmp::Ordering;
@@ -71,23 +70,20 @@ fn angle(race: &Race, point: [u32; 3]) {
 }
 
 /// The split's checkpoint and its face's first point's number, refused or fatal as said.
-fn point() -> Result<(u32, u32), Refused> {
-    let race_owner = race();
-    let split = race().shared.car.splits_passed.get();
+fn point(race: &Race) -> Result<(u32, u32), Refused> {
+    let split = race.shared.car.splits_passed.get();
     let cp = progress::check_split_point(split, || {
-        race_owner.physics.split_tables.checkpoints[1 + split as usize].get()
+        race.physics.split_tables.checkpoints[1 + split as usize].get()
     })?;
     let face = crate::race::checkpoints_store::face(cp as usize).get();
-    if !progress::face_known(face, race_owner.course.course.course_face_count.get()) {
+    if !progress::face_known(face, race.course.course.course_face_count.get()) {
         return Err(FatalError {
             code: progress::SEGMENT_FATAL,
             message: "\u{1}",
         }
         .into());
     }
-    if race_owner.course.course.course_faces.get() == 0
-        || race_owner.course.course.scene_points.get() == 0
-    {
+    if race.course.course.course_faces.get() == 0 || race.course.course.scene_points.get() == 0 {
         return Err(BadInput("no course faces or points").into());
     }
     let index = crate::race::course_places::face_field::<u32>(
@@ -107,7 +103,7 @@ pub fn passed_split_point(race: &Race) -> Result<bool, Refused> {
     if race_owner.replay.finish.no_place.get() != 0 {
         return Ok(false);
     }
-    let (cp, pt) = point()?;
+    let (cp, pt) = point(race)?;
     // The point read from `race::scene_points` (phase 13); the x87 runs read a copy.
     let pt = crate::race::scene_points::point_number(pt)?;
     race_owner

@@ -12,8 +12,8 @@
 use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 
@@ -26,7 +26,7 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 }
 
 /// The Rust core on the variables at `v`: the held count.
-pub fn blend_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
+pub fn blend_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     let mut n = get(v, 0).wrapping_sub(get(v, 1));
     if (n as i32) < 0 {
         n = 0;
@@ -38,10 +38,13 @@ pub fn blend_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
     put(
         v,
         3,
-        x87::int_times(n as i32, race().shared.tables.start_blend_step.bits()),
+        x87::int_times(n as i32, race.shared.tables.start_blend_step.bits()),
     );
     put(v, 6, add3(get(v, 4), get(v, 3), get(v, 5)));
-    let (low, high) = (course.numbers.zero.bits(), course.numbers.one.bits());
+    let (low, high) = (
+        race.course.numbers.zero.bits(),
+        race.course.numbers.one.bits(),
+    );
     if compare_full(get(v, 6), low) & 0x100 != 0 {
         put(v, 6, x87::loaded(low));
     }
@@ -51,8 +54,7 @@ pub fn blend_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
     n
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let shared = &race().shared;
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.checkpoint,
         &CAR_BLOCKS.cars[0].checkpoint,
@@ -65,6 +67,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 }
 
 /// The Rust version (the exact one, for `drive::read_car_controls`).
-pub fn start_blend(course: &Course) -> u32 {
-    blend_at(course, &game())
+pub fn start_blend(race: &Race) -> u32 {
+    blend_at(race, &game(&race.shared))
 }

@@ -13,12 +13,12 @@
 
 use crate::errors::Refused;
 use crate::physics::cells::{set_changed, set_values_changed, values};
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::physics::car_events::CarEvents;
 
 /// The work car's queue.
-pub fn load() -> CarEvents {
-    let race = race();
+pub fn load(race: &Race) -> CarEvents {
     CarEvents {
         times: values(&race.shared.car.car_event_times),
         events: values(&race.shared.car.car_event_codes),
@@ -29,8 +29,7 @@ pub fn load() -> CarEvents {
 }
 
 /// What changed from `was` to `now` stored back.
-pub fn store(was: &CarEvents, now: &CarEvents) {
-    let shared = &race().shared;
+pub fn store(shared: &Shared, was: &CarEvents, now: &CarEvents) {
     set_values_changed(&shared.car.car_event_times, &was.times, &now.times);
     set_values_changed(&shared.car.car_event_codes, &was.events, &now.events);
     set_changed(&shared.car.car_event_count, was.count, now.count);
@@ -39,10 +38,10 @@ pub fn store(was: &CarEvents, now: &CarEvents) {
 }
 
 /// The Rust version.
-pub fn queue_car_event(esi: u32, ebx: u32) -> Result<(), Refused> {
-    let was = load();
+pub fn queue_car_event(race: &Race, esi: u32, ebx: u32) -> Result<(), Refused> {
+    let was = load(race);
     let mut q = was;
-    q.queue(race().shared.physics_tables.scene_clock.get(), esi, ebx)?;
-    store(&was, &q);
+    q.queue(race.shared.physics_tables.scene_clock.get(), esi, ebx)?;
+    store(&race.shared, &was, &q);
     Ok(())
 }

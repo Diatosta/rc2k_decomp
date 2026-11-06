@@ -11,13 +11,14 @@
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::Dword;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
 
 /// One pedal: by the keys' `bit`, stepped from `input`, or set to it.
-fn step_pedal(bit: u32, input: &Dword, at: &Dword) {
+fn step_pedal(shared: &Shared, bit: u32, input: &Dword, at: &Dword) {
     at.set(pedal(
-        race().shared.car.input_keys.get() & bit != 0,
+        shared.car.input_keys.get() & bit != 0,
         input.get(),
         at.get(),
     ));
@@ -28,11 +29,13 @@ fn step_pedal(bit: u32, input: &Dword, at: &Dword) {
 pub fn pedal_inputs() {
     let race = race();
     step_pedal(
+        &race.shared,
         THROTTLE_KEY,
         &race.shared.physics_tables.input_throttle,
         &race.shared.car.throttle,
     );
     step_pedal(
+        &race.shared,
         BRAKE_KEY,
         &race.shared.physics_tables.input_brake,
         &race.shared.car.brake,

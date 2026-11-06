@@ -14,16 +14,15 @@
 use crate::errors::Refused;
 use crate::math::next_random::next_random;
 use crate::race::muddy_texel::{muddy_texel, texture_and_mud};
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
 
 pub use rc2k_core::race::mud::LAST_THROWN;
 
 /// The Rust version (see the header).
-pub fn throw_mud_texel(course: &Course) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn throw_mud_texel(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::mud::{LAST_THROWN, extra_throw}`.
-    let n = texture_and_mud()?;
+    let n = texture_and_mud(&race.shared)?;
     // dword_623D80: each texture's count (the texture is 0 .. 3).
     let count_cell = &shared.vars.mud_thrown_counts[n as usize];
     let count: u32 = count_cell.bits();
@@ -31,11 +30,11 @@ pub fn throw_mud_texel(course: &Course) -> Result<(), Refused> {
         return Ok(());
     }
     count_cell.set(count + 1);
-    muddy_texel(course, count)?;
+    muddy_texel(race, count)?;
     let (sum, carried) = rc2k_core::race::mud::extra_throw(shared.vars.mud_extra_sum.bits());
     shared.vars.mud_extra_sum.set_bits(sum);
     if !carried {
         return Ok(());
     }
-    muddy_texel(course, next_random())
+    muddy_texel(race, next_random())
 }

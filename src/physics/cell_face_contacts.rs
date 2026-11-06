@@ -14,15 +14,14 @@
 
 use crate::errors::Refused;
 use crate::physics::find_course_record::find_course_record;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The steps for the cell of (`x`, `z`) (eax, ecx), not guarded.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
-pub fn steps(x: u32, z: u32) -> Result<(), Refused> {
-    let course = &race().course;
+pub fn steps(race: &Race, x: u32, z: u32) -> Result<(), Refused> {
     let (key, _) = rc2k_core::physics::ground_search::cell_key(x, z);
-    let Some(record) = find_course_record(course, key)? else {
+    let Some(record) = find_course_record(&race.course, key)? else {
         return Ok(());
     };
-    crate::physics::record_face_contacts::steps(course, record)
+    crate::physics::record_face_contacts::steps(race, record)
 }

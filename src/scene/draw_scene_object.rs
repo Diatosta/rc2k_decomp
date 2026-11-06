@@ -38,14 +38,14 @@ pub use rc2k_core::scene::shown::Way;
 
 /// The texture set for `g_objectNumber`; the object's number.
 // Converted: `rc2k_core::scene::shown::texture_set`
-fn texture_set(course: &crate::race::owner_course::Course) -> Result<(u32, u32), Refused> {
-    let shared = &race().shared;
+fn texture_set(race: &crate::race::owner::Race) -> Result<(u32, u32), Refused> {
+    let shared = &race.shared;
     use rc2k_core::scene::shown::SetError;
     {
         let object: u32 = shared.switches.object_number.bits();
         let t = rc2k_core::scene::shown::texture_set(
             object,
-            course.numbers.in_race.bits() != 0,
+            race.course.numbers.in_race.bits() != 0,
             |object| scene().objects.tables.object_kind(object),
             |car| {
                 let block: u32 = shared.work.car_block(car as usize);
@@ -71,7 +71,7 @@ pub fn draw_scene_object(
     draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let scene = scene();
-    let (set, object) = texture_set(&race.course)?;
+    let (set, object) = texture_set(race)?;
     race.physics.ground.object_texture_set.set_bits(set);
     let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
     match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.bits()) {
@@ -88,11 +88,10 @@ pub fn draw_scene_object_in_game(
     description: Option<crate::pointers::GamePtr>,
 ) -> Result<(), Refused> {
     let race = race();
-    let course = &race.course;
     draw_scene_object(race, &mut |way| match way {
-        Way::Shown => draw_shown_object(course, &mut || draw_object_in_game(race)).map(|_| ()),
+        Way::Shown => draw_shown_object(race, &mut || draw_object_in_game(race)).map(|_| ()),
         Way::Described => {
-            crate::scene::draw_described_object::draw_described_object(course, description)
+            crate::scene::draw_described_object::draw_described_object(race, description)
         }
     })
 }

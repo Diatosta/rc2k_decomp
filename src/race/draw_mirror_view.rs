@@ -37,7 +37,7 @@ pub fn draw_mirror_view(race: &Race) -> Result<(), Refused> {
     let drawn = (|| {
         crate::race::frame_views::mirror_view_window(race)?;
         race.shared.view.view_depth[1].set_bits(race.course.level_grid.view_value_kept.bits());
-        crate::race::frame_flush::draw_view_backdrop(&race.course);
+        crate::race::frame_flush::draw_view_backdrop(race);
         crate::race::draw_view_scene::draw_view_scene(race)
     })();
     race.course.stage_prefs.grid_reach.set_bits(saved.1);

@@ -26,6 +26,6 @@ pub fn hit_part_checks(race: &Race) -> Result<(), Refused> {
     if left != 0 || race.shared.car.tyre_change_state.get() != 0 {
         return Ok(());
     }
-    drop_hit_parts(&race.course)?;
+    drop_hit_parts(race)?;
     sound_hit_parts(race)
 }

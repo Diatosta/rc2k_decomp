@@ -15,5 +15,8 @@ pub fn kind_hidden_at(face: u32) -> Result<bool, BadInput> {
     // Converted: `rc2k_core::scene::kinds::kind_is_hidden` (through `kind_is_hidden`).
     let object = crate::race::course_places::face_field::<u8>(face, 1, "a course face")? as u32;
     // A byte: never past the table.
-    Ok({ kind_is_hidden(object) }.is_ok_and(|(hidden, _)| hidden))
+    Ok(
+        { kind_is_hidden(&crate::race::owner::race().shared, object) }
+            .is_ok_and(|(hidden, _)| hidden),
+    )
 }

@@ -8,8 +8,8 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
 pub const MUD_LEN: u32 = 0x1_0000;
@@ -75,8 +75,7 @@ pub fn mud_pixel(x: u32, y: u32) -> Result<u32, BadInput> {
 
 /// `race::load_mud` (0x449D95): the car's file number's two digits (`div 10`, each +
 /// '0', as bytes) into the path, the file (0x10000 bytes at most) into the mud.
-pub fn load_mud() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn load_mud(shared: &Shared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::file_digits`.
     let (tens, units) = rc2k_core::race::mud::file_digits(car_file_number(
         crate::race::blocks_store::own_car().car_kind.get(),
@@ -93,9 +92,9 @@ pub fn load_mud() -> Result<(), Refused> {
 }
 
 /// `race::clear_mud_state` (0x449E01): the 18 dwords at 0x623D58 and the two more 0.
-pub fn clear_mud_state() {
+pub fn clear_mud_state(shared: &Shared) {
     // The 18 dwords from `mud_frames` to the end of `mud_splash_counts`.
-    let v = &race().shared.vars;
+    let v = &shared.vars;
     v.mud_frames.set(0);
     v.mud_texture.set(0);
     for k in 0..4 {
@@ -111,14 +110,14 @@ pub fn clear_mud_state() {
 /// `race::sample_mud_colours` (0x44A0D6): the surface locked (`d3d::lock_texture`), 256
 /// colours, n's at (0x89 + (n & 3) + (n >> 5) * 4, 0x68 + ((n & 0x1C) >> 2)) by
 /// `mud_pixel`, unlocked (`d3d::unlock_texture`).
-pub fn sample_mud_colours() -> Result<(), Refused> {
+pub fn sample_mud_colours(shared: &Shared) -> Result<(), Refused> {
     let textures = &scene().textures;
     // dword_5D0DEC (`g_kindFirstTextures` + 0x304): the surface sampled.
     crate::d3d::lock_texture::lock_texture(textures.kinds.kind_first_textures[193].get())?;
     // Converted: `rc2k_core::race::mud::sample_place`.
     for n in 0..rc2k_core::race::mud::SAMPLES {
         let (x, y) = rc2k_core::race::mud::sample_place(n);
-        race().shared.vars.mud_colours[n as usize].set(mud_pixel(x, y)?);
+        shared.vars.mud_colours[n as usize].set(mud_pixel(x, y)?);
     }
     crate::d3d::unlock_texture::unlock_texture(textures.kinds.kind_first_textures[193].get())?;
     Ok(())
@@ -130,7 +129,8 @@ pub static MUD: crate::memory::owned::Owned<Vec<u8>> = crate::memory::owned::Own
 
 /// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken (`MUD`, the
 /// game's `dword_623D50`), then `load_mud`, `clear_mud_state`, `sample_mud_colours`.
-pub fn init_mud(course: &Course) -> Result<(), Refused> {
+pub fn init_mud(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     course
         .lists
         .course_bytes_total
@@ -140,9 +140,9 @@ pub fn init_mud(course: &Course) -> Result<(), Refused> {
         MUD_LEN,
         vec![0; MUD_LEN as usize],
     )?;
-    load_mud()?;
-    clear_mud_state();
-    sample_mud_colours()
+    load_mud(&race.shared)?;
+    clear_mud_state(&race.shared);
+    sample_mud_colours(&race.shared)
 }
 
 #[cfg(all(test, target_arch = "x86"))]

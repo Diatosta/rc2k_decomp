@@ -42,7 +42,6 @@ use crate::physics::touch_face::touch_face;
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::scene::owner::scene;
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
@@ -54,12 +53,9 @@ fn touch(race: &Race) -> Result<(), Refused> {
 /// The steps for face `number` (ebx). The registers the original leaves are read by none
 /// of its callers.
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
-pub fn steps(number: u32) -> Result<(), Refused> {
-    let shared_store = &crate::race::owner::race().shared;
-
+pub fn steps(race: &Race, number: u32) -> Result<(), Refused> {
     let scene = scene();
-    let race_owner = race();
-    race_owner.physics.contact.face_number.set(number);
+    race.physics.contact.face_number.set(number);
     let face = number;
     let face_byte = |offset| -> Result<u32, Refused> {
         Ok(u32::from(crate::race::course_places::face_field::<u8>(
@@ -91,19 +87,19 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     let object = match found {
         FaceObject::NotObject => return Ok(()),
         FaceObject::TouchOnly => {
-            race_owner.physics.contact.contact_kind.set(0xFF);
-            return touch(race_owner);
+            race.physics.contact.contact_kind.set(0xFF);
+            return touch(race);
         }
         FaceObject::Object(object) => object,
     };
-    race_owner.physics.contact.face_object.set(object);
+    race.physics.contact.face_object.set(object);
     let kind = scene.objects.tables.object_kind(object);
     if let Err(e) = contacts::check_material(kind) {
         crate::framework::log(&format!(
             "physics::face_contact: face {}: object {object}, kind {kind:#x}, car {} at {:?}",
             face,
-            shared_store.work.current_car.get(),
-            shared_store
+            race.shared.work.current_car.get(),
+            race.shared
                 .car
                 .position
                 .iter()
@@ -113,14 +109,13 @@ pub fn steps(number: u32) -> Result<(), Refused> {
         return Err(e.into());
     }
     // An unset kind wraps to the record before the first, as the original reads it.
-    race_owner
-        .physics
+    race.physics
         .contact
         .contact_kind
         .set(crate::scene::polygon::material_byte(kind, 0x1C)?.into());
     if contacts::object_tried(
         face_byte(0x25)?,
-        shared_store.work.stage_direction.get(),
+        race.shared.work.stage_direction.get(),
         object,
     )
     .is_err()
@@ -133,88 +128,80 @@ pub fn steps(number: u32) -> Result<(), Refused> {
     scene.drawing.object_work.size.set(face_byte(0x18)?);
     // esi and ebp both the face here.
     let (inside, point) =
-        { crate::physics::scene_point_hits_car::scene_point_hits_car(race_owner, face) }?;
+        { crate::physics::scene_point_hits_car::scene_point_hits_car(race, face) }?;
     if !inside {
-        if !contacts::tries_points(race_owner.physics.contact.contact_kind.get()) {
+        if !contacts::tries_points(race.physics.contact.contact_kind.get()) {
             return Ok(());
         }
         let dx = crate::race::scene_points::point_word(point, 0)?
             .wrapping_add(face_dword(0x30)?)
-            .wrapping_sub(shared_store.car.position[0].get());
+            .wrapping_sub(race.shared.car.position[0].get());
         let dz = crate::race::scene_points::point_word(point, 2)?
             .wrapping_add(face_dword(0x38)?)
-            .wrapping_sub(shared_store.car.position[2].get());
+            .wrapping_sub(race.shared.car.position[2].get());
         let distance = int_hypot(dx as i32, dz as i32) as u32;
         scene.drawing.scene.scratch.set(distance);
         let (reach, _) = contacts::reach(
-            scene.objects.slots.radii[race_owner.physics.contact.face_object.get() as usize].get(),
+            scene.objects.slots.radii[race.physics.contact.face_object.get() as usize].get(),
             scene.drawing.object_work.size.get(),
         );
         if contacts::out_of_reach(reach, distance) {
             return Ok(());
         }
         // esi the scene point, ebp the face.
-        if !{ crate::physics::object_hits_car::object_hits_car(race_owner, point, face) }? {
+        if !{ crate::physics::object_hits_car::object_hits_car(race, point, face) }? {
             return Ok(());
         }
     }
     // 0x45E523: inside.
-    x87_1(race_owner);
-    race_owner.physics.contact.face_angle.set(
-        race_owner
-            .physics
-            .contact
-            .face_angle
-            .get()
-            .wrapping_add(0x80)
-            & 0xFF,
-    );
-    x87_2(race_owner);
-    match contacts::inside(race_owner.physics.contact.contact_kind.get()) {
+    x87_1(race);
+    race.physics
+        .contact
+        .face_angle
+        .set(race.physics.contact.face_angle.get().wrapping_add(0x80) & 0xFF);
+    x87_2(race);
+    match contacts::inside(race.physics.contact.contact_kind.get()) {
         Inside::PushBack => {}
-        Inside::Touch => return touch(race_owner),
+        Inside::Touch => return touch(race),
         Inside::Nothing => return Ok(()),
     }
-    { crate::physics::restore_saved_car::restore_saved_car(&race_owner.physics) }?;
-    { crate::physics::feel_ground::feel_ground(race_owner) }?;
-    touch(race_owner)?;
+    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
+    { crate::physics::feel_ground::feel_ground(race) }?;
+    touch(race)?;
     // 0x45E62A: pushed back against the motion, level.
-    copy_cells(
-        &race_owner.frame.scratch.work_vector,
-        &shared_store.car.velocity,
-    );
-    negate(&race_owner.frame.scratch.work_vector[0]);
-    negate(&race_owner.frame.scratch.work_vector[1]);
-    negate(&race_owner.frame.scratch.work_vector[2]);
+    copy_cells(&race.frame.scratch.work_vector, &race.shared.car.velocity);
+    negate(&race.frame.scratch.work_vector[0]);
+    negate(&race.frame.scratch.work_vector[1]);
+    negate(&race.frame.scratch.work_vector[2]);
     if compare_80(
-        vector_length(&race_owner.frame.scratch.work_vector),
-        race_owner.course.numbers.zero.bits(),
+        vector_length(&race.frame.scratch.work_vector),
+        race.course.numbers.zero.bits(),
     ) & 0x4000
         != 0
     {
-        fill_cells(&race_owner.frame.scratch.work_vector, 0);
+        fill_cells(&race.frame.scratch.work_vector, 0);
     }
-    race_owner.frame.scratch.work_vector[1].set(0);
+    race.frame.scratch.work_vector[1].set(0);
     normalise_work_vector();
     copy_cells(
-        &race_owner.physics.contact.contact_normal,
-        &race_owner.frame.scratch.work_vector,
+        &race.physics.contact.contact_normal,
+        &race.frame.scratch.work_vector,
     );
     copy_cells(
-        &race_owner.physics.contact.contact_car_speed,
-        &shared_store.car.velocity,
+        &race.physics.contact.contact_car_speed,
+        &race.shared.car.velocity,
     );
     copy_cells(
-        &race_owner.physics.contact.contact_turn_speed,
-        &shared_store.car.spin,
+        &race.physics.contact.contact_turn_speed,
+        &race.shared.car.spin,
     );
     copy_cells(
-        &race_owner.physics.contact.contact_point,
-        &race_owner.physics.contact.object_point_scaled,
+        &race.physics.contact.contact_point,
+        &race.physics.contact.object_point_scaled,
     );
-    race_owner.physics.contact.contact_point[1].set_bits(0);
-    race_owner.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(race_owner, &shared_store.physics_tables.contacts[0]);
+    race.physics.contact.contact_point[1].set_bits(0);
+    race.physics.contact.contact_slide_limit.set_bits(0);
+    contact_force(race, &race.shared.physics_tables.contacts[0]);
     Ok(())
 }
 

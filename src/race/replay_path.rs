@@ -11,7 +11,7 @@
 //! `numbered_path` refuses.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 
 /// IDA's address of the last race's replay file's name.
@@ -46,6 +46,7 @@ impl Templates {
 #[cfg(test)]
 mod block_tests {
     use super::*;
+    use crate::race::owner::race;
 
     #[test]
     fn values_are_the_games() {
@@ -81,8 +82,9 @@ pub struct ReplayPath {
 }
 
 /// The Rust version. `slot` the replay (ebx).
-pub fn replay_path(replay: &Replay, slot: u32) -> Result<ReplayPath, Refused> {
-    let shared = &race().shared;
+pub fn replay_path(race: &Race, slot: u32) -> Result<ReplayPath, Refused> {
+    let replay = &race.replay;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer::ReplayFile`.
     use rc2k_core::race::viewer::ReplayFile;
     let mut number = slot;

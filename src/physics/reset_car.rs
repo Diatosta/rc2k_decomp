@@ -18,15 +18,13 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::scene::owner::scene;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
 
 const NOWHERE_TEXT: &std::ffi::CStr = c"cant reset car anywhere - waiting a second"; // "cant reset car anywhere - waiting a sec"
 
 /// One try: the candidate set; true when a block is in the way (CF).
-fn blocked() -> bool {
-    let race = race();
+fn blocked(race: &Race) -> bool {
     race.shared.physics_tables.reset_candidate.set(
         scene()
             .lights
@@ -38,6 +36,7 @@ fn blocked() -> bool {
     // Blocks 1 .. 3: the other cars.
     (1..4).any(|n| {
         crate::physics::reset_point_blocked::reset_point_blocked(
+            race,
             crate::race::blocks_store::block_addr(n),
         )
     })
@@ -56,7 +55,7 @@ pub fn reset_car(race: &Race) -> Result<(), Refused> {
         let mut free = false;
         for offset in reset_offsets() {
             race.shared.physics_tables.reset_offset.set(offset);
-            if !blocked() {
+            if !blocked(race) {
                 free = true;
                 break;
             }

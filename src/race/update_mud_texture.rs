@@ -61,7 +61,7 @@ fn take_units(at: &Float, units: &Dword) {
 pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
     let textures = &scene().textures;
     let frame = &race.frame;
-    let n = texture_and_mud()?;
+    let n = texture_and_mud(&race.shared)?;
     let k = n as usize;
     crate::scene::forget_slot_texture::forget_slot_texture(
         textures.kinds.kind_first_slots[256].bits().wrapping_add(n),
@@ -108,7 +108,7 @@ pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
         if throws > 0 {
             let mut done = 0u32;
             loop {
-                throw_mud_texel(&race.course)?;
+                throw_mud_texel(race)?;
                 done = done.wrapping_add(1);
                 if done == race.shared.vars.mud_throws.bits() {
                     break;
@@ -134,7 +134,7 @@ pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
                 if race.shared.vars.mud_splash_counts[k].bits() >= LAST_SPLASHED {
                     break;
                 }
-                splash_mud()?;
+                splash_mud(&race.shared)?;
                 done = done.wrapping_add(1);
                 if done == race.shared.vars.mud_splashes.bits() {
                     break;

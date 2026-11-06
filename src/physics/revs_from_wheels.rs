@@ -17,6 +17,6 @@ use crate::race::owner::race;
 /// The Rust version (the exact one, for the gearbox's Rust callers), on the game's
 /// variables.
 pub fn revs_from_wheels() -> Result<(), Refused> {
-    let course = &race().course;
-    revs_from_wheels_at(course, &GearPlaces::game())
+    let race = race();
+    revs_from_wheels_at(&race.course, &GearPlaces::game(&race.shared))
 }

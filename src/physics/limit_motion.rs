@@ -22,7 +22,7 @@ use crate::math::x87_float::compare;
 use crate::math::x87_float::{ld, st};
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -45,8 +45,7 @@ fn hold(v: &impl Cell32, l: &impl Cell32) {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::find_clear_place`).
-pub fn limit_motion() {
-    let race = race();
+pub fn limit_motion(race: &Race) {
     let drawing = &scene().drawing;
     let mut bad = false;
     for k in 0..3usize {

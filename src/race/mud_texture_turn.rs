@@ -16,7 +16,7 @@ use crate::race::tint_to_mud_colour::mud_colour;
 
 /// The Rust version (see the header).
 pub fn mud_texture_turn(race: &Race) -> Result<(), Refused> {
-    texture_and_mud()?;
+    texture_and_mud(&race.shared)?;
     let [red, green, blue] = mud_colour(&race.course);
     // Converted: `rc2k_core::race::mud::packed_colour`.
     race.shared

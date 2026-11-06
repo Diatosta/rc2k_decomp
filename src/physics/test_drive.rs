@@ -18,10 +18,9 @@ use crate::race::owner::race;
 
 /// The Rust version.
 pub fn test_drive() -> Result<(), Refused> {
-    let course = &race().course;
     let race = race();
     crate::physics::load_car_specs::load_car_specs(race)?;
-    crate::physics::make_gear_ratios::make_gear_ratios(course)?;
+    crate::physics::make_gear_ratios::make_gear_ratios(race)?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.
     let kept = [
@@ -36,7 +35,7 @@ pub fn test_drive() -> Result<(), Refused> {
         .car
         .engine_power_factor
         .set_bits(GEAR.test_power_factor.bits());
-    test_drive_run::test_drive_run(course)?;
+    test_drive_run::test_drive_run(race)?;
     let [a, b, speed, gear, engine, kind] = kept;
     race.shared.car.drive_speed_a.set_bits(a);
     race.shared.car.drive_speed_b.set_bits(b);

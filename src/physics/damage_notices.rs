@@ -20,41 +20,39 @@
 use crate::errors::Refused;
 use crate::math::x87::from_int;
 use crate::physics::queue_notice::queue_notice;
-use crate::race::owner::race;
-use crate::race::owner_physics::Physics;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::session::Float;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
 /// `unk_71A284` .. `unk_71A33C`: the gauges, 47 dwords in a row in the car's record.
-fn gauge(mut k: usize) -> u32 {
-    let shared_store = &race().shared;
-
+fn gauge(shared: &Shared, mut k: usize) -> u32 {
     use std::slice::from_ref as one;
     let groups: [&[Float]; 24] = [
-        &shared_store.car.brake_heat,
-        one(&shared_store.car.engine_heat),
-        one(&shared_store.car.engine_damage),
-        one(&shared_store.car.exhaust_damage),
-        one(&shared_store.car.turbo_damage),
-        one(&shared_store.car.cooling_damage),
-        one(&shared_store.car.clutch_damage),
-        one(&shared_store.car.differential_damage),
-        &shared_store.car.gear_wear,
-        one(&shared_store.car.gearbox_damage),
-        &shared_store.car.wheel_hit_damage,
-        one(&shared_store.car.body_hit_damage),
-        one(&shared_store.car.body_damage),
-        one(&shared_store.car.electrics_damage),
-        &shared_store.car.light_damage,
-        one(&shared_store.car.lights_damage),
-        one(&shared_store.car.steering_damage),
-        &shared_store.car.suspension_damage,
-        one(&shared_store.car.overall_suspension_damage),
-        one(&shared_store.car.brake_wear_a),
-        one(&shared_store.car.brake_wear_b),
-        one(&shared_store.car.brake_damage),
-        &shared_store.car.part_hit_damage,
-        one(&shared_store.car.tyre_wear),
+        &shared.car.brake_heat,
+        one(&shared.car.engine_heat),
+        one(&shared.car.engine_damage),
+        one(&shared.car.exhaust_damage),
+        one(&shared.car.turbo_damage),
+        one(&shared.car.cooling_damage),
+        one(&shared.car.clutch_damage),
+        one(&shared.car.differential_damage),
+        &shared.car.gear_wear,
+        one(&shared.car.gearbox_damage),
+        &shared.car.wheel_hit_damage,
+        one(&shared.car.body_hit_damage),
+        one(&shared.car.body_damage),
+        one(&shared.car.electrics_damage),
+        &shared.car.light_damage,
+        one(&shared.car.lights_damage),
+        one(&shared.car.steering_damage),
+        &shared.car.suspension_damage,
+        one(&shared.car.overall_suspension_damage),
+        one(&shared.car.brake_wear_a),
+        one(&shared.car.brake_wear_b),
+        one(&shared.car.brake_damage),
+        &shared.car.part_hit_damage,
+        one(&shared.car.tyre_wear),
     ];
     for group in groups {
         match group.get(k) {
@@ -69,28 +67,25 @@ fn gauge(mut k: usize) -> u32 {
 }
 
 // Converted: `rc2k_core::physics::damage_notices::damage_notices`.
-fn steps(physics: &Physics) -> Result<(), Refused> {
-    let shared_store = &race().shared;
-
-    let mut levels: [u32; LEVELS] =
-        std::array::from_fn(|k| shared_store.car.damage_levels[k].get());
+fn steps(race: &Race) -> Result<(), Refused> {
+    let mut levels: [u32; LEVELS] = std::array::from_fn(|k| race.shared.car.damage_levels[k].get());
     let result = damage_notices_core(
         &mut levels,
-        |k| f32::from_bits(gauge(k)),
+        |k| f32::from_bits(gauge(&race.shared, k)),
         |t| {
-            physics.damage.scratch.set_bits(from_int(t));
+            race.physics.damage.scratch.set_bits(from_int(t));
         },
-        |q| queue_notice(q.notice, q.rank, gauge(q.gauge)),
+        |q| queue_notice(&race.shared, q.notice, q.rank, gauge(&race.shared, q.gauge)),
     );
     for (k, &v) in levels.iter().enumerate() {
-        shared_store.car.damage_levels[k].set(v);
+        race.shared.car.damage_levels[k].set(v);
     }
     result
 }
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
-pub fn damage_notices(physics: &Physics) -> Result<(), Refused> {
-    steps(physics)
+pub fn damage_notices(race: &Race) -> Result<(), Refused> {
+    steps(race)
 }
 
 #[cfg(test)]

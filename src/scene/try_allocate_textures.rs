@@ -28,7 +28,7 @@
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::scene::texture_needs::TEXTURES;
 use crate::scene::texture_places_store::cell_at;
@@ -42,9 +42,9 @@ pub use rc2k_core::scene::textures::Call;
 // ---- Rust version ----
 
 /// The game's tables.
-struct GameMemory;
+struct GameMemory<'a>(&'a Shared);
 
-impl rc2k_core::scene::textures::TextureMemory for GameMemory {
+impl rc2k_core::scene::textures::TextureMemory for GameMemory<'_> {
     fn level(&self, video: bool, texture: u32) -> u32 {
         let objects = &scene().objects;
         let table = if video {
@@ -58,7 +58,7 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
         cell_at(&scene().objects.tables.level_sizes[0], level).get()
     }
     fn mips(&self) -> u32 {
-        race().shared.vars.mip_setting.bits()
+        self.0.vars.mip_setting.bits()
     }
     fn level_mips(&self, level: u32) -> u32 {
         cell_at(&scene().objects.tables.level_mips[0], level).get()
@@ -91,16 +91,19 @@ impl rc2k_core::scene::textures::TextureMemory for GameMemory {
 
 /// Whether all the memory was had.
 // Converted: `rc2k_core::scene::textures::try_allocate`
-pub fn try_allocate_textures(call: &mut dyn FnMut(Call) -> Option<u32>) -> Result<bool, BadInput> {
+pub fn try_allocate_textures(
+    shared: &Shared,
+    call: &mut dyn FnMut(Call) -> Option<u32>,
+) -> Result<bool, BadInput> {
     Ok(rc2k_core::scene::textures::try_allocate(
-        &mut GameMemory,
+        &mut GameMemory(shared),
         &mut |c| call(c),
     )?)
 }
 
 /// With the game's log and the game's allocation.
-pub fn try_allocate_textures_in_game() -> Result<bool, BadInput> {
-    try_allocate_textures(&mut |call| {
+pub fn try_allocate_textures_in_game(shared: &Shared) -> Result<bool, BadInput> {
+    try_allocate_textures(shared, &mut |call| {
         match call {
             Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
             Call::Number(number) => log_int(number as i32, false, 1),

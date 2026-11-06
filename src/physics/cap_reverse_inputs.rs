@@ -8,7 +8,7 @@
 //!
 //! Caller: `sub_43DFB1` (0x43E519).
 
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::drive_forces::cap_reverse;
@@ -44,16 +44,14 @@ pub fn cap_reverse_inputs_at(
 }
 
 /// The Rust version (compares and copies of floats only: the same at any precision).
-pub fn cap_reverse_inputs(course: &Course) {
-    let shared_store = &race().shared;
-
+pub fn cap_reverse_inputs(race: &Race) {
     cap_reverse_inputs_at(
-        course,
-        &shared_store.car.gear,
-        &shared_store.car.local_velocity[2],
+        &race.course,
+        &race.shared.car.gear,
+        &race.shared.car.local_velocity[2],
         [
-            &shared_store.physics_tables.wheel_slips[0],
-            &shared_store.physics_tables.wheel_slips[1],
+            &race.shared.physics_tables.wheel_slips[0],
+            &race.shared.physics_tables.wheel_slips[1],
         ],
     );
 }

@@ -16,7 +16,6 @@ use crate::scene::owner::scene;
 
 /// The Rust version (the original keeps every register: `pusha` / `popa`).
 pub fn set_up_lit_engine() -> Result<(), Refused> {
-    let course = &race().course;
     crate::scene::set_up_engine::set_up_engine()?;
     crate::race::find_present_courses::find_present_courses()?;
     // `g_lightLowest`, `g_lightHighest`, `g_lightLevel`, `g_lightStrength`,
@@ -27,6 +26,6 @@ pub fn set_up_lit_engine() -> Result<(), Refused> {
     scene().drawing.object_work.light_strength.set_bits(0xB4u32);
     scene().drawing.object_work.light_turns[0].set_bits(0x6Eu32);
     scene().drawing.object_work.light_turns[1].set_bits(0x1Eu32);
-    crate::scene::fill_light_tables::fill_light_tables(scene(), course)?;
+    crate::scene::fill_light_tables::fill_light_tables(scene(), race())?;
     Ok(())
 }

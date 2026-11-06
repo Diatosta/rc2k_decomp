@@ -24,6 +24,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::{Menus, Screens, menus};
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
 use crate::scene::clear_depth_buffer::clear_depth_buffer;
@@ -69,10 +70,10 @@ pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
 
 /// `sub_49040D`: the car shown's object set up and drawn by `draw`.
 pub fn draw_shown_car(
+    shared: &Shared,
     screens: &Screens,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let shared = &race().shared;
     let drawing = &scene().drawing;
     let car: u32 = screens.event.shown_car.get();
     if car >= ENTRIES {
@@ -104,5 +105,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     map_texture_places();
     load_slot_textures_in_game()?;
     scene().lights.state.draw_mode.set_bits(0u32);
-    draw_shown_car(&menus.screens, &mut || draw_menu_object_in_game(race))
+    draw_shown_car(&race.shared, &menus.screens, &mut || {
+        draw_menu_object_in_game(race)
+    })
 }

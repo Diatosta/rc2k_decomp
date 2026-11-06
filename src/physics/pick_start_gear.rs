@@ -23,28 +23,26 @@ use crate::math::x87_run::sub_mul_add;
 use crate::physics::copy_car_word_8::copy_car_word_8;
 use crate::physics::gear_store::GEAR;
 use crate::physics::gearbox::*;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
 use rc2k_core::physics::gear_shifts as shifts;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts::pick_start` (the engine's sums and compares
 // stay x87).
-pub fn pick_start_gear(course: &Course) -> Result<(), Refused> {
-    let race = race();
-    copy_car_word_8();
+pub fn pick_start_gear(race: &Race) -> Result<(), Refused> {
+    copy_car_word_8(&race.shared);
     race.shared.physics_tables.start_gear_figures[2].set(race.shared.car.engine_speed.bits());
-    revs_speed()?;
+    revs_speed(&race.shared)?;
     race.shared.physics_tables.start_gear_figures[1].set(0);
     race.shared.physics_tables.start_gear_figures[0]
-        .set(x87::loaded(course.numbers.hundred.bits()));
+        .set(x87::loaded(race.course.numbers.hundred.bits()));
     let taken = shifts::pick_start(|gear| {
-        if bit(gear)? {
+        if bit(&race.shared, gear)? {
             return Ok::<_, Refused>(false);
         }
         race.shared.car.gear.set(gear);
-        revs_speed()?;
-        race.shared.car.engine_speed.set_bits(over_top());
+        revs_speed(&race.shared)?;
+        race.shared.car.engine_speed.set_bits(over_top(race));
         Ok(below(
             race.shared.car.engine_speed.bits(),
             GEAR.shift_up_point.bits(),
@@ -54,14 +52,14 @@ pub fn pick_start_gear(course: &Course) -> Result<(), Refused> {
         return Ok(());
     };
     race.shared.car.gear.set(gear);
-    revs_speed()?;
+    revs_speed(&race.shared)?;
     race.shared.car.engine_speed.set_bits(sub_mul_add(
         race.shared.physics_tables.start_gear_figures[2].get(),
         race.shared.car.engine_speed.bits(),
         race.shared.physics_tables.start_gear_share.bits(),
         race.shared.car.engine_speed.bits(),
     ));
-    wheels()?;
-    settle();
+    wheels(&race.shared)?;
+    settle(race);
     Ok(())
 }

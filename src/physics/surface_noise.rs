@@ -17,8 +17,7 @@
 
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
@@ -36,30 +35,29 @@ fn sample(x: usize) -> Result<u32, crate::errors::BadInput> {
 /// The Rust version.
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
-pub fn surface_noise(course: &Course) -> Result<(), crate::errors::BadInput> {
-    let race = race();
+pub fn surface_noise(race: &Race) -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
             sample(0x50)?,
-            course.stage_prefs.blit_cleared[0].get(),
-            course.stage_prefs.blit_cleared[1].get(),
+            race.course.stage_prefs.blit_cleared[0].get(),
+            race.course.stage_prefs.blit_cleared[1].get(),
         );
         race.shared.car.surface_noise_a.set(first);
         race.shared.car.surface_noise_b.set(first);
         let second = scaled(
             sample(0x20)?,
-            course.stage_prefs.surface_scale[0].get(),
-            course.stage_prefs.surface_scale[1].get(),
+            race.course.stage_prefs.surface_scale[0].get(),
+            race.course.stage_prefs.surface_scale[1].get(),
         );
         race.shared.car.surface_noise_second.set(second);
-        let floor = rough_floor(second, course.stage_prefs.surface_floor.get());
+        let floor = rough_floor(second, race.course.stage_prefs.surface_floor.get());
         scene().drawing.scene.scratch.set(floor);
         race.shared.car.surface_blend.set_bits(ext_div2(
             int_80(floor as i32, false),
-            course.numbers.k256.bits(),
+            race.course.numbers.k256.bits(),
             0x3F80_0000,
         ));
-        if course.stage_prefs.noise_pick.get() != 0 {
+        if race.course.stage_prefs.noise_pick.get() != 0 {
             race.shared.car.surface_noise_a.set(0);
         } else {
             race.shared.car.surface_noise_b.set(0);

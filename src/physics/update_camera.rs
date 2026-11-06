@@ -43,9 +43,6 @@ use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
-use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::matrix3::rounded;
 
@@ -89,7 +86,7 @@ fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput
     };
     let (dx, dy, dz) = (d(0), d(1), d(2));
     let v = [dx, dz, dy];
-    x87_1(&race.course, v);
+    x87_1(race, v);
     race.shared
         .car
         .camera_heading
@@ -115,7 +112,7 @@ fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput
         .car
         .camera_zoom
         .set_bits(race_owner.physics.camera.camera_zoom_kept.bits());
-    if record()?.fixed_zoom.get() != 0 {
+    if record(&race.shared)?.fixed_zoom.get() != 0 {
         race.shared.car.camera_zoom.set_bits(0x180);
         x87_3(race);
         hold_low(
@@ -150,7 +147,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         .head
         .each_ref()
         .map(crate::session::Dword::get);
-    x87_4(&race.course, &head);
+    x87_4(race, &head);
     ViewVars::record(3).angles[0].set(head[3]);
     ViewVars::record(3).angles[0].set(head[7]);
     if !camera_view::keeps_light_figure(car, || KIND_TABLES.kind_has_views[car as usize].get()) {
@@ -200,7 +197,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
                 race.shared.car.camera_view.set(after);
             }
         } else {
-            x87_5();
+            x87_5(race);
             hold_high(
                 &race.shared.car.camera_switch_share,
                 &race.course.numbers.one,
@@ -216,9 +213,9 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         race.shared.car.camera_blend_view.get(),
     );
     camera_view::check_modes(mode, before)?;
-    crate::physics::take_view_a::take_view_a(&race.physics, ViewVars::record_of(mode as usize)?)?;
-    crate::physics::take_view_b::take_view_b(&race.physics, ViewVars::record_of(before as usize)?);
-    x87_6(&race.physics);
+    crate::physics::take_view_a::take_view_a(race, ViewVars::record_of(mode as usize)?)?;
+    crate::physics::take_view_b::take_view_b(race, ViewVars::record_of(before as usize)?);
+    x87_6(race);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     let (work, offset_turns) = (&race.physics.camera, &race.shared.car.camera_offset_turns);
     let rows: [(&dyn Cell32, &dyn Cell32, &dyn Cell32); 9] = [
@@ -269,7 +266,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         ),
     ];
     for (to, x, y) in rows {
-        x87_7(&race.course, x, y, to);
+        x87_7(race, x, y, to);
     }
     for turn in &race.shared.car.camera_offset_turns {
         turn.set(turn.get() << 16);
@@ -294,12 +291,12 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         .camera
         .view_blend_aux_2
         .set(race.physics.camera.view_a_aux_2.get());
-    x87_8(&race.physics);
+    x87_8(race);
     hold_low(
         &race.shared.car.camera_zoom,
         &race.frame.view_and_records.view_vars.camera_zoom_hold,
     );
-    crate::physics::ease_view_angles::ease_view_angles(&race.course)?;
+    crate::physics::ease_view_angles::ease_view_angles(race)?;
     crate::physics::ease_view_blend::ease_view_blend(race)?;
     crate::physics::camera_avoid_ground::steps(race)?;
     x87_9(race);
@@ -316,16 +313,15 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x31A688] = ((atan2(int [v + 0], int [v + 4]) * [rc + 0x1C5D98]) * [rc + 0x1C5E28]) * [rc + 0x1C5DD4]`
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_1(course: &Course, v: [u32; 3]) {
-    let race = race();
+fn x87_1(race: &Race, v: [u32; 3]) {
     let t0 = int(v[0] as i32);
     let t1 = int(v[1] as i32);
     let t2 = t0.atan2(t1);
-    let t3 = ld(course.numbers.k65536.bits());
+    let t3 = ld(race.course.numbers.k65536.bits());
     let t4 = t2 * t3;
-    let t5 = ld(course.numbers.k4096.bits());
+    let t5 = ld(race.course.numbers.k4096.bits());
     let t6 = t4 * t5;
-    let t7 = ld(course.numbers.one_over_two_pi.bits());
+    let t7 = ld(race.course.numbers.one_over_two_pi.bits());
     let t8 = t6 * t7;
     race.shared.car.camera_heading.set_bits(to_int(t8) as u32);
     let t9 = int(v[2] as i32);
@@ -336,11 +332,11 @@ fn x87_1(course: &Course, v: [u32; 3]) {
     let t14 = t11 + t13;
     let t15 = t14.sqrt();
     let t16 = t9.atan2(t15);
-    let t17 = ld(course.numbers.k65536.bits());
+    let t17 = ld(race.course.numbers.k65536.bits());
     let t18 = t16 * t17;
-    let t19 = ld(course.numbers.k4096.bits());
+    let t19 = ld(race.course.numbers.k4096.bits());
     let t20 = t18 * t19;
-    let t21 = ld(course.numbers.one_over_two_pi.bits());
+    let t21 = ld(race.course.numbers.one_over_two_pi.bits());
     let t22 = t20 * t21;
     race.shared.car.camera_pitch.set_bits(to_int(t22) as u32);
 }
@@ -387,40 +383,39 @@ fn x87_3(race: &Race) {
 /// `[rc + 0x20662C] = int [d + 0x18] * [rc + 0x1C5DA0]`
 /// `[rc + 0x206570] = [d + 0x24]`
 /// `[rc + 0x206574] = int [d + 0x20] * [rc + 0x1C5DA0]`
-fn x87_4(course: &Course, d: &[u32; 11]) {
-    let race = race();
+fn x87_4(race: &Race, d: &[u32; 11]) {
     let t0 = int(d[0] as i32);
-    let t1 = ld(course.numbers.one_over_65536.bits());
+    let t1 = ld(race.course.numbers.one_over_65536.bits());
     let t2 = t0 * t1;
     ViewVars::record(2).focus[0].set_bits(st(t2));
     let t3 = int(d[1] as i32);
-    let t4 = ld(course.numbers.one_over_65536.bits());
+    let t4 = ld(race.course.numbers.one_over_65536.bits());
     let t5 = t3 * t4;
     let t6 = ld(race.shared.physics_tables.camera_drop.bits());
     let t7 = t5 - t6;
     ViewVars::record(2).focus[1].set_bits(st(t7));
     let t8 = int(d[2] as i32);
-    let t9 = ld(course.numbers.one_over_65536.bits());
+    let t9 = ld(race.course.numbers.one_over_65536.bits());
     let t10 = t8 * t9;
     ViewVars::record(2).focus[2].set_bits(st(t10));
     let t11 = int(d[4] as i32);
-    let t12 = ld(course.numbers.one_over_65536.bits());
+    let t12 = ld(race.course.numbers.one_over_65536.bits());
     let t13 = t11 * t12;
     ViewVars::record(3).focus[0].set_bits(st(t13));
     let t14 = int(d[5] as i32);
-    let t15 = ld(course.numbers.one_over_65536.bits());
+    let t15 = ld(race.course.numbers.one_over_65536.bits());
     let t16 = t14 * t15;
     let t17 = ld(race.shared.physics_tables.camera_drop.bits());
     let t18 = t16 - t17;
     ViewVars::record(3).focus[1].set_bits(st(t18));
     let t19 = int(d[6] as i32);
-    let t20 = ld(course.numbers.one_over_65536.bits());
+    let t20 = ld(race.course.numbers.one_over_65536.bits());
     let t21 = t19 * t20;
     ViewVars::record(3).focus[2].set_bits(st(t21));
     let t22 = ld(d[9]);
     ViewVars::record(1).focus[1].set_bits(st(t22));
     let t23 = int(d[8] as i32);
-    let t24 = ld(course.numbers.one_over_65536.bits());
+    let t24 = ld(race.course.numbers.one_over_65536.bits());
     let t25 = t23 * t24;
     ViewVars::record(1).focus[2].set_bits(st(t25));
 }
@@ -428,8 +423,7 @@ fn x87_4(course: &Course, d: &[u32; 11]) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A674] = (int [rc + 0x319FE0] - int [rc + 0x31A668]) / int [rc + 0x31A670]`
-fn x87_5() {
-    let race = race();
+fn x87_5(race: &Race) {
     let t0 = int(race.shared.car.step_clock.bits() as i32);
     let t1 = int(race.shared.car.camera_switch_clock.bits() as i32);
     let t2 = t0 - t1;
@@ -443,46 +437,48 @@ fn x87_5() {
 /// `int [rc + 0x208B58] = ((int [rc + 0x208B70] - int [rc + 0x208B64]) * [rc + 0x31A674]) + int [rc + 0x208B64]`
 /// `int [rc + 0x208B50] = ((int [rc + 0x208B68] - int [rc + 0x208B5C]) * [rc + 0x31A674]) + int [rc + 0x208B5C]`
 /// `int [rc + 0x208B54] = ((int [rc + 0x208B6C] - int [rc + 0x208B60]) * [rc + 0x31A674]) + int [rc + 0x208B60]`
-fn x87_6(physics: &Physics) {
-    let race = race();
-    let t0 = int(physics.camera.view_b_pitch.bits() as i32);
-    let t1 = int(physics.camera.view_a_pitch.bits() as i32);
+fn x87_6(race: &Race) {
+    let t0 = int(race.physics.camera.view_b_pitch.bits() as i32);
+    let t1 = int(race.physics.camera.view_a_pitch.bits() as i32);
     let t2 = t0 - t1;
     let t3 = ld(race.shared.car.camera_switch_share.bits());
     let t4 = t2 * t3;
-    let t5 = int(physics.camera.view_a_pitch.bits() as i32);
+    let t5 = int(race.physics.camera.view_a_pitch.bits() as i32);
     let t6 = t4 + t5;
-    physics.camera.start_pitch.set_bits(to_int(t6) as u32);
-    let t7 = int(physics.camera.view_b_heading.bits() as i32);
-    let t8 = int(physics.camera.view_a_heading.bits() as i32);
+    race.physics.camera.start_pitch.set_bits(to_int(t6) as u32);
+    let t7 = int(race.physics.camera.view_b_heading.bits() as i32);
+    let t8 = int(race.physics.camera.view_a_heading.bits() as i32);
     let t9 = t7 - t8;
     let t10 = ld(race.shared.car.camera_switch_share.bits());
     let t11 = t9 * t10;
-    let t12 = int(physics.camera.view_a_heading.bits() as i32);
+    let t12 = int(race.physics.camera.view_a_heading.bits() as i32);
     let t13 = t11 + t12;
-    physics.camera.start_heading.set_bits(to_int(t13) as u32);
-    let t14 = int(physics.camera.view_b_roll.bits() as i32);
-    let t15 = int(physics.camera.view_a_roll.bits() as i32);
+    race.physics
+        .camera
+        .start_heading
+        .set_bits(to_int(t13) as u32);
+    let t14 = int(race.physics.camera.view_b_roll.bits() as i32);
+    let t15 = int(race.physics.camera.view_a_roll.bits() as i32);
     let t16 = t14 - t15;
     let t17 = ld(race.shared.car.camera_switch_share.bits());
     let t18 = t16 * t17;
-    let t19 = int(physics.camera.view_a_roll.bits() as i32);
+    let t19 = int(race.physics.camera.view_a_roll.bits() as i32);
     let t20 = t18 + t19;
-    physics.camera.start_roll.set_bits(to_int(t20) as u32);
+    race.physics.camera.start_roll.set_bits(to_int(t20) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [t + 0] = ((([x + 0] - [y + 0]) * [rc + 0x31A674]) + [y + 0]) * [rc + 0x1C5D98]`
-fn x87_7(course: &Course, x: &dyn Cell32, y: &dyn Cell32, t: &dyn Cell32) {
+fn x87_7(race: &Race, x: &dyn Cell32, y: &dyn Cell32, t: &dyn Cell32) {
     let t0 = ld(x.bits());
     let t1 = ld(y.bits());
     let t2 = t0 - t1;
-    let t3 = ld(race().shared.car.camera_switch_share.bits());
+    let t3 = ld(race.shared.car.camera_switch_share.bits());
     let t4 = t2 * t3;
     let t5 = ld(y.bits());
     let t6 = t4 + t5;
-    let t7 = ld(course.numbers.k65536.bits());
+    let t7 = ld(race.course.numbers.k65536.bits());
     let t8 = t6 * t7;
     t.set_bits(to_int(t8) as u32);
 }
@@ -490,9 +486,9 @@ fn x87_7(course: &Course, x: &dyn Cell32, y: &dyn Cell32, t: &dyn Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A6A0] = int [rc + 0x208BF0]`
-fn x87_8(physics: &Physics) {
-    let t0 = int(physics.camera.view_blend_aux_2.bits() as i32);
-    race().shared.car.camera_zoom.set_bits(st(t0));
+fn x87_8(race: &Race) {
+    let t0 = int(race.physics.camera.view_blend_aux_2.bits() as i32);
+    race.shared.car.camera_zoom.set_bits(st(t0));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -514,6 +510,7 @@ fn x87_9(race: &Race) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::view;
 
@@ -544,7 +541,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(&crate::race::owner::race().course, *view(a[0], 0)),
+                plain: |a| x87_1(race(), *view(a[0], 0)),
             },
             Block {
                 name: "update_camera line 89",
@@ -606,7 +603,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
                     x87_4(
-                        &crate::race::owner::race().course,
+                        race(),
                         &core::array::from_fn(|k| {
                             if k < 10 {
                                 crate::scene::x87_mem::Base::dword(a[0], 4 * k)
@@ -625,7 +622,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0]) },
-                plain: |_| x87_5(),
+                plain: |_| x87_5(race()),
             },
             Block {
                 name: "update_camera line 205",
@@ -643,7 +640,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0]) },
-                plain: |_| x87_6(&crate::race::owner::race().physics),
+                plain: |_| x87_6(race()),
             },
             Block {
                 name: "update_camera line 235",
@@ -669,12 +666,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_6(a[0], a[1], a[2], a[3]) },
                 plain: |a| {
                     use crate::scene::x87_mem::HostCell;
-                    x87_7(
-                        &crate::race::owner::race().course,
-                        &HostCell(a[0]),
-                        &HostCell(a[1]),
-                        &HostCell(a[3]),
-                    );
+                    x87_7(race(), &HostCell(a[0]), &HostCell(a[1]), &HostCell(a[3]));
                 },
             },
             Block {
@@ -685,7 +677,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0]) },
-                plain: |_| x87_8(&crate::race::owner::race().physics),
+                plain: |_| x87_8(race()),
             },
             Block {
                 name: "update_camera line 266",

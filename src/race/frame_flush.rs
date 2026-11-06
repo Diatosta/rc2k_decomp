@@ -3,6 +3,7 @@
 //! `DrawPrimitive`), and a quad over the view window.
 
 use crate::errors::Refused;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
@@ -121,8 +122,9 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// the glow's render states (`sub_44E44D`), texture `dword_5D1DE8` (`scene::set_texture`),
 /// the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth buffer on. Its one
 /// caller, `race::draw_mirror_view`, reads no register it leaves.
-pub fn draw_view_backdrop(course: &Course) {
-    let shared = &race().shared;
+pub fn draw_view_backdrop(race: &Race) {
+    let course = &race.course;
+    let shared = &race.shared;
     let scene = scene();
     shared.vars.quad_uv[0].set(0xF8_0000);
     shared.vars.quad_uv[4].set(0x8_0000);

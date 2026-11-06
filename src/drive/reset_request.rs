@@ -16,12 +16,12 @@
 use crate::errors::Refused;
 use crate::physics::flow::c0;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
 };
 
-fn clear_notice() {
-    let shared = &race().shared;
+fn clear_notice(shared: &Shared) {
     for cell in [
         &shared.car.notice_last,
         &shared.car.notice_id,
@@ -51,7 +51,7 @@ pub fn reset_request() -> Result<(), Refused> {
         },
     ) {
         if race_owner.shared.car.reset_key_count.get() != 0 {
-            clear_notice();
+            clear_notice(&race.shared);
             race_owner.shared.car.reset_key_count.set(0);
         }
         return Ok(());
@@ -74,7 +74,7 @@ pub fn reset_request() -> Result<(), Refused> {
             .get()
             .wrapping_add(reset_penalty(race_owner.shared.car.stuck_count.get())),
     );
-    clear_notice();
+    clear_notice(&race.shared);
     { crate::physics::reset_car::reset_car(race) }?;
     Ok(())
 }

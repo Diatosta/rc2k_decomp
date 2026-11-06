@@ -7,8 +7,10 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::checkpoints_store::CHECKPOINTS;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::scene::owner::scene;
 use crate::session::Dword;
@@ -36,8 +38,7 @@ fn count() -> Result<u32, Refused> {
 
 /// `race::set_line_face_kind` (0x44574A): `g_lineFaceKind` 0x3E with `g_stageDirection`
 /// 0, 0x3D with 1, else 0.
-pub fn set_line_face_kind() {
-    let shared = &race().shared;
+pub fn set_line_face_kind(shared: &Shared) {
     // Converted: `rc2k_core::race::checkpoints::line_face_kind`.
     let kind = rc2k_core::race::checkpoints::line_face_kind(shared.work.stage_direction.bits());
     shared.vars.line_face_kind.set_bits(kind);
@@ -47,8 +48,9 @@ pub fn set_line_face_kind() {
 /// & 0xF's share gets weight / 256 * 0.25 / `g_checkpointCount` * 100 more (on the x87,
 /// the count as a whole number). The exact x87 version (for `race::surface_shares`, whose
 /// whole numbers are rounded from the shares).
-pub fn add_surface_share(course: &Course, surface: u32) {
-    let shared = &race().shared;
+pub fn add_surface_share(race: &Race, surface: u32) {
+    let course = &race.course;
+    let shared = &race.shared;
     let weight = shared.vars.surface_weight.bits() as i32;
     if weight == 0 {
         return;
@@ -178,8 +180,9 @@ fn face_count(course: &Course) -> Result<u32, Refused> {
 /// until none is found; `g_checkpointCount` and `g_lineFaceTotal` the chain's length,
 /// `g_lastCheckpoint` it - 1. With fewer than two, both counts 0. Refuses no faces or
 /// 0x100000 or more, and more of the kind than the list holds.
-pub fn sort_checkpoints(course: &Course) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn sort_checkpoints(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::checkpoints::{line_face_kind, chain}`; the faces of the
     // kind listed here as the original lists them.
     use rc2k_core::race::checkpoints::{chain, line_face_kind};
@@ -198,7 +201,7 @@ pub fn sort_checkpoints(course: &Course) -> Result<(), Refused> {
         if found > MOST_CHECKS {
             return Err(BadInput("more line faces than the checkpoint list holds").into());
         }
-        set_line_face_kind();
+        set_line_face_kind(&race.shared);
         let mut list = Vec::new();
         for b in 0..n {
             if of_kind(b, shared.vars.line_face_kind.bits() as u8)? {
@@ -293,8 +296,7 @@ pub fn checkpoint_angles(course: &Course) -> Result<(), Refused> {
 /// two checkpoints: the original then writes 0 at its caller's ecx (section 16), which
 /// its one caller, `build_best_line`, never reaches (it calls with two line faces or more,
 /// and `sort_checkpoints` makes the checkpoint count the same).
-pub fn checkpoint_distances() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn checkpoint_distances(shared: &Shared) -> Result<(), Refused> {
     let n = count()?;
     if n < 2 {
         return Err(BadInput("fewer than two checkpoints: the original writes at ecx").into());
@@ -348,8 +350,9 @@ pub fn checkpoint_distances() -> Result<(), Refused> {
 /// of the set's kind (first byte 0xFF) listed (0x400 at most); with any, each
 /// checkpoint's nearest of them (x and z of their first points, the length rounded; the
 /// last of the nearest when two are as near). Refuses no faces or 0x100000 or more.
-pub fn replay_cameras(course: &Course, set: &Cameras) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
+    let course = &race.course;
+    let shared = &race.shared;
     let n = count()?;
     if n < 2 {
         return Ok(());
@@ -413,7 +416,8 @@ pub fn replay_cameras(course: &Course, set: &Cameras) -> Result<(), Refused> {
 /// their sum; 0 without a +0x21, or with its kind (+0x2C, by `dword_63D9D0`) 4 or 5),
 /// +1's by 0x100 less; then the shares made whole numbers.
 pub fn surface_shares(course: &Course) -> Result<(), Refused> {
-    let shared = &race().shared;
+    let race = crate::race::owner::race();
+    let shared = &race.shared;
     let n = count()?;
     if n < 2 {
         return Ok(());
@@ -428,7 +432,7 @@ pub fn surface_shares(course: &Course) -> Result<(), Refused> {
         };
         let four = |info: u32| -> Result<(), BadInput> {
             for k in 0..4 {
-                add_surface_share(course, byte(info, 0x10 + k)?);
+                add_surface_share(race, byte(info, 0x10 + k)?);
             }
             Ok(())
         };
@@ -646,31 +650,26 @@ const SUMMARY: Summary = [
 /// a rule; `dword_6365E4` and `dword_6365EC` 0. The registers it leaves are read by no
 /// caller (conversion phase 3, 2026-10-24).
 pub fn build_best_line() -> Result<(), Refused> {
+    let race = crate::race::owner::race();
     let lights = &scene().lights;
-    let course = &race().course;
+    let course = &race.course;
     use crate::logfile::log_int::log_int;
     let text =
         |at: &std::ffi::CStr, newline: bool| crate::logfile::log_write::log_nul(&at, newline, 1);
     {
         text(RULE_RVA[0], true);
-        sort_checkpoints(course)?;
-        if crate::race::owner::race()
-            .shared
-            .vars
-            .line_face_total
-            .bits()
-            >= 2
-        {
+        sort_checkpoints(race)?;
+        if race.shared.vars.line_face_total.bits() >= 2 {
             for (word, step) in STEP_WORDS {
                 text(word, false);
                 match step {
                     1 => checkpoint_angles(course)?,
                     2 => count_checks()?,
                     3 => {} // `nullsub_7`
-                    4 => checkpoint_distances()?,
+                    4 => checkpoint_distances(&race.shared)?,
                     5 => map_checkpoints(course)?,
-                    6 => replay_cameras(course, &cameras()[0])?,
-                    _ => replay_cameras(course, &cameras()[1])?,
+                    6 => replay_cameras(race, &cameras()[0])?,
+                    _ => replay_cameras(race, &cameras()[1])?,
                 }
             }
             surface_shares(course)?;

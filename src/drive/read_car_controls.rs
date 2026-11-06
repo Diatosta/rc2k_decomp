@@ -26,11 +26,11 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::net::owner::net;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
 
 /// Does a computer drive this step?
-fn computer() -> bool {
-    let shared = &race().shared;
+fn computer(shared: &Shared) -> bool {
     // A test's switch (`tools/remote.py pilot`): the computer at a player's wheel.
     #[cfg(feature = "remote")]
     if crate::remote::autodrive() && shared.work.current_car.get() < shared.view.players.get() {
@@ -49,7 +49,7 @@ pub fn read_car_controls() -> Result<(), Refused> {
     let race_owner = race();
     let race = race();
     let course = &race.course;
-    if computer()
+    if computer(&race_owner.shared)
         && race_owner.shared.vars.checkpoint_count.get() == 0
         && race_owner.shared.car.run_ticks.get() >= 0x320
     {
@@ -131,7 +131,7 @@ pub fn read_car_controls() -> Result<(), Refused> {
             )?;
         }
     }
-    if !computer() {
+    if !computer(&race_owner.shared) {
         return Ok(());
     }
     race_owner
@@ -139,7 +139,7 @@ pub fn read_car_controls() -> Result<(), Refused> {
         .work
         .driver_slot
         .set(race_owner.shared.work.current_car.get());
-    start_blend(&race.course);
+    start_blend(race);
     race_owner
         .shared
         .work

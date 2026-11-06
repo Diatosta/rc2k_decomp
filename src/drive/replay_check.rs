@@ -17,9 +17,7 @@
 
 use crate::errors::BadInput;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
@@ -54,8 +52,8 @@ fn hash(words: impl Iterator<Item = u32>) -> u32 {
 }
 
 /// After the cars' step of a tick.
-pub fn note(course: &Course) -> Result<(), BadInput> {
-    let mode = match course.numbers.replay_mode.get() {
+pub fn note(race: &Race) -> Result<(), BadInput> {
+    let mode = match race.course.numbers.replay_mode.get() {
         RECORDING => "recording",
         PLAYING => "playing",
         _ => return Ok(()),
@@ -69,7 +67,7 @@ pub fn note(course: &Course) -> Result<(), BadInput> {
         return Ok(());
     }
     let mut line = format!("replay check: {mode}, clock {clock}:");
-    for car in 0..race().shared.view.race_cars.get().min(4) as usize {
+    for car in 0..race.shared.view.race_cars.get().min(4) as usize {
         // g_carBlockStore: four blocks of 0xFE0.
         let block = &CAR_BLOCKS.cars[car];
         let bytes =
@@ -98,8 +96,8 @@ fn piece_name(piece: StartPiece) -> String {
 }
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
-pub fn compare_frame(replay: &Replay) -> Result<(), BadInput> {
-    let saved = crate::race::blocks_store::replay_state(replay);
+pub fn compare_frame(race: &Race) -> Result<(), BadInput> {
+    let saved = crate::race::blocks_store::replay_state(&race.replay);
     let clock = CAR_BLOCKS.cars[0].step_clock.bits();
     if saved.offset(8).read::<u32>("the replay check's blocks")? != clock {
         SKIPPED.fetch_add(1, Relaxed);
@@ -107,7 +105,7 @@ pub fn compare_frame(replay: &Replay) -> Result<(), BadInput> {
     }
     let mut differing = 0;
     for (piece, offset, n) in start_layout() {
-        let ours = crate::drive::save_replay_cars::piece_place(piece);
+        let ours = crate::drive::save_replay_cars::piece_place(&race.shared, piece);
         for k in 0..n as u32 {
             let (now, kept) = (
                 ours.offset(4 * k)

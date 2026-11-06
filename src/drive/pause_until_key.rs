@@ -19,7 +19,7 @@ use crate::drive::race_parts::{
 use crate::errors::Refused;
 use crate::input::owner::input;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::system::owner::system;
 use rc2k_core::drive::race_ticks;
 
@@ -34,27 +34,26 @@ fn any_ending_key() -> u32 {
 // Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
 /// The Rust version. The registers it leaves are read by no caller (liveness: nothing
 /// live after `race_loop`'s call).
-pub fn pause_until_key() -> Result<(), Refused> {
-    let race = race();
-    race.shared.vars.hold_count.set(0x19);
+pub fn pause_until_key(shared: &Shared) -> Result<(), Refused> {
+    shared.vars.hold_count.set(0x19);
     for _ in 0..5 {
         take_key();
     }
     stop_race_sounds()?;
-    race.shared.vars.scene_switch.set(1);
+    shared.vars.scene_switch.set(1);
     for c in 0..2 {
         CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0xCB);
         CAR_BLOCKS.cars[c as usize].notice_time_b.set_bits(0);
         CAR_BLOCKS.cars[c as usize].notice_time.set_bits(u32::MAX);
     }
-    race.shared.vars.pause_wait.set(0x1E);
+    shared.vars.pause_wait.set(0x1E);
     // From 0x4453EE (the wait held) or 0x445401 (a turn).
     let mut hold = true;
     loop {
         if hold {
-            let wait = race.shared.vars.pause_wait.get();
+            let wait = shared.vars.pause_wait.get();
             if race_ticks::held_wait(wait) != wait {
-                race.shared.vars.pause_wait.set(race_ticks::held_wait(wait));
+                shared.vars.pause_wait.set(race_ticks::held_wait(wait));
             }
         }
         take_key();
@@ -65,11 +64,8 @@ pub fn pause_until_key() -> Result<(), Refused> {
         }
         hold = false;
         input_update();
-        if race.shared.vars.pause_wait.get() != 0 {
-            race.shared
-                .vars
-                .pause_wait
-                .set(race.shared.vars.pause_wait.get() - 1);
+        if shared.vars.pause_wait.get() != 0 {
+            shared.vars.pause_wait.set(shared.vars.pause_wait.get() - 1);
             continue;
         }
         race_keys()?;
@@ -82,7 +78,7 @@ pub fn pause_until_key() -> Result<(), Refused> {
         CAR_BLOCKS.cars[c as usize].notice_id.set_bits(0);
         CAR_BLOCKS.cars[c as usize].notice_last.set_bits(0);
     }
-    race.shared.vars.scene_switch.set(0);
+    shared.vars.scene_switch.set(0);
     wake_car_sounds()?;
     take_key();
     CAR_BLOCKS.cars[0].input_keys.set_bits(0);

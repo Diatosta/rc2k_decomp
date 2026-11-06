@@ -37,10 +37,11 @@ pub fn take_split_counted(race: &Race) -> Result<(), Refused> {
     )? {
         return Ok(());
     }
-    { keep_split_time(&race.physics) }?;
-    { set_flag_51659c(&race.frame) }?;
+    { keep_split_time(race) }?;
+    { set_flag_51659c(race) }?;
     split_by_mode(race)?;
     put_split_time(
+        &race.shared,
         race.shared.car.splits_recorded.get() as usize,
         race.shared.car.split_gaps[0].get(),
     )?;

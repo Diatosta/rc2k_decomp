@@ -56,6 +56,8 @@ pub fn draw_carousel_in_game(
     lone_row: u32,
 ) -> Result<(), Refused> {
     draw_carousel(&menus.screens, lone_row, &mut |e, place| {
-        draw_carousel_entry(menus, e, place, &mut || draw_menu_object_in_game(race))
+        draw_carousel_entry(&race.shared, menus, e, place, &mut || {
+            draw_menu_object_in_game(race)
+        })
     })
 }

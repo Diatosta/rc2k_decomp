@@ -26,7 +26,7 @@
 use crate::effects::rain::{RainRules, RainState, Weather};
 use crate::errors::{BadInput, Refused};
 use crate::math::{x87, x87_run};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 const MOST_DROPS: i32 = 0x100;
 use crate::d3d::vertices_store::VERTICES;
@@ -56,7 +56,7 @@ fn keep_y(weather: &Weather, i: usize) {
 }
 
 /// The Rust version (see the header).
-pub fn run_rain(weather: &Weather) -> Result<(), Refused> {
+pub fn run_rain(race: &Race, weather: &Weather) -> Result<(), Refused> {
     let setup = &effects().setup;
     use crate::scene::set_render_state::set_render_state;
     let r = &weather.rain;
@@ -108,7 +108,7 @@ pub fn run_rain(weather: &Weather) -> Result<(), Refused> {
             .polygon_vertex_count
             .set_bits(4u32);
         if setup.kind_floats.running.bits() != 0 {
-            crate::effects::drift_offsets::drift_offsets(weather);
+            crate::effects::drift_offsets::drift_offsets(race, weather);
         }
         let marks = crate::effects::setup::marks()?;
         let e = marks.marks_layout.get() as usize;
@@ -128,7 +128,7 @@ pub fn run_rain(weather: &Weather) -> Result<(), Refused> {
         keep_y(weather, e);
         r.last_views[e][2].set(r.view[2].get());
         if setup.kind_floats.running.bits() != 0 {
-            let clock = race().shared.physics_tables.scene_clock.get() & 0xF_FFFF;
+            let clock = race.shared.physics_tables.scene_clock.get() & 0xF_FFFF;
             r.drift.set(
                 x87::int_times_to_int(clock as i32, weather.rain_rules.drift_k.to_bits()) as u32,
             );

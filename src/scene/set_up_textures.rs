@@ -27,7 +27,7 @@ use crate::scene::owner::scene;
 /// `race::loadlevel_init` after it), the carry the register-threaded callers set.
 pub fn set_up_textures() -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    build_texture_catalogue_in_game()?;
+    build_texture_catalogue_in_game(&crate::race::owner::race().shared)?;
     drawing.scene.mirror_picture.set_bits(0u32);
     let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
     drawing.scene.mirror_picture.set_bits(system);

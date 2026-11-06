@@ -18,5 +18,6 @@ pub fn tyre_change_screen() -> Result<(), Refused> {
     {
         return Ok(());
     }
-    crate::drive::tyre_screen::tyre_screen(race().shared.vars.split.get(), 0)
+    let shared = &race().shared;
+    crate::drive::tyre_screen::tyre_screen(shared, shared.vars.split.get(), 0)
 }

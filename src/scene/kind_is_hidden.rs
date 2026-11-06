@@ -11,12 +11,11 @@
 //! original reads past the table).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
 /// The Rust version: the object's (hidden, eax left).
-pub fn kind_is_hidden(object: u32) -> Result<(bool, u32), Refused> {
-    let shared = &race().shared;
+pub fn kind_is_hidden(shared: &Shared, object: u32) -> Result<(bool, u32), Refused> {
     // Converted: `rc2k_core::scene::kinds::kind_is_hidden`.
     let settings = rc2k_core::scene::kinds::HideSettings {
         switch: shared.work.in_credits.bits(),

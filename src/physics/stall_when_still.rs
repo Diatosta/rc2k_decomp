@@ -18,19 +18,17 @@
 use crate::math::x87_run::{abs_compare, compare_full, ext_div2};
 use crate::physics::dot_product::dot_product;
 use crate::physics::vector_length::vector_length;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (esi, edi).
-pub fn stall_at(course: &Course, v: &[&dyn Cell32]) {
-    let race = race();
+pub fn stall_at(race: &Race, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     put(3, rounded(vector_length(&v[0..3])));
-    let zero: u32 = course.numbers.zero.bits();
+    let zero: u32 = race.course.numbers.zero.bits();
     if compare_full(get(3), zero) & 0x4000 == 0 {
         put(7, ext_div2(dot_product(&v[4..7], &v[0..3]), get(3), get(3)));
     }
@@ -48,8 +46,7 @@ pub fn stall_at(course: &Course, v: &[&dyn Cell32]) {
     put(11, 0);
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let race = race();
+fn game(race: &Race) -> Vec<&dyn Cell32> {
     vec![
         &race.shared.physics_tables.kept_motion[0] as &dyn Cell32,
         &race.shared.physics_tables.kept_motion[1],
@@ -67,6 +64,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 }
 
 /// The Rust version.
-pub fn stall_when_still(course: &Course) {
-    stall_at(course, &game());
+pub fn stall_when_still(race: &Race) {
+    stall_at(race, &game(race));
 }

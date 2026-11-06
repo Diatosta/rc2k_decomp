@@ -53,7 +53,7 @@ pub fn corner_hits_car(race: &Race, block: u32) -> Result<(), Refused> {
         return Ok(());
     }
     race.physics.contact.corner_inside.set(1);
-    { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
+    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
     { crate::physics::bump_cars::bump_cars(race, block) }?;
     Ok(())
 }

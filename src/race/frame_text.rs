@@ -4,7 +4,7 @@
 use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
 use crate::scene::owner::scene;
@@ -16,11 +16,12 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 /// `race::draw_frame_rate` (0x4562B2): `dword_5C6604` 2; the frame rate (`flt_6214F0`,
 /// rounded into `dword_62400C`), when not 0 and `dword_5EB100` is set, drawn at (0x190, 4)
 /// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
-pub fn draw_frame_rate(frame: &Frame, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_frame_rate(race: &Race, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let frame = &race.frame;
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     frame.text_state.text_mode.set(2);
-    let rate = shown_rate(f32::from_bits(race().shared.switches.frame_rate.bits()));
+    let rate = shown_rate(f32::from_bits(race.shared.switches.frame_rate.bits()));
     scene().drawing.scene.scratch.set(rate as u32);
     if rate == 0 || frame.counter.show.get() == 0 {
         return Ok(());
@@ -223,6 +224,7 @@ pub fn credits_tune() {
 #[cfg(test)]
 mod block_tests {
     use super::*;
+    use crate::race::owner::race;
     use core::mem::offset_of;
 
     #[test]

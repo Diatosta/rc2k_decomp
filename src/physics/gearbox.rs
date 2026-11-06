@@ -15,8 +15,8 @@ use crate::physics::gear_bit::gear_bit;
 use crate::physics::gearing::{
     GearPlaces, revs_from_speed_at, revs_from_wheels_at, wheels_from_revs_at,
 };
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -28,8 +28,7 @@ pub fn below(a: u32, b: u32) -> bool {
 }
 
 /// The common end of a change: +0x1D0 = `dword_613FA4`, the hold 20, both words 1.
-pub fn settle() {
-    let race = race();
+pub fn settle(race: &Race) {
     race.shared
         .car
         .drive_cut_steps
@@ -43,37 +42,36 @@ pub fn settle() {
 }
 
 /// Neutral, then `settle`.
-pub fn neutral() {
-    race().shared.car.gear.set(0);
-    settle();
+pub fn neutral(race: &Race) {
+    race.shared.car.gear.set(0);
+    settle(race);
 }
 
 /// `gear_bit`: true for CF (the gear cannot be taken).
-pub fn bit(gear: u32) -> Result<bool, Refused> {
-    Ok({ gear_bit(gear) }?.carry)
+pub fn bit(shared: &Shared, gear: u32) -> Result<bool, Refused> {
+    Ok({ gear_bit(shared, gear) }?.carry)
 }
 
 /// `wheels_from_revs` (its ebx, the gear, read by no caller).
-pub fn wheels() -> Result<(), Refused> {
-    { wheels_from_revs_at(&GearPlaces::game()) }?;
+pub fn wheels(shared: &Shared) -> Result<(), Refused> {
+    { wheels_from_revs_at(&GearPlaces::game(shared)) }?;
     Ok(())
 }
 
 /// `revs_from_wheels` (its ebx read by no caller).
-pub fn revs(course: &Course) -> Result<(), Refused> {
-    { revs_from_wheels_at(course, &GearPlaces::game()) }?;
+pub fn revs(race: &Race) -> Result<(), Refused> {
+    { revs_from_wheels_at(&race.course, &GearPlaces::game(&race.shared)) }?;
     Ok(())
 }
 
 /// `revs_from_speed` (its ebx read by no caller).
-pub fn revs_speed() -> Result<(), Refused> {
-    { revs_from_speed_at(&GearPlaces::game()) }?;
+pub fn revs_speed(shared: &Shared) -> Result<(), Refused> {
+    { revs_from_speed_at(&GearPlaces::game(shared)) }?;
     Ok(())
 }
 
 /// The engine speed over its top (`fld; fdiv; fstp`).
-pub fn over_top() -> u32 {
-    let race = race();
+pub fn over_top(race: &Race) -> u32 {
     x87::div(
         race.shared.car.engine_speed.bits(),
         race.shared.car.engine_speed_limit.bits(),
@@ -81,9 +79,9 @@ pub fn over_top() -> u32 {
 }
 
 /// A gear's ratio; refused outside -1 ..= 7.
-pub fn ratio(gear: u32) -> Result<u32, Refused> {
+pub fn ratio(shared: &Shared, gear: u32) -> Result<u32, Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    Ok(race().shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize].bits())
+    Ok(shared.physics_tables.gear_ratios[(gear as i32 + 1) as usize].bits())
 }

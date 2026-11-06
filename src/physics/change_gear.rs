@@ -16,30 +16,29 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_course::Course;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 use rc2k_core::physics::gear_shifts::Change;
 
 /// The other places: the asked gear, the gear bits, the two words set.
 #[derive(Clone, Copy)]
-pub struct ChangePlaces {
-    pub wanted: &'static dyn Cell32,
+pub struct ChangePlaces<'a> {
+    pub wanted: &'a dyn Cell32,
     /// By address: `bt` on memory, its bit number past the first dword.
-    pub bits: &'static dyn Cell32,
-    pub changed: &'static dyn Cell32,
-    pub changed_2: &'static dyn Cell32,
+    pub bits: &'a dyn Cell32,
+    pub changed: &'a dyn Cell32,
+    pub changed_2: &'a dyn Cell32,
 }
 
-impl ChangePlaces {
-    pub fn game() -> Self {
-        let shared_store = &race().shared;
-
+impl<'a> ChangePlaces<'a> {
+    pub fn game(shared: &'a Shared) -> Self {
         Self {
-            wanted: &shared_store.physics_tables.gear_asked,
-            bits: &shared_store.car.lost_gear_bits,
-            changed: &shared_store.car.gear_changed,
-            changed_2: &shared_store.car.gear_changed_2,
+            wanted: &shared.physics_tables.gear_asked,
+            bits: &shared.car.lost_gear_bits,
+            changed: &shared.car.gear_changed,
+            changed_2: &shared.car.gear_changed_2,
         }
     }
 }
@@ -54,7 +53,11 @@ fn ratio_gear(g: u32) -> Result<(), Refused> {
 
 /// The core.
 // Converted: `rc2k_core::physics::gear_shifts::change`.
-pub fn change_gear_at(course: &Course, gp: &GearPlaces, c: &ChangePlaces) -> Result<(), Refused> {
+pub fn change_gear_at(
+    course: &Course,
+    gp: &GearPlaces<'_>,
+    c: &ChangePlaces<'_>,
+) -> Result<(), Refused> {
     let gear = gp.gear.bits();
     let w = c.wanted.bits();
     let way = rc2k_core::physics::gear_shifts::change(gear, w);
@@ -94,6 +97,10 @@ pub fn change_gear_at(course: &Course, gp: &GearPlaces, c: &ChangePlaces) -> Res
 }
 
 /// The Rust version.
-pub fn change_gear(course: &Course) -> Result<(), Refused> {
-    change_gear_at(course, &GearPlaces::game(), &ChangePlaces::game())
+pub fn change_gear(race: &Race) -> Result<(), Refused> {
+    change_gear_at(
+        &race.course,
+        &GearPlaces::game(&race.shared),
+        &ChangePlaces::game(&race.shared),
+    )
 }

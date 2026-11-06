@@ -192,7 +192,7 @@ pub fn load_object(
         list_object_textures()?;
     }
     if slot < 0x50 {
-        shape(scene, &race.course, u32::MAX)?;
+        shape(scene, race, u32::MAX)?;
         return check(&race.course);
     }
     scene.draw_switches.loading_group_mask.set_bits(u32::MAX);
@@ -231,13 +231,13 @@ pub fn load_object(
                     .object_work
                     .loading_slot
                     .set_bits(first + n as u32);
-                shape(scene, &race.course, mask(at))?;
+                shape(scene, race, mask(at))?;
             }
             scene.drawing.object_work.loading_slot.set_bits(first + 5);
             for &(offset, at) in &MEASURED {
                 let slot = first + offset;
                 scene.drawing.object_work.loading_slot.set_bits(slot);
-                shape(scene, &race.course, mask(at))?;
+                shape(scene, race, mask(at))?;
                 measure_object(&race.course)?;
                 let measures: [u32; 6] = crate::session::read_first(&scene.objects.slots.measures);
                 for (table, &measure) in measures.iter().enumerate() {
@@ -245,8 +245,8 @@ pub fn load_object(
                 }
             }
         }
-        0xA => shape(scene, &race.course, rest)?,
-        0xB => shape(scene, &race.course, u32::MAX)?,
+        0xA => shape(scene, race, rest)?,
+        0xB => shape(scene, race, u32::MAX)?,
         _ => {}
     }
     check(&race.course)
@@ -255,11 +255,11 @@ pub fn load_object(
 /// One `scene::add_object_shape` with a mask.
 fn shape(
     scene: &crate::scene::owner::Scene,
-    course: &crate::race::owner_course::Course,
+    race: &crate::race::owner::Race,
     mask: u32,
 ) -> Result<(), Refused> {
     scene.draw_switches.loading_group_mask.set_bits(mask);
-    Ok({ add_object_shape(course) }?)
+    Ok({ add_object_shape(race) }?)
 }
 
 /// The three fatal errors at the end, in the original's order.

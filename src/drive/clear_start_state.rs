@@ -7,7 +7,7 @@
 //!
 //! Caller: `sub_43703E` (0x4371BC, 0x43729B).
 
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -16,8 +16,7 @@ fn core(v: &[&dyn Cell32]) {
     }
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let shared = &race().shared;
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.driver_kind,
         &shared.car.checkpoint,
@@ -29,6 +28,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 }
 
 /// The Rust version.
-pub fn clear_start_state() {
-    core(&game());
+pub fn clear_start_state(shared: &Shared) {
+    core(&game(shared));
 }

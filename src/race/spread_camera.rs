@@ -14,18 +14,18 @@
 
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 use crate::race::trap::Trap;
 
 /// The Rust version: `byte` the changed camera byte, `old` its old value. What
 /// the original leaves (dl, eax, ecx) its callers do not read: `viewer_action` and the
 /// camera steps end with it, and `viewer_action` keeps every register.
-pub fn spread_camera(replay: &Replay, byte: GamePtr, old: u8) -> Result<(), Refused> {
+pub fn spread_camera(race: &Race, byte: GamePtr, old: u8) -> Result<(), Refused> {
+    let replay = &race.replay;
     // The camera bytes of the following blocks, 8 bytes apart (a stride over bytes).
     let at = |n: u32| byte.offset(n.wrapping_mul(8));
     let dl = byte.read::<u8>("a replay camera byte")?;
-    let count = race()
+    let count = race
         .shared
         .replay_file
         .index_block_count

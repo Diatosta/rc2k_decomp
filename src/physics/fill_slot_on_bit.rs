@@ -13,23 +13,20 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::fill_race_slot::fill_race_slot;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::physics::parts::{part_number, take_bit};
 
 /// The Rust version: bit `bit` (cl) of the car's parts taken and its part put in a race
 /// slot. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::{take_bit, part_number}`.
-pub fn fill_slot_on_bit(bit: u32) -> Result<(), Refused> {
-    let shared_store = &crate::race::owner::race().shared;
-
-    let course = &race().course;
-    let (_, cleared) = take_bit(shared_store.car.parts_present.get(), bit);
+pub fn fill_slot_on_bit(race: &Race, bit: u32) -> Result<(), Refused> {
+    let (_, cleared) = take_bit(race.shared.car.parts_present.get(), bit);
     let Some(cleared) = cleared else {
         return Ok(());
     };
-    let Some(part) = part_number(shared_store.work.current_car.get(), bit) else {
+    let Some(part) = part_number(race.shared.work.current_car.get(), bit) else {
         return Err(BadInput("a part past 0xFF").into());
     };
-    shared_store.car.parts_present.set(cleared);
-    fill_race_slot(course, part)
+    race.shared.car.parts_present.set(cleared);
+    fill_race_slot(race, part)
 }

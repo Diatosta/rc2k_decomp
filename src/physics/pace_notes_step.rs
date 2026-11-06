@@ -22,13 +22,11 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::scene::owner::scene;
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 
 /// The gates' variables (each must be 0; the last is "1000 or more").
-fn gates() -> [u32; 7] {
-    let race = race();
+fn gates(race: &Race) -> [u32; 7] {
     [
         race.shared.car.finish_flag.get(),
         race.shared.car.go_stand_timer.get(),
@@ -45,7 +43,7 @@ const ONE_F32: u32 = 0x3F80_0000;
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
 pub fn pace_notes_step(race: &Race) -> Result<(), Refused> {
     if !calling(
-        gates(),
+        gates(race),
         race.shared.car.driver_kind.get(),
         race.shared.car.run_ticks.get(),
     ) {
@@ -76,6 +74,6 @@ pub fn pace_notes_step(race: &Race) -> Result<(), Refused> {
         }
         race.shared.car.last_pace_call.set(target);
     }
-    crate::physics::expire_car_events::expire_car_events()?;
+    crate::physics::expire_car_events::expire_car_events(race)?;
     Ok(())
 }

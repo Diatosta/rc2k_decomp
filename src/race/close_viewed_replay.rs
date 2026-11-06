@@ -9,14 +9,13 @@
 //! `race::open_viewed_replay` (failing), `race::save_last_replay`, 0x444034.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 
 /// The Rust version (every register kept).
-pub fn close_viewed_replay() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn close_viewed_replay(shared: &Shared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::closes`.
     if rc2k_core::race::viewer_flow::closes(shared.replay_file.replay_open.get()) {
-        crate::race::replay_patches::restore_replay_patches()?;
+        crate::race::replay_patches::restore_replay_patches(shared)?;
         crate::files::handle::close(shared.replay_file.replay_handle.get());
         shared.replay_file.replay_open.set(0);
     }

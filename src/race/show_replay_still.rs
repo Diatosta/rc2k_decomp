@@ -51,11 +51,11 @@ pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
             .replay_frames
             .step_block
             .set(race.replay.replay_view.replay_block.get());
-        crate::race::step_replay_cars::step_replay_cars()?;
+        crate::race::step_replay_cars::step_replay_cars(&race.shared)?;
     }
     if race.replay.replay_view.replay_frame.get() == 0 {
         race.replay.replay_frames.step_first.set(1);
-        crate::race::step_replay_cars::step_replay_cars()?;
+        crate::race::step_replay_cars::step_replay_cars(&race.shared)?;
         race.replay.replay_frames.step_first.set(0);
         load_frame(&race.replay);
         load_replay_cars::load_replay_cars();

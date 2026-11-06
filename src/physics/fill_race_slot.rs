@@ -20,8 +20,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
@@ -29,20 +28,18 @@ use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 /// The Rust version: part `part` (eax) into a race slot. The registers the original leaves
 /// are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::choose_slot` (the slot; the floats stay x87).
-pub fn fill_race_slot(course: &Course, part: u32) -> Result<(), Refused> {
-    let shared_store = &race().shared;
-
+pub fn fill_race_slot(race: &Race, part: u32) -> Result<(), Refused> {
     let scene = scene();
     if part > LAST_PART {
         return Err(BadInput("a part past 0xFF").into());
     }
     let Some(choice) = choose_slot(
-        |c| shared_store.work.race_slots[c].part.get(),
-        |c| shared_store.work.race_slots[c].age.get(),
+        |c| race.shared.work.race_slots[c].part.get(),
+        |c| race.shared.work.race_slots[c].age.get(),
     ) else {
         return Err(BadInput("no race slot to take (every +0x64 -1)").into());
     };
-    let slot = &shared_store.work.race_slots[choice.slot];
+    let slot = &race.shared.work.race_slots[choice.slot];
     slot.part.set(part);
     let i = |t: usize| {
         int_80(
@@ -50,39 +47,38 @@ pub fn fill_race_slot(course: &Course, part: u32) -> Result<(), Refused> {
             false,
         )
     };
-    let out = rotate_point(&shared_store.car.crash_matrix, [i(0), i(1), i(2)]);
+    let out = rotate_point(&race.shared.car.crash_matrix, [i(0), i(1), i(2)]);
     for (k, e) in out.iter().enumerate() {
         let n = ext_to_int(*e) as u32;
         scene.drawing.object_work.object_position[k].set_bits(n);
-        slot.place[k].set(n.wrapping_add(shared_store.car.position[k].get()));
+        slot.place[k].set(n.wrapping_add(race.shared.car.position[k].get()));
     }
-    slot.car_word
-        .set(shared_store.car.probe_point_face[4].get());
-    slot.age.set(shared_store.car.step_clock.get());
+    slot.car_word.set(race.shared.car.probe_point_face[4].get());
+    slot.age.set(race.shared.car.step_clock.get());
     for k in 0..16 {
-        slot.matrix[k].set_bits(shared_store.car.crash_matrix[k].bits());
+        slot.matrix[k].set_bits(race.shared.car.crash_matrix[k].bits());
     }
-    let k = shared_store.work.part_fling.bits();
+    let k = race.shared.work.part_fling.bits();
     slot.motion[0].set_bits(int_mul_add(
         scene.drawing.object_work.object_position[0].get() as i32,
         k,
-        shared_store.car.velocity[0].bits(),
+        race.shared.car.velocity[0].bits(),
         None,
     ));
     slot.motion[1].set_bits(int_mul_add(
         scene.drawing.object_work.object_position[1].get() as i32,
         k,
-        shared_store.car.velocity[1].bits(),
-        Some(course.numbers.two.bits()),
+        race.shared.car.velocity[1].bits(),
+        Some(race.course.numbers.two.bits()),
     ));
     slot.motion[2].set_bits(int_mul_add(
         scene.drawing.object_work.object_position[2].get() as i32,
         k,
-        shared_store.car.velocity[2].bits(),
+        race.shared.car.velocity[2].bits(),
         None,
     ));
     for k in 0..3 {
-        slot.spin[k].set_bits(shared_store.car.spin[k].bits());
+        slot.spin[k].set_bits(race.shared.car.spin[k].bits());
     }
     Ok(())
 }

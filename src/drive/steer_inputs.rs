@@ -21,6 +21,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Dword;
 
@@ -41,20 +42,20 @@ fn sign(v: u32) -> bool {
 }
 
 /// The key step: 0xA00000 x `flt_614C0C`, through `dword_62400C`.
-fn key_step() -> u32 {
+fn key_step(shared: &Shared) -> u32 {
     let drawing = &scene().drawing;
     drawing.scene.scratch.set(0xA0_0000);
     scale(
         &drawing.scene.scratch,
-        &race().shared.physics_tables.handling[8],
+        &shared.physics_tables.handling[8],
         &drawing.scene.scratch,
     );
     drawing.scene.scratch.get()
 }
 
 /// One steering value moved by the key step (0x439DFA .. / 0x439E95 ..).
-fn steer(cell: &Dword, step: u32) {
-    let word = race().shared.physics_tables.input_steer.get();
+fn steer(shared: &Shared, cell: &Dword, step: u32) {
+    let word = shared.physics_tables.input_steer.get();
     let v = cell.get();
     if word != 0 {
         if sign(word) {
@@ -88,14 +89,22 @@ fn steer(cell: &Dword, step: u32) {
 pub fn steer_inputs() {
     let race_owner = race();
     let drawing = &scene().drawing;
-    let course = &race().course;
+    let course = &race_owner.course;
     let mut keys = race_owner.shared.physics_tables.input_steer.get() == 0;
     if !keys && race_owner.shared.car.driver_kind.get() != 2 {
         keys = race_owner.shared.car.input_keys.get() & 0x1000 != 0;
     }
     if keys {
-        steer(&race_owner.shared.car.steering_raw, key_step());
-        steer(&race_owner.shared.car.steering, key_step());
+        steer(
+            &race_owner.shared,
+            &race_owner.shared.car.steering_raw,
+            key_step(&race_owner.shared),
+        );
+        steer(
+            &race_owner.shared,
+            &race_owner.shared.car.steering,
+            key_step(&race_owner.shared),
+        );
     } else {
         race_owner.shared.car.steering.set(0);
         let product = i64::from(race_owner.shared.physics_tables.input_steer.get() as i32)

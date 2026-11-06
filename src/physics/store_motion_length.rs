@@ -10,13 +10,12 @@
 //! `sub_4454D2`.
 
 use crate::physics::vector_length::vector_length;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::keep_motion_vectors`): the length of the car's motion.
-pub fn store_motion_length() {
-    let race = race();
+pub fn store_motion_length(race: &Race) {
     race.shared
         .car
         .speed

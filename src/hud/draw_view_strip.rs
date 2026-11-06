@@ -17,20 +17,20 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
+use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::owner_frame::Frame;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
 use rc2k_core::hud::strips;
 
 /// The quad's input at byte offset `o` from `dword_623DE8`: its colour and see-through,
 /// texture coordinates, then corners (three consecutive fields).
-fn quad_input(o: usize) -> &'static crate::session::Dword {
-    let race = race();
+fn quad_input(shared: &Shared, o: usize) -> &crate::session::Dword {
     match o {
-        0..0x8 => &race.shared.vars.quad_colour[o / 4],
-        0x8..0x28 => &race.shared.vars.quad_uv[(o - 8) / 4],
-        _ => &race.shared.vars.quad_corners[(o - 0x28) / 4],
+        0..0x8 => &shared.vars.quad_colour[o / 4],
+        0x8..0x28 => &shared.vars.quad_uv[(o - 8) / 4],
+        _ => &shared.vars.quad_corners[(o - 0x28) / 4],
     }
 }
 
@@ -50,17 +50,18 @@ fn sizes(v: [u32; 4]) {
 /// One flat quad: its inputs from `left`, `width`, `rows` (the texture's rows) and the
 /// sizes (`strips::quad_inputs`), the texture when given, then the device's settings.
 fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Refused> {
+    let shared = &crate::race::owner::race().shared;
     let drawing = &scene().drawing;
     let course = &race().course;
     let sizes: [u32; 4] = std::array::from_fn(|n| gfx().strips.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
-        quad_input(o).set_bits(v);
+        quad_input(shared, o).set_bits(v);
     }
     if let Some(t) = texture {
         drawing.scene.polygon_textures[0].set_bits(t);
     }
     drawing.scene.polygon_alpha.set_bits(0xFF);
-    quad_input(0).set_bits(0xFFFF_FFFF);
+    quad_input(shared, 0).set_bits(0xFFFF_FFFF);
     drawing.scene.polygon_sides[0].set_bits(1);
     drawing.scene.polygon_sides[1].set_bits(0);
     crate::scene::draw_flat_quad::draw_flat_quad(course)
@@ -68,10 +69,11 @@ fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Re
 
 /// The shared tail (0x45B9AA, see the header).
 // Converted: `rc2k_core::hud::strips::{tail_shown, TAIL}`
-pub fn overlay_tail(frame: &Frame) -> Result<(), Refused> {
+pub fn overlay_tail(race: &Race) -> Result<(), Refused> {
+    let frame = &race.frame;
     let (shown, players) = (
         frame.panel_and_overlay.panel.hud_flags[0].get(),
-        crate::hud::overlay_pass::shown_layout(),
+        crate::hud::overlay_pass::shown_layout(&race.shared),
     );
     if !strips::tail_shown(shown, players) {
         return Ok(());
@@ -86,7 +88,8 @@ pub fn overlay_tail(frame: &Frame) -> Result<(), Refused> {
 
 /// The Rust version (see the header): view `view`'s strip, then the shared tail.
 // Converted: `rc2k_core::hud::strips::{VIEWS, top_entry, sizes, quad_inputs}`
-pub fn draw_view_strip(frame: &Frame, view: u32) -> Result<(), Refused> {
+pub fn draw_view_strip(race: &Race, view: u32) -> Result<(), Refused> {
+    let frame = &race.frame;
     let strips = &gfx().strips;
     if view >= strips::VIEWS {
         return Err(BadInput("a view past the overlay's tables").into());
@@ -103,6 +106,6 @@ pub fn draw_view_strip(frame: &Frame, view: u32) -> Result<(), Refused> {
             left = left.wrapping_add(width);
             rows = rows.wrapping_add(strips::ROWS_STEP);
         }
-        overlay_tail(frame)
+        overlay_tail(race)
     }
 }

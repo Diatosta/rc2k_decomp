@@ -28,7 +28,7 @@ pub fn split_by_mode(race: &Race) -> Result<(), Refused> {
             Ok(())
         }
         SplitFigure::Rank => rank_split_time(race),
-        SplitFigure::Compare => compare_split_times(&race.course),
+        SplitFigure::Compare => compare_split_times(race),
         SplitFigure::Nothing => Ok(()),
     }
 }

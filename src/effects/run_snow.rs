@@ -24,7 +24,7 @@ use crate::effects::rain::Weather;
 use crate::effects::snow::SnowLight;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 
 const MOST: i32 = 0x800;
@@ -38,8 +38,8 @@ fn turn_light(frame: &Frame, weather: &Weather) {
 }
 
 /// The Rust version (see the header).
-pub fn run_snow(frame: &Frame, weather: &Weather) -> Result<(), Refused> {
-    let race = race();
+pub fn run_snow(race: &Race, weather: &Weather) -> Result<(), Refused> {
+    let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&weather.snow, &weather.snow_light);
     {

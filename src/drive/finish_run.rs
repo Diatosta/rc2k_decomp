@@ -79,7 +79,7 @@ pub fn finish_run(race: &Race) -> Result<(), Refused> {
         crate::race::frame_views::load_first_car()?;
         crate::drive::finish_camera::finish_camera(&race.replay);
         crate::physics::camera_frame::camera_frame()?;
-        crate::drive::store_first_car::store_first_car()?;
+        crate::drive::store_first_car::store_first_car(&race.shared)?;
         race_frame()?;
     }
     Ok(())

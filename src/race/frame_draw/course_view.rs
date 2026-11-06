@@ -4,9 +4,8 @@ use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::race::owner_frame::Frame;
+use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::scene::faces_store::FACES;
 use crate::scene::owner::scene;
@@ -19,8 +18,7 @@ pub const SORT_MAX: u32 = 0x1000;
 /// +4 the face, +0 0, or with the face number (without its top bit) below 0x1000000 the
 /// object `kind` << 16 | the face's low 16 bits; the count + 1. Refuses (before anything)
 /// an entry past the 0x1000.
-pub fn add_sort_entry(kind: u32, face: u32) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn add_sort_entry(shared: &Shared, kind: u32, face: u32) -> Result<(), Refused> {
     let n: u32 = shared.view.sort_entry_count.bits();
     if n >= SORT_MAX {
         return Err(BadInput("a sort entry past the 0x1000").into());
@@ -40,8 +38,9 @@ pub fn add_sort_entry(kind: u32, face: u32) -> Result<(), Refused> {
 /// `CHECKPOINTS.angles[2][checkpoint]` - `CAR.car_heading`; `LEVEL_GRID.far_cell_limit` the low (twice the distance
 /// below 0x40000000 as signed), the high (from 0xC0000000), else the larger. The tables are
 /// read unchecked, as the original.
-pub fn checkpoint_colours(course: &Course) -> Result<(), BadInput> {
-    let shared = &race().shared;
+pub fn checkpoint_colours(race: &Race) -> Result<(), BadInput> {
+    let course = &race.course;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
         let n: u32 = shared.car.checkpoint.get();
@@ -129,8 +128,9 @@ pub fn face_hidden(race: &Race, face: &rc2k_core::race::faces::Face) -> Result<b
 /// 1, the largest of its four points' depths (+4 .. +0x10, each `fistp`, through
 /// `DRAW.scratch`), otherwise their float sum `fistp`'d and shifted right 2. Then + 0x2000000,
 /// shifted right 10 (logical). Refuses (before anything) no point records or points.
-pub fn face_depth(course: &Course, face: u32) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn face_depth(race: &Race, face: u32) -> Result<(), Refused> {
+    let course = &race.course;
+    let shared = &race.shared;
     use crate::math::x87::{add, to_int};
     points_there(course)?;
     let depth = |k: u32| -> Result<u32, Refused> {
@@ -190,12 +190,12 @@ pub fn face_depth(course: &Course, face: u32) -> Result<(), Refused> {
 /// `race::add_depth_entry` (0x454D2A): `face_depth` of `face`, then entry `RACE_VIEW.depth_entry_count` of
 /// `FACES.depth_entries`: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
 /// entry past the 0x1000, or what `face_depth` refuses.
-pub fn add_depth_entry(course: &Course, face: u32) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn add_depth_entry(race: &Race, face: u32) -> Result<(), Refused> {
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::faces::depth_entry_room`.
     let n: u32 = shared.view.depth_entry_count.bits();
     rc2k_core::race::faces::depth_entry_room(n)?;
-    face_depth(course, face)?;
+    face_depth(race, face)?;
     let key: u32 = shared.view.face_depth_key.bits();
     let at = depth_entry(n)?;
     at[0].set(key);
@@ -218,7 +218,7 @@ pub fn course_grid(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{hold_to_limit, grid_corner, record_cell,
     // grid_cell}`.
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
-    let half = hold_to_limit(race.course.stage_prefs.grid_reach.bits());
+    let half = hold_to_limit(&race.shared, race.course.stage_prefs.grid_reach.bits());
     let span = half.wrapping_add(half);
     let (gx, gz) = grid_corner(
         race.frame.view_and_records.view_vars.view_x.bits(),
@@ -313,9 +313,9 @@ pub fn gather_record_faces(race: &Race, record: u32) -> Result<(), Refused> {
                 (tables[0], tables[2])
             };
             if byte_at(depth_table, object)? != 0 {
-                add_depth_entry(&race.course, face)?;
+                add_depth_entry(race, face)?;
             } else {
-                add_sort_entry(byte_at(kind_table, object)?, face)?;
+                add_sort_entry(&race.shared, byte_at(kind_table, object)?, face)?;
             }
         }
         face = face.wrapping_add(1);
@@ -329,8 +329,7 @@ pub fn gather_record_faces(race: &Race, record: u32) -> Result<(), Refused> {
 /// `race::gather_visible_faces` (0x454B71): `gather_record_faces` of each record in
 /// `g_courseGrid` (numbers below 0x0FFFFFFF), then of the last record once more (its "already
 /// done" test sets ebp, so it is lost: `notes/bugs.md`). Refuses as `gather_record_faces`.
-pub fn gather_visible_faces() -> Result<(), Refused> {
-    let race = race();
+pub fn gather_visible_faces(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     let todo = visible_records(course)?;
     for &record in &todo {
@@ -342,9 +341,10 @@ pub fn gather_visible_faces() -> Result<(), Refused> {
 /// `race::face_hide_mask` (0x456056): `physics::probe_ground`, then, unless the face under
 /// the car (`g_car` +0xE00) is -1, `race().frame.frame_work.face_hide_mask` = its +2 word's bits 1 and 3 flipped
 /// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
-pub fn face_hide_mask(frame: &Frame) -> Result<(), Refused> {
+pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
+    let frame = &race.frame;
     crate::physics::probe_ground::probe_ground()?;
-    let ground: u32 = race().shared.car.probe_point_face[4].bits();
+    let ground: u32 = race.shared.car.probe_point_face[4].bits();
     if ground == u32::MAX {
         return Ok(());
     }
@@ -406,14 +406,12 @@ pub fn mark_far_cells(race: &Race) -> Result<(), BadInput> {
 /// `course_grid`; with `FRAME_SWITCHES.other_way` set, `LEVEL_GRID.far_cell_limit` 0x10 again, `checkpoint_colours`
 /// with two checkpoints or more (`g_checkpointCount`), and `mark_far_cells`. Refuses
 /// (before anything) what `course_grid` would.
-pub fn prepare_course_view() -> Result<(), Refused> {
-    let race = race();
+pub fn prepare_course_view(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
-    let frame = &race.frame;
     check_course_grid(course)?;
     // `face_hide_mask` first: its `probe_ground` may refuse, and neither reads
     // `LEVEL_GRID.far_cell_limit`, so the 0x10 written before it in the original comes after here.
-    face_hide_mask(frame)?;
+    face_hide_mask(race)?;
     course.level_grid.far_cell_limit.set(0x10u32);
     course_grid(race)?;
     if race.shared.switches.other_way.bits() == 0 {
@@ -421,7 +419,7 @@ pub fn prepare_course_view() -> Result<(), Refused> {
     }
     course.level_grid.far_cell_limit.set(0x10u32);
     if race.shared.vars.checkpoint_count.get() >= 2 {
-        checkpoint_colours(course)?;
+        checkpoint_colours(race)?;
     }
     mark_far_cells(race)?;
     Ok(())

@@ -13,9 +13,9 @@
 
 use crate::math::cells::Cells;
 use crate::physics::turn_by_car_matrix::turn_cells;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 
 /// The Rust version.
-pub fn turn_by_inverse(v: &(impl Cells + ?Sized)) {
-    turn_cells(&race().shared.car.car_inverse_matrix, v);
+pub fn turn_by_inverse(shared: &Shared, v: &(impl Cells + ?Sized)) {
+    turn_cells(&shared.car.car_inverse_matrix, v);
 }

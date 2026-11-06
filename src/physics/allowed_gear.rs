@@ -12,7 +12,7 @@
 
 use crate::errors::Refused;
 use crate::physics::gear_bit::bits_at;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 
 /// The Rust version on the word +0x2B8, the word +0x3F4 and the gear bits at these places.
@@ -34,14 +34,12 @@ pub fn allowed_gear_at(
 }
 
 /// The Rust version.
-pub fn allowed_gear(course: &Course, eax: u32) -> Result<u32, Refused> {
-    let shared_store = &race().shared;
-
+pub fn allowed_gear(race: &Race, eax: u32) -> Result<u32, Refused> {
     allowed_gear_at(
-        course,
-        &shared_store.car.engine_damage,
-        &shared_store.car.engine_power_factor,
-        &shared_store.car.lost_gear_bits,
+        &race.course,
+        &race.shared.car.engine_damage,
+        &race.shared.car.engine_power_factor,
+        &race.shared.car.lost_gear_bits,
         eax,
     )
 }

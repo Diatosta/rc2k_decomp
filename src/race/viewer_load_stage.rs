@@ -25,6 +25,7 @@ use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::session::Dword;
 
@@ -54,8 +55,7 @@ fn settings() -> [(&'static Dword, &'static Dword); 5] {
 }
 
 /// The Rust version (every register kept).
-pub fn viewer_load_stage() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn viewer_load_stage(shared: &Shared) -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
     #[cfg(feature = "remote")]
     crate::remote::shots_loading();
@@ -96,10 +96,10 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
             { crate::gfx::build_fonts::build_fonts() }?;
             shared.replay_file.viewer_fonts_built.set(1);
         }
-        crate::race::read_replay_header::read_replay_header();
+        crate::race::read_replay_header::read_replay_header(shared);
         { stage_loading::load_stage() }?;
         race_end::reset_race_sounds(&race_end::SoundVars::game())?;
-        crate::race::viewer_palettes::viewer_palettes()?;
+        crate::race::viewer_palettes::viewer_palettes(shared)?;
         shared.replay_file.viewer_stage_loaded.set(1);
     }
     crate::input::take_key::take_key();

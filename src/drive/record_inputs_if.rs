@@ -19,7 +19,7 @@ pub fn record_inputs_if(race: &Race) -> Result<(), crate::errors::BadInput> {
         || shared.view.players.get(),
     );
     if records == Some(true) {
-        crate::drive::record_inputs::record_inputs(&race.replay)?;
+        crate::drive::record_inputs::record_inputs(race)?;
     }
     Ok(())
 }

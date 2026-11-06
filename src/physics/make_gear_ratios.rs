@@ -18,7 +18,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::gear_store::GEAR;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::owner::scene;
@@ -65,8 +65,7 @@ pub fn ratios_at(course: &Course, v: &[&dyn Cell32]) -> Result<u32, Refused> {
     Ok(n)
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let race = race();
+fn game(race: &Race) -> Vec<&dyn Cell32> {
     vec![
         &race.shared.physics_tables.gear_count as &dyn Cell32,
         &GEAR.figures[3],
@@ -91,6 +90,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`): the gear count.
-pub fn make_gear_ratios(course: &Course) -> Result<u32, Refused> {
-    ratios_at(course, &game())
+pub fn make_gear_ratios(race: &Race) -> Result<u32, Refused> {
+    ratios_at(&race.course, &game(race))
 }

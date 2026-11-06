@@ -7,11 +7,14 @@ use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::replay_work_store::REPLAY_WORK;
 
 /// Where a header setting lives in the race's variables (its first place).
-pub fn setting_cell(s: rc2k_core::race::replay::Setting) -> &'static crate::session::Dword {
-    let shared = &race().shared;
+pub fn setting_cell(
+    shared: &Shared,
+    s: rc2k_core::race::replay::Setting,
+) -> &crate::session::Dword {
     use rc2k_core::race::replay::Setting::*;
     match s {
         Seed => &shared.tables.noise_seed,
@@ -70,10 +73,11 @@ const REPLAY_WORDS: [&std::ffi::CStr; 13] = [
 /// "[replayheader.x]" (`log_write_l1`) and its value (`log_int_l1_nl`). Every register
 /// kept (the logs inside `pusha`); it reads none.
 pub fn record_replay_header() {
+    let shared = &crate::race::owner::race().shared;
     // Converted: `rc2k_core::race::replay::HEADER_SETTINGS`.
     use rc2k_core::race::replay::HEADER_SETTINGS;
     for s in HEADER_SETTINGS {
-        header_cell(s).set(setting_cell(s).get());
+        header_cell(s).set(setting_cell(shared, s).get());
     }
     for (n, &s) in HEADER_SETTINGS.iter().enumerate() {
         crate::logfile::log_write::log_nul(&REPLAY_WORDS[n], false, 1);

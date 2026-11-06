@@ -26,37 +26,35 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::flow::c0;
 use crate::physics::gear_store::GEAR;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use crate::session::Float;
 
 pub const STEPS: u32 = 0x1388;
 
 /// One step (0x42189D .., in `pusha` / `popa`).
-fn step(course: &Course) -> Result<(), Refused> {
-    let shared = &race().shared;
-    shared.car.local_velocity[2]
-        .set_bits(crate::math::x87::loaded(shared.car.drive_speed_a.bits()));
-    crate::physics::count_down_timers::count_down_timers();
-    crate::physics::gearbox_step::gearbox_step(course)?;
+fn step(race: &Race) -> Result<(), Refused> {
+    race.shared.car.local_velocity[2].set_bits(crate::math::x87::loaded(
+        race.shared.car.drive_speed_a.bits(),
+    ));
+    crate::physics::count_down_timers::count_down_timers(&race.shared);
+    crate::physics::gearbox_step::gearbox_step(race)?;
     crate::physics::engine_torque::engine_torque();
-    let gear = shared.car.gear.get();
+    let gear = race.shared.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
     x87_1(
-        course,
-        &shared.physics_tables.gear_ratios[gear.wrapping_add(1) as usize],
+        race,
+        &race.shared.physics_tables.gear_ratios[gear.wrapping_add(1) as usize],
     );
     crate::physics::drive_torque_share::drive_torque_share();
-    x87_2(course);
+    x87_2(race);
     { crate::physics::revs_from_wheels::revs_from_wheels() }?;
     Ok(())
 }
 
-fn steps(course: &Course) -> Result<(), Refused> {
-    let race = race();
+fn steps(race: &Race) -> Result<(), Refused> {
     for mark in &GEAR.test_marks {
         mark.set(0);
     }
@@ -66,7 +64,7 @@ fn steps(course: &Course) -> Result<(), Refused> {
     race.shared.car.gear.set(1);
     race.shared.car.gearbox_kind.set(1);
     for n in 0..STEPS {
-        step(course)?;
+        step(race)?;
         if GEAR.test_marks[0].get() == 0
             && !c0(
                 race.shared.car.drive_speed_a.bits(),
@@ -87,18 +85,18 @@ fn steps(course: &Course) -> Result<(), Refused> {
             let slot = (n / 20) as usize;
             GEAR.test_speeds[slot].set_bits(crate::math::x87::mul(
                 race.shared.car.drive_speed_a.bits(),
-                course.numbers.two_and_a_quarter.bits(),
+                race.course.numbers.two_and_a_quarter.bits(),
             ));
             GEAR.test_gears[slot].set(race.shared.car.gear.get());
         }
     }
-    x87_3(course);
+    x87_3(race);
     Ok(())
 }
 
 /// The Rust version.
-pub fn test_drive_run(course: &Course) -> Result<(), Refused> {
-    steps(course)
+pub fn test_drive_run(race: &Race) -> Result<(), Refused> {
+    steps(race)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -106,14 +104,13 @@ pub fn test_drive_run(course: &Course) -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214750] = (([rc + 0x214748] * [rc + 0x1CB968]) / [r + 0]) / [rc + 0x1C5E34]`
-fn x87_1(course: &Course, r: &Float) {
-    let race = race();
+fn x87_1(race: &Race, r: &Float) {
     let t0 = ld(race.shared.physics_tables.engine_force.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());
     let t2 = t0 * t1;
     let t3 = ld(r.bits());
     let t4 = t2 / t3;
-    let t5 = ld(course.numbers.k10000.bits());
+    let t5 = ld(race.course.numbers.k10000.bits());
     let t6 = t4 / t5;
     race.shared.physics_tables.drive_torque.set_bits(st(t6));
 }
@@ -123,13 +120,12 @@ fn x87_1(course: &Course, r: &Float) {
 /// `[rc + 0x22400C] = -(((([rc + 0x31A190] * [rc + 0x31A190]) * [rc + 0x213FCC]) / [rc + 0x1C5E34]) + [rc + 0x213FD0])`
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_2(course: &Course) {
-    let race = race();
+fn x87_2(race: &Race) {
     let t0 = ld(race.shared.car.drive_speed_a.bits());
     let t1 = t0 * t0;
     let t2 = ld(race.shared.physics_tables.air_drag.bits());
     let t3 = t1 * t2;
-    let t4 = ld(course.numbers.k10000.bits());
+    let t4 = ld(race.course.numbers.k10000.bits());
     let t5 = t3 / t4;
     let t6 = ld(race.shared.physics_tables.rolling_drag.bits());
     let t7 = t5 + t6;
@@ -150,17 +146,17 @@ fn x87_2(course: &Course) {
 /// `[rc + 0x1CB984] = [rc + 0x31A190] * [rc + 0x1C5D00]`
 /// `[rc + 0x1CB97C] = int [rc + 0x1CB97C] / [rc + 0x1C5D14]`
 /// `[rc + 0x1CB980] = int [rc + 0x1CB980] / [rc + 0x1C5D14]`
-fn x87_3(course: &Course) {
-    let t0 = ld(race().shared.car.drive_speed_a.bits());
-    let t1 = ld(course.numbers.two_and_a_quarter.bits());
+fn x87_3(race: &Race) {
+    let t0 = ld(race.shared.car.drive_speed_a.bits());
+    let t1 = ld(race.course.numbers.two_and_a_quarter.bits());
     let t2 = t0 * t1;
     GEAR.test_marks[2].set_bits(st(t2));
     let t3 = int(GEAR.test_marks[0].bits() as i32);
-    let t4 = ld(course.numbers.hundred.bits());
+    let t4 = ld(race.course.numbers.hundred.bits());
     let t5 = t3 / t4;
     GEAR.test_marks[0].set_bits(st(t5));
     let t6 = int(GEAR.test_marks[1].bits() as i32);
-    let t7 = ld(course.numbers.hundred.bits());
+    let t7 = ld(race.course.numbers.hundred.bits());
     let t8 = t6 / t7;
     GEAR.test_marks[1].set_bits(st(t8));
 }
@@ -168,6 +164,7 @@ fn x87_3(course: &Course) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::view;
 
@@ -192,7 +189,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(&race().course, view(a[1], 0)),
+                plain: |a| x87_1(race(), view(a[1], 0)),
             },
             Block {
                 name: "test_drive_run line 51",
@@ -209,7 +206,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(&race().course),
+                plain: |_| x87_2(race()),
             },
             Block {
                 name: "test_drive_run line 93",
@@ -225,7 +222,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| x87_3(&race().course),
+                plain: |_| x87_3(race()),
             },
         ]
     }

@@ -32,6 +32,7 @@ pub fn take_split(race: &Race) -> Result<(), Refused> {
     }
     split_by_mode(race)?;
     put_split_time(
+        &race.shared,
         race.shared.car.splits_recorded.get() as usize,
         race.shared.car.split_gaps[0].get(),
     )?;

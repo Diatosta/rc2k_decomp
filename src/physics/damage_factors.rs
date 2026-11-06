@@ -17,144 +17,146 @@ use crate::physics::flow::{
     abs_below_or_unordered, below_or_unordered, equal_or_unordered, hold_high, hold_low, table_lerp,
 };
 use crate::physics::store::DamageModel;
-use crate::race::owner::race;
-use crate::race::owner_physics::Physics;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 
 /// The damage model's figures for this step.
-pub fn steps(physics: &Physics) {
-    let shared_store = &race().shared;
-
-    scale_car_figures(&physics.damage);
+pub fn steps(race: &Race) {
+    scale_car_figures(&race.shared, &race.physics.damage);
     // Per wheel: the stiffness and ride height follow the suspension damage; at the top
     // of the gauge the wheel is worn out.
     for wheel in 0..4 {
-        let damage = &shared_store.car.suspension_damage[wheel];
-        let stiffness = &shared_store.car.wheel_stiffness[wheel];
-        let ride_height = &shared_store.car.wheel_ride_height[wheel];
-        let lerp = &physics.damage.wheel_stiffness_lerp[wheel];
+        let damage = &race.shared.car.suspension_damage[wheel];
+        let stiffness = &race.shared.car.wheel_stiffness[wheel];
+        let ride_height = &race.shared.car.wheel_ride_height[wheel];
+        let lerp = &race.physics.damage.wheel_stiffness_lerp[wheel];
         table_lerp(
             damage,
-            &physics.damage.lerp_tables[2],
-            &physics.damage.gauge_low,
+            &race.physics.damage.lerp_tables[2],
+            &race.physics.damage.gauge_low,
             lerp,
         );
-        wheel_stiffness_from_share(&physics.damage, lerp, stiffness);
-        hold_low(stiffness, &physics.damage.gauge_low);
-        hold_high(stiffness, &physics.damage.gauge_top);
-        wheel_ride_height_from_share(&physics.damage, ride_height);
-        if equal_or_unordered(damage.bits(), physics.damage.gauge_top.bits()) {
-            fail_wheel(&physics.damage, stiffness, ride_height);
+        wheel_stiffness_from_share(&race.physics.damage, lerp, stiffness);
+        hold_low(stiffness, &race.physics.damage.gauge_low);
+        hold_high(stiffness, &race.physics.damage.gauge_top);
+        wheel_ride_height_from_share(&race.physics.damage, ride_height);
+        if equal_or_unordered(damage.bits(), race.physics.damage.gauge_top.bits()) {
+            fail_wheel(&race.physics.damage, stiffness, ride_height);
         }
     }
-    means_and_engine_speed(&physics.damage);
+    means_and_engine_speed(&race.shared, &race.physics.damage);
     hold_high(
-        &physics.damage.scratch,
-        &shared_store.car.engine_speed_limit,
+        &race.physics.damage.scratch,
+        &race.shared.car.engine_speed_limit,
     );
-    engine_speed_share_step(&physics.damage);
+    engine_speed_share_step(&race.shared, &race.physics.damage);
     // The speed gaps are each held to `flt_75b378` before their share is taken.
-    let speed_range = &physics.damage.flt_75b378;
-    hold_high(&physics.damage.scratch, speed_range);
-    speed_share_step(&physics.damage);
-    hold_high(&physics.damage.scratch, speed_range);
-    drive_a_slip_step(&physics.damage);
-    hold_high(&physics.damage.scratch, speed_range);
+    let speed_range = &race.physics.damage.flt_75b378;
+    hold_high(&race.physics.damage.scratch, speed_range);
+    speed_share_step(&race.shared, &race.physics.damage);
+    hold_high(&race.physics.damage.scratch, speed_range);
+    drive_a_slip_step(&race.shared, &race.physics.damage);
+    hold_high(&race.physics.damage.scratch, speed_range);
     drive_extrapolation_step(
-        &physics.damage,
-        &physics.damage.drive_b_slip_share,
-        &shared_store.car.drive_speed_a,
-        &shared_store.car.drive_speed_a,
+        &race.shared,
+        &race.physics.damage,
+        &race.physics.damage.drive_b_slip_share,
+        &race.shared.car.drive_speed_a,
+        &race.shared.car.drive_speed_a,
     );
-    hold_high(&physics.damage.scratch, speed_range);
+    hold_high(&race.physics.damage.scratch, speed_range);
     drive_extrapolation_step(
-        &physics.damage,
-        &physics.damage.drive_a_extrapolated_share,
-        &shared_store.car.drive_speed_b,
-        &shared_store.car.drive_speed_b,
+        &race.shared,
+        &race.physics.damage,
+        &race.physics.damage.drive_a_extrapolated_share,
+        &race.shared.car.drive_speed_b,
+        &race.shared.car.drive_speed_b,
     );
-    hold_high(&physics.damage.scratch, speed_range);
-    finish_shares(&physics.damage);
-    if shared_store.car.all_wheels_off.get() == 0 {
-        mark_wheels_down(&physics.damage);
+    hold_high(&race.physics.damage.scratch, speed_range);
+    finish_shares(&race.physics.damage);
+    if race.shared.car.all_wheels_off.get() == 0 {
+        mark_wheels_down(&race.physics.damage);
     }
-    clear_cell(&physics.damage.brake_share);
+    clear_cell(&race.physics.damage.brake_share);
     if !abs_below_or_unordered(
-        shared_store.car.local_velocity[2].bits(),
-        physics.damage.grade_high.bits(),
-    ) && (shared_store.car.brake.get().wrapping_sub(0x10) as i32) >= 0
+        race.shared.car.local_velocity[2].bits(),
+        race.physics.damage.grade_high.bits(),
+    ) && (race.shared.car.brake.get().wrapping_sub(0x10) as i32) >= 0
     {
-        brake_share_step(&physics.damage);
+        brake_share_step(&race.shared, &race.physics.damage);
     }
     // 1 when the engine's speed is above the limit times `flt_75B37C`.
-    let engine_over_limit = engine_over_limit_status(&physics.damage) & 0x100 != 0;
-    physics
+    let engine_over_limit =
+        engine_over_limit_status(&race.shared, &race.physics.damage) & 0x100 != 0;
+    race.physics
         .damage
         .flt_75b3c0
         .set_bits(if engine_over_limit { ONE } else { 0 });
-    physics
+    race.physics
         .damage
         .dword_75b3b8
-        .set_bits(shared_store.car.gear_changed.get());
-    physics
+        .set_bits(race.shared.car.gear_changed.get());
+    race.physics
         .damage
         .dword_75b3bc
-        .set_bits(shared_store.car.gear.get());
-    physics
+        .set_bits(race.shared.car.gear.get());
+    race.physics
         .damage
         .dword_75b3e8
-        .set_bits(shared_store.car.tyre_kind.get());
-    let surface = shared_store.car.wheel_surface_a[4].get();
-    physics.damage.dword_75b3ec.set_bits(surface);
-    clear_cell(&physics.damage.flt_75b3b4);
+        .set_bits(race.shared.car.tyre_kind.get());
+    let surface = race.shared.car.wheel_surface_a[4].get();
+    race.physics.damage.dword_75b3ec.set_bits(surface);
+    clear_cell(&race.physics.damage.flt_75b3b4);
     if surface == 5 {
-        physics.damage.flt_75b3b4.set_bits(ONE);
+        race.physics.damage.flt_75b3b4.set_bits(ONE);
     }
-    physics
+    race.physics
         .damage
         .dword_75b3f0
-        .set_bits(shared_store.car.surface_blend.bits());
-    physics.damage.dword_75b3c4.set_bits(side_hit(physics));
-    hit_size_and_dive(&physics.damage);
-    hold_low(&physics.damage.scratch, &physics.damage.gauge_low);
-    hold_high(&physics.damage.scratch, &physics.damage.flt_75b354);
-    square_dive(&physics.damage);
+        .set_bits(race.shared.car.surface_blend.bits());
+    race.physics.damage.dword_75b3c4.set_bits(side_hit(race));
+    hit_size_and_dive(&race.shared, &race.physics.damage);
+    hold_low(&race.physics.damage.scratch, &race.physics.damage.gauge_low);
+    hold_high(
+        &race.physics.damage.scratch,
+        &race.physics.damage.flt_75b354,
+    );
+    square_dive(&race.physics.damage);
     // A wheel that has just touched down carries the dive's load.
     for wheel in 0..4 {
-        physics.damage.wheel_loads[wheel].set_bits(0);
-        if shared_store.car.wheel_squeeze_last[wheel].bits() == 0
-            && shared_store.car.wheel_squeeze[wheel].bits() != 0
+        race.physics.damage.wheel_loads[wheel].set_bits(0);
+        if race.shared.car.wheel_squeeze_last[wheel].bits() == 0
+            && race.shared.car.wheel_squeeze[wheel].bits() != 0
         {
-            physics.damage.wheel_loads[wheel].set_bits(mul(
-                shared_store.car.wheel_squeeze[wheel].bits(),
-                physics.damage.scratch.bits(),
+            race.physics.damage.wheel_loads[wheel].set_bits(mul(
+                race.shared.car.wheel_squeeze[wheel].bits(),
+                race.physics.damage.scratch.bits(),
             ));
         }
     }
-    blend_wheel_loads(&physics.damage);
-    if physics.damage.flt_75b3c8.bits() != 0 && shared_store.car.hit_cooldown.get() != 0 {
-        physics.damage.flt_75b3c8.set_bits(0);
-        shared_store.car.hit_cooldown.set(0x64);
+    blend_wheel_loads(&race.physics.damage);
+    if race.physics.damage.flt_75b3c8.bits() != 0 && race.shared.car.hit_cooldown.get() != 0 {
+        race.physics.damage.flt_75b3c8.set_bits(0);
+        race.shared.car.hit_cooldown.set(0x64);
     }
 }
 
 /// Where the car was hit: 0 for no contact, else 1 .. 4 by the side of the contact point.
-fn side_hit(physics: &Physics) -> u32 {
-    let shared_store = &race().shared;
-
-    if shared_store.car.contact_depth.bits() == 0 {
+fn side_hit(race: &Race) -> u32 {
+    if race.shared.car.contact_depth.bits() == 0 {
         return 0;
     }
     let mut hit = 1;
     if !below_or_unordered(
-        shared_store.car.contact_point[0].bits(),
-        physics.damage.gauge_low.bits(),
+        race.shared.car.contact_point[0].bits(),
+        race.physics.damage.gauge_low.bits(),
     ) {
         hit += 1;
     }
     if below_or_unordered(
-        shared_store.car.contact_point[2].bits(),
-        physics.damage.gauge_low.bits(),
+        race.shared.car.contact_point[2].bits(),
+        race.physics.damage.gauge_low.bits(),
     ) {
         hit += 2;
     }
@@ -168,18 +170,16 @@ fn side_hit(physics: &Physics) -> u32 {
 /// `[m + 0x35B3F8] = int [rc + 0x31A008] / [m + 0x35B35C]`
 /// `[m + 0x35B3FC] = int [rc + 0x31A00C] / [m + 0x35B35C]`
 /// `[m + 0x35B400] = int [rc + 0x319FF8] / [m + 0x35B35C]`
-fn scale_car_figures(m: &DamageModel) {
-    let shared_store = &race().shared;
-
-    let t0 = int(shared_store.car.ride_height.bits() as i32);
+fn scale_car_figures(shared: &Shared, m: &DamageModel) {
+    let t0 = int(shared.car.ride_height.bits() as i32);
     let t1 = ld(m.fixed_point_scale.bits());
     let t2 = t0 / t1;
     m.ride_height_share.set_bits(st(t2));
-    let t3 = int(shared_store.car.suspension_stiffness.bits() as i32);
+    let t3 = int(shared.car.suspension_stiffness.bits() as i32);
     let t4 = ld(m.fixed_point_scale.bits());
     let t5 = t3 / t4;
     m.stiffness_share.set_bits(st(t5));
-    let t6 = int(shared_store.car.brake_balance.bits() as i32);
+    let t6 = int(shared.car.brake_balance.bits() as i32);
     let t7 = ld(m.fixed_point_scale.bits());
     let t8 = t6 / t7;
     m.brake_balance_share.set_bits(st(t8));
@@ -224,32 +224,30 @@ fn fail_wheel(m: &DamageModel, o1: &impl crate::session::Cell32, o3: &impl crate
 /// `[rc + 0x31A430] = ((([rc + 0x31A420] + [rc + 0x31A424]) + [rc + 0x31A428]) + [rc + 0x31A42C]) * [m + 0x35B364]`
 /// `[m + 0x35B3E4] = [rc + 0x31A018]`
 /// `[m + 0x35B36C] = |[rc + 0x31A1B0]|`
-fn means_and_engine_speed(m: &DamageModel) {
-    let shared_store = &race().shared;
-
-    let t0 = ld(shared_store.car.wheel_ride_height[0].bits());
-    let t1 = ld(shared_store.car.wheel_ride_height[1].bits());
+fn means_and_engine_speed(shared: &Shared, m: &DamageModel) {
+    let t0 = ld(shared.car.wheel_ride_height[0].bits());
+    let t1 = ld(shared.car.wheel_ride_height[1].bits());
     let t2 = t0 + t1;
-    let t3 = ld(shared_store.car.wheel_ride_height[2].bits());
+    let t3 = ld(shared.car.wheel_ride_height[2].bits());
     let t4 = t2 + t3;
-    let t5 = ld(shared_store.car.wheel_ride_height[3].bits());
+    let t5 = ld(shared.car.wheel_ride_height[3].bits());
     let t6 = t4 + t5;
     let t7 = ld(m.flt_75b364.bits());
     let t8 = t6 * t7;
-    shared_store.car.ride_height_mean.set_bits(st(t8));
-    let t9 = ld(shared_store.car.wheel_stiffness[0].bits());
-    let t10 = ld(shared_store.car.wheel_stiffness[1].bits());
+    shared.car.ride_height_mean.set_bits(st(t8));
+    let t9 = ld(shared.car.wheel_stiffness[0].bits());
+    let t10 = ld(shared.car.wheel_stiffness[1].bits());
     let t11 = t9 + t10;
-    let t12 = ld(shared_store.car.wheel_stiffness[2].bits());
+    let t12 = ld(shared.car.wheel_stiffness[2].bits());
     let t13 = t11 + t12;
-    let t14 = ld(shared_store.car.wheel_stiffness[3].bits());
+    let t14 = ld(shared.car.wheel_stiffness[3].bits());
     let t15 = t13 + t14;
     let t16 = ld(m.flt_75b364.bits());
     let t17 = t15 * t16;
-    shared_store.car.stiffness_mean.set_bits(st(t17));
-    let t18 = ld(shared_store.car.drive_kind.bits());
+    shared.car.stiffness_mean.set_bits(st(t17));
+    let t18 = ld(shared.car.drive_kind.bits());
     m.flt_75b3e4.set_bits(st(t18));
-    let t19 = ld(shared_store.car.engine_speed.bits());
+    let t19 = ld(shared.car.engine_speed.bits());
     let t20 = t19.abs();
     m.scratch.set_bits(st(t20));
 }
@@ -258,16 +256,14 @@ fn means_and_engine_speed(m: &DamageModel) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B398] = ([m + 0x35B36C] / [rc + 0x31A1B4]) * [m + 0x35B34C]`
 /// `[m + 0x35B36C] = |[rc + 0x31A184]|`
-fn engine_speed_share_step(m: &DamageModel) {
-    let shared_store = &race().shared;
-
+fn engine_speed_share_step(shared: &Shared, m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
-    let t1 = ld(shared_store.car.engine_speed_limit.bits());
+    let t1 = ld(shared.car.engine_speed_limit.bits());
     let t2 = t0 / t1;
     let t3 = ld(m.gauge_top.bits());
     let t4 = t2 * t3;
     m.engine_speed_share.set_bits(st(t4));
-    let t5 = ld(shared_store.car.local_velocity[2].bits());
+    let t5 = ld(shared.car.local_velocity[2].bits());
     let t6 = t5.abs();
     m.scratch.set_bits(st(t6));
 }
@@ -277,19 +273,17 @@ fn engine_speed_share_step(m: &DamageModel) {
 /// `[m + 0x35B39C] = ([m + 0x35B36C] / [m + 0x35B378]) * [m + 0x35B34C]`
 /// `[m + 0x35B3E0] = [rc + 0x31A930]`
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A190])|`
-fn speed_share_step(m: &DamageModel) {
-    let shared_store = &race().shared;
-
+fn speed_share_step(shared: &Shared, m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
     let t1 = ld(m.flt_75b378.bits());
     let t2 = t0 / t1;
     let t3 = ld(m.gauge_top.bits());
     let t4 = t2 * t3;
     m.speed_share.set_bits(st(t4));
-    let t5 = ld(shared_store.car.point_surface_2c[4].bits());
+    let t5 = ld(shared.car.point_surface_2c[4].bits());
     m.flt_75b3e0.set_bits(st(t5));
-    let t6 = ld(shared_store.car.local_velocity[2].bits());
-    let t7 = ld(shared_store.car.drive_speed_a.bits());
+    let t6 = ld(shared.car.local_velocity[2].bits());
+    let t7 = ld(shared.car.drive_speed_a.bits());
     let t8 = t6 - t7;
     let t9 = t8.abs();
     m.scratch.set_bits(st(t9));
@@ -299,15 +293,13 @@ fn speed_share_step(m: &DamageModel) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3A0] = [m + 0x35B36C] / [m + 0x35B378]`
 /// `[m + 0x35B36C] = |([rc + 0x31A184] - [rc + 0x31A194])|`
-fn drive_a_slip_step(m: &DamageModel) {
-    let shared_store = &race().shared;
-
+fn drive_a_slip_step(shared: &Shared, m: &DamageModel) {
     let t0 = ld(m.scratch.bits());
     let t1 = ld(m.flt_75b378.bits());
     let t2 = t0 / t1;
     m.drive_a_slip_share.set_bits(st(t2));
-    let t3 = ld(shared_store.car.local_velocity[2].bits());
-    let t4 = ld(shared_store.car.drive_speed_b.bits());
+    let t3 = ld(shared.car.local_velocity[2].bits());
+    let t4 = ld(shared.car.drive_speed_b.bits());
     let t5 = t3 - t4;
     let t6 = t5.abs();
     m.scratch.set_bits(st(t6));
@@ -318,6 +310,7 @@ fn drive_a_slip_step(m: &DamageModel) {
 /// `[m + o2] = [m + 0x35B36C] / [m + 0x35B378]`
 /// `[m + 0x35B36C] = |((([rc + o3] - [rc + 0x31A184]) * [m + 0x35B6F4]) + [rc + o6])|`
 fn drive_extrapolation_step(
+    shared: &Shared,
     m: &DamageModel,
     o2: &impl Cell32,
     o3: &impl crate::session::Cell32,
@@ -328,7 +321,7 @@ fn drive_extrapolation_step(
     let t2 = t0 / t1;
     o2.set_bits(st(t2));
     let t3 = ld(o3.bits());
-    let t4 = ld(race().shared.car.local_velocity[2].bits());
+    let t4 = ld(shared.car.local_velocity[2].bits());
     let t5 = t3 - t4;
     let t6 = ld(m.figures[31].bits());
     let t7 = t5 * t6;
@@ -370,8 +363,8 @@ fn clear_cell(o0: &impl Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3B0] = int [rc + 0x31A614] / [m + 0x35B35C]`
-fn brake_share_step(m: &DamageModel) {
-    let t0 = int(race().shared.car.brake.bits() as i32);
+fn brake_share_step(shared: &Shared, m: &DamageModel) {
+    let t0 = int(shared.car.brake.bits() as i32);
     let t1 = ld(m.fixed_point_scale.bits());
     let t2 = t0 / t1;
     m.brake_share.set_bits(st(t2));
@@ -380,13 +373,11 @@ fn brake_share_step(m: &DamageModel) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `status [s + 0] = status`
-fn engine_over_limit_status(m: &DamageModel) -> u16 {
-    let shared_store = &race().shared;
-
-    let t0 = ld(shared_store.car.engine_speed_limit.bits());
+fn engine_over_limit_status(shared: &Shared, m: &DamageModel) -> u16 {
+    let t0 = ld(shared.car.engine_speed_limit.bits());
     let t1 = ld(m.flt_75b37c.bits());
     let t2 = t0 * t1;
-    let t3 = ld(shared_store.car.engine_speed.bits());
+    let t3 = ld(shared.car.engine_speed.bits());
     compare(t2, t3)
 }
 
@@ -394,18 +385,16 @@ fn engine_over_limit_status(m: &DamageModel) -> u16 {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[m + 0x35B3C8] = (([rc + 0x31A208] * [rc + 0x31A208]) / [m + 0x35B394]) / [m + 0x35B378]`
 /// `[m + 0x35B36C] = -[rc + 0x31A180] - [m + 0x35B624]`
-fn hit_size_and_dive(m: &DamageModel) {
-    let shared_store = &race().shared;
-
-    let t0 = ld(shared_store.car.contact_depth.bits());
-    let t1 = ld(shared_store.car.contact_depth.bits());
+fn hit_size_and_dive(shared: &Shared, m: &DamageModel) {
+    let t0 = ld(shared.car.contact_depth.bits());
+    let t1 = ld(shared.car.contact_depth.bits());
     let t2 = t0 * t1;
     let t3 = ld(m.flt_75b394.bits());
     let t4 = t2 / t3;
     let t5 = ld(m.flt_75b378.bits());
     let t6 = t4 / t5;
     m.flt_75b3c8.set_bits(st(t6));
-    let t7 = ld(shared_store.car.local_velocity[1].bits());
+    let t7 = ld(shared.car.local_velocity[1].bits());
     let t8 = -t7;
     let t9 = ld(m.gauge_rates[21].bits());
     let t10 = t8 - t9;
@@ -475,6 +464,7 @@ fn blend_wheel_loads(m: &DamageModel) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
 
     /// The damage model as the test's buffer holds it (the buffer's base plus the RVA of
     /// 0x75B340).
@@ -530,7 +520,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| scale_car_figures(dm(a[1])),
+                plain: |a| scale_car_figures(&race().shared, dm(a[1])),
             },
             Block {
                 name: "damage_factors line 53",
@@ -817,7 +807,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1]) },
-                plain: |a| means_and_engine_speed(dm(a[1])),
+                plain: |a| means_and_engine_speed(&race().shared, dm(a[1])),
             },
             Block {
                 name: "damage_factors line 186",
@@ -833,7 +823,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_14(a[0], a[1]) },
-                plain: |a| engine_speed_share_step(dm(a[0])),
+                plain: |a| engine_speed_share_step(&race().shared, dm(a[0])),
             },
             Block {
                 name: "damage_factors line 198",
@@ -849,7 +839,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_15(a[0], a[1]) },
-                plain: |a| speed_share_step(dm(a[0])),
+                plain: |a| speed_share_step(&race().shared, dm(a[0])),
             },
             Block {
                 name: "damage_factors line 213",
@@ -865,7 +855,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_16(a[0], a[1]) },
-                plain: |a| drive_a_slip_step(dm(a[0])),
+                plain: |a| drive_a_slip_step(&race().shared, dm(a[0])),
             },
             Block {
                 name: "damage_factors line 225",
@@ -883,6 +873,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_17(a[0], a[1]) },
                 plain: |a| {
                     drive_extrapolation_step(
+                        &race().shared,
                         dm(a[0]),
                         &dm(a[0]).drive_b_slip_share,
                         &crate::race::owner::race().shared.car.drive_speed_a,
@@ -906,6 +897,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_18(a[0], a[1]) },
                 plain: |a| {
                     drive_extrapolation_step(
+                        &race().shared,
                         dm(a[0]),
                         &dm(a[0]).drive_a_extrapolated_share,
                         &crate::race::owner::race().shared.car.drive_speed_b,
@@ -957,7 +949,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_22(a[0], a[1]) },
-                plain: |a| brake_share_step(dm(a[1])),
+                plain: |a| brake_share_step(&race().shared, dm(a[1])),
             },
             Block {
                 name: "damage_factors line 287",
@@ -977,7 +969,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_23(a[0], a[1], a[2]) },
-                plain: |a| a[2].set_word(0, engine_over_limit_status(dm(a[1]))),
+                plain: |a| a[2].set_word(0, engine_over_limit_status(&race().shared, dm(a[1]))),
             },
             Block {
                 name: "damage_factors line 302",
@@ -1003,7 +995,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_25(a[0], a[1]) },
-                plain: |a| hit_size_and_dive(dm(a[1])),
+                plain: |a| hit_size_and_dive(&race().shared, dm(a[1])),
             },
             Block {
                 name: "damage_factors line 337",

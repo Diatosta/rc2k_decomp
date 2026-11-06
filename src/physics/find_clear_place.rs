@@ -35,10 +35,10 @@ fn try_place(race: &Race) -> Result<(), Refused> {
     { crate::physics::probe_ground::probe_ground() }?;
     crate::physics::crossed_edge::check(&race.physics)?;
     crate::physics::crossed_edge::steps(race)?;
-    crate::physics::wall_contacts::check()?;
+    crate::physics::wall_contacts::check(&race.shared)?;
     crate::physics::wall_contacts::steps(race)?;
     { crate::physics::car_collisions::car_collisions(race) }?;
-    crate::physics::face_contacts_around::face_contacts_around(&race.physics)
+    crate::physics::face_contacts_around::face_contacts_around(race)
 }
 
 /// The steps, not guarded.
@@ -52,7 +52,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     let factor = extended(race.shared.physics_tables.clear_place_share.bits());
     crate::physics::scale_vector::scale_vector(&race.shared.car.velocity, factor);
     scene().drawing.scene.scratch.set(rounded(factor));
-    { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
+    { crate::physics::restore_saved_car::restore_saved_car(race) }?;
     { crate::physics::lowest_body_point::lowest_body_point(race) }?;
     race.shared
         .physics_tables
@@ -99,12 +99,12 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
             .get()
             .wrapping_add(1),
     );
-    crate::physics::limit_motion::limit_motion();
+    crate::physics::limit_motion::limit_motion(race);
     Ok(())
 }
 
 /// The Rust version.
 pub fn find_clear_place(race: &Race) -> Result<(), Refused> {
-    crate::physics::wall_contacts::check()?;
+    crate::physics::wall_contacts::check(&race.shared)?;
     steps(race)
 }

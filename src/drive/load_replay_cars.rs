@@ -14,8 +14,8 @@ use rc2k_core::drive::replay_frames::start_layout;
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::start_layout`.
 pub fn load_replay_cars() {
-    let replay = &race().replay;
+    let race = race();
     for (piece, offset, n) in start_layout() {
-        copy_piece(replay, piece, offset, n, false);
+        copy_piece(race, piece, offset, n, false);
     }
 }

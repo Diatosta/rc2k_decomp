@@ -45,7 +45,7 @@ pub fn set_wheel_weights(race: &Race) {
         w.force[1].set_bits(f);
     }
     for w in wheels {
-        turn_by_inverse(&w.force);
+        turn_by_inverse(&race.shared, &w.force);
     }
     let plus = x87::loaded(1.0f32.to_bits());
     let minus = x87::negated(plus);
@@ -68,6 +68,6 @@ pub fn set_wheel_weights(race: &Race) {
         cell.set_bits(minus);
     }
     for w in wheels {
-        turn_by_inverse(&w.point);
+        turn_by_inverse(&race.shared, &w.point);
     }
 }

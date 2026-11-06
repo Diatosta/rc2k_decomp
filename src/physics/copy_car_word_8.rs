@@ -7,7 +7,7 @@
 //!
 //! Caller: `sub_43C8AC`.
 
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 
 fn core(v: &[&dyn Cell32]) {
@@ -16,17 +16,15 @@ fn core(v: &[&dyn Cell32]) {
     v[2].set_bits(0);
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let shared_store = &race().shared;
-
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
-        &shared_store.car.step_clock as &dyn Cell32,
-        &shared_store.physics_tables.time_marks[1],
-        &shared_store.physics_tables.time_marks[0],
+        &shared.car.step_clock as &dyn Cell32,
+        &shared.physics_tables.time_marks[1],
+        &shared.physics_tables.time_marks[0],
     ]
 }
 
 /// The Rust version.
-pub fn copy_car_word_8() {
-    core(&game());
+pub fn copy_car_word_8(shared: &Shared) {
+    core(&game(shared));
 }

@@ -7,10 +7,10 @@
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 const COUNT: usize = 7;
 
 /// The Rust version.
-pub fn apply_contact_forces() -> Result<(), Refused> {
-    apply_forces(&race().shared.physics_tables.contacts[..COUNT])
+pub fn apply_contact_forces(shared: &Shared) -> Result<(), Refused> {
+    apply_forces(shared, &shared.physics_tables.contacts[..COUNT])
 }

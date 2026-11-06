@@ -77,7 +77,7 @@ pub fn load_stage() -> Result<(), Refused> {
     log();
     indent(3);
     if race.replay.finish.no_place.get() != 0 {
-        crate::race::music::game_music();
+        crate::race::music::game_music(&race.shared);
     } else {
         crate::race::music::game_music_8();
     }

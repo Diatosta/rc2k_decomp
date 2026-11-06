@@ -19,8 +19,7 @@
 use crate::errors::Refused;
 use crate::files::handle;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 use crate::race::replay_path::replay_path;
 use crate::race::replay_work_store::REPLAY_WORK;
 
@@ -29,8 +28,9 @@ use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 /// The Rust version: whether it failed (the carry the original leaves; it keeps the
 /// registers and leaves the zero flag `opened_zero(0)`, which no caller reads). `slot` the
 /// replay (the original's ebx).
-pub fn open_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
-    let shared = &race().shared;
+pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
+    let replay = &race.replay;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{last_race_missing, copied_first,
     // read_good, version_good, index_blocks, opened_marks}`.
     use rc2k_core::race::viewer_flow::{
@@ -38,10 +38,10 @@ pub fn open_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
         opened_marks, read_good, version_good,
     };
     let failed = || -> Result<bool, Refused> {
-        crate::race::close_viewed_replay::close_viewed_replay()?;
+        crate::race::close_viewed_replay::close_viewed_replay(&race.shared)?;
         Ok(true)
     };
-    let found = replay_path(replay, slot)?;
+    let found = replay_path(race, slot)?;
     let mut path = found.path;
     if last_race_missing(
         found.last_race,
@@ -153,6 +153,6 @@ pub fn open_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
             CAR_HEADER_LEN,
             "the replay header's stage",
         )?;
-    crate::race::replay_patches::apply_replay_patches()?;
+    crate::race::replay_patches::apply_replay_patches(&race.shared)?;
     Ok(false)
 }

@@ -50,6 +50,7 @@ fn run(
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
 ) -> Result<(), Refused> {
+    let shared = &crate::race::owner::race().shared;
     let setup = &effects().setup;
     {
         crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl);
@@ -59,7 +60,7 @@ fn run(
             VERTICES.vertices[n].v.set_bits(v);
         }
         if setup.kind_floats.running.bits() != 0 {
-            windscreen_flakes_spawn(drops, fl)?;
+            windscreen_flakes_spawn(shared, drops, fl)?;
         }
         for item in &fl.items.items {
             if item.live.get() != 1 {

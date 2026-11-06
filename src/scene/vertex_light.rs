@@ -30,7 +30,6 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::race::owner::race;
 use crate::scene::light_dot::light_dot;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
@@ -141,11 +140,9 @@ fn blend(course: &crate::race::owner_course::Course) {
     lights.work.light_colour.set_bits(colour);
 }
 
-pub fn vertex_light(
-    course: &crate::race::owner_course::Course,
-    number: u32,
-) -> Result<u32, BadInput> {
+pub fn vertex_light(race: &crate::race::owner::Race, number: u32) -> Result<u32, BadInput> {
     let scene = scene();
+    let course = &race.course;
     let kind: u32 = scene.lights.work.light_kind.bits();
     let mmx = system().session.machine.has_mmx.get() != 0;
     if kind == 4 {
@@ -153,7 +150,7 @@ pub fn vertex_light(
         return Ok(plus(0, lit(number, mmx)?, mmx));
     }
     let lit_at_all =
-        race().shared.switches.other_way.bits() != 0 || course.stage_prefs.lit_b.bits() != 0;
+        race.shared.switches.other_way.bits() != 0 || course.stage_prefs.lit_b.bits() != 0;
     if !lit_at_all || kind == 0 {
         return Ok(0x00FF_FFFF);
     }

@@ -38,6 +38,7 @@ fn rdtsc() -> (u32, u32) {
 
 /// The Rust version (see the header).
 pub fn frame_marks(effects: &Effects) -> Result<(), Refused> {
+    let shared = &crate::race::owner::race().shared;
     let course = &race().course;
     let marks = crate::effects::setup::marks()?;
     {
@@ -56,7 +57,7 @@ pub fn frame_marks(effects: &Effects) -> Result<(), Refused> {
         effects.setup.clock.settings_copies[0].set(marks.unknown_67c[1].get());
         scale_vectors_by::scale_vectors_by();
         morph_object_points::morph_object_points(course, &effects.paths)?;
-        view_frame::view_frame(effects)?;
+        view_frame::view_frame(shared, effects)?;
         marks.unknown_67c[1].set(0);
         effects
             .setup

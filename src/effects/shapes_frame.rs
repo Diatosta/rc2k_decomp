@@ -12,9 +12,14 @@ use crate::effects::owner::effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::{copy_first_point, run_shapes, scale_setting, tilt_shape};
 use crate::errors::{BadInput, Refused};
+use crate::race::owner_shared::Shared;
 
 /// The Rust version (see the header).
-pub fn shapes_frame(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn shapes_frame(
+    shared: &Shared,
+    masks: &Masks,
+    drops: &WindscreenDrops,
+) -> Result<(), Refused> {
     let effects = effects();
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
@@ -23,6 +28,6 @@ pub fn shapes_frame(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refuse
         copy_first_point::copy_first_point(drops);
         tilt_shape::tilt_shape(drops);
         scale_setting::scale_setting(masks, &effects.windscreen_flakes)?;
-        run_shapes::run_shapes(masks, drops)
+        run_shapes::run_shapes(shared, masks, drops)
     }
 }

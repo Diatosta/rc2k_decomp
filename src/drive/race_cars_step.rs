@@ -17,12 +17,10 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use rc2k_core::drive::race_steps;
 
 /// One car's step (0x4608CA .., inside `pusha` / `popa`).
-fn car_step() -> Result<(), Refused> {
-    let race = race();
+fn car_step(race: &Race) -> Result<(), Refused> {
     for word in &race.shared.physics_tables.input_words {
         word.set(0);
     }
@@ -52,7 +50,7 @@ pub fn race_cars_step(race: &Race) -> Result<(), Refused> {
         || shared.work.current_car.get(),
         || shared.view.race_cars.get(),
         |n| shared.work.current_car.set(n),
-        car_step,
+        || car_step(race),
     )?;
     crate::drive::animate_stage::animate_stage(race)?;
     crate::drive::race_mode_cars::race_mode_cars()?;

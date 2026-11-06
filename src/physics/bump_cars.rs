@@ -20,7 +20,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::Car;
 use crate::race::owner::Race;
-use crate::race::owner_physics::Physics;
 use crate::session::{Dword, Float};
 
 use crate::math::x87::loaded;
@@ -70,7 +69,7 @@ fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
     race.shared.car.contact_flag.set(1);
     let other_car = crate::race::trap::car_at(other_car)?;
     other_car.contact_flag.set(1);
-    relative_speed(&race.physics, &other_car.velocity);
+    relative_speed(race, &other_car.velocity);
     race_owner
         .physics
         .contact
@@ -80,14 +79,14 @@ fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
         }));
     // The car `dword_6D3BB8` names (the same as `other_car` in play).
     let met_car = Car::at(race_owner.physics.contact.other_car_block.get());
-    share_out_speeds(&race.physics, &met_car.velocity);
+    share_out_speeds(race, &met_car.velocity);
     // 0x45F98C: pushed apart by the places' difference.
     let other = Car::at(race_owner.physics.contact.other_car_block.get());
     push_apart(race, &other.position);
     let factor = extended(race_owner.course.numbers.three.bits());
     scale_vector(&race_owner.physics.contact.bump_push, factor);
     scene().drawing.scene.scratch.set(rounded(factor));
-    add_push(&race.physics, &other.velocity);
+    add_push(race, &other.velocity);
     turn_speed(met_car);
     turn_speed(&race.shared.car);
     { crate::physics::place_sound_e1_other::place_sound_e1_other(race) }?;
@@ -107,12 +106,12 @@ pub fn bump_cars(race: &Race, other_car: u32) -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the work car's speed less `d` (the other car's), on each axis, into the relative speed.
-fn relative_speed(physics: &Physics, d: &[Float; 3]) {
+fn relative_speed(race: &Race, d: &[Float; 3]) {
     for (k, other) in d.iter().enumerate() {
-        let t0 = ld(crate::race::owner::race().shared.car.velocity[k].bits());
+        let t0 = ld(race.shared.car.velocity[k].bits());
         let t1 = ld(other.bits());
         let t2 = t0 - t1;
-        physics.contact.bump_relative_speed[k].set_bits(st(t2));
+        race.physics.contact.bump_relative_speed[k].set_bits(st(t2));
     }
 }
 
@@ -120,25 +119,23 @@ fn relative_speed(physics: &Physics, d: &[Float; 3]) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the two cars' speeds shared out on each axis, with a the work car's speed and b the
 /// other's (`s`): `a' = a x share_a + b x share_b`, `b' = a x share_b + b x share_a`.
-fn share_out_speeds(physics: &Physics, s: &[Float; 3]) {
-    let shared_store = &crate::race::owner::race().shared;
-
+fn share_out_speeds(race: &Race, s: &[Float; 3]) {
     for (k, other) in s.iter().enumerate() {
-        let t0 = ld(shared_store.car.velocity[k].bits());
-        let t1 = ld(physics.contact.bump_share_b.bits());
+        let t0 = ld(race.shared.car.velocity[k].bits());
+        let t1 = ld(race.physics.contact.bump_share_b.bits());
         let t2 = t0 * t1;
         let t3 = ld(other.bits());
-        let t4 = ld(physics.contact.bump_share_a.bits());
+        let t4 = ld(race.physics.contact.bump_share_a.bits());
         let t5 = t3 * t4;
         let t6 = t2 + t5;
-        let t7 = ld(shared_store.car.velocity[k].bits());
-        let t8 = ld(physics.contact.bump_share_a.bits());
+        let t7 = ld(race.shared.car.velocity[k].bits());
+        let t8 = ld(race.physics.contact.bump_share_a.bits());
         let t9 = t7 * t8;
         let t10 = ld(other.bits());
-        let t11 = ld(physics.contact.bump_share_b.bits());
+        let t11 = ld(race.physics.contact.bump_share_b.bits());
         let t12 = t10 * t11;
         let t13 = t9 + t12;
-        shared_store.car.velocity[k].set_bits(st(t13));
+        race.shared.car.velocity[k].set_bits(st(t13));
         other.set_bits(st(t6));
     }
 }
@@ -163,18 +160,16 @@ fn push_apart(race: &Race, d: &[Dword; 3]) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// the push added to the work car's speed on each axis, then taken from `d`'s.
-fn add_push(physics: &Physics, d: &[Float; 3]) {
-    let shared_store = &crate::race::owner::race().shared;
-
+fn add_push(race: &Race, d: &[Float; 3]) {
     for k in 0..3 {
-        let t0 = ld(shared_store.car.velocity[k].bits());
-        let t1 = ld(physics.contact.bump_push[k].bits());
+        let t0 = ld(race.shared.car.velocity[k].bits());
+        let t1 = ld(race.physics.contact.bump_push[k].bits());
         let t2 = t0 + t1;
-        shared_store.car.velocity[k].set_bits(st(t2));
+        race.shared.car.velocity[k].set_bits(st(t2));
     }
     for (k, other) in d.iter().enumerate() {
         let t9 = ld(other.bits());
-        let t10 = ld(physics.contact.bump_push[k].bits());
+        let t10 = ld(race.physics.contact.bump_push[k].bits());
         let t11 = t9 - t10;
         other.set_bits(st(t11));
     }
@@ -183,6 +178,7 @@ fn add_push(physics: &Physics, d: &[Float; 3]) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::view;
 
@@ -208,7 +204,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| relative_speed(&crate::race::owner::race().physics, view(a[1], 0x198)),
+                plain: |a| relative_speed(race(), view(a[1], 0x198)),
             },
             Block {
                 name: "bump_cars line 80",
@@ -230,7 +226,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| share_out_speeds(&crate::race::owner::race().physics, view(a[1], 0x198)),
+                plain: |a| share_out_speeds(race(), view(a[1], 0x198)),
             },
             Block {
                 name: "bump_cars line 121",
@@ -275,7 +271,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| add_push(&crate::race::owner::race().physics, view(a[1], 0x198)),
+                plain: |a| add_push(race(), view(a[1], 0x198)),
             },
         ]
     }

@@ -31,6 +31,7 @@ use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::record;
 use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Dword;
 use rc2k_core::physics::camera_ground;
@@ -40,11 +41,8 @@ fn place(race: &Race) {
 }
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
-fn face_checkpoint(back: u32) -> bool {
-    let shared_store = &crate::race::owner::race().shared;
-
-    let Some(checkpoint) = camera_ground::back_checkpoint(shared_store.car.checkpoint.get(), back)
-    else {
+fn face_checkpoint(shared: &Shared, back: u32) -> bool {
+    let Some(checkpoint) = camera_ground::back_checkpoint(shared.car.checkpoint.get(), back) else {
         return false;
     };
     let face = crate::race::checkpoints_store::face(checkpoint as usize).get();
@@ -54,20 +52,16 @@ fn face_checkpoint(back: u32) -> bool {
         crate::race::scene_points::point_word(point, k)
             .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e))
     };
-    let first = shared_store.car.position[0]
-        .get()
-        .wrapping_sub(coordinate(0));
-    let second = shared_store.car.position[2]
-        .get()
-        .wrapping_sub(coordinate(2));
+    let first = shared.car.position[0].get().wrapping_sub(coordinate(0));
+    let second = shared.car.position[2].get().wrapping_sub(coordinate(2));
     let angle = crate::scene::angle_between::angle_of(first, second);
-    shared_store.car.camera_heading.set(angle << 16);
+    shared.car.camera_heading.set(angle << 16);
     true
 }
 
 /// The five ground faces from 0x71AEC8 the loop below saves.
-fn ground_faces() -> [&'static Dword; 5] {
-    let f = &crate::race::owner::race().shared.car.camera_ground_faces;
+fn ground_faces(shared: &Shared) -> [&Dword; 5] {
+    let f = &shared.car.camera_ground_faces;
     [&f[0], &f[1], &f[2], &f[3], &f[4]]
 }
 
@@ -84,7 +78,7 @@ fn turn_back(race: &Race) -> Result<(), Refused> {
             .camera_heading_saved
             .set(race.shared.car.camera_heading.get());
         for k in 0..5 {
-            drawing.scene.camera_saved[k].set(ground_faces()[k].get());
+            drawing.scene.camera_saved[k].set(ground_faces(&race.shared)[k].get());
         }
         let mut stepped_back = false;
         if let Some(step) = camera_ground::turn_step(
@@ -108,7 +102,7 @@ fn turn_back(race: &Race) -> Result<(), Refused> {
                 .camera_heading
                 .set(drawing.scene.camera_heading_saved.get());
             for k in 0..5 {
-                ground_faces()[k].set(drawing.scene.camera_saved[k].get());
+                ground_faces(&race.shared)[k].set(drawing.scene.camera_saved[k].get());
             }
         }
         let (next, last) = camera_ground::next_turn_step(race.shared.tables.camera_turn_step.get());
@@ -133,13 +127,13 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         .camera_heading_kept
         .set(race.shared.car.camera_heading.get());
     place(race);
-    if record()?.halve_tilt.get() == 0 {
+    if record(&race.shared)?.halve_tilt.get() == 0 {
         return Ok(());
     }
     if !camera_over_ground(race)? {
         let mut found = false;
         for back in [1, 2] {
-            if !face_checkpoint(back) {
+            if !face_checkpoint(&race.shared, back) {
                 break;
             }
             place(race);
@@ -174,13 +168,13 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
                 .camera
                 .pitch_floor
                 .set(race.shared.car.camera_pitch.get());
-            crate::physics::ease_pitch_up::ease_pitch_up(&race.physics);
+            crate::physics::ease_pitch_up::ease_pitch_up(race);
         } else {
             physics_store
                 .camera
                 .pitch_ceiling
                 .set(race.shared.car.camera_pitch.get());
-            crate::physics::ease_pitch_down::ease_pitch_down(&race.physics);
+            crate::physics::ease_pitch_down::ease_pitch_down(race);
         }
         if physics_store.camera.pitch_step.get() == 0 {
             return Ok(());

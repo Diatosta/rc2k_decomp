@@ -16,7 +16,6 @@ use crate::physics::edge_side::edge_side;
 use crate::physics::find_course_record::find_course_record;
 use crate::physics::plane_height::plane_height;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use rc2k_core::physics::ground_search::{self, FaceTest};
@@ -123,8 +122,7 @@ pub fn face_refusal(course: &Course, face: u32) -> Option<&'static str> {
 /// (ebx; see `physics/face_under_point.rs`): the carry. The registers it leaves are read
 /// by none of its callers (`search_record_faces`, `try_last_face`).
 // Converted: `rc2k_core::physics::ground_search::face_under_point`.
-pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
-    let race = race();
+pub fn face_under_point_at(race: &Race, number: u32) -> Result<bool, Refused> {
     let physics = &race.physics;
     let race_owner = race;
     if let Some(why) = face_refusal(&race_owner.course, number) {
@@ -197,12 +195,13 @@ pub fn record_refusal(course: &Course, record: u32) -> Option<&'static str> {
 /// `physics::search_record_faces` (0x441FD9): faces +8 ..= +0xC of course record
 /// `record` (ebx), each by `face_under_point`; the carry when one has the point.
 // Converted: `rc2k_core::physics::ground_search::search_faces`.
-pub fn search_record_faces_at(course: &Course, record: u32) -> Result<bool, Refused> {
-    if let Some(why) = record_refusal(course, record) {
+pub fn search_record_faces_at(race: &Race, record: u32) -> Result<bool, Refused> {
+    if let Some(why) = record_refusal(&race.course, record) {
         return Err(BadInput(why).into());
     }
     let (first, last) = record_faces(record)?;
-    let (found, _) = ground_search::search_faces(first, last, face_under_point_at)?;
+    let (found, _) =
+        ground_search::search_faces(first, last, |number| face_under_point_at(race, number))?;
     Ok(found)
 }
 
@@ -210,25 +209,23 @@ pub fn search_record_faces_at(course: &Course, record: u32) -> Result<bool, Refu
 /// z << 11 + x), its record by `find_course_record`, then its faces. The carry when
 /// found.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
-pub fn search_cell_at(x: u32, z: u32) -> Result<bool, Refused> {
-    let course = &race().course;
+pub fn search_cell_at(race: &Race, x: u32, z: u32) -> Result<bool, Refused> {
     let (key, _) = ground_search::cell_key(x, z);
-    let Some(record) = find_course_record(course, key)? else {
+    let Some(record) = find_course_record(&race.course, key)? else {
         return Ok(false);
     };
-    search_record_faces_at(course, record)
+    search_record_faces_at(race, record)
 }
 
 /// `physics::try_last_face` (0x441E0C): ebx = `dword_5CCC78`; when it is a face (not -1,
 /// below the count) `face_under_point` on it inside `pusha`/`popa`. The carry when found.
 // Converted: `rc2k_core::physics::ground_search::last_face`.
-pub fn try_last_face_at() -> Result<bool, Refused> {
-    let course_store = &race().course;
-    let last = course_store.course.ground_face_last.get();
-    if ground_search::last_face(last, course_store.course.course_face_count.get()).is_none() {
+pub fn try_last_face_at(race: &Race) -> Result<bool, Refused> {
+    let last = race.course.course.ground_face_last.get();
+    if ground_search::last_face(last, race.course.course.course_face_count.get()).is_none() {
         return Ok(false);
     }
-    face_under_point_at(last)
+    face_under_point_at(race, last)
 }
 
 /// `physics::ground_search` (0x441E2F), inside `pusha` / `popa`: `try_last_face`; else
@@ -237,7 +234,7 @@ pub fn try_last_face_at() -> Result<bool, Refused> {
 // Converted: `rc2k_core::physics::ground_search::ground_search`.
 pub fn ground_search_at(race: &Race) -> Result<bool, Refused> {
     let found = ground_search::ground_search(
-        try_last_face_at,
+        || try_last_face_at(race),
         || {
             race.course.course.ground_slot.set(ground_search::NO_FACE);
         },
@@ -247,7 +244,7 @@ pub fn ground_search_at(race: &Race) -> Result<bool, Refused> {
                 race.physics.ground.ground_z.get(),
             )
         },
-        search_cell_at,
+        |x, z| search_cell_at(race, x, z),
     )?;
     race.physics.ground.ground_found.set(u32::from(found));
     Ok(found)

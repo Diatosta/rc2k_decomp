@@ -22,9 +22,12 @@ use crate::errors::{BadInput, Refused};
 use crate::race::marks_settings_store::{MARKS_SETTINGS, MarkCar};
 use crate::race::mud::car_file_number;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::drive::sharing;
 
-fn cars() -> Result<
+fn cars(
+    shared: &Shared,
+) -> Result<
     [(
         u32,
         &'static MarkCar,
@@ -32,13 +35,10 @@ fn cars() -> Result<
     ); 8],
     BadInput,
 > {
-    let records = crate::race::owner::race()
-        .shared
-        .work
-        .car_records_resolved()?;
+    let records = shared.work.car_records_resolved()?;
     Ok(std::array::from_fn(|n| {
         (
-            crate::race::owner::race().shared.work.car_block(n),
+            shared.work.car_block(n),
             records[n],
             &crate::sound::owner::sound().race.sounds.objects[n],
         )
@@ -46,8 +46,8 @@ fn cars() -> Result<
 }
 
 /// The refusals, worked out before anything is written.
-fn refusal() -> Result<Option<&'static str>, BadInput> {
-    for (block, _, _) in cars()? {
+fn refusal(shared: &Shared) -> Result<Option<&'static str>, BadInput> {
+    for (block, _, _) in cars(shared)? {
         if block == 0 {
             return Ok(Some("a null car block or record"));
         }
@@ -63,25 +63,24 @@ fn refusal() -> Result<Option<&'static str>, BadInput> {
 /// point after `drive::race_init`'s or `race::run_view_marks`' call).
 // Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
 pub fn share_all_cars() -> Result<(), Refused> {
-    let race_owner = race();
     let race = race();
-    if let Some(why) = refusal()? {
+    if let Some(why) = refusal(&race.shared)? {
         return Err(BadInput(why).into());
     }
     // `set_listener` refuses before writing; nothing is written before it but the
     // lead car's values, which are kept again by the original.
     set_listener(race)?;
     keep_lead_car_values(&race.frame);
-    for (n, (block, record, sound)) in cars()?.into_iter().enumerate() {
-        race_owner.shared.work.current_car.set(n as u32);
+    for (n, (block, record, sound)) in cars(&race.shared)?.into_iter().enumerate() {
+        race.shared.work.current_car.set(n as u32);
         share_car_state(
-            &race.course,
+            race,
             crate::physics::car_store::Car::at(block),
             record,
             sound,
         )?;
     }
-    let first_record = race_owner
+    let first_record = race
         .shared
         .work
         .car_record(crate::race::blocks_store::own_car_number())?;

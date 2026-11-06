@@ -10,15 +10,15 @@
 //! read).
 
 use crate::errors::Refused;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;
 
 /// The Rust version. `slot` the slot to save the last race's replay into (the original's
 /// eax); the carry the original leaves is read by none of its callers.
-pub fn save_last_replay(replay: &Replay, slot: u32) -> Result<(), Refused> {
-    if crate::race::open_viewed_replay::open_viewed_replay(replay, LAST_RACE)? {
+pub fn save_last_replay(race: &Race, slot: u32) -> Result<(), Refused> {
+    if crate::race::open_viewed_replay::open_viewed_replay(race, LAST_RACE)? {
         return Ok(());
     }
-    crate::race::save_viewed_replay::save_viewed_replay(replay, slot)?;
-    crate::race::close_viewed_replay::close_viewed_replay()
+    crate::race::save_viewed_replay::save_viewed_replay(race, slot)?;
+    crate::race::close_viewed_replay::close_viewed_replay(&race.shared)
 }

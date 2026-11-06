@@ -27,7 +27,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::{Menus, Tables};
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
 // ---- game data ----
@@ -66,7 +66,7 @@ pub(crate) fn own_place(tables: &Tables, own: u32) -> Result<[u32; 3], BadInput>
 }
 
 /// Reads only.
-fn settings(menus: &Menus, entry: u32, row: u32) -> Result<Settings, BadInput> {
+fn settings(shared: &Shared, menus: &Menus, entry: u32, row: u32) -> Result<Settings, BadInput> {
     let screens = &menus.screens;
     if entry >= ENTRIES {
         return Err(BadInput("a carousel entry past the table"));
@@ -86,7 +86,7 @@ fn settings(menus: &Menus, entry: u32, row: u32) -> Result<Settings, BadInput> {
         1 => z.wrapping_sub(high(turn, forward)),
         _ => z,
     };
-    let clock: u32 = race().shared.physics_tables.scene_clock.bits();
+    let clock: u32 = shared.physics_tables.scene_clock.bits();
     let mut set = Settings {
         place: [x, y, z],
         size: None,
@@ -112,13 +112,14 @@ fn settings(menus: &Menus, entry: u32, row: u32) -> Result<Settings, BadInput> {
 /// Carousel entry `entry` in row place `row` (ebx and ecx at the original's entry) set
 /// up and drawn by `draw`.
 pub fn draw_carousel_entry(
+    shared: &Shared,
     menus: &Menus,
     entry: u32,
     row: u32,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let set = settings(menus, entry, row)?;
+    let set = settings(shared, menus, entry, row)?;
     crate::session::write_bits(&drawing.object_work.place, set.place);
     if let Some(size) = set.size {
         drawing.object_work.size.set_bits(size);
@@ -127,6 +128,6 @@ pub fn draw_carousel_entry(
     drawing.object_work.angles[1].set_bits(set.angle_y);
     crate::session::write_bits(&drawing.scene.view_offset, [0u32; 2]);
     menus.screens.state.carousel.kind.set(set.kind);
-    race().shared.switches.object_number.set_bits(set.object);
+    shared.switches.object_number.set_bits(set.object);
     draw()
 }

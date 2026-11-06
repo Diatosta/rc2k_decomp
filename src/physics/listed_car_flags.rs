@@ -11,16 +11,15 @@
 //! anything) a current car past 7 (the table's size not worked out).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
-use crate::race::owner_frame::Frame;
+use crate::race::owner::Race;
 use crate::session::Dword;
 use rc2k_core::physics::listed_cars::listed_entry;
 
 /// Sets `flag` to 1 when the current car is listed (`FRAME_WORK.listed_car_sounds`).
-pub fn set_flag(frame: &Frame, flag: &Dword) -> Result<(), Refused> {
-    let current = race().shared.work.current_car.get();
+pub fn set_flag(race: &Race, flag: &Dword) -> Result<(), Refused> {
+    let current = race.shared.work.current_car.get();
     let (_, listed) = listed_entry(current, |car| {
-        frame.frame_work.listed_car_sounds[car as usize].get()
+        race.frame.frame_work.listed_car_sounds[car as usize].get()
     })?;
     if listed {
         flag.set(1);

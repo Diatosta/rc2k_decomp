@@ -15,7 +15,7 @@
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 use crate::scene::owner::scene;
@@ -23,13 +23,12 @@ use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The eax and ebx it leaves are read by none of its callers.
-pub fn take_view_b(physics: &Physics, s: &ViewRecord) {
-    let race = race();
-    x87_1(physics, s.offset_bits());
-    for (x, v) in copies(physics).iter().zip(s.taken()) {
+pub fn take_view_b(race: &Race, s: &ViewRecord) {
+    x87_1(&race.physics, s.offset_bits());
+    for (x, v) in copies(&race.physics).iter().zip(s.taken()) {
         x.set_bits(v);
     }
-    physics
+    race.physics
         .camera
         .view_b_heading
         .set(race.shared.car.car_heading.get());
@@ -41,8 +40,8 @@ pub fn take_view_b(physics: &Physics, s: &ViewRecord) {
         eax = ((eax as i32) >> 1) as u32;
         ebx = ((ebx as i32) >> 1) as u32;
     }
-    physics.camera.view_b_pitch.set(eax);
-    physics.camera.view_b_roll.set(ebx);
+    race.physics.camera.view_b_pitch.set(eax);
+    race.physics.camera.view_b_roll.set(ebx);
 }
 
 /// Where the record's +0x10 .. +0x38 go.
@@ -90,6 +89,7 @@ fn x87_1(physics: &Physics, offset: [u32; 3]) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.

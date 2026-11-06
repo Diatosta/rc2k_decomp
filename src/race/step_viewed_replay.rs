@@ -13,13 +13,13 @@
 //! `read_replay_frame` refuses (the fatal errors of a block past 0x708).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 
 /// The Rust version: whether it stopped (the carry the original leaves; it leaves ebx and
 /// the zero flag too, and no caller reads them).
-pub fn step_viewed_replay(replay: &Replay) -> Result<bool, Refused> {
-    let shared = &race().shared;
+pub fn step_viewed_replay(race: &Race) -> Result<bool, Refused> {
+    let replay = &race.replay;
+    let shared = &race.shared;
     let stop = |at_end: bool| {
         if at_end {
             shared.replay_file.replay_at_end.set(1);

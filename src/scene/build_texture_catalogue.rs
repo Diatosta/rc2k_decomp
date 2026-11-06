@@ -138,7 +138,9 @@ pub fn build_texture_catalogue(
 }
 
 /// With the game's log, and the Rust versions of what it calls.
-pub fn build_texture_catalogue_in_game() -> Result<(), Refused> {
+pub fn build_texture_catalogue_in_game(
+    shared: &crate::race::owner_shared::Shared,
+) -> Result<(), Refused> {
     build_texture_catalogue(&mut |call| {
         match call {
             Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
@@ -146,7 +148,7 @@ pub fn build_texture_catalogue_in_game() -> Result<(), Refused> {
             Call::Raise { level, tag } => {
                 raise_texture_needs(level, tag);
             }
-            Call::Try => return Ok(try_allocate_textures_in_game()?),
+            Call::Try => return Ok(try_allocate_textures_in_game(shared)?),
             Call::Release => crate::platform_3d::release_textures(),
             Call::CountNeeds => {
                 count_texture_needs_in_game()?;

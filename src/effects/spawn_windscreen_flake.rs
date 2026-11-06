@@ -15,7 +15,7 @@
 
 use crate::effects::expire_windscreen_flakes::{ITEM_LEN, ITEMS};
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -24,6 +24,7 @@ const WINDOW: u32 = 32;
 
 /// The Rust version (see the header): ecx as it leaves it.
 pub fn spawn_windscreen_flake(
+    shared: &Shared,
     fl: &WindscreenFlakes,
     x: u32,
     z: u32,
@@ -59,7 +60,7 @@ pub fn spawn_windscreen_flake(
                 for d in e.spare_28.iter().chain(&e.spare_14) {
                     d.set(0);
                 }
-                e.born.set(race().shared.physics_tables.scene_clock.bits());
+                e.born.set(shared.physics_tables.scene_clock.bits());
                 e.age.set(0);
                 step(&mut at);
                 fl.tables.cursor.set(at);

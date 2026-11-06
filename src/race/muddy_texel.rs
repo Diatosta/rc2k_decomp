@@ -16,8 +16,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::mud_texel::mud_texel;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 use crate::scene::owner::scene;
@@ -33,8 +33,8 @@ pub fn shuffled_place(n: u32) -> (u32, u32) {
 }
 
 /// The texture worked on, or the refusal (also without the mud).
-pub fn texture_and_mud() -> Result<u32, Refused> {
-    let n: u32 = race().shared.vars.mud_texture.bits();
+pub fn texture_and_mud(shared: &Shared) -> Result<u32, Refused> {
+    let n: u32 = shared.vars.mud_texture.bits();
     if n > rc2k_core::race::mud::MOST_TEXTURE {
         return Err(BadInput("a mud texture past 3 (the map would be read past its end)").into());
     }
@@ -55,12 +55,13 @@ pub fn strength_at(n: u32, x: u32, y: u32) -> Result<u32, BadInput> {
 
 /// The Rust version (see the header): the texel of place number `number` (its low 16
 /// bits) muddied.
-pub fn muddy_texel(course: &Course, number: u32) -> Result<(), Refused> {
+pub fn muddy_texel(race: &Race, number: u32) -> Result<(), Refused> {
+    let course = &race.course;
     let drawing = &scene().drawing;
     // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
     // tint_amount}`.
     use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};
-    let n = texture_and_mud()?;
+    let n = texture_and_mud(&race.shared)?;
     let (x, y) = shuffled_place(number);
     let strength = strength_at(n, x, y)?;
     let kept: u32 = drawing.scene.scratch.bits();

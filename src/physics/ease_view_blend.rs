@@ -19,16 +19,17 @@ use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
 use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn ease_view_blend(race: &Race) -> Result<(), crate::errors::BadInput> {
-    let esi = record()?;
+    let esi = record(&race.shared)?;
     if esi.blend.get() == 0 || esi.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(esi);
+    share_done(&race.shared, esi);
     if (esi.blend.get() as i32) < 0 {
-        x87_1();
+        x87_1(&race.shared);
     }
     x87_2(race);
     Ok(())
@@ -39,13 +40,11 @@ pub fn ease_view_blend(race: &Race) -> Result<(), crate::errors::BadInput> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x205260] = 1 - [rc + 0x205260]`
-fn x87_1() {
-    let shared_store = &crate::race::owner::race().shared;
-
+fn x87_1(shared: &Shared) {
     let t0 = X(1.0);
-    let t1 = ld(shared_store.tables.view_share.bits());
+    let t1 = ld(shared.tables.view_share.bits());
     let t2 = t0 - t1;
-    shared_store.tables.view_share.set_bits(st(t2));
+    shared.tables.view_share.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -80,6 +79,7 @@ fn x87_2(race: &Race) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.
@@ -96,7 +96,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |_| x87_1(),
+                plain: |_| x87_1(&race().shared),
             },
             Block {
                 name: "ease_view_blend line 34",

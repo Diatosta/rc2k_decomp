@@ -16,13 +16,13 @@
 
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 
 /// `race::set_all_plates` (see the header).
-pub fn set_all_plates(course: &Course) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn set_all_plates(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
+    let shared = &race.shared;
     let scene = scene();
     // Converted: `rc2k_core::race::stage_objects::{check_picture_cars, PREF_PIECES,
     // FIXED_PICTURES, car_pictures}`.

@@ -10,14 +10,13 @@
 use crate::errors::Refused;
 use crate::physics::apply_torque::apply_torque;
 use crate::physics::tables_store::ForceRecord;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The Rust version: `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the
 /// work car.
-pub fn apply_torques(records: &[ForceRecord]) -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn apply_torques(race: &Race, records: &[ForceRecord]) -> Result<(), Refused> {
     for rec in records {
-        apply_torque(physics, rec, &crate::race::owner::race().shared.car);
+        apply_torque(race, rec, &race.shared.car);
     }
     Ok(())
 }

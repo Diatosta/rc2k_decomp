@@ -9,8 +9,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::race::best_line::MOST_CHECKS;
+use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::scene::owner::scene;
 use crate::session::Dword;
@@ -58,8 +58,9 @@ fn matrix_and_wheels(physics: &Physics) -> Result<[u32; 4], Refused> {
 /// step halved; once more the matrix and the wheels, then the car's y, the four wheels and
 /// the four at 0x6D1F14 lowered by the lowest wheel (from 0x640000). The registers it
 /// leaves are read by no caller (conversion phase 3, 2026-10-24).
-pub fn settle_car(physics: &Physics) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn settle_car(race: &Race) -> Result<(), Refused> {
+    let physics = &race.physics;
+    let shared = &race.shared;
     crate::physics::set_handling::set_handling()?;
     shared.car.car_pitch.set(0);
     shared.car.car_roll.set(0);
@@ -106,9 +107,10 @@ pub fn settle_car(physics: &Physics) -> Result<(), Refused> {
 /// +0x6B4; +0x1E8, `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204,
 /// +0x1C4, +0x1F4 0; with +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
 pub fn reset_car_motion() -> Result<(), Refused> {
-    let shared = &race().shared;
-    let physics = &race().physics;
-    settle_car(physics)?;
+    let race = crate::race::owner::race();
+    let shared = &race.shared;
+    let physics = &race.physics;
+    settle_car(race)?;
     crate::race::start_place::invert_car_matrix();
     for v in &shared.car.velocity {
         v.set_bits(0);
@@ -148,8 +150,9 @@ pub fn reset_car_motion() -> Result<(), Refused> {
 /// `math::turn_point_xz` of (x, 0, z) by the start place's heading: x and z moved. The
 /// original's y there is a leftover in ebx; it lands only in `g_scratchY`, which every
 /// reader writes first.
-fn move_turned(course: &Course, x: u32, z: u32) {
-    let shared = &race().shared;
+fn move_turned(race: &Race, x: u32, z: u32) {
+    let course = &race.course;
+    let shared = &race.shared;
     let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
         x as i32,
         0,
@@ -197,7 +200,7 @@ pub fn start_car() -> Result<(), Refused> {
         // Converted: `rc2k_core::race::start::{start_checkpoint, starts_aside,
         // side_offset, start_checks}`.
         use rc2k_core::race::start::{side_offset, start_checkpoint, starts_aside};
-        let first = crate::race::race_init::first_check_checkpoint()?;
+        let first = crate::race::race_init::first_check_checkpoint(&race.shared)?;
         let mode: u32 = race.shared.vars.run_kind.bits();
         let place = start_checkpoint(first, mode, race.shared.work.current_car.get());
         lights.state.line_place.set(place);
@@ -208,14 +211,14 @@ pub fn start_car() -> Result<(), Refused> {
         }
         crate::race::start_place::place_car_on_line(course)?;
         if replay.finish.no_place.get() == 0 {
-            move_turned(course, 0, 0xFFFE_0000);
+            move_turned(race, 0, 0xFFFE_0000);
             let side = starts_aside(
                 net().vars.session.get(),
                 || race.shared.vars.run_kind.bits(),
                 || race.shared.view.players.bits(),
             );
             if side {
-                move_turned(course, side_offset(race.shared.work.current_car.get()), 0);
+                move_turned(race, side_offset(race.shared.work.current_car.get()), 0);
             }
         }
     }

@@ -38,7 +38,6 @@ use crate::errors::Refused;
 use crate::input::owner::input;
 use crate::menu::list_handle::ListMenu;
 use crate::race::owner::Race;
-use crate::race::owner_replay::Replay;
 use crate::race::viewer::LAST_RACE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::ReplayViewBlock;
@@ -102,8 +101,8 @@ enum Next {
 pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
     view(race, mode)?;
     // The end (0x41D436).
-    crate::race::close_viewed_replay::close_viewed_replay()?;
-    crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
+    crate::race::close_viewed_replay::close_viewed_replay(&race.shared)?;
+    crate::race::viewer_tidy_stage::viewer_tidy_stage(&race.shared)?;
     race.shared.replay_file.viewer_stopped.set(0);
     race.shared.replay_file.hold_car_revs.set(0);
     Ok(())
@@ -128,14 +127,14 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
             }
             if saving {
                 race.shared.replay_file.viewer_slot.set(slot);
-                return save_last_replay::save_last_replay(&race.replay, slot);
+                return save_last_replay::save_last_replay(race, slot);
             }
             slot
         }
     };
     race.shared.replay_file.viewer_slot.set(slot);
     race.shared.replay_file.viewer_stopped.set(1);
-    let failed = open_viewed_replay::open_viewed_replay(&race.replay, slot)?;
+    let failed = open_viewed_replay::open_viewed_replay(race, slot)?;
     if failed {
         return Ok(());
     }
@@ -147,7 +146,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         .last_race_viewed
         .set((slot == LAST_RACE) as u32);
     find_snapshot_number::find_snapshot_number(&race.replay)?;
-    viewer_load_stage::viewer_load_stage()?;
+    viewer_load_stage::viewer_load_stage(&race.shared)?;
     let list = ListMenu::of(crate::pointers::GamePtr::to(
         &replay.replay_view.viewer_list,
     ));
@@ -160,7 +159,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
     crate::install::owner::install().pages.choice.set(6);
     // The pending key dropped.
     crate::input::take_key::take_key();
-    mark_viewer_items::mark_viewer_items(&race.replay, list)?;
+    mark_viewer_items::mark_viewer_items(race, list)?;
     // A test run's picture check: the item chosen (play) at once, as Return would.
     #[cfg(feature = "remote")]
     if crate::remote::shots_on() {
@@ -205,7 +204,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
             replay.replay_view.escape_count.set(0);
         }
         if race.shared.replay_file.viewer_stopped.get() != 1 {
-            let ended = step_viewed_replay::step_viewed_replay(&race.replay)?;
+            let ended = step_viewed_replay::step_viewed_replay(race)?;
             if ended || key != 0 {
                 race.shared.replay_file.viewer_stopped.set(1);
             }
@@ -221,7 +220,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
             other => other,
         };
         if let Next::Mark = next {
-            mark(&race.replay, list, key)?;
+            mark(race, list, key)?;
         }
         // The menu sound asked for (0x41D41C).
         let sound = race.shared.replay_file.viewer_sound.get();
@@ -293,9 +292,9 @@ fn stopped_key(race: &Race, list: ListMenu, key: u8) -> Result<Next, Refused> {
 
 /// After a move or an action (0x41D3B0): the items marked again, the highlight put where
 /// it can be chosen, the key's clock.
-fn mark(replay: &Replay, list: ListMenu, key: u8) -> Result<(), Refused> {
+fn mark(race: &Race, list: ListMenu, key: u8) -> Result<(), Refused> {
     use crate::menu::list_item_unusable::list_item_unusable;
-    crate::race::mark_viewer_items::mark_viewer_items(replay, list)?;
+    crate::race::mark_viewer_items::mark_viewer_items(race, list)?;
     'tail: {
         if !list_item_unusable(list) {
             break 'tail;

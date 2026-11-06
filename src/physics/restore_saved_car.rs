@@ -14,13 +14,11 @@
 //! before writing.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
-use crate::race::owner_physics::Physics;
+use crate::race::owner::Race;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The Rust version. Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
-pub fn restore_saved_car(physics: &Physics) -> Result<(), Refused> {
-    let race = race();
+pub fn restore_saved_car(race: &Race) -> Result<(), Refused> {
     let n = restore_count(race.shared.car.probe_count.get())?;
     race.shared
         .physics_tables
@@ -47,7 +45,10 @@ pub fn restore_saved_car(physics: &Physics) -> Result<(), Refused> {
     // By address: up to 0x7C dwords from a list of 0x40 (the original copies on into what
     // follows each).
     crate::session::copy_on_in(
-        (&physics.contact, &physics.contact.probe_saved_faces),
+        (
+            &race.physics.contact,
+            &race.physics.contact.probe_saved_faces,
+        ),
         (&race.shared.car, &race.shared.car.probe_point_face),
         n as usize,
         "the saved faces",

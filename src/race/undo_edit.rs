@@ -11,13 +11,12 @@
 //! (everything put back).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 
 /// The Rust version. What the original leaves its one caller, `viewer_action` (which
 /// keeps every register), does not read.
-pub fn undo_edit(replay: &Replay) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn undo_edit(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{undo_count, copy_tables}`.
     use rc2k_core::race::viewer_flow::undo_count;
     let Some(count) = undo_count(
@@ -45,5 +44,5 @@ pub fn undo_edit(replay: &Replay) -> Result<(), Refused> {
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .undo_blocks
         .set(0);
-    crate::race::reset_marks::reset_marks(replay)
+    crate::race::reset_marks::reset_marks(race)
 }

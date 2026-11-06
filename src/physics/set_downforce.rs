@@ -9,11 +9,10 @@
 //! Caller: `sub_43B635` (0x43B728), every physics step.
 
 use crate::math::x87_run::{minus_one, square_times_plus_times};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The Rust version.
-pub fn set_downforce() {
-    let race = race();
+pub fn set_downforce(race: &Race) {
     if race.shared.car.rear_wheels_off.get() != 0 {
         return;
     }

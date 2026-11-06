@@ -14,8 +14,7 @@
 use crate::drive::race_parts::{stop_race_sounds, wake_car_sounds};
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 use rc2k_core::drive::race_ticks;
 
 /// The Rust version.
@@ -23,8 +22,9 @@ use rc2k_core::drive::race_ticks;
 // quit_answer}`.
 /// The answer (eax): 0 to race on. The other registers it leaves are read by no caller
 /// (liveness: `race_loop` reads eax only).
-pub fn quit_question(replay: &Replay) -> Result<u32, Refused> {
-    let shared = &race().shared;
+pub fn quit_question(race: &Race) -> Result<u32, Refused> {
+    let shared = &race.shared;
+    let replay = &race.replay;
     stop_race_sounds()?;
     // A button from before the question answers nothing.
     crate::input::menu_pad::take_answer();

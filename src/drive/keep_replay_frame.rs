@@ -40,7 +40,7 @@ pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
             SIZE,
         );
         if race.course.numbers.replay_mode.get() == RECORDING {
-            crate::drive::save_replay_cars::save_replay_cars(&race.replay);
+            crate::drive::save_replay_cars::save_replay_cars(race);
         }
     }
     Ok(())

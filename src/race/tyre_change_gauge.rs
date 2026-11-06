@@ -33,6 +33,7 @@ use crate::input::owner::input;
 use crate::input::types::InputDevice;
 use crate::menu::owner::menus;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::system::owner::system;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
@@ -48,8 +49,7 @@ fn p(x: usize, v: u32) {
 
 /// The press time's constants: `TyreChange::{time_base, time_scale, gauge_unit,
 /// log_two_ten}` and flt_5C2C60.
-fn constants() -> [u32; 5] {
-    let shared = &race().shared;
+fn constants(shared: &Shared) -> [u32; 5] {
     [
         shared.tyre_change.time_base.bits(),
         shared.tyre_change.time_scale.bits(),
@@ -60,9 +60,9 @@ fn constants() -> [u32; 5] {
 }
 
 /// 0x41C2C7 .. 0x41C320: the time of a press, from s = 0x10000 less the gauge.
-pub fn press_time(s: i32) -> i32 {
+pub fn press_time(shared: &Shared, s: i32) -> i32 {
     use crate::math::x87_float::{X, int, ld, to_int};
-    let f = constants().map(ld);
+    let f = constants(shared).map(ld);
     // `fyl2x` (libm's log2): the product and the sum are the x87's
     let log = (int(s) * f[2]).sqrt() + f[4];
     let r = f[1] * f[3] * X(log.0.log2());
@@ -94,12 +94,14 @@ impl Io for GameIo {
         Ok(self.device.bits.get() & 0xFF != 0)
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
+        let shared = &crate::race::owner::race().shared;
         self.store(g);
         // The drawing takes the device by address (its x87 turn reads the gauge).
-        crate::race::draw_tyre_change::draw_tyre_change(self.device)
+        crate::race::draw_tyre_change::draw_tyre_change(shared, self.device)
     }
     fn press_time(&mut self, s: u32) -> u32 {
-        press_time(s as i32) as u32
+        let shared = &crate::race::owner::race().shared;
+        press_time(shared, s as i32) as u32
     }
     fn developer(&mut self) -> bool {
         crate::system::check_developer_machine::DEVELOPER.get() == 1
@@ -123,7 +125,7 @@ impl Io for GameIo {
 
 /// The Rust version: `start` (eax 0) starts the gauge, else runs it, for player `player`
 /// (esi); gives the result (eax; the original keeps the rest).
-pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
+pub fn tyre_change_gauge(shared: &Shared, start: bool, player: u32) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::tyre_change::turn`.
     if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
@@ -131,7 +133,7 @@ pub fn tyre_change_gauge(start: bool, player: u32) -> Result<u32, Refused> {
     let Some(d) = input().devices.input_device(player as usize)? else {
         return Err(BadInput("a tyre change player without a device").into());
     };
-    race().shared.tyre_change.player.set(player);
+    shared.tyre_change.player.set(player);
     let mut io = GameIo { device: d };
     let mut gauge = Gauge {
         gauge: d.gauge.get(),
@@ -168,7 +170,8 @@ mod asm_reference {
 
     // The original block, verbatim.
     pub(super) fn press_time_asm(s: i32) -> i32 {
-        let f = constants();
+        let shared = &crate::race::owner::race().shared;
+        let f = constants(shared);
         let v = [
             f[1],
             f[3],
@@ -229,7 +232,7 @@ mod asm_reference {
                 } else {
                     r.int()
                 };
-                let (want, got) = (press_time_asm(s), press_time(s));
+                let (want, got) = (press_time_asm(s), press_time(shared, s));
                 total += 1;
                 if want != got {
                     off += 1;

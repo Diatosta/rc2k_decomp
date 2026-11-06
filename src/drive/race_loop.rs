@@ -25,7 +25,7 @@ use crate::input::owner::input;
 use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::Dword;
 use crate::system::owner::system;
 
@@ -35,9 +35,8 @@ fn view_bit(view: &Dword) -> Result<bool, BadInput> {
 }
 
 /// The network player's car block.
-fn net_player_car() -> Result<&'static crate::physics::car_store::Car, BadInput> {
-    let handle = race()
-        .shared
+fn net_player_car(shared: &Shared) -> Result<&'static crate::physics::car_store::Car, BadInput> {
+    let handle = shared
         .work
         .car_blocks
         .get(net().vars.player.get() as usize)
@@ -46,14 +45,14 @@ fn net_player_car() -> Result<&'static crate::physics::car_store::Car, BadInput>
 }
 
 /// The quit answer `answer` put into the cars (0x444EB5 ..).
-fn put_answer(answer: u32) -> Result<(), BadInput> {
+fn put_answer(shared: &Shared, answer: u32) -> Result<(), BadInput> {
     if net().vars.session.get() != 0 {
-        net_player_car()?.stop_state.set_bits(answer);
+        net_player_car(shared)?.stop_state.set_bits(answer);
         return Ok(());
     }
     CAR_BLOCKS.cars[0].stop_state.set_bits(answer);
     CAR_BLOCKS.cars[1].stop_state.set_bits(answer);
-    if race().shared.view.players.get() != 2 {
+    if shared.view.players.get() != 2 {
         return Ok(());
     }
     if CAR_BLOCKS.cars[0].finish_flag.bits() != 0 {
@@ -133,7 +132,7 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
                 }
             }
             if devices.keys_pressed.get(1) != 0 {
-                let answer = { crate::drive::quit_question::quit_question(&race.replay) }?;
+                let answer = { crate::drive::quit_question::quit_question(race) }?;
                 if answer == 0 {
                     break false;
                 }
@@ -143,7 +142,7 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
                         race.shared.physics_tables.scene_clock.get()
                     ));
                 }
-                put_answer(answer)?;
+                put_answer(&race.shared, answer)?;
                 return Ok(());
             }
             if race.shared.vars.hold_count.get() == 0 {
@@ -179,9 +178,9 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
         }
         // 0x444F0F: paused.
         if net().vars.session.get() != 0 {
-            net_player_car()?.input_keys.set_bits(0);
+            net_player_car(&race.shared)?.input_keys.set_bits(0);
         } else {
-            { crate::drive::pause_until_key::pause_until_key() }?;
+            { crate::drive::pause_until_key::pause_until_key(&race.shared) }?;
         }
         system.session.flags.paused.set(0);
     }

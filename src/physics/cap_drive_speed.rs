@@ -10,8 +10,8 @@
 
 use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 use std::cmp::Ordering;
@@ -33,20 +33,18 @@ fn put(a: &dyn Cell32, v: u32) {
 }
 
 /// The places: the allowance, the speed, the scratch, the drive speed.
-pub type CapPlaces = [&'static dyn Cell32; 4];
+pub type CapPlaces<'a> = [&'a dyn Cell32; 4];
 
 /// The core.
-pub fn cap_drive_speed_at(course: &Course, v: CapPlaces) {
-    let shared_store = &race().shared;
-
-    let zero = course.numbers.zero.bits();
+pub fn cap_drive_speed_at(race: &Race, v: CapPlaces<'_>) {
+    let zero = race.course.numbers.zero.bits();
     put(
         v[0],
         over_abs_plus_minus(
-            shared_store.physics_tables.drive_speed_cap.bits(),
+            race.shared.physics_tables.drive_speed_cap.bits(),
             at(v[1]),
-            shared_store.physics_tables.drive_speed_cap_a.bits(),
-            shared_store.physics_tables.drive_speed_cap_b.bits(),
+            race.shared.physics_tables.drive_speed_cap_a.bits(),
+            race.shared.physics_tables.drive_speed_cap_b.bits(),
         ),
     );
     if below(at(v[0]), zero) {
@@ -58,18 +56,16 @@ pub fn cap_drive_speed_at(course: &Course, v: CapPlaces) {
     }
 }
 
-fn game() -> CapPlaces {
-    let shared_store = &race().shared;
-
+fn game(shared: &Shared) -> CapPlaces<'_> {
     [
-        &shared_store.physics_tables.drive_speed_figure,
-        &shared_store.car.local_velocity[2],
+        &shared.physics_tables.drive_speed_figure,
+        &shared.car.local_velocity[2],
         &scene().drawing.scene.scratch,
-        &shared_store.car.drive_speed_a,
+        &shared.car.drive_speed_a,
     ]
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
-pub fn cap_drive_speed(course: &Course) {
-    cap_drive_speed_at(course, game());
+pub fn cap_drive_speed(race: &Race) {
+    cap_drive_speed_at(race, game(&race.shared));
 }

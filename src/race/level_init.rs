@@ -6,10 +6,10 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
-use crate::race::owner_physics::Physics;
 use crate::race::trap::Trap;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::owner::scene;
@@ -224,8 +224,9 @@ pub fn reset_refresh(course: &Course) {
 /// `dword_601830` = their count - 1. Refuses an end below 2 (the original counts round), or
 /// more found than the list's 0x201 (a real stage's end is past 0x201: refused wrongly on
 /// 2026-10-16, when the end was checked).
-pub fn init_checkpoints(physics: &Physics) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn init_checkpoints(race: &Race) -> Result<(), Refused> {
+    let physics = &race.physics;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::checkpoints::listed_checkpoints`.
     {
         let kinds = shared.vars.checkpoint_count.get();

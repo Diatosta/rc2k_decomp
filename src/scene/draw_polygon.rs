@@ -322,7 +322,10 @@ fn choose_texture(course: &crate::race::owner_course::Course, outside: &mut dyn 
 }
 
 /// `sub_44B94F`: clears a switch by what the entries' bytes +0x21 hold.
-fn clear_a_switch(entries: &[Listed]) -> Result<(), BadInput> {
+fn clear_a_switch(
+    shared: &crate::race::owner_shared::Shared,
+    entries: &[Listed],
+) -> Result<(), BadInput> {
     let drawing = &scene().drawing;
     if drawing.scene.polygon_sides[0].bits() == 0 || drawing.scene.polygon_sides[1].bits() == 0 {
         return Ok(());
@@ -332,7 +335,7 @@ fn clear_a_switch(entries: &[Listed]) -> Result<(), BadInput> {
     if all == 0xFF {
         let info = crate::scene::polygon_store::POLYGON_WORK
             .texture_infos
-            .get(race().shared.view.texture_b.bits() as usize)
+            .get(shared.view.texture_b.bits() as usize)
             .ok_or(BadInput("a texture past the records"))?;
         // the record's byte +0x2E
         if info.words[0xB].get().to_le_bytes()[2] == 0 {
@@ -448,7 +451,7 @@ pub fn draw_polygon(
     // The mode, with its fallbacks.
     let mut mode: u32 = race.shared.view.polygon_mode.bits();
     if mode == 3 && scene.draw_switches.clears_switch.bits() != 0 {
-        clear_a_switch(&entries)?;
+        clear_a_switch(&race.shared, &entries)?;
     }
     if matches!(mode, 3..=5) {
         let fallback = if scene.drawing.scene.polygon_sides[1].bits() == 0 {

@@ -9,12 +9,11 @@
 //! Caller: `sub_43B635` (0x43B8F1, before `sub_43F7AC`).
 
 use crate::physics::car_frame_motion::car_frame_motion;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The Rust version: the kept motion (`kept_vectors` 0 .. 2) and spin (4 .. 6) back, the
 /// motion turned into the car's frame.
-pub fn put_back_motion_vectors() {
-    let race = race();
+pub fn put_back_motion_vectors(race: &Race) {
     for k in 0..3 {
         race.shared.car.velocity[k].set_bits(race.shared.physics_tables.kept_vectors[k].get());
         race.shared.car.spin[k].set_bits(race.shared.physics_tables.kept_vectors[4 + k].get());

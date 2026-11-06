@@ -44,15 +44,15 @@ pub fn race_timers(race: &Race) -> Result<(), Refused> {
     if run == TimerRun::None {
         return Ok(());
     }
-    count_start_second();
+    count_start_second(&race.shared);
     if run == TimerRun::Start {
-        count_down_start(&race.frame)?;
+        count_down_start(race)?;
         take_split_counted(race)?;
-        start_go_notice(&race.frame)?;
+        start_go_notice(race)?;
     } else {
         take_split(race)?;
     }
-    count_stop_timers(&race.course);
-    mark_car_started();
+    count_stop_timers(race);
+    mark_car_started(&race.shared);
     Ok(())
 }

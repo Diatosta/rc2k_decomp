@@ -33,10 +33,11 @@ fn swapped(n: u32) -> u32 {
 /// one; then, unless the new kind is in the swapped list already, it goes >> 4 into the
 /// list's first free place of 0x40 (the test is made on the kind before the shift:
 /// section 16).
-pub fn swap_stage_texture(course: &Course) {
+pub fn swap_stage_texture(race: &Race) {
+    let course = &race.course;
     // Converted: `rc2k_core::race::stage::swap_texture`.
     use rc2k_core::race::stage::{Swap, swap_texture};
-    let stage: u32 = race().shared.vars.stage_number.bits();
+    let stage: u32 = race.shared.vars.stage_number.bits();
     let ((_, new), swap) = swap_texture(stage, kind, swapped);
     let swapped_kind = match swap {
         Swap::NotThisStage | Swap::NotFound => return,
@@ -51,19 +52,21 @@ pub fn swap_stage_texture(course: &Course) {
 
 /// `race::tweak_stage` (0x439AAB): for the stages 0x15, 0x3E and 0x36, `dword_60A564` ..
 /// `dword_60A56C` 0xFF.
-pub fn tweak_stage(course: &Course) {
+pub fn tweak_stage(race: &Race) {
+    let course = &race.course;
     {
         // Converted: `rc2k_core::race::stage::stage_tweaked`.
-        if rc2k_core::race::stage::stage_tweaked(race().shared.vars.stage_number.bits()) {
+        if rc2k_core::race::stage::stage_tweaked(race.shared.vars.stage_number.bits()) {
             crate::session::write_bits(&course.stage_prefs.car_light_table, [0xFFu32; 3]);
         }
     }
 }
 
 /// `race::clear_prefs_qword` (0x465381): with `dword_71C800` set, `qword_609344` 0.
-pub fn clear_prefs_qword(course: &Course) {
+pub fn clear_prefs_qword(race: &Race) {
+    let course = &race.course;
     {
-        if race().shared.work.no_precipitation.get() != 0 {
+        if race.shared.work.no_precipitation.get() != 0 {
             crate::session::write_bits(&course.stage_prefs.blit_cleared, [0u32; 2]);
         }
     }
@@ -72,13 +75,14 @@ pub fn clear_prefs_qword(course: &Course) {
 /// `race::load_prefs` (0x445698): `files\levels\levelxx\localdat`, then
 /// `srclvls\levelxx\localdat`, each 0x206C bytes at most into 0x608CB4; then
 /// `swap_stage_texture`, `tweak_stage`, `clear_prefs_qword`.
-pub fn load_prefs(course: &Course) -> Result<(), Refused> {
+pub fn load_prefs(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     for path in prefs_paths(course) {
         crate::files::read_whole_file::read_whole_file_cells(path, course.stage_prefs.dwords())?;
     }
-    swap_stage_texture(course);
-    tweak_stage(course);
-    clear_prefs_qword(course);
+    swap_stage_texture(race);
+    tweak_stage(race);
+    clear_prefs_qword(race);
     Ok(())
 }
 

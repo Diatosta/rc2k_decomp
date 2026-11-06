@@ -7,6 +7,7 @@ use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
+use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
 use crate::scene::faces_store::FACES;
 use crate::scene::owner::scene;
@@ -59,9 +60,9 @@ pub fn split_colours(car: u32, colours: &[Dword; 64], count: u32) -> Result<(), 
 /// `race::panel_players` (0x45ACDB): unless `RACE_VARS.run_kind` is set, `race().frame.panel_and_overlay.panel.view_a.place` and
 /// `race().frame.panel_and_overlay.panel.view_b.place` -1; with more than one player also `race().frame.panel_and_overlay.panel.view_a.back` and `race().frame.panel_and_overlay.panel.view_a.front` -1,
 /// and `race().frame.panel_and_overlay.panel.view_a.place` / `race().frame.panel_and_overlay.panel.view_b.place` the two view blocks' +0xFA4.
-pub fn panel_players() -> Result<(), BadInput> {
-    let shared = &race().shared;
-    let frame = &race().frame;
+pub fn panel_players(race: &Race) -> Result<(), BadInput> {
+    let shared = &race.shared;
+    let frame = &race.frame;
     // Converted: `rc2k_core::race::frame::panel_players`.
     use rc2k_core::race::frame::{PanelPlayers, panel_players};
     {
@@ -94,8 +95,7 @@ pub fn panel_players() -> Result<(), BadInput> {
 /// `race::lamps_wanted` (0x4536D7): `RACE_VIEW.lamps_wanted` = `g_lampCount`, with bit 0 set when a
 /// race car has +0x25C and +0x84 both set. Refuses (before anything) more than eight cars
 /// (past `g_carBlocks`).
-pub fn lamps_wanted() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn lamps_wanted(shared: &Shared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{car_lit, lamps_wanted}`.
     use rc2k_core::race::frame::{car_lit, lamps_wanted};
     let cars: u32 = shared.view.race_cars.bits();
@@ -116,8 +116,7 @@ pub fn lamps_wanted() -> Result<(), Refused> {
 }
 
 /// The view block `RACE_VIEW.drawn_view` names (`off_63DBB0[]`); refuses an index past the two.
-pub(super) fn drawn_view() -> Result<u32, Refused> {
-    let shared = &race().shared;
+pub(super) fn drawn_view(shared: &Shared) -> Result<u32, Refused> {
     let n: u32 = shared.view.drawn_view.bits();
     if n > 1 {
         return Err(BadInput("a view past the two").into());
@@ -126,20 +125,19 @@ pub(super) fn drawn_view() -> Result<u32, Refused> {
 }
 
 /// `race::store_view_value` (0x455528): the drawn view's block +0xFB8 = `race().frame.frame_work.sun_on_screen`.
-pub fn store_view_value() -> Result<(), Refused> {
-    let b = drawn_view()?;
+pub fn store_view_value(race: &Race) -> Result<(), Refused> {
+    let b = drawn_view(&race.shared)?;
     car_at(b)?
         .eased_target
-        .set_bits(race().frame.frame_work.sun_on_screen.bits());
+        .set_bits(race.frame.frame_work.sun_on_screen.bits());
     Ok(())
 }
 
 /// `race::fetch_view_value` (0x45550E): `race().frame.frame_work.view_out` = the drawn view's block +0xFBC.
 /// Every register kept.
-pub fn fetch_view_value() -> Result<(), Refused> {
-    let b = drawn_view()?;
-    race()
-        .frame
+pub fn fetch_view_value(race: &Race) -> Result<(), Refused> {
+    let b = drawn_view(&race.shared)?;
+    race.frame
         .frame_work
         .view_out
         .set_bits(car_at(b)?.eased_value.bits());
@@ -315,8 +313,8 @@ pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
 /// (`g_raceSoundObjects[car & 7]`) +0x264 = 1 and +0x10 = 1. Refuses (before anything) more
 /// than eight cars, a null block or object it would write, and `g_currentCar` past 7 when it is
 /// read.
-pub fn wake_part_sounds() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn wake_part_sounds(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     let cars = shared.view.race_cars.bits().max(1);
     if cars > 8 {
         return Err(BadInput("more than eight race cars").into());
@@ -347,7 +345,7 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
             if current > 7 {
                 return Err(BadInput("g_currentCar past the eight").into());
             }
-            let view: u32 = race().frame.frame_work.listed_car_sounds[current as usize].bits();
+            let view: u32 = race.frame.frame_work.listed_car_sounds[current as usize].bits();
             if view != u32::MAX {
                 wake = true;
             }
@@ -370,8 +368,9 @@ pub fn wake_part_sounds() -> Result<(), Refused> {
 /// `race().frame.panel_and_overlay.panel.view_a.split2` +0x634, `race().frame.panel_and_overlay.panel.view_a.front` the car ahead's +0x24 (-1 at place 1), its label at
 /// 0x6D1844 (`RACE_TABLES.number_before_first[place]`), `race().frame.panel_and_overlay.panel.view_a.negated` -(+0x630). Refuses (before anything)
 /// a neighbour's car number past 7 or a null block.
-pub fn panel_neighbours(frame: &Frame) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
+    let frame = &race.frame;
+    let shared = &race.shared;
     if shared.vars.run_kind.bits() != 2 {
         return Ok(());
     }
@@ -481,7 +480,8 @@ pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
 /// `race::panel_marks` (0x45AEFE): the eight dwords at 0x6D14A2 .. 0x6D14C2 (but 0x6D14B2)
 /// 0; for each view block, `race().frame.panel_and_overlay.panel.marks[0].base` / `race().frame.panel_and_overlay.panel.marks[1].base` = 400 + (+0xFA0), and its first
 /// +0xF98 (at most 4) values at +0xF78, each + 1, at 0x6D14A2 / 0x6D14B6.
-pub fn panel_marks(frame: &Frame) -> Result<(), BadInput> {
+pub fn panel_marks(race: &Race) -> Result<(), BadInput> {
+    let frame = &race.frame;
     // Converted: `rc2k_core::race::frame::view_marks`.
     {
         for view in &frame.panel_and_overlay.panel.marks {
@@ -490,7 +490,7 @@ pub fn panel_marks(frame: &Frame) -> Result<(), BadInput> {
             }
         }
         for (view, shown) in frame.panel_and_overlay.panel.marks.iter().enumerate() {
-            let b: u32 = race().shared.view.view_block(view);
+            let b: u32 = race.shared.view.view_block(view);
             let offset = car_at(b)?.car_event_position.bits();
             let count = car_at(b)?.car_event_count.bits();
             let codes = &car_at(b)?.car_event_codes;
@@ -563,7 +563,8 @@ pub fn countdown_lights(
 
 /// `race::both_countdown_lights` (0x45AFDB): `countdown_lights` for the first view (fields
 /// 0, flag `race().frame.panel_and_overlay.overlay.forget_flag_0`) and the second (fields 0x10, `race().frame.panel_and_overlay.overlay.forget_flag_1`).
-pub fn both_countdown_lights(frame: &Frame) -> Result<(), BadInput> {
+pub fn both_countdown_lights(race: &Race) -> Result<(), BadInput> {
+    let frame = &race.frame;
     {
         for (view, flag) in [
             (0, &frame.panel_and_overlay.overlay.forget_flag_0),
@@ -572,7 +573,7 @@ pub fn both_countdown_lights(frame: &Frame) -> Result<(), BadInput> {
             countdown_lights(
                 frame,
                 &frame.panel_and_overlay.panel.lights[view],
-                race().shared.view.view_block(view),
+                race.shared.view.view_block(view),
                 flag,
             )?;
         }
@@ -589,10 +590,10 @@ pub fn colour_buffers(frame: &Frame) -> [&'_ [Dword; 64]; 2] {
 }
 
 /// `split_colours`' refusal, for both views, before anything is written.
-pub fn check_split_colours() -> Result<(), Refused> {
-    let fill: u32 = race().physics.split_tables.split_colour_count.get();
+pub fn check_split_colours(race: &Race) -> Result<(), Refused> {
+    let fill: u32 = race.physics.split_tables.split_colour_count.get();
     for view in 0..2 {
-        let n = car_at(crate::race::owner::race().shared.view.view_block(view))?
+        let n = car_at(race.shared.view.view_block(view))?
             .splits_passed
             .get();
         rc2k_core::race::frame::check_split_colours(fill, n)?;
@@ -604,7 +605,7 @@ pub fn check_split_colours() -> Result<(), Refused> {
 /// `race().frame.panel_and_overlay.overlay.overlay_part_kinds_a`, then the second's into `race().frame.panel_and_overlay.overlay.overlay_part_kinds_b`. Refuses (before anything) as
 /// `split_colours` would for either.
 pub fn both_split_colours(race: &Race) -> Result<(), Refused> {
-    check_split_colours()?;
+    check_split_colours(race)?;
     for (view, buffer) in (0..2).zip(colour_buffers(&race.frame)) {
         split_colours(
             race.shared.view.view_block(view),
@@ -616,8 +617,7 @@ pub fn both_split_colours(race: &Race) -> Result<(), Refused> {
 }
 
 /// `panel_neighbours`' refusal, before anything is written.
-pub(super) fn check_panel_neighbours() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub(super) fn check_panel_neighbours(shared: &Shared) -> Result<(), Refused> {
     if shared.vars.run_kind.bits() != 2 {
         return Ok(());
     }
@@ -636,35 +636,33 @@ pub(super) fn check_panel_neighbours() -> Result<(), Refused> {
 /// `race::set_up_panel` (0x45AB36): `panel_values`, `panel_neighbours`, `panel_players`,
 /// `panel_motion`, `panel_marks`, `both_countdown_lights`, `both_split_colours`. Refuses
 /// (before anything) what `panel_neighbours` or `both_split_colours` would.
-pub fn set_up_panel() -> Result<(), Refused> {
-    let race = race();
-    let frame = &race.frame;
-    check_panel_neighbours()?;
-    check_split_colours()?;
+pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
+    check_panel_neighbours(&race.shared)?;
+    check_split_colours(race)?;
     // Converted: its float callees' `_plain` versions.
     panel_values_plain(race)?;
-    panel_neighbours(frame)?;
-    panel_players()?;
+    panel_neighbours(race)?;
+    panel_players(race)?;
     panel_motion_plain(race)?;
-    panel_marks(frame)?;
-    both_countdown_lights(frame)?;
+    panel_marks(race)?;
+    both_countdown_lights(race)?;
     both_split_colours(race)
 }
 
 /// `race::reset_lamps` (0x45487A): `g_lampCount`, `RACE_VIEW.depth_entry_count`, `RACE_VIEW.sort_entry_count` (the sort
 /// entries' count) and `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
-pub fn reset_lamps() -> Result<(), BadInput> {
-    let shared = &race().shared;
-    let course = &race().course;
+pub fn reset_lamps(race: &Race) -> Result<(), BadInput> {
+    let shared = &race.shared;
+    let course = &race.course;
     shared.view.lamp_count.set_bits(0);
     shared.view.depth_entry_count.set_bits(0);
     shared.view.sort_entry_count.set_bits(0);
-    race().frame.frame_work.flare_count.set_bits(0);
+    race.frame.frame_work.flare_count.set_bits(0);
     object_bytes(course)
 }
 
 /// `race::hold_to_limit` (0x4650A9): `value` held to `RACE_WORK.patch_settings` (unsigned).
-pub fn hold_to_limit(value: u32) -> u32 {
+pub fn hold_to_limit(shared: &Shared, value: u32) -> u32 {
     // Converted: `rc2k_core::race::frame::hold_to_limit`.
-    rc2k_core::race::frame::hold_to_limit(value, race().shared.work.patch_settings[0].bits())
+    rc2k_core::race::frame::hold_to_limit(value, shared.work.patch_settings[0].bits())
 }

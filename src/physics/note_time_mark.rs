@@ -12,13 +12,13 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_course::Course;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::time_mark;
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let shared = &race().shared;
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
         &shared.car.engine_speed_scaled as &dyn Cell32,
         &shared.physics_tables.time_marks[0],
@@ -46,6 +46,6 @@ fn core(course: &Course, v: &[&dyn Cell32]) {
 
 /// The Rust version (a compare of floats only: the same at any precision); `r` as the
 /// original leaves are read by none of its callers.
-pub fn note_time_mark(course: &Course) {
-    core(course, &game());
+pub fn note_time_mark(race: &Race) {
+    core(&race.course, &game(&race.shared));
 }

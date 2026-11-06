@@ -14,7 +14,7 @@
 //! Caller: `sub_43B635` (0x43B9A9), every physics step. Refuses what `start_car` refuses.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::Dword;
 use rc2k_core::physics::notices::Notice;
 use rc2k_core::physics::start::CarStart;
@@ -22,8 +22,8 @@ use rc2k_core::physics::start::CarStart;
 /// The Rust version, then `race::start_car` (it takes no register: called with none). The
 /// registers it leaves (eax the timer when set) are read by none of its callers.
 // Converted: `rc2k_core::physics::start::CarStart::false_start`.
-pub fn false_start() -> Result<(), Refused> {
-    let c = &race().shared.car;
+pub fn false_start(shared: &Shared) -> Result<(), Refused> {
+    let c = &shared.car;
     let was = CarStart {
         timer: c.run_ticks.get(),
         held: c.start_in_gear.get(),

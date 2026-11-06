@@ -94,9 +94,10 @@ fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
 /// are `fill_light_tables`, `fill_scene_light_tables`, `race::textures_alloc` and
 /// `sub_443478`), none of the Rust versions it calls.
 pub fn set_up_front_end_scene() -> Result<(), Refused> {
-    let shared = &race().shared;
-    let frame = &race().frame;
-    let course = &race().course;
+    let race = race();
+    let shared = &race.shared;
+    let frame = &race.frame;
+    let course = &race.course;
     let scene = crate::scene::owner::scene();
     crate::session::write_bits(&shared.vars.bar_span, [0u32, 100]);
     crate::menu::show_loading_picture::show_loading_picture()?;
@@ -124,7 +125,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     course.stage_prefs.fog_end.set_bits(0u32);
     clear_fog();
     shared.switches.other_way.set_bits(1u32);
-    fill_light_tables(scene, course)?;
+    fill_light_tables(scene, race)?;
 
     scene.objects.tables.slot_kinds[0].set(1);
     for slot in 1..0x29 {
@@ -159,7 +160,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     reload_slot_textures()?;
     colours(course, 0x7F);
     shared.switches.other_way.set_bits(1u32);
-    fill_light_tables(scene, course)?;
+    fill_light_tables(scene, race)?;
     shared.vars.settings_words[1].set_bits(1u32);
     Ok(())
 }

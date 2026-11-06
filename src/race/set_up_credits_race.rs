@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::math::next_random::next_random;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::race::settings_copy::Place;
 use crate::race::settings_copy::{car, car_bits, var};
 
@@ -120,8 +120,7 @@ fn drawn_index(n: u32) -> u32 {
 
 /// The Rust version. (The original leaves eax 3, ebx 0x17 and edx the car kind drawn;
 /// nothing reads them.)
-pub fn set_up_credits_race() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn set_up_credits_race(shared: &Shared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::drawn_place`.
     use rc2k_core::race::credits::{RACE_KINDS, RACE_STAGES};
     let stage = drawn_index(RACE_STAGES);

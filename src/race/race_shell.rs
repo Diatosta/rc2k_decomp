@@ -4,10 +4,10 @@ use crate::input::owner::input;
 use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
+use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
-use crate::race::owner_replay::Replay;
+use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::session::Dword;
 
@@ -37,12 +37,12 @@ pub fn kind_unusable(eax: u32) -> (bool, bool) {
 
 /// `race::index_of_kind` (0x437720): the place of kind `kind` in `dword_6051E0` (the
 /// first of equals), 0 for none.
-pub fn index_of_kind(kind: u32) -> Result<u32, BadInput> {
+pub fn index_of_kind(shared: &Shared, kind: u32) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::cars::index_of_kind`; the table read entry by entry.
     // dword_6051E0: 0x22 kinds, but `unknown_ba4` holds 32: the last two are the two dwords
     // after it (`view_share`, `camera_turn_step`), read as the original does.
     // Bounded by the whole store: the last two entries are past the table.
-    let first = crate::pointers::GamePtr::to(&race().shared.tables)
+    let first = crate::pointers::GamePtr::to(&shared.tables)
         .offset(core::mem::offset_of!(crate::race::tables_store::RaceTables, unknown_ba4) as u32);
     let trap = Trap::new();
     let order =
@@ -73,7 +73,8 @@ pub fn release_stage_textures() {
 /// `race::seal_stage_time` (0x41F29D): the first block's time (+0x88, held to
 /// 0x22550FF unsigned; its +0xB0 if that is negative) `xor` `dword_4F66F9` and turned
 /// right by its low five bits, into the dword at 0x5BECCC. Every register kept.
-pub fn seal_stage_time(replay: &Replay) -> Result<(), BadInput> {
+pub fn seal_stage_time(race: &Race) -> Result<(), BadInput> {
+    let replay = &race.replay;
     // Converted: `rc2k_core::race::seal::seal_time`.
     {
         let key = replay.seal_key.get();
@@ -82,7 +83,7 @@ pub fn seal_stage_time(replay: &Replay) -> Result<(), BadInput> {
             || CAR_BLOCKS.cars[0].stage_time.bits(),
             key,
         );
-        race().shared.replay_file.index_seal.set(sealed);
+        race.shared.replay_file.index_seal.set(sealed);
     }
     Ok(())
 }
@@ -91,12 +92,13 @@ pub fn seal_stage_time(replay: &Replay) -> Result<(), BadInput> {
 /// +8 into `dword_60410C` and their sixteen dwords from +0x10 into column n of the
 /// sixteen rows at 0x604134. The registers it leaves are read by no caller (taint at its
 /// one call site, 0x4486DB; conversion phase 3, 2026-10-24).
-pub fn copy_league_table(course: &Course) -> Result<(), BadInput> {
+pub fn copy_league_table(race: &Race) -> Result<(), BadInput> {
+    let course = &race.course;
     // Converted: `rc2k_core::race::results::league`.
     use rc2k_core::race::results::league;
     {
         // The standings summary (`settings.rivals` 1 while it is there).
-        if race().shared.state.settings.rivals.get() == 0 {
+        if race.shared.state.settings.rivals.get() == 0 {
             return Ok(());
         }
         let rows = crate::saves::best_times::SUMMARY.with(|t| t.rows.map(|r| r.dwords()))?;
@@ -200,8 +202,9 @@ pub fn set_start_states() -> Result<(), Refused> {
 /// `g_stageCarTotal` x 100 less each, held to 0 .. 300000, to `dword_75B020` /
 /// `dword_75B090` (ebx the stage held to 0 .. 0x4C); 1 and 3 the two +0x88s; others
 /// nothing. The registers it leaves are read by no caller (taint at 0x448C02).
-pub fn store_results_by_mode(physics: &Physics) {
-    let shared = &race().shared;
+pub fn store_results_by_mode(race: &Race) {
+    let physics = &race.physics;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::cars::margin`.
     use rc2k_core::race::cars::margin;
     match shared.vars.run_kind.bits() {

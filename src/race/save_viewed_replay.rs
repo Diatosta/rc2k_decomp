@@ -20,16 +20,15 @@
 
 use crate::errors::Refused;
 use crate::files::handle;
-use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 use crate::race::replay_path::{last_race, replay_path};
 use crate::race::viewer::{TABLE_LEN, move_cells};
 
 /// The Rust version: whether it was saved (the original leaves the carry clear and the
 /// zero flag set for a yes, and keeps the registers). `slot` the slot to save into (the
 /// original's ebx).
-pub fn save_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
-    let done = save(replay, slot)?;
+pub fn save_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
+    let done = save(race, slot)?;
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .undo_blocks
         .set(0);
@@ -37,8 +36,9 @@ pub fn save_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
 }
 
 /// Whether it was saved (`edx` 1).
-fn save(replay: &Replay, slot: u32) -> Result<bool, Refused> {
-    let shared = &race().shared;
+fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
+    let replay = &race.replay;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{has_blocks, SAVED_HEADER, name_offset,
     // next_offset}`.
     use rc2k_core::race::viewer_flow::{
@@ -66,7 +66,7 @@ fn save(replay: &Replay, slot: u32) -> Result<bool, Refused> {
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .from_file
         .set(from);
-    let path = replay_path(replay, slot)?.path;
+    let path = replay_path(race, slot)?.path;
     let Some(to) = handle::open_by_mode(&path, 1)? else {
         handle::close(
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
@@ -137,6 +137,7 @@ fn save(replay: &Replay, slot: u32) -> Result<bool, Refused> {
         )
         .set(replay.replay_view.file_offset.get());
         let (written, failed) = crate::race::replay::write_replay_chunk(
+            &race.shared,
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .to_file
                 .get(),

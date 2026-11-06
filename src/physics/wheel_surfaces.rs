@@ -40,8 +40,8 @@ use crate::math::x87_float::to_int;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::tables_store::{PhysicsTables, Surface};
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Dword;
 use std::cmp::Ordering;
@@ -60,12 +60,12 @@ fn share_bit(course: &Course, v: &[Dword; 64], c: u32) -> u32 {
 }
 
 /// Everything the function reads that the checks need, refused as said.
-fn check(course: &Course) -> Result<(), Refused> {
-    let faces = course.course.course_faces.get();
+fn check(race: &Race) -> Result<(), Refused> {
+    let faces = race.course.course.course_faces.get();
     if faces == 0 {
         return Err(BadInput("no course faces").into());
     }
-    if race().shared.car.tyre_kind.get() > 5 {
+    if race.shared.car.tyre_kind.get() > 5 {
         return Err(BadInput("a surface table index past 5").into());
     }
     Ok(())
@@ -76,7 +76,7 @@ fn check(course: &Course) -> Result<(), Refused> {
 fn steps(race: &Race) -> Result<(), Refused> {
     let drawing = &scene().drawing;
     let physics = &race.physics;
-    check(&race.course)?;
+    check(race)?;
     for c in 0..5u32 {
         let cc = c as usize;
         let f = race.shared.car.probe_point_face[cc].get();
@@ -155,22 +155,22 @@ fn steps(race: &Race) -> Result<(), Refused> {
                 &race.shared.physics_tables.surfaces[s1 as usize],
                 &race.shared.physics_tables.surfaces[s2 as usize],
             );
-            x87_3(esi, edi, cc);
+            x87_3(&race.shared, esi, edi, cc);
             let (ps, pd) = (
                 PhysicsTables::surface_table_index(s1)?,
                 PhysicsTables::surface_table_index(s2)?,
             );
             let k = race.shared.car.tyre_kind.get();
             x87_4(
-                &race.course,
+                race,
                 &race.shared.physics_tables.surface_tables[ps..],
                 &race.shared.physics_tables.surface_tables[pd..],
                 k as usize,
             );
-            x87_5(esi, edi, cc);
+            x87_5(race, esi, edi, cc);
         }
     }
-    x87_6();
+    x87_6(race);
     for c in 0..5usize {
         let hard = |s: u32| matches!(s, 1 | 2 | 3 | 0xC);
         let on = hard(race.shared.car.wheel_surface_a[c].get())
@@ -212,7 +212,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
             .ground_bump_scale
             .set_bits(crate::math::x87::loaded(least));
     }
-    x87_7(&crate::race::owner::race().course);
+    x87_7(race);
     Ok(())
 }
 
@@ -256,8 +256,7 @@ fn x87_2(race: &Race, c: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + c * 4 + 0x2142C0] = [s + 0x28] + (([d + 0x28] - [s + 0x28]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x31A920] = [s + 0x2C] + (([d + 0x2C] - [s + 0x2C]) * [rc + c * 4 + 0x31A984])`
-fn x87_3(s: &Surface, d: &Surface, c: usize) {
-    let shared = &race().shared;
+fn x87_3(shared: &Shared, s: &Surface, d: &Surface, c: usize) {
     let t0 = ld(s.grip.bits());
     let t1 = ld(d.grip.bits());
     let t2 = t1 - t0;
@@ -278,15 +277,14 @@ fn x87_3(s: &Surface, d: &Surface, c: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x21411C] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
 /// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
-fn x87_4(course: &Course, s: &[Dword], d: &[Dword], k: usize) {
-    let race = race();
+fn x87_4(race: &Race, s: &[Dword], d: &[Dword], k: usize) {
     let t6 = int(s[k + 1].get() as i32);
     let t7 = int(s[k + 7].get() as i32);
     let t8 = t7 - t6;
     let t9 = ld(race.shared.car.surface_blend.bits());
     let t10 = t8 * t9;
     let t11 = t6 + t10;
-    let t12 = ld(course.numbers.hundredth_a.bits());
+    let t12 = ld(race.course.numbers.hundredth_a.bits());
     let t13 = t11 * t12;
     race.shared.physics_tables.surface_scales[0].set_bits(st(t13));
     let t14 = int(d[k + 1].get() as i32);
@@ -295,7 +293,7 @@ fn x87_4(course: &Course, s: &[Dword], d: &[Dword], k: usize) {
     let t17 = ld(race.shared.car.surface_blend.bits());
     let t18 = t16 * t17;
     let t19 = t14 + t18;
-    let t20 = ld(course.numbers.hundredth_a.bits());
+    let t20 = ld(race.course.numbers.hundredth_a.bits());
     let t21 = t19 * t20;
     race.shared.physics_tables.surface_scales[1].set_bits(st(t21));
 }
@@ -309,8 +307,7 @@ fn x87_4(course: &Course, s: &[Dword], d: &[Dword], k: usize) {
 /// `[rc + c * 4 + 0x2146D4] = [s + 0x24] + (([d + 0x24] - [s + 0x24]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x2146E8] = [s + 0x14] + (([d + 0x14] - [s + 0x14]) * [rc + c * 4 + 0x31A984])`
 /// `[rc + c * 4 + 0x2146FC] = [s + 0x10] + (([d + 0x10] - [s + 0x10]) * [rc + c * 4 + 0x31A984])`
-fn x87_5(s: &Surface, d: &Surface, c: usize) {
-    let race = race();
+fn x87_5(race: &Race, s: &Surface, d: &Surface, c: usize) {
     let t0 = ld(s.slide_grip.bits());
     let t1 = ld(race.shared.physics_tables.surface_scales[0].bits());
     let t2 = t0 * t1;
@@ -383,8 +380,7 @@ fn x87_5(s: &Surface, d: &Surface, c: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214268] = ((([rc + 0x214284] + [rc + 0x214288]) + [rc + 0x21428C]) + [rc + 0x214290]) * [rc + 0x213FEC]`
-fn x87_6() {
-    let race = race();
+fn x87_6(race: &Race) {
     let t0 = ld(race.shared.physics_tables.wheel_loads[0].bits());
     let t1 = ld(race.shared.physics_tables.wheel_loads[1].bits());
     let t2 = t0 + t1;
@@ -407,8 +403,7 @@ fn x87_6() {
 /// `[rc + 0x214764] = [rc + 0x2146E4]`
 /// `[rc + 0x223DA8] = [rc + 0x2146F8]`
 /// `[rc + 0x223DAC] = [rc + 0x21470C]`
-fn x87_7(course: &Course) {
-    let race = race();
+fn x87_7(race: &Race) {
     let drawing = &scene().drawing;
     let t0 = ld(race.shared.car.ground_bump_scale.bits());
     let t1 = ld(race.shared.physics_tables.handling[6].bits());
@@ -434,7 +429,7 @@ fn x87_7(course: &Course) {
     let t18 = ld(drawing.scene.surface_point[0].bits());
     let t19 = t17 - t18;
     let t20 = int(race.shared.car.suspension_stiffness.bits() as i32);
-    let t21 = ld(course.numbers.k256.bits());
+    let t21 = ld(race.course.numbers.k256.bits());
     let t22 = t20 / t21;
     let t23 = t19 * t22;
     let t24 = ld(drawing.scene.surface_point[0].bits());
@@ -456,6 +451,7 @@ fn x87_7(course: &Course) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
     use crate::scene::x87_mem::view;
 
@@ -607,7 +603,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_3(view(a[0], 0), view(a[1], 0), a[3]),
+                plain: |a| x87_3(&race().shared, view(a[0], 0), view(a[1], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 161 idx c=1",
@@ -628,7 +624,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_3(view(a[0], 0), view(a[1], 0), a[3]),
+                plain: |a| x87_3(&race().shared, view(a[0], 0), view(a[1], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 161 idx c=4",
@@ -649,7 +645,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_3(view(a[0], 0), view(a[1], 0), a[3]),
+                plain: |a| x87_3(&race().shared, view(a[0], 0), view(a[1], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 178 idx k=0",
@@ -671,12 +667,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
                 plain: |a| {
-                    x87_4(
-                        &crate::race::owner::race().course,
-                        table(a[0], a[3]),
-                        table(a[2], a[3]),
-                        a[3],
-                    );
+                    x87_4(race(), table(a[0], a[3]), table(a[2], a[3]), a[3]);
                 },
             },
             Block {
@@ -699,12 +690,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
                 plain: |a| {
-                    x87_4(
-                        &crate::race::owner::race().course,
-                        table(a[0], a[3]),
-                        table(a[2], a[3]),
-                        a[3],
-                    );
+                    x87_4(race(), table(a[0], a[3]), table(a[2], a[3]), a[3]);
                 },
             },
             Block {
@@ -727,12 +713,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
                 plain: |a| {
-                    x87_4(
-                        &crate::race::owner::race().course,
-                        table(a[0], a[3]),
-                        table(a[2], a[3]),
-                        a[3],
-                    );
+                    x87_4(race(), table(a[0], a[3]), table(a[2], a[3]), a[3]);
                 },
             },
             Block {
@@ -785,7 +766,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_5(view(a[0], 0), view(a[2], 0), a[3]),
+                plain: |a| x87_5(race(), view(a[0], 0), view(a[2], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 201 idx c=1",
@@ -837,7 +818,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_5(view(a[0], 0), view(a[2], 0), a[3]),
+                plain: |a| x87_5(race(), view(a[0], 0), view(a[2], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 201 idx c=4",
@@ -889,7 +870,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_5(view(a[0], 0), view(a[2], 0), a[3]),
+                plain: |a| x87_5(race(), view(a[0], 0), view(a[2], 0), a[3]),
             },
             Block {
                 name: "wheel_surfaces line 258",
@@ -905,7 +886,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0]) },
-                plain: |_| x87_6(),
+                plain: |_| x87_6(race()),
             },
             Block {
                 name: "wheel_surfaces line 299",
@@ -940,7 +921,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0]) },
-                plain: |_| x87_7(&crate::race::owner::race().course),
+                plain: |_| x87_7(race()),
             },
         ]
     }

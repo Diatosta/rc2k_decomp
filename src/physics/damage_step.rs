@@ -10,11 +10,11 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner_physics::Physics;
+use crate::race::owner::Race;
 
 /// The Rust version (the registers the three leave are read by no caller).
-pub fn damage_step(physics: &Physics) {
-    crate::physics::damage_factors::steps(physics);
-    crate::physics::damage_wear::steps(physics);
-    crate::physics::damage_gauges::steps(physics);
+pub fn damage_step(race: &Race) {
+    crate::physics::damage_factors::steps(race);
+    crate::physics::damage_wear::steps(race);
+    crate::physics::damage_gauges::steps(race);
 }

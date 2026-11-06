@@ -30,7 +30,6 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
 use crate::scene::owner::scene;
 use crate::scene::point_records;
 use crate::scene::project_point::{NEAR, rotate, to_screen};
@@ -43,13 +42,14 @@ const OBJECTS: u32 = 0x100;
 
 /// `sub_45C29B`: the point at `from` moved towards the one `by` bytes on, into
 /// `unk_5CCE18`.
-fn moved(course: &crate::race::owner_course::Course, from: usize, by: u32) -> Result<(), BadInput> {
+fn moved(race: &crate::race::owner::Race, from: usize, by: u32) -> Result<(), BadInput> {
+    let course = &race.course;
     let other = from.wrapping_add(by as usize);
     let read = |at: usize| crate::scene::object_points::point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
     // The fraction, the two points, the result, the fraction as it is stored.
     let mut w = [
-        race().shared.vars.move_fraction.bits(),
+        race.shared.vars.move_fraction.bits(),
         a[0],
         a[1],
         a[2],
@@ -143,9 +143,9 @@ struct Object {
     table: u32,
 }
 
-fn object(course: &crate::race::owner_course::Course) -> Result<Object, BadInput> {
+fn object(race: &crate::race::owner::Race) -> Result<Object, BadInput> {
     let objects = &scene().objects;
-    let number: u32 = race().shared.switches.object_number.bits();
+    let number: u32 = race.shared.switches.object_number.bits();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
     }
@@ -153,7 +153,7 @@ fn object(course: &crate::race::owner_course::Course) -> Result<Object, BadInput
         first: objects.slots.first_point[number as usize].get(),
         points: objects.slots.point_counts[number as usize].get() as i32,
         normals: objects.slots.normal_counts[number as usize].get() as i32,
-        table: course.lists.object_points.bits(),
+        table: race.course.lists.object_points.bits(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
@@ -168,7 +168,7 @@ fn object(course: &crate::race::owner_course::Course) -> Result<Object, BadInput
 /// leaves in the registers its one caller's callers never read (`draw_object`).
 pub fn place_object_points(race: &crate::race::owner::Race) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let object = object(&race.course)?;
+    let object = object(race)?;
     if object.points <= 0 {
         return Ok(());
     }
@@ -185,7 +185,7 @@ pub fn place_object_points(race: &crate::race::owner::Race) -> Result<(), Refuse
         let mut r = point_records::get(record)?;
         r[0] = number;
         let point = if move_by != 0 {
-            moved(&race.course, from as usize, move_by)?;
+            moved(race, from as usize, move_by)?;
             // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
             [
                 race.course.course.point_moved.get(),
@@ -240,7 +240,7 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
 /// worked out (`sub_45C237`), and the table's point 0 ends as a normal in record 0x1000.
 pub fn place_object_points_sse(race: &crate::race::owner::Race) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let object = object(&race.course)?;
+    let object = object(race)?;
     let m: [f32; 16] = std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].get());
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));

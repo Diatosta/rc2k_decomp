@@ -21,24 +21,20 @@
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use rc2k_core::drive::race_steps;
 
 /// One car's step (inside `pusha` / `popa`: nothing it leaves in the registers goes out).
-fn car_step() -> Result<(), Refused> {
-    let race_owner = race();
-    let race = race();
+fn car_step(race: &Race) -> Result<(), Refused> {
     crate::drive::car_input_words::car_input_words()?;
     crate::drive::record_inputs_if::record_inputs_if(race)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
-    let slot = race_steps::block_slot(race_owner.shared.work.current_car.get());
-    race_owner
-        .shared
+    let slot = race_steps::block_slot(race.shared.work.current_car.get());
+    race.shared
         .work
         .work_block
-        .set(race_owner.shared.work.car_block(slot as usize));
+        .set(race.shared.work.car_block(slot as usize));
     crate::drive::load_car::load_car()?;
-    if race_owner.shared.car.driver_kind.get() != 0 {
+    if race.shared.car.driver_kind.get() != 0 {
         crate::drive::read_car_controls::read_car_controls()?;
         crate::physics::gear_input_rules::gear_input_rules();
         crate::drive::steer_inputs::steer_inputs();
@@ -50,16 +46,14 @@ fn car_step() -> Result<(), Refused> {
         // the registers: a local scratch.
         crate::net::race_step::race_step()?;
     }
-    race_owner
-        .shared
+    race.shared
         .car
         .step_clock
-        .set(race_owner.shared.car.step_clock.get().wrapping_add(1));
-    race_owner
-        .shared
+        .set(race.shared.car.step_clock.get().wrapping_add(1));
+    race.shared
         .car
         .run_ticks
-        .set(race_owner.shared.car.run_ticks.get().wrapping_add(1));
+        .set(race.shared.car.run_ticks.get().wrapping_add(1));
     crate::drive::store_car::store_car()?;
     Ok(())
 }
@@ -88,15 +82,15 @@ pub fn replay_step(race: &Race) -> Result<(), Refused> {
         || shared.work.current_car.get(),
         || shared.view.race_cars.get(),
         |n| shared.work.current_car.set(n),
-        car_step,
+        || car_step(race),
     )?;
-    crate::drive::replay_check::note(&race.course)?;
+    crate::drive::replay_check::note(race)?;
     crate::drive::animate_stage::animate_stage(race)?;
     crate::drive::race_mode_cars::race_mode_cars()?;
     crate::drive::duel_sound_levels::duel_sound_levels();
-    crate::drive::countdown_beeps::countdown_beeps(&race.frame)?;
-    crate::drive::two_car_order::two_car_order()?;
-    crate::drive::hold_count_tick::hold_count_tick();
+    crate::drive::countdown_beeps::countdown_beeps(race)?;
+    crate::drive::two_car_order::two_car_order(&race.shared)?;
+    crate::drive::hold_count_tick::hold_count_tick(&race.shared);
     crate::drive::flush_replay_if::flush_replay_if(race)?;
     crate::drive::replay_clock_tick::replay_clock_tick(&race.replay);
     Ok(())

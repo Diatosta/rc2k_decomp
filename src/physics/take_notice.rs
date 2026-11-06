@@ -12,12 +12,11 @@
 
 use crate::physics::cells::set_changed;
 use crate::physics::queue_notice::{load, store};
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use rc2k_core::physics::notices::Notice;
 
 /// The Rust version.
-pub fn take_notice() {
-    let shared = &race().shared;
+pub fn take_notice(shared: &Shared) {
     let was = Notice {
         id: shared.car.notice_id.get(),
         shown: shared.car.notice_shown.get(),
@@ -25,7 +24,7 @@ pub fn take_notice() {
         w708: shared.car.notice_time_b.get(),
         ..Notice::default()
     };
-    let queue = load();
+    let queue = load(shared);
     let (mut notice, mut now) = (was, queue);
     if notice.take(&mut now).is_none() {
         return;
@@ -33,5 +32,5 @@ pub fn take_notice() {
     set_changed(&shared.car.notice_id, was.id, notice.id);
     set_changed(&shared.car.notice_time_b, was.w708, notice.w708);
     set_changed(&shared.car.notice_time, was.time, notice.time);
-    store(&queue, &now);
+    store(shared, &queue, &now);
 }

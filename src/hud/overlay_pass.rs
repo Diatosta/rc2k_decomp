@@ -17,17 +17,18 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 
 /// The HUD's layout: `dword_6238A4`, or 0 while one view is drawn (`dword_63DB98` 1).
 /// The original reads `dword_6238A4` alone, which a replay after a split-screen race
 /// leaves at 1 / 2 while its one view fills the screen: the divider, the second
 /// player's bars and strip stayed drawn (section 16, fixed 2026-10-23).
-pub fn shown_layout() -> u32 {
+pub fn shown_layout(shared: &Shared) -> u32 {
     {
-        if crate::race::owner::race().shared.view.views.bits() == 1 {
+        if shared.view.views.bits() == 1 {
             0
         } else {
-            crate::race::owner::race().shared.vars.split.bits()
+            shared.vars.split.bits()
         }
     }
 }
@@ -40,14 +41,14 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
         .panel_and_overlay
         .panel
         .players
-        .set(shown_layout());
+        .set(shown_layout(&race.shared));
     depth_buffer(false);
     crate::hud::overlay_states::overlay_states();
     let kept: [u32; 2] = [
         race.frame.panel_and_overlay.panel.hud_flags[0].get(),
         race.frame.panel_and_overlay.panel.hud_flags[1].get(),
     ];
-    if crate::race::owner::race().shared.view.views.bits() == 2 {
+    if race.shared.view.views.bits() == 2 {
         for n in 0..2 {
             if CAR_BLOCKS.cars[n].view_covered.get() != 0 {
                 race.frame.panel_and_overlay.panel.hud_flags[n]
@@ -65,7 +66,7 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
     crate::scene::set_render_state::set_render_state(3, 3);
     race.course.level_grid.plain_first.set(1);
     race.course.level_grid.plain_second.set(1);
-    crate::hud::draw_view_strips::draw_view_strips(&race.frame)?;
+    crate::hud::draw_view_strips::draw_view_strips(race)?;
     depth_buffer(false);
     crate::scene::set_filters::set_filters();
     Ok(())

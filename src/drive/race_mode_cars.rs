@@ -13,9 +13,9 @@ use crate::race::owner::race;
 
 /// The Rust version: `drive::start_cars_behind` in mode 2.
 pub fn race_mode_cars() -> Result<(), Refused> {
-    let course = &race().course;
-    if race().shared.vars.run_kind.bits() == 2 {
-        { crate::drive::start_cars_behind::start_cars_behind(course) }?;
+    let race = race();
+    if race.shared.vars.run_kind.bits() == 2 {
+        { crate::drive::start_cars_behind::start_cars_behind(race) }?;
     }
     Ok(())
 }

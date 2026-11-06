@@ -13,7 +13,7 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::{StepCounters, StepFacts, count_down};
 
@@ -55,31 +55,29 @@ pub fn count_at(v: &[&dyn Cell32]) {
     }
 }
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let shared_store = &race().shared;
-
+fn game(shared: &Shared) -> Vec<&dyn Cell32> {
     vec![
-        &shared_store.car.light_hold_steps as &dyn Cell32,
-        &shared_store.car.value_jump_steps,
-        &shared_store.car.run_ticks,
-        &shared_store.car.finish_flag,
-        &shared_store.car.go_stand_timer,
-        &shared_store.car.started_stand_timer,
-        &shared_store.vars.run_kind,
-        &shared_store.car.parts_present,
-        &shared_store.car.gear,
-        &shared_store.car.stopped_steps,
-        &shared_store.car.tyre_change_state,
-        &shared_store.car.wall_hit_timer,
-        &shared_store.car.drive_cut_steps,
-        &shared_store.car.engine_speed_scaled,
-        &shared_store.car.top_speed,
-        &shared_store.car.hit_cooldown,
+        &shared.car.light_hold_steps as &dyn Cell32,
+        &shared.car.value_jump_steps,
+        &shared.car.run_ticks,
+        &shared.car.finish_flag,
+        &shared.car.go_stand_timer,
+        &shared.car.started_stand_timer,
+        &shared.vars.run_kind,
+        &shared.car.parts_present,
+        &shared.car.gear,
+        &shared.car.stopped_steps,
+        &shared.car.tyre_change_state,
+        &shared.car.wall_hit_timer,
+        &shared.car.drive_cut_steps,
+        &shared.car.engine_speed_scaled,
+        &shared.car.top_speed,
+        &shared.car.hit_cooldown,
     ]
 }
 
 /// The Rust version (one compare and copy of floats: the same at any precision); `r` as
 /// the registers it leaves are read by none of its callers.
-pub fn count_down_timers() {
-    count_at(&game());
+pub fn count_down_timers(shared: &Shared) {
+    count_at(&game(shared));
 }

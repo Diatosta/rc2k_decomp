@@ -12,22 +12,22 @@
 //!
 //! Callers: `race::replay_viewer` (two).
 
-use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 
 /// The Rust version.
 pub fn mark_viewer_items(
-    replay: &Replay,
+    race: &Race,
     list: crate::menu::list_handle::ListMenu,
 ) -> Result<(), crate::errors::BadInput> {
+    let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer::item_marks`.
     crate::menu::list_clear_marks::list_clear_marks(list);
     let block = replay.replay_view.replay_block.get();
     let state = rc2k_core::race::viewer::ViewerState {
         last_race: replay.replay_view.last_race_viewed.get() == 1,
         block,
-        blocks: race().shared.replay_file.index_block_count.get(),
+        blocks: race.shared.replay_file.index_block_count.get(),
         mark_in: crate::race::viewer_buffers_store::VIEWER_BUFFERS
             .mark_in
             .get(),

@@ -56,13 +56,13 @@ pub fn run_frame() -> Result<(), Refused> {
     let paths = &effects.paths;
     {
         swap_mask::swap_mask(&effects.masks)?;
-        setup::tick_clock()?;
+        setup::tick_clock(&race.shared)?;
         let whole = rdtsc();
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        run_rain::run_rain(weather)?;
-        run_snow::run_snow(&race.frame, weather)?;
+        run_rain::run_rain(race, weather)?;
+        run_snow::run_snow(race, weather)?;
         let start = rdtsc();
         share(0, start);
         draw_frame::draw_frame(race, effects)?;

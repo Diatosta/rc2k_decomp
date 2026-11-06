@@ -58,23 +58,24 @@ pub fn sign(v: u32) -> bool {
 /// +0x3C) into `qword_6D3078` ..; the turn speed (`unk_71A15C` ..) into `dword_6D30B4`
 /// ..; the point (`flt_6D2214[n]`, `flt_6D2314[n]`, `flt_6D2414[n]`) into
 /// `dword_6D3090` ...
-pub fn take_contact(physics: &Physics, n: usize) -> Result<(), Refused> {
-    let shared_store = &crate::race::owner::race().shared;
-
+pub fn take_contact(race: &Race, n: usize) -> Result<(), Refused> {
     copy3(
-        &physics.contact.contact_car_speed,
-        &shared_store.car.velocity,
+        &race.physics.contact.contact_car_speed,
+        &race.shared.car.velocity,
     );
-    let face = shared_store.car.probe_point_face[n].get();
-    let parts = contacts::normal_offsets(physics.contact.probe_face_flip[n].get());
+    let face = race.shared.car.probe_point_face[n].get();
+    let parts = contacts::normal_offsets(race.physics.contact.probe_face_flip[n].get());
     for (k, &o) in parts.iter().enumerate() {
         let v = crate::race::course_places::face_field::<u32>(face, o, "a face's normal")?;
-        physics.contact.contact_normal[k].set_bits(loaded(v));
+        race.physics.contact.contact_normal[k].set_bits(loaded(v));
     }
-    copy3(&physics.contact.contact_turn_speed, &shared_store.car.spin);
-    physics.contact.contact_point[0].set_bits(physics.contact.probe_turned_x[n].bits());
-    physics.contact.contact_point[1].set_bits(physics.contact.probe_turned_y[n].bits());
-    physics.contact.contact_point[2].set_bits(physics.contact.probe_turned_z[n].bits());
+    copy3(
+        &race.physics.contact.contact_turn_speed,
+        &race.shared.car.spin,
+    );
+    race.physics.contact.contact_point[0].set_bits(race.physics.contact.probe_turned_x[n].bits());
+    race.physics.contact.contact_point[1].set_bits(race.physics.contact.probe_turned_y[n].bits());
+    race.physics.contact.contact_point[2].set_bits(race.physics.contact.probe_turned_z[n].bits());
     Ok(())
 }
 
@@ -96,7 +97,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         race.shared.physics_tables.crash_depth.get(),
         race.shared.car.all_wheels_off.get() != 0,
     ) {
-        { sound_cue_e5(&race.frame) }?;
+        { sound_cue_e5(race) }?;
         return Ok(());
     }
     let n = point_number(&race.physics)?;
@@ -113,7 +114,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         .contact_point_z
         .set(race.physics.contact.probe_z[n].get());
     race.shared.car.contact_found.set(1);
-    take_contact(&race.physics, n)?;
+    take_contact(race, n)?;
     let up = {
         rotate_point(
             &race.shared.car.crash_matrix,
