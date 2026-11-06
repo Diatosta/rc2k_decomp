@@ -1,9 +1,7 @@
-//! A car's sound object brought up to date for the turn, its whole-number part (converted
-//! 2026-10-21 from `sound::car_engine_state` 0x40D8E2; its floats, the pitch and volume
-//! inputs, the distance and the gear cue's pitch, stay the hook's x87 for now), and the
-//! engine sounds' choices (the same day from `sound::revs_sound` 0x40DD19,
-//! `sound::throttle_sound` 0x40DD96, `sound::speed_sound` 0x40DE09 and
-//! `sound::car_slot_sounds` 0x40E0F6).
+//! A car's sound object brought up to date for the turn (the whole-number part of
+//! `sound::car_engine_state`: the float inputs are the game crate's), and the engine
+//! sounds' choices (`sound::revs_sound`, `throttle_sound`, `speed_sound` and
+//! `car_slot_sounds`).
 //!
 //! The object's dwords the engine reads and writes (a reading of the code, names by use) are
 //! an `Engine`, taken from the sound object and put back by the game crate: `new_revs` a new
@@ -76,14 +74,6 @@ pub struct Engine {
     pub gear_slot_start: u32,
 }
 
-/// The registers the original leaves that callers may see: eax, ecx, edx.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub struct Left {
-    pub eax: u32,
-    pub ecx: u32,
-    pub edx: u32,
-}
-
 /// The request's place for the timed sounds (converted 2026-10-21 from
 /// `sound::car_gear_sounds` 0x40E24F): the object's +0x2C .. +0x34 less its +0x38 ..
 /// +0x40, each `fsub` stored as a float. One rounding of an exact `f64` difference: the
@@ -102,15 +92,16 @@ pub fn gear_pitch(factor: f32, pitch: f32) -> f32 {
 pub const GEAR_CUE: u32 = 0x2000;
 pub const BACK_FIRES: u32 = 0x1000;
 
-/// The revs extrapolated, worked out before anything is written: (the readings' gap held
-/// to 1000, the quotient, the remainder), None without one (a new reading, the revs held,
-/// or a gap of 0). `hold` (`dword_5BEC94`) asked only without a new reading. Refuses a
-/// quotient that does not fit (the original's `idiv` traps).
+/// The revs extrapolated, worked out before anything is written: the change since the
+/// last reading, as the readings' rise over their gap (held to 1000) times the time since,
+/// or None without one (a new reading, the revs held, or a gap of 0). `hold`
+/// (`dword_5BEC94`) is asked only without a new reading. Refuses a quotient that does not
+/// fit (the original's `idiv` traps).
 pub fn extrapolation(
     o: &Engine,
     clock: u32,
     hold: impl FnOnce() -> u32,
-) -> Result<Option<(u32, u32, u32)>, Invalid> {
+) -> Result<Option<u32>, Invalid> {
     if o.new_revs == 1 || hold() == 1 {
         return Ok(None);
     }
@@ -121,54 +112,34 @@ pub fn extrapolation(
     let gap = if gap as i32 > 1000 { 1000 } else { gap };
     let since = clock.wrapping_sub(o.reading_times[1]) as i32 as i64;
     let rise = o.reading_revs[1].wrapping_sub(o.reading_revs[0]) as i32 as i64;
-    let product = since * rise;
-    let quotient = product / gap as i32 as i64;
+    let quotient = since * rise / gap as i32 as i64;
     if quotient != quotient as i32 as i64 {
         return Err(Invalid(
             "a revs quotient that does not fit: the original's idiv traps",
         ));
     }
-    Ok(Some((
-        gap,
-        quotient as i32 as u32,
-        (product % gap as i32 as i64) as u32,
-    )))
+    Ok(Some(quotient as i32 as u32))
 }
 
 /// The readings: a new one kept (its time `clock`), else the revs extrapolated (at least
-/// 1000). `revs` is `extrapolation`'s; `hold` asked as there.
-pub fn readings(
-    o: &mut Engine,
-    clock: u32,
-    revs: Option<(u32, u32, u32)>,
-    hold: impl FnOnce() -> u32,
-    left: &mut Left,
-) {
+/// 1000). `change` is `extrapolation`'s.
+pub fn readings(o: &mut Engine, clock: u32, change: Option<u32>) {
     if o.new_revs == 1 {
         o.reading_times[0] = o.reading_times[1];
         o.reading_times[1] = clock;
         o.reading_revs[0] = o.reading_revs[1];
-        left.eax = o.revs;
-        o.reading_revs[1] = left.eax;
+        o.reading_revs[1] = o.revs;
         o.new_revs = 0;
-    } else if let Some((gap, quotient, remainder)) = revs {
-        left.ecx = gap;
-        left.edx = remainder;
-        left.eax = quotient.wrapping_add(o.reading_revs[1]);
-        if (left.eax as i32) < 1000 {
-            left.eax = 1000;
-        }
-        o.revs = left.eax;
-    } else if hold() != 1 {
-        // The readings' gap was 0.
-        left.ecx = 0;
+    } else if let Some(change) = change {
+        let revs = change.wrapping_add(o.reading_revs[1]);
+        o.revs = if (revs as i32) < 1000 { 1000 } else { revs };
     }
 }
 
 /// The state, the throttle followed, the gear and the back-fires (after the pitch
 /// inputs). `kind` reads the sound kind's flags (+0) where the original does. Returns
 /// the gear change's cue: Some(clock & 0xF) when its pitch (+0x210) is to be set.
-pub fn state(o: &mut Engine, kind: impl Fn() -> u32, clock: u32, left: &mut Left) -> Option<u32> {
+pub fn state(o: &mut Engine, kind: impl Fn() -> u32, clock: u32) -> Option<u32> {
     o.last_state = o.state;
     o.state = match o.revs {
         0 => 0,
@@ -179,11 +150,45 @@ pub fn state(o: &mut Engine, kind: impl Fn() -> u32, clock: u32, left: &mut Left
         o.gear_event = 0;
         o.state = 3;
     }
-    left.ecx = o.throttle;
+    follow_throttle(o);
+    let last = o.last_direction;
+    o.last_direction = o.direction;
+    if last.wrapping_add(o.direction) == 3 {
+        o.countdown = o.countdown.wrapping_add(5);
+    }
+    let mut cue = None;
+    // The original tests this register for "no gear" after the cue may have replaced the
+    // gear in it by the clock's low bits: with a cue, no gear is when those are 0.
+    let mut gear_or_cue = o.gear;
+    if o.gear != o.last_gear {
+        o.last_gear = o.gear;
+        o.countdown = o.countdown.wrapping_add(7);
+        if kind() & GEAR_CUE != 0 && o.gear as i32 > 1 && o.gap_time as i32 >= 0x32 {
+            o.gear_slot_start = 1;
+            o.gear_notice = 1;
+            gear_or_cue = clock & 0xF;
+            cue = Some(gear_or_cue);
+        }
+    }
+    o.no_gear = (gear_or_cue == 0) as u32;
+    if kind() & BACK_FIRES != 0 {
+        back_fires(o, &kind, clock);
+    }
+    if o.countdown != 0 {
+        o.countdown = o.countdown.wrapping_sub(1);
+    }
+    cue
+}
+
+/// The smoothed throttle one step toward the throttle (up by a sixty-fourth of what is
+/// left and one more, down by a hundred and twenty-eighth and one more, never past it),
+/// the gap, the direction and the turns going each way.
+fn follow_throttle(o: &mut Engine) {
+    let throttle = o.throttle;
     let followed = o.smooth_throttle;
-    left.eax = left.ecx.wrapping_sub(followed);
-    o.gap_time = left.eax;
-    if left.eax == 0 {
+    let gap = throttle.wrapping_sub(followed);
+    o.gap_time = gap;
+    if gap == 0 {
         o.direction = 0;
         if o.turns_up == 1 {
             o.turns_up = 2;
@@ -191,81 +196,56 @@ pub fn state(o: &mut Engine, kind: impl Fn() -> u32, clock: u32, left: &mut Left
         if o.turns_down == 1 {
             o.turns_down = 2;
         }
-    } else if (left.ecx as i32) < (followed as i32) {
+    } else if (throttle as i32) < (followed as i32) {
         o.turns_down = o.turns_down.wrapping_add(1);
         o.turns_up = 0;
         o.direction = 2;
-        left.eax = o.smooth_throttle >> 7;
-        o.smooth_throttle = o.smooth_throttle.wrapping_sub(left.eax).wrapping_sub(1);
-        if (o.smooth_throttle as i32) < (left.ecx as i32) {
-            o.smooth_throttle = left.ecx;
+        o.smooth_throttle = followed.wrapping_sub(followed >> 7).wrapping_sub(1);
+        if (o.smooth_throttle as i32) < (throttle as i32) {
+            o.smooth_throttle = throttle;
         }
     } else {
         o.turns_up = o.turns_up.wrapping_add(1);
         o.turns_down = 0;
         o.direction = 1;
-        left.eax = 0x100u32.wrapping_sub(o.smooth_throttle) >> 6;
-        o.smooth_throttle = o.smooth_throttle.wrapping_add(left.eax).wrapping_add(1);
-        if (o.smooth_throttle as i32) > (left.ecx as i32) {
-            o.smooth_throttle = left.ecx;
+        let step = 0x100u32.wrapping_sub(followed) >> 6;
+        o.smooth_throttle = followed.wrapping_add(step).wrapping_add(1);
+        if (o.smooth_throttle as i32) > (throttle as i32) {
+            o.smooth_throttle = throttle;
         }
     }
-    let last = o.last_direction;
-    o.last_direction = o.direction;
-    if last.wrapping_add(o.direction) == 3 {
-        o.countdown = o.countdown.wrapping_add(5);
-    }
-    let mut cue = None;
-    left.eax = o.gear;
-    if left.eax != o.last_gear {
-        o.last_gear = left.eax;
-        o.countdown = o.countdown.wrapping_add(7);
-        if kind() & GEAR_CUE != 0 && left.eax as i32 > 1 && o.gap_time as i32 >= 0x32 {
-            o.gear_slot_start = 1;
-            o.gear_notice = 1;
-            left.eax = clock & 0xF;
-            cue = Some(left.eax);
+}
+
+/// The back-fires of a kind that has them: going up clears the back-fire slot; off the
+/// throttle a wait counts down and, when it runs out, a back-fire starts (louder each
+/// time, to 0x20) and the wait is set again; the throttle's drop arms a timed sound once.
+fn back_fires(o: &mut Engine, kind: &impl Fn() -> u32, clock: u32) {
+    if o.direction == 1 {
+        o.backfire_start = 0;
+        o.backfire_playing = 0;
+        o.backfire_wait = 0;
+        o.backfire_volume = 0;
+    } else if o.smooth_throttle <= 0xF0 {
+        let wait = o.backfire_wait.wrapping_sub(1);
+        o.backfire_wait = wait;
+        if (wait as i32) < 0 {
+            let over = o.revs.wrapping_sub(0x7D0);
+            let revs_steps = (if (over as i32) < 0 { 0 } else { over }) >> 9;
+            o.backfire_wait = (clock & 3).wrapping_add(revs_steps).wrapping_add(1);
+            o.backfire_start = 1;
+            let volume = o.backfire_volume.wrapping_add(8);
+            o.backfire_volume = if volume as i32 > 0x20 { 0x20 } else { volume };
         }
     }
-    left.eax = (left.eax == 0) as u32;
-    o.no_gear = left.eax;
-    if kind() & BACK_FIRES != 0 {
-        if o.direction == 1 {
-            o.backfire_start = 0;
-            o.backfire_playing = 0;
-            o.backfire_wait = 0;
-            o.backfire_volume = 0;
-        } else if o.smooth_throttle <= 0xF0 {
-            let wait = o.backfire_wait.wrapping_sub(1);
-            o.backfire_wait = wait;
-            if (wait as i32) < 0 {
-                let over = o.revs.wrapping_sub(0x7D0);
-                left.ecx = (if (over as i32) < 0 { 0 } else { over }) >> 9;
-                left.eax = (clock & 3).wrapping_add(left.ecx).wrapping_add(1);
-                o.backfire_wait = left.eax;
-                o.backfire_start = 1;
-                left.eax = o.backfire_volume.wrapping_add(8);
-                if left.eax as i32 > 0x20 {
-                    left.eax = 0x20;
-                }
-                o.backfire_volume = left.eax;
-            }
+    if o.direction == 1 {
+        o.wait_flag = 0;
+    } else if o.wait_flag != 1 && o.direction == 2 && (o.gap_time as i32) < -0x14 {
+        if o.revs >= 0xFA0 {
+            o.drop_sound = kind() & 0xFFF;
+            o.drop_start = 1;
         }
-        if o.direction == 1 {
-            o.wait_flag = 0;
-        } else if o.wait_flag != 1 && o.direction == 2 && (o.gap_time as i32) < -0x14 {
-            if o.revs >= 0xFA0 {
-                left.eax = kind() & 0xFFF;
-                o.drop_sound = left.eax;
-                o.drop_start = 1;
-            }
-            o.wait_flag = 1;
-        }
+        o.wait_flag = 1;
     }
-    if o.countdown != 0 {
-        o.countdown = o.countdown.wrapping_sub(1);
-    }
-    cue
 }
 
 /// `+0x104`: the throttle as a float over 256: `from_int`'s bits with the exponent less 8
@@ -336,20 +316,19 @@ mod tests {
             ..Engine::default()
         };
         let r = extrapolation(&o, 140, || 0).unwrap();
-        assert_eq!(r, Some((20, 500, 0)));
-        let mut left = Left::default();
-        readings(&mut o, 140, r, || 0, &mut left);
-        assert_eq!((o.revs, left.ecx), (3000, 20));
+        assert_eq!(r, Some(500));
+        readings(&mut o, 140, r);
+        assert_eq!(o.revs, 3000);
         assert_eq!(extrapolation(&o, 140, || 1).unwrap(), None);
         o.reading_revs[0] = 0;
         o.reading_revs[1] = 0x7FFF_FFFF;
         assert!(extrapolation(&o, 0x8000_0005, || 0).is_err());
         o.new_revs = 1;
         o.revs = 4321;
-        readings(&mut o, 7, None, || unreachable!(), &mut left);
+        readings(&mut o, 7, None);
         assert_eq!(
-            (o.reading_times[1], o.reading_revs[1], o.new_revs, left.eax),
-            (7, 4321, 0, 4321)
+            (o.reading_times[1], o.reading_revs[1], o.new_revs),
+            (7, 4321, 0)
         );
     }
 
@@ -364,8 +343,7 @@ mod tests {
             backfire_wait: 0,
             ..Engine::default()
         };
-        let mut left = Left::default();
-        let cue = state(&mut o, || BACK_FIRES | GEAR_CUE | 0x123, 0x37, &mut left);
+        let cue = state(&mut o, || BACK_FIRES | GEAR_CUE | 0x123, 0x37);
         // Going down: 0x80 - (0x80 >> 7) - 1, still above the throttle.
         assert_eq!(o.smooth_throttle, 0x7E);
         assert_eq!((o.direction, o.state), (2, 2));
@@ -384,7 +362,7 @@ mod tests {
             gear: 2,
             ..Engine::default()
         };
-        assert_eq!(state(&mut o, || GEAR_CUE, 0x2B, &mut left), Some(0xB));
+        assert_eq!(state(&mut o, || GEAR_CUE, 0x2B), Some(0xB));
         assert_eq!((o.gear_slot_start, o.gear_notice, o.no_gear), (1, 1, 0));
         assert_eq!(over_256(0x4380_0000), 0x3F80_0000);
         assert_eq!(over_256(0x8000_0000), 0x8000_0000);

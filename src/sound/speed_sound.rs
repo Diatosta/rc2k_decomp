@@ -1,36 +1,22 @@
-//! `sound::speed_sound` (0x40DE09): a player's car's sound by its speed (+0x108, from
-//! `sound::car_engine_state`), at the car.
+//! `sound::speed_sound` (0x40DE09): a player's car's sound by its speed (`speed_input`,
+//! from `sound::car_engine_state`), at the car.
 //!
-//! In:  ebx the car's sound object, edi its sound kind, esi the request
-//! Out: eax the object's +0 (+ set +0 when stopped; +0x34 when placed), ebp the set
-//!      (kind +0x60); everything else preserved
-//! Nothing for a computer's car (+0 negative). The sound: kind +0x60's +0 + the
-//! object's +0, into the request. With the state (+0x10C) 0 or 1, +0x24 1 (no gear),
-//! +0xF4 or +0xAC not 0: `sound::stop_sound`. Else the request's +4 = +0x108 x set
-//! +0x18 + set +0x10, +8 = +0x108 x set +0x24 + set +0x1C (x `flt_51637C` when +0xC is
-//! 0), the place = +0x2C .. +0x34, and `sound::play_placed_sound`. Both are tail jumps.
-//! One caller, `sound::car_sounds`.
-//! Refuses (before anything) a null object, and a kind wanted but null.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! Nothing for a computer's car (sound offset negative). The sound is the speed set's
+//! first sound plus the object's `sound_offset`. It is stopped in engine state 0 or 1, in
+//! no gear, while the hold-off counts or the object's `flag_ac` is set. Else the request
+//! gets the pitch and volume from the speed (`revs_sound::fill_pitch_and_volume`, with the
+//! surface's speed gain) and the car's place as it is, and is played. Refuses a null
+//! object, and a kind wanted but null.
 
 use crate::errors::Refused;
-use crate::math::x87_float::{ld, st};
-use crate::session::{Cell32, Dword};
-use crate::sound::sets_store::{SoundRequest, SoundSet};
+use crate::sound::revs_sound::fill_pitch_and_volume;
+use crate::sound::sets_store::SoundRequest;
+use crate::sound::store::{SURFACE_SOUNDS, SoundObject};
 use rc2k_core::sound::engine::{computers, speed_stopped};
-
-// ---- Rust version ----
 
 /// A player's sound by the speed for object `so` of sound kind number `kind`, through
 /// `request`.
-pub fn speed_sound(
-    so: &crate::sound::store::SoundObject,
-    kind: u32,
-    request: &SoundRequest,
-) -> Result<(), Refused> {
-    // Converted: `rc2k_core::sound::engine` (`computers`, `speed_stopped`).
+pub fn speed_sound(so: &SoundObject, kind: u32, request: &SoundRequest) -> Result<(), Refused> {
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
@@ -45,112 +31,69 @@ pub fn speed_sound(
     ) {
         return crate::sound::turn_parts::stop(request);
     }
-    x87_1(so, &set.pitch_scale, &set.pitch_low, &request.pitch);
-    if so.view_flag.get() == 0 {
-        x87_2(
-            so,
-            set,
-            &crate::sound::store::SURFACE_SOUNDS,
-            &request.volume,
-        );
-    } else {
-        x87_1(so, &set.volume_scale, &set.volume_low, &request.volume);
-    }
+    fill_pitch_and_volume(
+        so,
+        set,
+        &so.speed_input,
+        &so.speed_input,
+        &SURFACE_SOUNDS.speed_gain,
+        request,
+    );
     for (cell, place) in request.place.iter().zip(&so.place) {
         cell.set(place.bits());
     }
     crate::sound::turn_parts::placed(request)
 }
 
-// ---- the arithmetic that was x87 assembly ----
-
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `out = ([bx + 0x108] * [bp + o1]) + [bp + o2]` (`out` the request's +4 or +8)
-fn x87_1(bx: &crate::sound::store::SoundObject, slope: &Dword, start: &Dword, out: &impl Cell32) {
-    let t0 = ld(bx.speed_input.bits());
-    let t1 = ld(slope.get());
-    let t2 = t0 * t1;
-    let t3 = ld(start.get());
-    let t4 = t2 + t3;
-    out.set_bits(st(t4));
-}
-
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `volume = (([bx + 0x108] * [bp + 0x24]) + [bp + 0x1C]) * [sf + 0x24]` (the request's +8)
-fn x87_2(
-    bx: &crate::sound::store::SoundObject,
-    bp: &SoundSet,
-    sf: &crate::sound::store::SurfaceSounds,
-    volume: &impl Cell32,
-) {
-    let t0 = ld(bx.speed_input.bits());
-    let t1 = ld(bp.volume_scale.get());
-    let t2 = t0 * t1;
-    let t3 = ld(bp.volume_low.get());
-    let t4 = t2 + t3;
-    let t5 = ld(sf.speed_gain.bits());
-    let t6 = t4 * t5;
-    volume.set_bits(st(t6));
-}
-
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::sound::sets_store::SoundSet;
+
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
-    use crate::scene::x87_mem::HostCell;
+    use crate::scene::x87_mem::view;
 
-    // The original's instructions, one function per run.
-    reference!(ref_0(bx, bp, si) "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x18]", "fadd dword ptr [{bp} + 0x10]", "fstp dword ptr [{si} + 0x4]");
-    reference!(ref_1(bx, bp, sf, si) "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x24]", "fadd dword ptr [{bp} + 0x1C]", "fmul dword ptr [{sf} + 0x24]", "fstp dword ptr [{si} + 0x8]");
-    reference!(ref_2(bx, bp, si) "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x24]", "fadd dword ptr [{bp} + 0x1C]", "fstp dword ptr [{si} + 0x8]");
-
+    // The original's instructions: the pitch, the volume (on the road: times the surface's gain).
+    reference!(ref_off(bx, bp, si) "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x18]", "fadd dword ptr [{bp} + 0x10]", "fstp dword ptr [{si} + 0x4]", "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x24]", "fadd dword ptr [{bp} + 0x1C]", "fstp dword ptr [{si} + 0x8]");
+    reference!(ref_on(bx, bp, sf, si) "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x18]", "fadd dword ptr [{bp} + 0x10]", "fstp dword ptr [{si} + 0x4]", "fld dword ptr [{bx} + 0x108]", "fmul dword ptr [{bp} + 0x24]", "fadd dword ptr [{bp} + 0x1C]", "fmul dword ptr [{sf} + 0x24]", "fstp dword ptr [{si} + 0x8]");
     fn blocks() -> Vec<Block> {
         vec![
             Block {
-                name: "speed_sound line 44",
+                name: "speed_sound, view flag 1",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x108, In::F)],
+                        reads: &[(0xc, In::I), (0x108, In::F)],
                         writes: &[],
                     },
                     Operand::Buffer {
-                        reads: &[(0x10, In::F), (0x18, In::F)],
+                        reads: &[(0x10, In::F), (0x18, In::F), (0x1C, In::F), (0x24, In::F)],
                         writes: &[],
                     },
                     Operand::Buffer {
                         reads: &[],
-                        writes: &[(4, Out::F)],
+                        writes: &[(4, Out::F), (8, Out::F)],
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
+                reference: |a| unsafe { ref_off(a[0], a[1], a[2]) },
                 plain: |a| {
-                    let set = unsafe {
-                        &*(crate::pointers::host_at(a[1])
-                            as *const crate::sound::sets_store::SoundSet)
-                    };
-                    x87_1(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        &set.pitch_scale,
-                        &set.pitch_low,
-                        &HostCell(a[2] + 4),
-                    );
+                    let bx = view::<SoundObject>(a[0], 0);
+                    let set = view::<SoundSet>(a[1], 0);
+                    bx.view_flag.set(1);
+                    let request = view::<SoundRequest>(a[2], 0);
+                    let gain = &&crate::sound::store::SURFACE_SOUNDS.speed_gain;
+                    fill_pitch_and_volume(bx, set, &bx.speed_input, &bx.speed_input, gain, request);
                 },
             },
             Block {
-                name: "speed_sound line 52",
+                name: "speed_sound, view flag 0",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0x108, In::F)],
+                        reads: &[(0xc, In::I), (0x108, In::F)],
                         writes: &[],
                     },
                     Operand::Buffer {
-                        reads: &[(0x1C, In::F), (0x24, In::F)],
+                        reads: &[(0x10, In::F), (0x18, In::F), (0x1C, In::F), (0x24, In::F)],
                         writes: &[],
                     },
                     Operand::Buffer {
@@ -159,61 +102,18 @@ mod asm_reference {
                     },
                     Operand::Buffer {
                         reads: &[],
-                        writes: &[(8, Out::F)],
+                        writes: &[(4, Out::F), (8, Out::F)],
                     },
                 ],
                 ulps: 0,
-                reference: |a| unsafe { ref_1(a[0], a[1], a[2], a[3]) },
+                reference: |a| unsafe { ref_on(a[0], a[1], a[2], a[3]) },
                 plain: |a| {
-                    x87_2(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[1])
-                                as *const crate::sound::sets_store::SoundSet)
-                        },
-                        unsafe {
-                            &*(crate::pointers::host_at(a[2])
-                                as *const crate::sound::store::SurfaceSounds)
-                        },
-                        &HostCell(a[3] + 8),
-                    );
-                },
-            },
-            Block {
-                name: "speed_sound line 61",
-                operands: vec![
-                    Operand::Buffer {
-                        reads: &[(0x108, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Buffer {
-                        reads: &[(0x1C, In::F), (0x24, In::F)],
-                        writes: &[],
-                    },
-                    Operand::Buffer {
-                        reads: &[],
-                        writes: &[(8, Out::F)],
-                    },
-                ],
-                ulps: 0,
-                reference: |a| unsafe { ref_2(a[0], a[1], a[2]) },
-                plain: |a| {
-                    let set = unsafe {
-                        &*(crate::pointers::host_at(a[1])
-                            as *const crate::sound::sets_store::SoundSet)
-                    };
-                    x87_1(
-                        unsafe {
-                            &*(crate::pointers::host_at(a[0])
-                                as *const crate::sound::store::SoundObject)
-                        },
-                        &set.volume_scale,
-                        &set.volume_low,
-                        &HostCell(a[2] + 8),
-                    );
+                    let bx = view::<SoundObject>(a[0], 0);
+                    let set = view::<SoundSet>(a[1], 0);
+                    bx.view_flag.set(0);
+                    let request = view::<SoundRequest>(a[3], 0);
+                    let gain = &view::<crate::sound::store::SurfaceSounds>(a[2], 0).speed_gain;
+                    fill_pitch_and_volume(bx, set, &bx.speed_input, &bx.speed_input, gain, request);
                 },
             },
         ]

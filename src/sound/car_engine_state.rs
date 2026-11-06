@@ -3,52 +3,27 @@
 //! the engine sounds, the engine's state, the gear-change and back-fire cues, the
 //! listener's distance and the Doppler-like factors.
 //!
-//! In:  ebx the object
-//! Out: edi the object's sound kind (`off_514F90[+4]`, 0x88 bytes each), eax its +0x134
-//!      (the new distance), ecx +0x18 (or the back-fire's wait), edx as it came or the
-//!      remainder of the revs' `idiv`; ebx, esi, ebp preserved
-//! The object's dwords by offset (a reading of the code, names by use):
-//! - +0x10 1: a new revs reading (+0x14) came: +0x94/+0x98 the last two readings' times
-//!   (`dword_5124E8`), +0x9C/+0xA0 their revs, +0x10 cleared. Else, unless
-//!   `dword_5BEC94` is 1, +0x14 = the revs extrapolated (`imul` / `idiv` over the
-//!   readings' gap held to 1000 ms), at least 1000.
-//! - +0x100 = (+0x14 - kind +4) x kind +0xC; +0x104 = +0x18 as a float over 256 (the
-//!   exponent less 8 unless it is 0); +0x108 = |+0x1C| x `flt_516370`.
-//! - +0x110 = the last state, +0x10C = 0 (no revs), 1 (up to 1000), 2, or 3 when +0x20
-//!   was set (cleared).
-//! - +0x118 follows +0x18 (up: by (0x100 - it) >> 6 and one more, down: by it >> 7 and
-//!   one more, never past), +0x11C the gap, +0x12C 0 / 1 up / 2 down, +0x128 / +0x130
-//!   the turns going up / down (at 1 made 2 when level).
-//! - +0xFC the last direction; up then down (or the reverse: the two add to 3): +0xF4
-//!   += 5. +0xE8 (the gear) changed: +0xEC = it, +0xF4 += 7, and with kind bit 0x2000, a
-//!   gear over 1 and +0x11C at least 0x32: +0x1FC and +0xF0 1, +0x210 = (clock & 0xF) x
-//!   1/60 + 0.75 (through `dword_5183CC`). +0x24 = (eax is 0): the gear 0, or (in that
-//!   last case) the clock's low four bits 0.
-//! - Kind bit 0x1000 (back-fires): going up clears +0x1E0, +0x1E4, +0x1F4, +0x1EC; else
-//!   with +0x118 at most 0xF0, +0x1F4 counts down and below 0 is set to (clock & 3) +
-//!   (max(+0x14 - 2000, 0) >> 9) + 1, +0x1E0 1 and +0x1EC += 8 held to 0x20. Then going
-//!   up clears +0xF8; else unless +0xF8 is 1, going down by more than 20: with +0x14 at
-//!   least 4000 +0x1C4 = kind +0 & 0xFFF and +0x1C8 1 (the slot of
-//!   `sound::play_timed_slot`), and +0xF8 1.
-//! - +0xF4 counts down to 0. +0x134 the distance (the root of +0x2C .. +0x34 squared),
-//!   +0x138 its change x the turns a second, +0x13C eased toward (+0x138 + 337.52) x
-//!   0.00296, +0x140 = 1, or 1 / the distance when that is over 1 (compared as integers).
+//! Per turn it:
+//! - takes a new revs reading in (the last two readings' times and revs kept), or else
+//!   extrapolates the revs between readings (at least 1000), unless the replay holds them;
+//! - works out the engine sounds' inputs: revs, throttle (over 256) and speed;
+//! - steps the engine's state (no revs, up to 1000, running, cut), the smoothed throttle
+//!   and its direction and turns, the gear-change cue and the back-fire cues (the logic
+//!   is `rc2k_core::sound::engine`);
+//! - works out the listener's distance, how fast it changes, and the Doppler-like pitch
+//!   and volume factors.
 //!
-//! One caller, `sound::car_sounds`.
+//! Returns the object's sound kind number. One caller, `sound::car_sounds`.
 //! Refuses (before writing) a kind past the 36 of the table and a revs extrapolation
 //! whose quotient does not fit (the original's `idiv` traps).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::math::x87_float::{X, int, ld, st};
-
-use crate::scene::x87_mem::{Base, fild, fld, mov};
 use crate::session::MACHINE;
 use crate::sound::sets_store::KindRecord;
-use rc2k_core::sound::engine::{Engine, Left, extrapolation, over_256, readings, state};
+use crate::sound::store::{RACE_CLOCK, RaceClock, SURFACE_SOUNDS, SoundObject, SurfaceSounds};
+use rc2k_core::sound::engine::{Engine, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
 /// The kind of object `o` (its +4, a number into the kinds' table), or a refusal.
@@ -169,148 +144,97 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     let mut object = before;
     let clock = crate::sound::store::RACE_CLOCK.last.get();
     // The revs extrapolated, worked out first: its `idiv` may trap.
-    let revs = extrapolation(&object, clock, || {
+    let change = extrapolation(&object, clock, || {
         crate::race::replay_file_store::REPLAY_FILE
             .hold_car_revs
             .get()
     })
     .map_err(BadInput::from)?;
-    // The registers the core models (written before they are read).
-    let mut left = Left::default();
-    readings(
-        &mut object,
-        clock,
-        revs,
-        || {
-            crate::race::replay_file_store::REPLAY_FILE
-                .hold_car_revs
-                .get()
-        },
-        &mut left,
-    );
+    readings(&mut object, clock, change);
     store(so, &before, &object);
-    x87_1(so, record);
+    revs_input(so, record);
     so.throttle_input
         .set_bits(over_256(from_int(so.throttle.get() as i32)));
-    x87_2(so, &crate::sound::store::SURFACE_SOUNDS);
+    speed_input(so, &SURFACE_SOUNDS);
     let before = load(so);
     let mut object = before;
-    let low = state(&mut object, || record.flags.get(), clock, &mut left);
+    let low = state(&mut object, || record.flags.get(), clock);
     store(so, &before, &object);
     if let Some(low) = low {
-        MACHINE.scratch.set(low);
-        x87_3(&MACHINE.scratch, so);
+        gear_pitch(so, low);
     }
-    x87_4(so, &crate::sound::store::RACE_CLOCK);
+    distance_and_approach(so, &RACE_CLOCK);
     so.volume_factor.set_bits(0);
-    x87_5(
-        so,
-        &crate::sound::store::RACE_CLOCK,
-        &crate::sound::store::SURFACE_SOUNDS,
-    );
+    ease_pitch_factor(so, &RACE_CLOCK, &SURFACE_SOUNDS);
     so.volume_factor.set_bits(0x3F80_0000);
     if so.distance.bits() as i32 > 0x3F80_0000 {
-        x87_6(so);
+        volume_factor_by_distance(so);
     }
     Ok(kind)
 }
 
-// ---- the arithmetic that was x87 assembly ----
+// ---- the float arithmetic, step by step as the x87 rounds it ----
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[bx + 0x100] = (int [bx + 0x14] - [di + 4]) * [di + 0xC]`
-fn x87_1(bx: &crate::sound::store::SoundObject, di: &KindRecord) {
-    let t0 = int(bx.revs.get() as i32);
-    let t1 = ld(di.revs_low.get());
-    let t2 = t0 - t1;
-    let t3 = ld(di.revs_scale.get());
-    let t4 = t2 * t3;
-    bx.revs_input.set_bits(st(t4));
+/// The revs input of the engine sounds: `(revs - kind.revs_low) * kind.revs_scale`.
+fn revs_input(so: &SoundObject, kind: &KindRecord) {
+    let revs = int(so.revs.get() as i32);
+    let above_low = revs - ld(kind.revs_low.get());
+    so.revs_input
+        .set_bits(st(above_low * ld(kind.revs_scale.get())));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[bx + 0x108] = |[bx + 0x1C]| * [sf + 0x18]`
-fn x87_2(bx: &crate::sound::store::SoundObject, sf: &crate::sound::store::SurfaceSounds) {
-    let t0 = ld(bx.speed.bits());
-    let t1 = t0.abs();
-    let t2 = ld(sf.speed_scale.bits());
-    let t3 = t1 * t2;
-    bx.speed_input.set_bits(st(t3));
+/// The speed input: `|speed| * surface.speed_scale`.
+fn speed_input(so: &SoundObject, surface: &SurfaceSounds) {
+    let speed = ld(so.speed.bits()).abs();
+    so.speed_input
+        .set_bits(st(speed * ld(surface.speed_scale.bits())));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `int [t + 0] = 0x3C888889`
-/// `int [t + 0] = 0x3F400000`
-/// `[bx + 0x210] = (int [t + 0] * [t + 0]) + [t + 0]`
-fn x87_3(t: impl Base, bx: &crate::sound::store::SoundObject) {
-    let t0 = fild(t, 0);
-    mov(t, 0, 0x3C888889);
-    let t1 = fld(t, 0);
-    let t2 = t0 * t1;
-    mov(t, 0, 0x3F400000);
-    let t3 = fld(t, 0);
-    let t4 = t2 + t3;
-    bx.gear_pitch.set_bits(st(t4));
+/// The gear-change cue's pitch from the clock's low four bits `low`: `low / 60 + 0.75`
+/// (the factors as the game's float constants). The original worked in the machine's
+/// scratch dword and left 0.75 there.
+fn gear_pitch(so: &SoundObject, low: u32) {
+    MACHINE.scratch.set(low);
+    let bits = gear_pitch_bits(low);
+    MACHINE.scratch.set(GEAR_PITCH_BASE);
+    so.gear_pitch.set_bits(bits);
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[bx + 0x134] = sqrt((([bx + 0x2C] * [bx + 0x2C]) + (([bx + 0x30] * [bx + 0x30]) + ([bx + 0x34] * [bx + 0x34]))))`
-/// `[bx + 0x138] = ([bx + 0x134] - sqrt((([bx + 0x2C] * [bx + 0x2C]) + (([bx + 0x30] * [bx + 0x30]) + ([bx + 0x34] * [bx + 0x34]))))) * turns_a_second`
-fn x87_4(bx: &crate::sound::store::SoundObject, ck: &crate::sound::store::RaceClock) {
-    let t0 = ld(bx.distance.bits());
-    let t1 = ld(bx.place[0].bits());
-    let t2 = ld(bx.place[0].bits());
-    let t3 = t1 * t2;
-    let t4 = ld(bx.place[1].bits());
-    let t5 = ld(bx.place[1].bits());
-    let t6 = t4 * t5;
-    let t7 = ld(bx.place[2].bits());
-    let t8 = ld(bx.place[2].bits());
-    let t9 = t7 * t8;
-    let t10 = t6 + t9;
-    let t11 = t3 + t10;
-    let t12 = t11.sqrt();
-    bx.distance.set_bits(st(t12));
-    let t13 = t0 - t12;
-    let t14 = ld(ck.turns_a_second.bits());
-    let t15 = t13 * t14;
-    bx.approach.set_bits(st(t15));
+/// The pitch's bits: `low * (1 / 60) + 0.75`, rounded to a float.
+fn gear_pitch_bits(low: u32) -> u32 {
+    st(int(low as i32) * ld(GEAR_PITCH_PER_STEP) + ld(GEAR_PITCH_BASE))
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[bx + 0x13C] = (((([bx + 0x138] + sound_speed) * over_sound_speed) - [bx + 0x13C]) * [sf + 8]) + [bx + 0x13C]`
-fn x87_5(
-    bx: &crate::sound::store::SoundObject,
-    ck: &crate::sound::store::RaceClock,
-    sf: &crate::sound::store::SurfaceSounds,
-) {
-    let t0 = ld(bx.approach.bits());
-    let t1 = ld(ck.sound_speed.bits());
-    let t2 = t0 + t1;
-    let t3 = ld(ck.over_sound_speed.bits());
-    let t4 = t2 * t3;
-    let t5 = ld(bx.pitch_factor.bits());
-    let t6 = t4 - t5;
-    let t7 = ld(sf.pitch_blend.bits());
-    let t8 = t6 * t7;
-    let t9 = ld(bx.pitch_factor.bits());
-    let t10 = t8 + t9;
-    bx.pitch_factor.set_bits(st(t10));
+/// 1 / 60 as a float.
+const GEAR_PITCH_PER_STEP: u32 = 0x3C88_8889;
+/// 0.75 as a float.
+const GEAR_PITCH_BASE: u32 = 0x3F40_0000;
+
+/// The distance to the listener (the root of the place's squares) and how fast it
+/// changes (`approach = (old - new distance) * turns a second`).
+fn distance_and_approach(so: &SoundObject, clock: &RaceClock) {
+    let old = ld(so.distance.bits());
+    let [x, y, z] = [0, 1, 2].map(|n| ld(so.place[n].bits()));
+    let distance = (x * x + (y * y + z * z)).sqrt();
+    so.distance.set_bits(st(distance));
+    so.approach
+        .set_bits(st((old - distance) * ld(clock.turns_a_second.bits())));
 }
 
-/// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
-/// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
-/// `[bx + 0x140] = 1 / [bx + 0x134]`
-fn x87_6(bx: &crate::sound::store::SoundObject) {
-    let t0 = X(1.0);
-    let t1 = ld(bx.distance.bits());
-    let t2 = t0 / t1;
-    bx.volume_factor.set_bits(st(t2));
+/// The pitch factor eased toward `(approach + sound speed) * (1 / sound speed)`:
+/// `((target - factor) * blend) + factor`.
+fn ease_pitch_factor(so: &SoundObject, clock: &RaceClock, surface: &SurfaceSounds) {
+    let target =
+        (ld(so.approach.bits()) + ld(clock.sound_speed.bits())) * ld(clock.over_sound_speed.bits());
+    let factor = ld(so.pitch_factor.bits());
+    let eased = (target - factor) * ld(surface.pitch_blend.bits()) + factor;
+    so.pitch_factor.set_bits(st(eased));
+}
+
+/// The volume factor for a far car: `1 / distance`.
+fn volume_factor_by_distance(so: &SoundObject) {
+    so.volume_factor
+        .set_bits(st(X(1.0) / ld(so.distance.bits())));
 }
 
 #[cfg(test)]
@@ -368,6 +292,8 @@ mod tests {
 mod asm_reference {
     use super::*;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::x87_mem::HostCell;
+    use crate::session::Cell32;
 
     // The original's instructions, one function per run.
     reference!(ref_0(bx, di) "fild dword ptr [{bx} + 0x14]", "fsub dword ptr [{di} + 0x4]", "fmul dword ptr [{di} + 0xC]", "fstp dword ptr [{bx} + 0x100]");
@@ -380,7 +306,7 @@ mod asm_reference {
     fn blocks() -> Vec<Block> {
         vec![
             Block {
-                name: "car_engine_state line 100",
+                name: "revs_input",
                 operands: vec![
                     Operand::Buffer {
                         reads: &[(0x14, In::I)],
@@ -394,7 +320,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
                 plain: |a| {
-                    x87_1(
+                    revs_input(
                         unsafe {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
@@ -407,7 +333,7 @@ mod asm_reference {
                 },
             },
             Block {
-                name: "car_engine_state line 108",
+                name: "speed_input",
                 operands: vec![
                     Operand::Buffer {
                         reads: &[(0x1C, In::F)],
@@ -421,7 +347,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
-                    x87_2(
+                    speed_input(
                         unsafe {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
@@ -434,11 +360,11 @@ mod asm_reference {
                 },
             },
             Block {
-                name: "car_engine_state line 118",
+                name: "gear_pitch_bits",
                 operands: vec![
                     Operand::Buffer {
-                        reads: &[(0, In::F)],
-                        writes: &[(0, Out::I)],
+                        reads: &[(0, In::I)],
+                        writes: &[],
                     },
                     Operand::Buffer {
                         reads: &[],
@@ -448,14 +374,12 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
                 plain: |a| {
-                    x87_3(a[0], unsafe {
-                        &*(crate::pointers::host_at(a[1])
-                            as *const crate::sound::store::SoundObject)
-                    });
+                    let low = HostCell(a[0]).bits();
+                    HostCell(a[1] + 0x210).set_bits(gear_pitch_bits(low));
                 },
             },
             Block {
-                name: "car_engine_state line 128",
+                name: "distance_and_approach",
                 operands: vec![
                     Operand::Buffer {
                         reads: &[(0x2C, In::F), (0x30, In::F), (0x34, In::F), (0x134, In::F)],
@@ -469,7 +393,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
                 plain: |a| {
-                    x87_4(
+                    distance_and_approach(
                         unsafe {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
@@ -482,7 +406,7 @@ mod asm_reference {
                 },
             },
             Block {
-                name: "car_engine_state line 146",
+                name: "ease_pitch_factor",
                 operands: vec![
                     Operand::Buffer {
                         reads: &[(0x138, In::F), (0x13C, In::F)],
@@ -500,7 +424,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1], a[2]) },
                 plain: |a| {
-                    x87_5(
+                    ease_pitch_factor(
                         unsafe {
                             &*(crate::pointers::host_at(a[0])
                                 as *const crate::sound::store::SoundObject)
@@ -517,7 +441,7 @@ mod asm_reference {
                 },
             },
             Block {
-                name: "car_engine_state line 158",
+                name: "volume_factor_by_distance",
                 operands: vec![Operand::Buffer {
                     reads: &[(0x134, In::F)],
                     writes: &[(0x140, Out::F)],
@@ -525,7 +449,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0]) },
                 plain: |a| {
-                    x87_6(unsafe {
+                    volume_factor_by_distance(unsafe {
                         &*(crate::pointers::host_at(a[0])
                             as *const crate::sound::store::SoundObject)
                     });

@@ -8,29 +8,17 @@
 //! record's +0x104 and then from its +0x1A0 (`parts_wear[9]`); only the second stays, so the
 //! record's +0x104 (`damage[12]`) has no field to go to.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
-//! Caller: `net::start_link`.
+//! Called by `net::start_link`.
 
 use crate::menu::players_store::PLAYER_TABLE;
 use crate::race::state_store::{RACE_STATE, RaceState};
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
-/// The Rust version: the registers it leaves (the entry's).
+/// Player 1's record into the network game's settings, its entry marked as taking part.
 pub fn take_player_settings() {
     let player = &PLAYER_TABLE.players[0];
     player.update(|p| p.entry = TAKES_PART);
     copy_player_settings(&player.get(), &RACE_STATE);
-}
-
-/// A dword of the record's bytes, `at` the first.
-fn controls_word(controls: &[u8; 0x2C], at: usize) -> u32 {
-    u32::from_le_bytes([
-        controls[at],
-        controls[at + 1],
-        controls[at + 2],
-        controls[at + 3],
-    ])
 }
 
 /// The record's fields into the state's settings and results.
@@ -76,10 +64,10 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
     car.dead_zone_2.set(p.dead_zone_2);
     car.strength.set(p.strength);
     for (n, cell) in car.controls_50.iter().enumerate() {
-        cell.set(controls_word(&p.bindings, 4 * n));
+        cell.set(p.binding(n));
     }
-    car.controls_74.set(controls_word(&p.bindings, 0x24));
-    car.controls_78.set(controls_word(&p.bindings, 0x28));
+    car.controls_74.set(p.binding(9));
+    car.controls_78.set(p.binding(10));
     for (n, b) in p.keys.iter().enumerate() {
         car.keys.set(n, *b);
     }

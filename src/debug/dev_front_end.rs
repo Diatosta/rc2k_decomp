@@ -122,28 +122,28 @@ fn round_a_race(f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> 
     for (cell, v) in menus {
         cell.set(v);
     }
-    use crate::race::single_rally::step;
+    use crate::race::single_rally::{Call, step};
     use crate::race::{race_end, race_shell, stage_free};
-    step(2)?; // sound::stop_music
-    step(3)?; // race::set_race_screen_mode
-    step(4)?; // menu::show_loading_picture
-    step(5)?; // race::set_up_race_sound_objects
-    step(6)?; // sound::set_up_race_sounds
+    step(Call::StopMusic)?;
+    step(Call::SetRaceScreenMode)?;
+    step(Call::ShowLoadingPicture)?;
+    step(Call::SetUpRaceSoundObjects)?;
+    step(Call::SetUpRaceSounds)?;
     stage_free::render3d_tidy()?;
     stage_free::objects_tidy()?;
     race_end::release_textures();
     FRAME_SWITCHES.mask_kind.set(0);
     race_shell::clear_player_absences();
     f()?;
-    step(2)?; // sound::stop_music
-    step(8)?; // gfx::set_menu_screen_mode
-    step(4)?; // menu::show_loading_picture
-    step(9)?; // race::clear_race_sound_objects
-    step(10)?; // sound::apply_settings
-    step(11)?; // scene::set_up_engine
-    step(12)?; // scene::set_up_front_end_scene
-    step(11)?;
-    step(13)?; // input::take_key
+    step(Call::StopMusic)?;
+    step(Call::SetMenuScreenMode)?;
+    step(Call::ShowLoadingPicture)?;
+    step(Call::ClearRaceSoundObjects)?;
+    step(Call::ApplySettings)?;
+    step(Call::SetUpEngine)?;
+    step(Call::SetUpFrontEndScene)?;
+    step(Call::SetUpEngine)?;
+    step(Call::TakeKey)?;
     for ((cell, _), v) in menus.into_iter().zip(kept) {
         cell.set(v);
     }

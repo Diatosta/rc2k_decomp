@@ -88,16 +88,16 @@ pub struct RaceCar {
     pub strength: Dword,
     /// The record's +0x4C: not taken.
     pub _gap_4c: Dword,
-    /// `Player.controls_50` bytes 0x00 .. 0x24 (record +0x50 .. +0x74), one word each.
+    /// `Player.bindings` words 0 .. 9 (record +0x50 .. +0x74).
     pub controls_50: [Dword; 9],
     /// The word after them: not copied from the player's record by `race::single_rally` or
     /// `net::take_player_settings` (the record's +0x74 goes to `controls_74`); yet
     /// `input::set_up_device` reads it as the control word of the ninth binding (key byte
     /// 0x5C, controls word 0x48), as the original.
     pub unset_control: Dword,
-    /// `Player.controls_50` bytes 0x24 .. 0x28 (record +0x74).
+    /// `Player.bindings` word 9 (record +0x74).
     pub controls_74: Dword,
-    /// `Player.controls_50` bytes 0x28 .. 0x2C (record +0x78).
+    /// `Player.bindings` word 10 (record +0x78).
     pub controls_78: Dword,
     /// `Player.keys` (+0x1C .. +0x27): the 12 bytes of the controls.
     pub keys: Bytes<12>,

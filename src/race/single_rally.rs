@@ -4,19 +4,11 @@
 //! (`race::race_from_menu`, with the sound objects and the screen modes round it), and the
 //! results copied back into the players' records.
 //!
-//! Plain Rust, written from the original's 902 instructions: copies between a record and
-//! the game's variables (lists of (offset, variable) in the original's order), compares and
-//! jumps (now `if`s and one `while`), the calls (`step`, by place: the index of the
-//! original's call in `table::CALLS` plus one), `rep movsb` (`ptr::copy`), two divisions by
-//! 10 and one `fld` / `fistp`. The original's registers carry no value from one part to
-//! the next (each `pusha` .. `popa` restores them, and what the calls leave in eax, ebx,
-//! ecx, edx and al is overwritten before it is read), so there are none here.
-//!
-//! The proof is the test at the end of the file: the original's instruction table (`table`,
-//! `cfg(test)` only, with its small interpreter) and this code run on the same synthetic
-//! game memory and players' records, with calls that record themselves instead of running;
-//! the memory they leave, the calls (with the memory at each of them) and the result are
-//! compared.
+//! Plain Rust: copies between a record and the game's variables, the calls (`Call`, done
+//! by `step`), the track search as a loop, two divisions by 10 and one float-to-integer
+//! conversion. It was checked against an interpreter of the original's instructions on
+//! synthetic memory and players, with calls that record themselves (`table` and the test at the
+//! end of the file, `cfg(test)` only).
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::arcade_store::ARCADE_GAME;
@@ -304,7 +296,7 @@ pub fn single_rally_race(start: u32, kind: u32) -> Result<(), Refused> {
 fn guarded(
     start: u32,
     kind: u32,
-    step: &mut dyn FnMut(u32) -> Result<(), Refused>,
+    step: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     player(1)?;
     player(CURRENT.get())?;
@@ -312,9 +304,9 @@ fn guarded(
 }
 
 /// The last calls of the original (from 0x897 of the table): the kept word back, the tune.
-fn finish(step: &mut dyn FnMut(u32) -> Result<(), Refused>) -> Result<(), Refused> {
+fn finish(step: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Result<(), Refused> {
     KEPT.set(RACE_KEPT.get());
-    step(14) // sound::play_tune_3
+    step(Call::PlayTune3)
 }
 
 /// The debug UI's test races: the players' records into the race's settings as a race does
@@ -333,11 +325,11 @@ pub fn player_settings_in() -> Result<(), Refused> {
     Ok(())
 }
 
-/// The original's body; `step(place)` does the call at `place`.
+/// The original's body; `step(call)` does the call `call`.
 fn single_rally(
     start: u32,
     kind: u32,
-    step: &mut dyn FnMut(u32) -> Result<(), Refused>,
+    step: &mut dyn FnMut(Call) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     // Closed on a menu whose item leads here (a window's close, MENU + START): the screen is
     // left as if chosen, with no stage yet. Not the original's, whose close stopped nothing.
@@ -345,7 +337,7 @@ fn single_rally(
         crate::standalone::leave_on_close();
     }
     if kind == 3 {
-        step(1)?; // race::copy_rally_times
+        step(Call::CopyRallyTimes)?;
     }
     RACE_INFO.set(SUMMARY.get());
     SWITCH.set(start);
@@ -354,9 +346,9 @@ fn single_rally(
     RESULT_2.set(0);
     RACE_KEPT.set(0);
     RACE_MODE.set(1);
-    step(2)?; // sound::stop_music
-    step(3)?; // race::set_race_screen_mode
-    step(4)?; // menu::show_loading_picture
+    step(Call::StopMusic)?;
+    step(Call::SetRaceScreenMode)?;
+    step(Call::ShowLoadingPicture)?;
     MARKS_SETTINGS.after_loading_copy.set(AFTER_LOADING.get());
 
     // The stage's entry in the track list: the tracks, then the pack's closing -1.
@@ -424,16 +416,16 @@ fn single_rally(
     if !one_car && PLAYER_COUNT.get() != 1 {
         NO_REPLAY.set(1);
     }
-    step(5)?; // race::set_up_race_sound_objects
-    step(6)?; // sound::set_up_race_sounds
-    step(7)?; // race::race_from_menu
-    step(2)?; // sound::stop_music
-    step(8)?; // gfx::set_menu_screen_mode
+    step(Call::SetUpRaceSoundObjects)?;
+    step(Call::SetUpRaceSounds)?;
+    step(Call::RaceFromMenu)?;
+    step(Call::StopMusic)?;
+    step(Call::SetMenuScreenMode)?;
     if SWITCH.get() != 1 {
-        step(4)?; // menu::show_loading_picture
+        step(Call::ShowLoadingPicture)?;
     }
-    step(9)?; // race::clear_race_sound_objects
-    step(10)?; // sound::apply_settings
+    step(Call::ClearRaceSoundObjects)?;
+    step(Call::ApplySettings)?;
 
     // The outcome back into the records.
     if one_car {
@@ -449,41 +441,75 @@ fn single_rally(
     });
 
     if SWITCH.get() != 1 {
-        step(11)?; // scene::set_up_engine
-        step(12)?; // scene::set_up_front_end_scene
-        step(11)?;
+        step(Call::SetUpEngine)?;
+        step(Call::SetUpFrontEndScene)?;
+        step(Call::SetUpEngine)?;
     }
-    step(13)?; // input::take_key
+    step(Call::TakeKey)?;
     finish(step)
 }
 
-/// The original's call at `place` (its index in `table::CALLS` plus one). The registers the
-/// original's calls leave (eax from `show_loading_picture`, eax .. edx from `set_up_engine`,
-/// al from `take_key`) are never read.
-pub fn step(place: u32) -> Result<(), Refused> {
-    match place {
-        1 => crate::race::rally::copy_rally_times()?,
-        2 => crate::sound::stop_music::stop_music(),
-        3 => crate::race::race_shell::set_race_screen_mode(),
-        4 => {
+/// The calls into the rest of the game that the race makes, in the order they are numbered
+/// in the tests' record of them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Call {
+    /// `race::copy_rally_times`.
+    CopyRallyTimes = 1,
+    /// `sound::stop_music`.
+    StopMusic,
+    /// `race::set_race_screen_mode`.
+    SetRaceScreenMode,
+    /// `menu::show_loading_picture`.
+    ShowLoadingPicture,
+    /// `race::set_up_race_sound_objects`.
+    SetUpRaceSoundObjects,
+    /// `sound::set_up_race_sounds`.
+    SetUpRaceSounds,
+    /// `race::race_from_menu`.
+    RaceFromMenu,
+    /// `gfx::set_menu_screen_mode`.
+    SetMenuScreenMode,
+    /// `race::clear_race_sound_objects`.
+    ClearRaceSoundObjects,
+    /// `sound::apply_settings`.
+    ApplySettings,
+    /// `scene::set_up_engine`.
+    SetUpEngine,
+    /// `scene::set_up_front_end_scene`.
+    SetUpFrontEndScene,
+    /// `input::take_key`.
+    TakeKey,
+    /// `sound::play_tune_3`.
+    PlayTune3,
+}
+
+/// Does one of the race's calls. What the original's calls leave in registers is never read.
+pub fn step(call: Call) -> Result<(), Refused> {
+    match call {
+        Call::CopyRallyTimes => crate::race::rally::copy_rally_times()?,
+        Call::StopMusic => crate::sound::stop_music::stop_music(),
+        Call::SetRaceScreenMode => crate::race::race_shell::set_race_screen_mode(),
+        Call::ShowLoadingPicture => {
             crate::menu::show_loading_picture::show_loading_picture()?;
         }
-        5 => crate::race::sound_tables::set_up_race_sound_objects(
+        Call::SetUpRaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
             &crate::race::sound_tables::ObjectVars::game(),
         )?,
-        6 => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
-        7 => crate::race::race_end::race_from_menu()?,
-        8 => {
+        Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
+        Call::RaceFromMenu => crate::race::race_end::race_from_menu()?,
+        Call::SetMenuScreenMode => {
             crate::platform::set_menu_mode_now();
         }
-        9 => crate::race::sound_tables::clear_race_sound_objects()?,
-        10 => crate::sound::apply_settings::apply_settings()?,
-        11 => crate::scene::set_up_engine::set_up_engine()?,
-        12 => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,
-        13 => {
+        Call::ClearRaceSoundObjects => crate::race::sound_tables::clear_race_sound_objects()?,
+        Call::ApplySettings => crate::sound::apply_settings::apply_settings()?,
+        Call::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
+        Call::SetUpFrontEndScene => {
+            crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
+        }
+        Call::TakeKey => {
             crate::input::take_key::take_key();
         }
-        _ => crate::sound::play_tune_3::play_tune_3(),
+        Call::PlayTune3 => crate::sound::play_tune_3::play_tune_3(),
     }
     Ok(())
 }
@@ -1987,7 +2013,7 @@ mod tests {
             log: Vec::new(),
             rng: Rng(c.seed ^ 0x55AA),
         };
-        let result = guarded(c.start, c.kind, &mut |place| calls.call(place));
+        let result = guarded(c.start, c.kind, &mut |call| calls.call(call as u32));
         after(w, result, calls.log)
     }
 
