@@ -2,7 +2,7 @@
 //! when each field is, and no byte lies outside its fields. Both are checked at compile time,
 //! so the promise the trait asks for rests on the primitive cells alone. The derived
 //! `cell_run` finds a byte's field by its offset and asks the field's type, down to a run of
-//! primitive cells.
+//! primitive cells. The derived `copy_from` copies field by field, in the fields' order.
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -69,6 +69,10 @@ pub fn derive_cells(input: TokenStream) -> TokenStream {
         };
         // SAFETY: every field is `Cells` and no byte lies outside them (checked above).
         unsafe impl #with crate::pointers::Cells for #name #of #clause {
+            fn copy_from(&self, other: &Self) {
+                #( crate::pointers::Cells::copy_from(&self.#names, &other.#names); )*
+            }
+
             fn cell_run(&self, offset: usize) -> (usize, crate::pointers::CellRun<'_>) {
                 #starts
                 let field = starts.partition_point(|&start| start <= offset).wrapping_sub(1);

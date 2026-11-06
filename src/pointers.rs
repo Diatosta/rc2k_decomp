@@ -25,7 +25,7 @@ use crate::errors::BadInput;
 use crate::framework::log;
 use std::collections::BTreeMap;
 use std::sync::RwLock;
-use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32};
+use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, Ordering::Relaxed};
 
 pub mod pool;
 
@@ -731,6 +731,16 @@ pub unsafe trait Cells {
     {
         None
     }
+
+    /// Every cell of this record set from the same cell of `other`, upwards (a float by its
+    /// bits): a copy between two records of one type with no run walked. Records derive it
+    /// field by field; this default walks the runs (`copy_cells`).
+    fn copy_from(&self, other: &Self)
+    where
+        Self: Sized,
+    {
+        copy_cells((other, 0), (self, 0), size_of::<Self>());
+    }
 }
 
 /// `len` bytes copied from byte `from.1` of one record of cells to byte `to.1` of another
@@ -904,6 +914,10 @@ unsafe impl<const N: usize> Cells for crate::menu::draw_lists_store::DrawList<N>
 }
 // SAFETY: one `AtomicU32`.
 unsafe impl Cells for crate::session::Dword {
+    fn copy_from(&self, other: &Self) {
+        self.atomic().store(other.atomic().load(Relaxed), Relaxed);
+    }
+
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Dword(std::slice::from_ref(self)))
     }
@@ -914,6 +928,10 @@ unsafe impl Cells for crate::session::Dword {
 }
 // SAFETY: one `AtomicU32`.
 unsafe impl Cells for crate::session::Float {
+    fn copy_from(&self, other: &Self) {
+        self.atomic().store(other.atomic().load(Relaxed), Relaxed);
+    }
+
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Float(std::slice::from_ref(self)))
     }
@@ -924,6 +942,10 @@ unsafe impl Cells for crate::session::Float {
 }
 // SAFETY: one `AtomicU16`.
 unsafe impl Cells for crate::session::Word {
+    fn copy_from(&self, other: &Self) {
+        self.atomic().store(other.atomic().load(Relaxed), Relaxed);
+    }
+
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Word(std::slice::from_ref(self)))
     }
@@ -934,6 +956,10 @@ unsafe impl Cells for crate::session::Word {
 }
 // SAFETY: one `AtomicU8`.
 unsafe impl Cells for crate::session::Byte {
+    fn copy_from(&self, other: &Self) {
+        self.atomic().store(other.atomic().load(Relaxed), Relaxed);
+    }
+
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Byte(std::slice::from_ref(self)))
     }
@@ -944,6 +970,12 @@ unsafe impl Cells for crate::session::Byte {
 }
 // SAFETY: an `UnsafeCell` over plain bytes, all of it one run.
 unsafe impl<const N: usize> Cells for crate::session::Bytes<N> {
+    fn copy_from(&self, other: &Self) {
+        for (to, from) in self.atomics().iter().zip(other.atomics()) {
+            to.store(from.load(Relaxed), Relaxed);
+        }
+    }
+
     fn cell_run(&self, _: usize) -> (usize, CellRun<'_>) {
         (0, CellRun::Bytes(self.atomics()))
     }
@@ -964,6 +996,12 @@ unsafe impl Cells for crate::session::Loose {
 }
 // SAFETY: `N` of a type of cells, one after another.
 unsafe impl<T: Cells, const N: usize> Cells for [T; N] {
+    fn copy_from(&self, other: &Self) {
+        for (to, from) in self.iter().zip(other) {
+            to.copy_from(from);
+        }
+    }
+
     fn cell_run(&self, offset: usize) -> (usize, CellRun<'_>) {
         if let Some(run) = T::slice_run(self.as_slice()) {
             return (0, run);

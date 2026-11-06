@@ -21,5 +21,49 @@ pub fn current_block() -> Result<&'static Car, Refused> {
 /// Copies `CAR_LEN` bytes, dword by dword upwards as `rep movsd` does (the two never
 /// overlap in the game; the order is kept anyway).
 pub fn copy_car(from: &Car, to: &Car) {
-    crate::pointers::copy_cells((from, 0), (to, 0), CAR_LEN);
+    use crate::pointers::Cells;
+    to.copy_from(from);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pointers::{Cells, cells_of_bytes};
+
+    /// A record's bytes, read through its runs.
+    fn bytes(car: &Car) -> Vec<u8> {
+        let mut out = vec![0; CAR_LEN];
+        let mut at = 0;
+        while at < CAR_LEN {
+            let (start, run) = car.cell_run(at);
+            let n = (run.len() - (at - start)).min(CAR_LEN - at);
+            run.load(at - start, &mut out[at..at + n]);
+            at += n;
+        }
+        out
+    }
+
+    #[test]
+    fn the_typed_copy_writes_what_the_walked_copy_writes() {
+        let mut seed = 0x1234_5678u32;
+        let mut random = || {
+            let mut b = [0u8; CAR_LEN];
+            for x in &mut b {
+                seed = seed.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+                *x = (seed >> 16) as u8;
+            }
+            b
+        };
+        for _ in 0..20 {
+            let from: Box<Car> = Box::new(cells_of_bytes(random()));
+            let (walked, typed): (Box<Car>, Box<Car>) = (
+                Box::new(cells_of_bytes(random())),
+                Box::new(cells_of_bytes(random())),
+            );
+            crate::pointers::copy_cells((&*from, 0), (&*walked, 0), CAR_LEN);
+            copy_car(&from, &typed);
+            assert_eq!(bytes(&walked), bytes(&typed));
+            assert_eq!(bytes(&from), bytes(&typed));
+        }
+    }
 }

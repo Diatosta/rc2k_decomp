@@ -250,22 +250,24 @@ fn draw_noted(pending: &mut Pending) {
     crate::render::draw(&target, commands);
 }
 
-static PENDING: Mutex<Pending> = Mutex::new(Pending {
-    into: None,
-    noted: Vec::new(),
-    textures: Vec::new(),
-    states: None,
-    level: None,
-});
+thread_local! {
+    /// The drawing noted since the last flush. Only the game's thread notes and flushes
+    /// (fans, mode changes, the frame shown), so it is that thread's own: no lock per fan.
+    static PENDING: std::cell::RefCell<Pending> = const {
+        std::cell::RefCell::new(Pending {
+            into: None,
+            noted: Vec::new(),
+            textures: Vec::new(),
+            states: None,
+            level: None,
+        })
+    };
+}
 
 /// Whether a noted fan reads the texture whose memory is at `pixels`.
 fn reads_texture(pixels: crate::pointers::GamePtr) -> bool {
-    PENDING.lock().unwrap().textures.contains(&pixels)
+    PENDING.with_borrow(|p| p.textures.contains(&pixels))
 }
-
-// Safety: the pointers in it are the game's memory and ours, used only by the game's
-// thread and, during a flush, by the tiles' threads it waits for.
-unsafe impl Send for Pending {}
 
 /// The screen as the game has it now.
 pub fn screen() -> Option<Target> {
@@ -285,28 +287,28 @@ fn note(what: impl FnOnce(&mut Pending) -> Command) {
     let Some(into) = screen() else {
         return;
     };
-    let mut pending = PENDING.lock().unwrap();
-    if pending.into.is_some_and(|i| i != into) {
-        draw_noted(&mut pending);
-    }
-    pending.into = Some(into);
-    let what = what(&mut pending);
-    if let Command::Fan {
-        texture: Some(t), ..
-    } = &what
-        // Most fans run on in the last one's texture: that is looked at first.
-        && pending.textures.last() != Some(&t.pixels)
-        && !pending.textures.contains(&t.pixels)
-    {
-        pending.textures.push(t.pixels);
-    }
-    pending.noted.push(what);
+    PENDING.with_borrow_mut(|pending| {
+        if pending.into.is_some_and(|i| i != into) {
+            draw_noted(pending);
+        }
+        pending.into = Some(into);
+        let what = what(pending);
+        if let Command::Fan {
+            texture: Some(t), ..
+        } = &what
+            // Most fans run on in the last one's texture: that is looked at first.
+            && pending.textures.last() != Some(&t.pixels)
+            && !pending.textures.contains(&t.pixels)
+        {
+            pending.textures.push(t.pixels);
+        }
+        pending.noted.push(what);
+    });
 }
 
 /// Draws everything noted, the screen in tiles over the threads.
 pub fn flush() {
-    let mut pending = PENDING.lock().unwrap();
-    draw_noted(&mut pending);
+    PENDING.with_borrow_mut(draw_noted);
 }
 
 /// A fan into the screen, with the states and the current texture
@@ -344,7 +346,7 @@ pub fn draw_fan(vertices: &[crate::rasteriser::Vertex]) {
 
 /// A render state has changed: the next fan's are read again.
 pub fn forget_states() {
-    PENDING.lock().unwrap().states = None;
+    PENDING.with_borrow_mut(|p| p.states = None);
 }
 
 fn note_fan(vertices: &[crate::rasteriser::Vertex]) {
