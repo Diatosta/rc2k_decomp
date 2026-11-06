@@ -37,7 +37,8 @@
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::menu::list_handle::ListMenu;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_replay::Replay;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer::LAST_RACE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
@@ -100,8 +101,8 @@ enum Next {
 }
 
 /// The Rust version.
-pub fn replay_viewer(mode: Mode) -> Result<(), Refused> {
-    view(mode)?;
+pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
+    view(race, mode)?;
     // The end (0x41D436).
     crate::race::close_viewed_replay::close_viewed_replay()?;
     crate::race::viewer_tidy_stage::viewer_tidy_stage()?;
@@ -111,8 +112,8 @@ pub fn replay_viewer(mode: Mode) -> Result<(), Refused> {
 }
 
 /// Up to the end.
-fn view(mode: Mode) -> Result<(), Refused> {
-    let replay = &race().replay;
+fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
+    let replay = &race.replay;
     use crate::race::*;
     REPLAY_FILE.viewer_mode.set(mode as u32);
     REPLAY_FILE.hold_car_revs.set(1);
@@ -127,14 +128,14 @@ fn view(mode: Mode) -> Result<(), Refused> {
             }
             if saving {
                 REPLAY_FILE.viewer_slot.set(slot);
-                return save_last_replay::save_last_replay(slot);
+                return save_last_replay::save_last_replay(&race.replay, slot);
             }
             slot
         }
     };
     REPLAY_FILE.viewer_slot.set(slot);
     REPLAY_FILE.viewer_stopped.set(1);
-    let failed = open_viewed_replay::open_viewed_replay(slot)?;
+    let failed = open_viewed_replay::open_viewed_replay(&race.replay, slot)?;
     if failed {
         return Ok(());
     }
@@ -145,7 +146,7 @@ fn view(mode: Mode) -> Result<(), Refused> {
         .replay_view
         .last_race_viewed
         .set((slot == LAST_RACE) as u32);
-    find_snapshot_number::find_snapshot_number()?;
+    find_snapshot_number::find_snapshot_number(&race.replay)?;
     viewer_load_stage::viewer_load_stage()?;
     let list = ListMenu::of(crate::pointers::GamePtr::to(
         &replay.replay_view.viewer_list,
@@ -159,12 +160,12 @@ fn view(mode: Mode) -> Result<(), Refused> {
     crate::install::owner::install().pages.choice.set(6);
     // The pending key dropped.
     crate::input::take_key::take_key();
-    mark_viewer_items::mark_viewer_items(list)?;
+    mark_viewer_items::mark_viewer_items(&race.replay, list)?;
     // A test run's picture check: the item chosen (play) at once, as Return would.
     #[cfg(feature = "remote")]
     if crate::remote::shots_on() {
         let chosen = list.item(crate::install::owner::install().pages.choice.get());
-        action_next(u32::from(chosen.viewer_action()))?;
+        action_next(race, u32::from(chosen.viewer_action()))?;
     }
     loop {
         // `screens::run_frame` with `race::viewer_frame` (0x41D5FB).
@@ -204,7 +205,7 @@ fn view(mode: Mode) -> Result<(), Refused> {
             replay.replay_view.escape_count.set(0);
         }
         if REPLAY_FILE.viewer_stopped.get() != 1 {
-            let ended = step_viewed_replay::step_viewed_replay()?;
+            let ended = step_viewed_replay::step_viewed_replay(&race.replay)?;
             if ended || key != 0 {
                 REPLAY_FILE.viewer_stopped.set(1);
             }
@@ -213,14 +214,14 @@ fn view(mode: Mode) -> Result<(), Refused> {
         let next = if (key as i8) <= 0 {
             Next::Mark
         } else {
-            stopped_key(list, key)?
+            stopped_key(race, list, key)?
         };
         let next = match next {
-            Next::Action(action) => action_next(action)?,
+            Next::Action(action) => action_next(race, action)?,
             other => other,
         };
         if let Next::Mark = next {
-            mark(list, key)?;
+            mark(&race.replay, list, key)?;
         }
         // The menu sound asked for (0x41D41C).
         let sound = REPLAY_FILE.viewer_sound.get();
@@ -233,16 +234,18 @@ fn view(mode: Mode) -> Result<(), Refused> {
 }
 
 /// An action done: the items are marked again after one that is an action.
-fn action_next(action: u32) -> Result<Next, Refused> {
-    Ok(if crate::race::viewer_action::viewer_action(action)? {
-        Next::Mark
-    } else {
-        Next::Sound
-    })
+fn action_next(race: &Race, action: u32) -> Result<Next, Refused> {
+    Ok(
+        if crate::race::viewer_action::viewer_action(race, action)? {
+            Next::Mark
+        } else {
+            Next::Sound
+        },
+    )
 }
 
 /// A key while stopped (0x41D139 ..): where it leads.
-fn stopped_key(list: ListMenu, key: u8) -> Result<Next, Refused> {
+fn stopped_key(race: &Race, list: ListMenu, key: u8) -> Result<Next, Refused> {
     if crate::gfx::shots::on() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
@@ -264,7 +267,7 @@ fn stopped_key(list: ListMenu, key: u8) -> Result<Next, Refused> {
     }
     if key == 0x1C {
         let chosen = list.item(crate::install::owner::install().pages.choice.get());
-        if let Next::Mark = action_next(u32::from(chosen.viewer_action()))? {
+        if let Next::Mark = action_next(race, u32::from(chosen.viewer_action()))? {
             return Ok(Next::Mark);
         }
     }
@@ -290,9 +293,9 @@ fn stopped_key(list: ListMenu, key: u8) -> Result<Next, Refused> {
 
 /// After a move or an action (0x41D3B0): the items marked again, the highlight put where
 /// it can be chosen, the key's clock.
-fn mark(list: ListMenu, key: u8) -> Result<(), Refused> {
+fn mark(replay: &Replay, list: ListMenu, key: u8) -> Result<(), Refused> {
     use crate::menu::list_item_unusable::list_item_unusable;
-    crate::race::mark_viewer_items::mark_viewer_items(list)?;
+    crate::race::mark_viewer_items::mark_viewer_items(replay, list)?;
     'tail: {
         if !list_item_unusable(list) {
             break 'tail;

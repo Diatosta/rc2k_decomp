@@ -10,14 +10,13 @@
 //! Out: nothing its one caller, `race::draw_race_scene`, reads
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version (see the header).
-pub fn draw_mirror_view() -> Result<(), Refused> {
-    let race = race();
+pub fn draw_mirror_view(race: &Race) -> Result<(), Refused> {
     if race.replay.finish.no_place.get() != 0
         || RACE_WORK.in_credits.get() != 0
         || FRAME_SWITCHES.other_way.get() == 0
@@ -39,10 +38,10 @@ pub fn draw_mirror_view() -> Result<(), Refused> {
         .set_bits(race.course.numbers.k256.bits());
     race.course.stage_prefs.grid_reach.set_bits(2u32);
     let drawn = (|| {
-        crate::race::frame_views::mirror_view_window()?;
+        crate::race::frame_views::mirror_view_window(race)?;
         RACE_VIEW.view_depth[1].set_bits(race.course.level_grid.view_value_kept.bits());
-        crate::race::frame_flush::draw_view_backdrop();
-        crate::race::draw_view_scene::draw_view_scene()
+        crate::race::frame_flush::draw_view_backdrop(&race.course);
+        crate::race::draw_view_scene::draw_view_scene(race)
     })();
     race.course.stage_prefs.grid_reach.set_bits(saved.1);
     race.frame
@@ -51,6 +50,6 @@ pub fn draw_mirror_view() -> Result<(), Refused> {
         .view_scale
         .set_bits(saved.0);
     drawn?;
-    crate::race::frame_views::full_view_window(false);
+    crate::race::frame_views::full_view_window(&race.physics, false);
     Ok(())
 }

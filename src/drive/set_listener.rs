@@ -30,7 +30,7 @@ use crate::physics::tables_store::PHYSICS;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::mud::car_file_number;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -57,8 +57,8 @@ fn figures() -> Result<[i32; 6], Refused> {
 /// The Rust version. The registers it leaves are read by no caller (liveness: eax and
 /// ebx after `share_all_cars`' call have no read point).
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
-pub fn set_listener() -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn set_listener(race: &Race) -> Result<(), Refused> {
+    let physics = &race.physics;
     let f = figures()?;
     let car = crate::race::blocks_store::own_car();
     let s = crate::race::blocks_store::block_at(
@@ -75,44 +75,44 @@ pub fn set_listener() -> Result<(), Refused> {
         .set(u32::from(listener::car_ahead(strength)));
     for k in 0..3 {
         MARKS_SETTINGS.listener_place[k].set(
-            race().frame.view_and_records.view_vars.view_place[k]
+            race.frame.view_and_records.view_vars.view_place[k]
                 .get()
                 .wrapping_neg(),
         );
     }
     for (k, o) in listener::TURN_OFFSETS.into_iter().enumerate() {
         MARKS_SETTINGS.listener_turn[k]
-            .set_bits(race().frame.matrices.view_turn_matrix[o as usize / 4].bits());
+            .set_bits(race.frame.matrices.view_turn_matrix[o as usize / 4].bits());
     }
     MARKS_SETTINGS.listener_figures[0].set(listener::first_figure(
         RACE_VARS.settings_words[0].get(),
-        || race().frame.frame_work.view_out.get(),
+        || race.frame.frame_work.view_out.get(),
     ));
-    MARKS_SETTINGS.listener_figures[1].set(race().frame.frame_work.sun_place[0].get());
-    MARKS_SETTINGS.listener_figures[2].set(race().frame.frame_work.sun_place[1].get());
+    MARKS_SETTINGS.listener_figures[1].set(race.frame.frame_work.sun_place[0].get());
+    MARKS_SETTINGS.listener_figures[2].set(race.frame.frame_work.sun_place[1].get());
     let f = listener::listener_points(f, PHYSICS.ground_drop.get());
     for (k, &v) in f.iter().enumerate() {
         physics.camera.listener_points[k].set(v as u32);
     }
     // The car block 0's body matrix (0x70FC2C).
     for k in 0..16 {
-        race().frame.matrices.turned_matrix[k].set_bits(car.body_matrix[k].bits());
+        race.frame.matrices.turned_matrix[k].set_bits(car.body_matrix[k].bits());
     }
     multiply_matrices(
-        &race().frame.matrices.turned_matrix,
+        &race.frame.matrices.turned_matrix,
         &car.place_matrix,
-        &race().frame.matrices.lit_matrix,
+        &race.frame.matrices.lit_matrix,
     );
     multiply_matrices(
-        &race().frame.matrices.lit_matrix,
-        &race().frame.matrices.view_matrix,
-        &race().frame.matrices.made_object_matrix,
+        &race.frame.matrices.lit_matrix,
+        &race.frame.matrices.view_matrix,
+        &race.frame.matrices.made_object_matrix,
     );
     for k in 0..16 {
-        race().frame.matrices.listener_matrix[k]
-            .set_bits(race().frame.matrices.made_object_matrix[k].bits());
+        race.frame.matrices.listener_matrix[k]
+            .set_bits(race.frame.matrices.made_object_matrix[k].bits());
     }
-    let made = &race().frame.matrices.made_object_matrix;
+    let made = &race.frame.matrices.made_object_matrix;
     for (first, out, negate) in [
         (0, &MARKS_SETTINGS.listener_point_a_negated, true),
         (0, &MARKS_SETTINGS.listener_point_a, false),
@@ -130,7 +130,7 @@ pub fn set_listener() -> Result<(), Refused> {
         }
     }
     let switches = listener::switches(
-        race().frame.frame_work.mirror_wanted.get() != 0,
+        race.frame.frame_work.mirror_wanted.get() != 0,
         car.surface_noise_a.get(),
         car.surface_noise_b.get(),
     );

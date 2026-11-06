@@ -39,7 +39,6 @@
 use crate::errors::BadInput;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
@@ -199,8 +198,7 @@ struct Room {
     face_count: u32,
 }
 
-fn room(shape: &Shape) -> Result<Room, BadInput> {
-    let course = &race().course;
+fn room(course: &crate::race::owner_course::Course, shape: &Shape) -> Result<Room, BadInput> {
     let room = Room {
         slot: OBJECT_WORK.loading_slot.bits(),
         points: course.lists.object_points.bits(),
@@ -225,7 +223,7 @@ fn room(shape: &Shape) -> Result<Room, BadInput> {
     Ok(room)
 }
 
-pub fn add_object_shape() -> Result<(), BadInput> {
+pub fn add_object_shape(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
     let shape = match shape()? {
         Ok(shape) => shape,
         Err(points) => {
@@ -236,7 +234,7 @@ pub fn add_object_shape() -> Result<(), BadInput> {
             return Ok(());
         }
     };
-    let room = room(&shape)?;
+    let room = room(course, &shape)?;
     let slot = room.slot as usize;
     let read = |offset: usize| -> Result<u32, BadInput> {
         Ok(u32::from_le_bytes(
@@ -291,7 +289,7 @@ pub fn add_object_shape() -> Result<(), BadInput> {
         count += 1;
         to = to.wrapping_add(12);
     }
-    race().course.course.shape_radius.set_bits(radius);
+    course.course.shape_radius.set_bits(radius);
     OBJECT_SLOTS.radii[slot].set(radius);
     OBJECT_SLOTS.point_counts[slot].set(count - first_point);
     let first_normal = count;

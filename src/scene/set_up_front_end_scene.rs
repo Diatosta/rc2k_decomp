@@ -85,8 +85,7 @@ fn picture_places() -> impl Iterator<Item = u32> {
 
 // ---- Rust version ----
 
-fn colours(dark_third: u32) {
-    let course = &race().course;
+fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
     {
         crate::session::write_bits(&course.stage_prefs.lit_colour, [0xFFu32; 3]);
         crate::session::write_bits(&course.stage_prefs.dark_colour, [0u32, 0, dark_third]);
@@ -98,6 +97,7 @@ fn colours(dark_third: u32) {
 /// are `fill_light_tables`, `fill_scene_light_tables`, `race::textures_alloc` and
 /// `sub_443478`), none of the Rust versions it calls.
 pub fn set_up_front_end_scene() -> Result<(), Refused> {
+    let frame = &race().frame;
     let course = &race().course;
     let scene = crate::scene::owner::scene();
     crate::session::write_bits(&RACE_VARS.bar_span, [0u32, 100]);
@@ -112,7 +112,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     crate::scene::set_up_textures::set_up_textures()?;
     set_up_object_memory(scene)?;
     clear_slot_kinds();
-    colours(0);
+    colours(course, 0);
     // The scene's settings stored before the fog is cleared, after the two colours.
     course.stage_prefs.scene_size_a.set_bits(0x100u32);
     course.stage_prefs.scene_size_b.set_bits(0x100u32);
@@ -126,7 +126,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     course.stage_prefs.fog_end.set_bits(0u32);
     clear_fog();
     FRAME_SWITCHES.other_way.set_bits(1u32);
-    fill_light_tables(scene)?;
+    fill_light_tables(scene, course)?;
 
     OBJECT_TABLES.slot_kinds[0].set(1);
     for slot in 1..0x29 {
@@ -155,13 +155,13 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     RACE_VARS.bar_function.set_bits(SHOW_BAR);
     crate::scene::reload_system_textures::reload_system_textures(scene)?;
     allocate_point_records_in_game()?;
-    colours(0);
+    colours(course, 0);
     fill_scene_light_tables(scene)?;
-    set_view_matrices();
+    set_view_matrices(frame);
     reload_slot_textures()?;
-    colours(0x7F);
+    colours(course, 0x7F);
     FRAME_SWITCHES.other_way.set_bits(1u32);
-    fill_light_tables(scene)?;
+    fill_light_tables(scene, course)?;
     RACE_VARS.settings_words[1].set_bits(1u32);
     Ok(())
 }

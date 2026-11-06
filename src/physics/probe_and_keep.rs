@@ -16,13 +16,13 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::probe_ground::probe_ground_at;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The Rust core. The registers it leaves (esi, edi past the copies, ecx 0) are read by
 /// none of its callers.
-pub fn probe_and_keep_at() -> Result<(), Refused> {
-    let physics = &race().physics;
-    probe_ground_at()?;
+pub fn probe_and_keep_at(race: &Race) -> Result<(), Refused> {
+    let physics = &race.physics;
+    probe_ground_at(race)?;
     for k in 0..64 {
         physics.contact.saved_probe_x[k].set(physics.contact.probe_x[k].get());
     }
@@ -39,6 +39,6 @@ pub fn probe_and_keep_at() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn probe_and_keep() -> Result<(), Refused> {
-    probe_and_keep_at()
+pub fn probe_and_keep(race: &Race) -> Result<(), Refused> {
+    probe_and_keep_at(race)
 }

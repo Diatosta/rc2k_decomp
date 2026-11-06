@@ -21,7 +21,7 @@ use crate::errors::Refused;
 use crate::math::x87::from_int;
 use crate::physics::car_store::CAR;
 use crate::physics::queue_notice::queue_notice;
-use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use crate::session::Float;
 use rc2k_core::physics::damage_notices::{LEVELS, damage_notices as damage_notices_core};
 
@@ -67,13 +67,13 @@ fn gauge(mut k: usize) -> u32 {
 }
 
 // Converted: `rc2k_core::physics::damage_notices::damage_notices`.
-fn steps() -> Result<(), Refused> {
+fn steps(physics: &Physics) -> Result<(), Refused> {
     let mut levels: [u32; LEVELS] = std::array::from_fn(|k| CAR.damage_levels[k].get());
     let result = damage_notices_core(
         &mut levels,
         |k| f32::from_bits(gauge(k)),
         |t| {
-            race().physics.damage.scratch.set_bits(from_int(t));
+            physics.damage.scratch.set_bits(from_int(t));
         },
         |q| queue_notice(q.notice, q.rank, gauge(q.gauge)),
     );
@@ -84,8 +84,8 @@ fn steps() -> Result<(), Refused> {
 }
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
-pub fn damage_notices() -> Result<(), Refused> {
-    steps()
+pub fn damage_notices(physics: &Physics) -> Result<(), Refused> {
+    steps(physics)
 }
 
 #[cfg(test)]

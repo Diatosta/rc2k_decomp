@@ -61,31 +61,31 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
 
 /// `scene::place_object_points_any` (0x45BDE1). The 3DNow way (`sub_45BF89`) is not ported:
 /// a refusal ends the program.
-fn place_object_points_any() -> Result<(), Refused> {
+fn place_object_points_any(race: &crate::race::owner::Race) -> Result<(), Refused> {
     if crate::scene::owner::scene().draw_switches.use_3dnow.bits() != 0 {
         return Err(BadInput("the 3DNow way of placing points is not ported").into());
     }
     if crate::scene::owner::scene().draw_switches.use_sse.bits() != 0 {
-        return crate::scene::place_object_points::place_object_points_sse();
+        return crate::scene::place_object_points::place_object_points_sse(race);
     }
-    place_object_points()?;
+    place_object_points(race)?;
     Ok(())
 }
 
 /// With the steps' Rust versions.
-pub fn draw_object_in_game() -> Result<(), Refused> {
+pub fn draw_object_in_game(race: &crate::race::owner::Race) -> Result<(), Refused> {
     draw_object(&mut |step| {
         match step {
-            Step::Light => set_object_light_in_game()?,
-            Step::Material => set_object_material()?,
-            Step::Fade => set_object_fade()?,
-            Step::Points => place_object_points_any()?,
+            Step::Light => set_object_light_in_game(race)?,
+            Step::Material => set_object_material(&race.course)?,
+            Step::Fade => set_object_fade(race)?,
+            Step::Points => place_object_points_any(race)?,
             Step::List => {
-                list_object_faces(&mut |face| list_object_face(face))?;
+                list_object_faces(&mut |face| list_object_face(race, face))?;
             }
             Step::Sort => sort_listed_faces()?,
             Step::Faces => {
-                draw_object_faces(&mut |face| draw_object_face_in_game(face))?;
+                draw_object_faces(race, &mut |face| draw_object_face_in_game(race, face))?;
             }
         }
         Ok(())

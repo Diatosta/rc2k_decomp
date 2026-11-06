@@ -49,8 +49,11 @@ pub fn draw_carousel(
 }
 
 /// With the Rust versions of what it calls.
-pub fn draw_carousel_in_game(lone_row: u32) -> Result<(), Refused> {
+pub fn draw_carousel_in_game(
+    race: &crate::race::owner::Race,
+    lone_row: u32,
+) -> Result<(), Refused> {
     draw_carousel(lone_row, &mut |e, place| {
-        draw_carousel_entry(e, place, &mut || draw_menu_object_in_game())
+        draw_carousel_entry(e, place, &mut || draw_menu_object_in_game(race))
     })
 }

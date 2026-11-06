@@ -18,13 +18,14 @@ use crate::race::work_store::RACE_WORK;
 
 /// The Rust version: the eight slots, those in use moved, `slot_count` the number done so far.
 pub fn move_slots() -> Result<(), Refused> {
+    let race = crate::race::owner::race();
     let slots = &RACE_WORK.race_slots;
     let mut n = 0u32;
     for slot in slots {
         if slot.part.get() != 0 {
             n += 1;
             RACE_WORK.slot_count.set(n);
-            move_slot(slot)?;
+            move_slot(race, slot)?;
         }
     }
     RACE_WORK.slot_count.set(n);

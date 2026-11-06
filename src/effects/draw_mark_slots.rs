@@ -30,7 +30,7 @@ use crate::effects::paths::Paths;
 use crate::effects::setup::CLOCK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::matrix3::{extended, rounded};
@@ -56,8 +56,7 @@ fn refusal() -> Option<&'static str> {
 
 /// The Rust version (see the header): `add_mark_slot`, `scene::set_texture`,
 /// `scene::draw_fan`.
-pub fn draw_mark_slots(paths: &Paths) -> Result<(), Refused> {
-    let race = race();
+pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
     }
@@ -94,7 +93,7 @@ pub fn draw_mark_slots(paths: &Paths) -> Result<(), Refused> {
         let y = crate::math::x87_run::sub_mul(b, k4[1], k4[2]);
         let x = x87::mul(a, k4[3]);
         let once = rotate_point(
-            slot_matrix(s.matrix.get())?,
+            slot_matrix(&race.frame, s.matrix.get())?,
             [extended(z), extended(y), extended(x)],
         );
         let twice = rotate_point(&race.frame.matrices.view_matrix, once);

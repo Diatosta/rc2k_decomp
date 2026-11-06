@@ -9,7 +9,9 @@ use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::MOST_CHECKS;
+use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -76,8 +78,7 @@ pub fn place_car_on_line() -> Result<(), Refused> {
 /// sign tests), `dword_62400C` the distance in x and z (`x87::int_hypot`) from
 /// (`dword_639824`, `dword_63982C`) to its face's first point; else -1. Refuses a
 /// checkpoint past the list.
-pub fn distance_to_checkpoint(c: u32) -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn distance_to_checkpoint(physics: &Physics, c: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
     let count: u32 = RACE_VARS.checkpoint_count.bits();
     if !rc2k_core::race::checkpoints::on_line(c, count) {
@@ -107,6 +108,8 @@ pub struct Nearest {
 /// equals) and its distance (-1 and 0 for none). Refuses more than 0x1418 measures or
 /// checkpoints, before anything.
 pub fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refused> {
+    let race = race();
+    let physics = &race.physics;
     count()?;
     let steps = if from < to { to - from } else { 1 };
     if steps > MOST_CHECKS {
@@ -118,9 +121,9 @@ pub fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refused> {
     loop {
         // Every checkpoint, every physics tick: read straight from the stores while nothing
         // needs looking at more closely, by `distance_to_checkpoint` otherwise.
-        let measured = measure_held(&mut c, to, &mut nearest);
+        let measured = measure_held(race, &mut c, to, &mut nearest);
         if measured.is_err() || c < to {
-            distance_to_checkpoint(c)?;
+            distance_to_checkpoint(physics, c)?;
             nearest.consider(c, DRAW.scratch.bits());
             c = c.wrapping_add(1);
         }
@@ -153,11 +156,11 @@ thread_local! {
 }
 
 fn measure_held(
+    race: &Race,
     c: &mut u32,
     to: u32,
     nearest: &mut rc2k_core::race::checkpoints::Nearest,
 ) -> Result<(), BadInput> {
-    let race = race();
     use crate::race::course_places::{faces_base, points_base, with_faces_and_points};
     if race.course.course.course_faces.bits() != faces_base()
         || race.course.course.scene_points.bits() != points_base()

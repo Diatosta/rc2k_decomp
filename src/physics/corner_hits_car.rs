@@ -18,14 +18,14 @@
 use crate::errors::Refused;
 use crate::math::x87_float::{from_f80, ld, st};
 use crate::math::x87_run::{abs_compare, ext_times};
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::scene::matrix3::extended;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Cell32;
 
 /// Whether the corner is inside (`flt_6D3BC8` .. written either way).
-pub fn corner_inside() -> bool {
-    let race = race();
+pub fn corner_inside(race: &Race) -> bool {
     let k = race.course.numbers.k65536.bits();
     let corner = race
         .physics
@@ -35,7 +35,7 @@ pub fn corner_inside() -> bool {
         .map(|x| ext_times(extended(x.bits()), k));
     let turned = rotate_point(&race.physics.contact.corner_matrix, corner);
     for (n, e) in turned.iter().enumerate() {
-        x87_1(e, &race.physics.contact.corner_turned[n]);
+        x87_1(&race.course, e, &race.physics.contact.corner_turned[n]);
     }
     (0..3).all(|n| {
         abs_compare(
@@ -48,13 +48,13 @@ pub fn corner_inside() -> bool {
 
 /// The Rust version: `block` the other car's block (edi). The registers it leaves are
 /// read by none of its callers.
-pub fn corner_hits_car(block: u32) -> Result<(), Refused> {
-    if !corner_inside() {
+pub fn corner_hits_car(race: &Race, block: u32) -> Result<(), Refused> {
+    if !corner_inside(race) {
         return Ok(());
     }
-    race().physics.contact.corner_inside.set(1);
-    { crate::physics::restore_saved_car::restore_saved_car() }?;
-    { crate::physics::bump_cars::bump_cars(block) }?;
+    race.physics.contact.corner_inside.set(1);
+    { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
+    { crate::physics::bump_cars::bump_cars(race, block) }?;
     Ok(())
 }
 
@@ -63,9 +63,9 @@ pub fn corner_hits_car(block: u32) -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[o + 0] = ext [e + 0] / [rc + 0x1C5D98]`
-fn x87_1(e: &[u8; 10], o: &impl Cell32) {
+fn x87_1(course: &Course, e: &[u8; 10], o: &impl Cell32) {
     let t0 = from_f80(*e);
-    let t1 = ld(race().course.numbers.k65536.bits());
+    let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 / t1;
     o.set_bits(st(t2));
 }
@@ -98,7 +98,13 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-            plain: |a| x87_1(view(a[0], 0), &HostCell(a[2])),
+            plain: |a| {
+                x87_1(
+                    &crate::race::owner::race().course,
+                    view(a[0], 0),
+                    &HostCell(a[2]),
+                );
+            },
         }]
     }
 

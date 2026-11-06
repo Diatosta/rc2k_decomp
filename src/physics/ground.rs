@@ -15,7 +15,9 @@ use crate::physics::cells::Trap;
 use crate::physics::edge_side::edge_side;
 use crate::physics::find_course_record::find_course_record;
 use crate::physics::plane_height::plane_height;
+use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use rc2k_core::physics::ground_search::{self, FaceTest};
 
 /// The first and last faces (+8, +0xC) of course record `record`.
@@ -110,8 +112,8 @@ pub fn face_shares_at() -> Result<(), Refused> {
 }
 
 /// `face_under_point`'s refusal, worked out without writing.
-pub fn face_refusal(face: u32) -> Option<&'static str> {
-    ground_search::check_face(face, race().course.course.course_face_count.get())
+pub fn face_refusal(course: &Course, face: u32) -> Option<&'static str> {
+    ground_search::check_face(face, course.course.course_face_count.get())
         .err()
         .map(|e| e.0)
 }
@@ -122,7 +124,7 @@ pub fn face_refusal(face: u32) -> Option<&'static str> {
 // Converted: `rc2k_core::physics::ground_search::face_under_point`.
 pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
     let race_owner = race();
-    if let Some(why) = face_refusal(number) {
+    if let Some(why) = face_refusal(&race_owner.course, number) {
         return Err(BadInput(why).into());
     }
     race_owner.course.course.ground_number.set(number);
@@ -134,7 +136,7 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
         if trap.failed() {
             return None;
         }
-        match edge_side(f.dword_at(from), f.dword_at(to)) {
+        match edge_side(&race_owner.physics, f.dword_at(from), f.dword_at(to)) {
             Ok(s) => (s.zero == Some(true)).then_some(s.carry),
             Err(e) => {
                 trap.refuse(e);
@@ -172,8 +174,8 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
 }
 
 /// `search_record_faces`' refusal, worked out without writing.
-pub fn record_refusal(record: u32) -> Option<&'static str> {
-    let course_store = &race().course;
+pub fn record_refusal(course: &Course, record: u32) -> Option<&'static str> {
+    let course_store = course;
     {
         if let Err(e) =
             ground_search::check_record(record, course_store.course.course_record_count.get())
@@ -192,8 +194,8 @@ pub fn record_refusal(record: u32) -> Option<&'static str> {
 /// `physics::search_record_faces` (0x441FD9): faces +8 ..= +0xC of course record
 /// `record` (ebx), each by `face_under_point`; the carry when one has the point.
 // Converted: `rc2k_core::physics::ground_search::search_faces`.
-pub fn search_record_faces_at(record: u32) -> Result<bool, Refused> {
-    if let Some(why) = record_refusal(record) {
+pub fn search_record_faces_at(course: &Course, record: u32) -> Result<bool, Refused> {
+    if let Some(why) = record_refusal(course, record) {
         return Err(BadInput(why).into());
     }
     let (first, last) = record_faces(record)?;
@@ -206,11 +208,12 @@ pub fn search_record_faces_at(record: u32) -> Result<bool, Refused> {
 /// found.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
 pub fn search_cell_at(x: u32, z: u32) -> Result<bool, Refused> {
+    let course = &crate::race::owner::race().course;
     let (key, _) = ground_search::cell_key(x, z);
-    let Some(record) = find_course_record(key)? else {
+    let Some(record) = find_course_record(course, key)? else {
         return Ok(false);
     };
-    search_record_faces_at(record)
+    search_record_faces_at(course, record)
 }
 
 /// `physics::try_last_face` (0x441E0C): ebx = `dword_5CCC78`; when it is a face (not -1,
@@ -229,8 +232,7 @@ pub fn try_last_face_at() -> Result<bool, Refused> {
 /// `dword_5CCC74` = -1 and `search_cell` on the point plus each of `CELLS` until one
 /// finds it. `g_groundFound` 1 when found, else 0. Registers kept; the carry the found.
 // Converted: `rc2k_core::physics::ground_search::ground_search`.
-pub fn ground_search_at() -> Result<bool, Refused> {
-    let race = race();
+pub fn ground_search_at(race: &Race) -> Result<bool, Refused> {
     let found = ground_search::ground_search(
         try_last_face_at,
         || {

@@ -18,12 +18,11 @@ use crate::physics::flow::{
     abs_below_or_unordered, below_or_unordered, equal_or_unordered, hold_high, hold_low, table_lerp,
 };
 use crate::physics::store::DamageModel;
-use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use crate::session::Cell32;
 
 /// The damage model's figures for this step.
-pub fn steps() {
-    let physics = &race().physics;
+pub fn steps(physics: &Physics) {
     scale_car_figures(&physics.damage);
     // Per wheel: the stiffness and ride height follow the suspension damage; at the top
     // of the gauge the wheel is worn out.
@@ -101,7 +100,7 @@ pub fn steps() {
         .damage
         .dword_75b3f0
         .set_bits(CAR.surface_blend.bits());
-    physics.damage.dword_75b3c4.set_bits(side_hit());
+    physics.damage.dword_75b3c4.set_bits(side_hit(physics));
     hit_size_and_dive(&physics.damage);
     hold_low(&physics.damage.scratch, &physics.damage.gauge_low);
     hold_high(&physics.damage.scratch, &physics.damage.flt_75b354);
@@ -124,8 +123,7 @@ pub fn steps() {
 }
 
 /// Where the car was hit: 0 for no contact, else 1 .. 4 by the side of the contact point.
-fn side_hit() -> u32 {
-    let physics = &race().physics;
+fn side_hit(physics: &Physics) -> u32 {
     if CAR.contact_depth.bits() == 0 {
         return 0;
     }

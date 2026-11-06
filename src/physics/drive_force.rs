@@ -17,11 +17,10 @@ use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque_or_cut::engine_torque_or_cut;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 
 /// The Rust version (the exact one, for the Rust callers' exact comparisons).
-pub fn drive_force() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn drive_force(course: &Course) -> Result<(), Refused> {
     let gear = CAR.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());

@@ -23,11 +23,12 @@ use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::manual_gearbox;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::take_asked_gear::take_asked_gear;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
-pub fn gearbox_step() -> Result<(), Refused> {
+pub fn gearbox_step(course: &Course) -> Result<(), Refused> {
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
         CAR.finish_flag.get(),
@@ -39,12 +40,12 @@ pub fn gearbox_step() -> Result<(), Refused> {
     );
     match turn {
         GearboxTurn::Idle => {}
-        GearboxTurn::Manual => manual_gearbox()?,
+        GearboxTurn::Manual => manual_gearbox(course)?,
         GearboxTurn::Asked => {
-            { take_asked_gear() }?;
+            { take_asked_gear(course) }?;
             return Ok(());
         }
-        GearboxTurn::Auto => auto_gearbox()?,
+        GearboxTurn::Auto => auto_gearbox(course)?,
     }
     if CAR.gear_changed.get() == 1 {
         CAR.engine_speed.set_bits(x87::mul(

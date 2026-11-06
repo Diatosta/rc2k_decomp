@@ -13,8 +13,9 @@ use crate::race::owner::race;
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::marks_offset`.
 pub fn replay_frame_marks() -> Result<(), BadInput> {
+    let replay = &race().replay;
     let at = GamePtr::to(&crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras).offset(
-        rc2k_core::drive::replay_frames::marks_offset(race().replay.replay_view.replay_block.get()),
+        rc2k_core::drive::replay_frames::marks_offset(replay.replay_view.replay_block.get()),
     );
     let marks: [u32; 2] = at.read("the replay frame's marks")?;
     for (k, mark) in marks.into_iter().enumerate() {

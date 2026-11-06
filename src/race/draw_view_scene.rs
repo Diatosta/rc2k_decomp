@@ -14,6 +14,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
+use crate::race::owner::Race;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::faces_store::FACES;
 use crate::scene::object_store::OBJECT_WORK;
@@ -42,7 +43,7 @@ fn depth_list() -> crate::pointers::GamePtr {
 }
 
 /// The Rust version (see the header).
-pub fn draw_view_scene() -> Result<(), Refused> {
+pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
     use crate::race::frame_draw::*;
     use crate::sound::race_sound_tick::race_sound_tick;
     if CAR.view_covered.get() != 0 {
@@ -58,7 +59,7 @@ pub fn draw_view_scene() -> Result<(), Refused> {
     set_up_fog()?;
     camera_view()?;
     draw_sky()?;
-    crate::race::flush_draw_batch::flush_draw_batch()?;
+    crate::race::flush_draw_batch::flush_draw_batch(race)?;
     view_light()?;
     race_sound_tick()?; // 0x15
     reset_lamps()?;
@@ -77,8 +78,8 @@ pub fn draw_view_scene() -> Result<(), Refused> {
     )?;
     draw_race_slots()?;
     race_sound_tick()?; // 0x17
-    crate::race::car_shadow::cast_car_shadows()?;
-    crate::race::skidmarks::draw_skidmarks_if_on()?;
+    crate::race::car_shadow::cast_car_shadows(race)?;
+    crate::race::skidmarks::draw_skidmarks_if_on(race)?;
     car_lights()?;
     race_sound_tick()?; // 0x18
     sort_entries(&RACE_VIEW.depth_entry_count, &FACES.depth_entries)?;
@@ -89,6 +90,6 @@ pub fn draw_view_scene() -> Result<(), Refused> {
         depth_list(),
     )?;
     race_sound_tick()?; // 0x1A
-    crate::race::flush_draw_batch::flush_draw_batch()?;
+    crate::race::flush_draw_batch::flush_draw_batch(race)?;
     store_view_value()
 }

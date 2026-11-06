@@ -16,6 +16,7 @@ use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 
@@ -66,7 +67,11 @@ fn settle(v: &dyn Cell32, step: &dyn Cell32) {
 }
 
 /// The Rust core.
-pub fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result<(), Refused> {
+pub fn settle_drive_speeds_at(
+    course: &Course,
+    g: &GearPlaces,
+    s: &SettlePlaces,
+) -> Result<(), Refused> {
     let gear = g.gear.bits();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
@@ -87,12 +92,12 @@ pub fn settle_drive_speeds_at(g: &GearPlaces, s: &SettlePlaces) -> Result<(), Re
         settle(g.drive_speed_2, s.scratch);
     }
     if gear != 0 {
-        return revs_from_wheels_at(g);
+        return revs_from_wheels_at(course, g);
     }
     Ok(())
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn settle_drive_speeds() -> Result<(), Refused> {
-    settle_drive_speeds_at(&GearPlaces::game(), &SettlePlaces::game())
+pub fn settle_drive_speeds(course: &Course) -> Result<(), Refused> {
+    settle_drive_speeds_at(course, &GearPlaces::game(), &SettlePlaces::game())
 }

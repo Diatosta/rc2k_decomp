@@ -10,24 +10,24 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::hud::store::rect_place;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads::marker_x;
 
 const RECT: u32 = 0x5C;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::marker_x`
-pub fn draw_marker(hud: &Hud) -> Result<(), Refused> {
+pub fn draw_marker(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     hud.block.quad[5].set(hud.block.marker_colours[0].get());
     {
         let f = f32::from_bits;
         let x = marker_x(
-            f(race().frame.panel_and_overlay.panel.distance[0].get()),
-            f(race().frame.panel_and_overlay.panel.overlay_miles.get()),
+            f(frame.panel_and_overlay.panel.distance[0].get()),
+            f(frame.panel_and_overlay.panel.overlay_miles.get()),
             hud.block.marker_k[0].get(),
             hud.block.marker_k[1].get(),
         );
         hud.block.scratch.set(x);
-        crate::hud::add_sprite::add_sprite(hud, x, 0, rect_place(hud, RECT))
+        crate::hud::add_sprite::add_sprite(frame, hud, x, 0, rect_place(hud, RECT))
     }
 }

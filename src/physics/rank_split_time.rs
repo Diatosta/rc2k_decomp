@@ -21,7 +21,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::fill_rival_table::fill_rival_table;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::append_string_by_id;
 use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
@@ -50,8 +50,7 @@ fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{split_scale, scaled_time, rank, gap}`.
-pub fn rank_split_time() -> Result<(), Refused> {
-    let race = race();
+pub fn rank_split_time(race: &Race) -> Result<(), Refused> {
     let (split, count) = (
         CAR.splits_recorded.get(),
         race.physics.split_tables.split_colour_count.get(),
@@ -59,7 +58,7 @@ pub fn rank_split_time() -> Result<(), Refused> {
     if split > 0x40 || count > 0x40 {
         return Err(BadInput("a split or a split count past 0x40").into());
     }
-    fill_rival_table()?;
+    fill_rival_table(&race.physics)?;
     for k in 0..5 {
         CAR.split_gaps[k].set(u32::MAX);
     }

@@ -9,12 +9,11 @@
 //!      `race::draw_view_overlays`) read
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 const DRAWTRI_RVA: &std::ffi::CStr = c"drawtri"; // "drawtri"
 
 /// The Rust version (see the header).
-pub fn flush_draw_batch() -> Result<(), Refused> {
-    let race = race();
+pub fn flush_draw_batch(race: &Race) -> Result<(), Refused> {
     let indices: u32 = race.physics.contact.batch_index_count.bits();
     if indices != 0 {
         let result = crate::platform_3d::draw_indexed(

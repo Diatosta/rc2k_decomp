@@ -12,14 +12,13 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::splits::{RIVALS, default_rival};
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::default_rival`.
-pub fn fill_rival_table() -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn fill_rival_table(physics: &Physics) -> Result<(), Refused> {
     for c in 0..RIVALS as u32 {
         let (time, car, name) = default_rival(c);
         physics.split_tables.rival_times[c as usize].set(time);

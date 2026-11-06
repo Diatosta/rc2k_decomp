@@ -9,12 +9,13 @@
 //! Caller: `race::loading_bar_frame`. The quad its Rust version.
 
 use crate::errors::Refused;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 
 /// The Rust version (see the header).
-pub fn loading_bar_quad() -> Result<(), Refused> {
+pub fn loading_bar_quad(course: &Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::loading::loading_bar`.
     use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
     let [w, h] = [SCREEN.width.get(), SCREEN.height.get()];
@@ -27,5 +28,5 @@ pub fn loading_bar_quad() -> Result<(), Refused> {
     RACE_VARS.quad_corners[1].set(bar.right);
     DRAW.texture_page.set_bits(0xFFFF_FFFFu32);
     // `draw_screen_quad` reads no register it is given.
-    crate::race::frame_draw::draw_screen_quad()
+    crate::race::frame_draw::draw_screen_quad(course)
 }

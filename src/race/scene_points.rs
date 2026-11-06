@@ -11,6 +11,7 @@
 
 use crate::errors::BadInput;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 
 /// `COURSE.scene_points` while the points are held: point 0's place.
 pub fn base() -> u32 {
@@ -123,15 +124,16 @@ fn point(at: u32) -> Result<[u32; 3], BadInput> {
 }
 
 /// Point `n`'s place.
-fn place(n: u32) -> u32 {
+fn place(course: &Course, n: u32) -> u32 {
     n.wrapping_mul(12)
-        .wrapping_add(race().course.course.scene_points.get())
+        .wrapping_add(course.course.scene_points.get())
 }
 
 /// Point `n`'s x, y and z (point -1 as `bytes` reads it).
 #[track_caller]
 pub fn point_number(n: u32) -> Result<[u32; 3], BadInput> {
-    point(place(n))
+    let course = &race().course;
+    point(place(course, n))
 }
 
 /// Point `n`'s x and z, read as one point.
@@ -142,29 +144,30 @@ pub fn point_xz(n: u32) -> Result<(u32, u32), BadInput> {
 
 /// Point `from` copied over point `to` (as `bytes` reads `from`).
 #[track_caller]
-pub fn copy_point(from: u32, to: u32) -> Result<(), BadInput> {
-    write(place(to), &bytes(place(from), 12)?)
+pub fn copy_point(course: &Course, from: u32, to: u32) -> Result<(), BadInput> {
+    write(course, place(course, to), &bytes(place(course, from), 12)?)
 }
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n`.
 #[track_caller]
 pub fn point_word(n: u32, k: u32) -> Result<u32, BadInput> {
-    word(place(n).wrapping_add(4 * k))
+    let course = &race().course;
+    word(place(course, n).wrapping_add(4 * k))
 }
 
 /// Coordinate `k` (0 x, 1 y, 2 z) of point `n` set to `v`.
 #[track_caller]
-pub fn put_point_word(n: u32, k: u32, v: u32) -> Result<(), BadInput> {
-    put(place(n).wrapping_add(4 * k), v)
+pub fn put_point_word(course: &Course, n: u32, k: u32, v: u32) -> Result<(), BadInput> {
+    put(course, place(course, n).wrapping_add(4 * k), v)
 }
 
 /// `data` written at place `at`; refused outside the points.
 #[track_caller]
-fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
+fn write(course: &Course, at: u32, data: &[u8]) -> Result<(), BadInput> {
     let caller = std::panic::Location::caller();
     // The points below the count are the course's own (the ones past it are copies made
     // while drawing): a change to them is noted.
-    let counted = (race().course.course.scene_point_count.get() as usize).saturating_mul(12);
+    let counted = (course.course.scene_point_count.get() as usize).saturating_mul(12);
     POINTS
         .with(|p| {
             let range = range(at, data.len())?;
@@ -181,8 +184,8 @@ fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
 
 /// The dword at place `at` set to `v`.
 #[track_caller]
-fn put(at: u32, v: u32) -> Result<(), BadInput> {
-    write(at, &v.to_le_bytes())
+fn put(course: &Course, at: u32, v: u32) -> Result<(), BadInput> {
+    write(course, at, &v.to_le_bytes())
 }
 
 /// `f` with the scene points `words` held (`COURSE.scene_points` at `base()`), the points and

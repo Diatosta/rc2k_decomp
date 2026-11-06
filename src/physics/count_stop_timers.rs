@@ -11,15 +11,15 @@
 //! Caller: `sub_436790` (four calls).
 
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::stop_timers;
 
 /// The core on the variables' cells (a compare of floats only: the same at any
 /// precision).
 // Converted: `rc2k_core::physics::motion::stop_timers`.
-pub fn count_stop_timers_at(v: &[&dyn Cell32]) {
-    let one = f32::from_bits(race().course.numbers.one.bits());
+pub fn count_stop_timers_at(course: &Course, v: &[&dyn Cell32]) {
+    let one = f32::from_bits(course.numbers.one.bits());
     let mut counters = [v[0].bits(), v[1].bits(), v[2].bits()];
     let result = stop_timers(&mut counters, f32::from_bits(v[3].bits()), one);
     for (k, c) in counters.iter().enumerate() {
@@ -43,6 +43,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 }
 
 /// The Rust version.
-pub fn count_stop_timers() {
-    count_stop_timers_at(&game());
+pub fn count_stop_timers(course: &Course) {
+    count_stop_timers_at(course, &game());
 }

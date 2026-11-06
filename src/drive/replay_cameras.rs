@@ -19,6 +19,7 @@ use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::replay_views::{WishStep, wish_step};
@@ -44,8 +45,7 @@ fn wish_of(byte: usize) -> Result<u32, BadInput> {
 }
 
 // Converted: `rc2k_core::drive::replay_views::wish_step`.
-fn steps() -> Result<(), Refused> {
-    let replay = &race().replay;
+fn steps(replay: &Replay) -> Result<(), Refused> {
     replay
         .replay_frames
         .camera_word_0
@@ -107,7 +107,8 @@ fn steps() -> Result<(), Refused> {
 
 /// The Rust version.
 pub fn replay_cameras() -> Result<(), Refused> {
-    steps()
+    let replay = &race().replay;
+    steps(replay)
 }
 
 #[cfg(test)]

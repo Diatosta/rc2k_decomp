@@ -13,6 +13,7 @@ use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
+use crate::race::owner_frame::Frame;
 
 use crate::scene::draw_store::DRAW;
 use rc2k_core::hud::icons;
@@ -20,7 +21,13 @@ use rc2k_core::hud::icons;
 /// The Rust version (see the header): the icon of the record's entry at `entry` (edi),
 /// `bottom` (ebx) its row.
 // Converted: `rc2k_core::hud::icons`
-pub fn draw_icon(hud: &Hud, record: GamePtr, bottom: u32, entry: u32) -> Result<(), Refused> {
+pub fn draw_icon(
+    frame: &Frame,
+    hud: &Hud,
+    record: GamePtr,
+    bottom: u32,
+    entry: u32,
+) -> Result<(), Refused> {
     let e = record.offset(entry);
     // A field of the record by an offset from a table or the caller, as the original walks it.
     let get = |o: u32| e.offset(o).read::<u32>("a hud record's field");
@@ -52,5 +59,5 @@ pub fn draw_icon(hud: &Hud, record: GamePtr, bottom: u32, entry: u32) -> Result<
         hud.block.scratch.set(y);
     }
     DRAW.polygon_vertex_count.set_bits(4u32);
-    crate::hud::add_polygon::add_polygon(hud)
+    crate::hud::add_polygon::add_polygon(frame, hud)
 }

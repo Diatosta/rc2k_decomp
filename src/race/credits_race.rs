@@ -30,6 +30,7 @@ const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT 
 /// esi and edx; no step reads a register of the caller or of an earlier step.)
 pub fn credits_race() -> Result<(), Refused> {
     let race = race();
+    let frame = &race.frame;
     crate::framework::log("race::credits_race: the demonstration starts");
     race.course.numbers.replay_mode.set(0);
     REPLAY_FILE.hold_car_revs.set(0); // g_holdCarRevs
@@ -47,6 +48,7 @@ pub fn credits_race() -> Result<(), Refused> {
     log_int(RACE_VARS.race_car_kinds[0].get() as i32, true, 1);
     crate::race::stage_loading::load_stage()?;
     crate::race::frame_text::roll_credits(
+        frame,
         0,
         &mut crate::text::draw_text::GameCanvas,
         &mut crate::race::frame_text::credits_tune,

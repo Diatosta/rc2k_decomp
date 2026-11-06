@@ -15,14 +15,13 @@ use crate::physics::damage_gauges::raise;
 use crate::physics::flow::{hold_low, table_lerp};
 use crate::physics::store::DamageModel;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use crate::session::Cell32;
 use core::mem::offset_of;
 
 /// The wear of this step: the gauges raised or lowered by their rates times the shares,
 /// the lerps of the speed shares, and the hit figures.
-pub fn steps() {
-    let physics = &race().physics;
+pub fn steps(physics: &Physics) {
     physics.damage.clock.set_bits(CAR.noise_word.get());
     table_lerp(
         &physics.damage.engine_speed_share,
@@ -31,7 +30,7 @@ pub fn steps() {
         &physics.damage.flt_75b45c,
     );
     for k in 0..2 {
-        raise(&CAR.brake_heat[k], |g| {
+        raise(physics, &CAR.brake_heat[k], |g| {
             add_wear(
                 &physics.damage,
                 &physics.damage.wear_rates[3],
@@ -42,7 +41,7 @@ pub fn steps() {
         });
     }
     for k in 0..2 {
-        raise(&CAR.brake_heat[k], |g| {
+        raise(physics, &CAR.brake_heat[k], |g| {
             subtract_rate(&physics.damage, &physics.damage.wear_rates[4], g, g);
         });
     }
@@ -51,16 +50,16 @@ pub fn steps() {
         &physics.damage.drive_b_extrapolated_share,
     ];
     for (damper, share) in CAR.damper_wear.iter().zip(extrapolated) {
-        raise(damper, |g| {
+        raise(physics, damper, |g| {
             add_wear(&physics.damage, &physics.damage.wear_rates[5], share, g, g);
         });
     }
     for k in 0..2 {
-        raise(&CAR.damper_wear[k], |g| {
+        raise(physics, &CAR.damper_wear[k], |g| {
             subtract_rate(&physics.damage, &physics.damage.wear_rates[6], g, g);
         });
     }
-    raise(&CAR.brake_fade, |g| {
+    raise(physics, &CAR.brake_fade, |g| {
         add_wear(
             &physics.damage,
             &physics.damage.wear_rates[7],
@@ -69,10 +68,10 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.brake_fade, |g| {
+    raise(physics, &CAR.brake_fade, |g| {
         subtract_rate(&physics.damage, &physics.damage.wear_rates[8], g, g);
     });
-    raise(&CAR.brake_fade, |g| {
+    raise(physics, &CAR.brake_fade, |g| {
         subtract_wear(
             &physics.damage,
             &physics.damage.wear_rates[9],
@@ -89,7 +88,7 @@ pub fn steps() {
     );
     lerp_gap(&physics.damage);
     hold_low(&physics.damage.flt_75b464, &physics.damage.gauge_low);
-    raise(&CAR.engine_heat, |g| {
+    raise(physics, &CAR.engine_heat, |g| {
         add_wear(
             &physics.damage,
             &physics.damage.wear_rates[0],
@@ -98,10 +97,10 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.engine_heat, |g| {
+    raise(physics, &CAR.engine_heat, |g| {
         subtract_rate(&physics.damage, &physics.damage.wear_rates[1], g, g);
     });
-    raise(&CAR.engine_heat, |g| {
+    raise(physics, &CAR.engine_heat, |g| {
         subtract_wear(
             &physics.damage,
             &physics.damage.wear_rates[2],

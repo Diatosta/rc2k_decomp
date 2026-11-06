@@ -12,6 +12,7 @@
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
+use crate::race::owner_frame::Frame;
 
 use crate::scene::draw_store::DRAW;
 use rc2k_core::hud::quads;
@@ -19,7 +20,7 @@ use rc2k_core::hud::quads;
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::quads::quad_vertices`
-pub fn add_quad(hud: &Hud) -> Result<(), Refused> {
+pub fn add_quad(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     let q: [u32; quads::RECORD] = std::array::from_fn(|n| hud.block.quad[n].get());
     let (a, b) = (hud.block.uv_scale_x.get(), hud.block.uv_scale_y.get());
     let (vertices, _, _) = quads::quad_vertices(&q, a, b);
@@ -32,5 +33,5 @@ pub fn add_quad(hud: &Hud) -> Result<(), Refused> {
         at.v.set_bits(v.v.to_bits());
     }
     DRAW.polygon_vertex_count.set_bits(4u32);
-    crate::hud::add_polygon::add_polygon(hud)
+    crate::hud::add_polygon::add_polygon(frame, hud)
 }

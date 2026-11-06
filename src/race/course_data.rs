@@ -7,6 +7,8 @@
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
+use crate::race::owner_physics::Physics;
 
 /// `files\levels\levelxx\cdat00c`'s two digits, in `srclvls\..` (0x60B02B) and
 /// `\levels\..` (0x60B07F): tens, units.
@@ -17,10 +19,10 @@ pub const MOST_RECORDS: u32 = 0x7_8000;
 
 /// `race::set_cdat_number` (0x4456DD): `number`'s two digits (its low byte's `div 10`, +
 /// '0') into both cdat paths.
-pub fn set_cdat_number(number: u32) {
+pub fn set_cdat_number(course: &Course, number: u32) {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let digits = rc2k_core::race::stage::two_digits(number as u8);
-    let p = &race().course.level_paths;
+    let p = &course.level_paths;
     p.cdat_src.set(0x14, digits[0]);
     p.cdat_src.set(0x15, digits[1]);
     p.cdat_files.set(0x19, digits[0]);
@@ -29,8 +31,7 @@ pub fn set_cdat_number(number: u32) {
 
 /// `race::copy_course_header` (0x445736): the course memory's first 0x100 bytes to
 /// `g_courseHeader`.
-pub fn copy_course_header() -> Result<(), BadInput> {
-    let course = &race().course;
+pub fn copy_course_header(course: &Course) -> Result<(), BadInput> {
     let from: u32 = course.lists.course_memory.bits();
     crate::race::level_init::course_memory_at(from)?.copy_to(
         // The store types the header by its first dword.
@@ -41,34 +42,37 @@ pub fn copy_course_header() -> Result<(), BadInput> {
 }
 
 /// `race::clear_lit_faces` (0x45E9D5): `g_litFaceCount` 0.
-pub fn clear_lit_faces() {
-    race().physics.contact.lit_face_count.set_bits(0u32);
+pub fn clear_lit_faces(physics: &Physics) {
+    physics.contact.lit_face_count.set_bits(0u32);
 }
 
 /// `race::reset_face_lights` (0x45ED70): each face whose first byte is 0xFF gets its
 /// +0x30 .. +0x38 and bytes +0x11 .. +0x13 0; then `clear_lit_faces`. Refuses no faces
 /// (the original counts round) or 0x100000 or more.
 pub fn reset_face_lights() -> Result<(), Refused> {
+    let course = &race().course;
+    let physics = &race().physics;
     {
         let count: u32 = race().course.course.course_face_count.bits();
         rc2k_core::race::faces::check_face_count(count)?;
         // Converted: `rc2k_core::race::faces::reset_lights` (each record inside the
         // faces the original walks; written back only when changed).
         const FACE: usize = rc2k_core::race::faces::FACE_BYTES;
-        let all = crate::race::course_places::faces_table(count, "the course faces")?;
+        let all = crate::race::course_places::faces_table(course, count, "the course faces")?;
         for (n, bytes) in all.as_chunks::<FACE>().0.iter().enumerate() {
             let mut face = *bytes;
             let kept = face;
             rc2k_core::race::faces::reset_lights(&mut face);
             if face != kept {
                 crate::race::course_places::write_face_number(
+                    course,
                     n as u32,
                     rc2k_core::race::faces::Face(face),
                     "a course face",
                 )?;
             }
         }
-        clear_lit_faces();
+        clear_lit_faces(physics);
     }
     Ok(())
 }
@@ -78,8 +82,7 @@ pub fn reset_face_lights() -> Result<(), Refused> {
 /// the order met, by swapping each one found into the next place; `g_kindFirstRecords`
 /// and `g_kindLastRecords` each kind's first and last number, -1 for both with none.
 /// Refuses more records than the course memory's first part holds.
-pub fn group_records_by_kind() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn group_records_by_kind(course: &Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage::group_by_kind`; the records read whole (every
     // one is swapped into place, so the original reads them all).
     {
@@ -87,7 +90,7 @@ pub fn group_records_by_kind() -> Result<(), Refused> {
         if count > MOST_RECORDS {
             return Err(BadInput("more records than the course memory holds").into());
         }
-        let bytes = crate::race::course_places::records_table(count, "the course records")?;
+        let bytes = crate::race::course_places::records_table(course, count, "the course records")?;
         let mut list: Vec<[u32; 8]> = bytes
             .as_chunks::<32>()
             .0
@@ -103,7 +106,7 @@ pub fn group_records_by_kind() -> Result<(), Refused> {
             .iter()
             .flat_map(|r| r.iter().flat_map(|v| v.to_le_bytes()))
             .collect();
-        crate::race::course_places::write_records_table(&out, "the course records")?;
+        crate::race::course_places::write_records_table(course, &out, "the course records")?;
         for kind in 0..KINDS as usize {
             course.kind_records.first_records[kind].set(grouped.first[kind]);
             course.kind_records.last_records[kind].set(grouped.last[kind]);
@@ -127,8 +130,7 @@ fn load_log(n: usize) {
 /// The scene points moved out of the course memory (`race::scene_points`): from where the
 /// layout puts them up to the first part's end (where the course info was), the room the
 /// game writes new points into.
-fn take_scene_points() -> Result<(), BadInput> {
-    let course = &race().course;
+fn take_scene_points(course: &Course) -> Result<(), BadInput> {
     let layout = rc2k_core::race::faces::CourseLayout::of(
         course.lists.course_memory.bits(),
         course.course.course_record_count.bits(),
@@ -158,10 +160,9 @@ fn take_scene_points() -> Result<(), BadInput> {
 /// first part (`files::read_level_file`, the bytes in `dword_60B2CC`; a failed read is
 /// fatal error 0x80650210, without a message), its header copied, laid out, the faces'
 /// lights reset, with "loadlevel", "done", "next", "this", "then", "ok" in the log.
-pub fn load_level() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn load_level(course: &Course) -> Result<(), Refused> {
     use crate::files::read_level_file;
-    set_cdat_number(0);
+    set_cdat_number(course, 0);
     crate::files::state::BYTES_READ.set(0);
     load_log(0);
     // The course memory is a region of its own (`level_init::take_course_memory`).
@@ -176,10 +177,10 @@ pub fn load_level() -> Result<(), Refused> {
     }
     load_log(1);
     load_log(2);
-    copy_course_header()?;
-    take_scene_points()?;
+    copy_course_header(course)?;
+    take_scene_points(course)?;
     load_log(3);
-    crate::race::norms::lay_out_course();
+    crate::race::norms::lay_out_course(course);
     load_log(4);
     reset_face_lights()?;
     load_log(5);
@@ -189,10 +190,10 @@ pub fn load_level() -> Result<(), Refused> {
 /// `race::locate_current_course` (0x4394CB, "locacurrcourse"): `dword_609380` 0,
 /// `load_level`, `lay_out_course` (its test of `dword_621514` jumps to the next
 /// instruction either way: section 16), `group_records_by_kind`, `build_best_line`.
-pub fn locate_current_course() -> Result<(), Refused> {
-    race().course.stage_prefs.cdat_number.set_bits(0u32);
-    load_level()?;
-    crate::race::norms::lay_out_course();
-    group_records_by_kind()?;
+pub fn locate_current_course(course: &Course) -> Result<(), Refused> {
+    course.stage_prefs.cdat_number.set_bits(0u32);
+    load_level(course)?;
+    crate::race::norms::lay_out_course(course);
+    group_records_by_kind(course)?;
     crate::race::best_line::build_best_line()
 }

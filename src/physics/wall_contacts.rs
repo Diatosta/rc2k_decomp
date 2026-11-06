@@ -23,7 +23,7 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::physics::walls;
 
 fn word(face: u32) -> Result<u32, Refused> {
@@ -34,18 +34,18 @@ fn word(face: u32) -> Result<u32, Refused> {
     )?))
 }
 
-fn after() -> Result<(), Refused> {
+fn after(race: &Race) -> Result<(), Refused> {
     CAR.contact_flag.set(1);
     CAR.wall_hit_timer.set(0x32);
-    { crate::physics::restore_saved_car::restore_saved_car() }?;
-    crate::physics::feel_ground::feel_ground()
+    { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
+    crate::physics::feel_ground::feel_ground(race)
 }
 
 /// The steps, not guarded (`check` before). The registers the original leaves are read by
 /// none of its callers.
 // Converted: `rc2k_core::physics::walls::walk`.
-pub fn steps() -> Result<(), Refused> {
-    let physics_store = &race().physics;
+pub fn steps(race: &Race) -> Result<(), Refused> {
+    let physics_store = &race.physics;
     let walked = walls::walk(CAR.probe_count.get(), |k| {
         let k = k as usize;
         let now = CAR.probe_point_face[k].get();
@@ -71,14 +71,14 @@ pub fn steps() -> Result<(), Refused> {
             CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
             CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
             CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
-            crate::physics::wall_edge_contact::steps()?;
+            crate::physics::wall_edge_contact::steps(race)?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
                 f32::from_bits(physics_store.contact.contact_speed_length.bits()),
                 f32::from_bits(CAR.contact_depth.bits()),
             ) {
                 CAR.contact_depth.set_bits(hit.to_bits());
             }
-            after()
+            after(race)
         }
         walls::Walk::Clear { bits } => {
             physics_store
@@ -92,8 +92,8 @@ pub fn steps() -> Result<(), Refused> {
             CAR.contact_point[0].set_bits(crate::physics::car_store::CAR.local_velocity[0].bits());
             CAR.contact_point[1].set_bits(crate::physics::car_store::CAR.local_velocity[1].bits());
             CAR.contact_point[2].set_bits(crate::physics::car_store::CAR.local_velocity[2].bits());
-            crate::physics::wall_push_back::steps()?;
-            after()
+            crate::physics::wall_push_back::steps(race)?;
+            after(race)
         }
     }
 }
@@ -104,7 +104,7 @@ pub fn check() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn wall_contacts() -> Result<(), Refused> {
+pub fn wall_contacts(race: &Race) -> Result<(), Refused> {
     check()?;
-    steps()
+    steps(race)
 }

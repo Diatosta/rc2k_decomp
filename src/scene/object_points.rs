@@ -9,7 +9,6 @@
 //! contact walks): the original's arithmetic is kept, and a place is read here.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
 
 /// `COURSE_LISTS.object_points` while the points are taken: point 0's place.
 pub const BASE: u32 = 1;
@@ -19,9 +18,13 @@ crate::memory::owned::thread_owned!(
 );
 
 /// `bytes` of points, zeroed, counted on `list`.
-pub fn take(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
+pub fn take(
+    course: &crate::race::owner_course::Course,
+    list: crate::pointers::GamePtr,
+    bytes: u32,
+) -> Result<(), Refused> {
     POINTS.take(list, bytes, vec![0; bytes as usize])?;
-    race().course.lists.object_points.set(BASE);
+    course.lists.object_points.set(BASE);
     Ok(())
 }
 
@@ -87,13 +90,14 @@ mod tests {
 
     #[test]
     fn points_are_read_by_place() {
-        let course = &race().course;
+        let course = &crate::race::owner::race().course;
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = course.lists.object_points.get();
         let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
         let _region = crate::pointers::Lent::new(&memory);
         take(
+            course,
             crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr())),
             36,
         )

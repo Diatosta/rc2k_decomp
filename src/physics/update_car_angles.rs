@@ -9,14 +9,15 @@
 
 use crate::physics::car_angles::car_angles;
 use crate::physics::car_store::CAR;
+use crate::race::owner_course::Course;
 
 use rc2k_core::physics::motion::angles_wanted as wanted;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::motion::angles_wanted`.
-pub fn update_car_angles() {
+pub fn update_car_angles(course: &Course) {
     let (force, hold) = (CAR.camera_mode_is_2_or_3.get(), CAR.all_wheels_off.get());
     if wanted(force, hold) {
-        car_angles();
+        car_angles(course);
     }
 }

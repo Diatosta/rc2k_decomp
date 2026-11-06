@@ -14,8 +14,9 @@ use crate::physics::tables_store::ForceRecord;
 /// The Rust version: `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the
 /// work car.
 pub fn apply_torques(records: &[ForceRecord]) -> Result<(), Refused> {
+    let physics = &crate::race::owner::race().physics;
     for rec in records {
-        apply_torque(rec, &crate::physics::car_store::CAR);
+        apply_torque(physics, rec, &crate::physics::car_store::CAR);
     }
     Ok(())
 }

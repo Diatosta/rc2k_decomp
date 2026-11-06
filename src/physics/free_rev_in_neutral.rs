@@ -7,11 +7,12 @@
 
 use crate::physics::car_store::CAR;
 use crate::physics::free_rev::free_rev;
+use crate::race::owner_course::Course;
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn free_rev_in_neutral() {
+pub fn free_rev_in_neutral(course: &Course) {
     if CAR.gear.get() != 0 {
         return;
     }
-    free_rev();
+    free_rev(course);
 }

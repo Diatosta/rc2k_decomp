@@ -9,12 +9,14 @@
 //! `start_cars_behind` refuses.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version: `drive::start_cars_behind` in mode 2.
 pub fn race_mode_cars() -> Result<(), Refused> {
+    let course = &race().course;
     if RACE_VARS.run_kind.bits() == 2 {
-        { crate::drive::start_cars_behind::start_cars_behind() }?;
+        { crate::drive::start_cars_behind::start_cars_behind(course) }?;
     }
     Ok(())
 }

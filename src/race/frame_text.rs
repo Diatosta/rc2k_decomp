@@ -3,7 +3,9 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
+#[cfg(test)]
 use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::Trap;
 use crate::scene::draw_store::DRAW;
@@ -14,8 +16,7 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 /// `race::draw_frame_rate` (0x4562B2): `dword_5C6604` 2; the frame rate (`flt_6214F0`,
 /// rounded into `dword_62400C`), when not 0 and `dword_5EB100` is set, drawn at (0x190, 4)
 /// in the font at 0x51DE90 as "fps: n" (its size; built in the text buffer).
-pub fn draw_frame_rate(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn draw_frame_rate(frame: &Frame, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame_rate::{shown_rate, fps_text}`.
     use rc2k_core::race::frame_rate::{fps_text, shown_rate};
     frame.text_state.text_mode.set(2);
@@ -153,11 +154,11 @@ impl Credits {
 /// for each 0x12 ms passed, and when the last line is above -0xAF and the music has
 /// stopped, `dword_529854` 1 (the original also leaves flags no caller reads).
 pub fn roll_credits(
+    frame: &Frame,
     eax: u32,
     canvas: &mut dyn Canvas,
     sound: &mut dyn FnMut(),
 ) -> Result<(), Refused> {
-    let frame = &race().frame;
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};

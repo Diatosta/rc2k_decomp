@@ -14,14 +14,13 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::physics::walls::ProbeCounts;
 
 /// The Rust version. The eax it leaves (`dword_5CCC78` when found) is read by none of its
 /// callers.
 // Converted: `rc2k_core::physics::walls::ProbeCounts`.
-pub fn count_ground_probe() -> Result<(), Refused> {
-    let race = race();
+pub fn count_ground_probe(race: &Race) -> Result<(), Refused> {
     let mut counts = ProbeCounts {
         tries: race.physics.camera.ground_probes.get(),
         found: race.physics.camera.ground_found.get(),

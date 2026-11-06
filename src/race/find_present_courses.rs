@@ -18,12 +18,13 @@ use crate::files::state::BYTES_READ;
 use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
-fn paths() -> [crate::pointers::GamePtr; 2] {
-    let p = &race().course.level_paths;
+fn paths(course: &Course) -> [crate::pointers::GamePtr; 2] {
+    let p = &course.level_paths;
     [
         crate::pointers::GamePtr::to(&p.cdat_src),
         crate::pointers::GamePtr::to(&p.cdat_files),
@@ -33,15 +34,16 @@ use rc2k_core::race::stage_objects::COURSES;
 
 /// The Rust version (nothing written when it refuses).
 pub fn find_present_courses() -> Result<(), Refused> {
+    let course = &race().course;
     // Converted: `rc2k_core::race::stage_objects::{COURSES, course_present, PROBE_BYTES}`.
     use rc2k_core::race::stage_objects::{PROBE_BYTES, course_present};
     for n in 0..COURSES {
         set_course_number(n)?;
-        set_cdat_number(0);
+        set_cdat_number(course, 0);
         FRAME_SWITCHES.course_present[n as usize].set(0); // dword_621518, 100 flags
-        let present = course_present(paths().len() as u32, |file| {
+        let present = course_present(paths(course).len() as u32, |file| {
             BYTES_READ.set(0);
-            let path = paths()[file as usize];
+            let path = paths(course)[file as usize];
             read_whole_file(
                 path,
                 crate::pointers::GamePtr::to(&DRAW.work_dword),

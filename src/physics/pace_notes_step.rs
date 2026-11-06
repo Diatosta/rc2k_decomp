@@ -23,7 +23,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
@@ -46,7 +46,7 @@ const ONE_F32: u32 = 0x3F80_0000;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
-pub fn pace_notes_step() -> Result<(), Refused> {
+pub fn pace_notes_step(race: &Race) -> Result<(), Refused> {
     if !calling(gates(), CAR.driver_kind.get(), CAR.run_ticks.get()) {
         return Ok(());
     }
@@ -54,7 +54,7 @@ pub fn pace_notes_step() -> Result<(), Refused> {
     let ahead = crate::math::x87::mul_div_div_to_int(
         CAR.local_velocity[2].bits(),
         PHYSICS.pace_scale.bits(),
-        race().course.numbers.eight.bits(),
+        race.course.numbers.eight.bits(),
         ONE_F32,
     );
     DRAW.scratch.set(ahead as u32);
@@ -68,7 +68,7 @@ pub fn pace_notes_step() -> Result<(), Refused> {
         let mut checkpoint = last;
         loop {
             checkpoint = checkpoint.wrapping_add(1);
-            crate::physics::queue_pace_note::queue_pace_note(checkpoint)?;
+            crate::physics::queue_pace_note::queue_pace_note(race, checkpoint)?;
             if checkpoint >= target {
                 break;
             }

@@ -7,7 +7,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
@@ -124,8 +124,7 @@ impl Steps {
 /// pace notes, overlay; `dword_621508` the object of kind 0x7A (else 0x79);
 /// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
 /// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
-pub fn loadlevel_init() -> Result<(), Refused> {
-    let race = race();
+pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
     let v = LoadVars::game();
@@ -158,19 +157,19 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     s.log();
     s.indent(3);
     // stru_5C6D50: the course's MemoryList.
-    level::allocate_course_memory(&race.course.lists.course_memory_list)?;
+    level::allocate_course_memory(&race.course, &race.course.lists.course_memory_list)?;
     s.progress(2)?;
     s.progress(4)?;
     s.indent(-3);
     // load texture info and the course number.
     s.log();
     s.indent(3);
-    level::load_texture_info()?;
+    level::load_texture_info(&race.course)?;
     level::set_course_number(RACE_VARS.stage_number.bits())?;
     s.progress(6)?;
     s.indent(-3);
-    s.step(&mut || stage_prefs::load_prefs(), Some(7))?;
-    s.step(&mut || level::load_error_list(), Some(8))?;
+    s.step(&mut || stage_prefs::load_prefs(&race.course), Some(7))?;
+    s.step(&mut || level::load_error_list(&race.frame), Some(8))?;
     s.step(
         &mut || crate::scene::texture_levels::init_texture_levels(),
         Some(0xA),
@@ -179,9 +178,9 @@ pub fn loadlevel_init() -> Result<(), Refused> {
         &mut || crate::scene::set_up_textures::set_up_textures(),
         Some(0xE),
     )?;
-    s.step(&mut || level::build_texture_infos(), Some(0xF))?;
+    s.step(&mut || level::build_texture_infos(&race.course), Some(0xF))?;
     s.step(
-        &mut || crate::race::course_data::locate_current_course(),
+        &mut || crate::race::course_data::locate_current_course(&race.course),
         Some(0x13),
     )?;
     s.step(
@@ -194,19 +193,20 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     // reloadobjects.
     s.log();
     s.indent(3);
-    crate::race::objects::reload_objects()?;
+    crate::race::objects::reload_objects(race)?;
     s.progress(0x1E)?;
     RACE_VARS.bar_span[0].set(0x1E); // dword_623634
     RACE_VARS.bar_span[1].set(0x50); // dword_623638
     s.indent(-3);
     s.step(
-        &mut || crate::race::set_all_plates::set_all_plates(),
+        &mut || crate::race::set_all_plates::set_all_plates(&race.course),
         Some(0x50),
     )?;
     // loadgamemap.
     s.log();
     s.indent(3);
     crate::race::game_map::load_game_map(
+        &race.frame,
         crate::scene::owner::scene()
             .file_numbers
             .text_ptr(texts::MAP_PATH),
@@ -234,7 +234,7 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     // refresh init and the refresh flags.
     s.log();
     s.indent(3);
-    level::reset_refresh();
+    level::reset_refresh(&race.course);
     let flags: u32 = race.course.stage_prefs.refresh_flags_a.bits();
     LIGHT_WORK.marks_mask.set_bits((flags & 2) >> 1);
     for car in &CAR_BLOCKS.cars[..8] {
@@ -268,11 +268,11 @@ pub fn loadlevel_init() -> Result<(), Refused> {
         },
         Some(0x62),
     )?;
-    s.step(&mut || stage_prefs::load_lights_data(), Some(0x63))?;
+    s.step(&mut || stage_prefs::load_lights_data(race), Some(0x63))?;
     // initmud: mark 0x64 twice, then the callback put away.
     s.log();
     s.indent(3);
-    crate::race::mud::init_mud()?;
+    crate::race::mud::init_mud(&race.course)?;
     s.progress(0x64)?;
     s.progress(0x64)?;
     RACE_VARS.bar_function.set_bits(BAR_DONE);
@@ -287,17 +287,17 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     // store norms; without `dword_64BB18` the checkpoints, the pace notes, the overlay.
     s.log();
     s.indent(3);
-    crate::race::norms::store_norms(&mut crate::race::norms::game_normal)?;
+    crate::race::norms::store_norms(race, &mut crate::race::norms::game_normal)?;
     if race.replay.finish.no_place.get() == 0 {
         s.indent(-3);
-        s.step(&mut || level::init_checkpoints(), None)?;
+        s.step(&mut || level::init_checkpoints(&race.physics), None)?;
         s.step(
             &mut || crate::race::init_pace_notes::init_pace_notes(),
             None,
         )?;
         s.log();
         s.indent(3);
-        crate::race::init_overlay::init_overlay()?;
+        crate::race::init_overlay::init_overlay(race)?;
     } else {
         s.word += 3;
     }

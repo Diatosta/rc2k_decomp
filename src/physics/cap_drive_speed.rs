@@ -12,7 +12,7 @@ use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use std::cmp::Ordering;
@@ -37,8 +37,8 @@ fn put(a: &dyn Cell32, v: u32) {
 pub type CapPlaces = [&'static dyn Cell32; 4];
 
 /// The core.
-pub fn cap_drive_speed_at(v: CapPlaces) {
-    let zero = race().course.numbers.zero.bits();
+pub fn cap_drive_speed_at(course: &Course, v: CapPlaces) {
+    let zero = course.numbers.zero.bits();
     put(
         v[0],
         over_abs_plus_minus(
@@ -67,6 +67,6 @@ fn game() -> CapPlaces {
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
-pub fn cap_drive_speed() {
-    cap_drive_speed_at(game());
+pub fn cap_drive_speed(course: &Course) {
+    cap_drive_speed_at(course, game());
 }

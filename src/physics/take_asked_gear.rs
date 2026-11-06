@@ -13,17 +13,18 @@ use crate::physics::allowed_gear::allowed_gear;
 use crate::physics::car_store::CAR;
 use crate::physics::change_gear::change_gear;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner_course::Course;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::gearbox::asked_gear`.
-pub fn take_asked_gear() -> Result<(), Refused> {
+pub fn take_asked_gear(course: &Course) -> Result<(), Refused> {
     let run = || -> Result<(), Refused> {
         CAR.gear_changed.set(0u32);
         let word: u32 = CAR.input_keys.get();
         let asked = rc2k_core::physics::gearbox::asked_gear(word);
-        let gear = allowed_gear(asked)?;
+        let gear = allowed_gear(course, asked)?;
         PHYSICS.gear_asked.set(gear);
-        change_gear()
+        change_gear(course)
     };
 
     run()

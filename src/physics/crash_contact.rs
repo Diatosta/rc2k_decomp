@@ -35,7 +35,8 @@ use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e5::place_sound_e5;
 use crate::physics::sound_cue_e5::sound_cue_e5;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Float;
@@ -59,8 +60,7 @@ pub fn sign(v: u32) -> bool {
 /// +0x3C) into `qword_6D3078` ..; the turn speed (`unk_71A15C` ..) into `dword_6D30B4`
 /// ..; the point (`flt_6D2214[n]`, `flt_6D2314[n]`, `flt_6D2414[n]`) into
 /// `dword_6D3090` ...
-pub fn take_contact(n: usize) -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn take_contact(physics: &Physics, n: usize) -> Result<(), Refused> {
     copy3(&physics.contact.contact_car_speed, &CAR.velocity);
     let face = CAR.probe_point_face[n].get();
     let parts = contacts::normal_offsets(physics.contact.probe_face_flip[n].get());
@@ -76,28 +76,27 @@ pub fn take_contact(n: usize) -> Result<(), Refused> {
 }
 
 /// The deepest point's number (`dword_6D306C`) for the long path; refused past 0x3F.
-pub fn point_number() -> Result<usize, Refused> {
-    let n = race().physics.contact.lowest_point.get();
+pub fn point_number(physics: &Physics) -> Result<usize, Refused> {
+    let n = physics.contact.lowest_point.get();
     contacts::check_body_point(n)?;
     Ok(n as usize)
 }
 
 // Converted: `rc2k_core::physics::contacts::{touches, normal_offsets, check_body_point}`
 // (the x87 steps stay).
-fn steps() -> Result<(), Refused> {
-    let race = race();
+fn steps(race: &Race) -> Result<(), Refused> {
     CAR.contact_found.set(0);
-    { lowest_body_point() }?;
+    { lowest_body_point(race) }?;
     let depth = race.physics.contact.lowest_depth.get();
     if !contacts::touches(
         depth,
         PHYSICS.crash_depth.get(),
         CAR.all_wheels_off.get() != 0,
     ) {
-        { sound_cue_e5() }?;
+        { sound_cue_e5(&race.frame) }?;
         return Ok(());
     }
-    let n = point_number()?;
+    let n = point_number(&race.physics)?;
     CAR.contact_point_x
         .set(race.physics.contact.probe_x[n].get());
     CAR.contact_point_ground
@@ -105,7 +104,7 @@ fn steps() -> Result<(), Refused> {
     CAR.contact_point_z
         .set(race.physics.contact.probe_z[n].get());
     CAR.contact_found.set(1);
-    take_contact(n)?;
+    take_contact(&race.physics, n)?;
     let up = {
         rotate_point(
             &CAR.crash_matrix,
@@ -121,16 +120,16 @@ fn steps() -> Result<(), Refused> {
             &race.physics.contact.contact_normal,
         )
     }));
-    x87_1();
-    contact_force(&PHYSICS.forces[21]);
-    { place_sound_e5() }?;
+    x87_1(race);
+    contact_force(race, &PHYSICS.forces[21]);
+    { place_sound_e5(race) }?;
     for k in 0..3 {
         race.physics.contact.ground_force[k].set(PHYSICS.forces[21].force[k].bits());
     }
     for cell in &PHYSICS.forces[21].point {
         cell.set_bits(0);
     }
-    x87_2();
+    x87_2(race);
     hold_high(
         &race.physics.contact.crash_ground_scale,
         &race.course.numbers.one,
@@ -145,8 +144,8 @@ fn steps() -> Result<(), Refused> {
 }
 
 /// The Rust version. The registers it leaves are read by none of its callers.
-pub fn crash_contact() -> Result<(), Refused> {
-    steps()
+pub fn crash_contact(race: &Race) -> Result<(), Refused> {
+    steps(race)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -154,8 +153,7 @@ pub fn crash_contact() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_1() {
-    let race = race();
+fn x87_1(race: &Race) {
     let t0 = ld(race.physics.contact.crash_up_dot.bits());
     let t1 = ld(race.course.numbers.one.bits());
     let t2 = t0 + t1;
@@ -177,8 +175,7 @@ fn x87_1() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2D3014] = ([rc + 0x31A0A0] + [rc + 0x1C5D60]) / [rc + 0x1C5D60]`
-fn x87_2() {
-    let race = race();
+fn x87_2(race: &Race) {
     let t0 = ld(CAR.crash_matrix[5].bits());
     let t1 = ld(race.course.numbers.sixty_four.bits());
     let t2 = t0 + t1;
@@ -214,7 +211,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |_| x87_1(),
+                plain: |_| x87_1(crate::race::owner::race()),
             },
             Block {
                 name: "crash_contact line 120",
@@ -224,7 +221,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(),
+                plain: |_| x87_2(crate::race::owner::race()),
             },
         ]
     }

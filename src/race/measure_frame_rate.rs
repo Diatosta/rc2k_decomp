@@ -12,7 +12,7 @@
 //! `wiki/Fixed-bugs.md`): the cycles from the whole counter, not its signed low halves.
 
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::draw_store::DRAW;
 use crate::session::MACHINE;
@@ -23,8 +23,7 @@ static LAST: AtomicU64 = AtomicU64::new(0);
 
 /// The rate worked out in plain floats.
 // Converted: `rc2k_core::race::frame_rate::frame_rate`.
-fn frame_rate_plain(cycles: u64) {
-    let course = &race().course;
+fn frame_rate_plain(course: &Course, cycles: u64) {
     let rate = rc2k_core::race::frame_rate::frame_rate(
         MACHINE.cpu_mhz.get() as i32,
         course.numbers.thousand.get(),
@@ -37,7 +36,7 @@ fn frame_rate_plain(cycles: u64) {
 /// The Rust version: the eax the original leaves when it changes it (on the 16th call, the
 /// time-stamp counter's low half, `dword_6214E8`); its edx and ebx (the counter's high
 /// half, the cycles) are read by no caller.
-pub fn measure_frame_rate() -> Option<u32> {
+pub fn measure_frame_rate(course: &Course) -> Option<u32> {
     // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
     let (count, due) = count_frame(PHYSICS.frame_rate_count.bits());
@@ -50,7 +49,7 @@ pub fn measure_frame_rate() -> Option<u32> {
     FRAME_SWITCHES.frame_now.set_bits(now);
     if let Some(cycles) = cycles_since(whole, LAST.swap(whole, Relaxed)) {
         DRAW.scratch.set_bits(cycles as u32);
-        frame_rate_plain(cycles);
+        frame_rate_plain(course, cycles);
     }
     FRAME_SWITCHES.frame_last.set_bits(now);
     Some(now)

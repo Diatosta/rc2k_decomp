@@ -19,6 +19,7 @@ use crate::scene::view_matrix::set_view_matrices;
 // ---- Rust version ----
 
 pub fn prepare_menu_scene() {
+    let frame = &race().frame;
     crate::session::write_bits(
         &race().frame.view_and_records.view_vars.view_place,
         [0u32; 3],
@@ -35,5 +36,5 @@ pub fn prepare_menu_scene() {
     o.light_level.set(0xB4);
     o.light_strength.set(0xB4);
     crate::session::write_bits(&OBJECT_WORK.light_turns, [0x6Eu32, 0x1E]);
-    set_view_matrices();
+    set_view_matrices(frame);
 }

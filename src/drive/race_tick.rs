@@ -13,13 +13,14 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::Race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
-pub fn race_tick() -> Result<(), Refused> {
+pub fn race_tick(race: &Race) -> Result<(), Refused> {
     if CAR_BLOCKS.cars[0].probe_count.bits() == 0 {
         return Err(FatalError {
             code: rc2k_core::drive::race_ticks::NO_CAR_FATAL,
@@ -28,7 +29,7 @@ pub fn race_tick() -> Result<(), Refused> {
         .into());
     }
     if FRAME_SWITCHES.levers_on.get() == 0 {
-        return crate::drive::simple_car_step::simple_car_step();
+        return crate::drive::simple_car_step::simple_car_step(race);
     }
     RACE_VARS
         .race_ticks
@@ -39,5 +40,5 @@ pub fn race_tick() -> Result<(), Refused> {
     ) {
         return Ok(());
     }
-    crate::drive::replay_step::replay_step()
+    crate::drive::replay_step::replay_step(race)
 }

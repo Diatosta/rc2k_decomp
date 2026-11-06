@@ -33,32 +33,33 @@ use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::reverse;
 use crate::physics::pick_start_gear::pick_start_gear;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C66D).
-fn up() -> Result<Shift, Refused> {
+fn up(course: &Course) -> Result<Shift, Refused> {
     if let Some(shift) = shifts::auto_up(CAR.gear.get(), PHYSICS.gear_count.get()) {
         return Ok(shift);
     }
     wheels()?;
     CAR.gear.set(CAR.gear.get().wrapping_add(1));
-    revs()?;
+    revs(course)?;
     settle();
     Ok(Shift::Done)
 }
 
 /// Down (0x43C6B7).
-fn down() -> Result<Shift, Refused> {
+fn down(course: &Course) -> Result<Shift, Refused> {
     wheels()?;
     CAR.gear.set(CAR.gear.get().wrapping_sub(1));
-    revs()?;
+    revs(course)?;
     if below(CAR.engine_speed.bits(), PHYSICS.rev_limit.bits()) {
         settle();
         return Ok(Shift::Done);
     }
     CAR.gear.set(CAR.gear.get().wrapping_add(1));
-    revs()?;
+    revs(course)?;
     Ok(Shift::Neutral)
 }
 
@@ -110,7 +111,7 @@ fn tests() -> Result<Shift, Refused> {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn auto_gearbox() -> Result<(), Refused> {
+pub fn auto_gearbox(course: &Course) -> Result<(), Refused> {
     CAR.gear_changed.set(0);
     let mut to = 'first: {
         if bit(CAR.gear.get())? {
@@ -150,18 +151,18 @@ pub fn auto_gearbox() -> Result<(), Refused> {
     };
     loop {
         to = match to {
-            Shift::Up => up()?,
-            Shift::Down => down()?,
+            Shift::Up => up(course)?,
+            Shift::Down => down(course)?,
             Shift::Neutral => {
                 neutral();
                 Shift::Done
             }
             Shift::Start => {
-                pick_start_gear()?;
+                pick_start_gear(course)?;
                 Shift::Done
             }
             Shift::Reverse => {
-                reverse(false)?;
+                reverse(course, false)?;
                 Shift::Done
             }
             Shift::Done => return Ok(()),

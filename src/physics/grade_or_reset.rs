@@ -10,16 +10,18 @@
 use crate::physics::car_store::CAR;
 use crate::physics::rate_damage::rate_damage;
 use crate::physics::reset_car_grades::reset_grades_at;
+use crate::race::owner::Race;
 
 /// The Rust version: `CAR.driver_kind` 2 resets the grades.
-pub fn grade_or_reset() {
+pub fn grade_or_reset(race: &Race) {
     if CAR.driver_kind.get() == 2 {
         reset_grades_at(
+            &race.course,
             crate::pointers::GamePtr::to(&CAR),
             &CAR.suspension_stiffness,
             &CAR.ride_height,
         );
     } else {
-        rate_damage();
+        rate_damage(&race.physics);
     }
 }

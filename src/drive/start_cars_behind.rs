@@ -31,7 +31,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::work_store::RACE_WORK;
 use crate::session::Dword;
@@ -80,7 +80,14 @@ fn refusal() -> Result<Option<&'static str>, BadInput> {
 
 /// One car moved: its slot `from_slot` emptied into the other's (`shift`), a new car at
 /// start `start` with `dist` checkpoints on.
-fn put_car(start: u32, slot: &Dword, number: &Dword, dist: u32, speed: u32) -> Result<(), Refused> {
+fn put_car(
+    course: &Course,
+    start: u32,
+    slot: &Dword,
+    number: &Dword,
+    dist: u32,
+    speed: u32,
+) -> Result<(), Refused> {
     number.set(start);
     RACE_TABLES.start_slot.set(start);
     let car = car_by_start(start)?;
@@ -88,7 +95,7 @@ fn put_car(start: u32, slot: &Dword, number: &Dword, dist: u32, speed: u32) -> R
     slot.set(car);
     crate::drive::load_car::load_car()?;
     RACE_TABLES.start_speed.set_bits(speed);
-    crate::drive::start_car_on_line::start_car_on_line(dist)?;
+    crate::drive::start_car_on_line::start_car_on_line(course, dist)?;
     crate::drive::store_car::store_car()?;
     Ok(())
 }
@@ -105,8 +112,7 @@ fn clear_car(car: u32) -> Result<(), Refused> {
 /// The Rust version. The registers it leaves are read by no caller (liveness: the
 /// callers' after-sets are kept or dead).
 // Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
-pub fn start_cars_behind() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn start_cars_behind(course: &Course) -> Result<(), Refused> {
     if let Some(why) = refusal()? {
         return Err(BadInput(why).into());
     }
@@ -130,7 +136,14 @@ pub fn start_cars_behind() -> Result<(), Refused> {
                 &RACE_TABLES.pace_distance_b,
             ),
         ] {
-            put_car(start.get(), slot, &lead.pace_starts[0], dist.get(), 0)?;
+            put_car(
+                course,
+                start.get(),
+                slot,
+                &lead.pace_starts[0],
+                dist.get(),
+                0,
+            )?;
         }
         lead.pace_placed.set(1);
     }
@@ -161,6 +174,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
                     .get()
                     .wrapping_sub(lead.mode2_behind.get());
                 put_car(
+                    course,
                     start,
                     &lead.pace_cars[1],
                     &lead.pace_starts[1],
@@ -204,6 +218,7 @@ pub fn start_cars_behind() -> Result<(), Refused> {
             .wrapping_sub(3)
             .wrapping_sub(lead.mode2_behind.get());
         put_car(
+            course,
             start,
             &lead.pace_cars[0],
             &lead.pace_starts[0],

@@ -15,13 +15,12 @@ use crate::math::x87;
 use crate::math::x87_run::{compare_full, toward_one};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (edx the slot).
-pub fn blend_at(v: &[&dyn Cell32]) {
-    let course = &race().course;
+pub fn blend_at(course: &Course, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
@@ -67,6 +66,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version (the exact one, for `physics::car_physics_step`); `r` as the
 /// original leaves are read by none of its callers.
-pub fn blend_wheel_load() {
-    blend_at(&game());
+pub fn blend_wheel_load(course: &Course) {
+    blend_at(course, &game());
 }

@@ -18,14 +18,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
 use crate::scene::object_store::OBJECT_WORK;
 
 /// The Rust version. The registers it leaves are read by none of its callers.
-pub fn object_turn_matrix() -> Result<(), Refused> {
-    let race = race();
+pub fn object_turn_matrix(race: &Race) -> Result<(), Refused> {
     let object = race.physics.contact.face_object.get();
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());

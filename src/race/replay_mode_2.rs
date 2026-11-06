@@ -7,8 +7,10 @@
 //! Caller: `sub_470529` (a menu item).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 
 /// The Rust version.
 pub fn replay_mode_2() -> Result<(), Refused> {
-    crate::race::replay_viewer::replay_viewer(crate::race::replay_viewer::Mode::Saved)
+    let race = race();
+    crate::race::replay_viewer::replay_viewer(race, crate::race::replay_viewer::Mode::Saved)
 }

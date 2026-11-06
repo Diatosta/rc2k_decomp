@@ -18,7 +18,7 @@
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
 
@@ -26,7 +26,7 @@ use crate::session::SCREEN;
 /// is read by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{flushes, check_polygon, polygon_indices}`,
 // `rc2k_core::hud::quads::screen_scaled`
-pub fn add_polygon(hud: &Hud) -> Result<(), Refused> {
+pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use rc2k_core::hud::batch::{self, MOST_VERTICES};
     use rc2k_core::hud::quads::screen_scaled;
     {
@@ -51,14 +51,9 @@ pub fn add_polygon(hud: &Hud) -> Result<(), Refused> {
         }
         if flushes {
             crate::hud::flush_batch::flush_batch(hud);
-            race()
-                .frame
-                .panel_and_overlay
-                .panel
-                .shown_texture
-                .set(texture);
+            frame.panel_and_overlay.panel.shown_texture.set(texture);
             hud.block.batch_texture.set(texture);
-            crate::hud::set_batch_texture::set_batch_texture()?;
+            crate::hud::set_batch_texture::set_batch_texture(frame)?;
         }
         let vc = hud.block.vertex_count.get();
         crate::pointers::GamePtr::to(&VERTICES.vertices).copy_to(

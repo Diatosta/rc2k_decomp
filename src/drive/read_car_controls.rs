@@ -49,7 +49,8 @@ fn computer() -> bool {
 /// The Rust version: `r` as the original leaves it.
 // Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
 pub fn read_car_controls() -> Result<(), Refused> {
-    let course = &race().course;
+    let race = race();
+    let course = &race.course;
     if computer() && RACE_VARS.checkpoint_count.get() == 0 && CAR.run_ticks.get() >= 0x320 {
         // `drive_computer_car`'s refusal, before anything here is written.
         let reaches = crate::math::x87_run::compare_full(
@@ -96,7 +97,7 @@ pub fn read_car_controls() -> Result<(), Refused> {
         return Ok(());
     }
     RACE_WORK.driver_slot.set(RACE_WORK.current_car.get());
-    start_blend();
+    start_blend(&race.course);
     RACE_WORK
         .driver_start_blend
         .set_bits(x87::loaded(CAR.start_blend.bits()));
@@ -106,7 +107,7 @@ pub fn read_car_controls() -> Result<(), Refused> {
     if crate::remote::autodrive() && RACE_WORK.current_car.get() < RACE_VIEW.players.get() {
         RACE_WORK.driver_start_blend.set_bits(1.0f32.to_bits());
     }
-    drive_computer_car()?;
+    drive_computer_car(race)?;
     let (ph, w) = (&PHYSICS, &RACE_WORK);
     for (to, from) in [
         (&ph.input_steer, &w.driver_steer),

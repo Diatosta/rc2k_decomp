@@ -10,6 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
 use crate::math::x87;
 use crate::pointers::GamePtr;
+use crate::race::owner_course::Course;
 use crate::race::panel_store::Loose32;
 use crate::session::{Bytes, Dword, Float, read_bits};
 
@@ -34,7 +35,12 @@ fn clamped(kind: u32) -> u32 {
 /// `set_up_windscreen_drops`, `set_up_windscreen_flakes` (and `nullsub_17`). Refuses a mark neither 0 nor
 /// `resume`, before writing; a picture that is not read (the original then counts
 /// 0x1FFFFFFF down and leaves with its stack one off), after the path is written.
-pub fn load_edges(masks: &Masks, drops: &WindscreenDrops, resume: u32) -> Result<(), Refused> {
+pub fn load_edges(
+    course: &Course,
+    masks: &Masks,
+    drops: &WindscreenDrops,
+    resume: u32,
+) -> Result<(), Refused> {
     let done: u32 = masks.edge_settings.done.get();
     if done != 0 && done != resume {
         return Err(BadInput("the edges' mark is neither 0 nor loc_4C0FFD").into());
@@ -90,7 +96,7 @@ pub fn load_edges(masks: &Masks, drops: &WindscreenDrops, resume: u32) -> Result
         .tilt
         .tilt
         .set_bits(x87::mul(float, masks.edge_settings.tilt_scale.get()));
-    crate::effects::masks::make_masks(masks, drops)?;
+    crate::effects::masks::make_masks(course, masks, drops)?;
     crate::effects::shapes::set_up_windscreen_drops(
         drops,
         crate::effects::shapes::WINDSCREEN_DROPS_RESUME,
@@ -106,14 +112,18 @@ pub fn load_edges(masks: &Masks, drops: &WindscreenDrops, resume: u32) -> Result
 /// `effects::load_kind_data` (0x4C1235), `init_marks`' step 1: `g_marksKind` the settings'
 /// +0x26A8; `nullsub_1` (twice, between them), `load_edges`, `load_splines`. Refuses as
 /// its steps do.
-pub fn load_kind_data(effects: &Effects) -> Result<(), Refused> {
+pub fn load_kind_data(course: &Course, effects: &Effects) -> Result<(), Refused> {
     let (masks, drops) = (&effects.masks, &effects.windscreen_drops);
     {
         let marks = crate::effects::setup::marks()?;
         let kind = marks.mark_car_file_number.get();
         MARKS_KIND.kind.set_bits(kind);
-        load_edges(masks, drops, RESUME)?;
-        crate::effects::splines::load_splines(&effects.paths, crate::effects::splines::RESUME)?;
+        load_edges(course, masks, drops, RESUME)?;
+        crate::effects::splines::load_splines(
+            course,
+            &effects.paths,
+            crate::effects::splines::RESUME,
+        )?;
     }
     Ok(())
 }

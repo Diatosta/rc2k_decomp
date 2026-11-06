@@ -46,29 +46,30 @@ use crate::physics as ph;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
-fn motion() {
-    ph::move_car::move_car();
-    ph::spin_matrix::spin_matrix();
-    ph::lever_pushes::lever_pushes();
+fn motion(race: &Race) {
+    ph::move_car::move_car(&race.course);
+    ph::spin_matrix::spin_matrix(race);
+    ph::lever_pushes::lever_pushes(&race.course);
     crate::race::start_place::invert_car_matrix();
-    ph::update_car_angles::update_car_angles();
+    ph::update_car_angles::update_car_angles(&race.course);
 }
 
 /// The steps. What the callees leave in the registers is read by none of them (each reads
 /// what it needs from memory), nor by the callers.
-pub fn steps() -> Result<(), Refused> {
-    let race_owner = race();
+pub fn steps(race: &Race) -> Result<(), Refused> {
+    let race_owner = race;
     ph::stir_car_word::stir_car_word();
-    ph::load_car_specs::load_car_specs()?;
-    ph::make_gear_ratios::make_gear_ratios()?;
+    ph::load_car_specs::load_car_specs(race)?;
+    ph::make_gear_ratios::make_gear_ratios(&race.course)?;
     ph::store_motion_length::store_motion_length();
     ph::set_handling::set_handling()?;
-    ph::race_timers::race_timers()?;
+    ph::race_timers::race_timers(race)?;
     for cell in [
         &race_owner.frame.sound_spots.sound_scratch_a,
         &race_owner.frame.sound_spots.sound_scratch_b,
@@ -100,42 +101,42 @@ pub fn steps() -> Result<(), Refused> {
         figure.set_bits(0);
     }
     crate::race::start_place::invert_car_matrix();
-    ph::feel_ground::feel_ground()?;
+    ph::feel_ground::feel_ground(race)?;
     ph::start_skid_mark::start_skid_mark();
-    ph::probe_and_keep::probe_and_keep()?;
+    ph::probe_and_keep::probe_and_keep(race)?;
     ph::ease_car_value::ease_car_value();
     ph::count_down_timers::count_down_timers();
     ph::wheel_surfaces::wheel_surfaces()?;
-    ph::surface_noise::surface_noise()?;
-    ph::save_car_state::save_car_state()?;
+    ph::surface_noise::surface_noise(&race.course)?;
+    ph::save_car_state::save_car_state(&race.physics)?;
     ph::clear_forces::clear_forces()?;
-    ph::set_wheel_weights::set_wheel_weights();
+    ph::set_wheel_weights::set_wheel_weights(race);
     ph::set_downforce::set_downforce();
-    ph::gearbox_step::gearbox_step()?;
-    { ph::drive_force::drive_force() }?;
+    ph::gearbox_step::gearbox_step(&race.course)?;
+    { ph::drive_force::drive_force(&race.course) }?;
     // 0x43B737: the side speed held within the limit.
     CAR.side_speed_held.set_bits(CAR.local_velocity[0].bits());
     hold_high(&CAR.side_speed_held, &PHYSICS.side_speed_limit);
     negate(&PHYSICS.side_speed_limit);
     hold_low(&CAR.side_speed_held, &PHYSICS.side_speed_limit);
     negate(&PHYSICS.side_speed_limit);
-    ph::drive_grip_forces::drive_grip_forces();
-    ph::drive_wheels_step::drive_wheels_step()?;
-    ph::settle_drive_speeds::settle_drive_speeds()?;
-    ph::free_rev_in_neutral::free_rev_in_neutral();
-    ph::free_rev_clutch::free_rev_clutch()?;
+    ph::drive_grip_forces::drive_grip_forces(&race.course);
+    ph::drive_wheels_step::drive_wheels_step(&race.course)?;
+    ph::settle_drive_speeds::settle_drive_speeds(&race.course)?;
+    ph::free_rev_in_neutral::free_rev_in_neutral(&race.course);
+    ph::free_rev_clutch::free_rev_clutch(&race.course)?;
     // 0x43B7BC: the engine's speed held.
     if CAR.brake.get() == 0 {
         hold_low(&CAR.engine_speed, &PHYSICS.idle_engine_speed);
     }
     hold_high(&CAR.engine_speed, &PHYSICS.rev_limit);
     ph::wheels_from_revs::wheels_from_revs()?;
-    ph::air_drag::air_drag();
-    ph::wheel_springs::wheel_springs();
-    ph::crash_contact::crash_contact()?;
+    ph::air_drag::air_drag(&race.course);
+    ph::wheel_springs::wheel_springs(race);
+    ph::crash_contact::crash_contact(race)?;
     ph::apply_wheel_forces::apply_wheel_forces()?;
     ph::apply_wheel_torques::apply_wheel_torques()?;
-    motion();
+    motion(race);
     PHYSICS
         .top_speed
         .set_bits(rounded(ph::vector_length::vector_length(&CAR.velocity)));
@@ -143,13 +144,13 @@ pub fn steps() -> Result<(), Refused> {
     PHYSICS.contact_step.set(0);
     loop {
         ph::clear_contacts::clear_contacts()?;
-        ph::feel_ground::feel_ground()?;
+        ph::feel_ground::feel_ground(race)?;
 
-        ph::crossed_edge::crossed_edge()?;
-        ph::wall_contacts::wall_contacts()?;
-        ph::ground_contact::ground_contact()?;
-        { ph::car_collisions::car_collisions() }?;
-        ph::face_contacts::face_contacts()?;
+        ph::crossed_edge::crossed_edge(race)?;
+        ph::wall_contacts::wall_contacts(race)?;
+        ph::ground_contact::ground_contact(race)?;
+        { ph::car_collisions::car_collisions(race) }?;
+        ph::face_contacts::face_contacts(&race.physics)?;
         ph::keep_motion::keep_motion();
         ph::apply_contact_forces::apply_contact_forces()?;
         ph::apply_contact_torques::apply_contact_torques()?;
@@ -157,17 +158,17 @@ pub fn steps() -> Result<(), Refused> {
         if PHYSICS.clear_place_count.get() == 0 {
             break;
         }
-        ph::stall_when_still::stall_when_still();
+        ph::stall_when_still::stall_when_still(&race.course);
         ph::keep_motion_vectors::keep_motion_vectors();
 
-        motion();
+        motion(race);
         PHYSICS.clear_place_count.set(0);
         PHYSICS
             .contact_step
             .set(PHYSICS.contact_step.get().wrapping_add(1));
         if PHYSICS.contact_step.get() >= PHYSICS.contact_steps.get() {
             ph::limit_motion::limit_motion();
-            ph::find_clear_place::find_clear_place()?;
+            ph::find_clear_place::find_clear_place(race)?;
 
             PHYSICS
                 .step_count
@@ -179,19 +180,19 @@ pub fn steps() -> Result<(), Refused> {
         ph::put_back_motion_vectors::put_back_motion_vectors();
         ph::limit_motion::limit_motion();
     }
-    ph::feel_ground::feel_ground()?;
+    ph::feel_ground::feel_ground(race)?;
     ph::reset_when_stuck::reset_when_stuck()?;
-    ph::engine_sound::engine_sound()?;
-    ph::spin_wheels::spin_wheels();
-    ph::track_checkpoints::track_checkpoints()?;
-    ph::pace_notes_step::pace_notes_step()?;
+    ph::engine_sound::engine_sound(race)?;
+    ph::spin_wheels::spin_wheels(&race.course);
+    ph::track_checkpoints::track_checkpoints(race)?;
+    ph::pace_notes_step::pace_notes_step(race)?;
     ph::count_down_notice::count_down_notice();
-    ph::turn_wheel_angles::turn_wheel_angles();
-    x87_1();
+    ph::turn_wheel_angles::turn_wheel_angles(&race.course);
+    x87_1(&race.course);
     ph::store_motion_length::store_motion_length();
-    ph::damage_step::damage_step();
-    ph::hit_part_checks::hit_part_checks()?;
-    ph::damage_notices::damage_notices()?;
+    ph::damage_step::damage_step(&race.physics);
+    ph::hit_part_checks::hit_part_checks(race)?;
+    ph::damage_notices::damage_notices(&race.physics)?;
     ph::take_notice::take_notice();
     ph::drop_to_neutral::drop_to_neutral();
     // 0x43B96B: `physics::test_car_word_234` set only flags nobody reads: left out.
@@ -208,11 +209,11 @@ pub fn steps() -> Result<(), Refused> {
     }
     ph::hold_spin_on_ground::hold_spin_on_ground();
     ph::drop_broken_parts::drop_broken_parts()?;
-    ph::car_lighting::car_lighting()?;
+    ph::car_lighting::car_lighting(race)?;
     ph::sum_forces::sum_forces();
-    ph::blend_wheel_load::blend_wheel_load();
+    ph::blend_wheel_load::blend_wheel_load(&race.course);
     ph::share_engine_sound::share_engine_sound()?;
-    ph::note_time_mark::note_time_mark();
+    ph::note_time_mark::note_time_mark(&race.course);
     ph::false_start::false_start()?;
     ph::value_notice::value_notice();
     Ok(())
@@ -220,10 +221,11 @@ pub fn steps() -> Result<(), Refused> {
 
 /// The Rust version.
 pub fn car_physics_step() -> Result<(), Refused> {
+    let race = crate::race::owner::race();
     if RACE_WORK.current_car.get() > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }
-    steps()
+    steps(race)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -232,11 +234,11 @@ pub fn car_physics_step() -> Result<(), Refused> {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A198] = ([rc + 0x31A190] + [rc + 0x31A194]) * [rc + 0x1C5E40]`
 /// `[rc + 0x31A8E4] = [rc + 0x31A174] - [rc + 0x214138]`
-fn x87_1() {
+fn x87_1(course: &Course) {
     let t0 = ld(CAR.drive_speed_a.bits());
     let t1 = ld(CAR.drive_speed_b.bits());
     let t2 = t0 + t1;
-    let t3 = ld(race().course.numbers.half.bits());
+    let t3 = ld(course.numbers.half.bits());
     let t4 = t2 * t3;
     CAR.mean_drive_speed.set_bits(st(t4));
     let t5 = ld(CAR.velocity[1].bits());
@@ -268,7 +270,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0]) },
-            plain: |_| x87_1(),
+            plain: |_| x87_1(&crate::race::owner::race().course),
         }]
     }
 

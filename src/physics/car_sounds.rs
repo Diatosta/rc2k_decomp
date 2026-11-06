@@ -13,7 +13,8 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{f80, int};
 use crate::math::x87_run::ext_times;
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Dword, Float};
@@ -21,11 +22,11 @@ use crate::sound::store::SoundObject;
 use rc2k_core::physics::sound_places::{FIRST, PLAY, SECOND, Slot};
 
 /// Whether car `car` (a number) is listed; refused past 7.
-pub fn listed(car: u32) -> Result<bool, Refused> {
+pub fn listed(frame: &Frame, car: u32) -> Result<bool, Refused> {
     if car > 7 {
         return Err(BadInput("a car number past 7").into());
     }
-    Ok(race().frame.frame_work.listed_car_sounds[car as usize].get() != u32::MAX)
+    Ok(frame.frame_work.listed_car_sounds[car as usize].get() != u32::MAX)
 }
 
 /// The current car's sound object.
@@ -35,8 +36,7 @@ pub fn object() -> &'static SoundObject {
 
 /// The place (with `offset` added to the car's, when given), turned and scaled, into
 /// the three floats `into`.
-pub fn place(into: &[Float; 3], offset: Option<[u32; 3]>) {
-    let race = race();
+pub fn place(race: &Race, into: &[Float; 3], offset: Option<[u32; 3]>) {
     // The original's own steps (`fild` the offset, `fiadd` the car's, `fisub` the
     // listener's; without an offset `fild` the car's, `fisub`): each rounds to the
     // control word's precision, so a big difference keeps fewer bits at 24.
@@ -60,8 +60,7 @@ pub fn place(into: &[Float; 3], offset: Option<[u32; 3]>) {
 
 /// The converted place (`rc2k_core::physics::sound_places::place`) into the three floats
 /// `into`.
-pub fn place_plain(into: &[Float; 3], offset: Option<[u32; 3]>) {
-    let race = race();
+pub fn place_plain(race: &Race, into: &[Float; 3], offset: Option<[u32; 3]>) {
     let whole = |x: &[Dword; 3]| [0, 1, 2].map(|k| x[k].get() as i32);
     let p = rc2k_core::physics::sound_places::place(
         whole(&CAR.position),
@@ -89,6 +88,7 @@ fn one_off(o: &SoundObject, slot: Slot) -> Result<(&Dword, &Dword, &[Float; 3]),
 /// (with `offset`), the object told to play.
 // Converted: `rc2k_core::physics::sound_places`.
 pub fn cue_plain(
+    race: &Race,
     o: &SoundObject,
     slot: Slot,
     sound: u32,
@@ -98,7 +98,7 @@ pub fn cue_plain(
     let (sound_cell, band_cell, place_cells) = one_off(o, slot)?;
     sound_cell.set(sound);
     band_cell.set(band);
-    place_plain(place_cells, offset);
+    place_plain(race, place_cells, offset);
     // +0x10 (`PLAYING`): the play switch, the cell the revs' new reading flag shares.
     o.new_revs.set(PLAY);
     Ok(())

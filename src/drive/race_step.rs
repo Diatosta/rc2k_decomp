@@ -10,17 +10,19 @@
 
 use crate::errors::Refused;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: edi, edx
 /// and esi after `drive::race_loop`'s call have no read point but the false ones of
 /// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
 pub fn race_step() -> Result<(), Refused> {
+    let race = race();
     crate::drive::race_clock_tick::race_clock_tick();
     if PHYSICS.debug[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(PHYSICS.race_tenths.get(), |ecx| {
             crate::debug::timing::note_tick();
-            { crate::drive::race_tick::race_tick() }?;
+            { crate::drive::race_tick::race_tick(race) }?;
             let out = crate::race::frame::players_all_out()?;
             Ok::<_, Refused>((out, ecx))
         })?;

@@ -16,7 +16,7 @@
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 const TEXTS: [&std::ffi::CStr; 4] = [
     c"dpg replay",
@@ -35,8 +35,7 @@ fn log_number(n: u32) {
 
 /// The Rust version. Reads no register, and its one caller (`race::play_movie`, whose
 /// caller reads none either) reads none it leaves (`lq -s 0x4607A5`: nothing live).
-pub fn play_movie_loop() -> Result<(), Refused> {
-    let race = race();
+pub fn play_movie_loop(race: &Race) -> Result<(), Refused> {
     use crate::drive::race_parts;
     crate::race::stage_prefs::init_skidmarks()?;
     log_text(TEXTS[0], false);

@@ -24,6 +24,7 @@ use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::progress;
@@ -33,8 +34,7 @@ use std::cmp::Ordering;
 /// (`GROUND_WORK.ground_x` and `ground_z` less the point's x and z; the last one is left in
 /// the scratch dword +0x22400C), their squares added, `fsqrt`, x `flt_5C5DA0`, into
 /// +0x214D04.
-fn distance(point: [u32; 3]) {
-    let race = race();
+fn distance(race: &Race, point: [u32; 3]) {
     let word = |k: usize| point[k] as i32;
     let dx = word(0).wrapping_sub(race.physics.ground.ground_x.get() as i32);
     DRAW.scratch.set_bits(dx as u32);
@@ -51,8 +51,7 @@ fn distance(point: [u32; 3]) {
 /// 0x441770 .. 0x4417AD: the angle from `point` to the car, into `dword_62400C`: the gaps
 /// (the car's x and z less the point's, through the scratch dword +0x22400C), `fpatan`,
 /// over pi, x `flt_5C5E40` x `flt_5C5D98`, `fistp` into the scratch, its low 16 bits.
-fn angle(point: [u32; 3]) {
-    let race = race();
+fn angle(race: &Race, point: [u32; 3]) {
     let word = |k: usize| point[k] as i32;
     let dx = (race.physics.ground.ground_x.get() as i32).wrapping_sub(word(0));
     DRAW.scratch.set_bits(dx as u32);
@@ -99,8 +98,8 @@ fn point() -> Result<(u32, u32), Refused> {
 /// The Rust version: whether the car has passed the split's point (CF).
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
-pub fn passed_split_point() -> Result<bool, Refused> {
-    let race_owner = race();
+pub fn passed_split_point(race: &Race) -> Result<bool, Refused> {
+    let race_owner = race;
     if race_owner.replay.finish.no_place.get() != 0 {
         return Ok(false);
     }
@@ -117,7 +116,7 @@ pub fn passed_split_point() -> Result<bool, Refused> {
         .ground
         .ground_z
         .set(CAR.position[2].get());
-    distance(pt);
+    distance(race, pt);
     let within = !matches!(
         f32::from_bits(PHYSICS.split_point_distance.bits())
             .partial_cmp(&f32::from_bits(PHYSICS.split_distance.bits())),
@@ -126,7 +125,7 @@ pub fn passed_split_point() -> Result<bool, Refused> {
     if !within {
         return Ok(false);
     }
-    angle(pt);
+    angle(race, pt);
     let car_angle = DRAW.scratch.get() << 16;
     PHYSICS.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle(cp as usize).get();
@@ -197,7 +196,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { distance_ref(a[0], a[1]) },
-                plain: |a| distance(point_at(a[1])),
+                plain: |a| distance(crate::race::owner::race(), point_at(a[1])),
             },
             Block {
                 name: "passed_split_point angle",
@@ -218,7 +217,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { angle_ref(a[0], a[1]) },
-                plain: |a| angle(point_at(a[1])),
+                plain: |a| angle(crate::race::owner::race(), point_at(a[1])),
             },
         ];
         sparse(&blocks, 6000, 202);

@@ -7,6 +7,9 @@
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
+use crate::race::owner_frame::Frame;
+use crate::race::owner_physics::Physics;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::file_numbers_store::texts;
@@ -42,8 +45,10 @@ const TEXTURES: u32 = 0x100;
 
 /// `race::allocate_course_memory` (0x41F8C4): the course memory taken (`memory::allocate`
 /// on the list `list`).
-pub fn allocate_course_memory(list: &[crate::session::Dword; 4]) -> Result<(), Refused> {
-    let course = &race().course;
+pub fn allocate_course_memory(
+    course: &Course,
+    list: &[crate::session::Dword; 4],
+) -> Result<(), Refused> {
     course.lists.first_part.set(FIRST_PART);
     course.lists.course_bytes_total.set(
         course
@@ -128,8 +133,8 @@ pub fn copy_texture_info_tail() -> Result<(), BadInput> {
 /// the course info, `files\m\markinfo` (0x8000) at +0x1C2000, `files\b\textinfo`
 /// (0x1F4000) at +0x1F4000; three line feeds at +0x5BD21; `copy_texture_info_tail`. Refuses
 /// no course info.
-pub fn load_texture_info() -> Result<(), Refused> {
-    let info = race().course.lists.course_info.get();
+pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
+    let info = course.lists.course_info.get();
     if info == 0 {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
@@ -173,12 +178,12 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 
 /// `race::load_error_list` (0x439A92): the file named at 0x60AE02, 0x2000 bytes at most, to
 /// 0x637660.
-pub fn load_error_list() -> Result<(), Refused> {
+pub fn load_error_list(frame: &Frame) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
         crate::scene::owner::scene()
             .file_numbers
             .text_ptr(texts::ERROR_LIST_PATH),
-        &race().frame.error_list.list,
+        &frame.error_list.list,
     )?;
     Ok(())
 }
@@ -189,8 +194,7 @@ pub fn load_error_list() -> Result<(), Refused> {
 /// +0x10/+0x14/+0x18 the record's +0x20/+0x10/+0x14, +0x1C its byte +0x18, +0x2C..+0x2E its
 /// bytes +0x24..+0x26, +0 .. +0xC its first four. Refuses a kind whose record lies past
 /// the info.
-pub fn build_texture_infos() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn build_texture_infos(course: &Course) -> Result<(), Refused> {
     {
         let info = course.lists.course_info.get();
         if info == 0 {
@@ -232,8 +236,7 @@ pub fn build_texture_infos() -> Result<(), Refused> {
 }
 
 /// `race::reset_refresh` (0x45C53B): `dword_63E174` and `dword_63E178` 0x80000000.
-pub fn reset_refresh() {
-    let course = &race().course;
+pub fn reset_refresh(course: &Course) {
     course.level_grid.grid_x.set(0x8000_0000);
     course.level_grid.grid_z.set(0x8000_0000);
 }
@@ -244,8 +247,7 @@ pub fn reset_refresh() {
 /// `dword_601830` = their count - 1. Refuses an end below 2 (the original counts round), or
 /// more found than the list's 0x201 (a real stage's end is past 0x201: refused wrongly on
 /// 2026-10-16, when the end was checked).
-pub fn init_checkpoints() -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn init_checkpoints(physics: &Physics) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::listed_checkpoints`.
     {
         let kinds = RACE_VARS.checkpoint_count.get();

@@ -7,7 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::cells::copy_cells;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::trap::car_at;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -41,8 +41,7 @@ fn axles(model: u32) -> Result<Option<[u32; 5]>, BadInput> {
 /// its spin (+0x1F8 front, +0x1FC rear) and about y by the steering (front only), placed at
 /// its axle with its height (+0x910 ..), into `flt_6417E0` .. `flt_6418A0`. Refuses (before
 /// anything) axle values whose scaling would fault.
-pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
-    let race = race();
+pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::car_parts::{axles, mark_switches, marks_bytes,
     // steering}` (the size's and the speed's floats the x87's).
     use crate::math::x87::loaded;
@@ -168,8 +167,8 @@ pub fn car_part_matrices(car: u32) -> Result<(), Refused> {
 /// (+0x740 .. +0x8BF) and the body's turn times the car's (`flt_5EA3CC`) at +0x8C0. Refuses
 /// (before anything) no race cars (the original's loop would run away), more than eight, or
 /// one without its block.
-pub fn ready_car_parts() -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn ready_car_parts(race: &Race) -> Result<(), Refused> {
+    let frame = &race.frame;
     // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,
     // KEPT_MATRICES}`.
     use rc2k_core::race::car_parts::{KEPT_MATRICES, check_part_cars, parts_shown};
@@ -181,7 +180,7 @@ pub fn ready_car_parts() -> Result<(), Refused> {
         let car = RACE_WORK.car_block(c as usize);
         let block = car_at(car)?;
         if parts_shown(block.driver_kind.get()) {
-            car_part_matrices(car)?;
+            car_part_matrices(race, car)?;
             let wheels = &block.part_matrices;
             let kept: [&[Float]; KEPT_MATRICES as usize] = [
                 &wheels[..16],

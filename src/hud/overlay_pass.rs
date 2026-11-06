@@ -59,7 +59,7 @@ pub fn overlay_pass(hud: &Hud) -> Result<(), Refused> {
             }
         }
     }
-    let done = crate::hud::draw_hud::draw_hud(hud);
+    let done = crate::hud::draw_hud::draw_hud(&race.frame, hud);
     race.frame.panel_and_overlay.panel.hud_flags[1].set(kept[1]);
     race.frame.panel_and_overlay.panel.hud_flags[0].set(kept[0]);
     done?;
@@ -68,7 +68,7 @@ pub fn overlay_pass(hud: &Hud) -> Result<(), Refused> {
     crate::scene::set_render_state::set_render_state(3, 3);
     race.course.level_grid.plain_first.set(1);
     race.course.level_grid.plain_second.set(1);
-    crate::hud::draw_view_strips::draw_view_strips()?;
+    crate::hud::draw_view_strips::draw_view_strips(&race.frame)?;
     depth_buffer(false);
     crate::scene::set_filters::set_filters();
     Ok(())

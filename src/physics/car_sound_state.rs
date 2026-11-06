@@ -24,21 +24,22 @@ use crate::math::x87_float::{X, st};
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
 
 /// 0x45CB02 .. 0x45CB88 (the shares into the voices), the integer steps between in Rust.
-fn shares(so: &crate::sound::store::SoundObject) {
+fn shares(course: &Course, so: &crate::sound::store::SoundObject) {
     x87_1();
     if CAR.all_wheels_off.get() != 0 {
         CAR.sound_slip_share.set_bits(0);
         CAR.sound_level.set_bits(0);
         CAR.sound_speed.set_bits(0);
     }
-    x87_2(so);
+    x87_2(course, so);
 }
 
 /// The car the sound is heard from: view 0's block with one player (none if it has no
@@ -55,8 +56,7 @@ const _: () =
     assert!(core::mem::offset_of!(crate::physics::car_store::Car, camera_position) == 0x6A4);
 
 /// The exact x87 version (for `physics::engine_sound`).
-pub fn car_sound_state() -> Result<(), Refused> {
-    let race = race();
+pub fn car_sound_state(race: &Race) -> Result<(), Refused> {
     let Some(l) = listener() else {
         return Err(BadInput("a null view block").into());
     };
@@ -67,7 +67,7 @@ pub fn car_sound_state() -> Result<(), Refused> {
     for voice in &so.voices {
         voice.surface.set(w);
     }
-    shares(so);
+    shares(&race.course, so);
     let n = CAR.throttle.get() as i32;
     so.throttle.set(n.clamp(0, 0x100) as u32);
     so.gear.set(CAR.gear.get());
@@ -130,14 +130,14 @@ fn x87_1() {
 /// `[o + 0x58] = [rc + 0x31A26C]`
 /// `[o + 0x6C] = [rc + 0x31A26C]`
 /// `[o + 0x80] = [rc + 0x31A26C]`
-fn x87_2(o: &crate::sound::store::SoundObject) {
+fn x87_2(course: &Course, o: &crate::sound::store::SoundObject) {
     let t0 = ld(CAR.sound_level.bits());
     o.voices[0].share_b.set_bits(st(t0));
     o.voices[1].share_b.set_bits(st(t0));
     o.voices[2].share_b.set_bits(st(t0));
     o.voices[3].share_b.set_bits(st(t0));
     let t1 = ld(CAR.sound_slip_share.bits());
-    let t2 = ld(race().course.numbers.k256.bits());
+    let t2 = ld(course.numbers.k256.bits());
     let t3 = t1 * t2;
     o.voices[0].share_c.set_bits(st(t3));
     o.voices[1].share_c.set_bits(st(t3));
@@ -204,7 +204,7 @@ mod asm_reference {
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
                 plain: |a| {
-                    x87_2(unsafe {
+                    x87_2(&crate::race::owner::race().course, unsafe {
                         &*(crate::pointers::host_at(a[1])
                             as *const crate::sound::store::SoundObject)
                     });

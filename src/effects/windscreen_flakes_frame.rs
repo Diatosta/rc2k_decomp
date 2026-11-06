@@ -25,6 +25,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::marks_settings_store::MarksSettings;
+use crate::race::owner_frame::Frame;
 use crate::scene::cross_product3::cross;
 use crate::scene::vector3::normalise;
 
@@ -50,6 +51,7 @@ fn frame_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
 
 /// The Rust version (see the header).
 pub fn windscreen_flakes_frame(
+    frame: &Frame,
     masks: &Masks,
     drops: &WindscreenDrops,
     pong: &crate::effects::pong::Pong,
@@ -71,11 +73,11 @@ pub fn windscreen_flakes_frame(
     if drops.state.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
-    crate::effects::run_pong::run_pong(pong, fl)?;
+    crate::effects::run_pong::run_pong(frame, pong, fl)?;
     if x87::mul_to_int(fl.timing.rate.bits(), fl.state.share.bits()) == 0 {
         return Ok(());
     }
-    crate::effects::run_windscreen_flakes::run_windscreen_flakes(masks, drops, fl)?;
+    crate::effects::run_windscreen_flakes::run_windscreen_flakes(frame, masks, drops, fl)?;
     let marks = crate::effects::setup::marks()?;
     if marks.listener_switch_6.get() == 0 {
         return Ok(());

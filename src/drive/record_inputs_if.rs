@@ -7,20 +7,20 @@
 //!
 //! Caller: `drive::replay_step` (`sub_460B2F`).
 
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::records_inputs`.
-pub fn record_inputs_if() -> Result<(), crate::errors::BadInput> {
+pub fn record_inputs_if(race: &Race) -> Result<(), crate::errors::BadInput> {
     let records = rc2k_core::drive::replay_frames::records_inputs(
-        race().course.numbers.replay_mode.get(),
+        race.course.numbers.replay_mode.get(),
         RACE_WORK.current_car.get(),
         || RACE_VIEW.players.get(),
     );
     if records == Some(true) {
-        crate::drive::record_inputs::record_inputs()?;
+        crate::drive::record_inputs::record_inputs(&race.replay)?;
     }
     Ok(())
 }

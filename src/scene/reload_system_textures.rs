@@ -81,7 +81,7 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
         let grading = &crate::gfx::owner::gfx().grading;
         grading.scale.set(scale);
         grading.saturation.set(saturation);
-        load_changed_texture_picture_in_game(texture)?;
+        load_changed_texture_picture_in_game(course, texture)?;
         step_loading_bar(texture)?;
     }
     let grading = &crate::gfx::owner::gfx().grading;

@@ -15,7 +15,7 @@
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::session::Float;
@@ -30,8 +30,7 @@ fn below(s: u32, zero: u32) -> bool {
 }
 
 /// One half: `speed` (None with the switch set) held, scaled, added to the four at `to`.
-fn add_turn(speed: Option<u32>, f1: &Float, f2: &Float, to: &[Float; 4]) {
-    let course = &race().course;
+fn add_turn(course: &Course, speed: Option<u32>, f1: &Float, f2: &Float, to: &[Float; 4]) {
     DRAW.scratch.set(0);
     if let Some(s) = speed {
         DRAW.scratch.set(s);
@@ -47,7 +46,7 @@ fn add_turn(speed: Option<u32>, f1: &Float, f2: &Float, to: &[Float; 4]) {
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn turn_wheel_angles() {
+pub fn turn_wheel_angles(course: &Course) {
     let kind = CAR.car_kind.get();
     if kind >= 0x22 || KIND_TABLES.kind_turns_wheels[kind as usize].get() == 0 {
         return;
@@ -56,6 +55,7 @@ pub fn turn_wheel_angles() {
     let drive = || x87::loaded(CAR.drive_speed_a.bits());
     let v = &RACE_VARS;
     add_turn(
+        course,
         (!still).then(drive),
         &v.wheel_turn_a[0],
         &v.wheel_turn_b[0],
@@ -63,6 +63,7 @@ pub fn turn_wheel_angles() {
     );
     let slip = || x87::sub(CAR.drive_speed_a.bits(), CAR.local_velocity[2].bits());
     add_turn(
+        course,
         (!still).then(slip),
         &v.wheel_turn_a[1],
         &v.wheel_turn_b[1],

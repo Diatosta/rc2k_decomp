@@ -17,6 +17,7 @@ use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::owner::race;
 use crate::race::state_store::{RACE_STATE, RaceCar, RaceResult};
 use crate::session::{Bytes, Dword};
 use rc2k_core::menu::player::{Player, TAKES_PART};
@@ -485,6 +486,7 @@ pub enum Call {
 
 /// Does one of the race's calls. What the original's calls leave in registers is never read.
 pub fn step(call: Call) -> Result<(), Refused> {
+    let race = race();
     match call {
         Call::CopyRallyTimes => crate::race::rally::copy_rally_times()?,
         Call::StopMusic => crate::sound::stop_music::stop_music(),
@@ -496,7 +498,7 @@ pub fn step(call: Call) -> Result<(), Refused> {
             &crate::race::sound_tables::ObjectVars::game(),
         )?,
         Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
-        Call::RaceFromMenu => crate::race::race_end::race_from_menu()?,
+        Call::RaceFromMenu => crate::race::race_end::race_from_menu(race)?,
         Call::SetMenuScreenMode => {
             crate::platform::set_menu_mode_now();
         }

@@ -14,7 +14,7 @@
 use crate::errors::BadInput;
 use crate::pointers::copy_cells;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{
     PLAYING, RECORDING, SLOT_SIZE, frame_and_tenth, slot_offset,
 };
@@ -23,8 +23,7 @@ const SIZE: usize = SLOT_SIZE as usize;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{frame_and_tenth, slot_offset}`.
-pub fn keep_replay_frame() -> Result<(), BadInput> {
-    let race = race();
+pub fn keep_replay_frame(race: &Race) -> Result<(), BadInput> {
     race.replay.replay_frames.frame.set(0);
     race.replay.replay_frames.tenth.set(0);
     if race.course.numbers.replay_mode.get() != PLAYING {
@@ -41,7 +40,7 @@ pub fn keep_replay_frame() -> Result<(), BadInput> {
             SIZE,
         );
         if race.course.numbers.replay_mode.get() == RECORDING {
-            crate::drive::save_replay_cars::save_replay_cars();
+            crate::drive::save_replay_cars::save_replay_cars(&race.replay);
         }
     }
     Ok(())

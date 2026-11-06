@@ -23,7 +23,7 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::physics::pace_calls::{Code, code, find_group, text_place};
 
 /// "!!! invalid pace data", "data", "ecx", "pointer".
@@ -33,8 +33,8 @@ const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", 
 /// (`physics::cue_listed_car_sound_last`) and queued (`physics::queue_listed_event`). The
 /// registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
-pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
-    let physics_store = &race().physics;
+pub fn queue_pace_note(race: &Race, checkpoint: u32) -> Result<(), Refused> {
+    let physics_store = &race.physics;
     use crate::logfile::log_int::log_int;
     let groups = physics_store.pace.group_count.get();
     let found = find_group(groups, checkpoint, |n| {
@@ -64,7 +64,10 @@ pub fn queue_pace_note(checkpoint: u32) -> Result<(), Refused> {
                 return Ok(());
             }
             Code::Call => {
-                crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(byte)?;
+                crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(
+                    &race.frame,
+                    byte,
+                )?;
                 { crate::physics::queue_listed_event::queue_listed_event(byte) }?;
                 at = at.wrapping_add(1);
             }

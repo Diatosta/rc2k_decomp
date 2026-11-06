@@ -169,8 +169,8 @@ fn face_bytes(face: usize) -> Result<Face, BadInput> {
 }
 
 // Converted: `rc2k_core::scene::face_tests::{dropped, listed_key}`
-pub fn list_object_face(face: usize) -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn list_object_face(race: &crate::race::owner::Race, face: usize) -> Result<(), Refused> {
+    let physics = &race.physics;
     if face == 0 {
         return Err(BadInput("no face").into());
     }
@@ -188,7 +188,7 @@ pub fn list_object_face(face: usize) -> Result<(), Refused> {
         Ok(false) => {}
         Err(why) => return Err(why.into()),
     }
-    if face_faces_away(face)? {
+    if face_faces_away(race, face)? {
         return Ok(());
     }
     let count: u32 = crate::scene::object_faces::word(face as u32)?;
@@ -197,7 +197,7 @@ pub fn list_object_face(face: usize) -> Result<(), Refused> {
     }
     DRAW.polygon_vertex_count.set_bits(count);
     DRAW.face_sort_key.set_bits(0u32);
-    face_sort_key(face, count)?;
+    face_sort_key(&race.course, face, count)?;
     // The room is 0x1000 entries but 0x400 lie before the next table (a slip, kept).
     let entry = listed as usize * 4;
     let key = listed_key(bytes, DRAW.face_sort_key.bits());

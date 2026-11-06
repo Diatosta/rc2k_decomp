@@ -10,15 +10,14 @@
 //! Caller: `drive::flush_replay`. Refuses what `write_replay_block` refuses.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::drive::replay_frames::written_view;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::written_view`.
-pub fn write_replay_frames() -> Result<(), Refused> {
-    let replay = &race().replay;
+pub fn write_replay_frames(replay: &Replay) -> Result<(), Refused> {
     if REPLAY_FILE.replay_open.get() != 1 {
         return Ok(());
     }

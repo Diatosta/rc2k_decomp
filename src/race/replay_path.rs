@@ -11,7 +11,9 @@
 //! `numbered_path` refuses.
 
 use crate::errors::Refused;
+#[cfg(test)]
 use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 
 /// IDA's address of the last race's replay file's name.
 pub const LAST_RACE_START: usize = 0x5295F0;
@@ -54,8 +56,8 @@ mod block_tests {
 // `numbered_path`'s buffer
 
 /// The last race's file's name (without its NUL).
-pub fn last_race() -> Vec<u8> {
-    let bytes = &race().replay.last_race;
+pub fn last_race(replay: &Replay) -> Vec<u8> {
+    let bytes = &replay.last_race;
     bytes[..bytes.iter().position(|&b| b == 0).unwrap_or(bytes.len())].to_vec()
 }
 
@@ -71,14 +73,14 @@ pub struct ReplayPath {
 }
 
 /// The Rust version. `slot` the replay (ebx).
-pub fn replay_path(slot: u32) -> Result<ReplayPath, Refused> {
+pub fn replay_path(replay: &Replay, slot: u32) -> Result<ReplayPath, Refused> {
     // Converted: `rc2k_core::race::viewer::ReplayFile`.
     use rc2k_core::race::viewer::ReplayFile;
     let mut number = slot;
     let template = match ReplayFile::of(slot) {
         ReplayFile::LastRace => {
             return Ok(ReplayPath {
-                path: last_race(),
+                path: last_race(replay),
                 number,
                 last_race: true,
             });

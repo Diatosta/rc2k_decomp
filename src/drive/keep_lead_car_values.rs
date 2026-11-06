@@ -8,10 +8,11 @@
 //! Caller: `drive::share_all_cars` (0x456484), first.
 
 use crate::drive::lead_car_values::pairs;
+use crate::race::owner_frame::Frame;
 
 /// The Rust version.
-pub fn keep_lead_car_values() {
-    for (field, place) in pairs() {
+pub fn keep_lead_car_values(frame: &Frame) {
+    for (field, place) in pairs(frame) {
         place.set(field.get());
     }
 }

@@ -19,6 +19,7 @@
 //! `race::measure_frame_rate` (0x42009E).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 
@@ -30,6 +31,8 @@ pub struct Shown {
 
 /// The Rust version (see the header).
 pub fn show_frame() -> Result<Shown, Refused> {
+    let course = &race().course;
+    let frame = &race().frame;
     let (locked, kept) = crate::scene::lock_frame::lock_frame();
     if locked < 1 {
         return Ok(Shown {
@@ -41,12 +44,13 @@ pub fn show_frame() -> Result<Shown, Refused> {
     crate::sound::race_sound_tick::race_sound_tick()?;
     if RACE_WORK.in_credits.get() != 0 {
         crate::race::frame_text::roll_credits(
+            frame,
             1,
             &mut crate::text::draw_text::GameCanvas,
             &mut crate::race::frame_text::credits_tune,
         )?;
     }
-    { crate::race::frame_text::draw_frame_rate(&mut crate::text::draw_text::GameCanvas) }?;
+    { crate::race::frame_text::draw_frame_rate(frame, &mut crate::text::draw_text::GameCanvas) }?;
     // `scene::unlock_frame` leaves eax 0 (its carry is `present_frame`'s next).
     crate::scene::unlock_frame::unlock_frame();
     if !crate::scene::present_frame::present_frame() {
@@ -58,6 +62,6 @@ pub fn show_frame() -> Result<Shown, Refused> {
     let time = clock.wrapping_sub(RACE_VIEW.clock_base.bits());
     RACE_VIEW.frame_time.set_bits(time);
     // The measuring leaves eax the counter's low half on the 16th call, else as it was.
-    let eax = { crate::race::measure_frame_rate::measure_frame_rate() }.unwrap_or(time);
+    let eax = { crate::race::measure_frame_rate::measure_frame_rate(course) }.unwrap_or(time);
     Ok(Shown { lost: false, eax })
 }

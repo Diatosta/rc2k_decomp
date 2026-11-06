@@ -19,10 +19,11 @@ use crate::race::work_store::RACE_WORK;
 /// The Rust version.
 // Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
 pub fn car_input_words() -> Result<(), Refused> {
+    let frame = &race().frame;
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = RACE_WORK.current_car.get();
     check_car(car)?;
-    let device = race().frame.frame_work.listed_car_sounds[car as usize].get();
+    let device = frame.frame_work.listed_car_sounds[car as usize].get();
     let readings = if device != NO_DEVICE {
         Some(crate::drive::device_axes::device_axes(device)?)
     } else {

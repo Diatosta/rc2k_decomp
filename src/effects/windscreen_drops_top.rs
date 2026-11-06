@@ -29,6 +29,7 @@ use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::marks_settings_store::MarksSettings;
+use crate::race::owner_frame::Frame;
 use crate::scene::cross_product3::cross;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -63,7 +64,11 @@ fn point_turned(drops: &WindscreenDrops, p: &[Float; 3]) {
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_top(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn windscreen_drops_top(
+    frame: &Frame,
+    masks: &Masks,
+    drops: &WindscreenDrops,
+) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
     drops.hex.buffer.set(0);
     frame_axes(drops, m);
@@ -96,7 +101,7 @@ pub fn windscreen_drops_top(masks: &Masks, drops: &WindscreenDrops) -> Result<()
         point_turned(drops, p);
     }
     if drops.state.rate.bits() != 0 {
-        crate::effects::windscreen_drops_frame::windscreen_drops_frame(masks, drops)?;
+        crate::effects::windscreen_drops_frame::windscreen_drops_frame(frame, masks, drops)?;
         let at_now: u32 = drops.hex.buffer.get();
         if at_now != 0 {
             let quads =

@@ -19,11 +19,12 @@ use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
 pub fn play_inputs() -> Result<(), BadInput> {
+    let replay = &race().replay;
     let car = RACE_WORK.current_car.get();
     if !on_tape(car) {
         return Ok(());
     }
-    let esi = tape_offset(race().replay.replay_frames.step_frame.get(), car);
+    let esi = tape_offset(replay.replay_frames.step_frame.get(), car);
     let at = |o: u32| GamePtr::to(&REPLAY_WORK.replay_tape).offset(esi).offset(o);
     let [ebx, second]: [u32; 2] = at(0).read("the replay tape")?;
     let [eax, ecx, edx] = crate::drive::unpack_inputs::unpack_inputs(second);

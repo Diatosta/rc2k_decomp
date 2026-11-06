@@ -26,7 +26,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::turn_by_heading::turn_by_heading;
 use crate::physics::vector_length::vector_length;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 use rc2k_core::physics::contacts;
 
@@ -34,8 +34,8 @@ use rc2k_core::physics::contacts;
 /// caller) of the object of course face `face` (its number; its place at +0x30) is inside.
 // Converted: `rc2k_core::physics::contacts::{point_part, inside_box, kind_hits}` (the x87
 // steps stay).
-pub fn point_hits_car(point: [u32; 3], face: u32) -> Result<bool, Refused> {
-    let physics_store = &race().physics;
+pub fn point_hits_car(race: &Race, point: [u32; 3], face: u32) -> Result<bool, Refused> {
+    let physics_store = &race.physics;
     let rd =
         |offset: u32, what: &str| crate::race::course_places::face_field::<u32>(face, offset, what);
     PHYSICS
@@ -54,13 +54,13 @@ pub fn point_hits_car(point: [u32; 3], face: u32) -> Result<bool, Refused> {
             y = v;
         }
     }
-    x87_1();
+    x87_1(race);
     for k in 0..3 {
         physics_store.contact.object_point_turned[k]
             .set_bits(physics_store.contact.object_point_scaled[k].bits());
     }
     turn_by_heading(&physics_store.contact.object_point_turned, y);
-    x87_2();
+    x87_2(race);
     let (x, z) = (
         physics_store.contact.contact_point[0].bits(),
         physics_store.contact.contact_point[2].bits(),
@@ -75,7 +75,7 @@ pub fn point_hits_car(point: [u32; 3], face: u32) -> Result<bool, Refused> {
         return Ok(false);
     }
     if contacts::kind_hits(physics_store.contact.contact_kind.get()) {
-        x87_3();
+        x87_3(race);
         physics_store
             .contact
             .contact_speed_length
@@ -99,8 +99,7 @@ pub fn point_hits_car(point: [u32; 3], face: u32) -> Result<bool, Refused> {
 /// `[rc + 0x2D3B78] = int [rc + 0x2D3B4C] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B7C] = int [rc + 0x2D3B50] / [rc + 0x1C5D98]`
 /// `[rc + 0x2D3B80] = int [rc + 0x2D3B54] / [rc + 0x1C5D98]`
-fn x87_1() {
-    let race = race();
+fn x87_1(race: &Race) {
     let t0 = int(race.physics.contact.object_point_offset[0].bits() as i32);
     let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 / t1;
@@ -120,8 +119,7 @@ fn x87_1() {
 /// `int [rc + 0x2D3090] = [rc + 0x2D3B58] * [rc + 0x1C5D98]`
 /// `int [rc + 0x2D3094] = [rc + 0x2D3B5C] * [rc + 0x1C5D98]`
 /// `int [rc + 0x2D3098] = [rc + 0x2D3B60] * [rc + 0x1C5D98]`
-fn x87_2() {
-    let race = race();
+fn x87_2(race: &Race) {
     let t0 = ld(race.physics.contact.object_point_turned[0].bits());
     let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 * t1;
@@ -141,8 +139,7 @@ fn x87_2() {
 /// `[rc + 0x31A1FC] = int [rc + 0x2D3090] / [rc + 0x1C5D98]`
 /// `[rc + 0x31A200] = 0`
 /// `[rc + 0x31A204] = int [rc + 0x2D3098] / [rc + 0x1C5D98]`
-fn x87_3() {
-    let race = race();
+fn x87_3(race: &Race) {
     let t0 = int(race.physics.contact.contact_point[0].bits() as i32);
     let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 / t1;
@@ -180,7 +177,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |_| x87_1(),
+                plain: |_| x87_1(crate::race::owner::race()),
             },
             Block {
                 name: "point_hits_car line 63",
@@ -195,7 +192,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(),
+                plain: |_| x87_2(crate::race::owner::race()),
             },
             Block {
                 name: "point_hits_car line 80",
@@ -205,7 +202,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| x87_3(),
+                plain: |_| x87_3(crate::race::owner::race()),
             },
         ]
     }

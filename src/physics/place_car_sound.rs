@@ -13,14 +13,13 @@
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_times, ints_diff_80};
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::Dword;
 
 /// The exact x87 version (for `physics::sound_on_bit`).
-pub fn place_car_sound() -> Result<(), Refused> {
-    let race = race();
+pub fn place_car_sound(race: &Race) -> Result<(), Refused> {
     let so = crate::sound::store::current_object();
     so.slot_b.start.set(1);
     let d = |a: &Dword, b: &Dword| ints_diff_80(a.get() as i32, b.get() as i32);

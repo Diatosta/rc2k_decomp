@@ -5,6 +5,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -136,8 +137,7 @@ fn cars_refuse() -> Result<(), Refused> {
 /// the car's matrix (+0xB4; `scene::rotate_point`, rounded, the last in `dword_62400C`)
 /// gets a point (`race::add_skid_point`, esi the slot); else the slot -1. Refuses (before anything) a car without its
 /// block.
-pub fn lay_skidmarks() -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn lay_skidmarks(frame: &Frame) -> Result<(), Refused> {
     use crate::race::skidmarks::int_80;
     cars_refuse()?;
     let count = RACE_VIEW.race_cars.get();
@@ -194,9 +194,9 @@ pub fn lay_skidmarks() -> Result<(), Refused> {
 /// `race::lay_skidmarks_if_on` (0x4585F3): `lay_skidmarks` unless `dword_6235E8` or
 /// `dword_6416BC` is set. Its one caller, `race::draw_race_scene`, reads no register it
 /// leaves.
-pub fn lay_skidmarks_if_on() -> Result<(), Refused> {
-    if RACE_VARS.scene_switch.get() != 0 || race().frame.frame_work.still_2.get() != 0 {
+pub fn lay_skidmarks_if_on(frame: &Frame) -> Result<(), Refused> {
+    if RACE_VARS.scene_switch.get() != 0 || frame.frame_work.still_2.get() != 0 {
         return Ok(());
     }
-    lay_skidmarks()
+    lay_skidmarks(frame)
 }

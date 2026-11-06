@@ -9,11 +9,13 @@
 //! original's, for reference; a call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::scene::fill_engine_tables::fill_engine_tables;
 
 /// The Rust version: the tables, then the cars' figures (`physics::test_drive`). The
 /// registers the original leaves nothing reads (see `physics::test_drive`).
 pub fn set_up_engine() -> Result<(), Refused> {
-    fill_engine_tables();
+    let race = race();
+    fill_engine_tables(race);
     crate::physics::test_drive::test_drive()
 }

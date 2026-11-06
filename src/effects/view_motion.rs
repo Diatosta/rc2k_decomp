@@ -18,15 +18,15 @@ use crate::effects::setup::CLOCK;
 use crate::errors::Refused;
 use crate::math::cells::load;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::scene::vector3::{dot_product3, normalise};
 use crate::session::Dword;
 
 /// The Rust version (see the header).
-pub fn view_motion() -> Result<(), Refused> {
-    let m = &race().frame.matrices.view_place;
+pub fn view_motion(frame: &Frame) -> Result<(), Refused> {
+    let m = &frame.matrices.view_place;
     // The original's six floats on its stack: the third row, then the step.
     let local: [Dword; 6] = std::array::from_fn(|_| Dword::new(0));
     for k in 0..3 {

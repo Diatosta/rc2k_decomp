@@ -16,16 +16,17 @@ use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::drop_hit_parts::drop_hit_parts;
 use crate::physics::sound_hit_parts::sound_hit_parts;
+use crate::race::owner::Race;
 use rc2k_core::physics::parts::parts_left;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::parts_left`.
-pub fn hit_part_checks() -> Result<(), Refused> {
+pub fn hit_part_checks(race: &Race) -> Result<(), Refused> {
     let left = parts_left(CAR.parts_present.get());
     CAR.parts_state.set(left);
     if left != 0 || CAR.tyre_change_state.get() != 0 {
         return Ok(());
     }
-    drop_hit_parts()?;
-    sound_hit_parts()
+    drop_hit_parts(&race.course)?;
+    sound_hit_parts(race)
 }

@@ -17,6 +17,7 @@ use crate::physics::gearing::{
     GearPlaces, revs_from_speed_at, revs_from_wheels_at, wheels_from_revs_at,
 };
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner_course::Course;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -54,8 +55,8 @@ pub fn wheels() -> Result<(), Refused> {
 }
 
 /// `revs_from_wheels` (its ebx read by no caller).
-pub fn revs() -> Result<(), Refused> {
-    { revs_from_wheels_at(&GearPlaces::game()) }?;
+pub fn revs(course: &Course) -> Result<(), Refused> {
+    { revs_from_wheels_at(course, &GearPlaces::game()) }?;
     Ok(())
 }
 

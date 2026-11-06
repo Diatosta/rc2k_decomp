@@ -20,7 +20,7 @@ use crate::math::x87_run::{ext_add, gear_step_80, lerp_int_over2};
 use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::Cell32;
@@ -28,8 +28,7 @@ use crate::session::Cell32;
 const RATIO: usize = 8; // index of gear 0 in `game()`'s list
 
 /// The Rust core on the variables' cells `v`: the gear count.
-pub fn ratios_at(v: &[&dyn Cell32]) -> Result<u32, Refused> {
-    let course = &race().course;
+pub fn ratios_at(course: &Course, v: &[&dyn Cell32]) -> Result<u32, Refused> {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let n = get(0);
@@ -92,6 +91,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`): the gear count.
-pub fn make_gear_ratios() -> Result<u32, Refused> {
-    ratios_at(&game())
+pub fn make_gear_ratios(course: &Course) -> Result<u32, Refused> {
+    ratios_at(course, &game())
 }

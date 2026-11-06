@@ -30,7 +30,6 @@
 //! instructions are `asm_reference` in the tests (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
@@ -45,8 +44,7 @@ const OBJECTS: u32 = 0x100;
 
 /// `sub_45C29B`: the point at `from` moved towards the one `by` bytes on, into
 /// `unk_5CCE18`.
-fn moved(from: usize, by: u32) -> Result<(), BadInput> {
-    let course = &race().course;
+fn moved(course: &crate::race::owner_course::Course, from: usize, by: u32) -> Result<(), BadInput> {
     let other = from.wrapping_add(by as usize);
     let read = |at: usize| crate::scene::object_points::point(at as u32);
     let (a, b) = (read(from)?, read(other)?);
@@ -146,7 +144,7 @@ struct Object {
     table: u32,
 }
 
-fn object() -> Result<Object, BadInput> {
+fn object(course: &crate::race::owner_course::Course) -> Result<Object, BadInput> {
     let number: u32 = FRAME_SWITCHES.object_number.bits();
     if number >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
@@ -157,7 +155,7 @@ fn object() -> Result<Object, BadInput> {
             as i32,
         normals: crate::scene::object_slots_store::OBJECT_SLOTS.normal_counts[number as usize].get()
             as i32,
-        table: race().course.lists.object_points.bits(),
+        table: course.lists.object_points.bits(),
     };
     if object.points <= 0 && object.normals > 0 {
         return Err(BadInput("an object of normals and no points"));
@@ -170,9 +168,8 @@ fn object() -> Result<Object, BadInput> {
 
 /// The object's points placed and projected, its normals turned. What the original
 /// leaves in the registers its one caller's callers never read (`draw_object`).
-pub fn place_object_points() -> Result<(), Refused> {
-    let race = race();
-    let object = object()?;
+pub fn place_object_points(race: &crate::race::owner::Race) -> Result<(), Refused> {
+    let object = object(&race.course)?;
     if object.points <= 0 {
         return Ok(());
     }
@@ -189,7 +186,7 @@ pub fn place_object_points() -> Result<(), Refused> {
         let mut r = point_records::get(record)?;
         r[0] = number;
         let point = if move_by != 0 {
-            moved(from as usize, move_by)?;
+            moved(&race.course, from as usize, move_by)?;
             // x, y, z read on into `group_masks[0]`, `[1]`, as stored.
             [
                 race.course.course.point_moved.get(),
@@ -242,9 +239,8 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
 /// UI's Switches tab). Not as the x87 way: the matrix is always `g_madeObjectMatrix`, the
 /// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
 /// worked out (`sub_45C237`), and the table's point 0 ends as a normal in record 0x1000.
-pub fn place_object_points_sse() -> Result<(), Refused> {
-    let race = race();
-    let object = object()?;
+pub fn place_object_points_sse(race: &crate::race::owner::Race) -> Result<(), Refused> {
+    let object = object(&race.course)?;
     let m: [f32; 16] = std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].get());
     let mut number = object.first;
     let mut from = object.table.wrapping_add(object.first.wrapping_mul(12));

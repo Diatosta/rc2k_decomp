@@ -11,12 +11,12 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
 // Converted: `rc2k_core::hud::batch::{Layout, NO_TEXTURE}`
-pub fn draw_hud(hud: &Hud) -> Result<(), Refused> {
+pub fn draw_hud(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use crate::hud::*;
     use rc2k_core::hud::batch;
     {
@@ -24,12 +24,12 @@ pub fn draw_hud(hud: &Hud) -> Result<(), Refused> {
         hud.block.batch_texture.set(batch::NO_TEXTURE);
         hud.block.vertex_count.set(0);
         hud.block.index_count.set(0);
-        let record = GamePtr::to(&race().frame.panel_and_overlay).offset(2);
+        let record = GamePtr::to(&frame.panel_and_overlay).offset(2);
         tenths::tenths(hud, record)?;
-        match batch::Layout::of(race().frame.panel_and_overlay.panel.players.get()) {
-            batch::Layout::Single => layout_0::layout_0(hud, record)?,
-            batch::Layout::One => layout_1::layout_1(hud, record)?,
-            batch::Layout::Two => layout_2::layout_2(hud, record)?,
+        match batch::Layout::of(frame.panel_and_overlay.panel.players.get()) {
+            batch::Layout::Single => layout_0::layout_0(frame, hud, record)?,
+            batch::Layout::One => layout_1::layout_1(frame, hud, record)?,
+            batch::Layout::Two => layout_2::layout_2(frame, hud, record)?,
         }
         flush_batch::flush_batch(hud);
     }

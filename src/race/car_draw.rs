@@ -7,7 +7,11 @@
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
+use crate::race::owner::Race;
+#[cfg(all(test, target_arch = "x86"))]
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
+use crate::race::owner_frame::Frame;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
@@ -22,35 +26,35 @@ use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use crate::session::Float;
 
-fn view_matrix() -> &'static [Float] {
-    &race().frame.matrices.view_matrix // g_viewMatrix
+fn view_matrix(frame: &Frame) -> &'_ [Float] {
+    &frame.matrices.view_matrix // g_viewMatrix
 }
-fn turned() -> &'static [Float] {
-    &race().frame.matrices.turned_matrix // g_turnedMatrix
+fn turned(frame: &Frame) -> &'_ [Float] {
+    &frame.matrices.turned_matrix // g_turnedMatrix
 }
-fn lit() -> &'static [Float] {
-    &race().frame.matrices.lit_matrix // g_litMatrix
+fn lit(frame: &Frame) -> &'_ [Float] {
+    &frame.matrices.lit_matrix // g_litMatrix
 }
 /// `g_litMatrix` as the esi the drawing gets (a description read there runs past the
 /// matrix: bounded by the whole store).
-fn lit_place() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&race().frame.matrices)
+fn lit_place(frame: &Frame) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&frame.matrices)
         .offset(
             core::mem::offset_of!(crate::race::matrices_store::SceneMatrices, lit_matrix) as u32,
         )
 }
-fn made() -> &'static [Float] {
-    &race().frame.matrices.made_object_matrix // g_madeObjectMatrix
+fn made(frame: &Frame) -> &'_ [Float] {
+    &frame.matrices.made_object_matrix // g_madeObjectMatrix
 }
-fn body_turn() -> &'static [Float] {
-    &race().frame.matrices.body_turn_matrix // flt_5EA08C: the car's +0x840
+fn body_turn(frame: &Frame) -> &'_ [Float] {
+    &frame.matrices.body_turn_matrix // flt_5EA08C: the car's +0x840
 }
-fn car_turn() -> &'static [Float] {
-    &race().frame.frame_work.placed_matrices[..16] // flt_641760: the car's +0x880
+fn car_turn(frame: &Frame) -> &'_ [Float] {
+    &frame.frame_work.placed_matrices[..16] // flt_641760: the car's +0x880
 }
 /// The four parts' matrices (`flt_6417E0` .., the car's +0x740 ..).
-pub fn part_matrices() -> [&'static [Float]; 4] {
-    [0, 16, 32, 48].map(|k| &race().frame.frame_work.part_matrices[k..k + 16])
+pub fn part_matrices(frame: &Frame) -> [&'_ [Float]; 4] {
+    [0, 16, 32, 48].map(|k| &frame.frame_work.part_matrices[k..k + 16])
 }
 
 /// `race::car_part_matrix_1` .. `_4` (0x461F12, 0x461F58, 0x461F9E, 0x461FE4): matrix `a`
@@ -58,25 +62,24 @@ pub fn part_matrices() -> [&'static [Float]; 4] {
 /// (`flt_641760`) into `g_litMatrix`, times `g_viewMatrix` into `g_madeObjectMatrix`. The
 /// original leaves esi `g_litMatrix` (which `draw_car`'s drawing takes, see there), edi
 /// and ebp the last product's other two.
-pub fn car_part_matrix(a: &[Float]) {
-    multiply_matrices(a, body_turn(), turned());
-    multiply_matrices(turned(), car_turn(), lit());
-    multiply_matrices(lit(), view_matrix(), made());
+pub fn car_part_matrix(frame: &Frame, a: &[Float]) {
+    multiply_matrices(a, body_turn(frame), turned(frame));
+    multiply_matrices(turned(frame), car_turn(frame), lit(frame));
+    multiply_matrices(lit(frame), view_matrix(frame), made(frame));
 }
 
 /// `race::car_body_matrix` (0x461EA1): the turns about x and z by 0 (`scene::set_fine_turn_x`,
 /// `scene::set_turn_z`) multiplied into `g_litMatrix`, then as `car_part_matrix` on it.
-pub fn car_body_matrix() {
-    let frame = &race().frame;
+pub fn car_body_matrix(frame: &Frame) {
     use crate::scene::view_matrix::{Axis, set_fine_turn};
     set_fine_turn(Axis::X, 0);
     set_fine_turn(Axis::Z, 0);
     multiply_matrices(
         &frame.matrices.turn_x_matrix,
         &frame.matrices.turn_z_matrix,
-        lit(),
+        lit(frame),
     );
-    car_part_matrix(lit());
+    car_part_matrix(frame, lit(frame));
 }
 
 /// `race::clear_car_marks` (0x46202A): the 0x40 dwords at `dword_5CD688` (the car's
@@ -98,8 +101,7 @@ pub fn clear_car_marks() {
 /// `dword_71BA10[]` into `dword_5CD6A8`; and while +0x310 is below `flt_5C5D14` its 17
 /// bytes +0xAC0 .. into the places `dword_6416F8[]` names. The registers it leaves are
 /// read by no one (`draw_car` reads only esi, which it keeps).
-pub fn car_number_textures(car: u32) -> Result<(), BadInput> {
-    let race = race();
+pub fn car_number_textures(race: &Race, car: u32) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::car_marks` (the rounding of +0x718 the x87's, under the
     // game's control word).
     use rc2k_core::race::car_marks::{
@@ -205,8 +207,7 @@ const PART_SWITCHES: [(u32, usize); 7] = [
 ];
 
 /// The course's group masks from the model's part groups (an unknown model is refused).
-fn set_group_masks(model: u32) -> Result<(), BadInput> {
-    let course = &race().course;
+fn set_group_masks(course: &Course, model: u32) -> Result<(), BadInput> {
     for (to, group) in BODY_GROUPS {
         course.course.group_masks[to].set(model_bit(model, group as u32 * 4)?);
     }
@@ -227,11 +228,11 @@ fn set_group_masks(model: u32) -> Result<(), BadInput> {
 }
 
 /// The groups of the parts still on the car: all but those of the parts whose switch is off.
-fn shown_groups(switches: u32) -> u32 {
+fn shown_groups(course: &Course, switches: u32) -> u32 {
     let mut shown = u32::MAX;
     for (bit, slot) in PART_SWITCHES {
         if switches & (1 << bit) == 0 {
-            shown &= !race().course.course.group_masks[slot].bits();
+            shown &= !course.course.group_masks[slot].bits();
         }
     }
     shown
@@ -251,14 +252,13 @@ fn shown_groups(switches: u32) -> u32 {
 /// described way). Refuses (before anything) what
 /// `scene::draw_scene_object` would for the car's objects: in a race (`g_inRace`) car
 /// `dword_60627C` (below eight) without its block.
-pub fn draw_car(car: u32) -> Result<(), Refused> {
-    let race = race();
+pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
     let n: u32 = race.frame.view_and_records.view_vars.drawn_car.get();
     if race.course.numbers.in_race.bits() != 0 && n < 8 && RACE_WORK.car_block(n as usize) == 0 {
         return Err(BadInput("the drawn car without its block").into());
     }
-    car_number_textures(car)?;
-    let [p0, p1, p2, p3] = part_matrices();
+    car_number_textures(race, car)?;
+    let [p0, p1, p2, p3] = part_matrices(&race.frame);
     let c = car_at(car)?;
     let kept = &c.part_matrices;
     for (from, to) in [
@@ -270,8 +270,14 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
         &c.place_matrix,
     ]
     .into_iter()
-    .zip([p0, p1, p2, p3, body_turn(), car_turn()])
-    {
+    .zip([
+        p0,
+        p1,
+        p2,
+        p3,
+        body_turn(&race.frame),
+        car_turn(&race.frame),
+    ]) {
         crate::math::cells::copy_cells(from, to, 16);
     }
     race.frame
@@ -280,9 +286,9 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
         .set(car_at(car)?.mode_on.bits());
     let model = car_at(car)?.car_kind.bits();
     race.frame.matrices.known_object.set(model);
-    set_group_masks(model)?;
+    set_group_masks(&race.course, model)?;
     let switches = car_at(car)?.parts_present.bits();
-    let shown = shown_groups(switches);
+    let shown = shown_groups(&race.course, switches);
     FRAME_SWITCHES.group_mask.set(shown);
     let field = |offset: u32| model_field(model, offset);
     race.physics.camera.faded_bits.set(field(0x10)?);
@@ -343,7 +349,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
         view.group_mask.set(view.group_mask.bits() & mask);
     };
     if state & 0x10 == 0 {
-        nearness();
+        nearness(race);
         let depth = race.frame.frame_work.car_depth.bits();
         if !below(depth, 0x14_0000) {
             and(with_bit(field(0x40)?, bit));
@@ -427,22 +433,24 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
             .wrapping_mul(0x14)
             .wrapping_add(0x50),
     );
-    car_body_matrix();
-    crate::race::frame_draw::start_kept_reflections()?;
-    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place()))?;
+    car_body_matrix(&race.frame);
+    crate::race::frame_draw::start_kept_reflections(&race.physics)?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(&race.frame)))?;
     crate::race::frame_draw::end_kept_reflections();
     LIGHT_WORK.light_kind_extra.set(1);
     if below(race.frame.frame_work.car_depth.bits(), 0x3C_0000) {
         for (bit, matrix) in [0x20u32, 0x40, 0x80, 0x100]
             .into_iter()
-            .zip(part_matrices())
+            .zip(part_matrices(&race.frame))
         {
             FRAME_SWITCHES
                 .object_number
                 .set(FRAME_SWITCHES.object_number.bits().wrapping_add(1));
             if OBJECT_WORK.car_switches.bits() & bit != 0 {
-                car_part_matrix(matrix);
-                crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place()))?;
+                car_part_matrix(&race.frame, matrix);
+                crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(
+                    &race.frame,
+                )))?;
             }
         }
     }
@@ -455,8 +463,7 @@ pub fn draw_car(car: u32) -> Result<(), Refused> {
 /// `sub_4616AA`'s nearness: `dword_71BA08` = (`dword_6415A4` - 0xA0000) / 0x140000 held to 0 ..
 /// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it (`dword_62400C`
 /// left 0x140000).
-fn nearness() {
-    let race = race();
+fn nearness(race: &Race) {
     use crate::math::x87_float::{ONE, int, ld, st, to_int};
     use crate::math::x87_load::below_or_unordered;
     {
@@ -502,8 +509,8 @@ fn near_size() -> u32 {
 /// held to 0 .. 0x40000, times `dword_60AD0C`, >> 18), the car `car` (esi, its block)
 /// drawn (`race::draw_car`), `g_shine` put back. Of its callers' registers only esi is
 /// read (by `draw_car`).
-pub fn draw_car_shined(car: u32) -> Result<(), Refused> {
-    let course = &race().course;
+pub fn draw_car_shined(race: &Race, car: u32) -> Result<(), Refused> {
+    let course = &race.course;
     let shine: u32 = course.course.shine.get();
     let mut eax = 0x3_FCE0u32.wrapping_sub(RACE_VARS.mud_thrown_counts[0].bits());
     if (eax as i32) < 0 {
@@ -514,7 +521,7 @@ pub fn draw_car_shined(car: u32) -> Result<(), Refused> {
     }
     let product = eax as u64 * course.stage_prefs.shine_scale.get() as u64;
     course.course.shine.set((product as u32) >> 18);
-    let done = draw_car(car);
+    let done = draw_car(race, car);
     course.course.shine.set(shine);
     done
 }
@@ -524,8 +531,8 @@ pub fn draw_car_shined(car: u32) -> Result<(), Refused> {
 /// `dword_6415A4`; drawn (`race::draw_car_shined`, counted in `dword_641594`) unless
 /// behind (depth + 0x40000 below 0) or aside (|x| - 0x80000 not below the depth), counted in
 /// `dword_641598`. Refuses (before anything) a car without its block.
-pub fn draw_car_entry(entry: u32) -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn draw_car_entry(race: &Race, entry: u32) -> Result<(), Refused> {
+    let frame = &race.frame;
     use crate::math::x87_load::tbyte_to_int;
     use crate::race::skidmarks::int_80;
     let n = entry & 7;
@@ -538,7 +545,7 @@ pub fn draw_car_entry(entry: u32) -> Result<(), Refused> {
         .view_light_base
         .set(car_at(car)?.light_colour.bits());
     let t = crate::scene::rotate_point::rotate_point(
-        view_matrix(),
+        view_matrix(&race.frame),
         [
             int_80(car_at(car)?.position[0].bits()),
             int_80(car_at(car)?.position[1].bits()),
@@ -573,7 +580,7 @@ pub fn draw_car_entry(entry: u32) -> Result<(), Refused> {
         .frame_work
         .cars_drawn
         .set(frame.frame_work.cars_drawn.get().wrapping_add(1));
-    draw_car_shined(car)
+    draw_car_shined(race, car)
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -678,6 +685,7 @@ mod asm_reference {
 
     #[test]
     fn nearness_and_size_match() {
+        let race = race();
         let _l = lock();
         let _saved = Saved::new(&PLACES);
         let mut r = Rng(6);
@@ -694,7 +702,7 @@ mod asm_reference {
                 r.0 = seed;
                 fill(&mut r);
                 assert_eq!(state(), before);
-                nearness();
+                nearness(race);
                 assert_eq!(state(), want, "nearness from {before:x?}");
                 let size_got = near_size();
                 assert_eq!(size_got, size_want, "size from {before:x?}");

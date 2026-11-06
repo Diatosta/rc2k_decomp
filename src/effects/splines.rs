@@ -9,7 +9,7 @@ use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::session::{Bytes, Dword, Float, read_bits};
 
 pub const SPLINE_LEN: u32 = 0xE90;
@@ -262,6 +262,7 @@ pub fn reset_pong(pong: &crate::effects::pong::Pong) {
 /// nothing (section 16): not made. Refuses an object past 0xFF, a negative face count or
 /// faces past `g_faces`.
 pub fn gather_spline_points(
+    course: &Course,
     paths: &Paths,
     s: Spline,
     object: u32,
@@ -292,7 +293,7 @@ pub fn gather_spline_points(
             }
         }
         let n = s.get(paths, COUNT)?;
-        let points: u32 = race().course.lists.object_points.bits();
+        let points: u32 = course.lists.object_points.bits();
         for k in (0..n).rev() {
             let id = s.get(paths, IDS + 4 * k)?;
             s.put(paths, IDS + 4 * k, id.wrapping_mul(12).wrapping_add(points))?;
@@ -563,7 +564,7 @@ fn spline_checks(paths: &Paths, object: u32) -> Result<(), Refused> {
 /// and their ends found; the third's +0x44 .. the highest point plus `g_marksSplineShift`.
 /// Then the place counted. Refuses a negative place, an object past 0xFF or faces past
 /// `g_faces`, an angle `fsincos` cannot take, before writing anything else.
-pub fn make_spline(paths: &Paths, object: u32) -> Result<(), Refused> {
+pub fn make_spline(course: &Course, paths: &Paths, object: u32) -> Result<(), Refused> {
     {
         paths.spline_work.object.set_bits(object);
         let place = paths.spline_work.place.bits() as i32;
@@ -579,6 +580,7 @@ pub fn make_spline(paths: &Paths, object: u32) -> Result<(), Refused> {
         for t in 0..4 {
             let record = Spline::record(t, place as u32);
             gather_spline_points(
+                course,
                 paths,
                 record,
                 object,
@@ -633,7 +635,7 @@ const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 /// first); `dword_7695CE` 0. Refuses a mark neither 0 nor `resume`, a kind of 0x22 or
 /// more, more than 19 objects, and what `make_spline` would refuse for any of them, before
 /// writing anything.
-pub fn load_splines(paths: &Paths, resume: u32) -> Result<(), Refused> {
+pub fn load_splines(course: &Course, paths: &Paths, resume: u32) -> Result<(), Refused> {
     let loaded: u32 = paths.spline_kinds.loaded.bits();
     if loaded != 0 && loaded != resume {
         return Err(BadInput("the splines' mark is neither 0 nor loc_4B9706").into());
@@ -673,7 +675,7 @@ pub fn load_splines(paths: &Paths, resume: u32) -> Result<(), Refused> {
     }
     paths.spline_work.place.set_bits(0u32);
     for o in objects {
-        make_spline(paths, o)?;
+        make_spline(course, paths, o)?;
     }
     paths.spline_head.made.set_bits(0u32);
     Ok(())

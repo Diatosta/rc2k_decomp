@@ -4,6 +4,9 @@ use crate::input::store::DEVICES;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
+use crate::race::owner_physics::Physics;
+use crate::race::owner_replay::Replay;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::state_store::RACE_STATE;
 use crate::race::tables_store::RACE_TABLES;
@@ -73,10 +76,10 @@ pub fn release_stage_textures() {
 /// `race::seal_stage_time` (0x41F29D): the first block's time (+0x88, held to
 /// 0x22550FF unsigned; its +0xB0 if that is negative) `xor` `dword_4F66F9` and turned
 /// right by its low five bits, into the dword at 0x5BECCC. Every register kept.
-pub fn seal_stage_time() -> Result<(), BadInput> {
+pub fn seal_stage_time(replay: &Replay) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::seal::seal_time`.
     {
-        let key = race().replay.seal_key.get();
+        let key = replay.seal_key.get();
         let sealed = rc2k_core::race::seal::seal_time(
             CAR_BLOCKS.cars[0].stop_state.bits(),
             || CAR_BLOCKS.cars[0].stage_time.bits(),
@@ -91,8 +94,7 @@ pub fn seal_stage_time() -> Result<(), BadInput> {
 /// +8 into `dword_60410C` and their sixteen dwords from +0x10 into column n of the
 /// sixteen rows at 0x604134. The registers it leaves are read by no caller (taint at its
 /// one call site, 0x4486DB; conversion phase 3, 2026-10-24).
-pub fn copy_league_table() -> Result<(), BadInput> {
-    let course = &race().course;
+pub fn copy_league_table(course: &Course) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::results::league`.
     use rc2k_core::race::results::league;
     {
@@ -125,9 +127,9 @@ pub fn copy_league_table() -> Result<(), BadInput> {
 
 /// A kind's value for `set_start_states`: the record of the kind (held to 0x21) its
 /// +0x18 when its limit (`dword_5C7980`) is 0x1B58 or less, else 0.
-fn start_value(kind: u32) -> u32 {
+fn start_value(physics: &Physics, kind: u32) -> u32 {
     use rc2k_core::race::cars::{start_record, start_state_value};
-    let record = &race().physics.car_specs.cars[start_record(kind) as usize];
+    let record = &physics.car_specs.cars[start_record(kind) as usize];
     start_state_value(record.engine_top.get(), || record.drive_kind.get())
 }
 
@@ -154,6 +156,7 @@ fn settle_state(view: &Dword) {
 /// tables), before anything.
 pub fn set_start_states() -> Result<(), Refused> {
     let frame = &race().frame;
+    let physics = &race().physics;
     // Converted: `rc2k_core::race::cars::{start_record, start_state_value, held_split,
     // settled_state}`.
     {
@@ -167,9 +170,9 @@ pub fn set_start_states() -> Result<(), Refused> {
         } else {
             RACE_VARS.race_car_kinds[0].bits()
         };
-        let v = start_value(first_kind);
+        let v = start_value(physics, first_kind);
         frame.panel_and_overlay.panel.start_values[0].set(v);
-        let v = start_value(RACE_VARS.race_car_kinds[1].bits());
+        let v = start_value(physics, RACE_VARS.race_car_kinds[1].bits());
         frame.panel_and_overlay.panel.start_values[1].set(v);
         if one {
             let block: u32 = crate::race::work_store::RACE_WORK.car_block(chosen as usize);
@@ -198,7 +201,7 @@ pub fn set_start_states() -> Result<(), Refused> {
 /// `g_stageCarTotal` x 100 less each, held to 0 .. 300000, to `dword_75B020` /
 /// `dword_75B090` (ebx the stage held to 0 .. 0x4C); 1 and 3 the two +0x88s; others
 /// nothing. The registers it leaves are read by no caller (taint at 0x448C02).
-pub fn store_results_by_mode() {
+pub fn store_results_by_mode(physics: &Physics) {
     // Converted: `rc2k_core::race::cars::margin`.
     use rc2k_core::race::cars::margin;
     match RACE_VARS.run_kind.bits() {
@@ -221,7 +224,7 @@ pub fn store_results_by_mode() {
             RACE_STATE.results.results[1]
                 .time
                 .set(CAR_BLOCKS.cars[1].stage_time.get());
-            let total = race().physics.split_tables.stage_car_total.get();
+            let total = physics.split_tables.stage_car_total.get();
             RACE_STATE.results.results[0]
                 .word
                 .set(margin(total, CAR_BLOCKS.cars[0].stage_time.get()));

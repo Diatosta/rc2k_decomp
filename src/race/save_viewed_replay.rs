@@ -20,7 +20,7 @@
 
 use crate::errors::Refused;
 use crate::files::handle;
-use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::{last_race, replay_path};
 use crate::race::viewer::{TABLE_LEN, move_cells};
@@ -28,8 +28,8 @@ use crate::race::viewer::{TABLE_LEN, move_cells};
 /// The Rust version: whether it was saved (the original leaves the carry clear and the
 /// zero flag set for a yes, and keeps the registers). `slot` the slot to save into (the
 /// original's ebx).
-pub fn save_viewed_replay(slot: u32) -> Result<bool, Refused> {
-    let done = save(slot)?;
+pub fn save_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
+    let done = save(replay, slot)?;
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .undo_blocks
         .set(0);
@@ -37,8 +37,7 @@ pub fn save_viewed_replay(slot: u32) -> Result<bool, Refused> {
 }
 
 /// Whether it was saved (`edx` 1).
-fn save(slot: u32) -> Result<bool, Refused> {
-    let replay = &race().replay;
+fn save(replay: &Replay, slot: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{has_blocks, SAVED_HEADER, name_offset,
     // next_offset}`.
     use rc2k_core::race::viewer_flow::{
@@ -60,13 +59,13 @@ fn save(slot: u32) -> Result<bool, Refused> {
     )?;
     header.write_at(0x10, &name, "a replay's name")?;
     // The last race's file opened to read from, the slot's to write to.
-    let Some(from) = handle::open_by_mode(&last_race(), 0)? else {
+    let Some(from) = handle::open_by_mode(&last_race(replay), 0)? else {
         return Ok(false);
     };
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .from_file
         .set(from);
-    let path = replay_path(slot)?.path;
+    let path = replay_path(replay, slot)?.path;
     let Some(to) = handle::open_by_mode(&path, 1)? else {
         handle::close(
             crate::race::viewer_buffers_store::VIEWER_BUFFERS

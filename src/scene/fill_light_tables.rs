@@ -12,7 +12,6 @@
 //! the four lamp tables the colours at `unk_60A54C`, `unk_60A558`, `dword_60A564`,
 //! `dword_60A570` scaled. Four callers.
 
-use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::light_tables::{fill_light_ramp, fill_light_scale};
 use crate::scene::light_work_store::LIGHT_WORK;
@@ -22,26 +21,30 @@ use crate::scene::light_work_store::LIGHT_WORK;
 // Converted: `rc2k_core::scene::lamps::plain_light`
 /// `N` dwords of the stage's prefs from byte `offset` on (a colour read on into the
 /// fields after it, as the original's pointers do).
-fn prefs_dwords<const N: usize>(offset: usize) -> [u32; N] {
-    let d = race().course.stage_prefs.dwords();
+fn prefs_dwords<const N: usize>(
+    course: &crate::race::owner_course::Course,
+    offset: usize,
+) -> [u32; N] {
+    let d = course.stage_prefs.dwords();
     std::array::from_fn(|k| d[offset / 4 + k].get())
 }
 
 pub fn fill_light_tables(
     scene: &crate::scene::owner::Scene,
+    course: &crate::race::owner_course::Course,
 ) -> Result<(), crate::errors::BadInput> {
     use crate::race::prefs_store::StagePrefs;
     let t = &scene.light_tables;
     use core::mem::offset_of;
     let plain = rc2k_core::scene::lamps::plain_light(FRAME_SWITCHES.other_way.bits(), || {
-        race().course.stage_prefs.lit_b.bits()
+        course.stage_prefs.lit_b.bits()
     });
     // `unk_62DB10`: two colours; `dword_6092B4`: two colours (the dark one and the lit).
     let p = &LIGHT_WORK.plain_light_colours;
     let ramp: [u32; 6] = if plain {
         std::array::from_fn(|k| p[k].get())
     } else {
-        prefs_dwords(offset_of!(StagePrefs, dark_colour))
+        prefs_dwords(course, offset_of!(StagePrefs, dark_colour))
     };
     fill_light_ramp(ramp, &t.light_table);
     // The four lamp tables and, the other way, their colours.
@@ -55,7 +58,7 @@ pub fn fill_light_tables(
         let colour = if plain {
             [p[0].get(), p[1].get(), p[2].get()]
         } else {
-            prefs_dwords(colour)
+            prefs_dwords(course, colour)
         };
         fill_light_scale(colour, table);
     }

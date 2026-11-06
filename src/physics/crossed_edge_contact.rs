@@ -27,7 +27,8 @@ use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::wall_edge_contact::edge_normal;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
 use crate::session::Float;
 use rc2k_core::physics::walls;
 
@@ -40,8 +41,7 @@ fn copy3(to: &[Float], from: &[Float]) {
 
 /// Which side of the probe's path the point (x, z) lies: true for not left of it (the
 /// 64-bit difference not below 0, `jns` / `stc`). `qword_620460` the first product.
-fn side(x: u32, z: u32) -> bool {
-    let physics = &race().physics;
+fn side(physics: &Physics, x: u32, z: u32) -> bool {
     let (first, difference) = walls::path_side(
         (
             physics.contact.crossed_figures[0].get(),
@@ -61,8 +61,8 @@ fn side(x: u32, z: u32) -> bool {
 /// The steps, not guarded (the probe checked before). The registers the original leaves
 /// are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
-pub fn steps() -> Result<(), Refused> {
-    let race_owner = race();
+pub fn steps(race: &Race) -> Result<(), Refused> {
+    let race_owner = race;
     let n = race_owner.physics.contact.crossed_probe.get();
     race_owner.physics.contact.probe_index.set(n);
     let k = n as usize;
@@ -90,14 +90,14 @@ pub fn steps() -> Result<(), Refused> {
     // The original's order of tests (each computed, `qword_620460` the last one's).
     let (first, second) = walls::crossed_edge(|j| {
         let (x, z) = corner(j);
-        side(x, z)
+        side(&race.physics, x, z)
     });
     let corner_point =
         |at| crate::race::course_places::face_field::<u32>(face, at, "a face's corner");
     let (from, to) = (corner_point(first)?, corner_point(second)?);
     PHYSICS.crossed_edge[0].set(from);
     PHYSICS.crossed_edge[1].set(to);
-    edge_normal(from, to)?;
+    edge_normal(race, from, to)?;
     race_owner
         .physics
         .contact
@@ -116,14 +116,12 @@ pub fn steps() -> Result<(), Refused> {
         race_owner.course.numbers.tenth.bits(),
     ));
     race_owner.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(&PHYSICS.contacts[1]);
-    { crate::physics::place_sound_e1::place_sound_e1() }?;
+    contact_force(race, &PHYSICS.contacts[1]);
+    { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     Ok(())
 }
 
 /// The probe checked: refused past 0x3F.
-pub fn check_probe() -> Result<(), Refused> {
-    Ok(walls::check_probe(
-        race().physics.contact.crossed_probe.get(),
-    )?)
+pub fn check_probe(physics: &Physics) -> Result<(), Refused> {
+    Ok(walls::check_probe(physics.contact.crossed_probe.get())?)
 }

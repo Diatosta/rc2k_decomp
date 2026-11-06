@@ -32,6 +32,7 @@ use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MarkCar;
 use crate::race::mud::car_file_number;
+use crate::race::owner_course::Course;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
@@ -39,7 +40,6 @@ use crate::sound::store::SoundObject;
 use rc2k_core::drive::sharing;
 
 use crate::race::light_records_store::LightRecord;
-use crate::race::owner::race;
 use crate::session::Cell32;
 
 /// A field of a car block, picked out of the block.
@@ -141,6 +141,7 @@ fn light_record(car: &Car) -> Result<u32, Refused> {
 /// scratch dword `scratch`.
 // Converted: `rc2k_core::drive::sharing` (the levels' x87 sums stay).
 pub fn share_car_state_at(
+    course: &Course,
     car: &'static Car,
     o: &MarkCar,
     p: &SoundObject,
@@ -154,7 +155,7 @@ pub fn share_car_state_at(
     o.put(0x2C, p.gear_notice.get())?;
     p.gear_notice.set(0);
     let from = RACE_VIEW.level_from.bits();
-    let step = race().course.numbers.four.bits();
+    let step = course.numbers.four.bits();
     for (out, field) in [(0x4C0, 0x2B4), (0x4C4, 0x2B8)] {
         o.put(out, 0)?;
         if compare_full(at(car, field)?, from) & 0x100 == 0 {
@@ -248,11 +249,18 @@ pub fn share_car_state_at(
 /// object `sound` (ebp). The registers it leaves are read by no caller (liveness: only
 /// DF after `share_all_cars`' call).
 pub fn share_car_state(
+    course: &Course,
     block: &'static Car,
     record: &MarkCar,
     sound: &SoundObject,
 ) -> Result<(), Refused> {
-    share_car_state_at(block, record, sound, &DRAW.scratch /* dword_62400C */)
+    share_car_state_at(
+        course,
+        block,
+        record,
+        sound,
+        &DRAW.scratch, /* dword_62400C */
+    )
 }
 
 #[cfg(test)]

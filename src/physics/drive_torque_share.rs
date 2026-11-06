@@ -15,7 +15,7 @@ use crate::math::x87;
 use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use std::cmp::Ordering;
@@ -26,7 +26,7 @@ fn put(a: &dyn Cell32, v: u32) {
 
 /// The core on the variables' cells: eax as the original leaves it (n less the
 /// word, its `sub eax, unk_71A000`).
-pub fn drive_torque_share_at(v: &[&dyn Cell32]) -> u32 {
+pub fn drive_torque_share_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
     let n = if v[1].bits() == 1 {
         PHYSICS.torque_share_a.get()
     } else {
@@ -37,7 +37,7 @@ pub fn drive_torque_share_at(v: &[&dyn Cell32]) -> u32 {
         v[3],
         abs_fidiv(v[2].bits(), PHYSICS.torque_share_c.get() as i32),
     );
-    let one = race().course.numbers.one.bits();
+    let one = course.numbers.one.bits();
     let below = !matches!(
         f32::from_bits(v[3].bits()).partial_cmp(&f32::from_bits(one)),
         Some(Ordering::Greater | Ordering::Equal)
@@ -69,5 +69,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 /// The Rust version (the exact one, for `physics::drive_force` and
 /// `physics::test_drive_run`): eax as the original leaves it.
 pub fn drive_torque_share() -> u32 {
-    drive_torque_share_at(&game())
+    let course = &crate::race::owner::race().course;
+    drive_torque_share_at(course, &game())
 }

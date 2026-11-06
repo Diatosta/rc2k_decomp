@@ -9,7 +9,7 @@
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
-use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 
 /// View record 6, the finish camera's (`dword_606728` ..).
@@ -19,8 +19,7 @@ fn record() -> &'static ViewRecord {
 
 /// `dword_606748`, `606730`, `606734` from the eased time, the share and the lines'
 /// constants, over the race block at `rc` (the dwords at RVA offsets).
-fn lines() {
-    let replay = &race().replay;
+fn lines(replay: &Replay) {
     record().angles[1].set_bits(st(
         ld(replay.finish.eased.bits()) * ld(replay.finish.unknown_2c[0].bits())
     ));
@@ -34,18 +33,17 @@ fn lines() {
 }
 
 /// `dword_606744` from the share and its constant.
-fn last_line() {
-    let replay = &race().replay;
+fn last_line(replay: &Replay) {
     record().angles[0].set_bits(st(
         ld(replay.finish.share.bits()) * ld(replay.finish.unknown_60.bits())
     ));
 }
 
 /// The Rust version (the exact one, for `drive::finish_run`).
-pub fn finish_camera() {
-    lines();
+pub fn finish_camera(replay: &Replay) {
+    lines(replay);
     record().offset[0].set(0);
-    last_line();
+    last_line(replay);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -93,7 +91,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_lines(a[0]) },
-                plain: |_| lines(),
+                plain: |_| lines(&crate::race::owner::race().replay),
             },
             Block {
                 name: "finish_camera last line",
@@ -103,7 +101,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_last(a[0]) },
-                plain: |_| last_line(),
+                plain: |_| last_line(&crate::race::owner::race().replay),
             },
         ]
     }

@@ -20,7 +20,6 @@
 //! where they are copied.
 
 use crate::errors::BadInput;
-use crate::race::owner::race;
 use crate::scene::clip_asm::{
     BYTES_A, BYTES_B, CHECKED, ENTRY_A, ENTRY_B, OUT_1, OUT_2, PLANE, RECORD_A, RECORD_B, Work,
     cut_at_depth, cut_at_x, cut_at_y,
@@ -84,8 +83,13 @@ fn put_bytes(w: &mut Work, at: usize, bytes: &[u8]) {
 /// A new vertex where the side from entry `a` to entry `b` crosses the edge; `mask` is
 /// what the screen's passes keep in `dword_624008`. Returns the entry's number; the
 /// caller lists it and counts `dword_624114` on.
-fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32, BadInput> {
-    let course = &race().course;
+fn cut(
+    course: &crate::race::owner_course::Course,
+    edge: Edge,
+    a: &PolygonEntry,
+    b: &PolygonEntry,
+    mask: u32,
+) -> Result<u32, BadInput> {
     let number: u32 = DRAW.polygon_next_entry.bits();
     if number >= ENTRIES {
         return Err(BadInput("no entry left for a new vertex"));
@@ -179,6 +183,7 @@ fn cut(edge: Edge, a: &PolygonEntry, b: &PolygonEntry, mask: u32) -> Result<u32,
 /// `listed_with_records` gives them, when the caller has them already. Returns them again
 /// when the pass kept every vertex (the list is as it was), else `None`.
 pub fn clip_pass(
+    course: &crate::race::owner_course::Course,
     listed: Option<crate::scene::polygon::Listed>,
     edge: Edge,
     inside_past: bool,
@@ -221,7 +226,7 @@ pub fn clip_pass(
             out += 1;
         }
         if a_inside != b_inside {
-            let number = cut(edge, a, b, mask)?;
+            let number = cut(course, edge, a, b, mask)?;
             crate::scene::polygon::list_cell(out).set(number);
             DRAW.polygon_next_entry.set_bits(number + 1);
             out += 1;

@@ -25,17 +25,17 @@ use crate::physics::start_go_notice::start_go_notice;
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::take_split::take_split;
 use crate::physics::take_split_counted::take_split_counted;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
-pub fn race_timers() -> Result<(), Refused> {
+pub fn race_timers(race: &Race) -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
     PHYSICS.weight.set_bits(1.0f32.to_bits());
     let finished = CAR.finish_flag.get() != 0;
     let factor = if finished {
-        race().physics.split_tables.timer_factor.bits()
+        race.physics.split_tables.timer_factor.bits()
     } else {
         0
     };
@@ -48,13 +48,13 @@ pub fn race_timers() -> Result<(), Refused> {
     }
     count_start_second();
     if run == TimerRun::Start {
-        count_down_start()?;
-        take_split_counted()?;
-        start_go_notice()?;
+        count_down_start(&race.frame)?;
+        take_split_counted(race)?;
+        start_go_notice(&race.frame)?;
     } else {
-        take_split()?;
+        take_split(race)?;
     }
-    count_stop_timers();
+    count_stop_timers(&race.course);
     mark_car_started();
     Ok(())
 }

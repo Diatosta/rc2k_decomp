@@ -17,7 +17,7 @@ use crate::math::x87_run::{lever_share, one_less};
 use crate::physics::car_store::CAR;
 use crate::physics::lever_push::lever_push;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::switches_store::FRAME_SWITCHES;
 use std::cmp::Ordering;
 
@@ -30,8 +30,7 @@ fn below(share: u32, limit: u32) -> bool {
 }
 
 /// The Rust version.
-pub fn lever_pushes() {
-    let course = &race().course;
+pub fn lever_pushes(course: &Course) {
     PHYSICS.lever_pushes[0].set(0);
     PHYSICS.lever_pushes[1].set(0);
     if FRAME_SWITCHES.levers_on.get() != 1 || CAR.all_wheels_off.get() != 0 {
@@ -65,12 +64,12 @@ pub fn lever_pushes() {
     PHYSICS
         .lever_share_left
         .set_bits(x87::loaded(PHYSICS.lever_share_start.bits()));
-    lever_push();
+    lever_push(course);
     PHYSICS.lever_push_vector[2].set(x87::loaded(CAR.probe_point_z[0].bits()));
     PHYSICS.lever_share_left.set_bits(one_less(
         crate::physics::tables_store::PHYSICS
             .lever_share_left
             .bits(),
     ));
-    lever_push();
+    lever_push(course);
 }

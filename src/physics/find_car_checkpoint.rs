@@ -15,7 +15,7 @@ use crate::errors::Refused;
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::progress;
@@ -25,8 +25,8 @@ use rc2k_core::physics::progress;
 /// (`race::nearest_checkpoint`). The other registers it leaves are read by none of its
 /// callers.
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
-pub fn find_car_checkpoint() -> Result<u32, Refused> {
-    let race_owner = race();
+pub fn find_car_checkpoint(race: &Race) -> Result<u32, Refused> {
+    let race_owner = race;
     race_owner
         .physics
         .ground

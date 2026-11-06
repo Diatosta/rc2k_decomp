@@ -15,6 +15,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::Refused;
+use crate::race::owner_frame::Frame;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 /// The render states set (value, state).
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
@@ -22,6 +23,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1,
 /// The Rust version (see the header): the render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `scene::depth_test_off`, `run_ring`, `run_ribbons`.
 pub fn ring_frame(
+    frame: &Frame,
     masks: &Masks,
     weather: &crate::effects::rain::Weather,
     particles: &Particles,
@@ -39,9 +41,9 @@ pub fn ring_frame(
         // The settings' +0x7C: the first car record's +0x1C.
         masks.surface.lives_by_level[8].set(marks.cars[0].word(0x1C)? & 0xFF_FFFF);
         particles.kind1_choice.choice.set(weather.rain.drops.get());
-        crate::effects::run_ring::run_ring(masks, ring)?;
+        crate::effects::run_ring::run_ring(frame, masks, ring)?;
         set_render_state(2, 0x14);
-        crate::effects::run_ribbons::run_ribbons(ring)?;
+        crate::effects::run_ribbons::run_ribbons(frame, ring)?;
     }
     Ok(())
 }

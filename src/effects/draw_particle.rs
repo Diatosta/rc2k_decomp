@@ -15,12 +15,12 @@
 use crate::d3d::vertices_store::VERTICES;
 use crate::effects::frame_state::DRAW_WORK;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::draw_store::DRAW;
 
 /// The Rust version (see the header): `colour` (ecx), `size` (edx).
-pub fn draw_particle(place: [[u8; 10]; 3], colour: u32, size: u32) {
-    let turned = x87::column_turn(&place, &race().frame.matrices.view_matrix);
+pub fn draw_particle(frame: &Frame, place: [[u8; 10]; 3], colour: u32, size: u32) {
+    let turned = x87::column_turn(&place, &frame.matrices.view_matrix);
     for (n, v) in turned.into_iter().enumerate() {
         DRAW_WORK.turned[n].set_bits(v);
     }

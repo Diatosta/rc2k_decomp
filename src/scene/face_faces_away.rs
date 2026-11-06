@@ -18,7 +18,6 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87_float::{X, compare};
-use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp};
 
@@ -103,8 +102,7 @@ fn triangle(w: &mut [u32; 19]) {
     triangle_at(cells(w));
 }
 
-pub fn face_faces_away(face: usize) -> Result<bool, Refused> {
-    let race = race();
+pub fn face_faces_away(race: &crate::race::owner::Race, face: usize) -> Result<bool, Refused> {
     if face == 0 || !crate::scene::point_records::held() {
         return Err(BadInput("no face or no records").into());
     }

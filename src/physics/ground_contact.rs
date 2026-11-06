@@ -32,27 +32,27 @@ use crate::physics::lowest_body_point::lowest_body_point;
 use crate::physics::place_sound_e1::place_sound_e1;
 use crate::physics::restore_saved_car::restore_saved_car;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 // Converted: `rc2k_core::physics::contacts::touches` and `walls::raised_hit` (the x87 steps stay).
-fn steps() -> Result<(), Refused> {
-    let physics_store = &race().physics;
+fn steps(race: &Race) -> Result<(), Refused> {
+    let physics_store = &race.physics;
     physics_store.contact.ground_contact_started.set(0);
-    { lowest_body_point() }?;
+    { lowest_body_point(race) }?;
     let depth = physics_store.contact.lowest_depth.get();
     let limit = rc2k_core::physics::contacts::GROUND_LIMIT;
     if !rc2k_core::physics::contacts::touches(depth, limit, CAR.all_wheels_off.get() != 0) {
         return Ok(());
     }
-    let n = point_number()?;
+    let n = point_number(&race.physics)?;
     physics_store.contact.ground_contact_started.set(1);
     CAR.contact_point[0].set_bits(CAR.probe_point_x[n].bits());
     CAR.contact_point[1].set_bits(CAR.probe_point_y[n].bits());
     CAR.contact_point[2].set_bits(CAR.probe_point_z[n].bits());
-    take_contact(n)?;
+    take_contact(&race.physics, n)?;
     physics_store.contact.contact_slide_limit.set_bits(0);
-    contact_force(&PHYSICS.contacts[2]);
-    { place_sound_e1() }?;
+    contact_force(race, &PHYSICS.contacts[2]);
+    { place_sound_e1(race) }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(physics_store.contact.contact_speed_length.bits()),
         f32::from_bits(CAR.contact_depth.bits()),
@@ -64,13 +64,13 @@ fn steps() -> Result<(), Refused> {
         &PHYSICS.contacts[2].force,
     );
     if sign(physics_store.contact.lowest_depth.get()) {
-        { restore_saved_car() }?;
-        { feel_ground() }?;
+        { restore_saved_car(&race.physics) }?;
+        { feel_ground(race) }?;
     }
     Ok(())
 }
 
 /// The Rust version. The registers it leaves are read by none of its callers.
-pub fn ground_contact() -> Result<(), Refused> {
-    steps()
+pub fn ground_contact(race: &Race) -> Result<(), Refused> {
+    steps(race)
 }

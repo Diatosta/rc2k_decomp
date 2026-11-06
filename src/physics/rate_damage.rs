@@ -28,13 +28,12 @@
 use crate::math::x87;
 use crate::math::x87_run::{compare_full, ext_times, mul3, one_less_products, ramp, square};
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use crate::scene::matrix3::rounded;
 use crate::session::{Dword, Float};
 
 /// The ramps in order: (destination, figure, table).
-fn ramps_a() -> [(&'static Float, &'static Float, &'static [Float; 4]); 2] {
-    let physics = &race().physics;
+fn ramps_a(physics: &Physics) -> [(&Float, &Float, &[Float; 4]); 2] {
     [
         (
             &CAR.drive_efficiency[0],
@@ -49,8 +48,7 @@ fn ramps_a() -> [(&'static Float, &'static Float, &'static [Float; 4]); 2] {
     ]
 }
 /// More ramps: (destination in the model, the car's figure, table).
-fn ramps_c() -> [(&'static Float, &'static Float, &'static [Float; 4]); 18] {
-    let physics = &race().physics;
+fn ramps_c(physics: &Physics) -> [(&Float, &Float, &[Float; 4]); 18] {
     [
         (
             &physics.damage.flt_75b490,
@@ -145,8 +143,7 @@ fn ramps_c() -> [(&'static Float, &'static Float, &'static [Float; 4]); 18] {
     ]
 }
 /// The failures that come and go: (flag, figure while set, figure while clear, turn).
-fn failures() -> [(&'static Dword, &'static Float, &'static Float, u32); 7] {
-    let physics = &race().physics;
+fn failures(physics: &Physics) -> [(&Dword, &Float, &Float, u32); 7] {
     [
         (
             &CAR.electrical_failures[0],
@@ -195,8 +192,8 @@ fn failures() -> [(&'static Dword, &'static Float, &'static Float, u32); 7] {
 
 /// The Rust version (the exact one, for `physics::grade_or_reset` and
 /// `physics::rate_current_car`).
-pub fn rate_damage() {
-    let d = &race().physics.damage;
+pub fn rate_damage(physics: &Physics) {
+    let d = &physics.damage;
     let c = &CAR;
     let less = |a: u32, b: u32| compare_full(a, b) & 0x100 != 0;
     let hold = |v: &Float| {
@@ -231,7 +228,7 @@ pub fn rate_damage() {
         hold(out);
     }
     let table_of = |t: &[Float; 4]| [t[0].bits(), t[1].bits(), t[2].bits(), t[3].bits()];
-    for (out, x, t) in ramps_a() {
+    for (out, x, t) in ramps_a(physics) {
         out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
     }
     for (out, x) in [
@@ -252,7 +249,7 @@ pub fn rate_damage() {
     ));
     c.steering_efficiency
         .set_bits(square(c.steering_efficiency.bits()));
-    for (out, x, t) in ramps_c() {
+    for (out, x, t) in ramps_c(physics) {
         out.set_bits(ramp(x.bits(), table_of(t), d.gauge_low.bits()));
     }
     // Chance: the figure times `flt_75B340` against the random's low word turned.
@@ -265,7 +262,7 @@ pub fn rate_damage() {
     if c.handbrake_failed.get() == 0 && chance(&d.flt_75b49c, 0xD) {
         c.handbrake_failed.set(1);
     }
-    for (flag, set, clear, turn) in failures() {
+    for (flag, set, clear, turn) in failures(physics) {
         if flag.get() != 0 {
             if chance(set, turn) {
                 flag.set(0);

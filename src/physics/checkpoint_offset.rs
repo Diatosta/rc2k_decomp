@@ -16,15 +16,15 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::turn_point_xz::turn_point_xz;
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::physics::progress::checkpoint_ahead;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::progress::checkpoint_ahead` (the turn stays
 // `math::turn_point_xz`'s).
-pub fn checkpoint_offset() -> Result<(), Refused> {
-    let course_store = &race().course;
+pub fn checkpoint_offset(course: &Course) -> Result<(), Refused> {
+    let course_store = course;
     let c = CAR.checkpoint.get();
     if checkpoint_ahead(c, RACE_VARS.checkpoint_count.get())?.is_none() {
         CAR.checkpoint_offset[0].set(0);

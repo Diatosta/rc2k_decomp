@@ -19,11 +19,11 @@ use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::tables_store::RACE_TABLES;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn ease_view_blend() -> Result<(), crate::errors::BadInput> {
+pub fn ease_view_blend(race: &Race) -> Result<(), crate::errors::BadInput> {
     let esi = record()?;
     if esi.blend.get() == 0 || esi.change_time.get() == 0 {
         return Ok(());
@@ -32,7 +32,7 @@ pub fn ease_view_blend() -> Result<(), crate::errors::BadInput> {
     if (esi.blend.get() as i32) < 0 {
         x87_1();
     }
-    x87_2();
+    x87_2(race);
     Ok(())
 }
 
@@ -52,8 +52,7 @@ fn x87_1() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A6A0] = (([rc + 0x208B24] - [rc + 0x208B20]) * [rc + 0x205260]) + [rc + 0x208B20]`
 /// `int [rc + 0x208B38] = -(((([rc + 0x208B2C] - [rc + 0x208B28]) * [rc + 0x205260]) + [rc + 0x208B28]) * [rc + 0x1C5D98])`
-fn x87_2() {
-    let race = race();
+fn x87_2(race: &Race) {
     let t0 = ld(race.physics.camera.view_shift_b.bits());
     let t1 = ld(race.physics.camera.view_shift_a.bits());
     let t2 = t0 - t1;
@@ -114,7 +113,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(),
+                plain: |_| x87_2(crate::race::owner::race()),
             },
         ]
     }

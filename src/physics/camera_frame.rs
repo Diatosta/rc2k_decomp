@@ -21,12 +21,13 @@ use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
-fn steps() -> Result<(), Refused> {
+fn steps(race: &Race) -> Result<(), Refused> {
     LIGHT_STATE.listener_camera.set_bits(0);
     LIGHT_STATE.camera_frame_a.set(0);
     LIGHT_STATE.camera_frame_b.set(0);
@@ -38,19 +39,20 @@ fn steps() -> Result<(), Refused> {
         hold_low(&LIGHT_STATE.camera_frame_b, &PHYSICS.camera_frame_limit);
         negate(&PHYSICS.camera_frame_limit);
         DRAW.scratch.set(crate::math::next_random::next_random());
-        x87_2();
-        if race().physics.split_tables.still.get() != 0 {
+        x87_2(&race.course);
+        if race.physics.split_tables.still.get() != 0 {
             LIGHT_STATE.camera_frame_b.set(0);
             LIGHT_STATE.listener_camera.set_bits(0);
         }
     }
-    crate::physics::update_camera::steps()
+    crate::physics::update_camera::steps(race)
 }
 
 /// The Rust version. The registers the original leaves are read by none of its callers
 /// (`physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`).
 pub fn camera_frame() -> Result<(), Refused> {
-    steps()
+    let race = crate::race::owner::race();
+    steps(race)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -68,8 +70,7 @@ fn x87_1() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x237644] = (((int [rc + 0x22400C] / [rc + 0x1C5D98]) / [rc + 0x1C5E28]) * [rc + 0x1C5D40]) * [rc + 0x23763C]`
-fn x87_2() {
-    let course = &race().course;
+fn x87_2(course: &Course) {
     let t0 = int(DRAW.scratch.bits() as i32);
     let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 / t1;
@@ -117,7 +118,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(),
+                plain: |_| x87_2(&crate::race::owner::race().course),
             },
         ]
     }

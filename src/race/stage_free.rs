@@ -6,6 +6,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::memory::{MemoryList, own_heap};
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 
 /// One of the freeing functions: its list (where it is, found when it runs: the statics
@@ -121,8 +122,7 @@ pub const FONTS: Freeing = Freeing {
 /// (`counted`); no caller reads them (taint at every site of `render3d_tidy`,
 /// `objects_tidy` and in `tidy_stage`: 0 reads). Refuses, before anything, a list with a
 /// block while the game's own heap is in use (`free_list` refuses it).
-pub fn free(f: &Freeing) -> Result<(), Refused> {
-    let course = &race().course;
+pub fn free(course: &Course, f: &Freeing) -> Result<(), Refused> {
     let l = (f.list)().unbounded(); // As in `free_list`.
     let list = l.read::<MemoryList>("a memory list")?;
     if list.head != 0 && own_heap() == 1 {
@@ -148,10 +148,12 @@ pub fn free(f: &Freeing) -> Result<(), Refused> {
 
 /// `race::render3d_tidy` (0x4433A7): `race::free_point_records`.
 pub fn render3d_tidy() -> Result<(), Refused> {
-    free(&POINT_RECORDS)
+    let course = &race().course;
+    free(course, &POINT_RECORDS)
 }
 
 /// `race::objects_tidy` (0x44346B): `race::free_object_points`.
 pub fn objects_tidy() -> Result<(), Refused> {
-    free(&OBJECT_POINTS)
+    let course = &race().course;
+    free(course, &OBJECT_POINTS)
 }

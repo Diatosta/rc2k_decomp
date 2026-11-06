@@ -22,7 +22,7 @@ use crate::effects::mask_store::Masks;
 use crate::effects::ring_store::Ring;
 use crate::effects::ring_store::RingWork;
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::draw_store::DRAW;
 use crate::scene::fog_at::fog_at;
 
@@ -30,8 +30,8 @@ use crate::d3d::vertices_store::VERTICES;
 const SUBCELLS: u32 = 0x410;
 
 /// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
-fn turn(ring: &Ring, p: &[[u8; 10]; 3]) {
-    turn_x87(p, &ring.work, &DRAW_WORK);
+fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3]) {
+    turn_x87(frame, p, &ring.work, &DRAW_WORK);
 }
 
 /// The original's 0x4CC009 .. 0x4CC140 (its integer moves done before): the square about
@@ -43,6 +43,7 @@ fn square() {
 /// The Rust version (see the header): `subcell` (eax), `size` (edx, a float's bits),
 /// `entry` (esi). No caller reads a register it leaves.
 pub fn draw_subcell_sprite(
+    frame: &Frame,
     masks: &Masks,
     ring: &Ring,
     subcell: u32,
@@ -60,7 +61,7 @@ pub fn draw_subcell_sprite(
     if SETTINGS.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    turn(ring, &place);
+    turn(frame, ring, &place);
     if DRAW_WORK.turned[2].bits() as i32 <= DRAW_WORK.near.bits() as i32 {
         return Ok(());
     }
@@ -97,37 +98,37 @@ use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `turn`'s x87 block as plain Rust on the x87 model (37 instructions), same order and memory places.
-fn turn_x87(p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
+fn turn_x87(frame: &Frame, p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
     let t0 = bh::from_f80(p[2]);
     let t1 = bh::from_f80(p[1]);
     let t2 = bh::from_f80(p[0]);
-    let t3 = ld(race().frame.matrices.view_matrix[0].bits());
+    let t3 = ld(frame.matrices.view_matrix[0].bits());
     let t4 = t3 * t2;
-    let t5 = ld(race().frame.matrices.view_matrix[4].bits());
+    let t5 = ld(frame.matrices.view_matrix[4].bits());
     let t6 = t5 * t1;
-    let t7 = ld(race().frame.matrices.view_matrix[8].bits());
+    let t7 = ld(frame.matrices.view_matrix[8].bits());
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + ld(race().frame.matrices.view_matrix[12].bits());
-    let t12 = ld(race().frame.matrices.view_matrix[1].bits());
+    let t11 = t10 + ld(frame.matrices.view_matrix[12].bits());
+    let t12 = ld(frame.matrices.view_matrix[1].bits());
     let t13 = t12 * t2;
-    let t14 = ld(race().frame.matrices.view_matrix[5].bits());
+    let t14 = ld(frame.matrices.view_matrix[5].bits());
     let t15 = t14 * t1;
-    let t16 = ld(race().frame.matrices.view_matrix[9].bits());
+    let t16 = ld(frame.matrices.view_matrix[9].bits());
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + ld(race().frame.matrices.view_matrix[13].bits());
-    let t21 = ld(race().frame.matrices.view_matrix[2].bits());
+    let t20 = t19 + ld(frame.matrices.view_matrix[13].bits());
+    let t21 = ld(frame.matrices.view_matrix[2].bits());
     let t22 = t2 * t21;
-    let t23 = ld(race().frame.matrices.view_matrix[6].bits());
+    let t23 = ld(frame.matrices.view_matrix[6].bits());
     let t24 = t1 * t23;
-    let t25 = ld(race().frame.matrices.view_matrix[10].bits());
+    let t25 = ld(frame.matrices.view_matrix[10].bits());
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + ld(race().frame.matrices.view_matrix[14].bits());
+    let t29 = t28 + ld(frame.matrices.view_matrix[14].bits());
     dw.turned[0].set_bits(bh::st(t11));
     dw.turned[1].set_bits(bh::st(t20));
     w.whole.set_bits(bh::to_int(t29) as u32);
@@ -369,7 +370,7 @@ mod asm_differential {
                                 .cast::<[u8; 10]>()
                                 .read_unaligned()
                         });
-                        super::turn_x87(&place, w, dw);
+                        super::turn_x87(&crate::race::owner::race().frame, &place, w, dw);
                     });
                 });
             },

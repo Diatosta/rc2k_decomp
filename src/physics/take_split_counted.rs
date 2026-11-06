@@ -20,7 +20,7 @@ use crate::physics::keep_split_time::keep_split_time;
 use crate::physics::set_flag_51659c::set_flag_51659c;
 use crate::physics::split_by_mode::split_by_mode;
 use crate::physics::splits::put_split_time;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::progress::{
     FINISH_NOTICE, SPLIT_NOTICE, finished_at, split_bonus, split_due,
@@ -28,17 +28,17 @@ use rc2k_core::physics::progress::{
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
-pub fn take_split_counted() -> Result<(), Refused> {
-    let physics_store = &race().physics;
+pub fn take_split_counted(race: &Race) -> Result<(), Refused> {
+    let physics_store = &race.physics;
     if RACE_WORK.current_car.get() != 0 {
         return Ok(());
     }
     if !split_due(CAR.splits_recorded.get(), CAR.splits_passed.get())? {
         return Ok(());
     }
-    { keep_split_time() }?;
-    { set_flag_51659c() }?;
-    split_by_mode()?;
+    { keep_split_time(&race.physics) }?;
+    { set_flag_51659c(&race.frame) }?;
+    split_by_mode(race)?;
     put_split_time(CAR.splits_recorded.get() as usize, CAR.split_gaps[0].get())?;
     if CAR.splits_passed.get() < physics_store.split_tables.split_colour_count.get() {
         CAR.notice_id.set(SPLIT_NOTICE);

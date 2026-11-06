@@ -16,12 +16,11 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use rc2k_core::physics::saved_car::{restore_count, restored};
 
 /// The Rust version. Converted: `rc2k_core::physics::saved_car::{restore_count, restored}`.
-pub fn restore_saved_car() -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn restore_saved_car(physics: &Physics) -> Result<(), Refused> {
     let n = restore_count(CAR.probe_count.get())?;
     PHYSICS
         .clear_place_count

@@ -8,12 +8,13 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
+use crate::race::owner_frame::Frame;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::SOLID_PLACES`
-pub fn add_solid_quad(hud: &Hud) -> Result<(), Refused> {
+pub fn add_solid_quad(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     for (n, v) in rc2k_core::hud::quads::SOLID_PLACES {
         hud.block.quad[n].set(v);
     }
-    crate::hud::add_quad::add_quad(hud)
+    crate::hud::add_quad::add_quad(frame, hud)
 }

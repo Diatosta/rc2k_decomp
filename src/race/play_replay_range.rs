@@ -12,19 +12,19 @@
 //! Caller: `race::play_marked`.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 /// The Rust version (every register kept).
-pub fn play_replay_range() -> Result<(), Refused> {
-    let replay = &race().replay;
+pub fn play_replay_range(race: &Race) -> Result<(), Refused> {
+    let replay = &race.replay;
     use crate::race::race_end;
     crate::drive::replay_frame_marks::replay_frame_marks()?;
     if VIEWER_PANEL.replay_recording.get() != 1 {
         crate::race::sounds::start_race_sounds()?;
     }
-    crate::race::play_movie::play_movie()?;
+    crate::race::play_movie::play_movie(race)?;
     race_end::reset_race_sounds(&race_end::SoundVars::game())?;
     // The key taken: al, the rest of eax cleared (`and eax, 0FFh`).
     let key = crate::input::take_key::take_key() as u32 & 0xFF;

@@ -24,7 +24,8 @@ use crate::errors::Refused;
 use crate::math::x87_float::{int, ld, st, to_int};
 use crate::physics::flow::c0;
 use crate::race::muddy_texel::texture_and_mud;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
 use crate::race::vars_store::RACE_VARS;
@@ -43,9 +44,9 @@ fn subtract_units(a: &impl Cell32, u: &impl Cell32) {
 
 /// `fld [from]; fistp [to]`, then `fld zero; fld [to]; fcompp` and, with C0, `fld zero;
 /// fstp [to]`: the units of a float count, negatives 0 (as the original, by bits).
-fn whole_units(from: &Float, to: &Dword) -> i32 {
+fn whole_units(course: &Course, from: &Float, to: &Dword) -> i32 {
     round_units(from, to);
-    let zero: u32 = race().course.numbers.zero.bits();
+    let zero: u32 = course.numbers.zero.bits();
     if c0(to.bits(), zero) {
         to.set_bits(zero);
     }
@@ -58,8 +59,8 @@ fn take_units(at: &Float, units: &Dword) {
 }
 
 /// The Rust version (see the header).
-pub fn update_mud_texture() -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
+    let frame = &race.frame;
     let n = texture_and_mud()?;
     let k = n as usize;
     crate::scene::forget_slot_texture::forget_slot_texture(
@@ -84,7 +85,11 @@ pub fn update_mud_texture() -> Result<(), Refused> {
         return Ok(());
     }
     // The throws.
-    let throws = whole_units(&RACE_VARS.mud_thrown_in[k], &RACE_VARS.mud_throws);
+    let throws = whole_units(
+        &race.course,
+        &RACE_VARS.mud_thrown_in[k],
+        &RACE_VARS.mud_throws,
+    );
     let count: u32 = RACE_VARS.mud_thrown_counts[k].bits();
     if count <= LAST_THROWN {
         let over = (count & 0xFFFF).wrapping_add(throws as u32);
@@ -99,7 +104,7 @@ pub fn update_mud_texture() -> Result<(), Refused> {
         if throws > 0 {
             let mut done = 0u32;
             loop {
-                throw_mud_texel()?;
+                throw_mud_texel(&race.course)?;
                 done = done.wrapping_add(1);
                 if done == RACE_VARS.mud_throws.bits() {
                     break;
@@ -108,7 +113,11 @@ pub fn update_mud_texture() -> Result<(), Refused> {
         }
     }
     // The splashes.
-    whole_units(&RACE_VARS.mud_splashes_in[k], &RACE_VARS.mud_splashes);
+    whole_units(
+        &race.course,
+        &RACE_VARS.mud_splashes_in[k],
+        &RACE_VARS.mud_splashes,
+    );
     if RACE_VARS.mud_splash_counts[k].bits() < LAST_SPLASHED {
         take_units(&RACE_VARS.mud_splashes_in[k], &RACE_VARS.mud_splashes);
         let splashes = RACE_VARS.mud_splashes.bits() as i32;

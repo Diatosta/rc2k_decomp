@@ -11,6 +11,7 @@
 
 use crate::math::x87_float::{f80, int, ld};
 use crate::physics::car_store::CAR;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::ViewVars;
@@ -26,8 +27,7 @@ type Turns = (
 );
 
 /// The steps both versions share; `second` the second offset turned with the car.
-fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
-    let race = race();
+fn place_with(race: &Race, turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     let figures = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
         &race.course.lights_data.place_second
     } else {
@@ -104,8 +104,7 @@ fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
 }
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
-pub fn place_camera() {
-    let race = race();
+pub fn place_camera(race: &Race) {
     use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
     let second = || {
         let turns = [
@@ -119,6 +118,7 @@ pub fn place_camera() {
         turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
     };
     place_with(
+        race,
         (
             turn_point_xz_ebx::turn_point_xz_ebx,
             turn_point_xz_ecx::turn_point_xz_ecx,

@@ -15,6 +15,7 @@
 //! `dword_52A910` set (it would write past `dword_641680`'s eight).
 
 use crate::errors::Refused;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -62,9 +63,8 @@ pub fn choose_at(v: &[&Dword]) -> Result<(), Refused> {
 }
 
 /// The variables' addresses, in the order the core uses them.
-fn game() -> Vec<&'static Dword> {
-    let race = race();
-    let mut cells: Vec<&'static Dword> = vec![
+fn game(race: &Race) -> Vec<&Dword> {
+    let mut cells: Vec<&Dword> = vec![
         &RACE_VIEW.view_cars[0],
         &RACE_VIEW.view_cars[1],
         &RACE_VIEW.players,
@@ -83,5 +83,6 @@ fn game() -> Vec<&'static Dword> {
 
 /// The Rust version.
 pub fn choose_shown_cars() -> Result<(), Refused> {
-    choose_at(&game())
+    let race = race();
+    choose_at(&game(race))
 }

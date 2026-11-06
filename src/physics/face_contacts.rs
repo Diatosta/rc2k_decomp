@@ -12,8 +12,9 @@
 
 use crate::errors::Refused;
 use crate::physics::face_contacts_around::face_contacts_around;
+use crate::race::owner_physics::Physics;
 
 /// The Rust version.
-pub fn face_contacts() -> Result<(), Refused> {
-    face_contacts_around()
+pub fn face_contacts(physics: &Physics) -> Result<(), Refused> {
+    face_contacts_around(physics)
 }

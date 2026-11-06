@@ -11,11 +11,12 @@
 use crate::drive::animate_lit_faces::animate_lit_faces;
 use crate::errors::Refused;
 use crate::physics::move_slots::move_slots;
+use crate::race::owner::Race;
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx after
 /// `drive::replay_step`'s call has no read point).
-pub fn animate_stage() -> Result<(), Refused> {
-    animate_lit_faces()?;
+pub fn animate_stage(race: &Race) -> Result<(), Refused> {
+    animate_lit_faces(race)?;
     move_slots()?;
     Ok(())
 }

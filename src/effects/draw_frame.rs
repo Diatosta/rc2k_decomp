@@ -21,7 +21,7 @@ use crate::effects::tuning::MARKS_FRAME;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Float, read_bits};
@@ -39,8 +39,7 @@ fn rdtsc() -> u32 {
 
 /// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,
 /// `begin_quads`, `scene::depth_test_on`.
-pub fn draw_frame(effects: &Effects) -> Result<(), Refused> {
-    let race = race();
+pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
     use crate::effects::{begin_quads, cars_particles, view_heading, view_motion};
     let info: u32 = race.course.lists.course_info.bits();
     if info == 0 {
@@ -76,8 +75,8 @@ pub fn draw_frame(effects: &Effects) -> Result<(), Refused> {
     MARKS_WORK.sound_zero.set(0);
     VIEW_VARS.cleared.set(0);
     cars_particles::cars_particles(effects)?;
-    view_heading::view_heading();
-    view_motion::view_motion()?;
+    view_heading::view_heading(&race.frame);
+    view_motion::view_motion(&race.frame)?;
     let start = rdtsc();
     begin_quads::begin_quads();
     let frame = MARKS_FRAME.frame_cycles.bits() as i32;

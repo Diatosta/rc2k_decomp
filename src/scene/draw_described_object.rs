@@ -30,9 +30,9 @@ use crate::scene::object_tables_store::OBJECT_TABLES;
 
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
 /// (0x50 ..) without its block.
-fn check_object(object: u32) -> Result<(), Refused> {
+fn check_object(course: &crate::race::owner_course::Course, object: u32) -> Result<(), Refused> {
     let car = object.wrapping_sub(0x50);
-    if race().course.numbers.in_race.bits() != 0
+    if course.numbers.in_race.bits() != 0
         && car < 0xA0
         && RACE_WORK.car_block((car / 0x14) as usize) == 0
     {
@@ -46,14 +46,18 @@ fn check_object(object: u32) -> Result<(), Refused> {
 /// registers (ebx the object) no caller reads (register liveness, 2026-10-23: only the
 /// unreached `sub_49081A`), nor do its two calls read what it had in them: the matrix's
 /// placing reads no register, and the drawing only esi, which it is given.
-pub fn draw_described_object(d: Option<GamePtr>) -> Result<(), Refused> {
+pub fn draw_described_object(
+    course: &crate::race::owner_course::Course,
+    d: Option<GamePtr>,
+) -> Result<(), Refused> {
     let d = d.ok_or(BadInput("a described object without its description"))?;
-    draw_description(&|len| d.read_bytes(len, "a described object"))
+    draw_description(course, &|len| d.read_bytes(len, "a described object"))
 }
 
 /// The same for course face `face` (kind 0xFF), its own description.
 pub fn draw_described_face(face: u32) -> Result<(), Refused> {
-    draw_description(&|len| {
+    let course = &race().course;
+    draw_description(course, &|len| {
         let bytes: [u8; 0x40] =
             crate::race::course_places::face_field(face, 0, "a described face")?;
         Ok(bytes[..len].to_vec())
@@ -61,8 +65,10 @@ pub fn draw_described_face(face: u32) -> Result<(), Refused> {
 }
 
 /// The drawing from a description's first `len` bytes as `read` gives them.
-fn draw_description(read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>) -> Result<(), Refused> {
-    let course = &race().course;
+fn draw_description(
+    course: &crate::race::owner_course::Course,
+    read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>,
+) -> Result<(), Refused> {
     let head = read(8)?;
     let object = head[1] as u32;
     let place = u32::from_le_bytes([head[4], head[5], head[6], head[7]]);
@@ -70,7 +76,7 @@ fn draw_description(read: &dyn Fn(usize) -> Result<Vec<u8>, BadInput>) -> Result
         && place < course.course.scene_point_count.get()
         && !(FRAME_SWITCHES.other_way.get() != 0 && object == 0x3F);
     if shown {
-        check_object(object)?;
+        check_object(course, object)?;
     }
     FRAME_SWITCHES.object_number.set_bits(object);
     let end = || {

@@ -8,12 +8,14 @@
 //! Callers: `sub_460049`, `sub_46062E` (twice).
 
 use crate::drive::save_replay_cars::copy_piece;
+use crate::race::owner::race;
 use rc2k_core::drive::replay_frames::start_layout;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::start_layout`.
 pub fn load_replay_cars() {
+    let replay = &race().replay;
     for (piece, offset, n) in start_layout() {
-        copy_piece(piece, offset, n, false);
+        copy_piece(replay, piece, offset, n, false);
     }
 }

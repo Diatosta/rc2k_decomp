@@ -15,6 +15,7 @@
 use crate::effects::tuning::MARKS_FRAME;
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::race::owner::race;
 use crate::session::Float;
 /// Where the share goes (its factor is `FRAME_K.times`): the draw, the ring, the whole.
 static SHARES: [&Float; 3] = [
@@ -47,6 +48,7 @@ fn share(at: usize, start: u32) {
 
 /// The Rust version (see the header).
 pub fn run_frame() -> Result<(), Refused> {
+    let race = race();
     use crate::effects::*;
     use crate::scene::set_render_state::set_render_state;
     let effects = owner::effects();
@@ -60,20 +62,20 @@ pub fn run_frame() -> Result<(), Refused> {
             set_render_state(value, state);
         }
         run_rain::run_rain(weather)?;
-        run_snow::run_snow(weather)?;
+        run_snow::run_snow(&race.frame, weather)?;
         let start = rdtsc();
         share(0, start);
-        draw_frame::draw_frame(effects)?;
+        draw_frame::draw_frame(race, effects)?;
         let start = rdtsc();
-        ring_frame::ring_frame(&effects.masks, weather, particles, ring)?;
+        ring_frame::ring_frame(&race.frame, &effects.masks, weather, particles, ring)?;
         share(1, start);
         set_render_state(2, 0x14);
         flare_frame::flare_frame(paths)?;
         set_render_state(1, 3);
-        draw_mark_slots::draw_mark_slots(paths)?;
-        run_particles::run_particles(particles, ring)?;
+        draw_mark_slots::draw_mark_slots(race, paths)?;
+        run_particles::run_particles(&race.frame, particles, ring)?;
         share(2, whole);
-        stage_record::stage_record()?;
+        stage_record::stage_record(&race.frame)?;
         draw_glow::draw_glow()?;
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_on::depth_test_on();

@@ -14,7 +14,7 @@
 
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::motion::time_mark;
 
@@ -30,9 +30,9 @@ fn game() -> Vec<&'static dyn Cell32> {
 /// The converted version (`rc2k_core::physics::motion`) on the variables' cells `v`. The eax
 /// it leaves (the mark) is read by none of its callers.
 // Converted: `rc2k_core::physics::motion::time_mark`.
-fn core(v: &[&dyn Cell32]) {
+fn core(course: &Course, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
-    let limit = f32::from_bits(race().course.numbers.sixty.bits());
+    let limit = f32::from_bits(course.numbers.sixty.bits());
     // The mark, count and start read only where the original reads them.
     if let Some(mark) = time_mark(
         f32::from_bits(get(0)),
@@ -46,6 +46,6 @@ fn core(v: &[&dyn Cell32]) {
 
 /// The Rust version (a compare of floats only: the same at any precision); `r` as the
 /// original leaves are read by none of its callers.
-pub fn note_time_mark() {
-    core(&game());
+pub fn note_time_mark(course: &Course) {
+    core(course, &game());
 }

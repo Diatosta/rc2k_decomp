@@ -22,7 +22,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::light_work_store::LIGHT_WORK;
 use crate::session::MACHINE;
@@ -30,8 +30,7 @@ use rc2k_core::physics::lighting;
 
 /// The two-way blend of the four corners now in `dword_5CCC90` ..: into `5CCCA4`,
 /// `5CCCA0`, returned.
-fn corners() -> u32 {
-    let race = race();
+fn corners(race: &Race) -> u32 {
     let c = [0usize, 1, 2, 3].map(|k| race.course.course.face_light_bytes[k].get());
     let ([a, b], v, _) = lighting::corners(
         c,
@@ -45,8 +44,8 @@ fn corners() -> u32 {
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::lighting`.
-pub fn car_lighting() -> Result<(), Refused> {
-    let race_owner = race();
+pub fn car_lighting(race: &Race) -> Result<(), Refused> {
+    let race_owner = race;
     race_owner
         .physics
         .ground
@@ -109,7 +108,7 @@ pub fn car_lighting() -> Result<(), Refused> {
             at.set(v);
         }
     }
-    let light = corners();
+    let light = corners(race);
     CAR.light_level.set(light);
     if CAR.light_hold_steps.get() != 0 {
         let held = lighting::hold_change(
@@ -144,7 +143,7 @@ pub fn car_lighting() -> Result<(), Refused> {
         for k in 0..4u32 {
             race_owner.course.course.face_light_bytes[k as usize].set(face_byte(first + k)?);
         }
-        let i = corners();
+        let i = corners(race);
         if i >= lighting::TABLE {
             return Err(BadInput("a colour index past 0xFF").into());
         }

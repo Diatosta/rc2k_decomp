@@ -7,7 +7,11 @@ use crate::pointers::GamePtr;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::SceneMatrices;
+use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
+use crate::race::owner_frame::Frame;
+use crate::race::owner_physics::Physics;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::car_at;
 use crate::race::vars_store::RACE_VARS;
@@ -22,9 +26,9 @@ use crate::scene::polygon_store::POLYGON_WORK;
 
 /// `race::start_kept_reflections` (0x451864): the 0x400 kept reflection normals cleared to
 /// -999 (0xFFFFFC19) and `g_reflectionsKept` 1.
-pub fn start_kept_reflections() -> Result<(), BadInput> {
+pub fn start_kept_reflections(physics: &Physics) -> Result<(), BadInput> {
     {
-        for cell in &race().physics.ground.kept_reflections[..0x400] {
+        for cell in &physics.ground.kept_reflections[..0x400] {
             cell.set(0xFFFF_FC19);
         }
         RACE_VIEW.reflections_kept.set_bits(1u32);
@@ -46,8 +50,10 @@ pub fn end_kept_reflections() {
 /// into `race().frame.matrices.matrix_scratch`), times the view's turn into `g_madeObjectMatrix`; the reflections
 /// kept around the drawing (`scene::draw_scene_object`). Refuses
 /// (before anything) as `check_slot_object`.
-pub fn draw_slot_object(slot: &crate::race::work_store::RaceSlot) -> Result<(), Refused> {
-    let race = race();
+pub fn draw_slot_object(
+    race: &Race,
+    slot: &crate::race::work_store::RaceSlot,
+) -> Result<(), Refused> {
     use crate::scene::matrix;
     check_slot_object(slot)?;
     let object = slot.part.get();
@@ -99,9 +105,10 @@ pub fn draw_slot_object(slot: &crate::race::work_store::RaceSlot) -> Result<(), 
         &race.frame.matrices.view_turn_matrix,
         &race.frame.matrices.made_object_matrix,
     );
-    start_kept_reflections()?;
+    start_kept_reflections(&race.physics)?;
     // esi `g_turnedMatrix`, as the matrices' calls leave it.
     crate::scene::draw_scene_object::draw_scene_object_in_game(Some(matrices_at(
+        &race.frame,
         core::mem::offset_of!(SceneMatrices, turned_matrix),
     )))?;
     end_kept_reflections();
@@ -122,6 +129,7 @@ pub fn check_slot_object(slot: &crate::race::work_store::RaceSlot) -> Result<(),
 /// (0x78 bytes at `g_raceSlots`) whose +0 is not 0. Refuses (before anything) as
 /// `check_slot_object` for any.
 pub fn draw_race_slots() -> Result<(), Refused> {
+    let race = race();
     let slots = &RACE_WORK.race_slots;
     for slot in slots {
         if slot.part.get() != 0 {
@@ -130,7 +138,7 @@ pub fn draw_race_slots() -> Result<(), Refused> {
     }
     for slot in slots {
         if slot.part.get() != 0 {
-            draw_slot_object(slot)?;
+            draw_slot_object(race, slot)?;
         }
     }
     Ok(())
@@ -144,7 +152,7 @@ pub fn draw_race_slots() -> Result<(), Refused> {
 /// buffer off (`g_polygonMode` 0, switches -1, 1, 0; `g_polygonDrawn` 1); the colour back
 /// to 0xFFFFFF. Every register kept (its callers return at once). Refuses what the clip
 /// refuses (after the entries are set: never seen with four vertices).
-pub fn draw_screen_quad() -> Result<(), Refused> {
+pub fn draw_screen_quad(course: &Course) -> Result<(), Refused> {
     DRAW.polygon_drawn.set(0u32);
     let entries = &POLYGON_WORK.entries[..4];
     for (k, e) in (0u32..).zip(entries) {
@@ -164,7 +172,7 @@ pub fn draw_screen_quad() -> Result<(), Refused> {
         let v = &RACE_VARS.quad_vertices[8 * k..8 * k + 8];
         v[3].set_bits(x.to_bits());
         v[7].set_bits(y.to_bits());
-        v[6].set_bits(race().course.numbers.k4096_b.bits());
+        v[6].set_bits(course.numbers.k4096_b.bits());
     }
     DRAW.scratch.set_bits(corners[2].1.to_bits());
     for e in entries {
@@ -202,6 +210,7 @@ pub fn draw_screen_quad() -> Result<(), Refused> {
 /// `DRAW.view_size[1]`) as a screen quad in 0x204080 (`RACE_VARS.quad_colour`), switches -1, 1, 0, by
 /// `draw_screen_quad`.
 pub fn draw_view_tint() -> Result<(), Refused> {
+    let course = &race().course;
     RACE_VARS.quad_corners[0].set(0u32);
     RACE_VARS.quad_corners[1].set(DRAW.view_size[0].get());
     RACE_VARS.quad_corners[4].set(0u32);
@@ -210,7 +219,7 @@ pub fn draw_view_tint() -> Result<(), Refused> {
     DRAW.polygon_textures[0].set(u32::MAX);
     DRAW.polygon_sides[0].set(1u32);
     DRAW.polygon_sides[1].set(0u32);
-    draw_screen_quad()
+    draw_screen_quad(course)
 }
 
 /// `race::add_car_depth_entry` (0x4574A0): the place (+0x134 .., into `OBJECT_WORK.place` ..) of
@@ -218,7 +227,7 @@ pub fn draw_view_tint() -> Result<(), Refused> {
 /// ..; x and y back as floats, z the key: plus 0x2000000, shifted right 10), a depth entry
 /// of the key with the car's `number` plus 0x2000000. Refuses (before anything) a depth
 /// entry past the 0x1000.
-pub fn add_car_depth_entry(car: u32, number: u32) -> Result<(), Refused> {
+pub fn add_car_depth_entry(frame: &Frame, car: u32, number: u32) -> Result<(), Refused> {
     use crate::math::x87::from_int;
     let n: u32 = RACE_VIEW.depth_entry_count.bits();
     if n >= SORT_MAX {
@@ -228,7 +237,7 @@ pub fn add_car_depth_entry(car: u32, number: u32) -> Result<(), Refused> {
     for (k, &p) in place.iter().enumerate() {
         OBJECT_WORK.place[k].set_bits(p);
     }
-    let matrix: [u32; 16] = crate::session::read_bits(&race().frame.matrices.view_matrix);
+    let matrix: [u32; 16] = crate::session::read_bits(&frame.matrices.view_matrix);
     let t = crate::math::x87_load::rotate_rounding(place.map(|v| v as i32), &matrix);
     for (k, &v) in t.iter().enumerate() {
         OBJECT_WORK.turned_place[k].set_bits(v);
@@ -253,8 +262,7 @@ pub const FLARES_MAX: u32 = 0x100;
 /// `OBJECT_WORK.size`, colour `OBJECT_WORK.other_light`) into the six flare tables (0x100 dwords each, from
 /// `LEVEL_GRID.flare_place_x`) and, turned by `g_viewMatrix` (x and y back as floats, z rounded into
 /// the key), a depth entry with the flare's number + 0x1000000; none past `FLARES_MAX`.
-pub(super) fn add_flare() -> Result<(), BadInput> {
-    let race = race();
+pub(super) fn add_flare(race: &Race) -> Result<(), BadInput> {
     let n: u32 = race.frame.frame_work.flare_count.bits();
     if n == FLARES_MAX {
         return Ok(());
@@ -299,7 +307,7 @@ pub(super) fn add_flare() -> Result<(), BadInput> {
 
 /// `sub_4572B0`: a flare at `point` in the frame of the car block at `car` (its matrix +0xB4,
 /// each part rounded, plus its place +0x134 ..), object 0x39, by `add_flare`.
-pub(super) fn place_flare(car: u32, point: [u32; 3]) -> Result<(), BadInput> {
+pub(super) fn place_flare(race: &Race, car: u32, point: [u32; 3]) -> Result<(), BadInput> {
     let t = crate::math::x87_load::rotate_rounding(
         point.map(|v| v as i32),
         &crate::session::read_bits(&car_at(car)?.crash_matrix),
@@ -309,7 +317,7 @@ pub(super) fn place_flare(car: u32, point: [u32; 3]) -> Result<(), BadInput> {
         OBJECT_WORK.place[k].set_bits(v.wrapping_add(car_at(car)?.position[k].bits()));
     }
     FRAME_SWITCHES.object_number.set(0x39u32);
-    add_flare()?;
+    add_flare(race)?;
     Ok(())
 }
 
@@ -322,13 +330,14 @@ pub(super) const PART_SWITCHES: u32 = 0xAC0;
 /// +`right` is set, the left (x negated) when +`left` is (-1: no byte), each by
 /// `place_flare`; `race().frame.frame_work.light_left` / `race().frame.frame_work.light_right` the two bytes.
 pub(super) fn light_pair(
+    race: &Race,
     car: u32,
     record: GamePtr,
     at: u32,
     left: u32,
     right: u32,
 ) -> Result<(), BadInput> {
-    let frame = &race().frame;
+    let frame = &race.frame;
     // The bytes are the block's part switches (+0xAC0 ..).
     let switches = &car_at(car)?.part_switches;
     let byte = |o: u32| -> Result<u32, BadInput> {
@@ -352,10 +361,10 @@ pub(super) fn light_pair(
     }
     let y = y.wrapping_sub(PHYSICS.ground_drop.bits());
     if frame.frame_work.light_right.get() != 0 {
-        place_flare(car, [x, y, z])?;
+        place_flare(race, car, [x, y, z])?;
     }
     if frame.frame_work.light_left.get() != 0 {
-        place_flare(car, [x.wrapping_neg(), y, z])?;
+        place_flare(race, car, [x.wrapping_neg(), y, z])?;
     }
     Ok(())
 }
@@ -363,8 +372,7 @@ pub(super) fn light_pair(
 /// `race::car_light_flares` (0x457036): the lights of the car block at `car` as flares.
 /// Refuses (before anything) a flare list or depth list without room for the 24 flares a car
 /// can give.
-pub fn car_light_flares(car: u32) -> Result<(), Refused> {
-    let race = race();
+pub fn car_light_flares(race: &Race, car: u32) -> Result<(), Refused> {
     if RACE_VIEW.depth_entry_count.bits() > SORT_MAX - 24 {
         return Err(BadInput("the depth list has no room for a car's flares").into());
     }
@@ -378,10 +386,10 @@ pub fn car_light_flares(car: u32) -> Result<(), Refused> {
             race.frame.frame_work.part_place[2].bits(),
         ];
         OBJECT_WORK.other_light.set(0x00F0_F0F0u32);
-        place_flare(car, point)?;
+        place_flare(race, car, point)?;
         // Not the original's: the pair's other light, as `light_pair` (the debug UI).
         if point[0] != 0 {
-            place_flare(car, [point[0].wrapping_neg(), point[1], point[2]])?;
+            place_flare(race, car, [point[0].wrapping_neg(), point[1], point[2]])?;
         }
         return Ok(());
     }
@@ -412,7 +420,7 @@ pub fn car_light_flares(car: u32) -> Result<(), Refused> {
     LIGHT_WORK.light_kind.set(3u32);
     OBJECT_WORK.size.set(2u32);
     OBJECT_WORK.other_light.set(0x0060_6060u32);
-    let pair = |at: u32, left: u32, right: u32| light_pair(car, record, at, left, right);
+    let pair = |at: u32, left: u32, right: u32| light_pair(race, car, record, at, left, right);
     pair(0xA4, 0xAC0, 0xAC1)?;
     if LIGHT_WORK.marks_mask.get() != 0 && race.frame.frame_work.parts_present.get() >> 9 & 1 != 0 {
         pair(0xB0, 0xACA, 0xACB)?;
@@ -442,6 +450,8 @@ pub fn car_light_flares(car: u32) -> Result<(), Refused> {
 /// its end) or more than eight, a null block, or a depth list without room for every car's
 /// entries.
 pub fn car_lights() -> Result<(), Refused> {
+    let race = race();
+    let frame = &race.frame;
     if FRAME_SWITCHES.other_way.bits() == 0 {
         return Ok(());
     }
@@ -459,8 +469,8 @@ pub fn car_lights() -> Result<(), Refused> {
         let b = block(n);
         // Both only with the lights on: the `jz` skips to the `popa`.
         if lights_on(car_at(b)?.state_bits.bits()) {
-            add_car_depth_entry(b, n)?;
-            car_light_flares(b)?;
+            add_car_depth_entry(frame, b, n)?;
+            car_light_flares(race, b)?;
         }
     }
     Ok(())
@@ -469,8 +479,7 @@ pub fn car_lights() -> Result<(), Refused> {
 /// The end of `place_object_matrix`'s ways: the place `OBJECT_WORK.place` .. into
 /// `g_placedMatrix`, moved by the view (0x5EA1CC into `race().frame.matrices.matrix_scratch`), `race().frame.matrices.object_turn_matrix` with it
 /// (`g_turnedMatrix`), times the view's turn into `g_madeObjectMatrix`.
-pub(super) fn placed_object_tail() {
-    let frame = &race().frame;
+pub(super) fn placed_object_tail(frame: &Frame) {
     use crate::scene::matrix;
     let place = [
         OBJECT_WORK.place[0].get(),
@@ -496,11 +505,11 @@ pub(super) fn placed_object_tail() {
 }
 
 /// `race().frame.matrices.object_turn_matrix`'s sixteen floats times `OBJECT_WORK.size` / 16 (through `DRAW.scratch`).
-pub(super) fn scale_object_turn() -> Result<(), BadInput> {
+pub(super) fn scale_object_turn(frame: &Frame) -> Result<(), BadInput> {
     {
         let scale = crate::math::x87::int_over_16(OBJECT_WORK.size.get() as i32);
         DRAW.scratch.set_bits(scale);
-        for cell in &race().frame.matrices.object_turn_matrix {
+        for cell in &frame.matrices.object_turn_matrix {
             cell.set_bits(crate::math::x87::mul(cell.bits(), scale));
         }
     }
@@ -539,7 +548,7 @@ pub fn place_object_matrix() -> Result<(), BadInput> {
         multiply_matrices(turn_y, turn_x, turned);
         set_turn_z_16(OBJECT_WORK.angles[2].bits().wrapping_neg());
         multiply_matrices(turned, turn_z, object);
-        placed_object_tail();
+        placed_object_tail(frame);
         return Ok(());
     }
     if LIGHT_STATE.view_kind.get() == 4 {
@@ -594,8 +603,8 @@ pub fn place_object_matrix() -> Result<(), BadInput> {
             }
         }
     }
-    scale_object_turn()?;
-    placed_object_tail();
+    scale_object_turn(frame)?;
+    placed_object_tail(frame);
     Ok(())
 }
 
@@ -603,8 +612,7 @@ pub fn place_object_matrix() -> Result<(), BadInput> {
 /// `OBJECT_WORK.place` .., `OBJECT_WORK.size`, `OBJECT_WORK.other_light`, `g_objectNumber`; `LIGHT_STATE.view_kind` 2,
 /// `place_object_matrix`, `g_lightKind` 0 and the drawing (`scene::draw_scene_object`,
 /// described by `entry`, the draw list entry the flare came from).
-pub fn draw_flare(flare: u32, entry: GamePtr) -> Result<(), Refused> {
-    let course = &race().course;
+pub fn draw_flare(course: &Course, flare: u32, entry: GamePtr) -> Result<(), Refused> {
     for (table, to) in [
         (&course.level_grid.flare_place_x, &OBJECT_WORK.place[0]),
         (&course.flare_tables.place_y, &OBJECT_WORK.place[1]),
@@ -633,8 +641,8 @@ pub fn draw_flare(flare: u32, entry: GamePtr) -> Result<(), Refused> {
 /// into `OBJECT_WORK.place` .., its +4 x 8 the size, +8 the colour, object `FRAME_SWITCHES.marker_object`;
 /// `LIGHT_STATE.view_kind` 2, `place_object_matrix`, `g_lightKind` 0 and the drawing. Every
 /// register kept.
-pub fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
-    let edi = self::lamp(lamp)?;
+pub fn draw_lamp_flare(race: &Race, lamp: u32) -> Result<(), Refused> {
+    let edi = self::lamp(&race.course, lamp)?;
     let [x, y, z] = crate::race::scene_points::point_number(edi[0].get())?;
     OBJECT_WORK.place[0].set(x);
     OBJECT_WORK.place[1].set(y);
@@ -650,6 +658,7 @@ pub fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
     // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`LIGHT_STATE.view_kind` is 2 here,
     // so it always ends by placing the object).
     crate::scene::draw_scene_object::draw_scene_object_in_game(Some(matrices_at(
+        &race.frame,
         core::mem::offset_of!(SceneMatrices, turned_matrix),
     )))
 }
@@ -660,8 +669,8 @@ pub fn draw_lamp_flare(lamp: u32) -> Result<(), Refused> {
 /// `LEVEL_GRID.plain_second` 1 around it; 0x1000000 .. a flare, 0x2000000 .. a car, 0x3000000 .. a
 /// lamp, each by its low 24 bits; then `LIGHT_STATE.view_kind` 0. Refuses (before anything) a word
 /// of 0x4000000 or more (the original would take it for a face far past the table).
-pub fn draw_list_entry(at: GamePtr, flags_word: u32) -> Result<(), Refused> {
-    let course = &race().course;
+pub fn draw_list_entry(race: &Race, at: GamePtr, flags_word: u32) -> Result<(), Refused> {
+    let course = &race.course;
     let word = flags_word & 0x7FFF_FFFF;
     if word >= 0x400_0000 {
         return Err(BadInput("a list entry of 0x4000000 or more").into());
@@ -681,16 +690,16 @@ pub fn draw_list_entry(at: GamePtr, flags_word: u32) -> Result<(), Refused> {
                     // The description is the face.
                     crate::scene::draw_described_object::draw_described_face(face)?;
                 } else {
-                    crate::race::course_faces::draw_tinted_face(face)?;
+                    crate::race::course_faces::draw_tinted_face(race, face)?;
                 }
                 course.level_grid.smooth.set_bits(0);
                 course.level_grid.plain_first.set_bits(0);
                 course.level_grid.plain_second.set_bits(0);
             }
         }
-        1 => draw_flare(low, at)?,
-        2 => crate::race::car_draw::draw_car_entry(low)?,
-        _ => draw_lamp_flare(low)?,
+        1 => draw_flare(&race.course, low, at)?,
+        2 => crate::race::car_draw::draw_car_entry(race, low)?,
+        _ => draw_lamp_flare(race, low)?,
     }
     LIGHT_STATE.view_kind.set(0u32);
     Ok(())
@@ -706,6 +715,7 @@ pub fn draw_entries(
     cells: &[crate::session::Dword],
     list: GamePtr,
 ) -> Result<(), Refused> {
+    let race = race();
     let entries = cells
         .get(..2 * count.get() as usize)
         .ok_or(BadInput("a draw list entry past the list"))?;
@@ -717,7 +727,7 @@ pub fn draw_entries(
         return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
     for (k, entry) in entries.iter().enumerate() {
-        draw_list_entry(list.offset(8 * k as u32), entry[1].get())?;
+        draw_list_entry(race, list.offset(8 * k as u32), entry[1].get())?;
     }
     Ok(())
 }
@@ -725,6 +735,6 @@ pub fn draw_entries(
 /// The scene matrices from byte `off` on, as the esi the original leaves for a drawing
 /// (`scene::draw_described_object` reads a description there): bounded by the whole
 /// store, since a description's 0x3C bytes run past one matrix.
-pub(super) fn matrices_at(off: usize) -> GamePtr {
-    GamePtr::to(&race().frame.matrices).offset(off as u32)
+pub(super) fn matrices_at(frame: &Frame, off: usize) -> GamePtr {
+    GamePtr::to(&frame.matrices).offset(off as u32)
 }

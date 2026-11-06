@@ -13,7 +13,7 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::hud::store::rect_place;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
 
@@ -32,7 +32,12 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 
 /// The two markers at rows `rows` (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
-pub fn markers_with(hud: &Hud, record: GamePtr, rows: [u32; 2]) -> Result<(), Refused> {
+pub fn markers_with(
+    frame: &Frame,
+    hud: &Hud,
+    record: GamePtr,
+    rows: [u32; 2],
+) -> Result<(), Refused> {
     {
         // A field of the record by an offset from a table or the caller, as the original walks it.
         let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
@@ -42,7 +47,7 @@ pub fn markers_with(hud: &Hud, record: GamePtr, rows: [u32; 2]) -> Result<(), Re
             let f = f32::from_bits;
             let x = quads::marker_x(
                 f(get(field)?),
-                f(race().frame.panel_and_overlay.panel.overlay_miles.get()),
+                f(frame.panel_and_overlay.panel.overlay_miles.get()),
                 hud.block.marker_k[0].get(),
                 hud.block.marker_k[1].get(),
             );
@@ -52,7 +57,14 @@ pub fn markers_with(hud: &Hud, record: GamePtr, rows: [u32; 2]) -> Result<(), Re
             let st1 = int_over_80(0x78, k);
             hud.block.scratch.set(0x100u32);
             let st0 = int_over_80(0x100, k);
-            crate::hud::add_scaled_sprite::add_scaled_sprite(hud, x, rows[n], rect, [st0, st1])?;
+            crate::hud::add_scaled_sprite::add_scaled_sprite(
+                frame,
+                hud,
+                x,
+                rows[n],
+                rect,
+                [st0, st1],
+            )?;
             // the two scales taken off into dword_75C060 (st(0), then st(1))
             hud.block.scratch.set(taken_off(st1));
         }
@@ -62,6 +74,6 @@ pub fn markers_with(hud: &Hud, record: GamePtr, rows: [u32; 2]) -> Result<(), Re
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}` (through `markers_with`)
-pub fn draw_markers_1(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
-    markers_with(hud, record, [1, 0xE])
+pub fn draw_markers_1(frame: &Frame, hud: &Hud, record: GamePtr) -> Result<(), Refused> {
+    markers_with(frame, hud, record, [1, 0xE])
 }

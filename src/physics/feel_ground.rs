@@ -24,18 +24,19 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
 use rc2k_core::physics::walls::WheelsOff;
 
 /// The Rust version. The registers it leaves (eax the face's word +0x26, ebx the face,
 /// esi its address) are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::WheelsOff`.
-pub fn feel_ground() -> Result<(), Refused> {
+pub fn feel_ground(race: &Race) -> Result<(), Refused> {
     if CAR.probe_count.get() > rc2k_core::physics::walls::PROBE_ROOM {
         return Err(BadInput("more than 0x40 probe points").into());
     }
     crate::physics::note_surface_mode::note_surface_mode();
     crate::physics::probe_ground::probe_ground()?;
-    crate::physics::lowest_body_point::lowest_body_point()?;
+    crate::physics::lowest_body_point::lowest_body_point(race)?;
     let off = WheelsOff::of([
         CAR.wheel_squeeze[0].bits(),
         CAR.wheel_squeeze[1].bits(),

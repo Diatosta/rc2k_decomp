@@ -20,6 +20,7 @@ use crate::hud::disc_vertex::disc_vertex;
 use crate::hud::owner::Hud;
 use crate::math::x87;
 use crate::math::x87_float::{ld, to_int};
+use crate::race::owner_frame::Frame;
 use rc2k_core::hud::disc::SEGMENTS;
 
 /// `fld a; fchs; fmul b; fmul c; fistp`.
@@ -29,7 +30,7 @@ fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
-pub fn draw_disc(hud: &Hud) -> Result<(), Refused> {
+pub fn draw_disc(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
         // The texture's turn follows the x87's control word: the x87's.
@@ -55,7 +56,7 @@ pub fn draw_disc(hud: &Hud) -> Result<(), Refused> {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
                 disc_vertex(hud, e, &crate::d3d::vertices_store::VERTICES.vertices[n])?;
             }
-            crate::hud::add_triangle::add_triangle(hud)?;
+            crate::hud::add_triangle::add_triangle(frame, hud)?;
         }
     }
     Ok(())

@@ -14,9 +14,10 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::free_rev::free_rev;
 use crate::physics::gearing::{GearPlaces, wheels_from_revs_at};
+use crate::race::owner_course::Course;
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn free_rev_clutch() -> Result<(), Refused> {
+pub fn free_rev_clutch(course: &Course) -> Result<(), Refused> {
     let gear = CAR.gear.get();
     if gear == 0 || CAR.driven_wheels_off.get() == 0 {
         return Ok(());
@@ -24,7 +25,7 @@ pub fn free_rev_clutch() -> Result<(), Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    free_rev();
+    free_rev(course);
     wheels_from_revs_at(&GearPlaces::game())?;
     Ok(())
 }

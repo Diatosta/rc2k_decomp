@@ -17,15 +17,14 @@
 //! above are the original's, for reference.
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::state_store::RACE_STATE;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::splits::{LAST_COMPARED_SPLIT, compare_split};
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::compare_split`.
-pub fn compare_split_times() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn compare_split_times(course: &Course) -> Result<(), Refused> {
     if CAR.splits_recorded.get() > LAST_COMPARED_SPLIT {
         return Err(BadInput("a split past 27").into());
     }

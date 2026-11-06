@@ -20,7 +20,6 @@
 
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
@@ -64,8 +63,7 @@ fn words() -> Result<Option<(u32, u32, bool)>, BadInput> {
     }
 }
 
-pub fn set_object_fade() -> Result<(), BadInput> {
-    let race = race();
+pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> {
     let Some((other_kind, distance, needs_record)) = words()? else {
         return Err(BadInput("an object's number past the tables"));
     };

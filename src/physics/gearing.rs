@@ -11,7 +11,7 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::session::{Cell32, Float};
 
 /// The variables: the car's work copy's and the ratio table (gear -1 first).
@@ -54,7 +54,7 @@ fn gear_ratio(p: &GearPlaces) -> Result<Option<(u32, u32)>, Refused> {
 
 /// `physics::revs_from_wheels` (0x43C0C9): in gear, engine speed = the driven speed (with
 /// drive kind 1 the two driven speeds' sum times 0.5) over the gear's ratio.
-pub fn revs_from_wheels_at(p: &GearPlaces) -> Result<(), Refused> {
+pub fn revs_from_wheels_at(course: &Course, p: &GearPlaces) -> Result<(), Refused> {
     let Some((_, ratio)) = gear_ratio(p)? else {
         return Ok(());
     };
@@ -62,7 +62,7 @@ pub fn revs_from_wheels_at(p: &GearPlaces) -> Result<(), Refused> {
         crate::math::x87_run::sum_times_over(
             p.drive_speed.bits(),
             p.drive_speed_2.bits(),
-            race().course.numbers.half.bits(),
+            course.numbers.half.bits(),
             ratio,
         )
     } else {

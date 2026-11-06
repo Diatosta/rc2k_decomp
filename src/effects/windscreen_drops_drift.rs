@@ -20,7 +20,7 @@ use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::race::marks_settings_store::MarksSettings;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 use crate::session::{Bytes, Float};
 
@@ -35,7 +35,7 @@ fn move_kept(drops: &WindscreenDrops, m: &MarksSettings) {
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_drift(drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn windscreen_drops_drift(frame: &Frame, drops: &WindscreenDrops) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
     let marks = crate::effects::setup::marks()?;
     for n in 0..3 {
@@ -48,7 +48,7 @@ pub fn windscreen_drops_drift(drops: &WindscreenDrops) -> Result<(), Refused> {
         drops.hex.moved.set(1);
         if second != 0 {
             view_moved(drops, m);
-            let view = &race().frame.matrices.view_place;
+            let view = &frame.matrices.view_place;
             for col in 0..3usize {
                 let v = [view[col].bits(), view[4 + col].bits(), view[8 + col].bits()];
                 for (k, x) in v.into_iter().enumerate() {

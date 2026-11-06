@@ -27,7 +27,7 @@ use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::fog_at::fog_at;
 
 const STREAK: u32 = 0x12;
@@ -68,8 +68,8 @@ impl Colours257 {
 }
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
-fn first_frame(ring: &Ring, e: u32) {
-    first_frame_x87(ring, e, &CLOCK, ring.kinds.ribbon_a);
+fn first_frame(frame: &Frame, ring: &Ring, e: u32) {
+    first_frame_x87(frame, ring, e, &CLOCK, ring.kinds.ribbon_a);
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
@@ -78,8 +78,8 @@ fn move_(ring: &Ring, e: u32) {
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
-fn turn_place(ring: &Ring, e: u32) {
-    turn_place_x87(ring, e, &DRAW_WORK);
+fn turn_place(frame: &Frame, ring: &Ring, e: u32) {
+    turn_place_x87(frame, ring, e, &DRAW_WORK);
 }
 
 /// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
@@ -144,7 +144,7 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The streak step at e (see the header): whether the entry dies.
-fn streak(ring: &Ring, e: u32) -> Result<bool, Refused> {
+fn streak(frame: &Frame, ring: &Ring, e: u32) -> Result<bool, Refused> {
     let t: u32 = CLOCK.frame_ticks.get();
     let life = eg(ring, e, field::LIFE)?;
     ep(ring, e, field::LIFE, life.wrapping_sub(t))?;
@@ -155,13 +155,13 @@ fn streak(ring: &Ring, e: u32) -> Result<bool, Refused> {
         return Ok(true);
     }
     if eg(ring, e, field::PLACE_X)? == 0 {
-        first_frame(ring, e);
+        first_frame(frame, ring, e);
     }
     move_on(ring, e);
     DRAW_WORK.second[0].set_bits(eg(ring, e, field::LAST_PLACE_X)?);
     DRAW_WORK.second[1].set_bits(eg(ring, e, field::LAST_PLACE_Y)?);
     DRAW_WORK.second[2].set_bits(eg(ring, e, field::LAST_PLACE_Z)?);
-    turn_place(ring, e);
+    turn_place(frame, ring, e);
     let marks = crate::effects::setup::marks()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
         ep(ring, e, field::LAST_PLACE_X, DRAW_WORK.turned[0].bits())?;
@@ -192,7 +192,7 @@ fn move_on(ring: &Ring, e: u32) {
 }
 
 /// The Rust version (see the header).
-pub fn run_ribbons(ring: &Ring) -> Result<(), Refused> {
+pub fn run_ribbons(frame: &Frame, ring: &Ring) -> Result<(), Refused> {
     if let Some(why) = refusal(ring)? {
         return Err(BadInput(why).into());
     }
@@ -208,7 +208,7 @@ pub fn run_ribbons(ring: &Ring) -> Result<(), Refused> {
             // The settings' +0x60: the first car record's first word.
             if crate::effects::setup::marks()?.cars[0].word(0)? != 0
                 && eg(ring, e, field::KIND)? == STREAK
-                && streak(ring, e)?
+                && streak(frame, ring, e)?
             {
                 ring.work.count.set(ring.work.count.get().wrapping_sub(1));
                 if e == ring.work.cursor.get() {
@@ -237,37 +237,37 @@ use crate::math::x87_float as bh;
 use crate::math::x87_float::int;
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
-fn first_frame_x87(ring: &Ring, e: u32, c: &MarksClock, ribbon_a: f32) {
+fn first_frame_x87(frame: &Frame, ring: &Ring, e: u32, c: &MarksClock, ribbon_a: f32) {
     let t0 = eld(ring, e, field::PLACE_Z);
     let t1 = eld(ring, e, field::PLACE_Y);
     let t2 = eld(ring, e, field::PLACE_X);
-    let t3 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[0].bits());
+    let t3 = crate::math::x87_float::ld(frame.matrices.view_matrix[0].bits());
     let t4 = t3 * t2;
-    let t5 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[4].bits());
+    let t5 = crate::math::x87_float::ld(frame.matrices.view_matrix[4].bits());
     let t6 = t5 * t1;
-    let t7 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[8].bits());
+    let t7 = crate::math::x87_float::ld(frame.matrices.view_matrix[8].bits());
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + crate::math::x87_float::ld(race().frame.matrices.view_matrix[12].bits());
-    let t12 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[1].bits());
+    let t11 = t10 + crate::math::x87_float::ld(frame.matrices.view_matrix[12].bits());
+    let t12 = crate::math::x87_float::ld(frame.matrices.view_matrix[1].bits());
     let t13 = t12 * t2;
-    let t14 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[5].bits());
+    let t14 = crate::math::x87_float::ld(frame.matrices.view_matrix[5].bits());
     let t15 = t14 * t1;
-    let t16 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[9].bits());
+    let t16 = crate::math::x87_float::ld(frame.matrices.view_matrix[9].bits());
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + crate::math::x87_float::ld(race().frame.matrices.view_matrix[13].bits());
-    let t21 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[2].bits());
+    let t20 = t19 + crate::math::x87_float::ld(frame.matrices.view_matrix[13].bits());
+    let t21 = crate::math::x87_float::ld(frame.matrices.view_matrix[2].bits());
     let t22 = t2 * t21;
-    let t23 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[6].bits());
+    let t23 = crate::math::x87_float::ld(frame.matrices.view_matrix[6].bits());
     let t24 = t1 * t23;
-    let t25 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[10].bits());
+    let t25 = crate::math::x87_float::ld(frame.matrices.view_matrix[10].bits());
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + crate::math::x87_float::ld(race().frame.matrices.view_matrix[14].bits());
+    let t29 = t28 + crate::math::x87_float::ld(frame.matrices.view_matrix[14].bits());
     est(ring, e, field::LAST_PLACE_X, t11);
     est(ring, e, field::LAST_PLACE_Y, t20);
     est(ring, e, field::LAST_PLACE_Z, t29);
@@ -310,37 +310,37 @@ fn move_x87(ring: &Ring, e: u32, c: &MarksClock, ribbon_b: f32) {
 }
 
 /// `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-fn turn_place_x87(ring: &Ring, e: u32, dw: &DrawWork) {
+fn turn_place_x87(frame: &Frame, ring: &Ring, e: u32, dw: &DrawWork) {
     let t0 = eld(ring, e, field::PLACE_Z);
     let t1 = eld(ring, e, field::PLACE_Y);
     let t2 = eld(ring, e, field::PLACE_X);
-    let t3 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[0].bits());
+    let t3 = crate::math::x87_float::ld(frame.matrices.view_matrix[0].bits());
     let t4 = t3 * t2;
-    let t5 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[4].bits());
+    let t5 = crate::math::x87_float::ld(frame.matrices.view_matrix[4].bits());
     let t6 = t5 * t1;
-    let t7 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[8].bits());
+    let t7 = crate::math::x87_float::ld(frame.matrices.view_matrix[8].bits());
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + crate::math::x87_float::ld(race().frame.matrices.view_matrix[12].bits());
-    let t12 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[1].bits());
+    let t11 = t10 + crate::math::x87_float::ld(frame.matrices.view_matrix[12].bits());
+    let t12 = crate::math::x87_float::ld(frame.matrices.view_matrix[1].bits());
     let t13 = t12 * t2;
-    let t14 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[5].bits());
+    let t14 = crate::math::x87_float::ld(frame.matrices.view_matrix[5].bits());
     let t15 = t14 * t1;
-    let t16 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[9].bits());
+    let t16 = crate::math::x87_float::ld(frame.matrices.view_matrix[9].bits());
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + crate::math::x87_float::ld(race().frame.matrices.view_matrix[13].bits());
-    let t21 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[2].bits());
+    let t20 = t19 + crate::math::x87_float::ld(frame.matrices.view_matrix[13].bits());
+    let t21 = crate::math::x87_float::ld(frame.matrices.view_matrix[2].bits());
     let t22 = t2 * t21;
-    let t23 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[6].bits());
+    let t23 = crate::math::x87_float::ld(frame.matrices.view_matrix[6].bits());
     let t24 = t1 * t23;
-    let t25 = crate::math::x87_float::ld(race().frame.matrices.view_matrix[10].bits());
+    let t25 = crate::math::x87_float::ld(frame.matrices.view_matrix[10].bits());
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + crate::math::x87_float::ld(race().frame.matrices.view_matrix[14].bits());
+    let t29 = t28 + crate::math::x87_float::ld(frame.matrices.view_matrix[14].bits());
     dw.turned[0].set_bits(bh::st(t11));
     dw.turned[1].set_bits(bh::st(t20));
     dw.turned[2].set_bits(bh::st(t29));
@@ -575,6 +575,7 @@ mod asm_differential {
                     0x38,
                     |e| {
                         super::first_frame_x87(
+                            &crate::race::owner::race().frame,
                             &crate::effects::owner::effects().ring,
                             e,
                             crate::effects::setup::clock_at(b[1]),
@@ -687,7 +688,12 @@ mod asm_differential {
                         0x10,
                         0x1C,
                         |e| {
-                            super::turn_place_x87(&crate::effects::owner::effects().ring, e, dw);
+                            super::turn_place_x87(
+                                &crate::race::owner::race().frame,
+                                &crate::effects::owner::effects().ring,
+                                e,
+                                dw,
+                            );
                         },
                     );
                 });

@@ -155,12 +155,15 @@ fn screen_plain(o: impl Base, v: impl Base) {
 
 /// The offset of a point's record, or the fatal error for a number too high.
 // Converted: `rc2k_core::scene::projection::record_offset`
-pub fn record_offset(point: u32) -> Result<u32, FatalError> {
+pub fn record_offset(
+    course: &crate::race::owner_course::Course,
+    point: u32,
+) -> Result<u32, FatalError> {
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
         OBJECT_TABLES.point_count.get(),
-        race().course.course.scene_point_count.bits(),
+        course.course.scene_point_count.bits(),
     )
     .map_err(|e| match e {
         TooHigh::Object => TOO_HIGH_OBJECT,
@@ -217,8 +220,11 @@ pub(crate) fn make_scene_record(point: u32, record: u32) -> Result<(), BadInput>
     Ok(())
 }
 
-pub fn project_point(point: u32) -> Result<Projected, Refused> {
-    let offset = record_offset(point)?;
+pub fn project_point(
+    course: &crate::race::owner_course::Course,
+    point: u32,
+) -> Result<Projected, Refused> {
+    let offset = record_offset(course, point)?;
     if !point_records::held() {
         return Err(BadInput("no records for the points").into());
     }

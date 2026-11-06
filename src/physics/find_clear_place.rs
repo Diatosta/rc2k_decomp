@@ -24,7 +24,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use rc2k_core::physics::clear_place;
@@ -33,26 +33,26 @@ use rc2k_core::physics::clear_place;
 const PORKY: &std::ffi::CStr = c"porky"; // aPorky
 
 /// One try's calls (0x43BE4D .. 0x43BE61).
-fn try_place() -> Result<(), Refused> {
+fn try_place(race: &Race) -> Result<(), Refused> {
     { crate::physics::probe_ground::probe_ground() }?;
-    crate::physics::crossed_edge::check()?;
-    crate::physics::crossed_edge::steps()?;
+    crate::physics::crossed_edge::check(&race.physics)?;
+    crate::physics::crossed_edge::steps(race)?;
     crate::physics::wall_contacts::check()?;
-    crate::physics::wall_contacts::steps()?;
-    { crate::physics::car_collisions::car_collisions() }?;
-    crate::physics::face_contacts_around::face_contacts_around()
+    crate::physics::wall_contacts::steps(race)?;
+    { crate::physics::car_collisions::car_collisions(race) }?;
+    crate::physics::face_contacts_around::face_contacts_around(&race.physics)
 }
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::clear_place`.
-pub fn steps() -> Result<(), Refused> {
-    let physics_store = &race().physics;
+pub fn steps(race: &Race) -> Result<(), Refused> {
+    let physics_store = &race.physics;
     PHYSICS.clear_place_mark.set(clear_place::TRY_MARK);
     let factor = extended(PHYSICS.clear_place_share.bits());
     crate::physics::scale_vector::scale_vector(&CAR.velocity, factor);
     DRAW.scratch.set(rounded(factor));
-    { crate::physics::restore_saved_car::restore_saved_car() }?;
-    { crate::physics::lowest_body_point::lowest_body_point() }?;
+    { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
+    { crate::physics::lowest_body_point::lowest_body_point(race) }?;
     PHYSICS
         .clear_place_face
         .set(physics_store.contact.lowest_depth.get());
@@ -66,13 +66,13 @@ pub fn steps() -> Result<(), Refused> {
             let (part, _) = clear_place::move_part(m.step, table[m.entry as usize].get());
             place.set(place.get().wrapping_add(part));
         }
-        try_place()?;
+        try_place(race)?;
         Ok::<_, Refused>(PHYSICS.clear_place_count.get() == 0)
     })?;
     let Some(n) = found else {
         return crate::physics::reset_car::reset_car();
     };
-    { crate::physics::lowest_body_point::lowest_body_point() }?;
+    { crate::physics::lowest_body_point::lowest_body_point(race) }?;
     let depth = physics_store.contact.lowest_depth.get();
     if let Some(height) = clear_place::lifted(CAR.position[1].get(), depth) {
         CAR.position[1].set(height);
@@ -92,7 +92,7 @@ pub fn steps() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn find_clear_place() -> Result<(), Refused> {
+pub fn find_clear_place(race: &Race) -> Result<(), Refused> {
     crate::physics::wall_contacts::check()?;
-    steps()
+    steps(race)
 }

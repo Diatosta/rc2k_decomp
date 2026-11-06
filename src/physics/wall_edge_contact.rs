@@ -29,7 +29,8 @@ use crate::physics::car_store::CAR;
 use crate::physics::contact_force::contact_force;
 use crate::physics::flow::copy_cells;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::walls;
 
@@ -46,8 +47,8 @@ fn corners(face: u32) -> Result<[u32; 4], Refused> {
 /// `flt_5C5DD4` x `flt_5C5D98`, & 0xFFFF, through `dword_62400C`) << 16 + 0x40000000
 /// into `dword_6141C8`; (0, 0, 1) turned by it (`math::turn_float_point_xz`) into
 /// `qword_6D3078` ... Returns what that leaves in eax, ebx, ecx, edx.
-pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
-    let race_owner = race();
+pub fn edge_normal(race: &Race, first: u32, second: u32) -> Result<[u32; 4], Refused> {
+    let race_owner = race;
     let rd = crate::race::scene_points::point_word;
     PHYSICS.edge_points[0].set(rd(first, 0)?);
     PHYSICS.edge_points[1].set(rd(first, 2)?);
@@ -60,7 +61,7 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
         .get()
         .wrapping_sub(PHYSICS.edge_points[1].get());
     let d = [dx, dz];
-    x87_1(d);
+    x87_1(&race.course, d);
     DRAW.scratch.set(DRAW.scratch.get() & 0xFFFF);
     let heading = (DRAW.scratch.get() << 16).wrapping_add(0x4000_0000);
     PHYSICS.wall_heading.set(heading);
@@ -81,20 +82,19 @@ pub fn edge_normal(first: u32, second: u32) -> Result<[u32; 4], Refused> {
 /// The steps, not guarded. The registers the original leaves are read by none of its
 /// callers.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
-pub fn steps() -> Result<(), Refused> {
-    let race = race();
+pub fn steps(race: &Race) -> Result<(), Refused> {
     let face_corners = corners(race.physics.contact.wall_face_now.get())?;
     let wall_corners = corners(race.physics.contact.wall_face_before.get())?;
     let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], face_corners);
     if !shared {
-        return crate::physics::wall_push_back::steps();
+        return crate::physics::wall_push_back::steps(race);
     }
     // 0x45DA9E: along the edge.
     let n = race.physics.contact.probe_index.get();
     walls::check_probe(n)?;
     race.physics.contact.wall_edge_from.set(from);
     race.physics.contact.wall_edge_to.set(to);
-    edge_normal(to, from)?;
+    edge_normal(race, to, from)?;
     copy_cells(&race.physics.contact.contact_car_speed, &CAR.velocity);
     copy_cells(&race.physics.contact.contact_turn_speed, &CAR.spin);
     let n = n as usize;
@@ -106,8 +106,8 @@ pub fn steps() -> Result<(), Refused> {
         race.course.numbers.tenth.bits(),
     ));
     race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(&PHYSICS.contacts[4]);
-    { crate::physics::place_sound_e1::place_sound_e1() }?;
+    contact_force(race, &PHYSICS.contacts[4]);
+    { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     Ok(())
 }
 
@@ -116,8 +116,7 @@ pub fn steps() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = (atan2(int [d + 0], int [d + 4]) * [rc + 0x1C5DD4]) * [rc + 0x1C5D98]`
-fn x87_1(d: [u32; 2]) {
-    let course = &race().course;
+fn x87_1(course: &Course, d: [u32; 2]) {
     let t0 = int(d[0] as i32);
     let t1 = int(d[1] as i32);
     let t2 = t0.atan2(t1);
@@ -152,7 +151,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(*view(a[0], 0)),
+            plain: |a| x87_1(&crate::race::owner::race().course, *view(a[0], 0)),
         }]
     }
 

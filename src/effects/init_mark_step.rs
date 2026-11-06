@@ -21,11 +21,13 @@ use crate::errors::Refused;
 use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::owner::race;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
 pub fn init_mark_step(effects: &Effects) -> Result<(), Refused> {
+    let course = &race().course;
     use rc2k_core::effects::race;
     {
         // In a network race `g_players` is 1 but this machine's car may be any: every car's
@@ -68,7 +70,7 @@ pub fn init_mark_step(effects: &Effects) -> Result<(), Refused> {
             }
         }
         // The file number is left in eax: `init_marks`' seed.
-        crate::effects::init_marks::init_marks(effects, file)?;
+        crate::effects::init_marks::init_marks(course, effects, file)?;
     }
     Ok(())
 }

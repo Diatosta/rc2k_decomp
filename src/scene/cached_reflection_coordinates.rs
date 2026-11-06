@@ -15,7 +15,6 @@
 //! One caller, `sub_45188C`.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::reflection_coordinates::reflection_coordinates;
 
@@ -27,11 +26,11 @@ const TABLE_CELLS: usize = 0x400;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::reflection::{cache_place, cached}`
-pub fn cached_reflection_coordinates() -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn cached_reflection_coordinates(race: &crate::race::owner::Race) -> Result<(), Refused> {
+    let physics = &race.physics;
     use rc2k_core::scene::reflection::{cache_place, cached};
     if RACE_VIEW.reflections_kept.bits() == 0 {
-        return Ok(reflection_coordinates()?);
+        return Ok(reflection_coordinates(race)?);
     }
     let asked: [u32; 2] = [
         physics.ground.reflection_normal_number.bits(),
@@ -45,7 +44,7 @@ pub fn cached_reflection_coordinates() -> Result<(), Refused> {
         crate::session::write_bits(&physics.ground.reflection_coordinates, coordinates);
         return Ok(());
     }
-    reflection_coordinates()?;
+    reflection_coordinates(race)?;
     let coordinates: [u32; 2] = crate::session::read_bits(&physics.ground.reflection_coordinates);
     for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
         .into_iter()

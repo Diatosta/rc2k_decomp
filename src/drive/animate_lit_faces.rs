@@ -31,7 +31,8 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
 use crate::scene::draw_store::DRAW;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::drive::lit_faces::{
@@ -76,20 +77,19 @@ fn store(f: u32, b: &FaceBytes) -> Result<(), BadInput> {
 }
 
 /// `g_litFaces`[k] (0x100 of them; the count is checked below).
-fn list(k: u32) -> &'static crate::session::Dword {
-    &race().physics.contact.lit_faces[k as usize]
+fn list(physics: &Physics, k: u32) -> &crate::session::Dword {
+    &physics.contact.lit_faces[k as usize]
 }
 
 /// The refusals, worked out before anything is written.
-fn refusal() -> Option<&'static str> {
-    let race = race();
+fn refusal(race: &Race) -> Option<&'static str> {
     let count: u32 = race.physics.contact.lit_face_count.bits();
     if count > MOST {
         return Some("more than 0x100 lit faces (past g_litFaces)");
     }
     let faces: u32 = race.course.course.course_face_count.bits();
     for k in 0..count {
-        if list(k).get() >= faces {
+        if list(&race.physics, k).get() >= faces {
             return Some("a lit face past g_courseFaceCount");
         }
     }
@@ -97,23 +97,22 @@ fn refusal() -> Option<&'static str> {
 }
 
 /// The Rust core. The registers it leaves are read by no caller.
-pub fn animate_at() -> Result<(), Refused> {
-    if let Some(why) = refusal() {
+pub fn animate_at(race: &Race) -> Result<(), Refused> {
+    if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
     }
-    if race().physics.contact.lit_face_count.bits() == 0 {
+    if race.physics.contact.lit_face_count.bits() == 0 {
         return Ok(());
     }
 
-    animate_faces()
+    animate_faces(race)
 }
 
 // Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
-fn animate_faces() -> Result<(), Refused> {
-    let race = race();
+fn animate_faces(race: &Race) -> Result<(), Refused> {
     let mut k = 0;
     loop {
-        let f = list(k).get();
+        let f = list(&race.physics, k).get();
         let mut bytes = load(f)?;
         let leave = 'face: {
             let object = byte(f, 1)?;
@@ -198,7 +197,7 @@ fn animate_faces() -> Result<(), Refused> {
         store(f, &bytes)?;
         if leave {
             let last = race.physics.contact.lit_face_count.bits().wrapping_sub(1);
-            list(k).set(list(last).get());
+            list(&race.physics, k).set(list(&race.physics, last).get());
             race.physics.contact.lit_face_count.set_bits(last);
         }
         k += 1;
@@ -209,6 +208,6 @@ fn animate_faces() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn animate_lit_faces() -> Result<(), Refused> {
-    animate_at()
+pub fn animate_lit_faces(race: &Race) -> Result<(), Refused> {
+    animate_at(race)
 }

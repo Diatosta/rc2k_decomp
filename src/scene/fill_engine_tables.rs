@@ -30,7 +30,6 @@
 
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
 use crate::scene::angle_between::angle_of;
 use crate::scene::draw_store::DRAW;
 use crate::scene::next_noise::next_noise;
@@ -45,7 +44,7 @@ const SEED: u32 = 0x0012_D687;
 
 /// `sub_41F792`: the tangent of an angle (0x2000 a turn here, its low four bits
 /// dropped) into `dword_5C5F48`.
-fn tangent(angle: u32) -> u32 {
+fn tangent(frame: &crate::race::owner_frame::Frame, angle: u32) -> u32 {
     {
         let place = (angle >> 4) as usize;
         DRAW.scratch.set_bits(0x8000u32);
@@ -56,7 +55,7 @@ fn tangent(angle: u32) -> u32 {
             0x8000,
         ) as u32)
             << 1;
-        race().frame.scratch.tangent_scratch.set_bits(tangent);
+        frame.scratch.tangent_scratch.set_bits(tangent);
         tangent
     }
 }
@@ -65,8 +64,8 @@ fn tangent(angle: u32) -> u32 {
 /// 0x100, edi the end of the arctangent table) are overwritten or unread by its one caller,
 /// `scene::set_up_engine`, whose leftovers are `physics::test_drive`'s (edi, ebp: read by
 /// none of its sites, `lq.py -s 442AF6`).
-pub fn fill_engine_tables() {
-    let course = &race().course;
+pub fn fill_engine_tables(race: &crate::race::owner::Race) {
+    let course = &race.course;
     // sub_42142B
     for n in 0..0x100usize {
         let root = x87::int_over_root(n as i32 + 0x100, course.numbers.k256.bits());
@@ -109,7 +108,7 @@ pub fn fill_engine_tables() {
         let wanted = (n as u32) << 20;
         let (mut angle, mut step) = (0x1000u32, 0x800u32);
         while step != 0 {
-            if wanted < tangent(angle) {
+            if wanted < tangent(&race.frame, angle) {
                 angle -= step;
             } else {
                 angle += step;
@@ -121,7 +120,7 @@ pub fn fill_engine_tables() {
     }
     // The two loops whose results nothing keeps.
     for angle in (0..0x2000).step_by(0x40) {
-        tangent(angle);
+        tangent(&race.frame, angle);
     }
     for place in 0..0x100u32 {
         angle_of(place, 0x100);

@@ -23,6 +23,7 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::race_steps;
@@ -53,6 +54,7 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 // Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
 // LOG_INDENT}`.
 pub fn race_init() -> Result<(), Refused> {
+    let race = race();
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
     crate::race::best_line::build_best_line()?;
@@ -94,7 +96,7 @@ pub fn race_init() -> Result<(), Refused> {
     log(c"RACEINIT : singlecarinit");
     indent_by(race_steps::LOG_INDENT);
     for _ in 0..race_steps::SETTLING_STEPS {
-        { crate::drive::race_cars_step::race_cars_step() }?;
+        { crate::drive::race_cars_step::race_cars_step(race) }?;
         MARKS_SETTINGS.other_marks_shown.set(1);
         { crate::drive::share_all_cars::share_all_cars() }?;
         MARKS_SETTINGS.other_marks_shown.set(0);

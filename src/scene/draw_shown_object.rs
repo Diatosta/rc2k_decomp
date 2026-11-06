@@ -73,8 +73,11 @@ impl rc2k_core::scene::shown::RaceObject for Game {
 /// `draw`: what stands for `scene::draw_object`. Says whether the object was drawn. What
 /// the tests leave in the registers `draw_object` does not read.
 // Converted: `rc2k_core::scene::shown::race_shown`
-pub fn draw_shown_object(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<bool, Refused> {
-    let race = race().course.numbers.in_race.bits() != 0;
+pub fn draw_shown_object(
+    course: &crate::race::owner_course::Course,
+    draw: &mut dyn FnMut() -> Result<(), Refused>,
+) -> Result<bool, Refused> {
+    let race = course.numbers.in_race.bits() != 0;
     if race && FRAME_SWITCHES.object_number.bits() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());
     }

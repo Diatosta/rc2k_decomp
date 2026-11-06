@@ -16,14 +16,13 @@ use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
-pub fn simple_car_step() -> Result<(), Refused> {
-    let race = race();
+pub fn simple_car_step(race: &Race) -> Result<(), Refused> {
     crate::drive::car_input_words::car_input_words()?;
     crate::drive::read_car_controls::read_car_controls()?;
     crate::drive::steer_inputs::steer_inputs();

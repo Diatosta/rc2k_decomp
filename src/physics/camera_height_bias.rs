@@ -19,23 +19,23 @@ use crate::math::x87_float::to_int;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low};
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_frame::Frame;
 use crate::scene::draw_store::DRAW;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn camera_height_bias() -> Result<(), crate::errors::BadInput> {
-    let race = race();
+pub fn camera_height_bias(race: &Race) -> Result<(), crate::errors::BadInput> {
     let esi = record()?;
     if esi.height_bias.get() == 0 {
         return Ok(());
     }
-    x87_1();
+    x87_1(&race.frame);
     hold_low(&DRAW.scratch, &race.course.numbers.zero);
     hold_high(&DRAW.scratch, &race.course.numbers.one);
     if (esi.height_bias.get() as i32) < 0 {
         x87_2();
     }
-    x87_3();
+    x87_3(race);
     let eax = DRAW.scratch.get();
     race.frame
         .view_and_records
@@ -51,8 +51,7 @@ pub fn camera_height_bias() -> Result<(), crate::errors::BadInput> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = [rc + 0x20631C] / [rc + 0x206290]`
-fn x87_1() {
-    let frame = &race().frame;
+fn x87_1(frame: &Frame) {
     let t0 = ld(frame.view_and_records.view_vars.camera_distance.bits());
     let t1 = ld(frame.view_and_records.view_vars.camera_bias_limit.bits());
     let t2 = t0 / t1;
@@ -72,8 +71,7 @@ fn x87_2() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x22400C] * [rc + 0x1C5D98]) * [rc + 0x20628C]`
-fn x87_3() {
-    let race = race();
+fn x87_3(race: &Race) {
     let t0 = ld(DRAW.scratch.bits());
     let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 * t1;
@@ -107,7 +105,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |_| x87_1(),
+                plain: |_| x87_1(&crate::race::owner::race().frame),
             },
             Block {
                 name: "camera_height_bias line 33",
@@ -127,7 +125,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| x87_3(),
+                plain: |_| x87_3(crate::race::owner::race()),
             },
         ]
     }

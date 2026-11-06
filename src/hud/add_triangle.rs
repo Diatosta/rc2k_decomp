@@ -7,10 +7,11 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
+use crate::race::owner_frame::Frame;
 use crate::scene::draw_store::DRAW;
 
 /// The Rust version (see the header).
-pub fn add_triangle(hud: &Hud) -> Result<(), Refused> {
+pub fn add_triangle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     DRAW.polygon_vertex_count.set_bits(3u32);
-    crate::hud::add_polygon::add_polygon(hud)
+    crate::hud::add_polygon::add_polygon(frame, hud)
 }

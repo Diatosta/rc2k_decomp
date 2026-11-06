@@ -13,15 +13,16 @@
 use crate::errors::Refused;
 use crate::hud::draw_stage_bar::*;
 use crate::hud::owner::Hud;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 
 /// The two players' bars `dy` lower (see the header).
-pub fn bars_with(hud: &Hud, dy: u32) -> Result<(), Refused> {
+pub fn bars_with(frame: &Frame, hud: &Hud, dy: u32) -> Result<(), Refused> {
     bars(
+        frame,
         hud,
         &[
-            &race().frame.panel_and_overlay.overlay.overlay_part_kinds_a,
-            &race().frame.panel_and_overlay.overlay.overlay_part_kinds_b,
+            &frame.panel_and_overlay.overlay.overlay_part_kinds_a,
+            &frame.panel_and_overlay.overlay.overlay_part_kinds_b,
         ],
         &[&hud.block.bar_colours[0], &hud.block.bar_colours[1]],
         dy,
@@ -30,6 +31,6 @@ pub fn bars_with(hud: &Hud, dy: u32) -> Result<(), Refused> {
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
-pub fn draw_stage_bars_1(hud: &Hud) -> Result<(), Refused> {
-    bars_with(hud, 0)
+pub fn draw_stage_bars_1(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
+    bars_with(frame, hud, 0)
 }

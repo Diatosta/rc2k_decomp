@@ -18,42 +18,48 @@
 //! `play_from_here`).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::replay_file_store::REPLAY_FILE;
 use rc2k_core::race::viewer_flow::Play;
 
 /// The shared tail (0x41E231): from block `play.from`, frame `play.frame`, to block
 /// `play.end`. The start read's carry is not looked at.
-pub fn play_tail(play: Play) -> Result<(), Refused> {
-    let replay = &race().replay;
+pub fn play_tail(race: &Race, play: Play) -> Result<(), Refused> {
+    let replay = &race.replay;
     replay.replay_view.play_end.set(play.end);
     REPLAY_FILE.viewer_stopped.set(0);
     { crate::drive::read_replay_frame::read_replay_frame(play.from, play.frame) }?;
-    crate::race::play_replay_range::play_replay_range()?;
+    crate::race::play_replay_range::play_replay_range(race)?;
     replay.replay_view.play_from_here.set(0);
     Ok(())
 }
 
 /// `play_marked`.
-pub fn play_marked() -> Result<(), Refused> {
+pub fn play_marked(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::marked_play`.
-    play_tail(rc2k_core::race::viewer_flow::marked_play(
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .mark_in
-            .get(),
-        crate::race::viewer_buffers_store::VIEWER_BUFFERS
-            .mark_out
-            .get(),
-    ))
+    play_tail(
+        race,
+        rc2k_core::race::viewer_flow::marked_play(
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .mark_in
+                .get(),
+            crate::race::viewer_buffers_store::VIEWER_BUFFERS
+                .mark_out
+                .get(),
+        ),
+    )
 }
 
 /// `play_from_here`.
-pub fn play_from_here() -> Result<(), Refused> {
-    let replay = &race().replay;
+pub fn play_from_here(race: &Race) -> Result<(), Refused> {
+    let replay = &race.replay;
     // Converted: `rc2k_core::race::viewer_flow::play_from_here`.
-    play_tail(rc2k_core::race::viewer_flow::play_from_here(
-        replay.replay_view.replay_block.get(),
-        replay.replay_view.replay_frame.get(),
-        REPLAY_FILE.index_block_count.get(),
-    ))
+    play_tail(
+        race,
+        rc2k_core::race::viewer_flow::play_from_here(
+            replay.replay_view.replay_block.get(),
+            replay.replay_view.replay_frame.get(),
+            REPLAY_FILE.index_block_count.get(),
+        ),
+    )
 }

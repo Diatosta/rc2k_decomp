@@ -26,7 +26,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::{c0, ease_zero, hold_high, hold_low};
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
@@ -45,16 +45,23 @@ fn store_loaded(to: &Float, from: &Float) {
 /// 0x43E5CF .. 0x43E643 (and the second wheel's at 0x43E68D): the slip `s` (at `slip`)
 /// signed by the slip ratio's sign, the drive speed (`drive`) less it x (`dword_614BA8`
 /// - 1), and the two force records' parts at `f1`, `f2`.
-fn settle_slip(drive: &Float, slip: &Float, ratio: &Float, f1: &Float, f2: &Float) {
+fn settle_slip(
+    course: &Course,
+    drive: &Float,
+    slip: &Float,
+    ratio: &Float,
+    f1: &Float,
+    f2: &Float,
+) {
     slip_ratio(drive, ratio);
     let s = abs_of(slip.bits());
-    let signed = if c0(ratio.bits(), race().course.numbers.zero.bits()) {
+    let signed = if c0(ratio.bits(), course.numbers.zero.bits()) {
         neg_rounded(extended(s))
     } else {
         s
     };
     slip.set_bits(signed);
-    apply_slip_to_drive(drive, slip, f1, f2);
+    apply_slip_to_drive(course, drive, slip, f1, f2);
 }
 
 /// The slip's first limit (0x43E58B / 0x43E649): |drive - speed| / `dword_614BA8` into
@@ -82,23 +89,22 @@ fn status_above(status: u16) -> bool {
 }
 
 /// The steps.
-fn steps() -> Result<(), Refused> {
-    let course = &race().course;
+fn steps(course: &Course) -> Result<(), Refused> {
     let gear = CAR.gear.get();
-    one_less_abs(&CAR.crash_matrix[1], &PHYSICS.drive_shares[0]);
+    one_less_abs(course, &CAR.crash_matrix[1], &PHYSICS.drive_shares[0]);
     hold_low(&PHYSICS.drive_shares[0], &course.numbers.tenth);
     hold_high(&PHYSICS.drive_shares[0], &course.numbers.one);
-    one_less_abs(&CAR.crash_matrix[9], &PHYSICS.drive_shares[1]);
+    one_less_abs(course, &CAR.crash_matrix[9], &PHYSICS.drive_shares[1]);
     hold_low(&PHYSICS.drive_shares[1], &course.numbers.tenth);
     hold_high(&PHYSICS.drive_shares[1], &course.numbers.one);
-    signed_share();
+    signed_share(course);
     hold_low(&PHYSICS.drive_shares[2], &course.numbers.zero);
     hold_high(&PHYSICS.drive_shares[2], &course.numbers.one);
     if CAR.driven_wheels_off.get() == 0 {
         if gear == 0 {
             PHYSICS.drive_torque.set_bits(0);
         }
-        crate::physics::cap_drive_speed::cap_drive_speed();
+        crate::physics::cap_drive_speed::cap_drive_speed(course);
         PHYSICS.wheels_driven.set(0);
         // the grips at +0 or, braking, +0x14: `wheel_grips_b`
         let mut grips = &PHYSICS.wheel_grips;
@@ -108,7 +114,7 @@ fn steps() -> Result<(), Refused> {
         }
         drive_forces_from_grips(grips);
         DRAW.scratch.set(CAR.throttle.get().wrapping_add(0x100));
-        throttle_drive_limit();
+        throttle_drive_limit(course);
         hold_high(&PHYSICS.drive_limits[1], &DRAW.scratch);
         let pick = if abs_below(
             PHYSICS.drive_limits[1].bits(),
@@ -121,18 +127,18 @@ fn steps() -> Result<(), Refused> {
         store_loaded(&PHYSICS.drive_limits[2], pick);
         let kind = CAR.drive_kind.get();
         if gear != 0 && kind == 1 {
-            push_both_drive_speeds();
+            push_both_drive_speeds(course);
         }
         if kind == 0 {
             push_drive_speed_a();
         }
-        revs()?;
+        revs(course)?;
         // 0x43E2C2: the wheels' drag on each drive speed.
-        brake_step_for_a();
+        brake_step_for_a(course);
         ease_zero(&CAR.drive_speed_a, &PHYSICS.wheel_speed_step);
-        brake_step_for_b();
+        brake_step_for_b(course);
         ease_zero(&CAR.drive_speed_b, &PHYSICS.wheel_speed_step);
-        handbrake_step_for_b();
+        handbrake_step_for_b(course);
         ease_zero(&CAR.drive_speed_b, &PHYSICS.wheel_speed_step);
         if CAR.handbrake.get() != 0 {
             let status = handbrake_stop_status([
@@ -145,9 +151,9 @@ fn steps() -> Result<(), Refused> {
                 CAR.drive_speed_b.set_bits(0);
             }
         }
-        revs()?;
+        revs(course)?;
         slip_gaps();
-        crate::physics::cap_reverse_inputs::cap_reverse_inputs();
+        crate::physics::cap_reverse_inputs::cap_reverse_inputs(course);
         crate::physics::add_drive_forces::add_drive_forces();
         crate::physics::ease_low_speed_forces::ease_low_speed_forces();
 
@@ -169,6 +175,7 @@ fn steps() -> Result<(), Refused> {
             &PHYSICS.axle_slips[0],
         );
         settle_slip(
+            course,
             &CAR.drive_speed_a,
             &PHYSICS.axle_slips[0],
             &PHYSICS.axle_slip_limits[0],
@@ -182,6 +189,7 @@ fn steps() -> Result<(), Refused> {
             &PHYSICS.axle_slips[1],
         );
         settle_slip(
+            course,
             &CAR.drive_speed_b,
             &PHYSICS.axle_slips[1],
             &PHYSICS.axle_slip_limits[1],
@@ -191,7 +199,7 @@ fn steps() -> Result<(), Refused> {
         // 0x43E707: the car-frame side speed eased by the side grip.
         DRAW.scratch.set(CAR.local_velocity[0].bits());
         ease_zero(&DRAW.scratch, &PHYSICS.drive_limits[2]);
-        side_slip_forces();
+        side_slip_forces(course);
         store_loaded(&PHYSICS.slip_limit, &PHYSICS.drive_limits[0]);
         store_loaded(&PHYSICS.wheel_spin_push[0], &PHYSICS.handling[4]);
         let status = abs_compare(PHYSICS.drive_slip[0].bits(), PHYSICS.slip_limit.bits());
@@ -210,7 +218,7 @@ fn steps() -> Result<(), Refused> {
             CAR.drive_speed_a.set_bits(0);
             CAR.drive_speed_b.set_bits(0);
         }
-        share_wheel_forces();
+        share_wheel_forces(course);
         PHYSICS.forces[19].force[0].set_bits(0);
         PHYSICS.forces[20].force[0].set_bits(0);
     }
@@ -224,18 +232,18 @@ fn steps() -> Result<(), Refused> {
 }
 
 /// `revs_from_wheels` (the gear checked before; the ebx it leaves is read by no one).
-fn revs() -> Result<(), Refused> {
-    { revs_from_wheels_at(&GearPlaces::game()) }?;
+fn revs(course: &Course) -> Result<(), Refused> {
+    { revs_from_wheels_at(course, &GearPlaces::game()) }?;
     Ok(())
 }
 
 /// The Rust version. The eax and ebx it leaves are read by none of its callers.
-pub fn drive_wheels_step() -> Result<(), Refused> {
+pub fn drive_wheels_step(course: &Course) -> Result<(), Refused> {
     let gear = CAR.gear.get();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    steps()
+    steps(course)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -243,10 +251,10 @@ pub fn drive_wheels_step() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[t + 0] = -(|[v + 0]| - [rc + 0x1C5D38])`
-fn one_less_abs(v: &dyn Cell32, t: &dyn Cell32) {
+fn one_less_abs(course: &Course, v: &dyn Cell32, t: &dyn Cell32) {
     let t0 = ld(v.bits());
     let t1 = t0.abs();
-    let t2 = ld(race().course.numbers.one.bits());
+    let t2 = ld(course.numbers.one.bits());
     let t3 = t1 - t2;
     let t4 = -t3;
     t.set_bits(st(t4));
@@ -280,8 +288,13 @@ fn slip_ratio(d: &dyn Cell32, r: &dyn Cell32) {
 /// `[d + 0] = [d + 0] - (([rc + 0x214BA8] - [rc + 0x1C5D38]) * [s + 0])`
 /// `[f1 + 0] = ([s + 0] / [rc + 0x21388C]) * [rc + 0x1C5E40]`
 /// `[f2 + 0] = ([s + 0] / [rc + 0x21388C]) * [rc + 0x1C5E40]`
-fn apply_slip_to_drive(d: &dyn Cell32, s: &dyn Cell32, f1: &dyn Cell32, f2: &dyn Cell32) {
-    let course = &race().course;
+fn apply_slip_to_drive(
+    course: &Course,
+    d: &dyn Cell32,
+    s: &dyn Cell32,
+    f1: &dyn Cell32,
+    f2: &dyn Cell32,
+) {
     let t0 = ld(d.bits());
     let t1 = ld(PHYSICS.spec_wheel.bits());
     let t2 = ld(course.numbers.one.bits());
@@ -315,10 +328,10 @@ fn slip_ratio_size(d: &dyn Cell32, r: &dyn Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2140B8] = ([rc + 0x2140B4] + [rc + 0x2140B4]) - [rc + 0x1C5D38]`
-fn signed_share() {
+fn signed_share(course: &Course) {
     let t0 = ld(PHYSICS.drive_shares[1].bits());
     let t1 = t0 + t0;
-    let t2 = ld(race().course.numbers.one.bits());
+    let t2 = ld(course.numbers.one.bits());
     let t3 = t1 - t2;
     PHYSICS.drive_shares[2].set_bits(st(t3));
 }
@@ -380,9 +393,9 @@ fn drive_forces_from_grips(grips: &[Float; 5]) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214240] = ((int [rc + 0x22400C] / [rc + 0x1C5E2C]) * |([rc + 0x31A17C] * [rc + 0x214268])|) * [rc + 0x214170]`
 /// `[rc + 0x22400C] = [rc + 0x21423C] * [rc + 0x213EC4]`
-fn throttle_drive_limit() {
+fn throttle_drive_limit(course: &Course) {
     let t0 = int(DRAW.scratch.bits() as i32);
-    let t1 = ld(race().course.numbers.k256.bits());
+    let t1 = ld(course.numbers.k256.bits());
     let t2 = t0 / t1;
     let t3 = ld(CAR.local_velocity[0].bits());
     let t4 = ld(PHYSICS.wheel_load.bits());
@@ -402,8 +415,7 @@ fn throttle_drive_limit() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A190] = ((([rc + 0x214750] * [rc + 0x1C5E40]) * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A190]`
 /// `[rc + 0x31A194] = ((([rc + 0x214750] * [rc + 0x1C5E40]) * [rc + 0x21388C]) * [rc + 0x214BA8]) + [rc + 0x31A194]`
-fn push_both_drive_speeds() {
-    let course = &race().course;
+fn push_both_drive_speeds(course: &Course) {
     let t0 = ld(PHYSICS.drive_torque.bits());
     let t1 = ld(course.numbers.half.bits());
     let t2 = t0 * t1;
@@ -443,7 +455,7 @@ fn push_drive_speed_a() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn brake_step_for_a() {
+fn brake_step_for_a(course: &Course) {
     let t0 = X(1.0);
     let t1 = ld(PHYSICS.handling[1].bits());
     let t2 = t0 - t1;
@@ -451,7 +463,7 @@ fn brake_step_for_a() {
     let t4 = t2 * t3;
     let t5 = int(CAR.brake.bits() as i32);
     let t6 = t4 * t5;
-    let t7 = ld(race().course.numbers.k256.bits());
+    let t7 = ld(course.numbers.k256.bits());
     let t8 = t6 / t7;
     let t9 = ld(PHYSICS.step_time.bits());
     let t10 = t8 * t9;
@@ -465,13 +477,13 @@ fn brake_step_for_a() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn brake_step_for_b() {
+fn brake_step_for_b(course: &Course) {
     let t0 = ld(PHYSICS.handling[1].bits());
     let t1 = ld(PHYSICS.spec_drive[1].bits());
     let t2 = t0 * t1;
     let t3 = int(CAR.brake.bits() as i32);
     let t4 = t2 * t3;
-    let t5 = ld(race().course.numbers.k256.bits());
+    let t5 = ld(course.numbers.k256.bits());
     let t6 = t4 / t5;
     let t7 = ld(PHYSICS.step_time.bits());
     let t8 = t6 * t7;
@@ -485,11 +497,11 @@ fn brake_step_for_b() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x21422C] = (((([rc + 0x214BAC] * int [rc + 0x31A618]) / [rc + 0x1C5E2C]) * [rc + 0x21388C]) * [rc + 0x214BA8]) * [rc + 0x214170]`
-fn handbrake_step_for_b() {
+fn handbrake_step_for_b(course: &Course) {
     let t0 = ld(PHYSICS.spec_drive[0].bits());
     let t1 = int(CAR.handbrake.bits() as i32);
     let t2 = t0 * t1;
-    let t3 = ld(race().course.numbers.k256.bits());
+    let t3 = ld(course.numbers.k256.bits());
     let t4 = t2 / t3;
     let t5 = ld(PHYSICS.step_time.bits());
     let t6 = t4 * t5;
@@ -556,14 +568,14 @@ fn scale_axle_forces() {
 /// `[rc + 0x2148F0] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
 /// `[rc + 0x214910] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
 /// `[rc + 0x214930] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
-fn side_slip_forces() {
+fn side_slip_forces(course: &Course) {
     let t0 = ld(DRAW.scratch.bits());
     let t1 = ld(CAR.local_velocity[0].bits());
     let t2 = t0 - t1;
     PHYSICS.drive_slip[0].set_bits(st(t2));
     let t3 = ld(PHYSICS.step_time.bits());
     let t4 = t2 / t3;
-    let t5 = ld(race().course.numbers.quarter.bits());
+    let t5 = ld(course.numbers.quarter.bits());
     let t6 = t4 * t5;
     PHYSICS.forces[11].force[0].set_bits(st(t6));
     PHYSICS.forces[12].force[0].set_bits(st(t6));
@@ -647,8 +659,7 @@ fn rolling_drag_forces() {
 /// `[rc + 0x2148F0] = ([rc + 0x2149D0] * [rc + 0x1C5E40]) + [rc + 0x2148F0]`
 /// `[rc + 0x214910] = ([rc + 0x2149F0] * [rc + 0x1C5E40]) + [rc + 0x214910]`
 /// `[rc + 0x214930] = ([rc + 0x2149F0] * [rc + 0x1C5E40]) + [rc + 0x214930]`
-fn share_wheel_forces() {
-    let course = &race().course;
+fn share_wheel_forces(course: &Course) {
     let t0 = ld(PHYSICS.forces[19].force[0].bits());
     let t1 = ld(course.numbers.half.bits());
     let t2 = t0 * t1;
@@ -801,6 +812,7 @@ mod asm_reference {
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
                 plain: |a| {
                     one_less_abs(
+                        &crate::race::owner::race().course,
                         &crate::scene::x87_mem::HostCell(a[0]),
                         &crate::scene::x87_mem::HostCell(a[2]),
                     );
@@ -880,7 +892,13 @@ mod asm_reference {
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3], a[4]) },
                 plain: |a| {
                     use crate::scene::x87_mem::HostCell as H;
-                    apply_slip_to_drive(&H(a[0]), &H(a[2]), &H(a[3]), &H(a[4]));
+                    apply_slip_to_drive(
+                        &crate::race::owner::race().course,
+                        &H(a[0]),
+                        &H(a[2]),
+                        &H(a[3]),
+                        &H(a[4]),
+                    );
                 },
             },
             Block {
@@ -916,7 +934,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0]) },
-                plain: |_| signed_share(),
+                plain: |_| signed_share(&crate::race::owner::race().course),
             },
             Block {
                 name: "drive_wheels_step line 147 idx e=0",
@@ -1006,7 +1024,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0]) },
-                plain: |_| throttle_drive_limit(),
+                plain: |_| throttle_drive_limit(&crate::race::owner::race().course),
             },
             Block {
                 name: "drive_wheels_step line 203",
@@ -1023,7 +1041,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_8(a[0]) },
-                plain: |_| push_both_drive_speeds(),
+                plain: |_| push_both_drive_speeds(&crate::race::owner::race().course),
             },
             Block {
                 name: "drive_wheels_step line 220",
@@ -1056,7 +1074,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_10(a[0]) },
-                plain: |_| brake_step_for_a(),
+                plain: |_| brake_step_for_a(&crate::race::owner::race().course),
             },
             Block {
                 name: "drive_wheels_step line 245",
@@ -1074,7 +1092,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_11(a[0]) },
-                plain: |_| brake_step_for_b(),
+                plain: |_| brake_step_for_b(&crate::race::owner::race().course),
             },
             Block {
                 name: "drive_wheels_step line 258",
@@ -1091,7 +1109,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_12(a[0]) },
-                plain: |_| handbrake_step_for_b(),
+                plain: |_| handbrake_step_for_b(&crate::race::owner::race().course),
             },
             Block {
                 name: "drive_wheels_step line 273",
@@ -1154,7 +1172,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_16(a[0]) },
-                plain: |_| side_slip_forces(),
+                plain: |_| side_slip_forces(&crate::race::owner::race().course),
             },
             Block {
                 name: "drive_wheels_step line 347",
@@ -1234,7 +1252,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_21(a[0]) },
-                plain: |_| share_wheel_forces(),
+                plain: |_| share_wheel_forces(&crate::race::owner::race().course),
             },
             Block {
                 name: "drive_wheels_step line 426",

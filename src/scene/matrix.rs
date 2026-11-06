@@ -134,27 +134,27 @@ pub fn set_light_direction() {
 }
 
 /// `scene::make_object_matrix` (0x427812).
-pub fn make_object_matrix() {
+pub fn make_object_matrix(frame: &crate::race::owner_frame::Frame) {
     set_light_direction();
     set_turn_y(OBJECT_WORK.angles[1].bits().wrapping_neg());
     set_turn_x(OBJECT_WORK.angles[0].bits().wrapping_neg());
     let place: [u32; 3] = crate::session::read_bits(&OBJECT_WORK.place);
     set_place(place);
     multiply_matrices(
-        &race().frame.matrices.turn_y_matrix,
-        &race().frame.matrices.turn_x_matrix,
-        &race().frame.matrices.turned_matrix,
+        &frame.matrices.turn_y_matrix,
+        &frame.matrices.turn_x_matrix,
+        &frame.matrices.turned_matrix,
     );
     let size: u32 = OBJECT_WORK.size.bits();
     let factor = x87::int_over_16(size as i32);
     DRAW.scratch.set_bits(factor);
     for n in 0..0x10 {
-        let cell = &race().frame.matrices.turned_matrix[n];
+        let cell = &frame.matrices.turned_matrix[n];
         cell.set_bits(x87::mul(cell.bits(), factor));
     }
     copy_matrix_with_place(
-        &race().frame.matrices.turned_matrix,
-        &race().frame.matrices.placed_matrix,
-        &race().frame.matrices.made_object_matrix,
+        &frame.matrices.turned_matrix,
+        &frame.matrices.placed_matrix,
+        &frame.matrices.made_object_matrix,
     );
 }

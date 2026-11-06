@@ -12,12 +12,11 @@ use crate::math::x87;
 use crate::math::x87_run::{abs_of, compare_full, square_times_over};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`.
-pub fn drag_at(v: &[&dyn Cell32]) {
-    let course = &race().course;
+pub fn drag_at(course: &Course, v: &[&dyn Cell32]) {
     let get = |k: usize| v[k].bits();
     let put = |k: usize, x: u32| v[k].set_bits(x);
     let (k, d, zero) = (
@@ -45,6 +44,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn air_drag() {
-    drag_at(&game());
+pub fn air_drag(course: &Course) {
+    drag_at(course, &game());
 }

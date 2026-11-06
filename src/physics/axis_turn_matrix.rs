@@ -13,11 +13,10 @@
 use crate::math::cells::Cells;
 use crate::math::x87;
 use crate::math::x87_run::{abs_sqrt_times_plus, one_less, sine_cosine_of};
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 
 /// The Rust version: the matrix into `out` (16 cells).
-pub fn axis_turn_matrix(out: &(impl Cells + ?Sized)) {
-    let course = &race().course;
+pub fn axis_turn_matrix(course: &Course, out: &(impl Cells + ?Sized)) {
     {
         let (s, c) = sine_cosine_of(course.lists.spin_angle.bits());
         course.lists.turn_cosine.set_bits(c);

@@ -18,6 +18,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner_frame::Frame;
 use crate::race::replay_file_store::REPLAY_FILE;
 use rc2k_core::physics::progress::{
     LAST_CHECKPOINT, OFF_LINE_CUE, TURNED_CUE, Warnings, cue_due, off_line, spread,
@@ -55,7 +56,7 @@ fn store(w: &Warnings) {
 
 /// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
-pub fn off_line_warnings() -> Result<(), Refused> {
+pub fn off_line_warnings(frame: &Frame) -> Result<(), Refused> {
     if CAR.finish_flag.get() != 0 || CAR.go_stand_timer.get() != 0 {
         return Ok(());
     }
@@ -86,7 +87,7 @@ pub fn off_line_warnings() -> Result<(), Refused> {
     ] {
         if let Some(next) = cue_due(count.get(), time.get()) {
             time.set(next);
-            crate::physics::cue_listed_car_sound::cue_listed_car_sound(cue)?;
+            crate::physics::cue_listed_car_sound::cue_listed_car_sound(frame, cue)?;
         }
     }
     Ok(())

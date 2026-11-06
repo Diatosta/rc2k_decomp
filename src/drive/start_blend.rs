@@ -13,7 +13,7 @@ use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};
 use crate::physics::car_store::CAR;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
@@ -27,8 +27,7 @@ fn put(v: &[&dyn Cell32], k: usize, x: u32) {
 }
 
 /// The Rust core on the variables at `v`: the held count.
-pub fn blend_at(v: &[&dyn Cell32]) -> u32 {
-    let course = &race().course;
+pub fn blend_at(course: &Course, v: &[&dyn Cell32]) -> u32 {
     let mut n = get(v, 0).wrapping_sub(get(v, 1));
     if (n as i32) < 0 {
         n = 0;
@@ -66,6 +65,6 @@ fn game() -> Vec<&'static dyn Cell32> {
 }
 
 /// The Rust version (the exact one, for `drive::read_car_controls`).
-pub fn start_blend() -> u32 {
-    blend_at(&game())
+pub fn start_blend(course: &Course) -> u32 {
+    blend_at(course, &game())
 }

@@ -23,7 +23,6 @@
 //! Takes the car's block as a typed reference.
 
 use crate::physics::car_store::Car;
-use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
 use crate::scene::light_work_store::LIGHT_WORK;
@@ -127,7 +126,7 @@ fn held(value: i32) -> u32 {
     }
 }
 
-pub fn add_car_light(car: &Car) {
+pub fn add_car_light(course: &crate::race::owner_course::Course, car: &Car) {
     if car.lights_on.get() == 0 {
         return;
     }
@@ -140,7 +139,7 @@ pub fn add_car_light(car: &Car) {
     let seen = turned(from, &matrix);
     crate::session::write_bits(&LIGHT_STATE.turned_light, seen);
     let [x, y, z] = seen;
-    let factor: u32 = race().course.numbers.one_over_65536.bits();
+    let factor: u32 = course.numbers.one_over_65536.bits();
     let ahead = squares(z.wrapping_sub(0x20_0000), x.wrapping_add(x), factor, true);
     let cone = held(0x100i32.wrapping_sub((ahead >> 2) as i32));
     // Worked out and not used; its rounding is what `dword_62400C` is left with.

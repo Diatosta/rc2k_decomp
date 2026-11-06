@@ -17,7 +17,6 @@
 //! Refuses more than 0x100 lamps and lamps without the scene's points.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -30,8 +29,7 @@ const MOST: u32 = 0x100;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::lamps::add_point_lights`
-pub fn add_point_lights() -> Result<(), Refused> {
-    let race = race();
+pub fn add_point_lights(race: &crate::race::owner::Race) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{self, Lamp};
 
     let lamps: u32 = RACE_VIEW.lamp_count.bits();

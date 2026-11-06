@@ -4,6 +4,7 @@
 
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::state_store::RACE_STATE;
@@ -251,12 +252,13 @@ impl Tidy {
 /// flags is read by no caller (taint at its one site, 0x444B56 in `tidy_everything`: 0 reads).
 pub fn tidy_stage() -> Result<(), Refused> {
     let race = race();
+    let course = &race.course;
     use crate::race::stage_free::{
         COURSE, COURSE_2, FONTS, MUD, OBJECT_POINTS, POINT_RECORDS, free,
     };
     let s = Tidy;
-    s.step(STAGE_WORDS[0], || free(&MUD))?;
-    s.step(STAGE_WORDS[1], || free(&POINT_RECORDS))?;
+    s.step(STAGE_WORDS[0], || free(course, &MUD))?;
+    s.step(STAGE_WORDS[1], || free(course, &POINT_RECORDS))?;
     s.log(STAGE_WORDS[2]);
     s.indent(3);
     let enabled = crate::logfile::write_line::state::ENABLED
@@ -265,17 +267,17 @@ pub fn tidy_stage() -> Result<(), Refused> {
     crate::effects::tidy_marks::tidy_marks(crate::effects::owner::effects())?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
-    s.step(STAGE_WORDS[3], || free(&FONTS))?;
+    s.step(STAGE_WORDS[3], || free(course, &FONTS))?;
     s.step(STAGE_WORDS[4], crate::race::game_map::free_game_map)?;
     s.step(STAGE_WORDS[5], || {
         crate::race::race_shell::release_stage_textures();
         Ok(())
     })?;
-    s.step(STAGE_WORDS[6], || free(&COURSE_2))?;
-    s.step(STAGE_WORDS[7], || free(&COURSE))?;
+    s.step(STAGE_WORDS[6], || free(course, &COURSE_2))?;
+    s.step(STAGE_WORDS[7], || free(course, &COURSE))?;
     s.log(STAGE_WORDS[8]);
     s.indent(3);
-    free(&OBJECT_POINTS)?;
+    free(course, &OBJECT_POINTS)?;
     race.course.numbers.in_race.set(0);
     race.frame
         .view_and_records
@@ -326,8 +328,7 @@ pub fn tidy_everything() -> Result<(), Refused> {
 /// the replay's header and file, `dword_63DB84` 0, the race run (`drive::play_race`), the
 /// replay closed, everything tidied, the settings out. `indent` is `g_logIndent`'s
 /// address. Its callers read only esi of what it leaves, which every step keeps.
-pub fn run_race() -> Result<(), Refused> {
-    let race = race();
+pub fn run_race(race: &Race) -> Result<(), Refused> {
     race.physics.split_tables.arcade_kind.set(1);
     crate::logfile::write_line::state::INDENT.set(0);
     if RACE_STATE.results.race_stage.get() == 0 && RACE_STATE.settings.run_kind.get() == 2 {
@@ -348,7 +349,7 @@ pub fn run_race() -> Result<(), Refused> {
     crate::drive::play_race::play_race()?;
     crate::race::replay::close_replay()?;
     tidy_everything()?;
-    crate::race::settings_copy::copy_settings_out()?;
+    crate::race::settings_copy::copy_settings_out(&race.replay)?;
     Ok(())
 }
 
@@ -363,16 +364,16 @@ pub fn release_textures() {
 }
 
 /// `race::start_race` (0x4278B7): `dword_621870` 0, `race::run_race`.
-pub fn start_race() -> Result<(), Refused> {
+pub fn start_race(race: &Race) -> Result<(), Refused> {
     FRAME_SWITCHES.mask_kind.set(0u32);
-    run_race()
+    run_race(race)
 }
 
 /// `race::race_from_menu` (0x485570): `race::render3d_tidy`, `race::objects_tidy`,
 /// `nullsub_6`, `race::release_textures`, `race::start_race`.
-pub fn race_from_menu() -> Result<(), Refused> {
+pub fn race_from_menu(race: &Race) -> Result<(), Refused> {
     crate::race::stage_free::render3d_tidy()?;
     crate::race::stage_free::objects_tidy()?;
     release_textures();
-    start_race()
+    start_race(race)
 }

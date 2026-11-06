@@ -11,7 +11,7 @@
 //! Callers: `physics::reset_current_car` (esi `g_car`), and unreferenced code at 0x43FDDF
 //! that runs it over every car before `race::grade_all_cars`.
 
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use rc2k_core::physics::grades::{percentage, reset_writes};
 
 fn put(b: crate::pointers::GamePtr, offset: u32, v: u32) {
@@ -24,11 +24,11 @@ fn put(b: crate::pointers::GamePtr, offset: u32, v: u32) {
 /// any precision).
 // Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
 pub fn reset_grades_at(
+    course: &Course,
     b: crate::pointers::GamePtr,
     s0c: &crate::session::Dword,
     s08: &crate::session::Dword,
 ) {
-    let course = &race().course;
     let (k256, k100) = (course.numbers.k256.get(), course.numbers.hundred.get());
     let a = percentage(s0c.get() as i32, k256, k100);
     let c = percentage(s08.get() as i32, k256, k100);

@@ -25,7 +25,7 @@ use crate::effects::snow::SnowLight;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
@@ -35,19 +35,19 @@ use crate::d3d::vertices_store::VERTICES;
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1, 0x1B)];
 
 /// The original's 0x4C2605 .. 0x4C276E: the light's place and way turned.
-fn turn_light(weather: &Weather) {
-    turn_light_x87(&weather.snow_light);
+fn turn_light(frame: &Frame, weather: &Weather) {
+    turn_light_x87(frame, &weather.snow_light);
 }
 
 /// The Rust version (see the header).
-pub fn run_snow(weather: &Weather) -> Result<(), Refused> {
+pub fn run_snow(frame: &Frame, weather: &Weather) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&weather.snow, &weather.snow_light);
     {
         let marks = crate::effects::setup::marks()?;
         l.kept.set(marks.unknown_6bc[1].get());
-        turn_light(weather);
-        crate::effects::make_fade_colours::make_fade_colours(weather);
+        turn_light(frame, weather);
+        crate::effects::make_fade_colours::make_fade_colours(frame, weather);
         let mut flakes = marks.listener_switch_4.get() as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
@@ -72,7 +72,7 @@ pub fn run_snow(weather: &Weather) -> Result<(), Refused> {
             set_render_state(value, state);
         }
         let rhw = l.rhw.get();
-        let light = race().frame.frame_work.view_light.bits() | 0xFF00_0000;
+        let light = frame.frame_work.view_light.bits() | 0xFF00_0000;
         let [u0, v0, u1, v1] = l.uv.each_ref().map(super::super::session::Dword::get);
         let uv = [(u0, v0), (u1, v0), (u1, v1), (u0, v1)];
         for (n, (u, v)) in uv.into_iter().enumerate() {
@@ -117,115 +117,115 @@ use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
 
 /// `turn_light`'s x87 block as plain Rust on the x87 model (126 instructions), same order and memory places.
-fn turn_light_x87(l: &SnowLight) {
+fn turn_light_x87(frame: &Frame, l: &SnowLight) {
     let t0 = bh::ld(l.light_source[0].bits());
     let t1 = bh::ld(l.light_source[1].bits());
     let t2 = bh::ld(l.light_source[2].bits());
-    let t3 = ld(race().frame.matrices.view_place[0].bits());
+    let t3 = ld(frame.matrices.view_place[0].bits());
     let t4 = t3 * t2;
-    let t5 = ld(race().frame.matrices.view_place[4].bits());
+    let t5 = ld(frame.matrices.view_place[4].bits());
     let t6 = t5 * t1;
-    let t7 = ld(race().frame.matrices.view_place[8].bits());
+    let t7 = ld(frame.matrices.view_place[8].bits());
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = t10 + ld(race().frame.matrices.view_place[12].bits());
-    let t12 = ld(race().frame.matrices.view_place[1].bits());
+    let t11 = t10 + ld(frame.matrices.view_place[12].bits());
+    let t12 = ld(frame.matrices.view_place[1].bits());
     let t13 = t12 * t2;
-    let t14 = ld(race().frame.matrices.view_place[5].bits());
+    let t14 = ld(frame.matrices.view_place[5].bits());
     let t15 = t14 * t1;
-    let t16 = ld(race().frame.matrices.view_place[9].bits());
+    let t16 = ld(frame.matrices.view_place[9].bits());
     let t17 = t16 * t0;
     let t18 = t15 + t17;
     let t19 = t13 + t18;
-    let t20 = t19 + ld(race().frame.matrices.view_place[13].bits());
-    let t21 = ld(race().frame.matrices.view_place[2].bits());
+    let t20 = t19 + ld(frame.matrices.view_place[13].bits());
+    let t21 = ld(frame.matrices.view_place[2].bits());
     let t22 = t2 * t21;
-    let t23 = ld(race().frame.matrices.view_place[6].bits());
+    let t23 = ld(frame.matrices.view_place[6].bits());
     let t24 = t1 * t23;
-    let t25 = ld(race().frame.matrices.view_place[10].bits());
+    let t25 = ld(frame.matrices.view_place[10].bits());
     let t26 = t0 * t25;
     let t27 = t26 + t24;
     let t28 = t22 + t27;
-    let t29 = t28 + ld(race().frame.matrices.view_place[14].bits());
-    let t30 = ld(race().frame.matrices.view_matrix[0].bits());
+    let t29 = t28 + ld(frame.matrices.view_place[14].bits());
+    let t30 = ld(frame.matrices.view_matrix[0].bits());
     let t31 = t30 * t11;
-    let t32 = ld(race().frame.matrices.view_matrix[4].bits());
+    let t32 = ld(frame.matrices.view_matrix[4].bits());
     let t33 = t32 * t20;
-    let t34 = ld(race().frame.matrices.view_matrix[8].bits());
+    let t34 = ld(frame.matrices.view_matrix[8].bits());
     let t35 = t34 * t29;
     let t36 = t33 + t35;
     let t37 = t31 + t36;
-    let t38 = t37 + ld(race().frame.matrices.view_matrix[12].bits());
-    let t39 = ld(race().frame.matrices.view_matrix[1].bits());
+    let t38 = t37 + ld(frame.matrices.view_matrix[12].bits());
+    let t39 = ld(frame.matrices.view_matrix[1].bits());
     let t40 = t39 * t11;
-    let t41 = ld(race().frame.matrices.view_matrix[5].bits());
+    let t41 = ld(frame.matrices.view_matrix[5].bits());
     let t42 = t41 * t20;
-    let t43 = ld(race().frame.matrices.view_matrix[9].bits());
+    let t43 = ld(frame.matrices.view_matrix[9].bits());
     let t44 = t43 * t29;
     let t45 = t42 + t44;
     let t46 = t40 + t45;
-    let t47 = t46 + ld(race().frame.matrices.view_matrix[13].bits());
-    let t48 = ld(race().frame.matrices.view_matrix[2].bits());
+    let t47 = t46 + ld(frame.matrices.view_matrix[13].bits());
+    let t48 = ld(frame.matrices.view_matrix[2].bits());
     let t49 = t11 * t48;
-    let t50 = ld(race().frame.matrices.view_matrix[6].bits());
+    let t50 = ld(frame.matrices.view_matrix[6].bits());
     let t51 = t20 * t50;
-    let t52 = ld(race().frame.matrices.view_matrix[10].bits());
+    let t52 = ld(frame.matrices.view_matrix[10].bits());
     let t53 = t29 * t52;
     let t54 = t53 + t51;
     let t55 = t49 + t54;
-    let t56 = t55 + ld(race().frame.matrices.view_matrix[14].bits());
+    let t56 = t55 + ld(frame.matrices.view_matrix[14].bits());
     l.light_place[0].set_bits(bh::st(t38));
     l.light_place[1].set_bits(bh::st(t47));
     l.light_place[2].set_bits(bh::st(t56));
     let t57 = bh::ld(l.light_source_way[0].bits());
     let t58 = bh::ld(l.light_source_way[1].bits());
     let t59 = bh::ld(l.light_source_way[2].bits());
-    let t60 = ld(race().frame.matrices.view_place[0].bits());
+    let t60 = ld(frame.matrices.view_place[0].bits());
     let t61 = t60 * t59;
-    let t62 = ld(race().frame.matrices.view_place[4].bits());
+    let t62 = ld(frame.matrices.view_place[4].bits());
     let t63 = t62 * t58;
-    let t64 = ld(race().frame.matrices.view_place[8].bits());
+    let t64 = ld(frame.matrices.view_place[8].bits());
     let t65 = t64 * t57;
     let t66 = t63 + t65;
     let t67 = t61 + t66;
-    let t68 = ld(race().frame.matrices.view_place[1].bits());
+    let t68 = ld(frame.matrices.view_place[1].bits());
     let t69 = t68 * t59;
-    let t70 = ld(race().frame.matrices.view_place[5].bits());
+    let t70 = ld(frame.matrices.view_place[5].bits());
     let t71 = t70 * t58;
-    let t72 = ld(race().frame.matrices.view_place[9].bits());
+    let t72 = ld(frame.matrices.view_place[9].bits());
     let t73 = t72 * t57;
     let t74 = t71 + t73;
     let t75 = t69 + t74;
-    let t76 = ld(race().frame.matrices.view_place[2].bits());
+    let t76 = ld(frame.matrices.view_place[2].bits());
     let t77 = t59 * t76;
-    let t78 = ld(race().frame.matrices.view_place[6].bits());
+    let t78 = ld(frame.matrices.view_place[6].bits());
     let t79 = t58 * t78;
-    let t80 = ld(race().frame.matrices.view_place[10].bits());
+    let t80 = ld(frame.matrices.view_place[10].bits());
     let t81 = t57 * t80;
     let t82 = t81 + t79;
     let t83 = t77 + t82;
-    let t84 = ld(race().frame.matrices.view_matrix[0].bits());
+    let t84 = ld(frame.matrices.view_matrix[0].bits());
     let t85 = t84 * t67;
-    let t86 = ld(race().frame.matrices.view_matrix[4].bits());
+    let t86 = ld(frame.matrices.view_matrix[4].bits());
     let t87 = t86 * t75;
-    let t88 = ld(race().frame.matrices.view_matrix[8].bits());
+    let t88 = ld(frame.matrices.view_matrix[8].bits());
     let t89 = t88 * t83;
     let t90 = t87 + t89;
     let t91 = t85 + t90;
-    let t92 = ld(race().frame.matrices.view_matrix[1].bits());
+    let t92 = ld(frame.matrices.view_matrix[1].bits());
     let t93 = t92 * t67;
-    let t94 = ld(race().frame.matrices.view_matrix[5].bits());
+    let t94 = ld(frame.matrices.view_matrix[5].bits());
     let t95 = t94 * t75;
-    let t96 = ld(race().frame.matrices.view_matrix[9].bits());
+    let t96 = ld(frame.matrices.view_matrix[9].bits());
     let t97 = t96 * t83;
     let t98 = t95 + t97;
     let t99 = t93 + t98;
-    let t100 = ld(race().frame.matrices.view_matrix[2].bits());
+    let t100 = ld(frame.matrices.view_matrix[2].bits());
     let t101 = t67 * t100;
-    let t102 = ld(race().frame.matrices.view_matrix[6].bits());
+    let t102 = ld(frame.matrices.view_matrix[6].bits());
     let t103 = t75 * t102;
-    let t104 = ld(race().frame.matrices.view_matrix[10].bits());
+    let t104 = ld(frame.matrices.view_matrix[10].bits());
     let t105 = t83 * t104;
     let t106 = t105 + t103;
     let t107 = t101 + t106;
@@ -444,7 +444,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::turn_light_x87(b[0], b[1]),
-            |b| with_copy(b[1], SnowLight::START, super::turn_light_x87),
+            |b| {
+                with_copy(b[1], SnowLight::START, |l| {
+                    super::turn_light_x87(&crate::race::owner::race().frame, l);
+                });
+            },
         );
     }
 }

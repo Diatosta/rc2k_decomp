@@ -9,16 +9,20 @@
 //! This file: the shared steps.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// One probe at (x, z) from the face kept at `slot`; true when found (the face found
 /// kept there).
-pub fn probe_at(x: u32, z: u32, slot: &crate::session::Dword) -> Result<bool, Refused> {
-    let race = race();
+pub fn probe_at(
+    race: &Race,
+    x: u32,
+    z: u32,
+    slot: &crate::session::Dword,
+) -> Result<bool, Refused> {
     race.course.course.ground_face_last.set(slot.get());
     race.physics.ground.ground_x.set(x);
     race.physics.ground.ground_z.set(z);
-    { crate::physics::count_ground_probe::count_ground_probe() }?;
+    { crate::physics::count_ground_probe::count_ground_probe(race) }?;
     if race.physics.ground.ground_found.get() == 0 {
         return Ok(false);
     }

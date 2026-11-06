@@ -10,16 +10,18 @@
 
 use crate::drive::race_parts::log_line;
 use crate::errors::Refused;
+use crate::race::owner::race;
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
 /// `race::run_race`'s and `sub_443F96`'s calls, ecx edi edx esi after
 /// `race::credits_race`'s: no read point; only DF after `net::lets_race`'s).
 pub fn play_race() -> Result<(), Refused> {
+    let race = race();
     log_line(c"");
     log_line(c"--------------------------");
     log_line(c"CALLING DOPLAYGAME - START");
     crate::logfile::write_line::set_enabled(0); // g_logEnabled
-    { crate::drive::race_loop::race_loop() }?;
+    { crate::drive::race_loop::race_loop(race) }?;
     // Not the original's: for the debug UI's free play.
     crate::debug::screens::note_race();
     crate::logfile::write_line::set_enabled(1);

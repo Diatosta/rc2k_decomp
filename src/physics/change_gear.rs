@@ -18,6 +18,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::gear_bit_at;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at, wheels_from_revs_at};
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::gear_shifts::Change;
 
@@ -52,7 +53,7 @@ fn ratio_gear(g: u32) -> Result<(), Refused> {
 
 /// The core.
 // Converted: `rc2k_core::physics::gear_shifts::change`.
-pub fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<(), Refused> {
+pub fn change_gear_at(course: &Course, gp: &GearPlaces, c: &ChangePlaces) -> Result<(), Refused> {
     let gear = gp.gear.bits();
     let w = c.wanted.bits();
     let way = rc2k_core::physics::gear_shifts::change(gear, w);
@@ -86,12 +87,12 @@ pub fn change_gear_at(gp: &GearPlaces, c: &ChangePlaces) -> Result<(), Refused> 
     ratio_gear(w)?;
     wheels_from_revs_at(gp)?;
     gp.gear.set_bits(w);
-    revs_from_wheels_at(gp)?;
+    revs_from_wheels_at(course, gp)?;
     mark();
     Ok(())
 }
 
 /// The Rust version.
-pub fn change_gear() -> Result<(), Refused> {
-    change_gear_at(&GearPlaces::game(), &ChangePlaces::game())
+pub fn change_gear(course: &Course) -> Result<(), Refused> {
+    change_gear_at(course, &GearPlaces::game(), &ChangePlaces::game())
 }

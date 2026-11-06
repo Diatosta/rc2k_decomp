@@ -16,7 +16,7 @@ use crate::math::x87_float::{ld, st};
 use crate::physics::car_store::CAR;
 use crate::physics::flow::{below_or_unordered, c0};
 use crate::physics::store::DamageModel;
-use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use crate::race::work_store::RACE_WORK;
 use crate::session::{Cell32, Float};
 
@@ -30,8 +30,7 @@ fn gear_gauge(gear: u32) -> &'static Float {
 }
 
 /// The gauge at `at` held 0 ..= `flt_75B34C` (the two `fcompp` holds).
-fn hold_at(at: &Float) {
-    let physics = &race().physics;
+fn hold_at(physics: &Physics, at: &Float) {
     let rd = || at.bits();
     let put = |v: u32| at.set_bits(v);
     if c0(rd(), physics.damage.gauge_low.bits()) {
@@ -44,9 +43,8 @@ fn hold_at(at: &Float) {
 
 /// The damage gauges' step: each gauge raised by its rate times this step's shares and hit
 /// figures, then held 0 ..= `gauge_top`.
-pub fn steps() {
-    let physics = &race().physics;
-    raise(&CAR.engine_damage, |g| {
+pub fn steps(physics: &Physics) {
+    raise(physics, &CAR.engine_damage, |g| {
         add_product(
             &physics.damage.gauge_rates[0],
             &physics.damage.flt_75b38c,
@@ -54,7 +52,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.exhaust_damage, |g| {
+    raise(physics, &CAR.exhaust_damage, |g| {
         add_product(
             &physics.damage.gauge_rates[1],
             &physics.damage.flt_75b38c,
@@ -62,7 +60,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.cooling_damage, |g| {
+    raise(physics, &CAR.cooling_damage, |g| {
         add_product(
             &physics.damage.gauge_rates[2],
             &physics.damage.flt_75b38c,
@@ -70,7 +68,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.clutch_damage, |g| {
+    raise(physics, &CAR.clutch_damage, |g| {
         add_product(
             &physics.damage.gauge_rates[3],
             &physics.damage.flt_75b38c,
@@ -78,7 +76,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.differential_damage, |g| {
+    raise(physics, &CAR.differential_damage, |g| {
         add_product(
             &physics.damage.gauge_rates[4],
             &physics.damage.flt_75b38c,
@@ -86,7 +84,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.electrics_damage, |g| {
+    raise(physics, &CAR.electrics_damage, |g| {
         add_product(
             &physics.damage.gauge_rates[5],
             &physics.damage.flt_75b38c,
@@ -95,7 +93,7 @@ pub fn steps() {
         );
     });
     for k in 0..6 {
-        raise(&CAR.light_damage[k], |g| {
+        raise(physics, &CAR.light_damage[k], |g| {
             add_product(
                 &physics.damage.gauge_rates[6],
                 &physics.damage.flt_75b38c,
@@ -104,7 +102,7 @@ pub fn steps() {
             );
         });
     }
-    raise(&CAR.steering_damage, |g| {
+    raise(physics, &CAR.steering_damage, |g| {
         add_product(
             &physics.damage.gauge_rates[7],
             &physics.damage.flt_75b38c,
@@ -113,7 +111,7 @@ pub fn steps() {
         );
     });
     for k in 0..4 {
-        raise(&CAR.suspension_damage[k], |g| {
+        raise(physics, &CAR.suspension_damage[k], |g| {
             add_product(
                 &physics.damage.gauge_rates[8],
                 &physics.damage.flt_75b38c,
@@ -122,7 +120,7 @@ pub fn steps() {
             );
         });
     }
-    raise(&CAR.turbo_damage, |g| {
+    raise(physics, &CAR.turbo_damage, |g| {
         add_scaled_triple(
             &physics.damage,
             &physics.damage.wear_rates[11],
@@ -142,10 +140,10 @@ pub fn steps() {
             crate::fatal::raise::end("a gear's factor", BadInput("the gear is not -1 .. 7"))
         });
     gear_wear_from_speed(&physics.damage, factor, gauge);
-    hold_at(gauge);
+    hold_at(physics, gauge);
     brake_wear_step(&physics.damage);
-    hold_at(&CAR.brake_wear_a);
-    raise(&CAR.brake_wear_b, |g| {
+    hold_at(physics, &CAR.brake_wear_a);
+    raise(physics, &CAR.brake_wear_b, |g| {
         add_scaled_triple(
             &physics.damage,
             &physics.damage.gauge_rates[9],
@@ -155,7 +153,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.electrics_damage, |g| {
+    raise(physics, &CAR.electrics_damage, |g| {
         add_triple_product(
             &physics.damage.gauge_rates[10],
             &physics.damage.flt_75b3b4,
@@ -165,7 +163,7 @@ pub fn steps() {
         );
     });
     for k in 0..6 {
-        raise(&CAR.light_damage[k], |g| {
+        raise(physics, &CAR.light_damage[k], |g| {
             add_triple_product(
                 &physics.damage.gauge_rates[11],
                 &physics.damage.flt_75b3b4,
@@ -177,18 +175,18 @@ pub fn steps() {
     }
     part_hit_figures(&physics.damage);
     let part = physics.damage.flt_75b3e4.bits();
-    let kind = |table: &'static [Float; 2]| {
+    fn kind(table: &[Float; 2], part: u32) -> &Float {
         table.get(part as usize).unwrap_or_else(|| {
             crate::fatal::raise::end("a kind table", BadInput("the kind is not 0 or 1"))
         })
-    };
+    }
     scale_part_hit_figures(
         &physics.damage,
-        kind(&physics.damage.kind_table_a),
-        kind(&physics.damage.kind_table_b),
+        kind(&physics.damage.kind_table_a, part),
+        kind(&physics.damage.kind_table_b, part),
     );
     for k in 0..2 {
-        raise(&CAR.part_hit_damage[k], |g| {
+        raise(physics, &CAR.part_hit_damage[k], |g| {
             add_triple_product(
                 &physics.damage.flt_75b46c,
                 &physics.damage.flt_75b488,
@@ -199,7 +197,7 @@ pub fn steps() {
         });
     }
     for k in 2..4 {
-        raise(&CAR.part_hit_damage[k], |g| {
+        raise(physics, &CAR.part_hit_damage[k], |g| {
             add_triple_product(
                 &physics.damage.flt_75b470,
                 &physics.damage.flt_75b48c,
@@ -209,7 +207,7 @@ pub fn steps() {
             );
         });
     }
-    raise(&CAR.engine_damage, |g| {
+    raise(physics, &CAR.engine_damage, |g| {
         add_triple_product(
             &physics.damage.flt_75b45c,
             &physics.damage.gauge_rates[13],
@@ -218,7 +216,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.cooling_damage, |g| {
+    raise(physics, &CAR.cooling_damage, |g| {
         add_triple_product(
             &physics.damage.flt_75b45c,
             &physics.damage.gauge_rates[12],
@@ -232,8 +230,8 @@ pub fn steps() {
         physics.damage.gauge_low.bits(),
     ) {
         engine_damage_carry(&physics.damage);
-        hold_at(&CAR.engine_damage);
-        raise(&CAR.cooling_damage, |g| {
+        hold_at(physics, &CAR.engine_damage);
+        raise(physics, &CAR.cooling_damage, |g| {
             add_triple_product(
                 &physics.damage.flt_75b464,
                 &physics.damage.gauge_rates[15],
@@ -260,7 +258,7 @@ pub fn steps() {
         add_rate_to_gauge(gauge, &physics.damage.gauge_rates[19]);
     }
     for k in 0..4 {
-        raise(&CAR.wheel_hit_damage[k], |g| {
+        raise(physics, &CAR.wheel_hit_damage[k], |g| {
             add_triple_product(
                 &physics.damage.flt_75b450,
                 &physics.damage.flt_75b670,
@@ -271,7 +269,7 @@ pub fn steps() {
         });
     }
     for k in 0..4 {
-        raise(&CAR.suspension_damage[k], |g| {
+        raise(physics, &CAR.suspension_damage[k], |g| {
             add_triple_product(
                 &physics.damage.flt_75b458,
                 &physics.damage.figures[0],
@@ -281,7 +279,7 @@ pub fn steps() {
             );
         });
     }
-    raise(&CAR.body_hit_damage, |g| {
+    raise(physics, &CAR.body_hit_damage, |g| {
         add_triple_product(
             &physics.damage.flt_75b454,
             &physics.damage.figures[1],
@@ -290,7 +288,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.steering_damage, |g| {
+    raise(physics, &CAR.steering_damage, |g| {
         add_triple_product(
             &physics.damage.flt_75b454,
             &physics.damage.figures[2],
@@ -299,7 +297,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.engine_damage, |g| {
+    raise(physics, &CAR.engine_damage, |g| {
         add_triple_product(
             &physics.damage.flt_75b454,
             &physics.damage.figures[3],
@@ -308,7 +306,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.exhaust_damage, |g| {
+    raise(physics, &CAR.exhaust_damage, |g| {
         add_triple_product(
             &physics.damage.flt_75b454,
             &physics.damage.figures[4],
@@ -317,7 +315,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.gear_wear[0], |g| {
+    raise(physics, &CAR.gear_wear[0], |g| {
         add_triple_product(
             &physics.damage.flt_75b454,
             &physics.damage.figures[5],
@@ -327,7 +325,7 @@ pub fn steps() {
         );
     });
     for k in 2..9 {
-        raise(&CAR.gear_wear[k], |g| {
+        raise(physics, &CAR.gear_wear[k], |g| {
             add_triple_product(
                 &physics.damage.flt_75b454,
                 &physics.damage.figures[5],
@@ -337,7 +335,7 @@ pub fn steps() {
             );
         });
     }
-    raise(&CAR.differential_damage, |g| {
+    raise(physics, &CAR.differential_damage, |g| {
         add_triple_product(
             &physics.damage.flt_75b454,
             &physics.damage.figures[6],
@@ -350,7 +348,7 @@ pub fn steps() {
         physics.damage.flt_75b3c8.bits(),
         physics.damage.gauge_rates[23].bits(),
     ) {
-        raise(&CAR.body_hit_damage, |g| {
+        raise(physics, &CAR.body_hit_damage, |g| {
             add_product(
                 &physics.damage.flt_75b3c8,
                 &physics.damage.figures[13],
@@ -363,10 +361,10 @@ pub fn steps() {
         physics.damage.flt_75b3c8.bits(),
         physics.damage.gauge_rates[22].bits(),
     ) {
-        side_hit_wear();
+        side_hit_wear(physics);
     }
     for k in 0..4 {
-        raise(&CAR.suspension_damage[k], |g| {
+        raise(physics, &CAR.suspension_damage[k], |g| {
             add_triple_product(
                 &physics.damage.wheel_loads[k],
                 &physics.damage.figures[14],
@@ -376,7 +374,7 @@ pub fn steps() {
             );
         });
     }
-    raise(&CAR.exhaust_damage, |g| {
+    raise(physics, &CAR.exhaust_damage, |g| {
         add_triple_product(
             &physics.damage.flt_75b3dc,
             &physics.damage.figures[15],
@@ -385,7 +383,7 @@ pub fn steps() {
             g,
         );
     });
-    raise(&CAR.steering_damage, |g| {
+    raise(physics, &CAR.steering_damage, |g| {
         add_triple_product(
             &physics.damage.flt_75b3dc,
             &physics.damage.figures[16],
@@ -402,13 +400,12 @@ pub fn steps() {
 
 /// A hit big enough to count (its size at least `gauge_rates[22]`) wears the gauges of the
 /// side it landed on: `side` is 0 .. 3 for the hit figure 1 .. 4, and none for any other.
-fn side_hit_wear() {
-    let physics = &race().physics;
+fn side_hit_wear(physics: &Physics) {
     scale_hit_size(&physics.damage);
     let hit = physics.damage.dword_75b3c4.bits();
     let side = (1..=4).contains(&hit).then(|| hit as usize - 1);
     let wear = |gauge: &Float, figure: usize| {
-        raise(gauge, |g| {
+        raise(physics, gauge, |g| {
             add_product(
                 &physics.damage.flt_75b3c8,
                 &physics.damage.figures[figure],
@@ -431,7 +428,7 @@ fn side_hit_wear() {
     }
     let gauge = gear_gauge(physics.damage.dword_75b3bc.bits());
     add_hit_to_gear_gauge(&physics.damage, gauge);
-    hold_at(gauge);
+    hold_at(physics, gauge);
     if let Some(side) = side {
         wear(&CAR.wheel_hit_damage[side], 28);
         wear(&CAR.suspension_damage[side], 30);
@@ -449,9 +446,9 @@ fn side_hit_wear() {
 }
 
 /// Applies `step` to the gauge, then holds it 0 ..= `gauge_top`.
-pub(super) fn raise(gauge: &Float, step: impl FnOnce(&Float)) {
+pub(super) fn raise(physics: &Physics, gauge: &Float, step: impl FnOnce(&Float)) {
     step(gauge);
-    hold_at(gauge);
+    hold_at(physics, gauge);
 }
 
 // ---- the arithmetic that was x87 assembly ----

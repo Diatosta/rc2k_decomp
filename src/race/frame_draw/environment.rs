@@ -4,13 +4,15 @@ use super::*;
 use crate::audio::store::ENVIRONMENT;
 use crate::errors::BadInput;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
+use crate::race::owner_physics::Physics;
 use crate::scene::draw_store::DRAW;
 
 /// The game's table root of a float (`sqrt` by `g_rootTable` x `g_exponentRootTable`),
 /// times 1/65536 (`race().course.numbers.one_over_65536`), as stored.
-pub(super) fn table_root(v: u32) -> u32 {
-    let course = &race().course;
+pub(super) fn table_root(course: &Course, v: u32) -> u32 {
     // g_rootTable: 256 floats by mantissa bits; g_exponentRootTable: by exponent
     let root = course.lists.root_table[((v >> 15) & 0xFF) as usize].bits();
     let scale = course.lists.exponent_root_table[((v & 0x7F80_0000) >> 23) as usize].bits();
@@ -18,8 +20,7 @@ pub(super) fn table_root(v: u32) -> u32 {
 }
 
 /// A point's x and z less car 0's (`g_carBlockStore` +0x134, +0x13C), and its y.
-pub(super) fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
-    let physics = &race().physics;
+pub(super) fn point_from_car(physics: &Physics, point: u32) -> Result<(u32, u32, u32), BadInput> {
     let [px, py, pz] = crate::race::scene_points::point_number(point)?;
     let x = px.wrapping_sub(CAR_BLOCKS.cars[0].position[0].bits());
     let z = pz.wrapping_sub(CAR_BLOCKS.cars[0].position[2].bits());
@@ -30,8 +31,7 @@ pub(super) fn point_from_car(point: u32) -> Result<(u32, u32, u32), BadInput> {
 
 /// The weight's end: `DRAW.scratch` = `v`, held to 16.0 (`race().course.numbers.sixteen`; kept when below or
 /// not a number), added to `g_eaxEnvironment`; `race().frame.sound_spots.eax_face_count` + 1.
-pub(super) fn add_eax_weight(v: u32) {
-    let race = race();
+pub(super) fn add_eax_weight(race: &Race, v: u32) {
     let sixteen: u32 = race.course.numbers.sixteen.bits();
     let w = if crate::math::x87_load::below_or_unordered(v, sixteen) {
         v
@@ -52,8 +52,7 @@ pub(super) fn add_eax_weight(v: u32) {
 /// with |+0x30| below 0.25: 3.0 over the distance to the middle of its second and third
 /// points (`CONTACT_WORK.eax_mid_x`, `CONTACT_WORK.eax_mid_z`); each held to 16 (see `add_eax_weight`). Distances
 /// by the game's root tables into `CONTACT_WORK.eax_distance`.
-pub fn eax_face_weight(face: u32) -> Result<(), BadInput> {
-    let race = race();
+pub fn eax_face_weight(race: &Race, face: u32) -> Result<(), BadInput> {
     use crate::math::x87::{div, from_int};
     use crate::math::x87_load::{
         abs_below_or_unordered, float_square_sum, int_over_float, int_plus_times, int_square_sum,
@@ -66,12 +65,12 @@ pub fn eax_face_weight(face: u32) -> Result<(), BadInput> {
             if face_field::<u8>(face, 1)? >= 0x38 {
                 return Ok(());
             }
-            let (x, _, z) = point_from_car(face_field(face, 4)?)?;
-            let distance = table_root(int_square_sum(x as i32, z as i32));
+            let (x, _, z) = point_from_car(&race.physics, face_field(face, 4)?)?;
+            let distance = table_root(&race.course, int_square_sum(x as i32, z as i32));
             race.physics.contact.eax_distance.set_bits(distance);
             let strength = face_field::<u8>(face, 0x18)? as u32;
             DRAW.scratch.set_bits(strength);
-            add_eax_weight(int_over_float(strength as i32, distance));
+            add_eax_weight(race, int_over_float(strength as i32, distance));
             return Ok(());
         }
         if kind >= 0x10 {
@@ -80,19 +79,19 @@ pub fn eax_face_weight(face: u32) -> Result<(), BadInput> {
         if !abs_below_or_unordered(face_field(face, 0x30)?, race.course.numbers.quarter.bits()) {
             return Ok(());
         }
-        let (x1, _, z1) = point_from_car(face_field(face, 8)?)?;
+        let (x1, _, z1) = point_from_car(&race.physics, face_field(face, 8)?)?;
         let (mx, mz) = (from_int(x1 as i32), from_int(z1 as i32));
         race.physics.contact.eax_mid_x.set_bits(mx);
         race.physics.contact.eax_mid_z.set_bits(mz);
-        let (x2, _, z2) = point_from_car(face_field(face, 0xC)?)?;
+        let (x2, _, z2) = point_from_car(&race.physics, face_field(face, 0xC)?)?;
         let half: u32 = race.course.numbers.half.bits();
         let mx = int_plus_times(x2 as i32, mx, half);
         race.physics.contact.eax_mid_x.set_bits(mx);
         let mz = int_plus_times(z2 as i32, mz, half);
         race.physics.contact.eax_mid_z.set_bits(mz);
-        let distance = table_root(float_square_sum(mx, mz));
+        let distance = table_root(&race.course, float_square_sum(mx, mz));
         race.physics.contact.eax_distance.set_bits(distance);
-        add_eax_weight(div(race.course.numbers.three.bits(), distance));
+        add_eax_weight(race, div(race.course.numbers.three.bits(), distance));
     }
     Ok(())
 }
@@ -122,7 +121,7 @@ pub fn eax_environment() -> Result<(), BadInput> {
                 continue;
             }
             loop {
-                eax_face_weight(face)?;
+                eax_face_weight(race, face)?;
                 face = face.wrapping_add(1);
                 if face > record_field(record, 0xC)? {
                     break;

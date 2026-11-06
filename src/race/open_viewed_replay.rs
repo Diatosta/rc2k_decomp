@@ -19,7 +19,7 @@
 use crate::errors::Refused;
 use crate::files::handle;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::race::replay::REPLAYS;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_path::replay_path;
@@ -30,8 +30,7 @@ use rc2k_core::race::viewer_flow::{HEADER_LEN, INDEX_LEN};
 /// The Rust version: whether it failed (the carry the original leaves; it keeps the
 /// registers and leaves the zero flag `opened_zero(0)`, which no caller reads). `slot` the
 /// replay (the original's ebx).
-pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
-    let replay = &race().replay;
+pub fn open_viewed_replay(replay: &Replay, slot: u32) -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::viewer_flow::{last_race_missing, copied_first,
     // read_good, version_good, index_blocks, opened_marks}`.
     use rc2k_core::race::viewer_flow::{
@@ -42,7 +41,7 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
         crate::race::close_viewed_replay::close_viewed_replay()?;
         Ok(true)
     };
-    let found = replay_path(slot)?;
+    let found = replay_path(replay, slot)?;
     let mut path = found.path;
     if last_race_missing(
         found.last_race,
@@ -52,12 +51,14 @@ pub fn open_viewed_replay(slot: u32) -> Result<bool, Refused> {
     }
     if copied_first(found.number) {
         // A saved replay is copied over the last race's first.
-        let copied =
-            crate::files::copy_file::copy_file(&path, &crate::race::replay_path::last_race())?;
+        let copied = crate::files::copy_file::copy_file(
+            &path,
+            &crate::race::replay_path::last_race(replay),
+        )?;
         if !copied {
             return failed();
         }
-        path = crate::race::replay_path::last_race();
+        path = crate::race::replay_path::last_race(replay);
     }
     let Some(file) = handle::open_by_mode(&path, 0)? else {
         return failed();

@@ -20,7 +20,7 @@ use crate::effects::lines::measure_lines;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::race::marks_settings_store::MarkCar;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::object_slots_store::{OBJECT_SLOTS, ObjectTables};
 use crate::scene::objects::SLOTS;
 use crate::session::{Bytes, Dword};
@@ -51,9 +51,9 @@ fn changed(b: &MarkCar) -> Result<bool, BadInput> {
 }
 
 /// A block's objects' first points (in `g_objectPoints`) and their count.
-fn points(b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
+fn points(course: &Course, b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
     Ok({
-        let base: u32 = race().course.lists.object_points.bits();
+        let base: u32 = course.lists.object_points.bits();
         let first = |id: u32| {
             base.wrapping_add(12 * ObjectTables::slot_value(&OBJECT_SLOTS.first_point, id as usize))
         };
@@ -67,8 +67,7 @@ fn points(b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
 }
 
 /// Why the Rust version refuses, if it does (its own checks), worked out without writing.
-fn refusal(paths: &Paths) -> Result<Option<&'static str>, Refused> {
-    let course = &race().course;
+fn refusal(course: &Course, paths: &Paths) -> Result<Option<&'static str>, Refused> {
     let marks = crate::effects::setup::marks()?;
     Ok({
         if marks.cars_copy.get() as i32 > MOST_CARS {
@@ -86,7 +85,7 @@ fn refusal(paths: &Paths) -> Result<Option<&'static str>, Refused> {
             if b.word(BLOCK + 0x8C)? == 0 {
                 return Ok(Some("a null base point list"));
             }
-            let (a, c, n) = points(b)?;
+            let (a, c, n) = points(course, b)?;
             if n < 0 {
                 return Ok(Some("a negative point count: the loop runs on"));
             }
@@ -108,8 +107,8 @@ fn refusal(paths: &Paths) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn morph_object_points(paths: &Paths) -> Result<(), Refused> {
-    if let Some(why) = refusal(paths)? {
+pub fn morph_object_points(course: &Course, paths: &Paths) -> Result<(), Refused> {
+    if let Some(why) = refusal(course, paths)? {
         return Err(BadInput(why).into());
     }
     {
@@ -126,7 +125,7 @@ pub fn morph_object_points(paths: &Paths) -> Result<(), Refused> {
                 b.put(BLOCK + 0xB0 + 4 * k, v)?;
                 paths.morph_work.kept[k as usize].set(v);
             }
-            let (a, c, n) = points(b)?;
+            let (a, c, n) = points(course, b)?;
             let points = b.word(BLOCK + 0x8C)?;
             for k in 0..n.max(0) as u32 {
                 let (to, from) = (a + 12 * k, c + 12 * k);
@@ -138,7 +137,7 @@ pub fn morph_object_points(paths: &Paths) -> Result<(), Refused> {
                 }
             }
         }
-        measure_lines(paths)?;
+        measure_lines(course, paths)?;
     }
     Ok(())
 }

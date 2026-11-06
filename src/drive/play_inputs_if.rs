@@ -7,10 +7,10 @@
 //! Caller: `drive::replay_step`.
 
 /// The Rust version.
-use crate::race::owner::race;
+use crate::race::owner::Race;
 // Converted: `rc2k_core::drive::replay_frames::plays_inputs`.
-pub fn play_inputs_if() -> Result<(), crate::errors::BadInput> {
-    if rc2k_core::drive::replay_frames::plays_inputs(race().course.numbers.replay_mode.get()) {
+pub fn play_inputs_if(race: &Race) -> Result<(), crate::errors::BadInput> {
+    if rc2k_core::drive::replay_frames::plays_inputs(race.course.numbers.replay_mode.get()) {
         crate::drive::play_inputs::play_inputs()?;
     }
     Ok(())

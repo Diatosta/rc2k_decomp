@@ -18,7 +18,7 @@
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::physics::car_store::CAR;
 use crate::race::frame_draw::sample_noise;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
@@ -36,8 +36,7 @@ fn sample(x: usize) -> Result<u32, crate::errors::BadInput> {
 /// The Rust version.
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
-pub fn surface_noise() -> Result<(), crate::errors::BadInput> {
-    let course = &race().course;
+pub fn surface_noise(course: &Course) -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
             sample(0x50)?,

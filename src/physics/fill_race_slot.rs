@@ -21,7 +21,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::rotate_point::rotate_point;
@@ -30,7 +30,7 @@ use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 /// The Rust version: part `part` (eax) into a race slot. The registers the original leaves
 /// are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::choose_slot` (the slot; the floats stay x87).
-pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
+pub fn fill_race_slot(course: &Course, part: u32) -> Result<(), Refused> {
     if part > LAST_PART {
         return Err(BadInput("a part past 0xFF").into());
     }
@@ -71,7 +71,7 @@ pub fn fill_race_slot(part: u32) -> Result<(), Refused> {
         OBJECT_WORK.object_position[1].get() as i32,
         k,
         CAR.velocity[1].bits(),
-        Some(race().course.numbers.two.bits()),
+        Some(course.numbers.two.bits()),
     ));
     slot.motion[2].set_bits(int_mul_add(
         OBJECT_WORK.object_position[2].get() as i32,

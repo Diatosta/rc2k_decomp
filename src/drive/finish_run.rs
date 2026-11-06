@@ -23,13 +23,12 @@ use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::state_store::RACE_STATE;
 
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
-fn lift_car() {
-    let race = race();
+fn lift_car(race: &Race) {
     CAR_BLOCKS.cars[0].position[1].set_bits(to_int(
         ld(race.replay.finish.unknown_20.bits()) * ld(race.course.numbers.k65536.bits())
             + int(CAR_BLOCKS.cars[0].position[1].bits() as i32),
@@ -38,9 +37,8 @@ fn lift_car() {
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
 /// `drive::finish_race`'s call has no read point).
-pub fn finish_run() -> Result<(), Refused> {
-    let race = race();
-    lift_car();
+pub fn finish_run(race: &Race) -> Result<(), Refused> {
+    lift_car(race);
     restart_clock();
     race.frame
         .clock_ticks
@@ -64,7 +62,7 @@ pub fn finish_run() -> Result<(), Refused> {
             .revs
             .set(0);
         input_update();
-        crate::drive::finish_timing::finish_timing();
+        crate::drive::finish_timing::finish_timing(race);
         let n = RACE_STATE.results.finished.get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());
@@ -81,7 +79,7 @@ pub fn finish_run() -> Result<(), Refused> {
         }
         CAR_BLOCKS.cars[0].camera_view.set_bits(6);
         crate::race::frame_views::load_first_car()?;
-        crate::drive::finish_camera::finish_camera();
+        crate::drive::finish_camera::finish_camera(&race.replay);
         crate::physics::camera_frame::camera_frame()?;
         crate::drive::store_first_car::store_first_car()?;
         race_frame()?;
@@ -111,7 +109,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_lift(a[0]) },
-            plain: |_| lift_car(),
+            plain: |_| lift_car(crate::race::owner::race()),
         }];
         sparse(&blocks, 4000, 204);
     }

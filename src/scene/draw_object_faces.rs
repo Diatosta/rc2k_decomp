@@ -16,7 +16,6 @@
 //! caller, `sub_45045D`. Refuses a face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_work_store::LIGHT_WORK;
@@ -40,9 +39,9 @@ fn listed_dword(n: usize) -> Result<u32, BadInput> {
 }
 
 pub fn draw_object_faces(
+    race: &crate::race::owner::Race,
     draw: &mut dyn FnMut(usize) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let race = race();
     let listed: u32 = LIGHT_WORK.listed_face_count.bits();
     if listed == 0 {
         return Ok(());

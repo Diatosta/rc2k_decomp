@@ -15,6 +15,7 @@
 //! (what it had written is put back first).
 
 use crate::errors::BadInput;
+use crate::race::owner::race;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
 use crate::scene::draw_store::DRAW;
 use crate::session::Float;
@@ -53,6 +54,7 @@ fn outside_mask() -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
 }
 
 pub fn clip_polygon_to_screen() -> Result<(), BadInput> {
+    let course = &race().course;
     let (entries, mask) = outside_mask()?;
     DRAW.screen_clipped.set_bits(1u32);
     if mask == 0 {
@@ -68,7 +70,7 @@ pub fn clip_polygon_to_screen() -> Result<(), BadInput> {
             (8, Edge::Y(DRAW.clip_screen[1].bits()), false),
         ] {
             if mask & bit != 0 {
-                listed = clip_pass(listed, edge, inside_past, mask)?;
+                listed = clip_pass(course, listed, edge, inside_past, mask)?;
                 if DRAW.polygon_vertex_count.bits() < 3 {
                     break;
                 }

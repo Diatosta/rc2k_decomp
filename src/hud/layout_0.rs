@@ -15,7 +15,7 @@ use crate::hud::draw_signs::row;
 use crate::hud::owner::Hud;
 use crate::hud::store::rect_place;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use rc2k_core::hud::panels;
 
 /// A time made digits (`dword_75C08C` ..: `rc2k_core::hud::panels::time_digits`), each
@@ -29,8 +29,8 @@ pub fn time_digits(hud: &Hud, value: u32, base: u32) -> [u32; 6] {
 }
 
 /// A sprite: rectangle `rect` of `dword_75B940` at (x, y).
-pub fn sprite(hud: &Hud, rect: u32, x: u32, y: u32) -> Result<(), Refused> {
-    crate::hud::add_sprite::add_sprite(hud, x, y, rect_place(hud, rect))
+pub fn sprite(frame: &Frame, hud: &Hud, rect: u32, x: u32, y: u32) -> Result<(), Refused> {
+    crate::hud::add_sprite::add_sprite(frame, hud, x, y, rect_place(hud, rect))
 }
 
 /// The sign of a time into `dword_75C0A4`: `plus` or `minus`.
@@ -101,33 +101,33 @@ pub fn needle_sign(hud: &Hud, field: u32) -> u32 {
 /// The Rust version (see the header): the HUD of one player, `record` the HUD's record.
 // Converted: `rc2k_core::hud::panels` (the digits, signs, panels, leading digits, the
 // stage panel and the needle's sign)
-pub fn layout_0(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
+pub fn layout_0(frame: &Frame, hud: &Hud, record: GamePtr) -> Result<(), Refused> {
     use crate::hud::*;
     // A field of the record by an offset from a table or the caller, as the original walks it.
     let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
-    let flags = race().frame.panel_and_overlay.panel.hud_flags[0].get();
+    let flags = frame.panel_and_overlay.panel.hud_flags[0].get();
     hud.block.quad[0].set(0xE0);
     hud.block.texture.set(0xC6);
     if flags & 0x10 != 0 {
-        dials::disc(hud, record, &dials::DISC_0)?;
+        dials::disc(frame, hud, record, &dials::DISC_0)?;
     }
     hud.block.texture.set(0xC0);
     if flags & 0x40 != 0 {
-        draw_stage_bar::draw_stage_bar(hud)?;
+        draw_stage_bar::draw_stage_bar(frame, hud)?;
     }
     hud.block.quad[5].set(0xFFFF_FFFF);
     hud.block.quad[0].set(0xFF);
     hud.block.texture.set(0xDC);
-    icons_0::icons_0(hud, record)?;
+    icons_0::icons_0(frame, hud, record)?;
     hud.block.quad[5].set(0xFFFF_FFFF);
     hud.block.quad[0].set(0xFF);
     hud.block.texture.set(0xC1);
     if flags & 0x20 != 0 {
-        sprite(hud, 0x49, 9, 0x215)?;
+        sprite(frame, hud, 0x49, 9, 0x215)?;
         sprite(
+            frame,
             hud,
-            race()
-                .frame
+            frame
                 .panel_and_overlay
                 .panel
                 .view_a
@@ -138,27 +138,24 @@ pub fn layout_0(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
             0x21D,
         )?;
     }
-    let pick = needle_sign(
-        hud,
-        race().frame.panel_and_overlay.panel.start_values[0].get(),
-    );
+    let pick = needle_sign(hud, frame.panel_and_overlay.panel.start_values[0].get());
     if flags & 1 != 0 {
-        sprite(hud, pick, 0x21, 0x1B8)?;
+        sprite(frame, hud, pick, 0x21, 0x1B8)?;
     }
     hud.block.texture.set(0xC0);
     if flags & 0x10 != 0 {
-        sprite(hud, 0x5F, 0x282, 0x1B8)?;
+        sprite(frame, hud, 0x5F, 0x282, 0x1B8)?;
     }
     if flags & 0x40 != 0 {
-        draw_marker::draw_marker(hud)?;
+        draw_marker::draw_marker(frame, hud)?;
     }
     hud.block.quad[5].set(0xFFFF_FFFF);
     if flags & 0x80 != 0 {
-        draw_signs::draw_signs(hud, record, &draw_signs::LAYOUT_0)?;
+        draw_signs::draw_signs(frame, hud, record, &draw_signs::LAYOUT_0)?;
     }
     hud.block.texture.set(0xC1);
     if flags & 1 != 0 {
-        dials::needle(hud, record, &dials::NEEDLE_0)?;
+        dials::needle(frame, hud, record, &dials::NEEDLE_0)?;
     }
     if flags & 0x40 != 0 {
         let panels = [
@@ -179,29 +176,31 @@ pub fn layout_0(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
             let Some(rect) = panels::stage_rect(get(field)?) else {
                 continue;
             };
-            sprite(hud, rect, x, 1)?;
+            sprite(frame, hud, rect, x, 1)?;
             let t = time.get();
-            clock_panel(hud, t, xs, 0x13, &mut |r, x, y| sprite(hud, r, x, y))?;
+            clock_panel(hud, t, xs, 0x13, &mut |r, x, y| sprite(frame, hud, r, x, y))?;
         }
     }
     if flags & 2 != 0 {
-        let v = race().frame.panel_and_overlay.panel.view_a.place.get();
+        let v = frame.panel_and_overlay.panel.view_a.place.get();
         if v != 0xFFFF_FFFF {
             let d = time_digits(hud, v, 2);
             sign(hud, v, 0, 1);
-            sprite(hud, d[4], 0x60, row(0x36))?;
-            sprite(hud, d[5], 0x8C, row(0x36))?;
+            sprite(frame, hud, d[4], 0x60, row(frame, 0x36))?;
+            sprite(frame, hud, d[5], 0x8C, row(frame, 0x36))?;
         }
-        sprite(hud, 0, 0xE, row(0x33))?;
-        sprite(hud, 0x4A, 0xF, row(0x58))?;
+        sprite(frame, hud, 0, 0xE, row(frame, 0x33))?;
+        sprite(frame, hud, 0x4A, 0xF, row(frame, 0x58))?;
         let t = hud.block.times[2].get();
         let xs = [0x2E, 0x42, 0x56, 0x5E, 0x72, 0x86, 0x8E, 0xA2];
-        lap_panel(hud, t, xs, row(0x63), &mut |r, x, y| sprite(hud, r, x, y))?;
+        lap_panel(hud, t, xs, row(frame, 0x63), &mut |r, x, y| {
+            sprite(frame, hud, r, x, y)
+        })?;
     }
     if flags & 0x20 != 0 {
-        let v = race().frame.panel_and_overlay.panel.view_a.speed.get();
+        let v = frame.panel_and_overlay.panel.view_a.speed.get();
         leading_time(hud, v, [0x43, 0x57, 0x6B], 0x23F, &mut |r, x, y| {
-            sprite(hud, r, x, y)
+            sprite(frame, hud, r, x, y)
         })?;
     }
     Ok(())

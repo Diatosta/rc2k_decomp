@@ -22,7 +22,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::car_store::Car;
 use crate::physics::corner_hits_car::corner_hits_car;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -35,8 +35,8 @@ fn cars() -> u32 {
 
 /// The Rust version. The registers it leaves (ebx the cars looked at) are read by none
 /// of its callers.
-pub fn car_collisions() -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn car_collisions(race: &Race) -> Result<(), Refused> {
+    let physics = &race.physics;
     if !matches!(RACE_VARS.run_kind.get(), 0 | 2) {
         return Ok(());
     }
@@ -67,11 +67,11 @@ pub fn car_collisions() -> Result<(), Refused> {
             }));
             multiply_matrices(
                 &CAR.crash_matrix,
-                &race().frame.matrices.placed_matrix,
-                &race().frame.matrices.turned_matrix,
+                &race.frame.matrices.placed_matrix,
+                &race.frame.matrices.turned_matrix,
             );
             multiply_matrices(
-                &race().frame.matrices.turned_matrix,
+                &race.frame.matrices.turned_matrix,
                 &Car::at(block).car_inverse_matrix,
                 &physics.contact.corner_matrix,
             );
@@ -79,7 +79,7 @@ pub fn car_collisions() -> Result<(), Refused> {
                 physics.contact.corner_in[0].set_bits(physics.contact.corner_x[k].bits());
                 physics.contact.corner_in[1].set_bits(physics.contact.corner_y[k].bits());
                 physics.contact.corner_in[2].set_bits(physics.contact.corner_z[k].bits());
-                { corner_hits_car(block) }?;
+                { corner_hits_car(race, block) }?;
             }
         }
         Ok(())

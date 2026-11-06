@@ -43,7 +43,7 @@ use crate::effects::tuning::MARKS_FRAME;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
 use crate::session::{Bytes, Float};
 const TRAIL_COLOURS: i32 = 298;
@@ -108,7 +108,7 @@ fn refusal(particles: &Particles, ring: &Ring) -> Result<Option<&'static str>, R
 }
 
 /// The step of the kind at e (see the header): whether the entry dies.
-fn step(particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
+fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
     use crate::effects::{burst_particles, draw_particle, trail_particles};
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
@@ -198,7 +198,7 @@ fn step(particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
                     return Ok(true);
                 }
                 if particle(particles, e, 0x2C)? & 0x8000_0000 == 0 {
-                    trail_particles::trail_particles(particles, ring, e)?;
+                    trail_particles::trail_particles(frame, particles, ring, e)?;
                 }
                 keep_last()?;
             }
@@ -219,7 +219,12 @@ fn step(particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
                 ring.pool.index.set(i as u32);
                 let alpha = particle(particles, e, 0x3C)? & 0xFF00_0000;
                 let colour = (TRAIL_PALETTE.colours[i as usize] & 0xFF_FFFF) | alpha;
-                draw_particle::draw_particle(place()?, colour, particle(particles, e, 0x38)?);
+                draw_particle::draw_particle(
+                    frame,
+                    place()?,
+                    colour,
+                    particle(particles, e, 0x38)?,
+                );
                 keep_last()?;
             }
             kind => {
@@ -272,7 +277,7 @@ fn step(particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
                         size = size.wrapping_add(BIGGER);
                     }
                 }
-                draw_particle::draw_particle(place()?, colour, size);
+                draw_particle::draw_particle(frame, place()?, colour, size);
             }
         }
     }
@@ -280,7 +285,7 @@ fn step(particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn run_particles(particles: &Particles, ring: &Ring) -> Result<(), Refused> {
+pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Result<(), Refused> {
     if let Some(why) = refusal(particles, ring)? {
         return Err(BadInput(why).into());
     }
@@ -310,7 +315,7 @@ pub fn run_particles(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
                 MARKS_WORK.fpu_status.set(s as u32);
                 dies = s == 0x100;
                 if !dies {
-                    dies = step(particles, ring, e)?;
+                    dies = step(frame, particles, ring, e)?;
                 }
             }
             if dies {
@@ -341,7 +346,7 @@ pub fn run_particles(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
             s & 0xFFFF
         };
         let r = seed();
-        let view = |o: usize| race().frame.matrices.view_place[o / 4].bits();
+        let view = |o: usize| frame.matrices.view_place[o / 4].bits();
         let uv_k: u32 = DRAW_WORK.uv_k.bits();
         let wave = |k: &[crate::session::Float; 3], add: u32, cosine: bool| {
             x87::int_times3_wave_plus(
@@ -369,7 +374,7 @@ pub fn run_particles(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
             particles.puff_work.puff[n].set_bits(v);
         }
         let six = [mz, up, mx, z, y, x].map(extended);
-        crate::effects::add_drift_particle::add_drift_particle(particles, ring, 0, six)?;
+        crate::effects::add_drift_particle::add_drift_particle(frame, particles, ring, 0, six)?;
     }
     Ok(())
 }

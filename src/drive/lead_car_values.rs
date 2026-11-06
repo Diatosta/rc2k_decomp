@@ -1,13 +1,13 @@
 //! The eight fields of car block 0 that `drive::share_all_cars` keeps around its work:
 //! (block field, keeping place) pairs, in the original's order.
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::session::Dword;
 
 /// (car block 0's field, its keeping place): the camera's view, place and
 /// turns, and the 2-or-3 mode flag.
-pub fn pairs() -> [(&'static Dword, &'static Dword); 8] {
+pub fn pairs(frame: &Frame) -> [(&Dword, &Dword); 8] {
     let lead = crate::race::blocks_store::own_car();
-    let kept = &race().frame.frame_work.lead_kept;
+    let kept = &frame.frame_work.lead_kept;
     [
         (&lead.camera_view, &kept[0]),
         (&lead.camera_position[0], &kept[1]),

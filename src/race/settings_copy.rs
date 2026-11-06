@@ -12,6 +12,7 @@ use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::state_store::RACE_STATE;
 use crate::race::state_store::RaceCar;
@@ -172,6 +173,8 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         Ok(())
     }
     fn call(&mut self, a: Place) -> Result<(), Refused> {
+        let course = &race().course;
+        let physics = &race().physics;
         let Place::Routine(routine) = a else {
             unreachable!("a call of a variable");
         };
@@ -182,8 +185,8 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         {
             match routine {
                 Routine::ClearPlayerAbsences => clear_player_absences(),
-                Routine::CopyLeagueTable => copy_league_table()?,
-                Routine::StoreResultsByMode => store_results_by_mode(),
+                Routine::CopyLeagueTable => copy_league_table(course)?,
+                Routine::StoreResultsByMode => store_results_by_mode(physics),
             }
         }
         Ok(())
@@ -203,8 +206,8 @@ pub fn copy_settings_in() -> Result<(), Refused> {
 }
 
 /// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.
-pub fn copy_settings_out() -> Result<(), Refused> {
-    run(&race().replay.shaun_to_graham)
+pub fn copy_settings_out(replay: &Replay) -> Result<(), Refused> {
+    run(&replay.shaun_to_graham)
 }
 
 /// A float of a car block, picked by field.

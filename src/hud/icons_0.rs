@@ -7,12 +7,13 @@ use crate::errors::Refused;
 use crate::hud::draw_icon::draw_icon;
 use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
+use crate::race::owner_frame::Frame;
 
 /// The Rust version (see the header).
-pub fn icons_0(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
+pub fn icons_0(frame: &Frame, hud: &Hud, record: GamePtr) -> Result<(), Refused> {
     hud.block.icon_shift.set(0);
     hud.block
         .icon_scale
         .set_bits(hud.block.icon_scales[0].bits());
-    draw_icon(hud, record, 0xC8, 0)
+    draw_icon(frame, hud, record, 0xC8, 0)
 }

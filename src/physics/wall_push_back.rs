@@ -22,12 +22,11 @@ use crate::physics::flow::{copy_cells, fill_cells, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The steps, not guarded. The registers the original leaves are read by none of its
 /// callers.
-pub fn steps() -> Result<(), Refused> {
-    let race = race();
+pub fn steps(race: &Race) -> Result<(), Refused> {
     let work = &race.frame.scratch.work_vector;
     copy_cells(work, &CAR.velocity);
     negate(&work[0]);
@@ -42,8 +41,8 @@ pub fn steps() -> Result<(), Refused> {
     copy_cells(&race.physics.contact.contact_turn_speed, &CAR.spin);
     fill_cells(&race.physics.contact.contact_point, 0);
     race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(&PHYSICS.contacts[4]);
-    { crate::physics::place_sound_e1::place_sound_e1() }?;
+    contact_force(race, &PHYSICS.contacts[4]);
+    { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     PHYSICS.wall_heading.set(u32::MAX);
     Ok(())
 }

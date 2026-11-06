@@ -19,7 +19,6 @@
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
@@ -33,13 +32,16 @@ pub enum Step {
 }
 
 /// `sub_451EED` on the work table's records.
-fn needs_clipping(count: u32) -> Result<bool, BadInput> {
+fn needs_clipping(
+    course: &crate::race::owner_course::Course,
+    count: u32,
+) -> Result<bool, BadInput> {
     use rc2k_core::scene::polygons::{Edges, Vertex};
     if (count as i32).wrapping_sub(3) < 0 {
         return Ok(false);
     }
     let edges = Edges {
-        least: race().course.numbers.zero.get(),
+        least: course.numbers.zero.get(),
         right: DRAW.clip_screen[3].get(),
         bottom: DRAW.clip_screen[1].get(),
     };
@@ -59,9 +61,10 @@ fn needs_clipping(count: u32) -> Result<bool, BadInput> {
 
 // Converted: `rc2k_core::scene::polygons`
 pub fn draw_object_polygon(
+    race: &crate::race::owner::Race,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let physics = &race().physics;
+    let physics = &race.physics;
     use rc2k_core::scene::polygons::{drawn_whole, fan, first_list, fits};
     let count: u32 = DRAW.polygon_vertex_count.bits();
     if !fits(count) {
@@ -74,7 +77,7 @@ pub fn draw_object_polygon(
     }
     DRAW.polygon_next_entry.set_bits(count);
     step(Step::Project)?;
-    if drawn_whole(count, needs_clipping(count)?) {
+    if drawn_whole(count, needs_clipping(&race.course, count)?) {
         physics
             .ground
             .whole_polygon_count

@@ -21,6 +21,7 @@ use rc2k_core::physics::parts::{part_number, take_bit};
 /// slot. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::{take_bit, part_number}`.
 pub fn fill_slot_on_bit(bit: u32) -> Result<(), Refused> {
+    let course = &crate::race::owner::race().course;
     let (_, cleared) = take_bit(CAR.parts_present.get(), bit);
     let Some(cleared) = cleared else {
         return Ok(());
@@ -29,5 +30,5 @@ pub fn fill_slot_on_bit(bit: u32) -> Result<(), Refused> {
         return Err(BadInput("a part past 0xFF").into());
     };
     CAR.parts_present.set(cleared);
-    fill_race_slot(part)
+    fill_race_slot(course, part)
 }

@@ -23,6 +23,7 @@ use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
+use crate::race::owner_frame::Frame;
 /// `unk_628A44`, past the 0x40 records of 0xC0 bytes.
 const BUFFER_BYTES: usize = 0x3000;
 const KINDS: u32 = 8;
@@ -91,13 +92,17 @@ pub fn draw_batch() -> Result<(), Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_frame(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn windscreen_drops_frame(
+    frame: &Frame,
+    masks: &Masks,
+    drops: &WindscreenDrops,
+) -> Result<(), Refused> {
     if let Some(why) = refusal(drops)? {
         return Err(BadInput(why).into());
     }
     {
         if MARKS_KIND_FLOATS.running.bits() != 0 {
-            crate::effects::windscreen_drops_drift::windscreen_drops_drift(drops)?;
+            crate::effects::windscreen_drops_drift::windscreen_drops_drift(frame, drops)?;
         }
         crate::effects::windscreen_drops_setup::windscreen_drops_setup(drops);
         drops.state.live.set_bits(0u32);

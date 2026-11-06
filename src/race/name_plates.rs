@@ -8,7 +8,7 @@ use crate::errors::Refused;
 use crate::gfx::fonts_store::FONTS;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::strings::text_buffer::TEXT_BUFFER;
@@ -54,7 +54,7 @@ pub fn draw_plate_by_id(slot: u32, id: u32) -> Result<(), Refused> {
 /// `draw_name_plate`'s, below the name's three lines: two
 /// lines and three rows cleared, the texts at `dword_6D1838` and `dword_6D1844` in the time
 /// font (box 0x80 wide) at x 4, y three and four lines. Every register kept.
-pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
+pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     if lock_texture(slot)?.carry {
         return Ok(());
@@ -76,7 +76,7 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
     .into_iter()
     .zip(time_places(line))
     {
-        let text = GamePtr::to(&race().frame.panel_and_overlay.overlay).offset(label as u32);
+        let text = GamePtr::to(&frame.panel_and_overlay.overlay).offset(label as u32);
         FONTS.game_fonts[3].update(|f| f.box_width = TIME_BOX);
         draw_text_in_game(&FONTS.game_fonts[3], text, x, y)?;
     }
@@ -92,8 +92,7 @@ pub fn draw_time_plate(slot: u32) -> Result<(), Refused> {
 /// (`race::draw_plate_by_id`) or as a text pointer (`race::draw_name_plate`), into +0x724,
 /// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
 /// register it leaves. Refuses (before anything) a null view block.
-pub fn update_name_plates() -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn update_name_plates(frame: &Frame) -> Result<(), Refused> {
     let (Some(a), Some(b)) = (RACE_VIEW.view_car(0), RACE_VIEW.view_car(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };
@@ -114,7 +113,7 @@ pub fn update_name_plates() -> Result<(), Refused> {
         frame.panel_and_overlay.overlay.kept_ahead[1].get(),
     ];
     if times_changed(now, kept) {
-        draw_time_plate(KIND_TEXTURES.kind_first_textures[196].get())?;
+        draw_time_plate(frame, KIND_TEXTURES.kind_first_textures[196].get())?;
         for (from, to) in [
             (
                 &frame.panel_and_overlay.overlay.label_behind[0],

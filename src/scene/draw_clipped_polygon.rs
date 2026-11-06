@@ -16,6 +16,7 @@
 //! the texture coordinates were scaled hands the original a polygon it scales once more.
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 use crate::scene::clip_polygon_by_depth::clip_polygon_by_depth;
 use crate::scene::clip_polygon_to_screen::clip_polygon_to_screen;
 use crate::scene::draw_marked_polygon::draw_marked_polygon;
@@ -84,13 +85,15 @@ pub fn draw_clipped_polygon(
 
 /// The function with its parts' Rust versions, drawing for real.
 pub fn draw_clipped_polygon_in_game() -> Result<(), Refused> {
+    let race = race();
+    let course = &race.course;
     // The list stays as it is from the projection to the fog: listed once for the three.
     let mut entries = None;
     draw_clipped_polygon(&mut |step| {
         match step {
             Step::Project => {
                 let listed = entries.insert(crate::scene::polygon::listed()?);
-                project_entries(listed)?;
+                project_entries(course, listed)?;
             }
             Step::ScaleTextureCoordinates => match &entries {
                 Some(listed) if !listed.is_empty() => scale_entries(listed)?,
@@ -102,7 +105,7 @@ pub fn draw_clipped_polygon_in_game() -> Result<(), Refused> {
             },
             Step::ClipByDepth => clip_polygon_by_depth()?,
             Step::ClipToScreen => clip_polygon_to_screen()?,
-            Step::Draw => draw_marked_polygon(&mut || draw_polygon(&mut Game))?,
+            Step::Draw => draw_marked_polygon(&mut || draw_polygon(race, &mut Game))?,
         }
         Ok(())
     })

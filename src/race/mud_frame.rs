@@ -8,10 +8,11 @@
 //! See `race/mud.rs`. Refuses what `mud_texture_turn` refuses.
 
 use crate::errors::Refused;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 
 /// The Rust version (see the header).
-pub fn mud_frame() -> Result<(), Refused> {
+pub fn mud_frame(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{count_frame, texture_turn, next_texture}`.
     use crate::race::mud_texture_turn::mud_texture_turn;
     use rc2k_core::race::mud::{count_frame, next_texture, texture_turn};
@@ -23,7 +24,7 @@ pub fn mud_frame() -> Result<(), Refused> {
     RACE_VARS
         .mud_texture
         .set_bits(texture_turn(RACE_VARS.mud_texture.bits()));
-    mud_texture_turn()?;
+    mud_texture_turn(race)?;
     RACE_VARS
         .mud_texture
         .set_bits(next_texture(RACE_VARS.mud_texture.bits()));

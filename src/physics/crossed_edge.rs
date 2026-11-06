@@ -17,12 +17,13 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::crossed_edge_contact::check_probe;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
 
 /// The steps, not guarded (the probe checked before).
 // Converted: `rc2k_core::physics::walls::{NONE_CROSSED, raised_hit}`.
-pub fn steps() -> Result<(), Refused> {
-    let physics_store = &race().physics;
+pub fn steps(race: &Race) -> Result<(), Refused> {
+    let physics_store = &race.physics;
     let n = physics_store.contact.crossed_probe.get();
     if n == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
@@ -31,8 +32,8 @@ pub fn steps() -> Result<(), Refused> {
     CAR.contact_point[0].set_bits(CAR.probe_point_x[k].bits());
     CAR.contact_point[1].set_bits(CAR.probe_point_y[k].bits());
     CAR.contact_point[2].set_bits(CAR.probe_point_z[k].bits());
-    { crate::physics::restore_saved_car::restore_saved_car() }?;
-    crate::physics::crossed_edge_contact::steps()?;
+    { crate::physics::restore_saved_car::restore_saved_car(&race.physics) }?;
+    crate::physics::crossed_edge_contact::steps(race)?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(physics_store.contact.contact_speed_length.bits()),
         f32::from_bits(CAR.contact_depth.bits()),
@@ -41,19 +42,19 @@ pub fn steps() -> Result<(), Refused> {
     }
     CAR.contact_flag.set(1);
     CAR.wall_hit_timer.set(0x32);
-    crate::physics::feel_ground::feel_ground()
+    crate::physics::feel_ground::feel_ground(race)
 }
 
 /// The probe checked (-1 is none).
-pub fn check() -> Result<(), Refused> {
-    if race().physics.contact.crossed_probe.get() == rc2k_core::physics::walls::NONE_CROSSED {
+pub fn check(physics: &Physics) -> Result<(), Refused> {
+    if physics.contact.crossed_probe.get() == rc2k_core::physics::walls::NONE_CROSSED {
         return Ok(());
     }
-    check_probe()
+    check_probe(physics)
 }
 
 /// The Rust version. The registers it leaves are read by none of its callers.
-pub fn crossed_edge() -> Result<(), Refused> {
-    check()?;
-    steps()
+pub fn crossed_edge(race: &Race) -> Result<(), Refused> {
+    check(&race.physics)?;
+    steps(race)
 }

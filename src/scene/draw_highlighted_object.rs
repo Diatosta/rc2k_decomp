@@ -27,6 +27,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::state_store::MENU_STATE;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::assign_menu_textures::assign_menu_textures;
@@ -77,11 +78,12 @@ pub fn draw_highlighted(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 /// its caller's (register liveness, 2026-10-23), and the drawing reads none of what the
 /// calls before it leave (the eax and ebx `sub_49007F` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
+    let race = race();
     clear_depth_buffer();
     assign_kind_textures()?;
     assign_menu_textures()?;
     map_texture_places();
     load_slot_textures_in_game()?;
     LIGHT_STATE.draw_mode.set_bits(0u32);
-    draw_highlighted(&mut || draw_menu_object_in_game())
+    draw_highlighted(&mut || draw_menu_object_in_game(race))
 }

@@ -6,7 +6,9 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_frame::Frame;
+use crate::race::owner_physics::Physics;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::{Trap, car_at};
 use crate::race::vars_store::RACE_VARS;
@@ -25,7 +27,7 @@ use crate::session::SCREEN;
 /// `dword_623FB4` 0, `dword_624080` 0x100, `scene::set_view_window`), `dword_63993C` 0; the
 /// first also `dword_6365C4` 0. Its callers (`race::draw_race_scene`,
 /// `race::draw_mirror_view`) read no register it leaves.
-pub fn full_view_window(first: bool) {
+pub fn full_view_window(physics: &Physics, first: bool) {
     DRAW.view_size[0].set(SCREEN.width.get());
     DRAW.view_size[1].set(SCREEN.height.get());
     DRAW.view_offset[0].set(0);
@@ -35,7 +37,7 @@ pub fn full_view_window(first: bool) {
     if first {
         LIGHT_STATE.draw_mode.set(0);
     }
-    race().physics.ground.view_mirrored.set(0);
+    physics.ground.view_mirrored.set(0);
 }
 
 /// `race::mirror_view_window` (0x455F17): the rear-view mirror's window: its corner from
@@ -44,8 +46,7 @@ pub fn full_view_window(first: bool) {
 /// its edges `dword_624138` .. `dword_624144`; `dword_624080` 0x100,
 /// `scene::set_view_window`, the fog (`race::set_up_fog`), `dword_6365C4` 0,
 /// `dword_63993C` 1. Refuses (before anything) a size whose scaling would fault.
-pub fn mirror_view_window() -> Result<(), Refused> {
-    let race = race();
+pub fn mirror_view_window(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{Window, mirror_entry, mirror_window};
     let n = mirror_entry(
@@ -168,8 +169,7 @@ pub fn load_first_car() -> Result<(), Refused> {
 /// and unlocked by `d3d::lock_texture` / `d3d::unlock_texture` (carry: the lock failed).
 /// The registers it leaves are read by no caller. Refuses (before the copy) a null
 /// destination format.
-pub fn copy_mirror_picture() -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn copy_mirror_picture(frame: &Frame) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::copy_picture` (the last pixel's bits carried
     // from pixel to pixel as the original's; the formats' conversions the gfx module's).
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
@@ -258,8 +258,7 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 /// `byte_4F6B74` uploaded (`sub_44E828`, esi `dword_A12AE4`, eax the slot). Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a null
 /// view block or a slot past 0x3FF.
-pub fn forget_view_textures() -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn forget_view_textures(frame: &Frame) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{FORGET_ORDER, forgets, mirror_on,
     // check_slots}` (each switch read where the original reads it).
     use crate::scene::forget_slot_texture::forget_slot_texture;
@@ -334,7 +333,7 @@ pub fn forget_view_textures() -> Result<(), Refused> {
         .view_textures_forgotten
         .set(frame.frame_work.view_textures_forgotten.get() | MIRROR_BIT);
     if !uploaded {
-        copy_mirror_picture()?;
+        copy_mirror_picture(frame)?;
         forget_slot_texture(KIND_TEXTURES.kind_first_textures[200].get())?;
     } else {
         // `sub_44E828`, the platform's upload (then the slot forgotten): through the
@@ -364,8 +363,7 @@ fn window_corners() {
 /// (`scene::draw_tinted_quad`, which reads no register): with `dword_71C3E0` 0x283080 half through; else the sun's
 /// glare, `dword_6365F4` (held to 0 .. 0xFF) through, colour `dword_60A570` red,
 /// `byte_60A574` green, `byte_60A578` blue, none when 0; `g_sunOnScreen` put back after.
-pub fn draw_screen_tint() -> Result<(), Refused> {
-    let race = race();
+pub fn draw_screen_tint(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha,
     // glare_colour}`.
     use rc2k_core::race::view_steps::{NIGHT_ALPHA, NIGHT_COLOUR, glare_alpha, glare_colour};
@@ -415,8 +413,8 @@ pub fn clear_view_depth() {
 /// texture `dword_5D1E10`, render state 0x14 = 2, `g_polygonVertexCount` 4, the marks'
 /// overlays (`race::draw_marks_overlays`).
 /// Refuses (before anything) the car without its block.
-pub fn draw_own_car() -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn draw_own_car(race: &Race) -> Result<(), Refused> {
+    let frame = &race.frame;
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
     if FRAME_SWITCHES.other_way.get() == 0 {
@@ -443,7 +441,7 @@ pub fn draw_own_car() -> Result<(), Refused> {
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
     // `race::draw_car_shined` reads only esi, the car's block.
-    crate::race::car_draw::draw_car_shined(car)?;
+    crate::race::car_draw::draw_car_shined(race, car)?;
     frame.view_and_records.view_vars.group_mask.set(u32::MAX);
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].get());
     crate::scene::set_render_state::set_render_state(2, 0x14);
@@ -466,8 +464,7 @@ fn int_over_times(i: u32, a: u32, b: u32) -> u32 {
 /// `flt_6416C0[]`, height / `flt_5C5D70` x `flt_6416D4[]`) for `effects::frame_marks` (part 1)
 /// and, unless `dword_6416B8`, `effects::run_frame` (part 2), the centre put back. Refuses
 /// (before anything) a null view block or car record, or no marks settings.
-pub fn run_view_marks() -> Result<(), Refused> {
-    let race = race();
+pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view_steps::{check_view_marks, marks_shown,
     // layout_index, first_word}` (the centre's floats the x87's).
     use rc2k_core::race::view_steps::{

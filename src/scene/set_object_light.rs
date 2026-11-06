@@ -24,7 +24,6 @@
 
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
-use crate::race::owner::race;
 use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::add_car_lights;
 use crate::scene::add_point_lights::add_point_lights;
@@ -40,8 +39,10 @@ use crate::session::MACHINE;
 
 /// `gather`: what stands for `scene::add_car_lights` and `scene::add_point_lights`.
 // Converted: `rc2k_core::scene::lamps::object_light`
-pub fn set_object_light(gather: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let race = race();
+pub fn set_object_light(
+    race: &crate::race::owner::Race,
+    gather: &mut dyn FnMut() -> Result<(), Refused>,
+) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     OBJECT_WORK.light_added.set_bits(0u32);
     let (clear_strength, own_car) = match object_light(LIGHT_WORK.light_kind.bits(), || {
@@ -85,13 +86,13 @@ pub fn set_object_light(gather: &mut dyn FnMut() -> Result<(), Refused>) -> Resu
 }
 
 /// With the lamps' Rust versions.
-pub fn set_object_light_in_game() -> Result<(), Refused> {
-    set_object_light(&mut || {
+pub fn set_object_light_in_game(race: &crate::race::owner::Race) -> Result<(), Refused> {
+    set_object_light(race, &mut || {
         add_car_lights(&mut |car| {
-            add_car_light(car);
+            add_car_light(&race.course, car);
             Ok(())
         })?;
-        add_point_lights()?;
+        add_point_lights(race)?;
         Ok(())
     })
 }

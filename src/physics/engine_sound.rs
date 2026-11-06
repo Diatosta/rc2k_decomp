@@ -26,7 +26,8 @@ use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_change_sound::gear_change_sound;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::extended;
@@ -34,16 +35,15 @@ use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
 /// 0x43DC72 .. 0x43DCC6: the speed figures (the original's `test` / `jz` is the `if`).
-fn run() {
-    run_at();
+fn run(course: &Course) {
+    run_at(course);
 }
 
 /// The run over the work car's figures:
 /// +0x31AEE0 the speed x `flt_5C5D00`; +0x31AA88 that (x `flt_5C5E08` with bit 8 of
 /// +0x31A1F8) as a whole number; +0x31A26C the length of the motion (+0x31A170 ..) x
 /// `flt_5C5D00`, the squares added as the original adds them (z, then x and y).
-fn run_at() {
-    let course = &race().course;
+fn run_at(course: &Course) {
     CAR.engine_speed_scaled.set_bits(st(
         ld(CAR.local_velocity[2].bits()) * ld(course.numbers.two_and_a_quarter.bits())
     ));
@@ -68,11 +68,11 @@ fn run_at() {
 /// The Rust version.
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
-pub fn engine_sound() -> Result<(), Refused> {
+pub fn engine_sound(race: &Race) -> Result<(), Refused> {
     if RACE_VIEW.players.get() == 1 && RACE_VIEW.view_block(0) == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }
-    run();
+    run(&race.course);
     DRAW.scratch.set(x87::loaded(CAR.engine_speed.bits()));
     let floor = PHYSICS.idle_engine_speed.bits();
     let held = hold_low(f32::from_bits(DRAW.scratch.get()), f32::from_bits(floor));
@@ -81,7 +81,7 @@ pub fn engine_sound() -> Result<(), Refused> {
         .set(ext_to_int(extended(DRAW.scratch.get())) as u32);
     let (revs, _) = ease_revs(CAR.engine_sound_revs.get(), DRAW.scratch.get());
     CAR.engine_sound_revs.set(revs);
-    { car_sound_state() }?;
+    { car_sound_state(race) }?;
     gear_change_sound()
 }
 
@@ -131,7 +131,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0]) },
-            plain: |_| run_at(),
+            plain: |_| run_at(&crate::race::owner::race().course),
         }];
         sparse(&blocks, 4000, 200);
     }

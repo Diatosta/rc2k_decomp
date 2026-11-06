@@ -10,7 +10,7 @@ use crate::effects::shape_work::MarkShapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::matrix3::{Axis, extended, turn_matrix3, turnable};
 use crate::session::{Bytes, Dword, Float, read_bits, write_bits};
 
@@ -287,7 +287,11 @@ fn shape_set_checks(drops: &WindscreenDrops, object: u32) -> Result<(), Refused>
 /// (`turn_matrix3_x`, `transform_int_points`); `find_farthest_pairs`; the block copied to
 /// set n (`memory::move_bytes`), n counted. Refuses a set count past 0x22, an object past
 /// 0xFF or faces past `g_faces`, a tilt `fsincos` cannot take, before writing.
-pub fn make_shape_set(drops: &WindscreenDrops, object: u32) -> Result<(), Refused> {
+pub fn make_shape_set(
+    course: &Course,
+    drops: &WindscreenDrops,
+    object: u32,
+) -> Result<(), Refused> {
     use crate::effects::masks::collect_points;
     use crate::scene::object_slots_store::OBJECT_SLOTS;
     shape_set_checks(drops, object)?;
@@ -342,7 +346,7 @@ pub fn make_shape_set(drops: &WindscreenDrops, object: u32) -> Result<(), Refuse
     }
     let lists = [PointList::a(drops), PointList::b(drops)];
     let counts = [listed(lists[0].count)?, listed(lists[1].count)?];
-    let points: u32 = race().course.lists.object_points.bits();
+    let points: u32 = course.lists.object_points.bits();
     for (list, n) in lists.into_iter().zip(counts) {
         for id in list.ids[..n as usize].iter().rev() {
             id.set(id.get().wrapping_mul(12).wrapping_add(points));
@@ -402,7 +406,7 @@ pub fn make_shape_set(drops: &WindscreenDrops, object: u32) -> Result<(), Refuse
 /// inputs (the tilt twice into 0x764F60, _64; the kind's two values and two floats into
 /// 0x764F6C .. _78) and `make_shape_set`. Refuses a kind of 0x22 or more, more than 19
 /// objects, what `make_shape_set` refuses for any of them, before writing.
-pub fn make_shape_sets(drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn make_shape_sets(course: &Course, drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let kind: u32 = MARKS_KIND.kind.bits();
         if kind >= SETS {
@@ -451,7 +455,7 @@ pub fn make_shape_sets(drops: &WindscreenDrops) -> Result<(), Refused> {
         for o in objects {
             write_bits(&drops.inputs.tilts, tilts);
             write_bits(&drops.inputs.ends, ends);
-            make_shape_set(drops, o)?;
+            make_shape_set(course, drops, o)?;
         }
     }
     Ok(())

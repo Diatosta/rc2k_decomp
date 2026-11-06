@@ -8,12 +8,11 @@
 //! Caller: `sub_43907F` (0x4392F3).
 
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use crate::session::Cell32;
 use rc2k_core::physics::easing::ease_down;
 
-fn game() -> Vec<&'static dyn Cell32> {
-    let physics = &race().physics;
+fn game(physics: &Physics) -> Vec<&dyn Cell32> {
     vec![
         &CAR.camera_pitch as &dyn Cell32,
         &physics.camera.pitch_floor,
@@ -31,6 +30,6 @@ fn core(v: &[&dyn Cell32]) {
 }
 
 /// The Rust version.
-pub fn ease_pitch_down() {
-    core(&game());
+pub fn ease_pitch_down(physics: &Physics) {
+    core(&game(physics));
 }

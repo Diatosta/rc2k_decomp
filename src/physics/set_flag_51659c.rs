@@ -8,8 +8,9 @@
 
 use crate::errors::Refused;
 use crate::physics::listed_car_flags::set_flag;
+use crate::race::owner_frame::Frame;
 
 /// The Rust version.
-pub fn set_flag_51659c() -> Result<(), Refused> {
-    set_flag(&crate::sound::owner::sound().race.stage.once[0])
+pub fn set_flag_51659c(frame: &Frame) -> Result<(), Refused> {
+    set_flag(frame, &crate::sound::owner::sound().race.stage.once[0])
 }

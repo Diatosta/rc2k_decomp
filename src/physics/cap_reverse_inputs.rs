@@ -10,7 +10,7 @@
 
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::session::Cell32;
 use rc2k_core::physics::drive_forces::cap_reverse;
 
@@ -21,8 +21,12 @@ fn at(a: &dyn Cell32) -> u32 {
 /// The converted version (`rc2k_core::physics::drive_forces`) on the gear, the speed and
 /// the two values at these places.
 // Converted: `rc2k_core::physics::drive_forces::cap_reverse`.
-pub fn cap_reverse_inputs_at(gear: &dyn Cell32, speed: &dyn Cell32, values: [&dyn Cell32; 2]) {
-    let course = &race().course;
+pub fn cap_reverse_inputs_at(
+    course: &Course,
+    gear: &dyn Cell32,
+    speed: &dyn Cell32,
+    values: [&dyn Cell32; 2],
+) {
     if at(gear) != u32::MAX {
         return; // the speed and the values not read, as the original
     }
@@ -41,8 +45,9 @@ pub fn cap_reverse_inputs_at(gear: &dyn Cell32, speed: &dyn Cell32, values: [&dy
 }
 
 /// The Rust version (compares and copies of floats only: the same at any precision).
-pub fn cap_reverse_inputs() {
+pub fn cap_reverse_inputs(course: &Course) {
     cap_reverse_inputs_at(
+        course,
         &CAR.gear,
         &CAR.local_velocity[2],
         [&PHYSICS.wheel_slips[0], &PHYSICS.wheel_slips[1]],

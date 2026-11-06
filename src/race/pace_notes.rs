@@ -27,6 +27,7 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::tables_store::PHYSICS;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use crate::race::vars_store::RACE_VARS;
 pub use rc2k_core::race::pace_notes::IMAGE_START;
 use rc2k_core::race::pace_notes::{IMAGE_LEN, Notes, Stage};
@@ -115,21 +116,22 @@ impl std::ops::DerefMut for Machine {
 }
 
 /// The tables the machine works on: the pace store from `IMAGE_START` to its end.
-fn tables() -> GamePtr {
+fn tables(physics: &Physics) -> GamePtr {
     use crate::physics::pace_store::{END, START};
     const _: () = assert!(IMAGE_START as usize >= START && IMAGE_START as usize + IMAGE_LEN == END);
     // The tables are the image's bytes, read by the notes' own offsets.
-    GamePtr::to(&race().physics.pace).offset(IMAGE_START - START as u32)
+    GamePtr::to(&physics.pace).offset(IMAGE_START - START as u32)
 }
 
 impl Machine {
     pub fn load(course: Course) -> Result<Self, BadInput> {
+        let physics = &race().physics;
         if let Ok(mut held) = REFUSED.lock() {
             *held = None;
         }
         Ok(Self(Notes::new(
             PHYSICS.pace_slot.bits(),
-            tables().read_bytes(IMAGE_LEN, "the pace notes' tables")?,
+            tables(physics).read_bytes(IMAGE_LEN, "the pace notes' tables")?,
             course,
             &STAGE,
         )))
@@ -137,8 +139,9 @@ impl Machine {
 
     /// The slot and the tables written back.
     pub fn commit(&self) -> Result<(), BadInput> {
+        let physics = &race().physics;
         PHYSICS.pace_slot.set_bits(self.slot);
-        tables().write_bytes(&self.image, "the pace notes' tables")
+        tables(physics).write_bytes(&self.image, "the pace notes' tables")
     }
 
     /// `sub_441A66` (`race::init_pace_notes`).

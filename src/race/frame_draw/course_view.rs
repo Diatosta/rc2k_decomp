@@ -5,7 +5,10 @@ use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::checkpoints_store::CHECKPOINTS;
+use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
+use crate::race::owner_frame::Frame;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::Trap;
 use crate::race::vars_store::RACE_VARS;
@@ -42,7 +45,7 @@ pub fn add_sort_entry(kind: u32, face: u32) -> Result<(), Refused> {
 /// `CHECKPOINTS.angles[2][checkpoint]` - `CAR.car_heading`; `LEVEL_GRID.far_cell_limit` the low (twice the distance
 /// below 0x40000000 as signed), the high (from 0xC0000000), else the larger. The tables are
 /// read unchecked, as the original.
-pub fn checkpoint_colours() -> Result<(), BadInput> {
+pub fn checkpoint_colours(course: &Course) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::frame::checkpoint_colours`.
     {
         let n: u32 = CAR.checkpoint.get();
@@ -56,7 +59,7 @@ pub fn checkpoint_colours() -> Result<(), BadInput> {
         PHYSICS.checkpoint_colours[0].set(c.near);
         PHYSICS.checkpoint_colours[1].set(c.far);
         PHYSICS.checkpoint_colours[2].set(c.distance);
-        race().course.level_grid.far_cell_limit.set(c.level);
+        course.level_grid.far_cell_limit.set(c.level);
     }
     Ok(())
 }
@@ -73,8 +76,8 @@ pub fn point_record(point: u32) -> Result<u32, Refused> {
 }
 
 /// What `point_record` needs to make a record: the records and the points.
-pub fn points_there() -> Result<(), Refused> {
-    if !crate::scene::point_records::held() || race().course.course.scene_points.bits() == 0 {
+pub fn points_there(course: &Course) -> Result<(), Refused> {
+    if !crate::scene::point_records::held() || course.course.scene_points.bits() == 0 {
         return Err(BadInput("no point records or no points").into());
     }
     Ok(())
@@ -85,8 +88,7 @@ pub fn points_there() -> Result<(), Refused> {
 /// has a bit of `race().frame.frame_work.face_hide_mask`; else by its first point's record (+4): `OBJECT_WORK.object_position` = |x|
 /// and `OBJECT_WORK.face_depth` = depth + `LEVEL_GRID.depth_shift` as whole numbers, hidden when the depth is below
 /// |x| (the sign of the difference). Refuses (before anything) no point records or points.
-pub fn face_hidden(face: &rc2k_core::race::faces::Face) -> Result<bool, Refused> {
-    let race = race();
+pub fn face_hidden(race: &Race, face: &rc2k_core::race::faces::Face) -> Result<bool, Refused> {
     // Converted: `rc2k_core::race::faces::{hidden_by_switches, hidden_by_depth}`; the
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
@@ -111,7 +113,7 @@ pub fn face_hidden(face: &rc2k_core::race::faces::Face) -> Result<bool, Refused>
     if hidden {
         return Ok(true);
     }
-    points_there()?;
+    points_there(&race.course)?;
     let record = point_record(face.point(0))?;
     let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
     OBJECT_WORK.object_position[0].set_bits(x as u32);
@@ -129,9 +131,9 @@ pub fn face_hidden(face: &rc2k_core::race::faces::Face) -> Result<bool, Refused>
 /// 1, the largest of its four points' depths (+4 .. +0x10, each `fistp`, through
 /// `DRAW.scratch`), otherwise their float sum `fistp`'d and shifted right 2. Then + 0x2000000,
 /// shifted right 10 (logical). Refuses (before anything) no point records or points.
-pub fn face_depth(face: u32) -> Result<(), Refused> {
+pub fn face_depth(course: &Course, face: u32) -> Result<(), Refused> {
     use crate::math::x87::{add, to_int};
-    points_there()?;
+    points_there(course)?;
     let depth = |k: u32| -> Result<u32, Refused> {
         let record = point_record(face_field(face, 4 + 4 * k)?)?;
         Ok(crate::scene::point_records::field(record, 0x18)?)
@@ -187,11 +189,11 @@ pub fn face_depth(face: u32) -> Result<(), Refused> {
 /// `race::add_depth_entry` (0x454D2A): `face_depth` of `face`, then entry `RACE_VIEW.depth_entry_count` of
 /// `FACES.depth_entries`: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
 /// entry past the 0x1000, or what `face_depth` refuses.
-pub fn add_depth_entry(face: u32) -> Result<(), Refused> {
+pub fn add_depth_entry(course: &Course, face: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::faces::depth_entry_room`.
     let n: u32 = RACE_VIEW.depth_entry_count.bits();
     rc2k_core::race::faces::depth_entry_room(n)?;
-    face_depth(face)?;
+    face_depth(course, face)?;
     let key: u32 = RACE_VIEW.face_depth_key.bits();
     let at = depth_entry(n)?;
     at[0].set(key);
@@ -210,8 +212,7 @@ pub fn add_depth_entry(face: u32) -> Result<(), Refused> {
 /// the corner (& 0x7FF) is within the span on both axes goes in at row z, column x.
 /// Refuses (before anything is written) no records when the grid
 /// is to be made (the original's loop would run on: it tests `jnz` after the first).
-pub fn course_grid() -> Result<(), Refused> {
-    let race = race();
+pub fn course_grid(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::frame::{hold_to_limit, grid_corner, record_cell,
     // grid_cell}`.
     use rc2k_core::race::frame::{GRID_EMPTY, GRID_SIDE, grid_cell, grid_corner, record_cell};
@@ -263,8 +264,7 @@ pub(super) fn byte_at(table: &crate::session::Bytes<256>, n: u32) -> Result<u32,
 }
 
 /// The four face tables (`object_bytes`' outputs).
-pub(super) fn face_tables() -> [&'static crate::session::Bytes<256>; 4] {
-    let course = &race().course;
+pub(super) fn face_tables(course: &Course) -> [&'_ crate::session::Bytes<256>; 4] {
     [
         &course.level_grid.face_table_a,
         &course.level_grid.face_table_b,
@@ -286,7 +286,7 @@ pub(super) fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> 
 /// kinds below 0x10 the object is +1, or +0x21 when +1 is 0.
 /// Refuses a last face of -1 (the loop would not end); the full tables and missing points
 /// are refused where they are met.
-pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
+pub fn gather_record_faces(race: &Race, record: u32) -> Result<(), Refused> {
     let Some((first, last)) = record_faces(record)? else {
         return Ok(());
     };
@@ -295,23 +295,23 @@ pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
     }
     let mut face = first;
     loop {
-        race().course.course.current_course_face.set_bits(face);
+        race.course.course.current_course_face.set_bits(face);
         // The face read once for its kind, objects, switches and first point.
         let read = crate::race::course_places::face_number(face, "a course face")?;
         let kind = read.kind();
         // Converted: `rc2k_core::race::faces::{gathered, face_object}`.
         use rc2k_core::race::faces::{Gathered, face_object, gathered};
         let how = gathered(kind);
-        if how != Gathered::No && !face_hidden(&read)? {
+        if how != Gathered::No && !face_hidden(race, &read)? {
             let object = face_object(how, read.object(), || read.second_object());
-            let tables = face_tables();
+            let tables = face_tables(&race.course);
             let (depth_table, kind_table) = if how == Gathered::Lit {
                 (tables[1], tables[3])
             } else {
                 (tables[0], tables[2])
             };
             if byte_at(depth_table, object)? != 0 {
-                add_depth_entry(face)?;
+                add_depth_entry(&race.course, face)?;
             } else {
                 add_sort_entry(byte_at(kind_table, object)?, face)?;
             }
@@ -328,9 +328,11 @@ pub fn gather_record_faces(record: u32) -> Result<(), Refused> {
 /// `g_courseGrid` (numbers below 0x0FFFFFFF), then of the last record once more (its "already
 /// done" test sets ebp, so it is lost: `notes/bugs.md`). Refuses as `gather_record_faces`.
 pub fn gather_visible_faces() -> Result<(), Refused> {
-    let todo = visible_records()?;
+    let race = race();
+    let course = &race.course;
+    let todo = visible_records(course)?;
     for &record in &todo {
-        gather_record_faces(record)?;
+        gather_record_faces(race, record)?;
     }
     Ok(())
 }
@@ -338,7 +340,7 @@ pub fn gather_visible_faces() -> Result<(), Refused> {
 /// `race::face_hide_mask` (0x456056): `physics::probe_ground`, then, unless the face under
 /// the car (`g_car` +0xE00) is -1, `race().frame.frame_work.face_hide_mask` = its +2 word's bits 1 and 3 flipped
 /// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
-pub fn face_hide_mask() -> Result<(), Refused> {
+pub fn face_hide_mask(frame: &Frame) -> Result<(), Refused> {
     crate::physics::probe_ground::probe_ground()?;
     let ground: u32 = CAR.probe_point_face[4].bits();
     if ground == u32::MAX {
@@ -346,8 +348,7 @@ pub fn face_hide_mask() -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::race::faces::hide_mask`.
     let word: u16 = face_field(ground, 2)?;
-    race()
-        .frame
+    frame
         .frame_work
         .face_hide_mask
         .set_bits(rc2k_core::race::faces::hide_mask(word));
@@ -360,8 +361,7 @@ pub fn face_hide_mask() -> Result<(), Refused> {
 /// `DRAW.scratch`, then its length there): not marked when the length is below 2.0; marked
 /// (bit 31) when the turned z is below 0, or when |x / 2| - 2 is not below z, or when the
 /// length is not below `LEVEL_GRID.far_cell_limit` (as a float, `DRAW.work_float_b`).
-pub fn mark_far_cells() -> Result<(), BadInput> {
-    let race = race();
+pub fn mark_far_cells(race: &Race) -> Result<(), BadInput> {
     use crate::math::x87_load::{below_or_unordered, float_hypot, scaled_abs_less_below};
     let grid = &race.course.level_grid.course_grid;
     for k in 0..0x400 {
@@ -404,35 +404,36 @@ pub fn mark_far_cells() -> Result<(), BadInput> {
 /// with two checkpoints or more (`g_checkpointCount`), and `mark_far_cells`. Refuses
 /// (before anything) what `course_grid` would.
 pub fn prepare_course_view() -> Result<(), Refused> {
-    let course = &race().course;
-    check_course_grid()?;
+    let race = race();
+    let course = &race.course;
+    let frame = &race.frame;
+    check_course_grid(course)?;
     // `face_hide_mask` first: its `probe_ground` may refuse, and neither reads
     // `LEVEL_GRID.far_cell_limit`, so the 0x10 written before it in the original comes after here.
-    face_hide_mask()?;
+    face_hide_mask(frame)?;
     course.level_grid.far_cell_limit.set(0x10u32);
-    course_grid()?;
+    course_grid(race)?;
     if FRAME_SWITCHES.other_way.bits() == 0 {
         return Ok(());
     }
     course.level_grid.far_cell_limit.set(0x10u32);
     if RACE_VARS.checkpoint_count.get() >= 2 {
-        checkpoint_colours()?;
+        checkpoint_colours(course)?;
     }
-    mark_far_cells()?;
+    mark_far_cells(race)?;
     Ok(())
 }
 
 /// `course_grid`'s refusal, before anything.
-pub(super) fn check_course_grid() -> Result<(), Refused> {
-    if race().course.course.course_record_count.bits() == 0 {
+pub(super) fn check_course_grid(course: &Course) -> Result<(), Refused> {
+    if course.course.course_record_count.bits() == 0 {
         return Err(BadInput("no course records").into());
     }
     Ok(())
 }
 
 /// The records `gather_visible_faces` gathers, as it would.
-pub fn visible_records() -> Result<Vec<u32>, BadInput> {
-    let course = &race().course;
+pub fn visible_records(course: &Course) -> Result<Vec<u32>, BadInput> {
     // Converted: `rc2k_core::race::view::visible_records`.
     let grid = &course.level_grid.course_grid;
     let list = rc2k_core::race::view::visible_records(

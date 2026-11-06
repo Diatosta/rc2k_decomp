@@ -17,14 +17,15 @@ use crate::errors::Refused;
 use crate::math::turn_point_xz::turn_point_xz;
 use crate::physics::camera_ground::probe_at;
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::physics::camera_ground::SIDES;
 
 /// The Rust version: whether the camera and both sides are over ground (CF clear). The
 /// registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::SIDES`.
-pub fn camera_over_ground() -> Result<bool, Refused> {
+pub fn camera_over_ground(race: &Race) -> Result<bool, Refused> {
     if !probe_at(
+        race,
         CAR.camera_position[0].get(),
         CAR.camera_position[2].get(),
         &CAR.camera_ground_faces[0],
@@ -32,11 +33,12 @@ pub fn camera_over_ground() -> Result<bool, Refused> {
         return Ok(false);
     }
     for (side, slot) in SIDES.into_iter().zip(&CAR.camera_ground_faces[1..]) {
-        race().course.course.ground_face_last.set(slot.get());
+        race.course.course.ground_face_last.set(slot.get());
         // The y (the original's ebx, a leftover) only goes through the scratch point,
         // which nothing reads after: 0 here.
         let [x, _, z, _] = turn_point_xz(side as i32, 0, 0, CAR.camera_heading.get());
         if !probe_at(
+            race,
             x.wrapping_add(CAR.camera_position[0].get()),
             z.wrapping_add(CAR.camera_position[2].get()),
             slot,

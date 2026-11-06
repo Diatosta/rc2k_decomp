@@ -9,6 +9,7 @@
 //! original's; a call by address goes through `routes.rs`, which maps them.
 
 use crate::errors::BadInput;
+use crate::race::owner::race;
 use crate::scene::load_slot_texture::load_slot_texture_in_game;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 
@@ -29,5 +30,6 @@ pub fn load_slot_textures(
 
 /// With the game's loading.
 pub fn load_slot_textures_in_game() -> Result<u32, BadInput> {
-    load_slot_textures(&mut |slot| load_slot_texture_in_game(slot))
+    let frame = &race().frame;
+    load_slot_textures(&mut |slot| load_slot_texture_in_game(frame, slot))
 }

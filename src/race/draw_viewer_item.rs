@@ -15,20 +15,20 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::{ReplayViewBlock, ViewerPicture};
 use crate::session::Dword;
 
-fn camera_byte(byte: usize) -> Result<u32, BadInput> {
+fn camera_byte(replay: &Replay, byte: usize) -> Result<u32, BadInput> {
     Ok(crate::race::viewer::camera_byte_at(
-        byte.wrapping_add(8 * race().replay.replay_view.replay_block.get() as usize),
+        byte.wrapping_add(8 * replay.replay_view.replay_block.get() as usize),
     )? as u32)
 }
 
 /// The Rust version. `item` the list item (the original's esi: its 16 bytes), `index` its number
 /// (ecx). The original keeps every register.
-pub fn draw_viewer_item(item: &[Dword; 4], index: u32) -> Result<(), Refused> {
+pub fn draw_viewer_item(replay: &Replay, item: &[Dword; 4], index: u32) -> Result<(), Refused> {
     // Its first dword's low bytes: the flags and the switch.
     let byte = |n: u32| (item[0].get() >> (8 * n)) as u8;
     // Converted: `rc2k_core::race::viewer::{switch_byte, centred, item_colour}`.
@@ -36,11 +36,11 @@ pub fn draw_viewer_item(item: &[Dword; 4], index: u32) -> Result<(), Refused> {
     let picture = match ReplayViewBlock::item_picture(index)? {
         ViewerPicture::Rectangle(picture) => picture,
         ViewerPicture::Switch(0) => {
-            let n = camera_byte(switch_byte(byte(1)) as usize)?;
+            let n = camera_byte(replay, switch_byte(byte(1)) as usize)?;
             VIEWER_PANEL.switch_picture(0, n)?
         }
-        ViewerPicture::Switch(1) => VIEWER_PANEL.switch_picture(1, camera_byte(5)?)?,
-        ViewerPicture::Switch(_) => VIEWER_PANEL.switch_picture(2, camera_byte(4)?)?,
+        ViewerPicture::Switch(1) => VIEWER_PANEL.switch_picture(1, camera_byte(replay, 5)?)?,
+        ViewerPicture::Switch(_) => VIEWER_PANEL.switch_picture(2, camera_byte(replay, 4)?)?,
     };
     let uv: [u32; 4] = picture.read("a viewer item's picture")?;
     let place: [u32; 4] = ReplayViewBlock::item_place(index)?.read("a viewer item's place")?;

@@ -21,15 +21,18 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::race_steps;
 
 /// One car's step (inside `pusha` / `popa`: nothing it leaves in the registers goes out).
 fn car_step() -> Result<(), Refused> {
+    let race = race();
     crate::drive::car_input_words::car_input_words()?;
-    crate::drive::record_inputs_if::record_inputs_if()?;
-    crate::drive::play_inputs_if::play_inputs_if()?;
+    crate::drive::record_inputs_if::record_inputs_if(race)?;
+    crate::drive::play_inputs_if::play_inputs_if(race)?;
     let slot = race_steps::block_slot(RACE_WORK.current_car.get());
     RACE_WORK.work_block.set(RACE_WORK.car_block(slot as usize));
     crate::drive::load_car::load_car()?;
@@ -65,11 +68,11 @@ fn car_step() -> Result<(), Refused> {
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot,
 // skids_restart}`.
-pub fn replay_step() -> Result<(), Refused> {
+pub fn replay_step(race: &Race) -> Result<(), Refused> {
     race_steps::check_cars(RACE_VIEW.race_cars.get())?;
     crate::drive::choose_shown_cars::choose_shown_cars()?;
-    crate::drive::keep_replay_frame::keep_replay_frame()?;
-    crate::drive::play_replay_frame::play_replay_frame()?;
+    crate::drive::keep_replay_frame::keep_replay_frame(race)?;
+    crate::drive::play_replay_frame::play_replay_frame(race)?;
     if race_steps::skids_restart(
         CAR_BLOCKS.cars[0].step_clock.bits(),
         CAR_BLOCKS.cars[0].unknown_f0c.bits(),
@@ -86,14 +89,14 @@ pub fn replay_step() -> Result<(), Refused> {
         |n| RACE_WORK.current_car.set(n),
         car_step,
     )?;
-    crate::drive::replay_check::note()?;
-    crate::drive::animate_stage::animate_stage()?;
+    crate::drive::replay_check::note(&race.course)?;
+    crate::drive::animate_stage::animate_stage(race)?;
     crate::drive::race_mode_cars::race_mode_cars()?;
     crate::drive::duel_sound_levels::duel_sound_levels();
-    crate::drive::countdown_beeps::countdown_beeps()?;
+    crate::drive::countdown_beeps::countdown_beeps(&race.frame)?;
     crate::drive::two_car_order::two_car_order()?;
     crate::drive::hold_count_tick::hold_count_tick();
-    crate::drive::flush_replay_if::flush_replay_if()?;
-    crate::drive::replay_clock_tick::replay_clock_tick();
+    crate::drive::flush_replay_if::flush_replay_if(race)?;
+    crate::drive::replay_clock_tick::replay_clock_tick(&race.replay);
     Ok(())
 }

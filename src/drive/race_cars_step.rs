@@ -18,6 +18,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::drive::race_steps;
@@ -42,7 +43,7 @@ fn car_step() -> Result<(), Refused> {
 /// The Rust version. The registers it leaves are read by no caller (liveness: only DF
 /// is live after `drive::race_init`'s call).
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot}`.
-pub fn race_cars_step() -> Result<(), Refused> {
+pub fn race_cars_step(race: &Race) -> Result<(), Refused> {
     race_steps::check_cars(RACE_VIEW.race_cars.get())?;
     crate::drive::choose_shown_cars::choose_shown_cars()?;
     race_steps::each_car(
@@ -51,7 +52,7 @@ pub fn race_cars_step() -> Result<(), Refused> {
         |n| RACE_WORK.current_car.set(n),
         car_step,
     )?;
-    crate::drive::animate_stage::animate_stage()?;
+    crate::drive::animate_stage::animate_stage(race)?;
     crate::drive::race_mode_cars::race_mode_cars()?;
     Ok(())
 }

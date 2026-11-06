@@ -20,19 +20,19 @@ use crate::physics::car_store::CAR;
 use crate::physics::engine_torque::{below, engine_torque};
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
-fn run() {
-    x87_1();
+fn run(course: &Course) {
+    x87_1(course);
 }
 
 /// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
 /// `free_rev_clutch` and their callers).
-pub fn free_rev() {
+pub fn free_rev(course: &Course) {
     engine_torque();
-    run();
+    run(course);
     let (e, drag) = (CAR.engine_speed.bits(), DRAW.scratch.get());
     let x = f32::from_bits(e);
     if x == 0.0 || x.is_nan() {
@@ -60,8 +60,7 @@ pub fn free_rev() {
 /// `[rc + 0x214750] = (((([rc + 0x214740] * [rc + 0x1CB968]) / [rc + 0x2140C0]) / [rc + 0x1C5E34]) * int [rc + 0x31A610]) / [rc + 0x1C5E2C]`
 /// `[rc + 0x31A1B0] = (([rc + 0x214750] * [rc + 0x21388C]) / [rc + 0x2140C0]) + [rc + 0x31A1B0]`
 /// `[rc + 0x22400C] = ([rc + 0x31A1B0] * [rc + 0x213FD8]) + [rc + 0x213FD4]`
-fn x87_1() {
-    let course = &race().course;
+fn x87_1(course: &Course) {
     let t0 = ld(PHYSICS.drive_ratio.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());
     let t2 = t0 * t1;
@@ -119,7 +118,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0]) },
-            plain: |_| x87_1(),
+            plain: |_| x87_1(&crate::race::owner::race().course),
         }]
     }
 

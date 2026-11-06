@@ -12,9 +12,10 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
+use crate::race::owner::Race;
 
 /// The Rust version (see the header).
-pub fn draw_view_overlays() -> Result<(), Refused> {
+pub fn draw_view_overlays(race: &Race) -> Result<(), Refused> {
     use crate::hud::overlay_states::overlay_states;
     use crate::race::frame_views::{draw_flat_triangle, draw_own_car, draw_screen_tint};
     use crate::scene::set_filters::set_filters;
@@ -23,7 +24,7 @@ pub fn draw_view_overlays() -> Result<(), Refused> {
     }
     overlay_states();
     crate::scene::set_render_state::set_render_state(3, 3);
-    crate::race::frame_views::run_view_marks()?;
+    crate::race::frame_views::run_view_marks(race)?;
     overlay_states();
     crate::sound::race_sound_tick::race_sound_tick()?;
     draw_flat_triangle();
@@ -34,14 +35,14 @@ pub fn draw_view_overlays() -> Result<(), Refused> {
         .draw_switches
         .far_on
         .set_bits(0u32);
-    let drawn = draw_own_car();
+    let drawn = draw_own_car(race);
     crate::scene::owner::scene()
         .draw_switches
         .far_on
         .set_bits(kept);
     drawn?;
-    draw_screen_tint()?;
-    crate::race::flush_draw_batch::flush_draw_batch()?;
+    draw_screen_tint(race)?;
+    crate::race::flush_draw_batch::flush_draw_batch(race)?;
     set_filters();
     Ok(())
 }

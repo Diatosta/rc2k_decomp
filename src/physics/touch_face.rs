@@ -21,16 +21,17 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
 
 use crate::math::next_random::next_random;
 use crate::physics::flow::{c0, p};
 use crate::physics::place_sound_object::place_sound_object;
-use crate::race::owner::race;
 use rc2k_core::drive::lit_faces::{LIST_ROOM, Touch, fall_mark, lucky, touch};
 
 /// The usual marks: +9 = 0, +0x11 = `mark`, +0x13 = 0, +0x12 `dword_6D3B70`'s low byte.
-fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
-    let angle = race().physics.contact.face_angle.get() as u8;
+fn mark(physics: &Physics, face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
+    let angle = physics.contact.face_angle.get() as u8;
     crate::race::course_places::update_face_number(face, "a touched face", |f| {
         f.touch(mark as u8, angle, clear_9);
     })
@@ -38,8 +39,8 @@ fn mark(face: u32, mark: u32, clear_9: bool) -> Result<(), BadInput> {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
-pub fn touch_face() -> Result<(), Refused> {
-    let race_owner = race();
+pub fn touch_face(race: &Race) -> Result<(), Refused> {
+    let race_owner = race;
     let number = race_owner.physics.contact.face_number.get();
     let face = number;
     if crate::race::course_places::face_number(face, "a touched face")?.mark() != 0 {
@@ -63,10 +64,11 @@ pub fn touch_face() -> Result<(), Refused> {
                 if c0(CAR.speed.bits(), race_owner.course.numbers.eight.bits()) {
                     return Ok(());
                 }
-                mark(face, 1, true)?;
+                mark(&race.physics, face, 1, true)?;
             }
-            Touch::Mark => mark(face, 1, true)?,
+            Touch::Mark => mark(&race.physics, face, 1, true)?,
             Touch::Fall => mark(
+                &race.physics,
                 face,
                 fall_mark(race_owner.physics.contact.face_speed.get()),
                 false,
@@ -83,7 +85,7 @@ pub fn touch_face() -> Result<(), Refused> {
             }
             Touch::Sound => {}
         }
-        { place_sound_object() }?;
+        { place_sound_object(race) }?;
         race_owner.physics.contact.lit_face_count.set(count + 1);
         Ok(())
     })()

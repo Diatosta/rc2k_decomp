@@ -18,7 +18,7 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::physics::car_store::CAR;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use rc2k_core::physics::parts::{self, DROP_TESTS, Hit, HitTest};
 
 /// The four tests' timers.
@@ -27,11 +27,11 @@ pub type Timers = [crate::session::Float; 4];
 /// The shared steps (`rc2k_core::physics::parts::hit_tests`): `act` the bit's step (with
 /// the bit, the original's ecx). The registers left are read by none of the callers.
 pub fn hit_tests(
+    course: &Course,
     tests: &[HitTest; 4],
     timers: &Timers,
     act: &mut dyn FnMut(u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let course = &race().course;
     let word = CAR.noise_word.get();
     let (_, hit) = parts::hit_tests(
         tests,
@@ -49,9 +49,14 @@ pub fn hit_tests(
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
-pub fn drop_hit_parts() -> Result<(), Refused> {
+pub fn drop_hit_parts(course: &Course) -> Result<(), Refused> {
     if CAR.car_kind.get() >= 0x17 {
         return Ok(());
     }
-    hit_tests(&DROP_TESTS, &CAR.wheel_hit_damage, &mut fill_slot_on_bit)
+    hit_tests(
+        course,
+        &DROP_TESTS,
+        &CAR.wheel_hit_damage,
+        &mut fill_slot_on_bit,
+    )
 }

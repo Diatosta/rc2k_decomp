@@ -13,17 +13,18 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_bit::bits_at;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 
 /// The Rust version on the word +0x2B8, the word +0x3F4 and the gear bits at these places.
 // Converted: `rc2k_core::physics::gearbox::allowed_gear`.
 pub fn allowed_gear_at(
+    course: &Course,
     locked: &dyn crate::session::Cell32,
     open: &dyn crate::session::Cell32,
     bits: &dyn crate::session::Cell32,
     eax: u32,
 ) -> Result<u32, Refused> {
-    let locked = locked.bits() == race().course.numbers.hundred.bits();
+    let locked = locked.bits() == course.numbers.hundred.bits();
     Ok(rc2k_core::physics::gearbox::allowed_gear(
         locked,
         eax,
@@ -33,8 +34,9 @@ pub fn allowed_gear_at(
 }
 
 /// The Rust version.
-pub fn allowed_gear(eax: u32) -> Result<u32, Refused> {
+pub fn allowed_gear(course: &Course, eax: u32) -> Result<u32, Refused> {
     allowed_gear_at(
+        course,
         &CAR.engine_damage,
         &CAR.engine_power_factor,
         &CAR.lost_gear_bits,

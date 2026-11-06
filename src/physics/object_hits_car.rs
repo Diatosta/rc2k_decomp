@@ -22,7 +22,7 @@ use crate::math::x87_run::{ext_to_int, int_80};
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 
@@ -32,11 +32,11 @@ use rc2k_core::physics::contacts;
 /// address) are read by none of its callers.
 // Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
 // x87).
-pub fn object_hits_car(point: u32, face: u32) -> Result<bool, Refused> {
-    let race_owner = race();
+pub fn object_hits_car(race: &Race, point: u32, face: u32) -> Result<bool, Refused> {
+    let race_owner = race;
     let number = race_owner.physics.contact.face_object.get();
     contacts::check_object(number)?;
-    { object_turn_matrix() }?;
+    { object_turn_matrix(race) }?;
     PHYSICS.object_hits.set(
         crate::physics::tables_store::PHYSICS
             .object_hits
@@ -85,7 +85,7 @@ pub fn object_hits_car(point: u32, face: u32) -> Result<bool, Refused> {
                     return false;
                 }
             };
-            match point_hits_car(place, face) {
+            match point_hits_car(race, place, face) {
                 Ok(inside) => inside,
                 Err(e) => {
                     refused.set(Some(e));

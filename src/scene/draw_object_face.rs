@@ -32,7 +32,6 @@
 //! through 2^32) or of more than 64, and when there are no records.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -62,10 +61,10 @@ pub enum Step {
 }
 
 pub fn draw_object_face(
+    race: &crate::race::owner::Race,
     face: usize,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
-    let race = race();
     if LIGHT_STATE.draw_mode.bits() != 0 {
         return Ok(());
     }
@@ -129,7 +128,7 @@ pub fn draw_object_face(
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
-            vertex_light(fw(vertex + 0xC))?
+            vertex_light(&race.course, fw(vertex + 0xC))?
         } else {
             0x00FF_FFFF
         };
@@ -146,7 +145,7 @@ pub fn draw_object_face(
                 .ground
                 .reflection_point_number
                 .set_bits(fw(vertex).wrapping_neg());
-            cached_reflection_coordinates()?;
+            cached_reflection_coordinates(race)?;
             let coordinates: [u32; 2] =
                 crate::session::read_bits(&race.physics.ground.reflection_coordinates);
             entry.u2.set(coordinates[0]);
@@ -189,9 +188,12 @@ pub fn draw_object_face(
 }
 
 /// The function with its parts' Rust versions, drawing for real.
-pub fn draw_object_face_in_game(face: usize) -> Result<(), Refused> {
-    draw_object_face(face, &mut |step| match step {
-        Step::Draw => draw_object_polygon(&mut |step| match step {
+pub fn draw_object_face_in_game(
+    race: &crate::race::owner::Race,
+    face: usize,
+) -> Result<(), Refused> {
+    draw_object_face(race, face, &mut |step| match step {
+        Step::Draw => draw_object_polygon(race, &mut |step| match step {
             draw_object_polygon::Step::Project => project_polygon(),
             draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(),
         }),

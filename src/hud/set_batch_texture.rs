@@ -8,15 +8,13 @@
 //! asks for 0xC0 .. 0xDC), before anything.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::batch::texture_slot`
-pub fn set_batch_texture() -> Result<(), Refused> {
-    let n = rc2k_core::hud::batch::texture_slot(
-        race().frame.panel_and_overlay.panel.shown_texture.get(),
-    )?;
+pub fn set_batch_texture(frame: &Frame) -> Result<(), Refused> {
+    let n = rc2k_core::hud::batch::texture_slot(frame.panel_and_overlay.panel.shown_texture.get())?;
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[n].bits());
     Ok(())
 }

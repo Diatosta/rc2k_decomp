@@ -13,6 +13,7 @@
 
 use crate::errors::BadInput;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use rc2k_core::race::faces::Face;
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 
@@ -297,28 +298,30 @@ fn whole_at<T: Whole>(table: &'static Table, at: usize) -> Result<T, BadInput> {
 
 /// Byte `offset` of face `n` in the faces' table.
 #[inline]
-fn face_index(n: u32, offset: u32) -> Result<usize, BadInput> {
-    let base = race().course.course.course_faces.get();
+fn face_index(course: &Course, n: u32, offset: u32) -> Result<usize, BadInput> {
+    let base = course.course.course_faces.get();
     index(faces_base(), base, FACE, n, offset)
 }
 
 /// Byte `offset` of record `n` in the records' table.
 #[inline]
-fn record_index(n: u32, offset: u32) -> Result<usize, BadInput> {
-    let base = race().course.course.course_records.get();
+fn record_index(course: &Course, n: u32, offset: u32) -> Result<usize, BadInput> {
+    let base = course.course.course_records.get();
     index(records_base(), base, RECORD, n, offset)
 }
 
 /// Face `n`.
 #[inline]
 pub fn face_number(n: u32, _what: &str) -> Result<Face, BadInput> {
-    whole_at::<[u8; 64]>(&FACES, face_index(n, 0)?).map(Face)
+    let course = &race().course;
+    whole_at::<[u8; 64]>(&FACES, face_index(course, n, 0)?).map(Face)
 }
 
 /// Field `offset` of face `n`.
 #[inline]
 pub fn face_field<T: Whole>(n: u32, offset: u32, _what: &str) -> Result<T, BadInput> {
-    whole_at(&FACES, face_index(n, offset)?)
+    let course = &race().course;
+    whole_at(&FACES, face_index(course, n, offset)?)
 }
 
 /// Face `n` changed by `change`.
@@ -327,44 +330,51 @@ pub fn update_face_number(
     what: &str,
     change: impl FnOnce(&mut Face),
 ) -> Result<(), BadInput> {
+    let course = &race().course;
     let mut f = face_number(n, what)?;
     change(&mut f);
-    write_face_number(n, f, what)
+    write_face_number(course, n, f, what)
 }
 
 /// `v` written at field `offset` of face `n`.
 pub fn write_face_field<T: Whole>(n: u32, offset: u32, v: T, _what: &str) -> Result<(), BadInput> {
+    let course = &race().course;
     let mut b = [0; 64];
     v.to_bytes(&mut b);
-    write_table(&FACES, face_index(n, offset)?, &b[..size_of::<T>()])
+    write_table(&FACES, face_index(course, n, offset)?, &b[..size_of::<T>()])
 }
 
 /// The first `count` faces' bytes.
-pub fn faces_table(count: u32, _what: &str) -> Result<Vec<u8>, BadInput> {
-    table_bytes(&FACES, face_index(0, 0)?, count as usize * FACE as usize)
+pub fn faces_table(course: &Course, count: u32, _what: &str) -> Result<Vec<u8>, BadInput> {
+    table_bytes(
+        &FACES,
+        face_index(course, 0, 0)?,
+        count as usize * FACE as usize,
+    )
 }
 
 /// Face `n` set to `face`.
-pub fn write_face_number(n: u32, face: Face, _what: &str) -> Result<(), BadInput> {
-    write_table(&FACES, face_index(n, 0)?, &face.0)
+pub fn write_face_number(course: &Course, n: u32, face: Face, _what: &str) -> Result<(), BadInput> {
+    write_table(&FACES, face_index(course, n, 0)?, &face.0)
 }
 
 /// The first `count` records' bytes.
-pub fn records_table(count: u32, _what: &str) -> Result<Vec<u8>, BadInput> {
+pub fn records_table(course: &Course, count: u32, _what: &str) -> Result<Vec<u8>, BadInput> {
     table_bytes(
         &RECORDS,
-        record_index(0, 0)?,
+        record_index(course, 0, 0)?,
         count as usize * RECORD as usize,
     )
 }
 
 /// The records from record 0 set to `bytes`.
-pub fn write_records_table(bytes: &[u8], _what: &str) -> Result<(), BadInput> {
-    write_table(&RECORDS, record_index(0, 0)?, bytes)
+pub fn write_records_table(course: &Course, bytes: &[u8], _what: &str) -> Result<(), BadInput> {
+    write_table(&RECORDS, record_index(course, 0, 0)?, bytes)
 }
 
 /// Field `offset` of record `n`.
 #[inline]
 pub fn record_field<T: Whole>(n: u32, offset: u32, _what: &str) -> Result<T, BadInput> {
-    whole_at(&RECORDS, record_index(n, offset)?)
+    let course = &race().course;
+    whole_at(&RECORDS, record_index(course, n, offset)?)
 }

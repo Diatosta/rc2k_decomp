@@ -40,7 +40,8 @@ use crate::math::x87_float::to_int;
 use crate::physics::car_store::CAR;
 use crate::physics::flip_cell_index::flip_cell_index;
 use crate::physics::tables_store::{PHYSICS, PhysicsTables, Surface};
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
@@ -55,14 +56,14 @@ fn info_byte(n: u32, offset: u32) -> Result<u32, Refused> {
 }
 
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` one of the probe shares).
-fn share_bit(v: &[Dword; 64], c: u32) -> u32 {
-    x87_1(v, c as usize);
+fn share_bit(course: &Course, v: &[Dword; 64], c: u32) -> u32 {
+    x87_1(course, v, c as usize);
     DRAW.scratch.get()
 }
 
 /// Everything the function reads that the checks need, refused as said.
-fn check() -> Result<(), Refused> {
-    let faces = race().course.course.course_faces.get();
+fn check(course: &Course) -> Result<(), Refused> {
+    let faces = course.course.course_faces.get();
     if faces == 0 {
         return Err(BadInput("no course faces").into());
     }
@@ -74,9 +75,9 @@ fn check() -> Result<(), Refused> {
 
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
-fn steps() -> Result<(), Refused> {
-    let physics = &race().physics;
-    check()?;
+fn steps(race: &Race) -> Result<(), Refused> {
+    let physics = &race.physics;
+    check(&race.course)?;
     for c in 0..5u32 {
         let cc = c as usize;
         let f = CAR.probe_point_face[cc].get();
@@ -88,8 +89,8 @@ fn steps() -> Result<(), Refused> {
             )?))
         };
         let t1 = face_byte(1)?;
-        let mut edx = share_bit(&physics.contact.probe_share_v, c);
-        let mut ebx = share_bit(&physics.contact.probe_share_u, c);
+        let mut edx = share_bit(&race.course, &physics.contact.probe_share_v, c);
+        let mut ebx = share_bit(&race.course, &physics.contact.probe_share_u, c);
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
         if physics.contact.probe_face_flip[cc].get() == 1 {
@@ -129,7 +130,7 @@ fn steps() -> Result<(), Refused> {
                 DRAW.surface_point[0].set(x);
                 DRAW.surface_point[1].set(y.wrapping_sub(x));
                 DRAW.surface_point[2].set(z.wrapping_sub(x));
-                x87_2(c as usize);
+                x87_2(race, c as usize);
             }
             if crate::race::course_places::face_number(f, "a wheel's face")?.switches() & 0x1000
                 != 0
@@ -156,6 +157,7 @@ fn steps() -> Result<(), Refused> {
             );
             let k = CAR.tyre_kind.get();
             x87_4(
+                &race.course,
                 &PHYSICS.surface_tables[ps..],
                 &PHYSICS.surface_tables[pd..],
                 k as usize,
@@ -197,13 +199,14 @@ fn steps() -> Result<(), Refused> {
         CAR.ground_bump_scale
             .set_bits(crate::math::x87::loaded(least));
     }
-    x87_7();
+    x87_7(&race.course);
     Ok(())
 }
 
 /// The Rust version: what was written is put back on a refusal.
 pub fn wheel_surfaces() -> Result<(), Refused> {
-    steps()
+    let race = crate::race::owner::race();
+    steps(race)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -211,9 +214,9 @@ pub fn wheel_surfaces() -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = [t + c * 4] * [rc + 0x1C5D98]`
-fn x87_1(t: &[Dword; 64], c: usize) {
+fn x87_1(course: &Course, t: &[Dword; 64], c: usize) {
     let t0 = ld(t[c].bits());
-    let t1 = ld(race().course.numbers.k65536.bits());
+    let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 * t1;
     DRAW.scratch.set_bits(to_int(t2) as u32);
 }
@@ -221,8 +224,7 @@ fn x87_1(t: &[Dword; 64], c: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_2(c: usize) {
-    let race = race();
+fn x87_2(race: &Race, c: usize) {
     let t0 = int(DRAW.surface_point[1].bits() as i32);
     let t1 = ld(race.physics.contact.probe_share_u[c].bits());
     let t2 = t0 * t1;
@@ -262,8 +264,7 @@ fn x87_3(s: &Surface, d: &Surface, c: usize) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x21411C] = (int [s + k * 4 + 4] + ((int [s + k * 4 + 0x1C] - int [s + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
 /// `[rc + 0x214120] = (int [d + k * 4 + 4] + ((int [d + k * 4 + 0x1C] - int [d + k * 4 + 4]) * [rc + 0x31A258])) * [rc + 0x1C5CFC]`
-fn x87_4(s: &[Dword], d: &[Dword], k: usize) {
-    let course = &race().course;
+fn x87_4(course: &Course, s: &[Dword], d: &[Dword], k: usize) {
     let t6 = int(s[k + 1].get() as i32);
     let t7 = int(s[k + 7].get() as i32);
     let t8 = t7 - t6;
@@ -389,7 +390,7 @@ fn x87_6() {
 /// `[rc + 0x214764] = [rc + 0x2146E4]`
 /// `[rc + 0x223DA8] = [rc + 0x2146F8]`
 /// `[rc + 0x223DAC] = [rc + 0x21470C]`
-fn x87_7() {
+fn x87_7(course: &Course) {
     let t0 = ld(CAR.ground_bump_scale.bits());
     let t1 = ld(PHYSICS.handling[6].bits());
     let t2 = t0 * t1;
@@ -414,7 +415,7 @@ fn x87_7() {
     let t18 = ld(DRAW.surface_point[0].bits());
     let t19 = t17 - t18;
     let t20 = int(CAR.suspension_stiffness.bits() as i32);
-    let t21 = ld(race().course.numbers.k256.bits());
+    let t21 = ld(course.numbers.k256.bits());
     let t22 = t20 / t21;
     let t23 = t19 * t22;
     let t24 = ld(DRAW.surface_point[0].bits());
@@ -469,7 +470,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(view(a[0], 0), a[1]),
+                plain: |a| x87_1(&crate::race::owner::race().course, view(a[0], 0), a[1]),
             },
             Block {
                 name: "wheel_surfaces line 68 idx c=1",
@@ -486,7 +487,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(view(a[0], 0), a[1]),
+                plain: |a| x87_1(&crate::race::owner::race().course, view(a[0], 0), a[1]),
             },
             Block {
                 name: "wheel_surfaces line 68 idx c=4",
@@ -503,7 +504,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(view(a[0], 0), a[1]),
+                plain: |a| x87_1(&crate::race::owner::race().course, view(a[0], 0), a[1]),
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=0",
@@ -523,7 +524,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[1]),
+                plain: |a| x87_2(crate::race::owner::race(), a[1]),
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=1",
@@ -543,7 +544,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[1]),
+                plain: |a| x87_2(crate::race::owner::race(), a[1]),
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=4",
@@ -563,7 +564,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(a[1]),
+                plain: |a| x87_2(crate::race::owner::race(), a[1]),
             },
             Block {
                 name: "wheel_surfaces line 161 idx c=0",
@@ -647,7 +648,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_4(table(a[0], a[3]), table(a[2], a[3]), a[3]),
+                plain: |a| {
+                    x87_4(
+                        &crate::race::owner::race().course,
+                        table(a[0], a[3]),
+                        table(a[2], a[3]),
+                        a[3],
+                    );
+                },
             },
             Block {
                 name: "wheel_surfaces line 178 idx k=1",
@@ -668,7 +676,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_4(table(a[0], a[3]), table(a[2], a[3]), a[3]),
+                plain: |a| {
+                    x87_4(
+                        &crate::race::owner::race().course,
+                        table(a[0], a[3]),
+                        table(a[2], a[3]),
+                        a[3],
+                    );
+                },
             },
             Block {
                 name: "wheel_surfaces line 178 idx k=4",
@@ -689,7 +704,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1], a[2], a[3]) },
-                plain: |a| x87_4(table(a[0], a[3]), table(a[2], a[3]), a[3]),
+                plain: |a| {
+                    x87_4(
+                        &crate::race::owner::race().course,
+                        table(a[0], a[3]),
+                        table(a[2], a[3]),
+                        a[3],
+                    );
+                },
             },
             Block {
                 name: "wheel_surfaces line 201 idx c=0",
@@ -896,7 +918,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0]) },
-                plain: |_| x87_7(),
+                plain: |_| x87_7(&crate::race::owner::race().course),
             },
         ]
     }

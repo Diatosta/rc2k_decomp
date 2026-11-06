@@ -13,10 +13,11 @@ use crate::errors::Refused;
 use crate::menu::cheats_store::CHEAT_VARS;
 use crate::physics::car_store::CAR;
 use crate::physics::listed_car_flags::set_flag;
+use crate::race::owner_frame::Frame;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
 /// The Rust version.
-pub fn start_go_notice() -> Result<(), Refused> {
+pub fn start_go_notice(frame: &Frame) -> Result<(), Refused> {
     let c = &CAR;
     let facts = GoFacts {
         mode: c.driver_kind.get(),
@@ -28,7 +29,7 @@ pub fn start_go_notice() -> Result<(), Refused> {
     if !facts.go_due() {
         return Ok(());
     }
-    set_flag(&crate::sound::owner::sound().race.stage.once[2])?;
+    set_flag(frame, &crate::sound::owner::sound().race.stage.once[2])?;
     c.go_stand_timer.set(1);
     c.notice_id.set(GO_NOTICE);
     c.notice_time_b.set(0x32);

@@ -23,7 +23,7 @@ use crate::drive::race_parts::{
 use crate::errors::{BadInput, Refused};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -65,27 +65,25 @@ fn put_answer(answer: u32) -> Result<(), BadInput> {
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi,
 /// edx and esi after `drive::play_race`'s call have no read point).
-pub fn race_loop() -> Result<(), Refused> {
+pub fn race_loop(race: &Race) -> Result<(), Refused> {
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].reset_marker.set_bits(10);
     }
     FLAGS.paused.set(0);
     RACE_VARS.scene_switch.set(0);
     restart_clock();
-    race()
-        .frame
+    race.frame
         .clock_ticks
         .clock_a
         .set(PHYSICS.scene_clock.get());
-    race()
-        .frame
+    race.frame
         .clock_ticks
         .sound_tick_last
         .set(PHYSICS.scene_clock.get());
-    for mark in &race().frame.clock_ticks.marks {
+    for mark in &race.frame.clock_ticks.marks {
         mark.set(u32::MAX);
     }
-    race().replay.replay_view.play_end.set(u32::MAX);
+    race.replay.replay_view.play_end.set(u32::MAX);
     loop {
         restart_clock();
         PHYSICS
@@ -103,7 +101,7 @@ pub fn race_loop() -> Result<(), Refused> {
             input_update();
             crate::debug::timing::stop(crate::debug::timing::Stage::Input, begun);
             if RACE_WORK.in_credits.get() != 0 {
-                if race().frame.credits.done.get() != 0 {
+                if race.frame.credits.done.get() != 0 {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
                 }
@@ -130,7 +128,7 @@ pub fn race_loop() -> Result<(), Refused> {
                 }
             }
             if crate::input::store::DEVICES.keys_pressed.get(1) != 0 {
-                let answer = { crate::drive::quit_question::quit_question() }?;
+                let answer = { crate::drive::quit_question::quit_question(&race.replay) }?;
                 if answer == 0 {
                     break false;
                 }

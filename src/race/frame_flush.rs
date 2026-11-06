@@ -4,6 +4,7 @@
 
 use crate::errors::Refused;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
@@ -101,9 +102,9 @@ pub fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
 }
 
 /// `fild i; fadd/fsub one; fstp`.
-fn int_and_one(i: u32, add: bool) -> u32 {
+fn int_and_one(course: &Course, i: u32, add: bool) -> u32 {
     use crate::math::x87_float::{int, ld, st};
-    let one = ld(race().course.numbers.one.bits());
+    let one = ld(course.numbers.one.bits());
     let i = int(i as i32);
     st(if add { i + one } else { i - one })
 }
@@ -121,8 +122,7 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// the glow's render states (`sub_44E44D`), texture `dword_5D1DE8` (`scene::set_texture`),
 /// the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth buffer on. Its one
 /// caller, `race::draw_mirror_view`, reads no register it leaves.
-pub fn draw_view_backdrop() {
-    let course = &race().course;
+pub fn draw_view_backdrop(course: &Course) {
     RACE_VARS.quad_uv[0].set(0xF8_0000);
     RACE_VARS.quad_uv[4].set(0x8_0000);
     let left = DRAW.view_offset[0].get();
@@ -132,16 +132,16 @@ pub fn draw_view_backdrop() {
     RACE_VARS.quad_corners[4].set(top);
     RACE_VARS.quad_corners[5].set(top.wrapping_add(DRAW.view_size[1].get()));
     let v = &crate::d3d::vertices_store::VERTICES.vertices;
-    let x0 = int_and_one(RACE_VARS.quad_corners[0].get(), false);
+    let x0 = int_and_one(course, RACE_VARS.quad_corners[0].get(), false);
     v[0].x.set_bits(x0);
     v[3].x.set_bits(x0);
-    let x1 = int_and_one(RACE_VARS.quad_corners[1].get(), true);
+    let x1 = int_and_one(course, RACE_VARS.quad_corners[1].get(), true);
     v[1].x.set_bits(x1);
     v[2].x.set_bits(x1);
-    let y0 = int_and_one(RACE_VARS.quad_corners[4].get(), false);
+    let y0 = int_and_one(course, RACE_VARS.quad_corners[4].get(), false);
     v[0].y.set_bits(y0);
     v[1].y.set_bits(y0);
-    let y1 = int_and_one(RACE_VARS.quad_corners[5].get(), true);
+    let y1 = int_and_one(course, RACE_VARS.quad_corners[5].get(), true);
     v[2].y.set_bits(y1);
     v[3].y.set_bits(y1);
     let (a, b) = (course.numbers.k256.bits(), course.numbers.k65536.bits());
@@ -213,6 +213,7 @@ mod asm_reference {
 
     #[test]
     fn int_blocks_match() {
+        let course = &race().course;
         let _l = lock();
         let _saved = Saved::new(&[0x5C5D38]);
         let mut r = Rng(5);
@@ -221,7 +222,7 @@ mod asm_reference {
                 race().course.numbers.one.set_bits(r.float());
                 let (i, a, b) = (r.int() as u32, r.float(), r.float());
                 for add in [false, true] {
-                    let (want, got) = (int_and_one_asm(i, add), int_and_one(i, add));
+                    let (want, got) = (int_and_one_asm(i, add), int_and_one(course, i, add));
                     assert!(same(want, got), "{i} {add}: {want:#x} {got:#x}");
                 }
                 let (want, got) = (int_over_two_asm(i, a, b), int_over_two(i, a, b));

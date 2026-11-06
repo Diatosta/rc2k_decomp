@@ -18,7 +18,7 @@ use crate::effects::tuning::MARKS_KIND_FLOATS;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_spawn::windscreen_flakes_spawn;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -35,17 +35,23 @@ fn less(k: u32, z: u32) -> [u8; 10] {
 
 /// The Rust version (see the header).
 pub fn run_windscreen_flakes(
+    frame: &Frame,
     masks: &Masks,
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
 ) -> Result<(), Refused> {
     let old = x87::set_chop();
-    run(masks, drops, fl)?;
+    run(frame, masks, drops, fl)?;
     x87::set_control(old);
     Ok(())
 }
 
-fn run(masks: &Masks, drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), Refused> {
+fn run(
+    frame: &Frame,
+    masks: &Masks,
+    drops: &WindscreenDrops,
+    fl: &WindscreenFlakes,
+) -> Result<(), Refused> {
     {
         crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl);
         let [a, b, c, d]: [u32; 4] = read_bits(&fl.state.run_places);
@@ -78,7 +84,7 @@ fn run(masks: &Masks, drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<
             }
             let alpha =
                 x87::int_over_int_to_int(item.age.get() as i32, fl.state.fade.get() as i32) as u32;
-            let colour = ((!alpha) << 24) | (race().frame.frame_work.view_light.bits() & 0xFF_FFFF);
+            let colour = ((!alpha) << 24) | (frame.frame_work.view_light.bits() & 0xFF_FFFF);
             let values = [
                 less(fl.state.far.bits(), item.place[1].bits()),
                 extended(item.place[0].bits()),

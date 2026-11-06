@@ -40,7 +40,8 @@ use crate::physics::tables_store::{ForceRecord, PHYSICS};
 use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::physics::vector_length::vector_length;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_physics::Physics;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::view_matrix::cross_product;
@@ -62,8 +63,7 @@ fn fill3(to: &[Float], v: u32) {
 
 /// The Rust version: `record` the one the contact's force goes to (the original's
 /// `dword_614B40`, set by each caller just before).
-pub fn contact_force(record: &ForceRecord) {
-    let race = race();
+pub fn contact_force(race: &Race, record: &ForceRecord) {
     cross_product(
         &race.physics.contact.contact_turn_speed,
         &race.physics.contact.contact_point,
@@ -83,7 +83,7 @@ pub fn contact_force(record: &ForceRecord) {
             )
         }),
     );
-    x87_2();
+    x87_2(race);
     hold_low(&race.physics.contact.contact_depth, &DRAW.scratch);
     // 0x45F222: the push the turn would give.
     cross_product(
@@ -112,7 +112,7 @@ pub fn contact_force(record: &ForceRecord) {
             )
         }),
     );
-    x87_3();
+    x87_3(race);
     // 0x45F2C2: the normal push, the speed along the normal and across it.
     copy3(
         &race.physics.contact.contact_normal_push,
@@ -137,7 +137,7 @@ pub fn contact_force(record: &ForceRecord) {
         &race.physics.contact.contact_side_speed,
         &race.physics.contact.contact_point_speed,
     );
-    x87_4();
+    x87_4(&race.physics);
     race.physics.contact.contact_speed_length.set_bits(rounded({
         vector_length(&race.physics.contact.contact_normal_speed)
     }));
@@ -154,7 +154,7 @@ pub fn contact_force(record: &ForceRecord) {
             &race.physics.contact.contact_extra,
             &race.physics.contact.contact_normal,
         );
-        let part = x87_5();
+        let part = x87_5(&race.physics);
         scale_vector(&race.physics.contact.contact_extra, part);
         DRAW.scratch.set(rounded(part));
     }
@@ -189,9 +189,9 @@ pub fn contact_force(record: &ForceRecord) {
     {
         fill3(&race.physics.contact.contact_slide, 0);
     }
-    let status = x87_6();
+    let status = x87_6(&race.physics);
     if status & 0x4100 == 0 {
-        x87_7();
+        x87_7(&race.physics);
     }
     // 0x45F57E: the sum into the record.
     x87_1(
@@ -200,7 +200,7 @@ pub fn contact_force(record: &ForceRecord) {
         &race.physics.contact.contact_total,
     );
     turn_by_inverse(&race.physics.contact.contact_total);
-    x87_8(&record.force);
+    x87_8(&race.physics, &record.force);
     turn_by_inverse(&race.physics.contact.contact_point);
     for k in 0..3 {
         record.point[k].set_bits(race.physics.contact.contact_point[k].bits());
@@ -220,8 +220,7 @@ fn x87_1(a: &[Float; 3], b: &[Float; 3], out: &[Float; 3]) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = (1 - |[rc + 0x2D307C]|) + [rc + 0x1C5CFC]`
-fn x87_2() {
-    let race = race();
+fn x87_2(race: &Race) {
     let t0 = X(1.0);
     let t1 = ld(race.physics.contact.contact_normal[1].bits());
     let t2 = t1.abs();
@@ -235,8 +234,7 @@ fn x87_2() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2D31E0] = [rc + 0x2D1DF4] / ([rc + 0x2D31D8] + [rc + 0x1C5D38])`
 /// `[rc + 0x2D3204] = [rc + 0x2D31DC] * [rc + 0x2D31E0]`
-fn x87_3() {
-    let race = race();
+fn x87_3(race: &Race) {
     let t0 = ld(race.physics.contact.contact_share_numerator.bits());
     let t1 = ld(race.physics.contact.contact_turn_push.bits());
     let t2 = ld(race.course.numbers.one.bits());
@@ -254,8 +252,7 @@ fn x87_3() {
 /// `[rc + 0x2D30F0] = [rc + 0x2D30F0] - [rc + 0x2D30E4]`
 /// `[rc + 0x2D30F4] = [rc + 0x2D30F4] - [rc + 0x2D30E8]`
 /// `[rc + 0x2D30F8] = [rc + 0x2D30F8] - [rc + 0x2D30EC]`
-fn x87_4() {
-    let physics = &race().physics;
+fn x87_4(physics: &Physics) {
     let t0 = ld(physics.contact.contact_side_speed[0].bits());
     let t1 = ld(physics.contact.contact_normal_speed[0].bits());
     let t2 = t0 - t1;
@@ -273,8 +270,8 @@ fn x87_4() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = ([rc + 0x2D1DF8] * int [rc + 0x214148]) / int [rc + 0x21414C]`
-fn x87_5() -> [u8; 10] {
-    let t0 = ld(race().physics.contact.contact_normal_factor.bits());
+fn x87_5(physics: &Physics) -> [u8; 10] {
+    let t0 = ld(physics.contact.contact_normal_factor.bits());
     let t1 = int(PHYSICS.contact_step.bits() as i32);
     let t2 = t0 * t1;
     let t3 = int(PHYSICS.contact_steps.bits() as i32);
@@ -286,8 +283,7 @@ fn x87_5() -> [u8; 10] {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = sqrt((([rc + 0x2D3140] * [rc + 0x2D3140]) + (([rc + 0x2D3144] * [rc + 0x2D3144]) + ([rc + 0x2D3148] * [rc + 0x2D3148]))))`
 /// `status [s + 0] = status`
-fn x87_6() -> u16 {
-    let physics = &race().physics;
+fn x87_6(physics: &Physics) -> u16 {
     let t0 = ld(physics.contact.contact_slide[0].bits());
     let t1 = t0 * t0;
     let t2 = ld(physics.contact.contact_slide[1].bits());
@@ -308,8 +304,7 @@ fn x87_6() -> u16 {
 /// `[rc + 0x2D3144] = [rc + 0x2D3144] * ([rc + 0x2D30FC] / [rc + 0x22400C])`
 /// `[rc + 0x2D3148] = [rc + 0x2D3148] * ([rc + 0x2D30FC] / [rc + 0x22400C])`
 /// `[rc + 0x22400C] = [rc + 0x2D30FC] / [rc + 0x22400C]`
-fn x87_7() {
-    let physics = &race().physics;
+fn x87_7(physics: &Physics) {
     let t0 = ld(physics.contact.contact_slide_limit_held.bits());
     let t1 = ld(DRAW.scratch.bits());
     let t2 = t0 / t1;
@@ -330,8 +325,7 @@ fn x87_7() {
 /// `[d + 0] = [rc + 0x2D3150] / [rc + 0x21388C]`
 /// `[d + 4] = [rc + 0x2D3154] / [rc + 0x21388C]`
 /// `[d + 8] = [rc + 0x2D3158] / [rc + 0x21388C]`
-fn x87_8(d: &[Float; 3]) {
-    let physics = &race().physics;
+fn x87_8(physics: &Physics, d: &[Float; 3]) {
     let t0 = ld(physics.contact.contact_total[0].bits());
     let t1 = ld(PHYSICS.step_time.bits());
     let t2 = t0 / t1;
@@ -383,9 +377,15 @@ mod asm_reference {
                 reference: |a| unsafe { ref_0(a[0]) },
                 plain: |_| {
                     x87_1(
-                        &race().physics.contact.contact_turn_cross,
-                        &race().physics.contact.contact_car_speed,
-                        &race().physics.contact.contact_point_speed,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_turn_cross,
+                        &crate::race::owner::race().physics.contact.contact_car_speed,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_point_speed,
                     );
                 },
             },
@@ -397,7 +397,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(),
+                plain: |_| x87_2(crate::race::owner::race()),
             },
             Block {
                 name: "contact_force line 86",
@@ -413,7 +413,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| x87_3(),
+                plain: |_| x87_3(crate::race::owner::race()),
             },
             Block {
                 name: "contact_force line 107",
@@ -430,7 +430,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0]) },
-                plain: |_| x87_4(),
+                plain: |_| x87_4(&crate::race::owner::race().physics),
             },
             Block {
                 name: "contact_force line 126",
@@ -446,7 +446,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| a[1].set_tbyte(0, x87_5()),
+                plain: |a| a[1].set_tbyte(0, x87_5(&crate::race::owner::race().physics)),
             },
             Block {
                 name: "contact_force line 137",
@@ -465,9 +465,15 @@ mod asm_reference {
                 reference: |a| unsafe { ref_5(a[0]) },
                 plain: |_| {
                     x87_1(
-                        &race().physics.contact.contact_normal_push,
-                        &race().physics.contact.contact_extra,
-                        &race().physics.contact.contact_normal_push,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_normal_push,
+                        &crate::race::owner::race().physics.contact.contact_extra,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_normal_push,
                     );
                 },
             },
@@ -490,7 +496,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1]) },
-                plain: |a| a[1].set_word(0, x87_6()),
+                plain: |a| a[1].set_word(0, x87_6(&crate::race::owner::race().physics)),
             },
             Block {
                 name: "contact_force line 176",
@@ -511,7 +517,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0]) },
-                plain: |_| x87_7(),
+                plain: |_| x87_7(&crate::race::owner::race().physics),
             },
             Block {
                 name: "contact_force line 193",
@@ -530,9 +536,12 @@ mod asm_reference {
                 reference: |a| unsafe { ref_8(a[0]) },
                 plain: |_| {
                     x87_1(
-                        &race().physics.contact.contact_slide,
-                        &race().physics.contact.contact_normal_push,
-                        &race().physics.contact.contact_total,
+                        &crate::race::owner::race().physics.contact.contact_slide,
+                        &crate::race::owner::race()
+                            .physics
+                            .contact
+                            .contact_normal_push,
+                        &crate::race::owner::race().physics.contact.contact_total,
                     );
                 },
             },
@@ -555,7 +564,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_9(a[0], a[1]) },
-                plain: |a| x87_8(view(a[1], 0)),
+                plain: |a| x87_8(&crate::race::owner::race().physics, view(a[1], 0)),
             },
         ]
     }

@@ -6,7 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::kind_store::KIND_TABLES;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::trap::car_at;
 use crate::race::view_store::RACE_VIEW;
@@ -81,8 +81,7 @@ fn log_number(value: u32, newline: bool) {
     crate::logfile::log_int::log_int(value as i32, newline, 1);
 }
 
-pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
-    let race = race();
+pub fn set_up_car_points(race: &Race, slot: u32, block: u32) -> Result<(), Refused> {
     use crate::scene::object_slots_store::OBJECT_SLOTS;
     let slot = 11 + slot as usize;
     {
@@ -163,8 +162,8 @@ pub fn set_up_car_points(slot: u32, block: u32) -> Result<(), Refused> {
 /// `dword_621844`; with cars, each car's three kinds (its `known_kind`, `car_kind_11`,
 /// `car_kind_10` of its block's +0x24) at slots 0x50 + 0x14 * n, +11, +10; the objects
 /// loaded; each car's points set up. Refuses more than the eight cars' blocks.
-pub fn set_object_kinds() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn set_object_kinds(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     // Converted: `rc2k_core::race::stage_objects::{FIXED_KINDS, DEFAULT_SLOTS, CAR_KINDS,
     // car_slot, check_object_cars}` (each car's slots one step on from the first's, as the
     // original counts edi).
@@ -209,7 +208,7 @@ pub fn set_object_kinds() -> Result<(), Refused> {
     let mut slot = FIRST_CAR_SLOT;
     for n in 0..cars {
         let block: u32 = crate::race::work_store::RACE_WORK.car_block(n as usize);
-        set_up_car_points(slot, block)?;
+        set_up_car_points(race, slot, block)?;
         slot += CAR_SLOT_STEP;
     }
     Ok(())
@@ -218,10 +217,10 @@ pub fn set_object_kinds() -> Result<(), Refused> {
 /// `race::reload_objects` (0x425B2F): "LOAD OBJECTS - START" between two lines of dashes,
 /// `set_object_kinds`, then "total points", "total polys" and "facemem used" with their
 /// numbers, "LOAD OBJECTS - FINIS" and the dashes.
-pub fn reload_objects() -> Result<(), Refused> {
+pub fn reload_objects(race: &Race) -> Result<(), Refused> {
     log(c"-------------------------------------", true);
     log(c"LOAD OBJECTS - START", true);
-    set_object_kinds()?;
+    set_object_kinds(race)?;
     log(c"total points", false);
     log_number(OBJECT_TABLES.point_count.get(), false);
     log(c"total polys", false);

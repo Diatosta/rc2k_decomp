@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::hud::store::Hud as HudBlock;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::session::{Cell32, Float};
 
 /// A layout's own variables of a dial, in the order its set-up copies them.
@@ -102,7 +102,12 @@ fn copy(from: &dyn Cell32, to: &dyn Cell32) {
 }
 
 /// The disc's set-up: the shape's variables filled from the record and the style.
-fn set_up_disc(hud: &Hud, record: GamePtr, style: &DiscStyle) -> Result<(), Refused> {
+fn set_up_disc(
+    frame: &Frame,
+    hud: &Hud,
+    record: GamePtr,
+    style: &DiscStyle,
+) -> Result<(), Refused> {
     let own = (style.vars)(&hud.block);
     let from = style.shift_field;
     hud.block.disc_texture_shift[0].set_bits(field(record, from)?);
@@ -112,14 +117,19 @@ fn set_up_disc(hud: &Hud, record: GamePtr, style: &DiscStyle) -> Result<(), Refu
     copy(&own[1], &hud.block.disc_texture_scale);
     copy(&own[2], &hud.block.disc_centre[0]);
     copy(&own[3], &hud.block.disc_centre[1]);
-    if style.lifted_centre && race().frame.panel_and_overlay.panel.flat.get() == 0 {
+    if style.lifted_centre && frame.panel_and_overlay.panel.flat.get() == 0 {
         copy(&own[4], &hud.block.disc_centre[1]);
     }
     Ok(())
 }
 
 /// The needle's set-up: the shape's variables filled from the record and the style.
-fn set_up_needle(hud: &Hud, record: GamePtr, style: &NeedleStyle) -> Result<(), Refused> {
+fn set_up_needle(
+    frame: &Frame,
+    hud: &Hud,
+    record: GamePtr,
+    style: &NeedleStyle,
+) -> Result<(), Refused> {
     let own = (style.vars)(&hud.block);
     hud.block
         .needle_value
@@ -127,7 +137,7 @@ fn set_up_needle(hud: &Hud, record: GamePtr, style: &NeedleStyle) -> Result<(), 
     copy(&own[0], &hud.block.needle_centre[0]);
     copy(&own[1], &hud.block.needle_centre[1]);
     let size = if style.lifted_centre {
-        if race().frame.panel_and_overlay.panel.flat.get() == 0 {
+        if frame.panel_and_overlay.panel.flat.get() == 0 {
             copy(&own[2], &hud.block.needle_centre[1]);
         }
         3
@@ -139,13 +149,18 @@ fn set_up_needle(hud: &Hud, record: GamePtr, style: &NeedleStyle) -> Result<(), 
 }
 
 /// A disc's set-up and the disc.
-pub fn disc(hud: &Hud, record: GamePtr, style: &DiscStyle) -> Result<(), Refused> {
-    set_up_disc(hud, record, style)?;
-    crate::hud::draw_disc::draw_disc(hud)
+pub fn disc(frame: &Frame, hud: &Hud, record: GamePtr, style: &DiscStyle) -> Result<(), Refused> {
+    set_up_disc(frame, hud, record, style)?;
+    crate::hud::draw_disc::draw_disc(frame, hud)
 }
 
 /// A needle's set-up and the needle.
-pub fn needle(hud: &Hud, record: GamePtr, style: &NeedleStyle) -> Result<(), Refused> {
-    set_up_needle(hud, record, style)?;
-    crate::hud::draw_needle::draw_needle(hud)
+pub fn needle(
+    frame: &Frame,
+    hud: &Hud,
+    record: GamePtr,
+    style: &NeedleStyle,
+) -> Result<(), Refused> {
+    set_up_needle(frame, hud, record, style)?;
+    crate::hud::draw_needle::draw_needle(frame, hud)
 }

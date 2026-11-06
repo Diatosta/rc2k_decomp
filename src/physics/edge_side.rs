@@ -11,13 +11,16 @@
 //! Callers (8): `sub_442006`, the face under a point (each edge of a triangle or a quad).
 
 use crate::physics::flag_result::FlagResult;
-use crate::race::owner::race;
+use crate::race::owner_physics::Physics;
 use rc2k_core::physics::faces;
 
 /// The Rust version: the ground point's side of the edge from scene point `from` to `to`
 /// (their numbers).
-pub fn edge_side(from: u32, to: u32) -> Result<FlagResult, crate::errors::Refused> {
-    let physics = &race().physics;
+pub fn edge_side(
+    physics: &Physics,
+    from: u32,
+    to: u32,
+) -> Result<FlagResult, crate::errors::Refused> {
     let result = |eax, carry, zero| FlagResult {
         eax,
         ecx: None,

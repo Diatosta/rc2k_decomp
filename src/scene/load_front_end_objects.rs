@@ -11,6 +11,7 @@
 //! callers (the front end's start and a stage's leaving).
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::scene::load_object::load_object;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
@@ -25,7 +26,9 @@ use crate::scene::reset_objects::reset_objects;
 /// 0x100, edi, ebx) are read by no caller (taint at its sites: `race::set_object_kinds`' and
 /// `load_front_end_objects_logged`'s).
 pub fn load_front_end_objects(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    reset_objects()?;
+    let race = race();
+    let course = &race.course;
+    reset_objects(course)?;
     crate::scene::object_slots_store::OBJECT_SLOTS
         .texture_count
         .set(0);
@@ -36,7 +39,7 @@ pub fn load_front_end_objects(scene: &crate::scene::owner::Scene) -> Result<(), 
         let kind: u32 = OBJECT_TABLES.slot_kinds[slot as usize].get();
         OBJECT_WORK.loading_kind.set_bits(kind);
         OBJECT_WORK.loading_slot.set_bits(slot);
-        load_object(scene)?;
+        load_object(scene, race)?;
     }
     let cursor: u32 = OBJECT_WORK.face_cursor.bits();
     OBJECT_WORK

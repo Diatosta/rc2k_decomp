@@ -32,7 +32,7 @@ use crate::math::x87;
 use crate::math::x87_run::{abs_compare, abs_of, mul2_to_int, neg_mul, neg_product_plus};
 use crate::physics::axis_turn_matrix::axis_turn_matrix;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::work_store::{RACE_WORK, RaceSlot};
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix::multiply_matrices;
@@ -49,8 +49,7 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
 
 /// The Rust version: the slot `s` (the registers it leaves are dropped by its caller's
 /// `popa`).
-pub fn move_slot(s: &RaceSlot) -> Result<(), Refused> {
-    let race = race();
+pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
     let dt = PHYSICS.step_time.bits();
     let k65536 = race.course.numbers.k65536.bits();
     copy(&s.place, &RACE_WORK.slot_place);
@@ -67,7 +66,7 @@ pub fn move_slot(s: &RaceSlot) -> Result<(), Refused> {
             .lists
             .spin_angle
             .set_bits(x87::mul(s.spin_length.bits(), dt));
-        axis_turn_matrix(&race.course.lists.turn_matrix);
+        axis_turn_matrix(&race.course, &race.course.lists.turn_matrix);
         square_matrix(&race.course.lists.turn_matrix);
         multiply_matrices(
             &s.matrix,

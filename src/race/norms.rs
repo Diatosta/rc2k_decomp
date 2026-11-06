@@ -5,7 +5,9 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
+use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
 
@@ -39,8 +41,7 @@ pub fn normalise_work_vector() {
 /// `g_scenePoints` kept, the differences b - a and c - a (whole numbers), their cross
 /// product into `g_workVector` (each part as `math::x87::int_product_difference`),
 /// normalised. Its caller (`store_face_normal`) keeps every register round it.
-pub fn face_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
-    let race = race();
+pub fn face_normal(race: &Race, a: u32, b: u32, c: u32) -> Result<(), BadInput> {
     {
         let point = |n: u32| -> Result<[i32; 3], BadInput> {
             Ok(crate::race::scene_points::point_number(n)?.map(|v| v as i32))
@@ -79,10 +80,10 @@ pub fn face_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
 /// +0xC (else `g_workVector` as it was) into +0x18, +0x30, +0x38, and of +0x10, +0xC, +8
 /// into +0x1C, +0x34, +0x3C. Every register preserved (`face` gives the callee).
 pub fn store_face_normal(
+    race: &Race,
     face_number: u32,
     normal: &mut dyn FnMut(u32, u32, u32) -> Result<(), BadInput>,
 ) -> Result<(), BadInput> {
-    let race = race();
     {
         // Converted: `rc2k_core::race::faces::{takes_normals, repeated_points,
         // with_repeated, normal_made}`.
@@ -127,8 +128,7 @@ pub fn store_face_normal(
 /// records of 0x20, the faces (`dword_5CCCBC`, `dword_5CCD1C` of 0x40), the points
 /// (`g_scenePoints`, `g_scenePointCount` of 12), and what follows (`dword_5CCCC4`, and its
 /// offset in `dword_5CCCC8`); the first at `dword_5CCCB8`. Every register preserved.
-pub fn lay_out_course() {
-    let course = &race().course;
+pub fn lay_out_course(course: &Course) {
     {
         // Converted: `rc2k_core::race::faces::CourseLayout`.
         let layout = rc2k_core::race::faces::CourseLayout::of(
@@ -166,15 +166,16 @@ pub fn lay_out_course() {
 /// `race::store_norms` (0x421F02): `lay_out_course`, then `store_face_normal` for every
 /// face. Refuses no faces (the original counts round) or 0x100000 or more.
 pub fn store_norms(
+    race: &Race,
     normal: &mut dyn FnMut(u32, u32, u32) -> Result<(), BadInput>,
 ) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::faces::check_face_count`.
-        let count: u32 = race().course.course.course_face_count.bits();
+        let count: u32 = race.course.course.course_face_count.bits();
         rc2k_core::race::faces::check_face_count(count)?;
-        lay_out_course();
+        lay_out_course(&race.course);
         for face in 0..count {
-            store_face_normal(face, normal)?;
+            store_face_normal(race, face, normal)?;
         }
     }
     Ok(())
@@ -182,5 +183,6 @@ pub fn store_norms(
 
 /// In the game: `face_normal` in Rust.
 pub fn game_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
-    face_normal(a, b, c)
+    let race = race();
+    face_normal(race, a, b, c)
 }

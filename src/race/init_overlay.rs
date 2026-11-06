@@ -18,7 +18,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::draw_store::DRAW;
@@ -26,8 +26,7 @@ use crate::scene::draw_store::DRAW;
 const ONE: u32 = 0x3F80_0000;
 
 /// `race::init_overlay` (see the header).
-pub fn init_overlay() -> Result<(), Refused> {
-    let race = race();
+pub fn init_overlay(race: &Race) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.

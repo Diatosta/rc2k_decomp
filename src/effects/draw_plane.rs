@@ -28,6 +28,7 @@ use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::marks_settings_store::MarksSettings;
+use crate::race::owner::Race;
 use crate::scene::cross_product3::cross;
 use crate::scene::kind_texture_store::KIND_TEXTURES;
 use crate::scene::vector3::normalise;
@@ -101,8 +102,11 @@ fn plane_projected() {
 }
 
 /// The Rust version (see the header).
-pub fn draw_plane(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), Refused> {
-    let race = race();
+pub fn draw_plane(
+    race: &Race,
+    drops: &WindscreenDrops,
+    fl: &WindscreenFlakes,
+) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let m = crate::effects::setup::marks()?;
     let corner: u32 = QUAD_3.corner.get();
@@ -189,7 +193,6 @@ pub fn draw_plane(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), 
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 use crate::math::x87_float as bh;
-use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 /// `plane_axes`'s x87 block as plain Rust on the x87 model (29 instructions), same order and memory places.

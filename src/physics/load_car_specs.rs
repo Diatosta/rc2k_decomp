@@ -27,7 +27,9 @@ use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::car_specs_store::CarSpec;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
+use crate::race::owner_physics::Physics;
 use crate::scene::draw_store::DRAW;
 use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
@@ -42,8 +44,8 @@ fn below(a: u32, b: u32) -> bool {
 }
 
 /// The record of the work car's kind (`record_of` holds it to the last).
-fn record() -> &'static CarSpec {
-    &race().physics.car_specs.cars[record_of(CAR.car_kind.get()) as usize]
+fn record(physics: &Physics) -> &CarSpec {
+    &physics.car_specs.cars[record_of(CAR.car_kind.get()) as usize]
 }
 
 /// The whole-number steps both versions share, after the floats: the torque curve, the
@@ -69,14 +71,14 @@ fn words(spec: &CarSpec) {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`).
-pub fn load_car_specs() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     let kind = CAR.car_kind.get();
-    let spec = record();
+    let spec = record(&race.physics);
     let drive = check_drive(spec.drive_kind.get())?;
     CAR.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    load_figures_and_shift_points(spec);
+    load_figures_and_shift_points(&race.course, spec);
     if below(
         CAR.engine_speed_limit.bits(),
         course.numbers.thousand.bits(),
@@ -91,10 +93,10 @@ pub fn load_car_specs() -> Result<(), Refused> {
     }
     words(spec);
     // 0x4216C5 .. 0x421704
-    scale_record_ratios(spec);
+    scale_record_ratios(&race.course, spec);
     if kind < OWN_FIGURES_FROM {
         // 0x42170D .. 0x421755
-        scale_default_ratios();
+        scale_default_ratios(&race.course);
     }
     PHYSICS.spec_grip.set_bits(PHYSICS.spec_default_ba0.get());
     PHYSICS.spec_grip_b.set_bits(PHYSICS.spec_default_ba4.get());
@@ -104,7 +106,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
     DRAW.scratch.set(spec.scratch_value.get());
     PHYSICS.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
-    set_rev_limits(drive as usize);
+    set_rev_limits(&race.course, drive as usize);
     Ok(())
 }
 
@@ -124,8 +126,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
 /// `[rc + 0x1CB960] = [s + 0xAC] + [rc + 0x1C5DDC]`
 /// `[rc + 0x1CB968] = (int [s + 0x78] * [rc + 0x213EB8]) / [rc + 0x31A1B4]`
 /// `[rc + 0x214104] = [rc + 0x31A1B4] * [rc + 0x213FE4]`
-fn load_figures_and_shift_points(s: &CarSpec) {
-    let course = &race().course;
+fn load_figures_and_shift_points(course: &Course, s: &CarSpec) {
     let t0 = int(s.figures[0].get() as i32);
     GEAR.figures[0].set_bits(st(t0));
     let t1 = int(s.figures[1].get() as i32);
@@ -168,8 +169,7 @@ fn load_figures_and_shift_points(s: &CarSpec) {
 /// `int [rc + 0x214BC0] = (int [s + 0x40] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC4] = (int [s + 0x44] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [s + 0x48] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
-fn scale_record_ratios(s: &CarSpec) {
-    let course = &race().course;
+fn scale_record_ratios(course: &Course, s: &CarSpec) {
     let t0 = int(s.whole_figures[0].get() as i32);
     let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 * t1;
@@ -195,8 +195,7 @@ fn scale_record_ratios(s: &CarSpec) {
 /// `int [rc + 0x214BC0] = (int [rc + 0x213F04] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC4] = (int [rc + 0x213F08] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [rc + 0x213F0C] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
-fn scale_default_ratios() {
-    let course = &race().course;
+fn scale_default_ratios(course: &Course) {
     let t0 = int(PHYSICS.spec_default_bc0[0].bits() as i32);
     let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 * t1;
@@ -238,7 +237,7 @@ fn scale_record_grips(s: &CarSpec) {
 /// `[rc + 0x2140FC] = [rc + k * 4 + 0x213FB8] + [rc + 0x1C5D14]`
 /// `k` is the drive kind (0 .. 2): kind 2 reads past the two rev limits into `camera_drop`,
 /// as the original (`notes/bugs.md`).
-fn set_rev_limits(k: usize) {
+fn set_rev_limits(course: &Course, k: usize) {
     let limit = [
         &PHYSICS.rev_limits[0],
         &PHYSICS.rev_limits[1],
@@ -246,7 +245,7 @@ fn set_rev_limits(k: usize) {
     ][k];
     let t0 = ld(limit.bits());
     PHYSICS.idle_engine_speed.set_bits(st(t0));
-    let t1 = ld(race().course.numbers.hundred.bits());
+    let t1 = ld(course.numbers.hundred.bits());
     let t2 = t0 + t1;
     PHYSICS.stall_engine_speed.set_bits(st(t2));
 }
@@ -327,7 +326,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| load_figures_and_shift_points(&spec_at(a[0], 0x64, 0xB0)),
+                plain: |a| {
+                    load_figures_and_shift_points(
+                        &crate::race::owner::race().course,
+                        &spec_at(a[0], 0x64, 0xB0),
+                    );
+                },
             },
             Block {
                 name: "load_car_specs line 145",
@@ -343,7 +347,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| scale_record_ratios(&spec_at(a[0], 0x40, 0x4C)),
+                plain: |a| {
+                    scale_record_ratios(
+                        &crate::race::owner::race().course,
+                        &spec_at(a[0], 0x40, 0x4C),
+                    );
+                },
             },
             Block {
                 name: "load_car_specs line 162",
@@ -359,7 +368,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| scale_default_ratios(),
+                plain: |_| scale_default_ratios(&crate::race::owner::race().course),
             },
             Block {
                 name: "load_car_specs line 182",
@@ -388,7 +397,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| set_rev_limits(a[1]),
+                plain: |a| set_rev_limits(&crate::race::owner::race().course, a[1]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=1",
@@ -401,7 +410,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| set_rev_limits(a[1]),
+                plain: |a| set_rev_limits(&crate::race::owner::race().course, a[1]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=2 (camera_drop)",
@@ -414,7 +423,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| set_rev_limits(a[1]),
+                plain: |a| set_rev_limits(&crate::race::owner::race().course, a[1]),
             },
         ]
     }

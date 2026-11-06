@@ -30,7 +30,6 @@ use crate::errors::BadInput;
 use crate::math::next_random::next_random;
 use crate::math::x87;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
@@ -51,8 +50,7 @@ const LENGTHS: [u32; 9] = [200, 400, 200, 400, 400, 400, 400, 400, 0];
 
 /// The face whose +0x30 .. +0x40 hold the state (`g_currentCourseFace`), or None without
 /// the course faces.
-fn state() -> Option<u32> {
-    let course = &race().course;
+fn state(course: &crate::race::owner_course::Course) -> Option<u32> {
     (course.course.course_faces.bits() != 0).then(|| course.course.current_course_face.bits())
 }
 
@@ -95,7 +93,7 @@ fn step_shape(face: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-pub fn set_object_material() -> Result<(), BadInput> {
+pub fn set_object_material(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
     let object: u32 = FRAME_SWITCHES.object_number.bits();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
@@ -104,7 +102,7 @@ pub fn set_object_material() -> Result<(), BadInput> {
     let material = crate::scene::polygon::materials_ptr()
         .offset(((kind as usize).wrapping_mul(MATERIAL_LEN)) as u32);
     let way = material.offset(0x20).read::<u8>("an object's material")? as u32;
-    let state = state();
+    let state = state(course);
     if way == 4 && state.is_none() {
         return Err(BadInput("a moving object without its state"));
     }

@@ -155,8 +155,11 @@ fn mask(at: usize) -> u32 {
 
 /// The Rust version. The registers the original leaves (eax the kind, ebx the slot) are read
 /// by no caller (liveness; its one caller is `load_front_end_objects`).
-pub fn load_object(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let course = &race().course;
+pub fn load_object(
+    scene: &crate::scene::owner::Scene,
+    race: &crate::race::owner::Race,
+) -> Result<(), Refused> {
+    let course = &race.course;
     let kind: u32 = OBJECT_WORK.loading_kind.bits();
     if kind == 0 {
         return Ok(());
@@ -191,12 +194,12 @@ pub fn load_object(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
         list_object_textures()?;
     }
     if slot < 0x50 {
-        shape(scene, u32::MAX)?;
-        return check();
+        shape(scene, &race.course, u32::MAX)?;
+        return check(&race.course);
     }
     scene.draw_switches.loading_group_mask.set_bits(u32::MAX);
     let known = find_object_kind(kind);
-    race().frame.matrices.known_object.set_bits(known);
+    race.frame.matrices.known_object.set_bits(known);
     // The kind's record from `dword_5C90C4` (its `groups`); the kind is not bounded.
     // A run-on past the 34 records into the gear figures, as the original.
     let record = LIGHT_RECORDS.record_ptr(known).offset(0x58);
@@ -226,36 +229,39 @@ pub fn load_object(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
         0 => {
             for (n, &at) in FIRST_FIVE.iter().enumerate() {
                 OBJECT_WORK.loading_slot.set_bits(first + n as u32);
-                shape(scene, mask(at))?;
+                shape(scene, &race.course, mask(at))?;
             }
             OBJECT_WORK.loading_slot.set_bits(first + 5);
             for &(offset, at) in &MEASURED {
                 let slot = first + offset;
                 OBJECT_WORK.loading_slot.set_bits(slot);
-                shape(scene, mask(at))?;
-                measure_object()?;
+                shape(scene, &race.course, mask(at))?;
+                measure_object(&race.course)?;
                 let measures: [u32; 6] = crate::session::read_first(&OBJECT_SLOTS.measures);
                 for (table, &measure) in measures.iter().enumerate() {
                     OBJECT_SLOTS.part_extents[table][slot as usize].set(measure);
                 }
             }
         }
-        0xA => shape(scene, rest)?,
-        0xB => shape(scene, u32::MAX)?,
+        0xA => shape(scene, &race.course, rest)?,
+        0xB => shape(scene, &race.course, u32::MAX)?,
         _ => {}
     }
-    check()
+    check(&race.course)
 }
 
 /// One `scene::add_object_shape` with a mask.
-fn shape(scene: &crate::scene::owner::Scene, mask: u32) -> Result<(), Refused> {
+fn shape(
+    scene: &crate::scene::owner::Scene,
+    course: &crate::race::owner_course::Course,
+    mask: u32,
+) -> Result<(), Refused> {
     scene.draw_switches.loading_group_mask.set_bits(mask);
-    Ok({ add_object_shape() }?)
+    Ok({ add_object_shape(course) }?)
 }
 
 /// The three fatal errors at the end, in the original's order.
-fn check() -> Result<(), Refused> {
-    let course = &race().course;
+fn check(course: &crate::race::owner_course::Course) -> Result<(), Refused> {
     if OBJECT_WORK.face_cursor.bits() > course.lists.face_memory_room.bits() {
         return Err(NO_FACE_MEMORY.into());
     }

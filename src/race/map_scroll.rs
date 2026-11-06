@@ -9,7 +9,9 @@ use crate::errors::{BadInput, Refused};
 use crate::net::store::NET;
 use crate::physics::car_store::CAR;
 use crate::race::checkpoints_store::CHECKPOINTS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
+use crate::race::owner_frame::Frame;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
@@ -18,7 +20,7 @@ use crate::scene::kind_texture_store::KIND_TEXTURES;
 /// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar`
 /// unless `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4)
 /// (`sub_45B68F` -> `race::blit_map_tiles`, ecx / edx the tile, eax the slot).
-pub fn map_tiles() -> Result<(), Refused> {
+pub fn map_tiles(frame: &Frame) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::{first_tile, picture_slot}`.
     use rc2k_core::race::map::{first_tile, picture_slot};
     let one_view = NET.session.get() != 0;
@@ -33,6 +35,7 @@ pub fn map_tiles() -> Result<(), Refused> {
         },
     );
     crate::race::blit_map_tiles::blit_map_tiles(
+        frame,
         slot,
         first_tile(CAR.map_corner[0].get()),
         first_tile(CAR.map_corner[1].get()),
@@ -40,8 +43,7 @@ pub fn map_tiles() -> Result<(), Refused> {
 }
 
 /// What `scroll_map` reads through the course: refused before anything.
-fn scroll_refuses() -> Result<(), Refused> {
-    let course = &race().course;
+fn scroll_refuses(course: &Course) -> Result<(), Refused> {
     if RACE_VARS.checkpoint_count.get() >= 2
         && (course.course.course_faces.get() == 0 || course.course.scene_points.get() == 0)
     {
@@ -56,11 +58,11 @@ fn scroll_refuses() -> Result<(), Refused> {
 /// picture, the picture's corner moved (centred, 16-pixel steps) and redrawn
 /// (`map_tiles`), +0xADC 1; its place in the picture ((place - corner << 16 - 0x300000) x 2).
 /// Refuses (before anything) no course faces or points.
-pub fn scroll_map() -> Result<(), Refused> {
+pub fn scroll_map(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::{on_map, pixel, well_inside, centred_corner,
     // picture_place}`.
     use rc2k_core::race::map::{centred_corner, on_map, picture_place, pixel, well_inside};
-    scroll_refuses()?;
+    scroll_refuses(&race.course)?;
     CAR.map_redrawn.set(0);
     if RACE_VARS.checkpoint_count.get() < 2 {
         return Ok(());
@@ -91,7 +93,7 @@ pub fn scroll_map() -> Result<(), Refused> {
     if !(well_inside(dx) && well_inside(dy)) {
         corner_x.set(centred_corner(x));
         corner_y.set(centred_corner(y));
-        map_tiles()?;
+        map_tiles(&race.frame)?;
         CAR.map_redrawn.set(1);
     }
     CAR.map_picture_place[0].set(picture_place(corner_x.get(), map_x.get()));
@@ -103,7 +105,7 @@ pub fn scroll_map() -> Result<(), Refused> {
 /// `store_car_c`), else the first and, unless `dword_63DB98` is 1, the second. Refuses
 /// (before anything) a view car without its block, or what `scroll_map` refuses. Its one
 /// caller, `race::draw_race_scene`, reads no register it leaves.
-pub fn scroll_maps() -> Result<(), Refused> {
+pub fn scroll_maps(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::map::scrolled_views`.
     use crate::race::frame::{load_view_car, store_view_car, view_car};
     let third_only = NET.session.get() != 0;
@@ -118,10 +120,10 @@ pub fn scroll_maps() -> Result<(), Refused> {
             return Err(BadInput("a view car without its block").into());
         }
     }
-    scroll_refuses()?;
+    scroll_refuses(&race.course)?;
     for &v in views {
         load_view_car(v)?;
-        scroll_map()?;
+        scroll_map(race)?;
         store_view_car(v)?;
     }
     Ok(())

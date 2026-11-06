@@ -164,8 +164,7 @@ pub fn invert_turn(from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
 }
 
 /// `scene::set_view_matrices` (0x438FBF).
-pub fn set_view_matrices() {
-    let frame = &race().frame;
+pub fn set_view_matrices(frame: &crate::race::owner_frame::Frame) {
     crate::session::write_bits(
         &frame.matrices.view_turn_matrix,
         crate::session::read_bits(&frame.matrices.identity_matrix),

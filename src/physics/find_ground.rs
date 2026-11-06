@@ -17,5 +17,6 @@ use crate::physics::ground_search::ground_search;
 
 /// The Rust version: the carry (the registers are kept).
 pub fn find_ground() -> Result<bool, Refused> {
-    ground_search()
+    let race = crate::race::owner::race();
+    ground_search(race)
 }

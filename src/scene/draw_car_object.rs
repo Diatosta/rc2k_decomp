@@ -25,6 +25,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::state_store::MENU_STATE;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::carousel_pictures::update;
@@ -87,6 +88,7 @@ pub fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(
 /// 2026-10-23), and the drawing reads none of what the calls before it leave (the eax and
 /// ebx `sub_49040D` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
+    let race = race();
     if EVENT_STATE.car_page.get() != 0 {
         return Ok(());
     }
@@ -96,5 +98,5 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     map_texture_places();
     load_slot_textures_in_game()?;
     LIGHT_STATE.draw_mode.set_bits(0u32);
-    draw_shown_car(&mut || draw_menu_object_in_game())
+    draw_shown_car(&mut || draw_menu_object_in_game(race))
 }

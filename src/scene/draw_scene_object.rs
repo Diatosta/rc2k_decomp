@@ -41,13 +41,13 @@ pub use rc2k_core::scene::shown::Way;
 
 /// The texture set for `g_objectNumber`; the object's number.
 // Converted: `rc2k_core::scene::shown::texture_set`
-fn texture_set() -> Result<(u32, u32), Refused> {
+fn texture_set(course: &crate::race::owner_course::Course) -> Result<(u32, u32), Refused> {
     use rc2k_core::scene::shown::SetError;
     {
         let object: u32 = FRAME_SWITCHES.object_number.bits();
         let t = rc2k_core::scene::shown::texture_set(
             object,
-            race().course.numbers.in_race.bits() != 0,
+            course.numbers.in_race.bits() != 0,
             |object| OBJECT_TABLES.object_kind(object),
             |car| {
                 let block: u32 = RACE_WORK.car_block(car as usize);
@@ -68,9 +68,12 @@ fn texture_set() -> Result<(u32, u32), Refused> {
 /// the object's number among them) none of its callers reads (register liveness,
 /// 2026-10-23: only the unreached `sub_49081A` after `scene::draw_menu_object`).
 // Converted: `rc2k_core::scene::shown::way`
-pub fn draw_scene_object(draw: &mut dyn FnMut(Way) -> Result<(), Refused>) -> Result<(), Refused> {
-    let (set, object) = texture_set()?;
-    race().physics.ground.object_texture_set.set_bits(set);
+pub fn draw_scene_object(
+    race: &crate::race::owner::Race,
+    draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
+) -> Result<(), Refused> {
+    let (set, object) = texture_set(&race.course)?;
+    race.physics.ground.object_texture_set.set_bits(set);
     let faces: u32 =
         crate::scene::object_slots_store::OBJECT_SLOTS.face_counts[object as usize].get();
     match rc2k_core::scene::shown::way(faces, LIGHT_STATE.draw_mode.bits()) {
@@ -86,8 +89,12 @@ pub fn draw_scene_object(draw: &mut dyn FnMut(Way) -> Result<(), Refused>) -> Re
 pub fn draw_scene_object_in_game(
     description: Option<crate::pointers::GamePtr>,
 ) -> Result<(), Refused> {
-    draw_scene_object(&mut |way| match way {
-        Way::Shown => draw_shown_object(&mut || draw_object_in_game()).map(|_| ()),
-        Way::Described => crate::scene::draw_described_object::draw_described_object(description),
+    let race = race();
+    let course = &race.course;
+    draw_scene_object(race, &mut |way| match way {
+        Way::Shown => draw_shown_object(course, &mut || draw_object_in_game(race)).map(|_| ()),
+        Way::Described => {
+            crate::scene::draw_described_object::draw_described_object(course, description)
+        }
     })
 }

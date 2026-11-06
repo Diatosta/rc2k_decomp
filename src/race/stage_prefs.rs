@@ -6,15 +6,17 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::pointers::GamePtr;
+use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::object_store::OBJECT_WORK;
 
 // The stage's localdat is the whole of `race().course.stage_prefs` (0x608CB4, 0x206C bytes).
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
-fn prefs_paths() -> [GamePtr; 2] {
-    let p = &race().course.level_paths;
+fn prefs_paths(course: &Course) -> [GamePtr; 2] {
+    let p = &course.level_paths;
     [GamePtr::to(&p.localdat_files), GamePtr::to(&p.localdat_src)]
 }
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
@@ -34,8 +36,7 @@ fn swapped(n: u32) -> u32 {
 /// one; then, unless the new kind is in the swapped list already, it goes >> 4 into the
 /// list's first free place of 0x40 (the test is made on the kind before the shift:
 /// section 16).
-pub fn swap_stage_texture() {
-    let course = &race().course;
+pub fn swap_stage_texture(course: &Course) {
     // Converted: `rc2k_core::race::stage::swap_texture`.
     use rc2k_core::race::stage::{Swap, swap_texture};
     let stage: u32 = RACE_VARS.stage_number.bits();
@@ -53,20 +54,20 @@ pub fn swap_stage_texture() {
 
 /// `race::tweak_stage` (0x439AAB): for the stages 0x15, 0x3E and 0x36, `dword_60A564` ..
 /// `dword_60A56C` 0xFF.
-pub fn tweak_stage() {
+pub fn tweak_stage(course: &Course) {
     {
         // Converted: `rc2k_core::race::stage::stage_tweaked`.
         if rc2k_core::race::stage::stage_tweaked(RACE_VARS.stage_number.bits()) {
-            crate::session::write_bits(&race().course.stage_prefs.car_light_table, [0xFFu32; 3]);
+            crate::session::write_bits(&course.stage_prefs.car_light_table, [0xFFu32; 3]);
         }
     }
 }
 
 /// `race::clear_prefs_qword` (0x465381): with `dword_71C800` set, `qword_609344` 0.
-pub fn clear_prefs_qword() {
+pub fn clear_prefs_qword(course: &Course) {
     {
         if RACE_WORK.no_precipitation.get() != 0 {
-            crate::session::write_bits(&race().course.stage_prefs.blit_cleared, [0u32; 2]);
+            crate::session::write_bits(&course.stage_prefs.blit_cleared, [0u32; 2]);
         }
     }
 }
@@ -74,16 +75,13 @@ pub fn clear_prefs_qword() {
 /// `race::load_prefs` (0x445698): `files\levels\levelxx\localdat`, then
 /// `srclvls\levelxx\localdat`, each 0x206C bytes at most into 0x608CB4; then
 /// `swap_stage_texture`, `tweak_stage`, `clear_prefs_qword`.
-pub fn load_prefs() -> Result<(), Refused> {
-    for path in prefs_paths() {
-        crate::files::read_whole_file::read_whole_file_cells(
-            path,
-            race().course.stage_prefs.dwords(),
-        )?;
+pub fn load_prefs(course: &Course) -> Result<(), Refused> {
+    for path in prefs_paths(course) {
+        crate::files::read_whole_file::read_whole_file_cells(path, course.stage_prefs.dwords())?;
     }
-    swap_stage_texture();
-    tweak_stage();
-    clear_prefs_qword();
+    swap_stage_texture(course);
+    tweak_stage(course);
+    clear_prefs_qword(course);
     Ok(())
 }
 
@@ -127,8 +125,7 @@ pub fn copy_lights_data() -> Result<(), BadInput> {
 
 /// `race::load_lights_data` (0x438AE5): `files\s\data\ldata` (0x1320 bytes at most) into
 /// the lights' data, then `copy_lights_data`.
-pub fn load_lights_data() -> Result<(), Refused> {
-    let race = race();
+pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
         GamePtr::to(&race.physics.camera.lights_path), // "files\s\data\ldata"
         &race.course.lights_data.lights,

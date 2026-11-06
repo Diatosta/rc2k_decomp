@@ -13,7 +13,6 @@
 //! their memory.
 
 use crate::errors::BadInput;
-use crate::race::owner::race;
 use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::object_store::OBJECT_WORK;
 use crate::scene::objects::SLOTS;
@@ -25,12 +24,15 @@ const MOST: u32 = 0x10_0000;
 
 // ---- Rust version ----
 
-fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
+fn points_of(
+    course: &crate::race::owner_course::Course,
+    slot: u32,
+) -> Result<(usize, u32), BadInput> {
     if slot >= SLOTS {
         return Err(BadInput("an object's slot past the tables"));
     }
     let count = OBJECT_SLOTS.point_counts[slot as usize].get();
-    let memory: u32 = race().course.lists.object_points.bits();
+    let memory: u32 = course.lists.object_points.bits();
     if count > MOST || (count != 0 && memory == 0) {
         return Err(BadInput("points without their memory, or too many"));
     }
@@ -39,11 +41,11 @@ fn points_of(slot: u32) -> Result<(usize, u32), BadInput> {
 }
 
 // Converted: `rc2k_core::scene::objects::measure`
-pub fn measure_object() -> Result<(), BadInput> {
+pub fn measure_object(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
     {
         let slot: u32 = OBJECT_WORK.loading_slot.bits();
-        let (at, count) = points_of(slot)?;
+        let (at, count) = points_of(course, slot)?;
         let mut points: Vec<[u32; 3]> = if count == 0 {
             Vec::new()
         } else {

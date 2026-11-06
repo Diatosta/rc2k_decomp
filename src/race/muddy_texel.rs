@@ -16,6 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::mud_texel::mud_texel;
+use crate::race::owner_course::Course;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
 use crate::race::vars_store::RACE_VARS;
@@ -54,7 +55,7 @@ pub fn strength_at(n: u32, x: u32, y: u32) -> Result<u32, BadInput> {
 
 /// The Rust version (see the header): the texel of place number `number` (its low 16
 /// bits) muddied.
-pub fn muddy_texel(number: u32) -> Result<(), Refused> {
+pub fn muddy_texel(course: &Course, number: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
     // tint_amount}`.
     use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};
@@ -67,7 +68,7 @@ pub fn muddy_texel(number: u32) -> Result<(), Refused> {
     if !muddy(texel) {
         return Ok(());
     }
-    let tinted = tint_to_mud_colour(texel, tint_amount(strength));
+    let tinted = tint_to_mud_colour(course, texel, tint_amount(strength));
     if let Err(e) = { put_mud_texel(tinted | MUD_TOP, x, y) } {
         DRAW.scratch.set_bits(kept);
         return Err(e);

@@ -87,7 +87,8 @@ fn set_up() -> Result<(), BadInput> {
 /// registers this leaves are read by no caller (liveness: esi after the menus' calls has
 /// no read point).
 pub fn finish_race() -> Result<(), Refused> {
-    let replay = &race().replay;
+    let race = race();
+    let replay = &race.replay;
     // The stage index is not checked against the seven (a read past them is the original's).
     RACE_VARS.stage_number.set(crate::session::read_on_in(
         &replay.finish,
@@ -113,7 +114,7 @@ pub fn finish_race() -> Result<(), Refused> {
     set_up()?;
     crate::race::stage_loading::load_stage()?;
     var(finish_routine::BEFORE_RUN).set(0);
-    crate::drive::finish_run::finish_run()?;
+    crate::drive::finish_run::finish_run(race)?;
     // `race::tidy_everything`'s esi "read" is of `finish_run`'s leftover, which has
     // no read point (liveness at 0x459313): a scratch.
     crate::race::race_end::tidy_everything()?;

@@ -36,7 +36,8 @@ use crate::math::x87_run::{
 };
 use crate::physics::car_store::CAR;
 use crate::race::norms::normalise_work_vector;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_frame::Frame;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::work_store::RACE_WORK;
@@ -72,8 +73,8 @@ fn flat_way(from: &[Dword], to: &[Dword], out: &[Float]) {
 
 /// Through `g_workVector` and `race::normalise_work_vector`: the vector `from` made one
 /// long into `to`.
-fn normalised(from: &[Float], to: &[Float]) {
-    let w = &race().frame.scratch.work_vector;
+fn normalised(frame: &Frame, from: &[Float], to: &[Float]) {
+    let w = &frame.scratch.work_vector;
     for k in 0..3 {
         w[k].set(from[k].bits());
     }
@@ -94,8 +95,8 @@ fn slot_point(points: &[Dword; 40], slot: u32) -> Result<&[Dword], BadInput> {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::computer_driver` (the x87 steps stay).
-pub fn drive_computer_car() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     let reaches = CAR.run_ticks.get() >= driver::FIRST_STEP
         && compare_full(
             CAR.crash_matrix[5].bits(),
@@ -232,13 +233,21 @@ pub fn drive_computer_car() -> Result<(), Refused> {
         &RACE_WORK.driver_to,
         &RACE_WORK.driver_flat,
     );
-    normalised(&RACE_WORK.driver_flat, &RACE_WORK.driver_flat_unit);
+    normalised(
+        &race.frame,
+        &RACE_WORK.driver_flat,
+        &RACE_WORK.driver_flat_unit,
+    );
     cross_product(
         &RACE_WORK.driver_flat_unit,
         &RACE_WORK.driver_vector,
         &RACE_WORK.driver_ahead,
     );
-    normalised(&RACE_WORK.driver_ahead, &RACE_WORK.driver_ahead);
+    normalised(
+        &race.frame,
+        &RACE_WORK.driver_ahead,
+        &RACE_WORK.driver_ahead,
+    );
     let (k1, k2) = (
         RACE_WORK.driver_speed_scale.bits(),
         course.numbers.k65536.bits(),
@@ -264,7 +273,11 @@ pub fn drive_computer_car() -> Result<(), Refused> {
     here[2].set(CAR.position[2].get());
     here[1].set(0);
     flat_way(here, &RACE_WORK.driver_to, &RACE_WORK.driver_way);
-    normalised(&RACE_WORK.driver_way, &RACE_WORK.driver_way_unit);
+    normalised(
+        &race.frame,
+        &RACE_WORK.driver_way,
+        &RACE_WORK.driver_way_unit,
+    );
     RACE_WORK.driver_side[2].set_bits(x87::loaded(CAR.crash_matrix[10].bits()));
     RACE_WORK.driver_side[0].set_bits(x87::negated(CAR.crash_matrix[2].bits()));
     RACE_WORK.driver_side[1].set_bits(0);

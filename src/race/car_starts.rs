@@ -11,6 +11,8 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
+use crate::race::owner_physics::Physics;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -29,8 +31,8 @@ fn zero(cells: &[&Dword]) {
     }
 }
 
-fn wheels() -> [u32; 4] {
-    crate::session::read_first(&race().physics.contact.probe_height)
+fn wheels(physics: &Physics) -> [u32; 4] {
+    crate::session::read_first(&physics.contact.probe_height)
 }
 
 /// One bisection step of `settle_car`: `angle` moved by `step` towards the higher pair
@@ -46,10 +48,10 @@ fn settle_step(low: u32, high: u32, angle: &Dword, step: &Dword) {
 }
 
 /// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
-fn matrix_and_wheels() -> Result<[u32; 4], Refused> {
+fn matrix_and_wheels(physics: &Physics) -> Result<[u32; 4], Refused> {
     crate::race::stage_prefs::get_mat_crash();
     crate::physics::probe_ground::probe_ground()?;
-    Ok(wheels())
+    Ok(wheels(physics))
 }
 
 /// `race::settle_car` (0x43FC32): `sub_43EB5D` (`physics::set_handling`); the work car's
@@ -59,8 +61,7 @@ fn matrix_and_wheels() -> Result<[u32; 4], Refused> {
 /// step halved; once more the matrix and the wheels, then the car's y, the four wheels and
 /// the four at 0x6D1F14 lowered by the lowest wheel (from 0x640000). The registers it
 /// leaves are read by no caller (conversion phase 3, 2026-10-24).
-pub fn settle_car() -> Result<(), Refused> {
-    let physics = &race().physics;
+pub fn settle_car(physics: &Physics) -> Result<(), Refused> {
     crate::physics::set_handling::set_handling()?;
     CAR.car_pitch.set(0);
     CAR.car_roll.set(0);
@@ -68,7 +69,7 @@ pub fn settle_car() -> Result<(), Refused> {
     PHYSICS.settle_steps[1].set(0x2000_0000u32);
     physics.ground_probe.settle_mark.set(0x80);
     for _ in 0..8 {
-        let w = matrix_and_wheels()?;
+        let w = matrix_and_wheels(physics)?;
         settle_step(
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
@@ -82,7 +83,7 @@ pub fn settle_car() -> Result<(), Refused> {
             &PHYSICS.settle_steps[0],
         );
     }
-    let w = matrix_and_wheels()?;
+    let w = matrix_and_wheels(physics)?;
     let mut lowest = 0x64_0000u32;
     for &h in &w {
         if (h.wrapping_sub(lowest) as i32) < 0 {
@@ -108,7 +109,7 @@ pub fn settle_car() -> Result<(), Refused> {
 /// +0x1C4, +0x1F4 0; with +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
 pub fn reset_car_motion() -> Result<(), Refused> {
     let physics = &race().physics;
-    settle_car()?;
+    settle_car(physics)?;
     crate::race::start_place::invert_car_matrix();
     for v in &CAR.velocity {
         v.set_bits(0);
@@ -148,12 +149,12 @@ pub fn reset_car_motion() -> Result<(), Refused> {
 /// `math::turn_point_xz` of (x, 0, z) by the start place's heading: x and z moved. The
 /// original's y there is a leftover in ebx; it lands only in `g_scratchY`, which every
 /// reader writes first.
-fn move_turned(x: u32, z: u32) {
+fn move_turned(course: &Course, x: u32, z: u32) {
     let [x, _, z, _] = crate::math::turn_point_xz::turn_point_xz(
         x as i32,
         0,
         z as i32,
-        race().course.course.place_heading.bits(),
+        course.course.place_heading.bits(),
     );
     add(&CAR.position[0], x);
     add(&CAR.position[2], z);
@@ -170,6 +171,7 @@ fn move_turned(x: u32, z: u32) {
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. The registers it
 /// leaves are read by no caller. Refuses a nearest checkpoint past the lists (when met).
 pub fn start_car() -> Result<(), Refused> {
+    let course = &race().course;
     let replay = &race().replay;
     CAR.notice_count.set(0);
     CAR.camera_switch_active.set(0);
@@ -204,7 +206,7 @@ pub fn start_car() -> Result<(), Refused> {
         }
         crate::race::start_place::place_car_on_line()?;
         if replay.finish.no_place.get() == 0 {
-            move_turned(0, 0xFFFE_0000);
+            move_turned(course, 0, 0xFFFE_0000);
             let side = starts_aside(
                 crate::net::store::NET.session.get(),
                 || RACE_VARS.run_kind.bits(),
@@ -212,6 +214,7 @@ pub fn start_car() -> Result<(), Refused> {
             );
             if side {
                 move_turned(
+                    course,
                     side_offset(crate::race::work_store::RACE_WORK.current_car.get()),
                     0,
                 );

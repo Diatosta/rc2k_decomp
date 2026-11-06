@@ -10,6 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::race::replay_file_store::REPLAY_FILE;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::state_store::RACE_STATE;
@@ -79,8 +80,7 @@ mod block_tests {
 /// into dword 0 and `dword_4F66F9`; then its 32 blocks of 8 chained through
 /// `race::seal_block` with the key "halfmoon" (the game's key put back after). Every
 /// register kept.
-pub fn seal_replay_header() -> Result<(), Refused> {
-    let replay = &race().replay;
+pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::replay::{seal_checksum, chained, SEAL_KEY}`.
     use rc2k_core::race::replay::{SEAL_KEY, SEAL_VERSION, chained, seal_checksum};
     // The sealed header is the file's bytes: the version byte and the name sit inside its
@@ -242,8 +242,7 @@ pub fn write_replay_block() -> Result<(), Refused> {
 /// and count back. Every register kept. Refuses frames past the block's room (before
 /// anything). Its one caller adds the padding frame (`REPLAY_VIEW.pad_frame`): here the
 /// frame's cells, `bytes` their size.
-pub fn add_replay_frame(frame: &[Dword]) -> Result<(), Refused> {
-    let replay = &race().replay;
+pub fn add_replay_frame(replay: &Replay, frame: &[Dword]) -> Result<(), Refused> {
     if REPLAY_FILE.replay_open.get() != 1 {
         return Ok(());
     }
@@ -286,7 +285,7 @@ pub fn close_replay() -> Result<(), Refused> {
         return Ok(());
     }
     while replay.replay_view.frames_in_block.get() != 0 {
-        add_replay_frame(&replay.replay_view.pad_frame)?;
+        add_replay_frame(replay, &replay.replay_view.pad_frame)?;
     }
     // Converted: `rc2k_core::race::replay::closing_frames`.
     let (frames, _, _) = rc2k_core::race::replay::closing_frames(
@@ -295,7 +294,7 @@ pub fn close_replay() -> Result<(), Refused> {
         REPLAY_FILE.index_frame_count.get(),
     );
     replay.replay_view.frames_in_block.set(frames);
-    crate::race::race_shell::seal_stage_time()?;
+    crate::race::race_shell::seal_stage_time(replay)?;
     crate::files::handle::write_cells(REPLAY_FILE.replay_handle.get(), REPLAY_FILE.index());
     crate::files::handle::close(REPLAY_FILE.replay_handle.get());
     REPLAY_FILE.replay_open.set(0);
@@ -354,7 +353,7 @@ pub fn open_replay() -> Result<(), Refused> {
     {
         to.set(from.get());
     }
-    seal_replay_header()?;
+    seal_replay_header(replay)?;
     // The store types the stage's 0x400 bytes by their first dword.
     GamePtr::to(&REPLAY_WORK.header_stage).unbounded().copy_to(
         // The file's header is bytes.
@@ -369,7 +368,8 @@ pub fn open_replay() -> Result<(), Refused> {
     VIEWER_BUFFERS.block_used.set(0);
     replay.replay_view.frames_in_block.set(0);
     replay.replay_view.file_offset.set(0);
-    let opened = crate::files::handle::open_by_mode(&crate::race::replay_path::last_race(), 1)?;
+    let opened =
+        crate::files::handle::open_by_mode(&crate::race::replay_path::last_race(replay), 1)?;
     let failed = match opened {
         None => true,
         Some(handle) => {

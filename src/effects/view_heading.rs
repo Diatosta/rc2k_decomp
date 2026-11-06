@@ -12,15 +12,15 @@
 
 use crate::effects::frame_state::{DRAW_FRAME, VIEW_VARS};
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::rounded;
 use crate::scene::vector3::angle_between_vectors;
 use crate::session::write_bits;
 
 /// The Rust version (see the header).
-pub fn view_heading() {
-    let x = x87::loaded(race().frame.matrices.view_place[2].bits());
-    let z = x87::loaded(race().frame.matrices.view_place[10].bits());
+pub fn view_heading(frame: &Frame) {
+    let x = x87::loaded(frame.matrices.view_place[2].bits());
+    let z = x87::loaded(frame.matrices.view_place[10].bits());
     write_bits(&DRAW_FRAME.level, [x, 0, z]);
     let mut heading = rounded(angle_between_vectors(&DRAW_FRAME.level, &DRAW_FRAME.other));
     if DRAW_FRAME.level[0].bits() & 0x8000_0000 == 0 {

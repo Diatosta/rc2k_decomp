@@ -31,14 +31,14 @@ use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::record;
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::tables_store::RACE_TABLES;
 use crate::scene::draw_store::DRAW;
 use crate::session::Dword;
 use rc2k_core::physics::camera_ground;
 
-fn place() {
-    crate::physics::place_camera::place_camera();
+fn place(race: &Race) {
+    crate::physics::place_camera::place_camera(race);
 }
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
@@ -67,7 +67,7 @@ fn ground_faces() -> [&'static Dword; 5] {
 }
 
 /// The turn back toward the kept heading (0x43919D ..).
-fn turn_back() -> Result<(), Refused> {
+fn turn_back(race: &Race) -> Result<(), Refused> {
     RACE_TABLES
         .camera_turn_step
         .set(camera_ground::FIRST_TURN_STEP);
@@ -84,8 +84,8 @@ fn turn_back() -> Result<(), Refused> {
         ) {
             CAR.camera_heading
                 .set(CAR.camera_heading.get().wrapping_add(step));
-            place();
-            if camera_over_ground()? {
+            place(race);
+            if camera_over_ground(race)? {
                 continue;
             }
             stepped_back = true;
@@ -107,38 +107,38 @@ fn turn_back() -> Result<(), Refused> {
 /// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
-pub fn steps() -> Result<(), Refused> {
-    let physics_store = &race().physics;
-    crate::physics::ease_view_turn::ease_view_turn();
+pub fn steps(race: &Race) -> Result<(), Refused> {
+    let physics_store = &race.physics;
+    crate::physics::ease_view_turn::ease_view_turn(race);
     RACE_TABLES.camera_ground_flag.set(0);
     RACE_TABLES.camera_turn_step.set(u32::MAX);
     DRAW.camera_heading_kept.set(CAR.camera_heading.get());
-    place();
+    place(race);
     if record()?.halve_tilt.get() == 0 {
         return Ok(());
     }
-    if !camera_over_ground()? {
+    if !camera_over_ground(race)? {
         let mut found = false;
         for back in [1, 2] {
             if !face_checkpoint(back) {
                 break;
             }
-            place();
-            if camera_over_ground()? {
+            place(race);
+            if camera_over_ground(race)? {
                 found = true;
                 break;
             }
         }
         if found {
-            turn_back()?;
+            turn_back(race)?;
         } else {
             CAR.camera_heading.set(DRAW.camera_heading_kept.get());
         }
     }
     // 0x4392A3: clear of the ground by the pitch.
     RACE_TABLES.camera_ground_flag.set(u32::MAX);
-    place();
-    if camera_clear_of_ground()? {
+    place(race);
+    if camera_clear_of_ground(race)? {
         return Ok(());
     }
     physics_store
@@ -149,18 +149,18 @@ pub fn steps() -> Result<(), Refused> {
     loop {
         if up {
             physics_store.camera.pitch_floor.set(CAR.camera_pitch.get());
-            crate::physics::ease_pitch_up::ease_pitch_up();
+            crate::physics::ease_pitch_up::ease_pitch_up(&race.physics);
         } else {
             physics_store
                 .camera
                 .pitch_ceiling
                 .set(CAR.camera_pitch.get());
-            crate::physics::ease_pitch_down::ease_pitch_down();
+            crate::physics::ease_pitch_down::ease_pitch_down(&race.physics);
         }
         if physics_store.camera.pitch_step.get() == 0 {
             return Ok(());
         }
-        place();
-        up = !camera_clear_of_ground()?;
+        place(race);
+        up = !camera_clear_of_ground(race)?;
     }
 }

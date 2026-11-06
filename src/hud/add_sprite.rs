@@ -10,6 +10,7 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
+use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads;
 
 /// The quad record's texture places from the rectangle at `s` (shared with
@@ -36,8 +37,8 @@ pub fn put_corners(hud: &Hud, x: u32, y: u32, w: u32, h: u32) {
 /// The Rust version (see the header): the sprite whose rectangle is the place `rect` with its
 /// corner at `x`, `y` (ebx, ecx, esi; every register kept).
 // Converted: `rc2k_core::hud::quads::{sprite_places, sprite_corners}`
-pub fn add_sprite(hud: &Hud, x: u32, y: u32, rect: GamePtr) -> Result<(), Refused> {
+pub fn add_sprite(frame: &Frame, hud: &Hud, x: u32, y: u32, rect: GamePtr) -> Result<(), Refused> {
     let [_, _, w, h] = put_places(hud, rect)?;
     put_corners(hud, x, y, w, h);
-    crate::hud::add_quad::add_quad(hud)
+    crate::hud::add_quad::add_quad(frame, hud)
 }

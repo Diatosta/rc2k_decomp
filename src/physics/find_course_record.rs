@@ -19,12 +19,12 @@
 
 use crate::errors::Refused;
 use crate::physics::cells::Trap;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use rc2k_core::physics::course_records::{Search, find_record, kind_of};
 
 /// The Rust version: the number of the course record with `key`, if any.
-pub fn find_course_record(key: u32) -> Result<Option<u32>, Refused> {
-    let course_store = &race().course;
+pub fn find_course_record(course: &Course, key: u32) -> Result<Option<u32>, Refused> {
+    let course_store = course;
     let (kind, _) = kind_of(key);
     // `kind_of` gives at most 0xFF: inside both tables.
     let first = course_store.kind_records.first_records[kind as usize].get();

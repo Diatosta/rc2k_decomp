@@ -11,14 +11,14 @@
 use crate::effects::rain::Weather;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 const FADES: usize = 0x11;
 
 /// The Rust version (see the header).
-pub fn make_fade_colours(weather: &Weather) {
+pub fn make_fade_colours(frame: &Frame, weather: &Weather) {
     let l = &weather.snow_light;
     {
-        let colour: u32 = race().frame.frame_work.view_light.bits();
+        let colour: u32 = frame.frame_work.view_light.bits();
         let inverses = [
             ((colour >> 16) & 0xFF) ^ 0xFF,
             ((colour >> 8) & 0xFF) ^ 0xFF,
@@ -37,7 +37,7 @@ pub fn make_fade_colours(weather: &Weather) {
             }
             let [r, gr, b] = scaled.map(|v| v as u32 & 0xFF);
             let fade = (0xFF00_0000 | r << 16 | gr << 8 | b)
-                .wrapping_add(race().frame.frame_work.view_light.bits());
+                .wrapping_add(frame.frame_work.view_light.bits());
             l.fade_colours[n].set(fade);
             l.fade_step
                 .set_bits(x87::add(step, MARKS_FLOATS.sixteenth.bits()));

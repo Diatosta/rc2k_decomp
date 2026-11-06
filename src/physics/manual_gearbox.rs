@@ -40,12 +40,12 @@ use crate::physics::higher_free_gear::higher_free_gear;
 use crate::physics::lower_free_gear::lower_free_gear;
 use crate::physics::pick_start_gear::pick_start_gear;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C340).
-fn up() -> Result<Shift, Refused> {
+fn up(course: &Course) -> Result<Shift, Refused> {
     let gear = CAR.gear.get();
     if let Some(shift) = shifts::manual_up(gear, || PHYSICS.gear_count.get()) {
         return Ok(shift);
@@ -55,13 +55,13 @@ fn up() -> Result<Shift, Refused> {
         return Ok(Shift::Done);
     };
     CAR.gear.set(to);
-    revs()?;
+    revs(course)?;
     settle();
     Ok(Shift::Done)
 }
 
 /// Down (0x43C379).
-fn down() -> Result<Shift, Refused> {
+fn down(course: &Course) -> Result<Shift, Refused> {
     let gear = CAR.gear.get();
     if let Some(shift) = shifts::manual_down(gear) {
         return Ok(shift);
@@ -71,10 +71,10 @@ fn down() -> Result<Shift, Refused> {
         return Ok(Shift::Neutral);
     };
     CAR.gear.set(to);
-    revs()?;
+    revs(course)?;
     if !below(CAR.engine_speed.bits(), PHYSICS.rev_limit.bits()) {
         CAR.gear.set(CAR.gear.get().wrapping_add(1));
-        revs()?;
+        revs(course)?;
         CAR.gear_change_hold.set(shifts::HOLD);
         CAR.gear_changed.set(u32::MAX);
         CAR.gear_changed_2.set(1);
@@ -86,7 +86,7 @@ fn down() -> Result<Shift, Refused> {
 
 /// Into reverse (0x43C433; with `quarter` the engine speed x 0.25 first, as here; the
 /// automatic's 0x43C74E has no such step).
-pub fn reverse(quarter: bool) -> Result<(), Refused> {
+pub fn reverse(course: &Course, quarter: bool) -> Result<(), Refused> {
     if bit(u32::MAX)? {
         return Ok(());
     }
@@ -94,7 +94,7 @@ pub fn reverse(quarter: bool) -> Result<(), Refused> {
     if quarter {
         CAR.engine_speed.set_bits(x87::mul(
             CAR.engine_speed.bits(),
-            race().course.numbers.quarter.bits(),
+            course.numbers.quarter.bits(),
         ));
     }
     wheels()?;
@@ -146,7 +146,7 @@ fn start_line() -> Result<Shift, Refused> {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn manual_gearbox() -> Result<(), Refused> {
+pub fn manual_gearbox(course: &Course) -> Result<(), Refused> {
     CAR.gear_changed.set(0);
     let mut to = 'first: {
         if CAR.driver_kind.get() == 2 {
@@ -173,18 +173,18 @@ pub fn manual_gearbox() -> Result<(), Refused> {
     };
     loop {
         to = match to {
-            Shift::Up => up()?,
-            Shift::Down => down()?,
+            Shift::Up => up(course)?,
+            Shift::Down => down(course)?,
             Shift::Neutral => {
                 neutral();
                 Shift::Done
             }
             Shift::Start => {
-                pick_start_gear()?;
+                pick_start_gear(course)?;
                 Shift::Done
             }
             Shift::Reverse => {
-                reverse(true)?;
+                reverse(course, true)?;
                 Shift::Done
             }
             Shift::Done => return Ok(()),

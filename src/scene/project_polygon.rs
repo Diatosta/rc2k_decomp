@@ -27,11 +27,15 @@ use crate::scene::project_point::{NEAR, project_point};
 // ---- Rust version ----
 
 pub fn project_polygon() -> Result<(), Refused> {
-    project_entries(&listed()?)
+    let course = &race().course;
+    project_entries(course, &listed()?)
 }
 
 /// `project_polygon` on the polygon's entries as listed.
-pub fn project_entries(entries: &Listed) -> Result<(), Refused> {
+pub fn project_entries(
+    course: &crate::race::owner_course::Course,
+    entries: &Listed,
+) -> Result<(), Refused> {
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
     }
@@ -39,14 +43,14 @@ pub fn project_entries(entries: &Listed) -> Result<(), Refused> {
     // and their objects' points (negative) only need the records.
     let scene_point = entries.iter().any(|entry| entry.point.get() as i32 >= 0);
     if !crate::scene::point_records::held()
-        || (scene_point && race().course.course.scene_points.bits() == 0)
+        || (scene_point && course.course.scene_points.bits() == 0)
     {
         return Err(BadInput("no points or no records for them").into());
     }
     let far = f32::from_bits(DRAW.farthest.bits());
     let mut outside = 0u32;
     for entry in entries {
-        let point = project_point(entry.point.get())?;
+        let point = project_point(course, entry.point.get())?;
         entry.record.set(point.record);
         let depth = f32::from_bits(crate::scene::point_records::field(point.record, 0x18)?);
         // Two compares, each taking "no number" for "below".

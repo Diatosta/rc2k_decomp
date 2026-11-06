@@ -6,13 +6,12 @@
 //!
 //! Caller: `drive::replay_step`.
 
-use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use rc2k_core::drive::clocks::ReplayClock;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::clocks::ReplayClock::tick`.
-pub fn replay_clock_tick() {
-    let replay = &race().replay;
+pub fn replay_clock_tick(replay: &Replay) {
     let was = ReplayClock {
         frame: replay.replay_view.replay_block.get(),
         hundredths: replay.replay_view.replay_frame.get(),

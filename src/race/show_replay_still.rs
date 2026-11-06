@@ -20,33 +20,33 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::g;
 use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_replay::Replay;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 use crate::race::work_store::RACE_WORK;
 
 /// The frame's block copied to the replay's (`drive::load_replay_cars` reads it).
-fn load_frame() {
+fn load_frame(replay: &Replay) {
     // unk_7172EC: car block 8's start (the copy runs on past the block, over the next
     // blocks' tail and the replay's tape).
     copy_cells(
         (&VIEWER_BUFFERS.block, 0),
-        (&race().replay.cars_and_replay, REPLAY_STATE_OFFSET),
+        (&replay.cars_and_replay, REPLAY_STATE_OFFSET),
         4 * 0xA04,
     );
 }
 
 /// The Rust version (the original leaves registers nothing reads).
-pub fn show_replay_still() -> Result<(), Refused> {
-    let race = race();
+pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
     use crate::drive::*;
     if !(1..=8).contains(&RACE_VIEW.race_cars.get()) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
     }
     race.physics.split_tables.still.set(1);
     race.frame.frame_work.still_2.set(1);
-    load_frame();
+    load_frame(&race.replay);
     load_replay_cars::load_replay_cars();
     replay_cameras::replay_cameras()?;
     for step in 0..g(&race.replay.replay_view.replay_frame) {
@@ -61,7 +61,7 @@ pub fn show_replay_still() -> Result<(), Refused> {
         race.replay.replay_frames.step_first.set(1);
         crate::race::step_replay_cars::step_replay_cars()?;
         race.replay.replay_frames.step_first.set(0);
-        load_frame();
+        load_frame(&race.replay);
         load_replay_cars::load_replay_cars();
     }
     RACE_WORK.current_car.set(0);

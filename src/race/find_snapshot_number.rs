@@ -15,7 +15,9 @@
 use crate::errors::BadInput;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
 use crate::pointers::GamePtr;
+#[cfg(test)]
 use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 
 /// IDA's address of the snapshot picture's name.
 pub const SNAPSHOT_START: usize = 0x529731;
@@ -23,9 +25,9 @@ pub const SNAPSHOT_START: usize = 0x529731;
 pub const DIGITS_AT: usize = 0x12;
 
 /// Where the name's three digits are.
-pub fn digits_place() -> GamePtr {
+pub fn digits_place(replay: &Replay) -> GamePtr {
     // The name's bytes: a file name.
-    GamePtr::to(&race().replay.snapshot).offset(DIGITS_AT as u32)
+    GamePtr::to(&replay.snapshot).offset(DIGITS_AT as u32)
 }
 
 /// `files::find_next_wanted` (0x402FF6): the next name not of the skipped attributes;
@@ -52,8 +54,7 @@ pub fn find_first_at(pattern: GamePtr) -> bool {
 }
 
 /// The Rust version.
-pub fn find_snapshot_number() -> Result<(), BadInput> {
-    let replay = &race().replay;
+pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
     // The name's bytes: a file name.
     GamePtr::to(&replay.snapshot)
         .offset(DIGITS_AT as u32)

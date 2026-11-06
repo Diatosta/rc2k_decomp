@@ -23,6 +23,7 @@ use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::math::x87;
 use crate::math::x87_float::{ld, to_int};
+use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::extended;
 
 /// `fld v [; fsub less]; fdiv over; fadd plus; fmul k0; fmul k1; fistp`.
@@ -37,7 +38,7 @@ fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
-pub fn draw_needle(hud: &Hud) -> Result<(), Refused> {
+pub fn draw_needle(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
     use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
     use rc2k_core::math::extended::to_f64;
     let kind = hud.block.needle_kind.get() != 0;
@@ -72,7 +73,7 @@ pub fn draw_needle(hud: &Hud) -> Result<(), Refused> {
     crate::scene::draw_store::DRAW
         .polygon_vertex_count
         .set_bits(4u32);
-    crate::hud::add_polygon::add_polygon(hud)
+    crate::hud::add_polygon::add_polygon(frame, hud)
 }
 
 // ---- the arithmetic that was x87 assembly ----

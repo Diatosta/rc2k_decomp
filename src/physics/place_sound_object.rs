@@ -15,16 +15,16 @@ use crate::errors::Refused;
 use crate::physics::car_sounds::{cue_plain, listed, object};
 use crate::physics::sound_band_2::TWIN;
 use crate::physics::sound_bands::band_value_plain;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::object_tables_store::OBJECT_TABLES;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
-pub fn place_sound_object() -> Result<(), Refused> {
-    let physics_store = &race().physics;
-    if !listed(RACE_WORK.current_car.get())? {
+pub fn place_sound_object(race: &Race) -> Result<(), Refused> {
+    let physics_store = &race.physics;
+    if !listed(&race.frame, RACE_WORK.current_car.get())? {
         return Ok(());
     }
     let trap = crate::physics::cells::Trap::new();
@@ -41,10 +41,10 @@ pub fn place_sound_object() -> Result<(), Refused> {
                     .ok_or(crate::errors::BadInput("an object kind past the materials")),
             )
         },
-        |n| race().frame.sound_spots.object_kind_sounds[n as usize].get(),
+        |n| race.frame.sound_spots.object_kind_sounds[n as usize].get(),
     )?;
     trap.finish()?;
-    let b = band_value_plain(TWIN);
+    let b = band_value_plain(&race.frame, TWIN);
     if b == 0 {
         return Ok(());
     }
@@ -55,6 +55,6 @@ pub fn place_sound_object() -> Result<(), Refused> {
             .each_ref()
             .map(super::super::session::Dword::bits),
     );
-    cue_plain(object(), FIRST, sound, b, offset)?;
+    cue_plain(race, object(), FIRST, sound, b, offset)?;
     Ok(())
 }
