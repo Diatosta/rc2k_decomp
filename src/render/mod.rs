@@ -311,6 +311,10 @@ pub static UPLOAD_BYTES: std::sync::atomic::AtomicU64 = std::sync::atomic::Atomi
 /// The GPU's draw calls (a run of triangles drawn alike each): what the handheld's driver
 /// spends its time on.
 pub static GPU_DRAWS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// The GL thread's time at its jobs, and the game's waiting to hand it one (its queue full),
+/// in microseconds: which of the two the frame waits for.
+pub static GL_BUSY_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+pub static GL_WAIT_MICROS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 #[cfg(test)]
 mod tests {

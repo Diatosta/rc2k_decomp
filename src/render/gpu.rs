@@ -535,7 +535,7 @@ impl Gpu {
     /// Draws the commands over the target, the canvas's written pixels first.
     pub fn draw(&mut self, canvas: &mut [u8], commands: &[Command]) -> Result<(), String> {
         self.take_changes();
-        let batches = Batches::of(commands, self.width, self.height);
+        let batches = Batches::of(commands, self.width, self.height, None);
         let vertex_bytes = batches.vertices.len() as u32 * VERTEX_BYTES;
         let mut uploads: Vec<(TextureNote, Vec<u8>)> = Vec::new();
         for note in &batches.textures {

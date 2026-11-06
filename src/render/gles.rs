@@ -5,6 +5,8 @@
 //! the game's thread hands it copies, by channel, and goes on. All of this file's `unsafe` is
 //! the calls through the library's table, on that thread alone.
 
+mod bench;
+
 use super::batches::{Batches, PipelineKey, PixelValues};
 use super::{Command, Target, TextureNote};
 use crate::framework::log;
@@ -109,9 +111,15 @@ library! {
     glFrontFace: fn(u32);
     glDrawArrays: fn(u32, i32, i32);
     glReadPixels: fn(i32, i32, i32, i32, u32, u32, *mut c_void);
+    glFinish: fn();
+    glActiveTexture: fn(u32);
+    glDeleteBuffers: fn(i32, *const u32);
+    glDeleteVertexArrays: fn(i32, *const u32);
 }
 
 const TEXTURE_2D: u32 = 0x0DE1;
+const TEXTURE0: u32 = 0x84C0;
+const TEXTURE1: u32 = 0x84C1;
 const RGBA: u32 = 0x1908;
 const UNSIGNED_BYTE: u32 = 0x1401;
 const FRAMEBUFFER: u32 = 0x8D40;
@@ -132,45 +140,70 @@ const PANEL: (i32, i32) = (720, 480);
 const SCENE_VS: &CStr = c"#version 300 es
 layout(location=0) in vec4 place; layout(location=1) in vec4 colour;
 layout(location=2) in vec4 specular; layout(location=3) in vec2 uv;
+layout(location=4) in vec4 colour2; layout(location=5) in vec4 specular2;
+layout(location=6) in vec2 uv2;
 uniform vec2 size;
 out highp vec4 v_colour; out highp float v_fog; out highp float v_w; out highp vec2 v_uv;
+out highp vec4 v_colour2; out highp float v_fog2; out highp vec2 v_uv2;
 void main() {
     float w = place.w > 0.0 ? 1.0 / place.w : 1.0;
     gl_Position = vec4(((place.x + 0.5) / size.x * 2.0 - 1.0) * w,
                        (1.0 - (place.y + 0.5) / size.y * 2.0) * w,
                        (clamp(place.z, 0.0, 1.0) * 2.0 - 1.0) * w, w);
     v_colour = colour.bgra * w; v_fog = specular.a * w; v_w = w; v_uv = uv;
+    v_colour2 = colour2.bgra * w; v_fog2 = specular2.a * w; v_uv2 = uv2;
 }
 ";
+/// A batch's pass; with `SECOND` in `flags`, a second pass blended over it by its alpha as the
+/// target's blend would (`batches::Second`), the first's colour first held in bytes as the
+/// target holds it.
 const SCENE_FS: &CStr = c"#version 300 es
 precision mediump float;
 in highp vec4 v_colour; in highp float v_fog; in highp float v_w; in highp vec2 v_uv;
+in highp vec4 v_colour2; in highp float v_fog2; in highp vec2 v_uv2;
 out vec4 result;
 uniform sampler2D picture; uniform vec4 fog_colour; uniform float alpha_reference;
 uniform int alpha_function; uniform int mixing; uniform int flags;
-bool passes(float value) {
-    if (alpha_function == 1) return false;
-    if (alpha_function == 2) return value < alpha_reference;
-    if (alpha_function == 3) return value == alpha_reference;
-    if (alpha_function == 4) return value <= alpha_reference;
-    if (alpha_function == 5) return value > alpha_reference;
-    if (alpha_function == 6) return value != alpha_reference;
-    if (alpha_function == 7) return value >= alpha_reference;
+uniform sampler2D picture2; uniform vec4 fog_colour2; uniform float alpha_reference2;
+uniform int alpha_function2; uniform int mixing2; uniform int flags2;
+bool passes(int function, float reference, float value) {
+    if (function == 1) return false;
+    if (function == 2) return value < reference;
+    if (function == 3) return value == reference;
+    if (function == 4) return value <= reference;
+    if (function == 5) return value > reference;
+    if (function == 6) return value != reference;
+    if (function == 7) return value >= reference;
     return true;
+}
+vec4 mixed(vec4 colour, vec4 texel, int mixing, int flags) {
+    if (mixing == 1 || mixing == 7) return texel;
+    if (mixing == 4) return texel * colour;
+    return vec4(texel.rgb * colour.rgb, (flags & 2) != 0 ? texel.a : colour.a);
+}
+vec4 fogged(vec4 c, float fog, vec4 fog_colour, int flags) {
+    if ((flags & 4) == 0) return c;
+    float kept = clamp(fog, 0.0, 1.0);
+    return vec4(c.rgb * kept + fog_colour.rgb * (1.0 - kept), c.a);
 }
 void main() {
     vec4 colour = v_colour / v_w;
     vec4 c = colour;
-    if ((flags & 1) != 0) {
-        vec4 texel = texture(picture, v_uv).bgra; // uploaded as they are: blue first
-        if (mixing == 1 || mixing == 7) c = texel;
-        else if (mixing == 4) c = texel * colour;
-        else c = vec4(texel.rgb * colour.rgb, (flags & 2) != 0 ? texel.a : colour.a);
-    }
-    if (alpha_function != 0 && !passes(c.a)) discard;
-    if ((flags & 4) != 0) {
-        float kept = clamp(v_fog / v_w, 0.0, 1.0);
-        c.rgb = c.rgb * kept + fog_colour.rgb * (1.0 - kept);
+    // uploaded as they are: blue first
+    if ((flags & 1) != 0) c = mixed(colour, texture(picture, v_uv).bgra, mixing, flags);
+    if (alpha_function != 0 && !passes(alpha_function, alpha_reference, c.a)) discard;
+    c = fogged(c, v_fog / v_w, fog_colour, flags);
+    if ((flags & 8) != 0) {
+        vec4 under = floor(c * 255.0 + 0.5) / 255.0;
+        vec4 colour2 = v_colour2 / v_w;
+        vec4 d = colour2;
+        if ((flags2 & 1) != 0) d = mixed(colour2, texture(picture2, v_uv2).bgra, mixing2, flags2);
+        if (alpha_function2 == 0 || passes(alpha_function2, alpha_reference2, d.a)) {
+            d = fogged(d, v_fog2 / v_w, fog_colour2, flags2);
+            c = vec4(d.rgb * d.a + under.rgb * (1.0 - d.a), d.a * d.a + under.a * (1.0 - d.a));
+        } else {
+            c = under;
+        }
     }
     result = c;
 }
@@ -217,6 +250,13 @@ struct Quad {
 
 struct Locations {
     size: i32,
+    first: ValueLocations,
+    second: ValueLocations,
+}
+
+/// Where a pass's `PixelValues` go.
+#[derive(Default)]
+struct ValueLocations {
     fog_colour: i32,
     alpha_reference: i32,
     alpha_function: i32,
@@ -228,6 +268,8 @@ struct CachedTexture {
     name: u32,
     width: usize,
     height: usize,
+    /// Every pixel's alpha full: a first pass over it can take a second (`Batches::of`).
+    opaque: bool,
 }
 
 pub struct Gpu {
@@ -240,6 +282,8 @@ pub struct Gpu {
     canvas_quad: Quad,
     target_quad: Quad,
     vertices: u32,
+    /// The vertices' second passes (`Batches::seconds`).
+    seconds: u32,
     empty_array: u32,
     scene_array: u32,
     samplers: [u32; 4],
@@ -313,11 +357,8 @@ impl Gpu {
                 scene: 0,
                 locations: Locations {
                     size: 0,
-                    fog_colour: 0,
-                    alpha_reference: 0,
-                    alpha_function: 0,
-                    mixing: 0,
-                    flags: 0,
+                    first: ValueLocations::default(),
+                    second: ValueLocations::default(),
                 },
                 overlay: Quad {
                     program: 0,
@@ -332,6 +373,7 @@ impl Gpu {
                     flip: 0,
                 },
                 vertices: 0,
+                seconds: 0,
                 empty_array: 0,
                 scene_array: 0,
                 samplers: [0; 4],
@@ -400,14 +442,19 @@ impl Gpu {
 
     fn set_up(&mut self) -> Result<(), String> {
         self.scene = self.program(SCENE_VS, SCENE_FS)?;
+        let values = |suffix: &str| ValueLocations {
+            fog_colour: self.uniform(self.scene, &format!("fog_colour{suffix}")),
+            alpha_reference: self.uniform(self.scene, &format!("alpha_reference{suffix}")),
+            alpha_function: self.uniform(self.scene, &format!("alpha_function{suffix}")),
+            mixing: self.uniform(self.scene, &format!("mixing{suffix}")),
+            flags: self.uniform(self.scene, &format!("flags{suffix}")),
+        };
         self.locations = Locations {
             size: self.uniform(self.scene, "size"),
-            fog_colour: self.uniform(self.scene, "fog_colour"),
-            alpha_reference: self.uniform(self.scene, "alpha_reference"),
-            alpha_function: self.uniform(self.scene, "alpha_function"),
-            mixing: self.uniform(self.scene, "mixing"),
-            flags: self.uniform(self.scene, "flags"),
+            first: values(""),
+            second: values("2"),
         };
+        let second_picture = self.uniform(self.scene, "picture2");
         self.overlay = self.quad(OVERLAY_FS)?;
         self.canvas_quad = self.quad(CANVAS_FS)?;
         self.target_quad = self.quad(TARGET_FS)?;
@@ -418,6 +465,7 @@ impl Gpu {
             (gl.glGenVertexArrays)(1, &raw mut self.empty_array);
             (gl.glGenVertexArrays)(1, &raw mut self.scene_array);
             (gl.glGenBuffers)(1, &raw mut self.vertices);
+            (gl.glGenBuffers)(1, &raw mut self.seconds);
             (gl.glBindVertexArray)(self.scene_array);
             (gl.glBindBuffer)(ARRAY_BUFFER, self.vertices);
             for (n, count, kind, normal, offset) in [
@@ -429,6 +477,18 @@ impl Gpu {
                 (gl.glEnableVertexAttribArray)(n);
                 (gl.glVertexAttribPointer)(n, count, kind, normal, 32, offset as *const c_void);
             }
+            // The second passes' colour, specular and texture place: `Batches::seconds`.
+            (gl.glBindBuffer)(ARRAY_BUFFER, self.seconds);
+            for (n, count, kind, normal, offset) in [
+                (4u32, 4, UNSIGNED_BYTE, 1u8, 0usize),
+                (5, 4, UNSIGNED_BYTE, 1, 4),
+                (6, 2, 0x1406, 0, 8),
+            ] {
+                (gl.glEnableVertexAttribArray)(n);
+                (gl.glVertexAttribPointer)(n, count, kind, normal, 16, offset as *const c_void);
+            }
+            (gl.glUseProgram)(self.scene);
+            (gl.glUniform1i)(second_picture, 1);
             (gl.glGenSamplers)(4, self.samplers.as_mut_ptr());
             for (n, &sampler) in self.samplers.iter().enumerate() {
                 let filter = if n & 1 != 0 { 0x2601 } else { 0x2600 };
@@ -601,11 +661,6 @@ impl Gpu {
             written,
             size: (width, height),
         } = part;
-        let batches = Batches::of(&commands, width as u32, height as u32);
-        super::GPU_DRAWS.fetch_add(
-            batches.batches.len() as u64,
-            std::sync::atomic::Ordering::Relaxed,
-        );
         if let Err(why) = self.set_size(width, height) {
             crate::fatal::raise::end(
                 "render::gles",
@@ -615,6 +670,12 @@ impl Gpu {
         for (note, bytes) in &uploads {
             self.bring_texture_up(note, bytes);
         }
+        let opaque = |note: &TextureNote| self.textures.get(&note.pixels).is_some_and(|t| t.opaque);
+        let batches = Batches::of(&commands, width as u32, height as u32, Some(&opaque));
+        super::GPU_DRAWS.fetch_add(
+            batches.batches.len() as u64,
+            std::sync::atomic::Ordering::Relaxed,
+        );
         for w in &written {
             self.upload_canvas_rows(&w.bytes, width, height, w.first, w.last);
         }
@@ -654,37 +715,45 @@ impl Gpu {
                     batches.vertices.as_ptr().cast(),
                     0x88E0,
                 );
+                (gl.glBindBuffer)(ARRAY_BUFFER, self.seconds);
+                (gl.glBufferData)(
+                    ARRAY_BUFFER,
+                    size_of_val(&batches.seconds[..]) as isize,
+                    batches.seconds.as_ptr().cast(),
+                    0x88E0,
+                );
                 (gl.glEnable)(DEPTH_TEST);
                 let mut last_pipeline = None;
                 let mut last_values = None;
                 let mut last_texture = None;
                 let mut last_sampler = u32::MAX;
+                let mut last_second = None;
                 let mut scissored = false;
                 for batch in &batches.batches {
                     if last_pipeline != Some(batch.pipeline) {
                         self.set_pipeline(&batch.pipeline);
                         last_pipeline = Some(batch.pipeline);
                     }
-                    // Each value only when it changes: the batches differ in one or two.
-                    let v = &batch.values;
-                    let was = last_values.as_ref();
-                    let l = &self.locations;
-                    if was.is_none_or(|w: &PixelValues| w.fog_colour != v.fog_colour) {
-                        (gl.glUniform4fv)(l.fog_colour, 1, v.fog_colour.as_ptr());
+                    self.set_values(&self.locations.first, last_values.as_ref(), &batch.values);
+                    last_values = Some(batch.values);
+                    if let Some(second) = &batch.second
+                        && last_second != Some(*second)
+                    {
+                        let was = last_second
+                            .as_ref()
+                            .map(|s: &super::batches::Second| &s.values);
+                        self.set_values(&self.locations.second, was, &second.values);
+                        (gl.glActiveTexture)(TEXTURE1);
+                        if let Some(n) = second.texture {
+                            let name = self.textures[&batches.textures[n as usize].pixels].name;
+                            (gl.glBindTexture)(TEXTURE_2D, name);
+                        }
+                        let sampler =
+                            self.samplers[second.linear as usize + 2 * second.clamp as usize];
+                        (gl.glBindSampler)(1, sampler);
+                        (gl.glActiveTexture)(TEXTURE0);
+                        last_second = Some(*second);
                     }
-                    if was.is_none_or(|w| w.alpha_reference != v.alpha_reference) {
-                        (gl.glUniform1f)(l.alpha_reference, v.alpha_reference);
-                    }
-                    if was.is_none_or(|w| w.alpha_function != v.alpha_function) {
-                        (gl.glUniform1i)(l.alpha_function, v.alpha_function);
-                    }
-                    if was.is_none_or(|w| w.mixing != v.mixing) {
-                        (gl.glUniform1i)(l.mixing, v.mixing);
-                    }
-                    if was.is_none_or(|w| w.flags != v.flags) {
-                        (gl.glUniform1i)(l.flags, v.flags);
-                    }
-                    last_values = Some(*v);
                     if last_texture != Some(batch.texture) {
                         if let Some(n) = batch.texture {
                             let name = self.textures[&batches.textures[n as usize].pixels].name;
@@ -713,6 +782,37 @@ impl Gpu {
                     (gl.glDrawArrays)(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
                 }
                 (gl.glBindSampler)(0, 0);
+                (gl.glBindSampler)(1, 0);
+            }
+        }
+        if bench::due(batches.batches.len()) {
+            self.bench(&batches, height);
+        }
+    }
+
+    /// A pass's values into `at`, each only when it differs from `was`'s: the batches differ
+    /// in one or two.
+    ///
+    /// # Safety
+    /// The context is current, with the scene's program in use.
+    unsafe fn set_values(&self, at: &ValueLocations, was: Option<&PixelValues>, v: &PixelValues) {
+        let gl = &self.gl;
+        // SAFETY: the values are read in the calls.
+        unsafe {
+            if was.is_none_or(|w| w.fog_colour != v.fog_colour) {
+                (gl.glUniform4fv)(at.fog_colour, 1, v.fog_colour.as_ptr());
+            }
+            if was.is_none_or(|w| w.alpha_reference != v.alpha_reference) {
+                (gl.glUniform1f)(at.alpha_reference, v.alpha_reference);
+            }
+            if was.is_none_or(|w| w.alpha_function != v.alpha_function) {
+                (gl.glUniform1i)(at.alpha_function, v.alpha_function);
+            }
+            if was.is_none_or(|w| w.mixing != v.mixing) {
+                (gl.glUniform1i)(at.mixing, v.mixing);
+            }
+            if was.is_none_or(|w| w.flags != v.flags) {
+                (gl.glUniform1i)(at.flags, v.flags);
             }
         }
     }
@@ -798,6 +898,11 @@ impl Gpu {
                     name,
                     width: note.width,
                     height: note.height,
+                    opaque: bytes
+                        .as_chunks::<4>()
+                        .0
+                        .iter()
+                        .all(|pixel| pixel[3] == 0xFF),
                 },
             );
         }
@@ -880,6 +985,7 @@ impl Gpu {
 
     fn run(mut self, jobs: Receiver<Job>) {
         for job in jobs {
+            let start = std::time::Instant::now();
             match job {
                 Job::Forget(gone) => self.forget(&gone),
                 Job::Draw(part) => self.draw(part),
@@ -893,6 +999,10 @@ impl Gpu {
                     let _ = answer.send(self.read_target());
                 }
             }
+            super::GL_BUSY_MICROS.fetch_add(
+                start.elapsed().as_micros() as u64,
+                std::sync::atomic::Ordering::Relaxed,
+            );
         }
     }
 }
@@ -938,7 +1048,13 @@ const JOBS_WAITING: usize = 2;
 
 impl Front {
     fn send(&self, job: Job) {
-        if self.jobs.send(job).is_err() {
+        let start = std::time::Instant::now();
+        let sent = self.jobs.send(job);
+        super::GL_WAIT_MICROS.fetch_add(
+            start.elapsed().as_micros() as u64,
+            std::sync::atomic::Ordering::Relaxed,
+        );
+        if sent.is_err() {
             crate::fatal::raise::end(
                 "render::gles",
                 crate::errors::BadInput("the GL's thread has ended"),

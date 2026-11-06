@@ -35,6 +35,19 @@ pub struct PixelValues {
 pub const TEXTURED: i32 = 1;
 pub const TEXTURE_HAS_ALPHA: i32 = 2;
 pub const FOG: i32 = 4;
+/// The batch draws a second pass over its first in the same draw (`Batch::second`).
+pub const SECOND: i32 = 8;
+
+/// A second pass drawn over a batch's own in the same draw: the face drawn again at once
+/// without depth writes, blended by its alpha (the ground's second texture). Its vertices' colour,
+/// specular and texture place are in `Batches::seconds`.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct Second {
+    pub values: PixelValues,
+    pub texture: Option<u32>,
+    pub linear: bool,
+    pub clamp: bool,
+}
 
 /// A run of triangles drawn alike.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -49,6 +62,7 @@ pub struct Batch {
     pub clamp: bool,
     /// Scissor rectangle for a depth clear: left, top, right, bottom.
     pub scissor: Option<[u32; 4]>,
+    pub second: Option<Second>,
 }
 
 #[derive(Default)]
@@ -56,8 +70,24 @@ pub struct Batches {
     pub vertices: Vec<Vertex>,
     pub batches: Vec<Batch>,
     pub textures: Vec<TextureNote>,
+    /// With second passes joined (`of`), each vertex's second pass's colour, specular and texture place
+    /// (vertices of batches without one: zeros).
+    pub seconds: Vec<[u32; 4]>,
     /// The pixels each batch can touch, while they are being gathered.
     areas: Vec<Area>,
+    /// The last fan, while it can still take a second pass.
+    last_fan: Option<LastFan>,
+}
+
+/// A fan that can take a second pass.
+struct LastFan {
+    /// Its triangles' first vertex and count: the last batch's tail.
+    first_vertex: u32,
+    vertices: u32,
+    /// Its corners' places (x, y, z, 1/w).
+    places: smallvec::SmallVec<[[u32; 4]; 6]>,
+    batch: Batch,
+    area: Area,
 }
 
 /// The pixels a batch can touch, by column and row, both ends in: a rectangle around them.
@@ -134,6 +164,31 @@ fn alike(a: &Batch, b: &Batch) -> bool {
 
 const ALWAYS: u32 = 8;
 
+// As the rasteriser reads them.
+fn linear_of(states: &[u32; STATES]) -> bool {
+    states[0x11] == 2 || matches!(states[0x12], 2 | 5 | 6)
+}
+
+fn clamp_of(states: &[u32; STATES]) -> bool {
+    states[0x03] == 3
+}
+
+/// Whether the pixel shader's alpha test (`passes`) keeps a pixel of alpha `value`.
+fn alpha_passes(values: &PixelValues, value: f32) -> bool {
+    let reference = values.alpha_reference;
+    match values.alpha_function {
+        0 => true,
+        1 => false,
+        2 => value < reference,
+        3 => value == reference,
+        4 => value <= reference,
+        5 => value > reference,
+        6 => value != reference,
+        7 => value >= reference,
+        _ => true,
+    }
+}
+
 fn pipeline_of(states: &[u32; STATES]) -> PipelineKey {
     PipelineKey {
         cull: match states[0x16] {
@@ -178,8 +233,16 @@ fn values_of(states: &[u32; STATES], texture: Option<&TextureNote>) -> PixelValu
 }
 
 impl Batches {
-    /// `commands` in the order they came.
-    pub fn of(commands: &[Command], width: u32, height: u32) -> Batches {
+    /// `commands` in the order they came. With `opaque` (whether a texture's every pixel has a
+    /// full alpha), a fan drawn again at once over the same places without depth writes and
+    /// blended joins the fan before as its second pass (`Batch::second`): one draw for both,
+    /// the same picture but for the blend's rounding done in the shader (a step at most).
+    pub fn of(
+        commands: &[Command],
+        width: u32,
+        height: u32,
+        opaque: Option<&dyn Fn(&TextureNote) -> bool>,
+    ) -> Batches {
         let mut out = Batches::default();
         for command in commands {
             match command {
@@ -188,8 +251,28 @@ impl Batches {
                     states,
                     texture,
                     ..
-                } => out.push_fan(vertices, states, texture.as_ref()),
-                Command::Clear(rect) => out.push_clear(*rect, width, height),
+                } => {
+                    if vertices.len() < 3 {
+                        continue;
+                    }
+                    let Some(opaque) = opaque else {
+                        out.push_fan(vertices, states, texture.as_ref());
+                        continue;
+                    };
+                    if out.join_second(vertices, states, texture.as_ref()) {
+                        continue;
+                    }
+                    out.push_fan(vertices, states, texture.as_ref());
+                    out.seconds.resize(out.vertices.len(), [0; 4]);
+                    out.note_first(vertices, texture.as_ref(), opaque);
+                }
+                Command::Clear(rect) => {
+                    out.last_fan = None;
+                    out.push_clear(*rect, width, height);
+                    if opaque.is_some() {
+                        out.seconds.resize(out.vertices.len(), [0; 4]);
+                    }
+                }
             }
         }
         out.gather();
@@ -239,13 +322,17 @@ impl Batches {
             return;
         }
         let mut vertices = Vec::with_capacity(self.vertices.len());
+        let mut seconds = Vec::with_capacity(self.seconds.len());
         let mut batches = Vec::with_capacity(runs.len());
         for run in runs {
             let first_vertex = vertices.len() as u32;
             for m in run.members {
                 let b = &self.batches[m];
-                let start = b.first_vertex as usize;
-                vertices.extend_from_slice(&self.vertices[start..start + b.vertices as usize]);
+                let range = b.first_vertex as usize..(b.first_vertex + b.vertices) as usize;
+                vertices.extend_from_slice(&self.vertices[range.clone()]);
+                if !self.seconds.is_empty() {
+                    seconds.extend_from_slice(&self.seconds[range]);
+                }
             }
             batches.push(Batch {
                 first_vertex,
@@ -254,7 +341,112 @@ impl Batches {
             });
         }
         self.vertices = vertices;
+        self.seconds = seconds;
         self.batches = batches;
+    }
+
+    /// Notes the fan just pushed as one that can take a second pass, when its own pass leaves
+    /// exactly its colour: depth written, an opaque texture, every corner's alpha full, its
+    /// alpha test passed at a full alpha, and a blend (if any) that keeps a full alpha's source.
+    fn note_first(
+        &mut self,
+        vertices: &[Vertex],
+        texture: Option<&TextureNote>,
+        opaque: &dyn Fn(&TextureNote) -> bool,
+    ) {
+        self.last_fan = None;
+        let Some(batch) = self.batches.last() else {
+            return;
+        };
+        let count = (vertices.len() as u32 - 2) * 3;
+        let keeps_source = matches!(batch.pipeline.blend, None | Some((5, 6)) | Some((2, 1)));
+        if batch.pipeline.depth_write
+            && batch.pipeline.colour
+            && keeps_source
+            && batch.scissor.is_none()
+            && texture.is_some_and(opaque)
+            && vertices.iter().all(|v| v[4] >> 24 == 0xFF)
+            && alpha_passes(&batch.values, 1.0)
+        {
+            self.last_fan = Some(LastFan {
+                first_vertex: self.vertices.len() as u32 - count,
+                vertices: count,
+                places: vertices.iter().map(|v| [v[0], v[1], v[2], v[3]]).collect(),
+                batch: Batch {
+                    first_vertex: 0,
+                    vertices: 0,
+                    ..*batch
+                },
+                area: Area::around(vertices),
+            });
+        }
+    }
+
+    /// Joins the fan as the last fan's second pass, when it is one: the same places, depth
+    /// tested alike without writing, blended by its alpha. False when it is not.
+    fn join_second(
+        &mut self,
+        vertices: &[Vertex],
+        states: &[u32; STATES],
+        texture: Option<&TextureNote>,
+    ) -> bool {
+        let Some(first) = self.last_fan.take() else {
+            return false;
+        };
+        let pipeline = pipeline_of(states);
+        let same_places = first.places.len() == vertices.len()
+            && first
+                .places
+                .iter()
+                .zip(vertices)
+                .all(|(p, v)| p[..] == v[..4]);
+        if !same_places
+            || pipeline.depth_write
+            || pipeline.blend != Some((5, 6))
+            || pipeline.depth_function != first.batch.pipeline.depth_function
+            || pipeline.cull != first.batch.pipeline.cull
+        {
+            return false;
+        }
+        let second = Second {
+            values: values_of(states, texture),
+            texture: texture.map(|t| self.texture_number(t)),
+            linear: linear_of(states),
+            clamp: clamp_of(states),
+        };
+        // The first fan's triangles leave the last batch, which they end, for a batch of
+        // their own with the second pass.
+        if let Some(last) = self.batches.last_mut() {
+            last.vertices -= first.vertices;
+            if last.vertices == 0 {
+                self.batches.pop();
+                self.areas.pop();
+            }
+        }
+        let start = first.first_vertex as usize;
+        for (n, corner) in (1..vertices.len() - 1)
+            .flat_map(|n| [vertices[0], vertices[n], vertices[n + 1]])
+            .enumerate()
+        {
+            self.seconds[start + n] = [corner[4], corner[5], corner[6], corner[7]];
+        }
+        let mut values = first.batch.values;
+        values.flags |= SECOND;
+        self.push(
+            Batch {
+                first_vertex: first.first_vertex,
+                vertices: first.vertices,
+                pipeline: PipelineKey {
+                    blend: None,
+                    ..first.batch.pipeline
+                },
+                values,
+                second: Some(second),
+                ..first.batch
+            },
+            first.area,
+        );
+        true
     }
 
     fn texture_number(&mut self, texture: &TextureNote) -> u32 {
@@ -289,10 +481,10 @@ impl Batches {
             pipeline: pipeline_of(states),
             values: values_of(states, texture),
             texture: texture.map(|t| self.texture_number(t)),
-            // As the rasteriser reads them.
-            linear: states[0x11] == 2 || matches!(states[0x12], 2 | 5 | 6),
-            clamp: states[0x03] == 3,
+            linear: linear_of(states),
+            clamp: clamp_of(states),
             scissor: None,
+            second: None,
         };
         self.push(batch, area);
     }
@@ -346,6 +538,7 @@ impl Batches {
                 linear: false,
                 clamp: false,
                 scissor: Some([left, top, right, bottom]),
+                second: None,
             },
             // The triangle is the whole target's and more; the scissor is not counted on.
             Area::EVERYWHERE,
@@ -385,7 +578,12 @@ mod tests {
         let plain = [0; STATES];
         let mut blended = plain;
         blended[0x1B] = 1;
-        let b = Batches::of(&[fan(4, plain), fan(3, plain), fan(3, blended)], 640, 480);
+        let b = Batches::of(
+            &[fan(4, plain), fan(3, plain), fan(3, blended)],
+            640,
+            480,
+            None,
+        );
         assert_eq!(b.vertices.len(), 12);
         assert_eq!(b.batches.len(), 2);
         assert_eq!(b.batches[0].vertices, 9);
@@ -405,11 +603,11 @@ mod tests {
 
     #[test]
     fn a_clear_is_cut_to_the_target_and_only_touches_depth() {
-        let b = Batches::of(&[Command::Clear([10, 20, 9999, 30])], 640, 480);
+        let b = Batches::of(&[Command::Clear([10, 20, 9999, 30])], 640, 480, None);
         assert_eq!(b.batches[0].scissor, Some([10, 20, 640, 30]));
         assert!(!b.batches[0].pipeline.colour);
         assert!(
-            Batches::of(&[Command::Clear([5, 5, 5, 9])], 640, 480)
+            Batches::of(&[Command::Clear([5, 5, 5, 9])], 640, 480, None)
                 .batches
                 .is_empty()
         );
@@ -455,6 +653,7 @@ mod tests {
             ],
             640,
             480,
+            None,
         );
         assert_eq!(marks(&b), [vec![1, 3], vec![2]]);
         assert_eq!(b.vertices.len(), 9);
@@ -474,6 +673,7 @@ mod tests {
             ],
             640,
             480,
+            None,
         );
         assert_eq!(marks(&b), [vec![1], vec![2], vec![3]]);
         // A column apart, with a margin under a pixel, is apart.
@@ -485,6 +685,7 @@ mod tests {
             ],
             640,
             480,
+            None,
         );
         assert_eq!(marks(&b), [vec![1, 3], vec![2]]);
     }
@@ -500,6 +701,7 @@ mod tests {
             ],
             640,
             480,
+            None,
         );
         assert_eq!(b.batches.len(), 3);
         assert_eq!(b.batches[1].scissor, Some([100, 100, 200, 200]));
@@ -518,7 +720,125 @@ mod tests {
             ],
             640,
             480,
+            None,
         );
         assert_eq!(b.batches.len(), 3);
+    }
+
+    /// A textured fan of `corners` places (the same each time), its colour `colour`, its
+    /// texture at `texture` (an identity only).
+    fn textured(corners: usize, colour: u32, texture: u32, states: [u32; STATES]) -> Command {
+        let corner = |n: usize| {
+            let (x, y) = (n as f32 * 10.0, (n % 2) as f32 * 10.0);
+            [x.to_bits(), y.to_bits(), 0, 0, colour, 0x7F00_0000, 3, 4]
+        };
+        Command::Fan {
+            vertices: (0..corners).map(corner).collect(),
+            states: std::sync::Arc::new(states),
+            texture: Some(TextureNote {
+                pixels: crate::pointers::GamePtr::new(texture),
+                len: 4,
+                width: 1,
+                height: 1,
+                pitch: 4,
+                bytes: 4,
+                masks: [0xFF_0000, 0xFF00, 0xFF, 0xFF00_0000],
+            }),
+            bounds: (0.0, 0.0, 0.0, 0.0),
+        }
+    }
+
+    /// The ground's passes: the first writes depth, the second does not and blends.
+    fn passes() -> ([u32; STATES], [u32; STATES]) {
+        let mut first = [0; STATES];
+        first[0x07] = 1;
+        first[0x17] = 4;
+        first[0x0E] = 1;
+        first[0x1B] = 1;
+        first[0x13] = 5;
+        first[0x14] = 6;
+        let mut second = first;
+        second[0x0E] = 0;
+        (first, second)
+    }
+
+    const OPAQUE: u32 = 0x1000;
+    const SEE_THROUGH: u32 = 0x2000;
+
+    fn joined(commands: &[Command]) -> Batches {
+        Batches::of(
+            commands,
+            640,
+            480,
+            Some(&|t: &TextureNote| t.pixels == crate::pointers::GamePtr::new(OPAQUE)),
+        )
+    }
+
+    #[test]
+    fn a_second_pass_over_the_same_places_joins_the_first() {
+        let (first, second) = passes();
+        let b = joined(&[
+            textured(4, 0xFF00_0000, OPAQUE, first),
+            textured(4, 0x8000_0000, SEE_THROUGH, second),
+        ]);
+        assert_eq!(b.batches.len(), 1);
+        let batch = &b.batches[0];
+        assert_eq!(batch.vertices, 6);
+        assert_eq!(batch.pipeline.blend, None);
+        assert!(batch.pipeline.depth_write);
+        assert_ne!(batch.values.flags & SECOND, 0);
+        let s = batch.second.expect("a second pass");
+        assert_eq!(s.texture, Some(1));
+        assert_eq!(b.seconds.len(), 6);
+        assert!(
+            b.seconds
+                .iter()
+                .all(|v| *v == [0x8000_0000, 0x7F00_0000, 3, 4])
+        );
+    }
+
+    #[test]
+    fn a_second_pass_joins_only_over_an_opaque_full_alpha_first() {
+        let (first, second) = passes();
+        // A texture with see-through pixels, corners not fully opaque, other places: apart.
+        for commands in [
+            [
+                textured(4, 0xFF00_0000, SEE_THROUGH, first),
+                textured(4, 0x8000_0000, OPAQUE, second),
+            ],
+            [
+                textured(4, 0xFE00_0000, OPAQUE, first),
+                textured(4, 0x8000_0000, OPAQUE, second),
+            ],
+            [
+                textured(4, 0xFF00_0000, OPAQUE, first),
+                textured(5, 0x8000_0000, OPAQUE, second),
+            ],
+            [
+                textured(4, 0xFF00_0000, OPAQUE, first),
+                textured(4, 0x8000_0000, OPAQUE, first),
+            ],
+        ] {
+            let b = joined(&commands);
+            assert!(b.batches.iter().all(|b| b.second.is_none()));
+            assert_eq!(b.seconds.len(), b.vertices.len());
+        }
+    }
+
+    #[test]
+    fn the_first_pass_leaves_the_batch_it_had_joined() {
+        let (first, second) = passes();
+        let b = joined(&[
+            textured(3, 0xFF00_0000, OPAQUE, first),
+            textured(4, 0xFF00_0000, OPAQUE, first),
+            textured(4, 0x8000_0000, SEE_THROUGH, second),
+        ]);
+        // The first fan alone, then the second fan with its pass: their places meet, so in
+        // that order.
+        assert_eq!(b.batches.len(), 2);
+        assert_eq!((b.batches[0].vertices, b.batches[0].second), (3, None));
+        assert_eq!(b.batches[1].vertices, 6);
+        assert!(b.batches[1].second.is_some());
+        assert_eq!(b.seconds[..3], [[0; 4]; 3]);
     }
 }
