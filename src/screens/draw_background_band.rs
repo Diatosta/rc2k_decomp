@@ -9,7 +9,6 @@
 //! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::flow_store::SCREEN_FLOW;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -21,6 +20,6 @@ pub fn draw_background_band(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     use rc2k_core::screens::controller_page::{Font, Work, background_band};
     background_band(
         &mut crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas),
-        { SCREEN_FLOW.left_service.get() } == 1,
+        { crate::menu::owner::menus().screens.flow.left_service.get() } == 1,
     )
 }

@@ -18,7 +18,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::results_store::RESULT_FIGURES;
 use crate::race::state_store::RACE_STATE;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::stage_panel::{
@@ -30,7 +29,7 @@ use crate::text::draw_text::{Canvas, draw_text_at};
 
 // ---- game data ----
 
-pub const GROUP_TITLES: &[Dword] = &RESULT_FIGURES.group_titles; // dword_758718[group]: title string ids
+pub const GROUP_TITLES: &[Dword] = &crate::menu::owner::MENUS.play.results.group_titles; // dword_758718[group]: title string ids
 
 const TITLE_X: i32 = 0x2EB;
 const GROUP_TITLE_Y: i32 = 0x77;
@@ -48,7 +47,11 @@ pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refus
     };
     label(
         canvas,
-        table_dword_at(&RESULT_FIGURES, GROUP_TITLES, sel.group)?,
+        table_dword_at(
+            &crate::menu::owner::menus().play.results,
+            GROUP_TITLES,
+            sel.group,
+        )?,
         TITLE_FONT,
         TITLE_X,
         GROUP_TITLE_Y,

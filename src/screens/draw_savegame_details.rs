@@ -32,7 +32,6 @@
 //! of a pair is (position and points, say) has not been worked out.
 
 use crate::errors::Refused;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::records::find_record::find_record_in;
 use crate::saves::gather_savegame::CAR_LEN;
 use crate::screens::stage_panel::table_dword_at;
@@ -74,7 +73,11 @@ pub fn draw_savegame_details(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         let title = Title {
             mode_13,
             section: if mode_13 {
-                table_dword_at(&MENU_LISTS, &MENU_LISTS.section_titles, section)?
+                table_dword_at(
+                    &crate::menu::owner::menus().tables.lists,
+                    &crate::menu::owner::menus().tables.lists.section_titles,
+                    section,
+                )?
             } else {
                 find_record_in(table, 0, section)?.record()?.name()
             },

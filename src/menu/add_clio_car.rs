@@ -11,7 +11,6 @@
 //! Refuses a list without its end within its room.
 
 use crate::errors::BadInput;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::remove_secret_cars::{FIRST, List, read_list};
 use rc2k_core::menu::car_lists::place_if_missing;
 
@@ -20,9 +19,9 @@ use rc2k_core::menu::car_lists::place_if_missing;
 /// The three lists, in the original's order, with the room each has before the next
 /// variable.
 const LISTS: [List; 3] = [
-    (&MENU_LISTS.cars_first, 0x22),     // off_759DCA
-    FIRST,                              // off_75A042
-    (&MENU_LISTS.cars_with_clio, 0x3E), // off_759E52
+    (&crate::menu::owner::MENUS.tables.lists.cars_first, 0x22), // off_759DCA
+    FIRST,                                                      // off_75A042
+    (&crate::menu::owner::MENUS.tables.lists.cars_with_clio, 0x3E), // off_759E52
 ];
 
 // ---- Rust version ----

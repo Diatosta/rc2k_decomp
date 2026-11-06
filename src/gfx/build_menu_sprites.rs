@@ -15,7 +15,6 @@ use crate::gfx::build_glyphs::{SheetVars, build_glyphs};
 use crate::gfx::decoder::DECODER;
 use crate::gfx::glyph_builder::RUN_LENGTHS;
 use crate::gfx::glyph_tables::{TABLES, begin_glyph_table, begin_glyph_tables, end_glyph_tables};
-use crate::menu::loop_store::LOOP_FLAGS;
 
 // ---- game data ----
 
@@ -57,5 +56,8 @@ fn all_direct_colour(table: u32) -> Result<(), Refused> {
 
 /// With the game's `g_spriteTable`.
 pub fn build_menu_sprites_in_game() -> Result<(), Refused> {
-    build_menu_sprites(&crate::gfx::owner::gfx().sheet, &LOOP_FLAGS.sprite_table)
+    build_menu_sprites(
+        &crate::gfx::owner::gfx().sheet,
+        &crate::menu::owner::menus().screens.loop_flags.sprite_table,
+    )
 }

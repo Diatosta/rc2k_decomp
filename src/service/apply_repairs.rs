@@ -31,7 +31,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::framework::Regs;
-use crate::menu::state_store::MENU_STATE;
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};
 use crate::service::reset_tyre_wear::reset_tyre_wear;
 use crate::service::state::{current_player, repair_flag, set_repair_flag};
@@ -95,7 +94,12 @@ impl Workshop for Game<'_> {
         self.player.update(change);
     }
     fn set_working(&mut self) {
-        MENU_STATE.menus.service_flag.set(1u32);
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .menus
+            .service_flag
+            .set(1u32);
     }
     fn timer(&mut self, t: Timer) -> u32 {
         timer(t).get()
@@ -130,9 +134,15 @@ impl Workshop for Game<'_> {
 
 fn timer(t: Timer) -> &'static Dword {
     match t {
-        Timer::Start => &MENU_STATE.menus.fade_start,
-        Timer::Elapsed => &MENU_STATE.menus.fade_gone,
-        Timer::LastStep => &MENU_STATE.menus.repair_last_step,
+        Timer::Start => &crate::menu::owner::menus().screens.state.menus.fade_start,
+        Timer::Elapsed => &crate::menu::owner::menus().screens.state.menus.fade_gone,
+        Timer::LastStep => {
+            &crate::menu::owner::menus()
+                .screens
+                .state
+                .menus
+                .repair_last_step
+        }
     }
 }
 

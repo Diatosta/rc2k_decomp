@@ -8,23 +8,33 @@
 //! Caller: `sub_4AA4D7` (twice). Refuses a missing player or a drivers' table without its end
 //! entry, before anything.
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn reset_single_event() -> Result<(), Refused> {
     let drivers = drivers()?;
 
-    MENU_PAGES.services.set(0u32);
-    EVENT_STATE.stages_done.set(0u32);
+    crate::menu::owner::menus().tables.pages.services.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .stages_done
+        .set(0u32);
 
     drivers
         .iter()
         .for_each(crate::menu::drivers_store::Driver::begin);
 
-    EVENT_STATE.event_goes_on.set(1u32);
-    EVENT_STATE.event_out.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .event_goes_on
+        .set(1u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .event_out
+        .set(0u32);
 
     for n in (0..4).rev() {
         player(n).update(rc2k_core::menu::player::Player::begin);

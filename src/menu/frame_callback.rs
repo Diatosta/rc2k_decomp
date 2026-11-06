@@ -15,8 +15,6 @@
 //! the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::fn_list::ListCell;
 use crate::menu::table_calls::call_listed;
 use crate::platform::{lock_surface, show_frame_now, unlock_surface};
@@ -26,9 +24,9 @@ use rc2k_core::menu::notice;
 
 // ---- game data ----
 
-const DRAW_LIST: &ListCell = &SCREEN_FLOW.draw_list; // g_drawList
-const SCENE_LIST: &ListCell = &SCREEN_FLOW.scene_list; // g_sceneList
-const OVERLAY_LIST: &ListCell = &SCREEN_FLOW.overlay_list; // g_overlayList
+const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.draw_list; // g_drawList
+const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.scene_list; // g_sceneList
+const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.overlay_list; // g_overlayList
 const NOTICE_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NOTICE;
 const END: u32 = u32::MAX;
 
@@ -89,9 +87,9 @@ pub fn frame_callback(menu: crate::menu::menus_store::MenuId) -> Result<bool, Re
     run_listed(OVERLAY_LIST)?;
     // Converted: `rc2k_core::menu::notice::drawn_now`.
     if notice::drawn_now(crate::strings::load_language::notice_kind(), || {
-        CHEAT_VARS.notice_due.get()
+        crate::menu::owner::menus().play.cheats.notice_due.get()
     }) {
-        CHEAT_VARS.notice_due.set(0u32);
+        crate::menu::owner::menus().play.cheats.notice_due.set(0u32);
         crate::text::draw_string_by_id::draw_string_by_id_at(
             notice::STRING,
             NOTICE_FONT.game_ptr(),

@@ -26,11 +26,7 @@
 //! event loops when their callees refuse).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::go_back;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::pointers::GamePtr;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
 use crate::saves::read_savegame_slot::read_savegame_slot;
@@ -48,7 +44,10 @@ const UNREADABLE_SOUND: u32 = 8;
 /// The slot the highlighted menu item stands for.
 fn highlighted_slot() -> u32 {
     // Converted: `rc2k_core::saves::savegame::slot`.
-    rc2k_core::saves::savegame::slot(MENU_PAGES.save_page.get(), menu_item())
+    rc2k_core::saves::savegame::slot(
+        crate::menu::owner::menus().tables.pages.save_page.get(),
+        menu_item(),
+    )
 }
 
 // ---- Rust version ----
@@ -62,9 +61,21 @@ pub fn load_savegame() -> Result<(), Refused> {
     let cars = cars()?;
 
     crate::menu::ready_players::ready_players()?;
-    EVENT_STATE.event_goes_on.set(1u32);
-    MENU_PAGES.reset_times.set(0u32);
-    EVENT_STATE.event_out.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .event_goes_on
+        .set(1u32);
+    crate::menu::owner::menus()
+        .tables
+        .pages
+        .reset_times
+        .set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .event_out
+        .set(0u32);
     if !read_savegame_slot(slot)? {
         crate::sound::play_menu_sound::play_menu_sound_in_game(UNREADABLE_SOUND);
         go_back::go_back();
@@ -105,23 +116,37 @@ pub fn load_savegame() -> Result<(), Refused> {
         RECORDS_LEN,
         "the saved drivers",
     )?;
-    SCREEN_FLOW
+    crate::menu::owner::menus()
+        .screens
+        .flow
         .start_section
         .set(cars[0].get().saved_start_section);
-    SCREEN_FLOW
+    crate::menu::owner::menus()
+        .screens
+        .flow
         .start_section_a8
         .set(cars[0].get().saved_start_section_a8);
 
     match resume(crate::menu::next_record_kind::next_record_kind()?) {
         Resume::NextSection => {
-            EVENT_STATE
-                .section
-                .set(EVENT_STATE.section.get().wrapping_add(1));
-            EVENT_STATE.index.set(0u32);
+            crate::menu::owner::menus().screens.event.section.set(
+                crate::menu::owner::menus()
+                    .screens
+                    .event
+                    .section
+                    .get()
+                    .wrapping_add(1),
+            );
+            crate::menu::owner::menus().screens.event.index.set(0u32);
         }
-        Resume::NextStage => EVENT_STATE
-            .index
-            .set(EVENT_STATE.index.get().wrapping_add(1)),
+        Resume::NextStage => crate::menu::owner::menus().screens.event.index.set(
+            crate::menu::owner::menus()
+                .screens
+                .event
+                .index
+                .get()
+                .wrapping_add(1),
+        ),
         Resume::Over => {
             go_back::go_back();
             return Ok(());
@@ -134,9 +159,13 @@ pub fn load_savegame() -> Result<(), Refused> {
             .into());
         }
     }
-    EVENT_STATE.continuing_save.set(1u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .continuing_save
+        .set(1u32);
     crate::menu::link_player_names::link_player_names()?;
-    if CHAMP_VIEW.event_mode.get() == A8_MODE {
+    if crate::menu::owner::menus().play.champ_view.event_mode.get() == A8_MODE {
         crate::menu::run_a8_championship::run_a8_championship()?;
     } else {
         crate::menu::run_championship::run_championship()?;

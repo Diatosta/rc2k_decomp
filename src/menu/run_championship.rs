@@ -46,26 +46,23 @@
 //! reached.
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_game::Game;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::session::Dword;
 
-pub const STAGES_DONE: &Dword = &EVENT_STATE.stages_done; // dword_755950
-pub const RESET_TIMES: &Dword = &MENU_PAGES.reset_times; // dword_755250
-pub const SERVICES: &Dword = &MENU_PAGES.services; // dword_755254
-pub const START_SECTION: &Dword = &SCREEN_FLOW.start_section; // dword_7554C0 (the A8's dword_7554C4)
-pub const START_SECTION_A8: &Dword = &SCREEN_FLOW.start_section_a8;
-pub const SERVICE_TIME: &Dword = &EVENT_STATE.service_minutes; // dword_75593C
-pub const SERVICE_DUE: &Dword = &EVENT_STATE.service_due; // dword_755938
-pub const THE_END: &Dword = &EVENT_STATE.championship_end; // dword_755928
-pub const GOES_ON: &Dword = &EVENT_STATE.event_goes_on; // dword_75592C
-pub const WELCOME_FIGURE: &Dword = &EVENT_STATE.welcome_figure; // dword_755924
-pub const WELCOMED: &Dword = &EVENT_STATE.welcomed; // dword_755934
-pub const SERVICE_940: &Dword = &EVENT_STATE.service_940; // dword_755940
-pub const SERVICE_944: &Dword = &EVENT_STATE.service_944; // dword_755944
-pub const SERVICE_NEXT: &Dword = &EVENT_STATE.service_next; // dword_75594C
+pub const STAGES_DONE: &Dword = &crate::menu::owner::MENUS.screens.event.stages_done; // dword_755950
+pub const RESET_TIMES: &Dword = &crate::menu::owner::MENUS.tables.pages.reset_times; // dword_755250
+pub const SERVICES: &Dword = &crate::menu::owner::MENUS.tables.pages.services; // dword_755254
+pub const START_SECTION: &Dword = &crate::menu::owner::MENUS.screens.flow.start_section; // dword_7554C0 (the A8's dword_7554C4)
+pub const START_SECTION_A8: &Dword = &crate::menu::owner::MENUS.screens.flow.start_section_a8;
+pub const SERVICE_TIME: &Dword = &crate::menu::owner::MENUS.screens.event.service_minutes; // dword_75593C
+pub const SERVICE_DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due; // dword_755938
+pub const THE_END: &Dword = &crate::menu::owner::MENUS.screens.event.championship_end; // dword_755928
+pub const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on; // dword_75592C
+pub const WELCOME_FIGURE: &Dword = &crate::menu::owner::MENUS.screens.event.welcome_figure; // dword_755924
+pub const WELCOMED: &Dword = &crate::menu::owner::MENUS.screens.event.welcomed; // dword_755934
+pub const SERVICE_940: &Dword = &crate::menu::owner::MENUS.screens.event.service_940; // dword_755940
+pub const SERVICE_944: &Dword = &crate::menu::owner::MENUS.screens.event.service_944; // dword_755944
+pub const SERVICE_NEXT: &Dword = &crate::menu::owner::MENUS.screens.event.service_next; // dword_75594C
 // dword_755920
 
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.

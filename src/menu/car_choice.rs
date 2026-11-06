@@ -2,11 +2,7 @@
 //! carousel's entries, and the carousel turned to the next or the previous car.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::player::player;
-use crate::menu::state_store::MENU_STATE;
 
 const MOST_ENTRIES: u32 = 0x100;
 
@@ -15,15 +11,19 @@ const MOST_ENTRIES: u32 = 0x100;
 /// entry is looked at before the end mark -1). Refuses a current player past four, no
 /// entries, or entries without their end within 0x100.
 pub fn find_player_car() -> Result<(), Refused> {
-    let current: u32 = EVENT_STATE.current_player.get();
+    let current: u32 = crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .get();
     let car = player(current)
         .ok_or(BadInput("a current player past the four"))?
         .get()
         .car_number;
-    let Some(list) = MENU_STATE.carousel.list()? else {
+    let Some(list) = crate::menu::owner::menus().screens.state.carousel.list()? else {
         return Err(BadInput("no carousel entries").into());
     };
-    let entries = MENU_LISTS.cars(list);
+    let entries = crate::menu::owner::menus().tables.lists.cars(list);
     let entry = |n: u32| entries.offset(4 * n).read::<u32>("a carousel entry");
     if entry(0)? == u32::MAX {
         return Err(BadInput("no carousel entries").into());
@@ -42,8 +42,17 @@ pub fn find_player_car() -> Result<(), Refused> {
         }
     }
     let found = rc2k_core::menu::cars::find_car(&cars, car);
-    MENU_STATE.carousel.front.set(found);
-    EVENT_STATE.shown_car.set(found);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .front
+        .set(found);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .shown_car
+        .set(found);
 
     Ok(())
 }
@@ -61,21 +70,64 @@ fn turn(on: bool) {
     let c = turn_carousel(
         Carousel {
             turn: Turn {
-                count: MENU_STATE.carousel.count.get() as i32,
-                value: MENU_STATE.carousel.front.get() as i32,
-                way: MENU_STATE.carousel.direction.get(),
-                step: MENU_STATE.carousel.angle.get(),
+                count: crate::menu::owner::menus()
+                    .screens
+                    .state
+                    .carousel
+                    .count
+                    .get() as i32,
+                value: crate::menu::owner::menus()
+                    .screens
+                    .state
+                    .carousel
+                    .front
+                    .get() as i32,
+                way: crate::menu::owner::menus()
+                    .screens
+                    .state
+                    .carousel
+                    .direction
+                    .get(),
+                step: crate::menu::owner::menus()
+                    .screens
+                    .state
+                    .carousel
+                    .angle
+                    .get(),
             },
-            shown: EVENT_STATE.shown_car.get(),
+            shown: crate::menu::owner::menus().screens.event.shown_car.get(),
             last: crate::menu::owner::menus().cars.table.last_car.get(),
         },
         on,
     );
-    MENU_STATE.carousel.front.set(c.turn.value as u32);
-    MENU_STATE.carousel.direction.set(c.turn.way);
-    MENU_STATE.carousel.angle.set(c.turn.step);
-    EVENT_STATE.shown_car.set(c.shown);
-    LOOP_FLAGS.back.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .front
+        .set(c.turn.value as u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .direction
+        .set(c.turn.way);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .angle
+        .set(c.turn.step);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .shown_car
+        .set(c.shown);
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .back
+        .set(0u32);
 }
 
 pub fn next_choice_car() {

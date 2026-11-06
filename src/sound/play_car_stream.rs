@@ -10,9 +10,7 @@
 //! Refuses what the record's lookup refuses.
 
 use crate::errors::Refused;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_car_background::shown_car;
-use crate::menu::option_work_store::OPTION_WORK;
 
 // ---- game data ----
 
@@ -29,8 +27,8 @@ pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
         // `MENU_LISTS.car_streams` (off_75A31E) has 24 entries; the original reads any
         // car's, past them what the image has after (`read_on` goes on past them too).
         crate::session::read_on_in(
-            &MENU_LISTS,
-            &MENU_LISTS.car_streams,
+            &crate::menu::owner::menus().tables.lists,
+            &crate::menu::owner::menus().tables.lists.car_streams,
             car as usize,
             "a car's stream",
         )?,
@@ -40,7 +38,11 @@ pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
                 0
             })
         },
-        OPTION_WORK.speech_level.get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .speech_level
+            .get(),
     );
     if let Some(e) = failed.take() {
         return Err(e.into());

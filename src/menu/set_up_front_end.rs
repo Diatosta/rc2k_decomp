@@ -21,10 +21,6 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::saves::default_times::to_the_log;
 
 // ---- game data ----
@@ -65,41 +61,81 @@ pub fn set_up_front_end() -> Result<(), Refused> {
     crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
     crate::menu::fit_player_names::fit_player_names()?;
     // The two dwords: the music volumes, then the tables' copies.
-    crate::sound::owner::sound()
-        .menu
-        .options
-        .music_volume
-        .set(OPTION_WORK.music_level.get());
+    crate::sound::owner::sound().menu.options.music_volume.set(
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .music_level
+            .get(),
+    );
     crate::sound::owner::sound()
         .menu
         .options
         .race_music_volume
-        .set(OPTION_WORK.other_volume.get());
+        .set(
+            crate::menu::owner::menus()
+                .screens
+                .option_work
+                .other_volume
+                .get(),
+        );
     allocate_best_times::allocate_best_times(
         crate::saves::owner::saves().best_times.list(),
         crate::records::stages_store::STAGE_TABLES.championship(),
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
     // variable says it is there, for the race's rivals.
-    CHAMP_VIEW
+    crate::menu::owner::menus()
+        .play
+        .champ_view
         .summary
         .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
     if crate::saves::owner::saves().best_times.loaded.get() != 1 {
-        DRAW_WORK.work_0c.set(0u32);
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .work_0c
+            .set(0u32);
         default_best_scores::default_best_scores()?;
-        DRAW_WORK.work_0c.set(0u32);
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .work_0c
+            .set(0u32);
         default_championship_times::default_championship_times(stage, &mut to_the_log)?;
-        DRAW_WORK.work_0c.set(1u32);
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .work_0c
+            .set(1u32);
         default_checkpoint_times::default_checkpoint_times(stage, &mut to_the_log)?;
-        DRAW_WORK.work_0c.set(0u32);
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .work_0c
+            .set(0u32);
         default_class_times::default_class_times()?;
-        DRAW_WORK.work_0c.set(0u32);
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .work_0c
+            .set(0u32);
         default_stage_times::default_stage_times(stage, &mut to_the_log)?;
-        DRAW_WORK.work_0c.set(0u32);
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .work_0c
+            .set(0u32);
         default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
         crate::saves::owner::saves().best_times.loaded.set(1);
     }
-    if LOOP_FLAGS.options_loaded.get() != 1 {
+    if crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .options_loaded
+        .get()
+        != 1
+    {
         for table in record_tables() {
             crate::records::default_stage_records::default_stage_records(table)?;
         }

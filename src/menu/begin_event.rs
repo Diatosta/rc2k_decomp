@@ -14,9 +14,6 @@
 //! missing player.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::player::PLAYERS;
 use crate::session::Dword;
 use rc2k_core::menu::event::KEEPS_SETUP;
@@ -25,20 +22,32 @@ use rc2k_core::menu::player::Player;
 const CURRENT_PLAYER: &Dword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
 pub fn begin_event() -> Result<(), Refused> {
     let drivers = crate::menu::standings::drivers()?;
-    MENU_PAGES.services.set(0u32);
-    EVENT_STATE.stages_done.set(0u32);
+    crate::menu::owner::menus().tables.pages.services.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .stages_done
+        .set(0u32);
     // Converted: `rc2k_core::menu::player::Player::{begin, default_setup}`.
     drivers
         .iter()
         .for_each(crate::menu::drivers_store::Driver::begin);
-    EVENT_STATE.event_goes_on.set(1u32);
-    EVENT_STATE.event_out.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .event_goes_on
+        .set(1u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .event_out
+        .set(0u32);
     for n in 0..PLAYERS {
         CURRENT_PLAYER.set(n);
         let p = crate::menu::standings::player(n);
         p.update(Player::begin);
         crate::service::repair_parts::repair_car()?;
-        if CHAMP_VIEW.event_mode.get() != KEEPS_SETUP {
+        if crate::menu::owner::menus().play.champ_view.event_mode.get() != KEEPS_SETUP {
             p.update(Player::default_setup);
         }
     }

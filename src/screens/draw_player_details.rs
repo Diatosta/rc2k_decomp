@@ -30,10 +30,6 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::player::Player;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
@@ -42,9 +38,9 @@ use crate::text::draw_text::Canvas;
 
 // seconds
 // dword_7559EC
-const NATIONALITIES_RVA: &[Dword] = &CAPTIONS.nationalities; // dword_758816
-const VIEWS_RVA: &[Dword] = &CAPTIONS.views; // dword_7589BA
-const SECOND_VIEWS_RVA: &[Dword] = &CAPTIONS.second_views; // dword_7589DA
+const NATIONALITIES_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.nationalities; // dword_758816
+const VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.views; // dword_7589BA
+const SECOND_VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.second_views; // dword_7589DA
 /// What differs between the players' pages: players 1 and 2 (`sub_46F894`,
 /// `sub_4677B5`) have the controller's item at 9 and the second view's line; players 3
 /// and 4 (`sub_467975`) have it at 8 and no second view, the lines below moving up one.
@@ -77,7 +73,13 @@ fn string(table: &[Dword], index: u32, count: u32) -> Result<u32, Refused> {
 }
 
 pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let Some(cell) = crate::menu::player::player(EVENT_STATE.current_player.get()) else {
+    let Some(cell) = crate::menu::player::player(
+        crate::menu::owner::menus()
+            .screens
+            .event
+            .current_player
+            .get(),
+    ) else {
         return Err(BadInput("a player past the four").into());
     };
     let player: Player = cell.get();
@@ -108,8 +110,12 @@ pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), R
         name: crate::screens::game_screen::player_name_of(crate::menu::player_names::name_of(
             &player,
         )?),
-        typing: OPTION_WORK.typing.get() != 0,
-        blink: DRAW_WORK.cursor_on.get(),
+        typing: crate::menu::owner::menus().screens.option_work.typing.get() != 0,
+        blink: crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .cursor_on
+            .get(),
         nationality: player.nationality,
         nationality_id,
         view_id,

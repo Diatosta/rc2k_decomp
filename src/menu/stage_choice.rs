@@ -4,17 +4,12 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::gfx::picture_store::PICTURE;
-use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::loop_store::LOOP_FLAGS;
 use crate::screens::draw_stage_records::selection;
 use crate::session::Dword;
 
-pub const GROUP_RVA: &Dword = &EVENT_STATE.stage_group; // dword_7558C8: 0 or 1
-pub const SUB_RVA: &Dword = &EVENT_STATE.stage_sub; // dword_7558D0: 0 .. 5
-pub const NUMBER_RVA: &Dword = &EVENT_STATE.stage_number; // dword_7558CC: 1 .. 6
+pub const GROUP_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_group; // dword_7558C8: 0 or 1
+pub const SUB_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_sub; // dword_7558D0: 0 .. 5
+pub const NUMBER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.stage_number; // dword_7558CC: 1 .. 6
 const MAP_SPRITE: u32 = 0xA0;
 /// The map that cannot be loaded: no message.
 const NO_MAP: FatalError = FatalError {
@@ -33,34 +28,40 @@ pub fn draw_stage_map() -> Result<(), Refused> {
     use crate::gfx::convert_picture::convert_picture_now;
     use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
     use crate::gfx::picture_as_surface::picture_as_surface;
-    let mode: u32 = CHAMP_VIEW.stage_mode.get();
+    let mode: u32 = crate::menu::owner::menus().play.champ_view.stage_mode.get();
     let record = match mode {
         2 => {
-            let table: u32 = ARCADE_GAME.level.get();
+            let table: u32 = crate::menu::owner::menus().play.arcade.level.get();
             crate::records::stages_store::row(
                 crate::records::stages_store::STAGE_TABLES.level_table(table)?,
-                ARCADE_GAME.stage.get(),
+                crate::menu::owner::menus().play.arcade.stage.get(),
             )?
         }
         3 => crate::records::find_record::find_record_in(
             crate::records::stages_store::STAGE_TABLES.championship(),
-            EVENT_STATE.index.get() as i32,
-            EVENT_STATE.section.get(),
+            crate::menu::owner::menus().screens.event.index.get() as i32,
+            crate::menu::owner::menus().screens.event.section.get(),
         )?,
         _ => {
             let s = selection()?.ok_or(crate::errors::BadInput(
                 "no stage tables for the choice: the original reads through null",
             ))?;
-            crate::records::stages_store::row(s.table, EVENT_STATE.stage_number.get())?
+            crate::records::stages_store::row(
+                s.table,
+                crate::menu::owner::menus().screens.event.stage_number.get(),
+            )?
         }
     };
     let overlay = crate::menu::texts_store::text_at(crate::session::read_on_in(
-        &MENU_LISTS,
-        &MENU_LISTS.map_overlays,
+        &crate::menu::owner::menus().tables.lists,
+        &crate::menu::owner::menus().tables.lists.map_overlays,
         record.record()?.event_slot() as usize,
         "a map overlay",
     )?)?;
-    if load_picture_with_overlay(&crate::menu::texts_store::MENU_TEXTS.ukmap_png, &overlay)? {
+    if load_picture_with_overlay(
+        &crate::menu::owner::menus().tables.texts.ukmap_png,
+        &overlay,
+    )? {
         return Err(NO_MAP.into());
     }
     convert_picture_now()?;
@@ -68,7 +69,17 @@ pub fn draw_stage_map() -> Result<(), Refused> {
         .flags
         .set(crate::gfx::owner::gfx().display.mode.mode_flags.get() & 0xFFF);
     picture_as_surface()?;
-    blit_glyph_on_surface(MAP_SPRITE, LOOP_FLAGS.sprite_table.get(), 0, 0, None)?;
+    blit_glyph_on_surface(
+        MAP_SPRITE,
+        crate::menu::owner::menus()
+            .screens
+            .loop_flags
+            .sprite_table
+            .get(),
+        0,
+        0,
+        None,
+    )?;
     Ok(())
 }
 

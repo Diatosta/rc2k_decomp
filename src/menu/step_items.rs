@@ -5,7 +5,6 @@
 use crate::errors::Refused;
 use crate::menu::car_buttons::{Which, call_in_game, press};
 use crate::menu::option_steps::{Colour, step_colour};
-use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::player_settings::current;
 use rc2k_core::menu::player::{Setting, stepped};
 
@@ -34,8 +33,10 @@ pub fn car_button(button: Which) -> Result<(), Refused> {
 /// `dword_75523C`, and above 9 goes back to 0.
 pub fn next_savegame_page() {
     // Converted: `rc2k_core::menu::steps::savegame_page`.
-    let page = MENU_PAGES.save_page.get();
-    MENU_PAGES
+    let page = crate::menu::owner::menus().tables.pages.save_page.get();
+    crate::menu::owner::menus()
+        .tables
+        .pages
         .save_page
         .set(rc2k_core::menu::steps::savegame_page(page, true));
 }

@@ -8,19 +8,26 @@
 //! Caller: `sub_4A3BE0`. Refuses a record past the table, no events table, or a current player past
 //! 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header).
 pub fn beat_target_time() -> Result<(), Refused> {
     let event = current_event()?;
-    let n: u32 = EVENT_STATE.current_player.get();
+    let n: u32 = crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
     // Converted: `rc2k_core::menu::bests::makes_time`.
     let target = with_event(event, |ten| ten[9].head.key)?;
     let beaten = rc2k_core::menu::bests::makes_time(player(n).get().time, target);
-    EVENT_STATE.time_qualifies.set(u32::from(beaten));
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .time_qualifies
+        .set(u32::from(beaten));
     Ok(())
 }

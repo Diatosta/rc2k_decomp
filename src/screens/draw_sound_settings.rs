@@ -15,18 +15,23 @@ use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string).
 const NAMES: [(&Dword, u32); 6] = [
-    (&OPTION_WORK.audio_quality, 0x54B),
-    (&OPTION_WORK.channels, 0x554),
-    (&OPTION_WORK.ds3d, 0x56D),
-    (&OPTION_WORK.eax, 0x56D),
-    (&OPTION_WORK.a3d, 0x56D),
-    (&OPTION_WORK.dolby, 0x56D),
+    (
+        &crate::menu::owner::MENUS.screens.option_work.audio_quality,
+        0x54B,
+    ),
+    (
+        &crate::menu::owner::MENUS.screens.option_work.channels,
+        0x554,
+    ),
+    (&crate::menu::owner::MENUS.screens.option_work.ds3d, 0x56D),
+    (&crate::menu::owner::MENUS.screens.option_work.eax, 0x56D),
+    (&crate::menu::owner::MENUS.screens.option_work.a3d, 0x56D),
+    (&crate::menu::owner::MENUS.screens.option_work.dolby, 0x56D),
 ];
 
 /// The Rust version (the registers the last name leaves: the menus read none of them).

@@ -14,54 +14,85 @@
 //! reference.
 
 use crate::errors::Refused;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Flow, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
-    if CAPTIONS.screen_left.get() == 0x1 {
-        CAPTIONS.screen_left.set(0x0u32);
+    if crate::menu::owner::menus()
+        .tables
+        .captions
+        .screen_left
+        .get()
+        == 0x1
+    {
+        crate::menu::owner::menus()
+            .tables
+            .captions
+            .screen_left
+            .set(0x0u32);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.select_stage.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::SELECT_STAGE],
+    menu: || crate::menu::owner::menus().tables.menus.select_stage.id(),
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::SELECT_STAGE],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.select_stage_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .select_stage_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.select_stage_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .select_stage_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.select_stage_setup.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.setup_list, // dword_755500
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .select_stage_setup
+                    .id()
+            },
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.select_stage_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .select_stage_overlay
+                    .id()
+            },
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &MENU_PAGES.yes_no_answer, 0x0)],
+    before: &[Step::Write(
+        || &crate::menu::owner::menus().tables.pages.yes_no_answer,
+        0x0,
+    )],
     set_up_first: &[Step::Call(Callee::MarkStageChoice)],
     prepare: &[],
     after_lists: &[],
@@ -71,7 +102,10 @@ pub const SCREEN: Screen = Screen {
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: true,
-    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
+    after: &[Step::Write(
+        || &crate::menu::owner::menus().screens.option_work.menu_sound,
+        0x6F,
+    )],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

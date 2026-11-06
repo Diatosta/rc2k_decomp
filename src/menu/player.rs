@@ -4,11 +4,13 @@
 //! damage, setup, wear). What is known of it; the rest are gaps. The service area's and
 //! the saves' code still read it by offsets.
 
-use crate::menu::players_store::PLAYER_TABLE;
-
 pub use rc2k_core::menu::player::{PLAYERS, Player};
 
 /// Player `index`, none past the four.
 pub fn player(index: u32) -> Option<&'static crate::session::Shared<Player>> {
-    PLAYER_TABLE.players.get(index as usize)
+    crate::menu::owner::menus()
+        .play
+        .players
+        .players
+        .get(index as usize)
 }

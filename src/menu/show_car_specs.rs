@@ -10,8 +10,6 @@
 //! An item action (a reading: the main menu's "car specifications").
 
 use crate::errors::{FatalError, Refused};
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::CarList;
 use crate::menu::screen_loop::{Entry, run_screen};
 
@@ -19,7 +17,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 pub fn show_car_specs() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::specs_list`.
     use rc2k_core::menu::cars::{SpecsList, specs_list};
-    let kind: u32 = EVENT_STATE.event_type.get();
+    let kind: u32 = crate::menu::owner::menus().screens.event.event_type.get();
     let Some((list, choice)) = specs_list(kind) else {
         return Err(FatalError {
             code: 0x8071_3214,
@@ -41,7 +39,14 @@ pub fn show_car_specs() -> Result<(), Refused> {
         cars = cheat;
     }
     { run_screen(screen, &Entry { cars: Some(cars) }) }?;
-    if { CAPTIONS.screen_left.get() } != 1 {
+    if {
+        crate::menu::owner::menus()
+            .tables
+            .captions
+            .screen_left
+            .get()
+    } != 1
+    {
         crate::menu::take_shown_car::take_shown_car(Some(cars))?;
     }
     Ok(())

@@ -26,8 +26,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::find_class_time::find_class_time;
 use crate::text::draw_text::Canvas;
 use rc2k_core::saves::entries::BestTime;
@@ -46,8 +44,8 @@ fn rows() -> Result<Rows, Refused> {
         let found = rc2k_core::screens::results_pages::class_rows(
             |n| t.entries.get(n as usize).map_or(0, |e| e.head.group),
             |n| t.first_at(n as usize).is_none_or(|v| v == u32::MAX),
-            EVENT_STATE.class.get(),
-            CHAMP_VIEW.count.get(),
+            crate::menu::owner::menus().screens.event.class.get(),
+            crate::menu::owner::menus().play.champ_view.count.get(),
         );
         let (rows, after) = found.map_err(BadInput::from)?;
         Ok((
@@ -62,10 +60,14 @@ fn rows() -> Result<Rows, Refused> {
 /// The Rust version.
 pub fn draw_class_ranking(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let (rows, last_place) = rows()?;
-    let first_time = find_class_time(EVENT_STATE.class.get(), true)?;
+    let first_time = find_class_time(crate::menu::owner::menus().screens.event.class.get(), true)?;
     // Converted: `rc2k_core::screens::results_pages::class_ranking` (the rows found here).
     use rc2k_core::screens::results_pages::{Name, RankedRow, class_ranking};
-    let player = CHAMP_VIEW.ranked_player.get();
+    let player = crate::menu::owner::menus()
+        .play
+        .champ_view
+        .ranked_player
+        .get();
     // A player's entry names the player's name (`name_at`), a driver's a string.
     let rows: Vec<RankedRow<crate::screens::game_screen::HeldText>> = rows
         .iter()

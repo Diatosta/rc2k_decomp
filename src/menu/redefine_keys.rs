@@ -17,7 +17,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::pointers::GamePtr;
 use rc2k_core::strings::bytes::Bytes;
 
@@ -38,14 +37,24 @@ fn reserved() -> Result<Option<Vec<u8>>, BadInput> {
 
 /// One frame of redefining a key of `player` (0: refused).
 pub fn redefine_key(player: Option<crate::menu::standings::PlayerCell>) -> Result<(), Refused> {
-    if OPTION_WORK.redefining_key.get() == 0 {
+    if crate::menu::owner::menus()
+        .screens
+        .option_work
+        .redefining_key
+        .get()
+        == 0
+    {
         return Ok(());
     }
     // Everything that could be refused, before the key is taken.
     let Some(player) = player else {
         return Err(BadInput("no player").into());
     };
-    let place: u32 = OPTION_WORK.redefined_key_place.get();
+    let place: u32 = crate::menu::owner::menus()
+        .screens
+        .option_work
+        .redefined_key_place
+        .get();
     if place as usize >= KEYS {
         return Err(BadInput("a key's place of 12 or more").into());
     }
@@ -73,10 +82,18 @@ pub fn redefine_key(player: Option<crate::menu::standings::PlayerCell>) -> Resul
             .set(i, key);
     }
     if placed {
-        OPTION_WORK.redefined_key_place.set(NO_PLACE);
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .redefined_key_place
+            .set(NO_PLACE);
     }
     player.update(|p| p.keys = keys);
-    OPTION_WORK.redefining_key.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .option_work
+        .redefining_key
+        .set(0u32);
 
     Ok(())
 }

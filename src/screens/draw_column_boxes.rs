@@ -11,15 +11,12 @@
 //! Caller: `screens::draw_two_column_panel`.
 
 use crate::errors::Refused;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::state_store::MENU_STATE;
 use crate::screens::service_boxes::{quad, rd, set};
 use crate::session::Dword;
 
-const ROW: &Dword = &DRAW_WORK.figure; // dword_7559EC
-const MARKER_X: &Dword = &DRAW_WORK.marker_x; // g_markerX
-const MARKER_Y: &Dword = &DRAW_WORK.marker_y; // g_markerY
+const ROW: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure; // dword_7559EC
+const MARKER_X: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_x; // g_markerX
+const MARKER_Y: &Dword = &crate::menu::owner::MENUS.screens.draw_work.marker_y; // g_markerY
 
 /// The Rust version: every register kept.
 pub fn draw_column_boxes() -> Result<(), Refused> {
@@ -31,11 +28,17 @@ pub fn draw_column_boxes() -> Result<(), Refused> {
         set(MARKER_X, x);
         set(MARKER_Y, BOXES_Y);
         for _ in 0..ROWS {
-            let chosen = LOOP_FLAGS.item.get() == rd(ROW) && DRAW_WORK.blink.get() == 1;
+            let chosen = crate::menu::owner::menus().screens.loop_flags.item.get() == rd(ROW)
+                && crate::menu::owner::menus().screens.draw_work.blink.get() == 1;
             for a in row_box(
                 rd(MARKER_X),
                 rd(MARKER_Y),
-                MENU_STATE.service_ui.box_colour_a.get(),
+                crate::menu::owner::menus()
+                    .screens
+                    .state
+                    .service_ui
+                    .box_colour_a
+                    .get(),
                 chosen,
             ) {
                 quad(a.x, a.y, a.w, a.h, a.colour, a.see)?;

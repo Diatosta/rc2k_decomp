@@ -15,8 +15,6 @@
 
 use crate::errors::Refused;
 use crate::input::append_key_name::append_key_name;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::player_settings::current;
 use crate::text::draw_text::Canvas;
 
@@ -30,7 +28,11 @@ use crate::text::draw_text::Canvas;
 /// Returns the carry.
 pub fn draw_redefined_keys(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let keys = current()?.get().keys;
-    let redefined: u32 = OPTION_WORK.redefined_key_place.get();
+    let redefined: u32 = crate::menu::owner::menus()
+        .screens
+        .option_work
+        .redefined_key_place
+        .get();
     // Converted: `rc2k_core::screens::controls::redefined_keys`; the names made first
     // (none at the place being redefined, as the original).
     use rc2k_core::screens::controls::KEY_PLACES;
@@ -45,6 +47,10 @@ pub fn draw_redefined_keys(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
         &mut crate::screens::game_screen::ControlsScreen::new(canvas),
         &names,
         row,
-        DRAW_WORK.cursor_on.get(),
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .cursor_on
+            .get(),
     )
 }

@@ -1,15 +1,15 @@
 //! The in-game options menu's (`menu::in_game_options_loop`, `off_750724`) items 3 .. 6,
 //! hidden and shown by `menu::hide_in_game_options` and `menu::show_in_game_options`
 //! (IDA, 2026-10-15).
-
-use crate::menu::menus_store::MENUS;
 use rc2k_core::menu::items::{
     HIDDEN, IN_GAME_OPTIONS, Look, hidden_in_game_options, shown_in_game_option,
 };
 
 /// Item `n` given its look: +0x14, +0x48, +0x1C, in the original's order.
 pub fn set(n: u32, look: Look) -> Result<(), crate::errors::BadInput> {
-    let item = MENUS
+    let item = crate::menu::owner::menus()
+        .tables
+        .menus
         .in_game_options
         .items
         .get(n as usize)

@@ -12,18 +12,10 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
-use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -33,40 +25,88 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
     DRAW.view_offset[1].set(0xAu32);
     DRAW.view_zoom.set(0x100u32);
     prepare_scene();
-    SCREEN_FLOW.turning.set(0x1u32);
-    MENU_STATE.carousel.menu.set(0x5u32);
+    crate::menu::owner::menus().screens.flow.turning.set(0x1u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .menu
+        .set(0x5u32);
     carousel(None)?;
-    let item = SCREEN_ITEMS.current[slot::ARCADE_SELECT_LEVEL].get();
-    LOOP_FLAGS.item.set(item);
-    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
+    let item = crate::menu::owner::menus().screens.items.current[slot::ARCADE_SELECT_LEVEL].get();
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .item
+        .set(item);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .front
+        .set(item.wrapping_sub(1));
     Ok(())
 }
 
 fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
-    if CAPTIONS.screen_left.get() == 0x1 {
-        CAPTIONS.screen_left.set(0x0u32);
+    if crate::menu::owner::menus()
+        .tables
+        .captions
+        .screen_left
+        .get()
+        == 0x1
+    {
+        crate::menu::owner::menus()
+            .tables
+            .captions
+            .screen_left
+            .set(0x0u32);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.arcade_select_level.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::ARCADE_SELECT_LEVEL],
+    menu: || {
+        crate::menu::owner::menus()
+            .tables
+            .menus
+            .arcade_select_level
+            .id()
+    },
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::ARCADE_SELECT_LEVEL],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.arcade_select_level_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .arcade_select_level_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.arcade_select_level_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .arcade_select_level_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.arcade_select_level_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .arcade_select_level_overlay
+                    .id()
+            },
             run: false,
         },
     ],
@@ -74,21 +114,33 @@ pub const SCREEN: Screen = Screen {
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[
-        Step::Write(|| &CAPTIONS.screen_left, 0x0),
-        Step::Write(|| &EVENT_STATE.event_done, 0x0),
+        Step::Write(
+            || &crate::menu::owner::menus().tables.captions.screen_left,
+            0x0,
+        ),
+        Step::Write(
+            || &crate::menu::owner::menus().screens.event.event_done,
+            0x0,
+        ),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::texts_store::MENU_TEXTS.arcade_select_level_picture
+        &crate::menu::owner::menus()
+            .tables
+            .texts
+            .arcade_select_level_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(|| &OPTION_WORK.menu_sound, 0x6F)],
+    after: &[Step::Write(
+        || &crate::menu::owner::menus().screens.option_work.menu_sound,
+        0x6F,
+    )],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

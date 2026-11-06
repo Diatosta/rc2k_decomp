@@ -1,12 +1,5 @@
 use crate::errors::Refused;
-use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::CarList;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
@@ -34,25 +27,25 @@ fn cell(v: Var) -> Option<&'static Dword> {
 
 fn address(v: Var) -> &'static Dword {
     match v {
-        Var::Failed => &ARCADE_GAME.retry,
-        Var::TotalA8 => &RESULT_FIGURES.before[0],
-        Var::Total798 => &RESULT_FIGURES.sums[0],
-        Var::TotalB8 => &RESULT_FIGURES.totals[0],
-        Var::Figure768 => &RESULT_FIGURES.positions[0],
-        Var::Figure758 => &RESULT_FIGURES.time_bonus[0],
-        Var::PlayerCount => &EVENT_STATE.player_count,
-        Var::EventMode => &EVENT_STATE.event_kind,
-        Var::Leave => &LOOP_FLAGS.went_back,
-        Var::Ended565 => &LOOP_FLAGS.ended_b,
-        Var::Ended569 => &LOOP_FLAGS.ended_a,
-        Var::Stage => &ARCADE_GAME.stage,
-        Var::Level => &ARCADE_GAME.level,
-        Var::Current => &EVENT_STATE.current_player,
-        Var::CarLeft => &CAPTIONS.screen_left,
-        Var::Answer => &MENU_PAGES.yes_no_answer,
-        Var::Cheats => &CHEAT_VARS.cheats,
-        Var::Qualifies => &EVENT_STATE.time_qualifies,
-        Var::Done => &EVENT_STATE.event_done,
+        Var::Failed => &crate::menu::owner::menus().play.arcade.retry,
+        Var::TotalA8 => &crate::menu::owner::menus().play.results.before[0],
+        Var::Total798 => &crate::menu::owner::menus().play.results.sums[0],
+        Var::TotalB8 => &crate::menu::owner::menus().play.results.totals[0],
+        Var::Figure768 => &crate::menu::owner::menus().play.results.positions[0],
+        Var::Figure758 => &crate::menu::owner::menus().play.results.time_bonus[0],
+        Var::PlayerCount => &crate::menu::owner::menus().screens.event.player_count,
+        Var::EventMode => &crate::menu::owner::menus().screens.event.event_kind,
+        Var::Leave => &crate::menu::owner::menus().screens.loop_flags.went_back,
+        Var::Ended565 => &crate::menu::owner::menus().screens.loop_flags.ended_b,
+        Var::Ended569 => &crate::menu::owner::menus().screens.loop_flags.ended_a,
+        Var::Stage => &crate::menu::owner::menus().play.arcade.stage,
+        Var::Level => &crate::menu::owner::menus().play.arcade.level,
+        Var::Current => &crate::menu::owner::menus().screens.event.current_player,
+        Var::CarLeft => &crate::menu::owner::menus().tables.captions.screen_left,
+        Var::Answer => &crate::menu::owner::menus().tables.pages.yes_no_answer,
+        Var::Cheats => &crate::menu::owner::menus().play.cheats.cheats,
+        Var::Qualifies => &crate::menu::owner::menus().screens.event.time_qualifies,
+        Var::Done => &crate::menu::owner::menus().screens.event.event_done,
         Var::Player0Entry => unreachable!("player 0's field is not at an address"),
         Var::RaceStage
         | Var::RaceLevel
@@ -104,8 +97,10 @@ impl arcade::Arcade for Game {
             Step::KeepStageBest => {
                 // The stage's record in the level's table.
                 let level = crate::records::stages_store::STAGE_TABLES
-                    .level_table(ARCADE_GAME.level.get())?;
-                a::keep_arcade_stage_best(level.row(ARCADE_GAME.stage.get())?)?;
+                    .level_table(crate::menu::owner::menus().play.arcade.level.get())?;
+                a::keep_arcade_stage_best(
+                    level.row(crate::menu::owner::menus().play.arcade.stage.get())?,
+                )?;
             }
             Step::CheckStageTime => a::check_arcade_stage_time()?,
             Step::ClearTimeMarks => a::clear_arcade_time_marks()?,

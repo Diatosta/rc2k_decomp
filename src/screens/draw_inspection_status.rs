@@ -18,7 +18,6 @@
 //! `draw_car_condition` before the screenshot.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::state_store::MENU_STATE;
 use crate::service::state::{current_player, repair_flag};
 use crate::text::draw_text::Canvas;
 
@@ -39,8 +38,18 @@ pub fn inspection_status(
         let item = PARTS[n];
         Part {
             damage: player.get().damage[item as usize - 2] as i32,
-            threshold: MENU_STATE.driver_stats.limits[item as usize - 2].get() as i32,
-            weight: MENU_STATE.driver_stats.penalties[item as usize - 2].get() as i32,
+            threshold: crate::menu::owner::menus()
+                .screens
+                .state
+                .driver_stats
+                .limits[item as usize - 2]
+                .get() as i32,
+            weight: crate::menu::owner::menus()
+                .screens
+                .state
+                .driver_stats
+                .penalties[item as usize - 2]
+                .get() as i32,
             repairing: repair_flag(item) != 0,
         }
     });

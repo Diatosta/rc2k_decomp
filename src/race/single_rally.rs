@@ -11,11 +11,6 @@
 //! end of the file, `cfg(test)` only).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::race;
 use crate::race::state_store::{RACE_STATE, RaceCar, RaceResult};
@@ -31,19 +26,19 @@ type Record = crate::menu::standings::PlayerCell;
 /// g_players (0x75647C): the players' records, 4 bytes each.
 /// dword_7556F4: whether the standings summary is taken (1, `saves::best_times::SUMMARY`),
 /// copied to `RACE_INFO`.
-const SUMMARY: &Dword = &CHAMP_VIEW.summary;
+const SUMMARY: &Dword = &crate::menu::owner::MENUS.play.champ_view.summary;
 /// dword_7558DC, copied to dword_5C2FD0 after the loading picture.
-const AFTER_LOADING: &Dword = &EVENT_STATE.sparks_mode;
+const AFTER_LOADING: &Dword = &crate::menu::owner::MENUS.screens.event.sparks_mode;
 /// dword_7554C8: kept over the race (`RACE_KEPT`).
-const KEPT: &Dword = &SCREEN_FLOW.kept;
+const KEPT: &Dword = &crate::menu::owner::MENUS.screens.flow.kept;
 /// dword_755984: the number of players.
-const PLAYER_COUNT: &Dword = &EVENT_STATE.player_count;
+const PLAYER_COUNT: &Dword = &crate::menu::owner::MENUS.screens.event.player_count;
 /// dword_755988: the event mode (5, 4, 0xF, 0xA: the events' one-car races).
-const EVENT_MODE: &Dword = &EVENT_STATE.event_kind;
+const EVENT_MODE: &Dword = &crate::menu::owner::MENUS.screens.event.event_kind;
 /// dword_75598C: the current player's number.
-const CURRENT: &Dword = &EVENT_STATE.current_player;
+const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player;
 /// dword_7587E8: the run's start argument (1: no loading picture after).
-const SWITCH: &Dword = &ARCADE_GAME.scene_let_go;
+const SWITCH: &Dword = &crate::menu::owner::MENUS.play.arcade.scene_let_go;
 /// dword_75ACD0: a copy of `SUMMARY` (the summary's block id, as the race reads it:
 /// `race::copy_league_table`, `physics::fill_rival_table`).
 const RACE_INFO: &Dword = &RACE_STATE.settings.rivals;
@@ -129,11 +124,26 @@ const UNKNOWN_TRACK: FatalError = FatalError {
 
 /// Five settings words copied to the race variables (from, to).
 const SETTINGS_TO_RACE: [(&Dword, &Dword); 5] = [
-    (&OPTION_WORK.setting_0, &RACE_STATE.settings.setting_0),
-    (&OPTION_WORK.setting_1, &RACE_STATE.settings.setting_1),
-    (&OPTION_WORK.setting_2, &RACE_STATE.settings.setting_2),
-    (&OPTION_WORK.setting_3, &RACE_STATE.settings.setting_3),
-    (&OPTION_WORK.setting_4, &RACE_STATE.settings.setting_4),
+    (
+        &crate::menu::owner::MENUS.screens.option_work.setting_0,
+        &RACE_STATE.settings.setting_0,
+    ),
+    (
+        &crate::menu::owner::MENUS.screens.option_work.setting_1,
+        &RACE_STATE.settings.setting_1,
+    ),
+    (
+        &crate::menu::owner::MENUS.screens.option_work.setting_2,
+        &RACE_STATE.settings.setting_2,
+    ),
+    (
+        &crate::menu::owner::MENUS.screens.option_work.setting_3,
+        &RACE_STATE.settings.setting_3,
+    ),
+    (
+        &crate::menu::owner::MENUS.screens.option_work.setting_4,
+        &RACE_STATE.settings.setting_4,
+    ),
 ];
 
 #[cfg(test)]
@@ -1699,7 +1709,6 @@ mod tests {
     use super::*;
     use crate::errors::BadInput;
     use crate::framework::{Regs, game_addr, rva};
-    use crate::menu::players_store::PLAYER_TABLE;
     use crate::pointers::GamePtr;
 
     /// The tests share the game's memory.
@@ -1759,11 +1768,14 @@ mod tests {
             (BLOCK_CURRENT[0].addr(), 0x20),
             (OUTCOME_FIRST.data.addr(), 0x40),
             (OUTCOME_CURRENT.data.addr(), 0x40),
-            (PLAYER_TABLE.pointers[0].addr(), 16),
+            (
+                crate::menu::owner::menus().play.players.pointers[0].addr(),
+                16,
+            ),
         ] {
             ranges.push((a as usize, len));
         }
-        for r in &PLAYER_TABLE.players {
+        for r in &crate::menu::owner::menus().play.players.players {
             ranges.push((r.addr() as usize, RECORD_LEN));
         }
         ranges.sort_unstable();
@@ -1927,8 +1939,14 @@ mod tests {
                     crate::pointers::host_at(a + i).write(rng.next() as u8);
                 }
             }
-            for (k, r) in PLAYER_TABLE.players.iter().enumerate() {
-                PLAYER_TABLE.pointers[k].set(r.addr());
+            for (k, r) in crate::menu::owner::menus()
+                .play
+                .players
+                .players
+                .iter()
+                .enumerate()
+            {
+                crate::menu::owner::menus().play.players.pointers[k].set(r.addr());
                 set_field(r, 0xD0, c.d0[k]).expect("the record is there");
             }
             EVENT_MODE.set(c.mode);
@@ -2108,7 +2126,9 @@ mod tests {
         // A first check that the stand-in memory is there.
         RACE_INFO.set(0x1234_5678);
         assert_eq!(RACE_INFO.get(), 0x1234_5678);
-        let kept_players: Vec<_> = PLAYER_TABLE
+        let kept_players: Vec<_> = crate::menu::owner::menus()
+            .play
+            .players
             .players
             .iter()
             .map(crate::session::Shared::get)
@@ -2148,7 +2168,13 @@ mod tests {
             "coverage: {done} {fatal} {failed} {engine} {early} {results}"
         );
         crate::moved::restore(&first);
-        for (cell, kept) in PLAYER_TABLE.players.iter().zip(kept_players) {
+        for (cell, kept) in crate::menu::owner::menus()
+            .play
+            .players
+            .players
+            .iter()
+            .zip(kept_players)
+        {
             cell.set(kept);
         }
     }

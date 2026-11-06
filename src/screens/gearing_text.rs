@@ -10,8 +10,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::player::{Player, player};
 use crate::screens::car_caption::put_string;
 
@@ -21,8 +19,14 @@ const FIRST_STRING: u32 = 0x21F;
 const _: () = assert!(std::mem::offset_of!(Player, gearing) == 0x30);
 
 pub fn current() -> Result<&'static crate::session::Shared<Player>, Refused> {
-    Ok(player(EVENT_STATE.current_player.get())
-        .ok_or(BadInput("a current player past the four"))?)
+    Ok(player(
+        crate::menu::owner::menus()
+            .screens
+            .event
+            .current_player
+            .get(),
+    )
+    .ok_or(BadInput("a current player past the four"))?)
 }
 
 pub fn gearing_text() -> Result<(), Refused> {
@@ -32,7 +36,11 @@ pub fn gearing_text() -> Result<(), Refused> {
         crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.title),
         TEXT_LEN,
     )?;
-    SCREEN_FLOW.shown_gearing.set(value);
+    crate::menu::owner::menus()
+        .screens
+        .flow
+        .shown_gearing
+        .set(value);
     Ok(())
 }
 
@@ -40,7 +48,7 @@ pub fn gearing_text() -> Result<(), Refused> {
 /// (below 0 to 2, both signed), the current player's `gearing` it, and its text.
 pub fn step_gearing(on: bool) -> Result<(), Refused> {
     let p = current()?;
-    let kept = SCREEN_FLOW.shown_gearing.get() as i32;
+    let kept = crate::menu::owner::menus().screens.flow.shown_gearing.get() as i32;
     // Converted: `rc2k_core::screens::captions::step_gearing`.
     let value = rc2k_core::screens::captions::step_gearing(kept, on);
     put_string(
@@ -48,7 +56,11 @@ pub fn step_gearing(on: bool) -> Result<(), Refused> {
         crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.title),
         TEXT_LEN,
     )?;
-    SCREEN_FLOW.shown_gearing.set(value);
+    crate::menu::owner::menus()
+        .screens
+        .flow
+        .shown_gearing
+        .set(value);
     p.update(|p| p.gearing = value);
     Ok(())
 }

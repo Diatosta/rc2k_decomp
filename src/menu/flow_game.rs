@@ -5,18 +5,15 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::run_championship as champ;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::menu::standings::Which;
-use crate::menu::state_store::MENU_STATE;
 use crate::race::state_store::RACE_STATE;
 use crate::records::stages_store::RecordRef;
 use crate::session::Dword;
 use rc2k_core::menu::flow::{self, Picture, Var};
 
-pub const SPEECH_CHANNEL: &Dword = &OPTION_WORK.speech_level; // dword_755698
+pub const SPEECH_CHANNEL: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level; // dword_755698
 
 #[derive(Default)]
 pub struct Game {
@@ -96,14 +93,14 @@ fn place(v: Var) -> Place {
         Var::RaceResult2 => Cell(&RACE_STATE.results.results[1].result),
         Var::CarListKind => Cell(CAR_LIST_KIND),
         Var::Cheats => Cell(CHEATS),
-        Var::Cleared(k) => Cell(&RESULT_FIGURES.before[k as usize]),
+        Var::Cleared(k) => Cell(&crate::menu::owner::menus().play.results.before[k as usize]),
         Var::PlayerTime(n) => Place::Player(n, PlayerField::Time),
         Var::PlayerEntry(n) => Place::Player(n, PlayerField::Entry),
         Var::Continuing => Cell(CONTINUING),
         Var::StagesDone => Cell(champ::STAGES_DONE),
         Var::ResetTimes => Cell(champ::RESET_TIMES),
         Var::Services => Cell(champ::SERVICES),
-        Var::ModeAB40 => Cell(&MENU_STATE.menus.class_mode),
+        Var::ModeAB40 => Cell(&crate::menu::owner::menus().screens.state.menus.class_mode),
         Var::StartSection { a8: false } => Cell(champ::START_SECTION),
         Var::StartSection { a8: true } => Cell(champ::START_SECTION_A8),
         Var::ServiceTime => Cell(champ::SERVICE_TIME),
@@ -114,10 +111,10 @@ fn place(v: Var) -> Place {
         Var::GoesOn => Cell(champ::GOES_ON),
         Var::Section => Cell(SECTION),
         Var::Index => Cell(INDEX),
-        Var::RallyDone => Cell(&MENU_STATE.menus.rally_done),
+        Var::RallyDone => Cell(&crate::menu::owner::menus().screens.state.menus.rally_done),
         Var::WelcomeFigure => Cell(champ::WELCOME_FIGURE),
         Var::Welcomed => Cell(champ::WELCOMED),
-        Var::ReviewKind => Cell(&MENU_STATE.menus.review_kind),
+        Var::ReviewKind => Cell(&crate::menu::owner::menus().screens.state.menus.review_kind),
         Var::Record(offset) => Place::Record(offset),
         Var::SpeechChannel => Cell(SPEECH_CHANNEL),
         Var::Quitting => Place::Quitting,
@@ -315,7 +312,7 @@ impl flow::Game for Game {
 
     fn load_picture(&mut self, p: Picture) -> Result<bool, Refused> {
         self.fault.check()?;
-        let texts = &crate::menu::texts_store::MENU_TEXTS;
+        let texts = &crate::menu::owner::menus().tables.texts;
         let picture: &dyn crate::session::TextPlace = match p {
             Picture::Championship => &texts.mob_welc_png,
             Picture::A8 => &texts.a8_welc_png,

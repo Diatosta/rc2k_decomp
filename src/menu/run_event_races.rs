@@ -29,22 +29,17 @@
 //! for the mode, and what the steps refuse, before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::standings::*;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::event_races::{self as races, PICKED, Step, Var};
 
-const GOES_ON: &Dword = &EVENT_STATE.event_goes_on; // dword_75592C
-const CHEATS: &Dword = &CHEAT_VARS.cheats; // g_cheats
-const KEPT: &Dword = &SCREEN_FLOW.kept; // dword_7554C8
-const CURRENT: &Dword = &EVENT_STATE.current_player; // dword_75598C
+const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on; // dword_75592C
+const CHEATS: &Dword = &crate::menu::owner::MENUS.play.cheats.cheats; // g_cheats
+const KEPT: &Dword = &crate::menu::owner::MENUS.screens.flow.kept; // dword_7554C8
+const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
 
 /// The game for `rc2k_core::menu::event_races`: the variables at their addresses, the
 /// steps' Rust versions, the race and the front end.
@@ -116,7 +111,10 @@ impl races::EventRaces for Game {
             Step::RaceInfo => {
                 // The summary's variable: 1 while it is there (the race reads it:
                 // `RACE_STATE.settings.rivals`).
-                RACE_STATE.settings.rivals.set(CHAMP_VIEW.summary.get());
+                RACE_STATE
+                    .settings
+                    .rivals
+                    .set(crate::menu::owner::menus().play.champ_view.summary.get());
                 RACE_STATE.settings.stage.set(self.pack.stage()?);
             }
             Step::Race { next } => {
@@ -180,13 +178,13 @@ pub fn run_event_races() -> Result<(), Refused> {
     if few_running {
         return Err(BadInput("fewer than 0xB2 drivers, or fewer than four still running").into());
     }
-    let mode: u32 = EVENT_STATE.event_kind.get();
+    let mode: u32 = crate::menu::owner::menus().screens.event.event_kind.get();
     if let Some((n, _)) = races::players_of(mode)
         && n > 4
     {
         return Err(BadInput("a player of the event's mode missing").into());
     }
-    let reset_only = { MENU_PAGES.reset_times.get() } == 1;
+    let reset_only = { crate::menu::owner::menus().tables.pages.reset_times.get() } == 1;
     let rec = crate::menu::calc_cpu_times::record()?;
     crate::menu::calc_cpu_times::check(rec)?;
     let pack = crate::records::trakpak_entry::track_of(rec)?;

@@ -5,9 +5,6 @@
 //! services in `dword_755A0C`.
 
 use crate::errors::{FatalError, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::records::stages_store::RecordRef;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
@@ -35,11 +32,11 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             return Err(crate::errors::BadInput("a section past the record table").into());
         }
         let first = record_at(0)?;
-        let heading = if CHAMP_VIEW.event_mode.get() == 0x13 {
+        let heading = if crate::menu::owner::menus().play.champ_view.event_mode.get() == 0x13 {
             crate::session::read_on_in(
-                &MENU_LISTS,
-                &MENU_LISTS.section_titles,
-                EVENT_STATE.section.get() as usize,
+                &crate::menu::owner::menus().tables.lists,
+                &crate::menu::owner::menus().tables.lists.section_titles,
+                crate::menu::owner::menus().screens.event.section.get() as usize,
                 "a section title",
             )?
         } else {
@@ -75,7 +72,7 @@ pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             heading,
             &row,
             &ends_at,
-            EVENT_STATE.index.get(),
+            crate::menu::owner::menus().screens.event.index.get(),
             crate::strings::units::units(),
         );
         fault.check()?;

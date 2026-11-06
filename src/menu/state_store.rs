@@ -203,110 +203,114 @@ pub struct MenuState {
     pub driver_stats: DriverStats,
 }
 
-/// First values the image's.
-pub static MENU_STATE: MenuState = MenuState {
-    carousel: Carousel {
-        kind: Dword::new(0),
-        entries: Dword::new(0),
-        direction: Dword::new(0),
-        spacing: Dword::new(0),
-        y: Dword::new(0),
-        z: Dword::new(0),
-        forward: Dword::new(0),
-        kinds: [const { Dword::new(0) }; 256],
-        menu: Dword::new(0),
-        count: Dword::new(4),
-        front: Dword::new(3),
-        angle: Dword::new(0),
-        last_clock: Dword::new(0),
-        passed: Dword::new(0),
-        set_up: Dword::new(1),
-    },
-    service_ui: ServiceUi {
-        box_colour_a: Dword::new(0xba),
-        fade_full: Dword::new(0xee),
-        box_colour_b: Dword::new(0),
-        box_shown: Dword::new(0),
-        box_page: Dword::new(1),
-        status: Dword::new(0),
-    },
-    carousel_pictures: CarouselPictures {
-        wanted: [const { Dword::new(0) }; 4],
-        shown: [const { Dword::new(0) }; 4],
-        held: [const { Dword::new(0) }; 4],
-    },
-    menus: Menus {
-        review_kind: Dword::new(0),
-        which_title: Dword::new(0),
-        skip_edit_values: Dword::new(0),
-        dword_75aae4: Dword::new(0),
-        class_times: [const { Dword::new(0) }; 4],
-        track_length: [Dword::new(0), Dword::new(0)],
-        class_counts: [
-            Dword::new(0x5a),
-            Dword::new(0x32),
-            Dword::new(0x1e),
-            Dword::new(0xa),
-        ],
-        firsts: [
-            Dword::new(0),
-            Dword::new(0x5a),
-            Dword::new(0x8c),
-            Dword::new(0xaa),
-        ],
-        rally_done: Dword::new(0),
-        first_row_time: Dword::new(0),
-        pair_ab28: [Dword::new(0), Dword::new(0)],
-        caption_choice: Dword::new(0),
-        standings_shown: Dword::new(0),
-        service_flag: Dword::new(0),
-        unk_75ab3c: Dword::new(0),
-        class_mode: Dword::new(2),
-        fade_length: Dword::new(0x1f4),
-        fade_start: Dword::new(0x7d0),
-        fade_gone: Dword::new(0),
-        fade_see: Dword::new(0),
-        repair_last_step: Dword::new(0),
-    },
-    driver_stats: DriverStats {
-        steps: Float::from_bits(0x42c60000),
-        scale: Float::from_bits(0x42c80000),
-        repair_times: [const { Dword::new(0) }; 16],
-        highs: [const { Dword::new(0) }; 14],
-        limits: [const { Dword::new(0) }; 14],
-        weights: [const { Dword::new(0) }; 14],
-        penalties: [const { Dword::new(0) }; 14],
-        score: Dword::new(0x64),
-        total: Dword::new(0),
-        _gap_75ac88: Bytes::new([0; 4]),
-        repair_time: Dword::new(0),
-        setups: [
-            SetupItem {
-                chosen: Dword::new(2),
-                installed: Dword::new(2),
-                start: Dword::new(0),
+impl MenuState {
+    /// First values the image's.
+    pub const fn new() -> Self {
+        MenuState {
+            carousel: Carousel {
+                kind: Dword::new(0),
+                entries: Dword::new(0),
+                direction: Dword::new(0),
+                spacing: Dword::new(0),
+                y: Dword::new(0),
+                z: Dword::new(0),
+                forward: Dword::new(0),
+                kinds: [const { Dword::new(0) }; 256],
+                menu: Dword::new(0),
+                count: Dword::new(4),
+                front: Dword::new(3),
+                angle: Dword::new(0),
+                last_clock: Dword::new(0),
+                passed: Dword::new(0),
+                set_up: Dword::new(1),
             },
-            SetupItem {
-                chosen: Dword::new(3),
-                installed: Dword::new(3),
-                start: Dword::new(0),
+            service_ui: ServiceUi {
+                box_colour_a: Dword::new(0xba),
+                fade_full: Dword::new(0xee),
+                box_colour_b: Dword::new(0),
+                box_shown: Dword::new(0),
+                box_page: Dword::new(1),
+                status: Dword::new(0),
             },
-            SetupItem {
-                chosen: Dword::new(0x32),
-                installed: Dword::new(0x32),
-                start: Dword::new(0),
+            carousel_pictures: CarouselPictures {
+                wanted: [const { Dword::new(0) }; 4],
+                shown: [const { Dword::new(0) }; 4],
+                held: [const { Dword::new(0) }; 4],
             },
-            SetupItem {
-                chosen: Dword::new(0x32),
-                installed: Dword::new(0x32),
-                start: Dword::new(0),
+            menus: Menus {
+                review_kind: Dword::new(0),
+                which_title: Dword::new(0),
+                skip_edit_values: Dword::new(0),
+                dword_75aae4: Dword::new(0),
+                class_times: [const { Dword::new(0) }; 4],
+                track_length: [Dword::new(0), Dword::new(0)],
+                class_counts: [
+                    Dword::new(0x5a),
+                    Dword::new(0x32),
+                    Dword::new(0x1e),
+                    Dword::new(0xa),
+                ],
+                firsts: [
+                    Dword::new(0),
+                    Dword::new(0x5a),
+                    Dword::new(0x8c),
+                    Dword::new(0xaa),
+                ],
+                rally_done: Dword::new(0),
+                first_row_time: Dword::new(0),
+                pair_ab28: [Dword::new(0), Dword::new(0)],
+                caption_choice: Dword::new(0),
+                standings_shown: Dword::new(0),
+                service_flag: Dword::new(0),
+                unk_75ab3c: Dword::new(0),
+                class_mode: Dword::new(2),
+                fade_length: Dword::new(0x1f4),
+                fade_start: Dword::new(0x7d0),
+                fade_gone: Dword::new(0),
+                fade_see: Dword::new(0),
+                repair_last_step: Dword::new(0),
             },
-        ],
-        money: Dword::new(0),
-        switch_a: Dword::new(0),
-        switch_b: Dword::new(0),
-    },
-};
+            driver_stats: DriverStats {
+                steps: Float::from_bits(0x42c60000),
+                scale: Float::from_bits(0x42c80000),
+                repair_times: [const { Dword::new(0) }; 16],
+                highs: [const { Dword::new(0) }; 14],
+                limits: [const { Dword::new(0) }; 14],
+                weights: [const { Dword::new(0) }; 14],
+                penalties: [const { Dword::new(0) }; 14],
+                score: Dword::new(0x64),
+                total: Dword::new(0),
+                _gap_75ac88: Bytes::new([0; 4]),
+                repair_time: Dword::new(0),
+                setups: [
+                    SetupItem {
+                        chosen: Dword::new(2),
+                        installed: Dword::new(2),
+                        start: Dword::new(0),
+                    },
+                    SetupItem {
+                        chosen: Dword::new(3),
+                        installed: Dword::new(3),
+                        start: Dword::new(0),
+                    },
+                    SetupItem {
+                        chosen: Dword::new(0x32),
+                        installed: Dword::new(0x32),
+                        start: Dword::new(0),
+                    },
+                    SetupItem {
+                        chosen: Dword::new(0x32),
+                        installed: Dword::new(0x32),
+                        start: Dword::new(0),
+                    },
+                ],
+                money: Dword::new(0),
+                switch_a: Dword::new(0),
+                switch_b: Dword::new(0),
+            },
+        }
+    }
+}
 
 /// IDA 0X75A658, the first byte of the piece.
 pub const START: usize = 0x75A658;
@@ -324,7 +328,10 @@ mod tests {
         let size = size_of::<MenuState>();
         assert!(END - START <= size && size <= (END - START).next_multiple_of(4));
         let mine = unsafe {
-            std::slice::from_raw_parts((&raw const MENU_STATE).cast::<u8>(), END - START)
+            std::slice::from_raw_parts(
+                (&raw const crate::menu::owner::MENUS.screens.state).cast::<u8>(),
+                END - START,
+            )
         };
         assert_eq!(mine, &image_bytes(START, END - START)[..]);
         let at = |field: usize, ida: usize| assert_eq!(field, ida - START, "{ida:#X}");

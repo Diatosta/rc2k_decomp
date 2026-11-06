@@ -10,19 +10,18 @@
 //! anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
 /// The Rust version (see the header).
 pub fn show_class_rally_results(class: u32) -> Result<(), Refused> {
-    EVENT_STATE.class.set(class);
+    crate::menu::owner::menus().screens.event.class.set(class);
     let found = crate::menu::first_player_a::first_player_a(class)?;
     // Converted: `rc2k_core::menu::results_pages::held_figure`.
-    let a8 = CHAMP_VIEW.event_mode.get() == rc2k_core::menu::results_pages::A8;
+    let a8 = crate::menu::owner::menus().play.champ_view.event_mode.get()
+        == rc2k_core::menu::results_pages::A8;
     let count = held_figure(Page::ClassRally { a8 }, found.figure);
-    CHAMP_VIEW.count.set(count);
+    crate::menu::owner::menus().play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage();
     crate::menu::stage_range_caption::stage_range_caption()?;
     run_screen(

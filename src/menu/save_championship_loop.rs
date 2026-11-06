@@ -14,12 +14,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, screen_entry,
 };
@@ -27,16 +22,20 @@ use crate::menu::screen_loop::{
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn before(_: &Entry) -> Result<(), Refused> {
-    DRAW_WORK.escaped.set(0x0u32);
-    SCREEN_ITEMS.current[slot::SAVE_CHAMPIONSHIP]
-        .set(SCREEN_ITEMS.first[slot::SAVE_CHAMPIONSHIP].get());
+    crate::menu::owner::menus()
+        .screens
+        .draw_work
+        .escaped
+        .set(0x0u32);
+    crate::menu::owner::menus().screens.items.current[slot::SAVE_CHAMPIONSHIP]
+        .set(crate::menu::owner::menus().screens.items.first[slot::SAVE_CHAMPIONSHIP].get());
     Ok(())
 }
 
 fn each_frame(_: &Entry) -> Result<Flow, Refused> {
-    if OPTION_WORK.typing.get() == 0x1 {
+    if crate::menu::owner::menus().screens.option_work.typing.get() == 0x1 {
         Callee::EditSavegameName.run()?;
-        if OPTION_WORK.typing.get() != 0x0 {
+        if crate::menu::owner::menus().screens.option_work.typing.get() != 0x0 {
             return Ok(Flow::NextFrame);
         }
     }
@@ -44,44 +43,92 @@ fn each_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.save_championship.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::SAVE_CHAMPIONSHIP],
+    menu: || {
+        crate::menu::owner::menus()
+            .tables
+            .menus
+            .save_championship
+            .id()
+    },
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::SAVE_CHAMPIONSHIP],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.unread_list, // g_unreadList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .unread_758b72
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bbe.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .draw_758bbe
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.save_championship_setup.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.setup_list, // dword_755500
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .save_championship_setup
+                    .id()
+            },
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75914a.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .overlay_75914a
+                    .id()
+            },
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.save_championship_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .save_championship_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bbe.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .draw_758bbe
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75914a.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .overlay_75914a
+                    .id()
+            },
             run: false,
         },
     ]),
@@ -92,7 +139,10 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::texts_store::MENU_TEXTS.save_championship_picture
+        &crate::menu::owner::menus()
+            .tables
+            .texts
+            .save_championship_picture
     }))],
     after_first_frame: &[],
     confirm: None,

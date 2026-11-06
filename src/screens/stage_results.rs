@@ -1,11 +1,7 @@
 //! The time trial stage results page (`sub_48E740`; stream A, part F1, 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_flow::StageTable;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::state_store::MENU_STATE;
 use crate::pointers::GamePtr;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
@@ -15,11 +11,24 @@ use crate::text::draw_text::Canvas;
 /// The stage's record table and record (`off_735512[dword_7556F8][dword_75880E]`, + 0xA4 x
 /// `dword_758812`), none: 0.
 fn records() -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = crate::records::stages_store::STAGE_TABLES
-        .group_event_table(CHAMP_VIEW.switch_f8.get(), CAPTIONS.shown_group.get())?;
+    let base = crate::records::stages_store::STAGE_TABLES.group_event_table(
+        crate::menu::owner::menus().play.champ_view.switch_f8.get(),
+        crate::menu::owner::menus()
+            .tables
+            .captions
+            .shown_group
+            .get(),
+    )?;
     Ok((
         base,
-        crate::records::stages_store::row(base, CAPTIONS.shown_stage.get())?,
+        crate::records::stages_store::row(
+            base,
+            crate::menu::owner::menus()
+                .tables
+                .captions
+                .shown_stage
+                .get(),
+        )?,
     ))
 }
 
@@ -28,13 +37,13 @@ fn records() -> Result<(RecordTable, RecordRef), BadInput> {
 /// `dword_7556E8`, `g_stageBestTimesAlt`; their tables are typed now,
 /// `saves::best_times`), or None. Refuses a list entry that names none of them.
 fn times_table() -> Result<Option<&'static StageTable>, BadInput> {
-    let mut n = CHAMP_VIEW.switch_f8.get();
-    if CHAMP_VIEW.switch_fc.get() == 1 {
+    let mut n = crate::menu::owner::menus().play.champ_view.switch_f8.get();
+    if crate::menu::owner::menus().play.champ_view.switch_fc.get() == 1 {
         n += 2;
     }
     let p = crate::records::stages_store::STAGE_TABLES.result_table(n)?;
     use crate::saves::best_times as b;
-    let v = &CHAMP_VIEW;
+    let v = &crate::menu::owner::menus().play.champ_view;
     let (_, table) = [
         (&v.stage_best_times, &b::STAGE_TIMES),
         (&v.course_best_times, &b::COURSE_TIMES),
@@ -82,27 +91,42 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 /// (the original's early exit leaves two dwords on the stack and returns through a `pusha`
 /// slot), and what the strings refuse.
 pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let menu = LOOP_FLAGS.menu.get().ok();
+    let menu = crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .menu
+        .get()
+        .ok();
     let (base, record) = records()?;
     let table = times_table()?;
     let (Some(table), Some(menu)) = (table, menu) else {
         return Err(BadInput("no current menu, stage records or times table").into());
     };
-    let both_off = (CHAMP_VIEW.switch_f8.get() ^ 1) & (CHAMP_VIEW.switch_fc.get() ^ 1);
+    let both_off = (crate::menu::owner::menus().play.champ_view.switch_f8.get() ^ 1)
+        & (crate::menu::owner::menus().play.champ_view.switch_fc.get() ^ 1);
     let fastest = if both_off == 1 {
         crate::records::find_stage_record::find_stage_record(
             crate::records::stages_store::STAGE_TABLES.championship(),
-            CAPTIONS.shown_group.get(),
-            CAPTIONS.shown_stage.get(),
+            crate::menu::owner::menus()
+                .tables
+                .captions
+                .shown_group
+                .get(),
+            crate::menu::owner::menus()
+                .tables
+                .captions
+                .shown_stage
+                .get(),
         )?
     } else {
         record
     };
-    let holder = if both_off != 1 && CHAMP_VIEW.switch_fc.get() == 1 {
-        Holder::Second
-    } else {
-        Holder::Fastest
-    };
+    let holder =
+        if both_off != 1 && crate::menu::owner::menus().play.champ_view.switch_fc.get() == 1 {
+            Holder::Second
+        } else {
+            Holder::Fastest
+        };
     let mut speed = crate::strings::append_speed::append_speed(
         fastest.record()?.holder(holder).speed,
         true,
@@ -138,7 +162,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     };
     set_item(
         1,
-        if CHAMP_VIEW.switch_f8.get() == 1 {
+        if crate::menu::owner::menus().play.champ_view.switch_f8.get() == 1 {
             0x19C
         } else {
             0x19B
@@ -146,7 +170,7 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     )?;
     set_item(
         2,
-        if CHAMP_VIEW.switch_fc.get() == 1 {
+        if crate::menu::owner::menus().play.champ_view.switch_fc.get() == 1 {
             0x19E
         } else {
             0x19D
@@ -192,7 +216,13 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     };
     let drawn = stage_results(
         &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
-        MENU_STATE.menus.caption_choice.get() == 1,
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .menus
+            .caption_choice
+            .get()
+            == 1,
         crate::strings::append_time::show_hours(),
         &rows,
         &mut seal_code,

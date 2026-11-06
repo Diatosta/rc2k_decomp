@@ -135,7 +135,6 @@ fn driven_car(course: &Course) -> &'_ crate::physics::car_store::Car {
 }
 
 fn state(course: &Course) -> String {
-    use crate::menu::loop_store::LOOP_FLAGS;
     use crate::race::checkpoints_store::{CHECKPOINTS, cell_in};
     #[allow(non_snake_case)]
     let CAR = driven_car(course);
@@ -148,8 +147,13 @@ fn state(course: &Course) -> String {
         crate::gfx::screen_state::DRAW_SURFACE.frames.get(),
         screen_frames(),
         course.numbers.in_race.get(),
-        LOOP_FLAGS.menu.get().ok(),
-        LOOP_FLAGS.item.get(),
+        crate::menu::owner::menus()
+            .screens
+            .loop_flags
+            .menu
+            .get()
+            .ok(),
+        crate::menu::owner::menus().screens.loop_flags.item.get(),
         crate::session::FLAGS.window_focused.get(),
         CAR.speed.get(),
         CAR.stage_time.get(),
@@ -187,7 +191,7 @@ fn state(course: &Course) -> String {
             .map(|p| p.get().car_number.to_string())
             .collect::<Vec<_>>()
             .join(","),
-        crate::menu::event_store::EVENT_STATE.shown_car.get(),
+        crate::menu::owner::menus().screens.event.shown_car.get(),
     )
 }
 
@@ -317,7 +321,12 @@ static SCREEN: std::sync::Mutex<(Option<crate::menu::menus_store::MenuId>, u32, 
 
 /// The screen's identity: its menu (none outside the menus) and the race flag.
 fn screen_now(course: &Course) -> (Option<crate::menu::menus_store::MenuId>, u32) {
-    let menu = crate::menu::loop_store::LOOP_FLAGS.menu.get().ok();
+    let menu = crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .menu
+        .get()
+        .ok();
     (menu, course.numbers.in_race.get())
 }
 

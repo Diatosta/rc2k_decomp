@@ -13,7 +13,6 @@
 //! for any record of the walk, and a walk past 64 records, before anything.
 use crate::errors::Refused;
 use crate::menu::event_flow::Fault;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 use crate::records::stages_store::RecordRef;
 use rc2k_core::menu::section_walk::Step;
@@ -49,7 +48,11 @@ pub fn walk_section_records() -> Result<(), Refused> {
     for (_, step) in records {
         if !step.goes_on() {
             if step == Step::Ended {
-                EVENT_STATE.championship_end.set(1u32);
+                crate::menu::owner::menus()
+                    .screens
+                    .event
+                    .championship_end
+                    .set(1u32);
             }
             break;
         }
@@ -63,12 +66,21 @@ pub fn walk_section_records() -> Result<(), Refused> {
             _ => {}
         }
         if let Some(first) = step.first() {
-            EVENT_STATE.service_944.set(first);
+            crate::menu::owner::menus()
+                .screens
+                .event
+                .service_944
+                .set(first);
         }
         INDEX_RVA.set(INDEX_RVA.get().wrapping_add(1));
-        EVENT_STATE
-            .stages_done
-            .set(EVENT_STATE.stages_done.get().wrapping_add(1));
+        crate::menu::owner::menus().screens.event.stages_done.set(
+            crate::menu::owner::menus()
+                .screens
+                .event
+                .stages_done
+                .get()
+                .wrapping_add(1),
+        );
         rpt::reset_player_totals()?;
     }
     rdc::reset_driver_condition()?;

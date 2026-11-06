@@ -14,7 +14,6 @@
 //! the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::text::draw_text::Canvas;
 
 pub fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
@@ -28,14 +27,46 @@ pub fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         .wrapping_add(0x56D);
     // g_masterVolumeShown, then dword_755688 .. dword_7556A0.
     let volumes: [u32; 8] = [
-        OPTION_WORK.master_volume_shown.get(),
-        OPTION_WORK.music_level.get(),
-        OPTION_WORK.other_volume.get(),
-        OPTION_WORK.menu_sounds_c.get(),
-        OPTION_WORK.menu_sounds_a.get(),
-        OPTION_WORK.speech_level.get(),
-        OPTION_WORK.sounds_a.get(),
-        OPTION_WORK.sounds_b.get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .master_volume_shown
+            .get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .music_level
+            .get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .other_volume
+            .get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .menu_sounds_c
+            .get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .menu_sounds_a
+            .get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .speech_level
+            .get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .sounds_a
+            .get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .sounds_b
+            .get(),
     ];
     rc2k_core::screens::settings_pages::volume(
         &mut crate::screens::game_screen::SettingsScreen::new(canvas),

@@ -14,18 +14,16 @@
 //! one before left. Refuses (before anything) a missing player 0.
 
 use crate::errors::Refused;
-use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::players_store::PLAYER_TABLE;
 use crate::race::state_store::RACE_STATE;
 
 /// The Rust version. The original keeps every register of its caller.
 pub fn arcade_finale() -> Result<(), Refused> {
-    let first = PLAYER_TABLE.players[0].get();
+    let first = crate::menu::owner::menus().play.players.players[0].get();
     RACE_STATE.results.finish_player.set(first.race_number);
     RACE_STATE.results.finish_kind.set(first.car_number);
     RACE_STATE.settings.car_kind_current.set(first.car_number);
     RACE_STATE.settings.kept.set(0);
-    let level = ARCADE_GAME.level.get();
+    let level = crate::menu::owner::menus().play.arcade.level.get();
     // Converted: `rc2k_core::menu::arcade::levels_left`.
     RACE_STATE
         .results

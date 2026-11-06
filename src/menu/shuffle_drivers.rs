@@ -11,17 +11,27 @@
 //! Callers: `sub_473126` and one of the game's. The random numbers are `math::random_below`'s.
 //! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::state_store::MENU_STATE;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
 
 /// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
 const TABLES: [(usize, &Dword); 4] = [
-    (90, &MENU_STATE.menus.class_counts[1]),
-    (140, &MENU_STATE.menus.class_counts[2]),
-    (170, &MENU_STATE.menus.class_counts[3]),
-    (0, &MENU_STATE.menus.class_counts[0]),
+    (
+        90,
+        &crate::menu::owner::MENUS.screens.state.menus.class_counts[1],
+    ),
+    (
+        140,
+        &crate::menu::owner::MENUS.screens.state.menus.class_counts[2],
+    ),
+    (
+        170,
+        &crate::menu::owner::MENUS.screens.state.menus.class_counts[3],
+    ),
+    (
+        0,
+        &crate::menu::owner::MENUS.screens.state.menus.class_counts[0],
+    ),
 ];
 /// The Rust version (see the header): the registers it leaves.
 pub fn shuffle_drivers() -> Result<(), Refused> {
@@ -37,8 +47,16 @@ pub fn shuffle_drivers() -> Result<(), Refused> {
         let first = GamePtr::to(&crate::menu::owner::menus().cars.drivers.drivers[table]);
         let n = count.get();
         for _ in 0..n {
-            DRAW_WORK.figure.set(random_below(n)?);
-            DRAW_WORK.hhmm.set(random_below(n)?);
+            crate::menu::owner::menus()
+                .screens
+                .draw_work
+                .figure
+                .set(random_below(n)?);
+            crate::menu::owner::menus()
+                .screens
+                .draw_work
+                .hhmm
+                .set(random_below(n)?);
             first.copy_to(t1, 0x94, "a driver")?;
             first.copy_to(t2, 0x94, "a driver")?;
             t1.copy_to(first, 0x94, "a driver")?;

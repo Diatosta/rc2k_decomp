@@ -3,16 +3,12 @@
 //! inspection (colour by the item's flags, a yellow highlight on the item under the cursor,
 //! blinking) and last the four frames round the setup cells.
 //!
-//! The boxes are called "items" as the original numbers them (`LOOP_FLAGS.item`): 2 .. 0xD the
+//! The boxes are called "items" as the original numbers them (`crate::menu::owner::menus().screens.loop_flags.item`): 2 .. 0xD the
 //! twelve small boxes in two columns, 0xE and 0xF the setup rows, 0x10 .. 0x13 the four tall
 //! boxes, 0x14, 0x15, 0x16 and 1 the four bars at the bottom, and 0x63 the headers and the
 //! bottom panel.
 
 use crate::errors::Refused;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::state_store::MENU_STATE;
 use crate::screens::service_boxes::{BLACK, Outline, quad};
 
 /// The colour of the backdrop.
@@ -65,7 +61,12 @@ const BACKDROP_BOXES: [[u32; 4]; 30] = [
 
 /// The see-through value shared by the boxes.
 fn see_through() -> u32 {
-    MENU_STATE.service_ui.box_colour_a.get()
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .service_ui
+        .box_colour_a
+        .get()
 }
 
 /// A quad in the colour of the item being drawn, see-through.
@@ -75,7 +76,12 @@ fn shade(x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
         y,
         w,
         h,
-        MENU_STATE.service_ui.box_colour_b.get(),
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .service_ui
+            .box_colour_b
+            .get(),
         see_through(),
     )
 }
@@ -87,28 +93,55 @@ fn dark(x: u32, y: u32, w: u32, h: u32) -> Result<(), Refused> {
 
 /// Sets the colour of an item's boxes from its two inspection flags.
 fn set_item_colour(item: u32) {
-    let colour = if MENU_LISTS.inspection_flags_a[item as usize].get() != 1 {
+    let colour = if crate::menu::owner::menus().tables.lists.inspection_flags_a[item as usize].get()
+        != 1
+    {
         BLUE
-    } else if MENU_LISTS.inspection_flags_b[item as usize].get() != 1 {
+    } else if crate::menu::owner::menus().tables.lists.inspection_flags_b[item as usize].get() != 1
+    {
         GREEN
     } else {
         RED
     };
-    MENU_STATE.service_ui.box_colour_b.set(colour);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .service_ui
+        .box_colour_b
+        .set(colour);
 }
 
 /// Whether the cursor is on `item` and its highlight blinks on.
 fn blinking(item: u32) -> bool {
-    LOOP_FLAGS.item.get() == item
-        && MENU_STATE.menus.service_flag.get() != 1
-        && DRAW_WORK.blink.get() == 1
+    crate::menu::owner::menus().screens.loop_flags.item.get() == item
+        && crate::menu::owner::menus()
+            .screens
+            .state
+            .menus
+            .service_flag
+            .get()
+            != 1
+        && crate::menu::owner::menus().screens.draw_work.blink.get() == 1
 }
 
 /// Like [`blinking`], and also whenever the item's service box is turned over.
 fn blinking_or_turned_over(item: u32) -> bool {
-    LOOP_FLAGS.item.get() == item
-        && (MENU_STATE.service_ui.box_shown.get() == 1
-            || (MENU_STATE.menus.service_flag.get() != 1 && DRAW_WORK.blink.get() == 1))
+    crate::menu::owner::menus().screens.loop_flags.item.get() == item
+        && (crate::menu::owner::menus()
+            .screens
+            .state
+            .service_ui
+            .box_shown
+            .get()
+            == 1
+            || (crate::menu::owner::menus()
+                .screens
+                .state
+                .menus
+                .service_flag
+                .get()
+                != 1
+                && crate::menu::owner::menus().screens.draw_work.blink.get() == 1))
 }
 
 /// A bar or panel: its filled box and the black outline round it, highlighted when the cursor
@@ -214,7 +247,19 @@ fn tall_item(item: u32) -> Result<(), Refused> {
 /// The service area's boxes, in the order the original draws them.
 pub fn draw_service_boxes() -> Result<(), Refused> {
     for [x, y, w, h] in BACKDROP_BOXES {
-        quad(x, y, w, h, BACKDROP, MENU_STATE.service_ui.fade_full.get())?;
+        quad(
+            x,
+            y,
+            w,
+            h,
+            BACKDROP,
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .service_ui
+                .fade_full
+                .get(),
+        )?;
     }
     panel(HEADER_ITEM, [0x42, 0x44, 0x29D, 0x1B], BLUE)?;
     for item in 2..=0xD {

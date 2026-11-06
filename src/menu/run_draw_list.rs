@@ -8,7 +8,6 @@
 //! reference.
 
 use crate::errors::Refused;
-use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::run_list::run_list;
 
 // ---- game data ----
@@ -16,5 +15,5 @@ use crate::menu::run_list::run_list;
 // ---- Rust version ----
 
 pub fn run_draw_list() -> Result<(), Refused> {
-    run_list(SCREEN_FLOW.draw_list.get()?)
+    run_list(crate::menu::owner::menus().screens.flow.draw_list.get()?)
 }

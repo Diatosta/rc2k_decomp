@@ -22,14 +22,13 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::menu::loop_store::LOOP_FLAGS;
 use crate::place::Place;
 use crate::session::{Bytes, Dword};
 use crate::strings::text_buffer::TEXT_BUFFER;
 
 // ---- game data (IDA addresses) ----
 
-pub const SPRITES: &Dword = &LOOP_FLAGS.sprite_table; // g_spriteTable
+pub const SPRITES: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.sprite_table; // g_spriteTable
 pub const PALETTE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::MEASURE_23;
 pub const FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::HEADING_23;
 

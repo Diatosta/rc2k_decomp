@@ -4,10 +4,8 @@
 //! leaving switch. Each button is `pusha` .. `popa`.
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::load_car_background::load_car_background;
 use crate::menu::load_slideshow_picture::load_slideshow_picture_in_game;
-use crate::menu::loop_store::LOOP_FLAGS;
 use crate::sound::play_car_stream::play_car_stream;
 use crate::text::draw_text::GameCanvas;
 
@@ -19,17 +17,33 @@ pub fn press(b: Which, call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Res
     use rc2k_core::menu::cars::Shown;
 
     let mut s = Shown {
-        car: EVENT_STATE.shown_car.get(),
+        car: crate::menu::owner::menus().screens.event.shown_car.get(),
         last_car: crate::menu::owner::menus().cars.table.last_car.get(),
-        picture: EVENT_STATE.picture.get(),
-        page: EVENT_STATE.car_page.get(),
-        leave: LOOP_FLAGS.back.get(),
+        picture: crate::menu::owner::menus().screens.event.picture.get(),
+        page: crate::menu::owner::menus().screens.event.car_page.get(),
+        leave: crate::menu::owner::menus().screens.loop_flags.back.get(),
     };
     let calls = rc2k_core::menu::cars::press(b, &mut s);
-    EVENT_STATE.shown_car.set(s.car);
-    EVENT_STATE.picture.set(s.picture);
-    EVENT_STATE.car_page.set(s.page);
-    LOOP_FLAGS.back.set(s.leave);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .shown_car
+        .set(s.car);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .picture
+        .set(s.picture);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .car_page
+        .set(s.page);
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .back
+        .set(s.leave);
     for &c in calls {
         call(c)?;
     }

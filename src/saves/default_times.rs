@@ -14,7 +14,6 @@
 
 use crate::errors::BadInput;
 use crate::math::random_below::random_below;
-use crate::menu::draw_work_store::DRAW_WORK;
 use crate::race::work_store::RACE_WORK;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::saves::drivers::Driver;
@@ -137,9 +136,17 @@ pub fn apply(filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
                 }
             }
         }
-        DRAW_WORK.seconds.set(filled.seconds);
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .seconds
+            .set(filled.seconds);
         if let Some(sum) = filled.sum {
-            DRAW_WORK.work_b0.set(sum);
+            crate::menu::owner::menus()
+                .screens
+                .draw_work
+                .work_b0
+                .set(sum);
         }
         if let Some(c) = filled.checkpoints {
             for (cell, v) in RACE_WORK.guessed_checkpoints.iter().zip(c) {
@@ -152,7 +159,7 @@ pub fn apply(filled: &Filled, tables: &[Target]) -> Result<(), BadInput> {
 
 /// Whether the game's switch for the checkpoint times is on.
 pub fn with_checkpoints() -> bool {
-    DRAW_WORK.work_0c.get() == 1
+    crate::menu::owner::menus().screens.draw_work.work_0c.get() == 1
 }
 
 /// How many records a table has before its -1 (the first is not looked at for the end).

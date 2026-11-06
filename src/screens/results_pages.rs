@@ -39,11 +39,7 @@
 //! line buffer, and what the look-ups refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
-use crate::menu::state_store::MENU_STATE;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::{HeldText, held_name};
 use crate::strings::append_time::show_hours;
@@ -109,7 +105,7 @@ pub const OVERALL_STAGE: Page = Page {
 
 /// The Rust version of one page.
 pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let class = EVENT_STATE.class.get();
+    let class = crate::menu::owner::menus().screens.event.class.get();
     if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
@@ -119,7 +115,7 @@ pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Ref
     } else {
         first_overall_time(2, rally)?
     };
-    let first_row = CHAMP_VIEW.first_row.get();
+    let first_row = crate::menu::owner::menus().play.champ_view.first_row.get();
     let end = first_row.wrapping_add(10);
     // every row found before anything is drawn
     let mut rows = Vec::new();
@@ -143,16 +139,23 @@ pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Ref
     {
         let heading = match page.heading {
             Heading::Titles(normal, alternative) => Drawn::Titles {
-                title: if MENU_STATE.menus.rally_done.get() == 1 {
+                title: if crate::menu::owner::menus()
+                    .screens
+                    .state
+                    .menus
+                    .rally_done
+                    .get()
+                    == 1
+                {
                     alternative
                 } else {
                     normal
                 },
-                name: if CHAMP_VIEW.event_mode.get() == 0x13 {
+                name: if crate::menu::owner::menus().play.champ_view.event_mode.get() == 0x13 {
                     crate::screens::stage_panel::table_dword_at(
-                        &MENU_LISTS,
-                        &MENU_LISTS.section_titles,
-                        EVENT_STATE.section.get(),
+                        &crate::menu::owner::menus().tables.lists,
+                        &crate::menu::owner::menus().tables.lists.section_titles,
+                        crate::menu::owner::menus().screens.event.section.get(),
                     )?
                 } else {
                     record_at(0)?.record()?.name()

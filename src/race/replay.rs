@@ -7,7 +7,6 @@
 //! `files::handle`'s.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::names_store::NAME_BUFFERS;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
@@ -90,7 +89,7 @@ pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
         .offset(0x719B58 - 0x719B54)
         .write::<u8>(SEAL_VERSION, "the replay header's version")?;
     crate::strings::copy_printable::copy_printable(
-        crate::pointers::GamePtr::to(&NAME_BUFFERS.player_names), // g_playerNames
+        crate::pointers::GamePtr::to(&crate::menu::owner::menus().play.names.player_names), // g_playerNames
         sealed.offset(0x719B61 - 0x719B54),
         0x20,
     )?;

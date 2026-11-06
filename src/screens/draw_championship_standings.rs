@@ -25,7 +25,6 @@
 //! original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::ranked_lookups::find_champ_position;
 use crate::screens::best_scores::section_there;
 use crate::screens::game_screen::{HeldText, held_name};
@@ -38,7 +37,7 @@ pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refuse
     if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }
-    let first_row = CHAMP_VIEW.first_row.get();
+    let first_row = crate::menu::owner::menus().play.champ_view.first_row.get();
     let end = first_row.wrapping_add(10);
     let mut rows = Vec::new();
     let mut row = first_row;
@@ -67,7 +66,7 @@ pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refuse
     championship_standings(
         &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),
         first_row,
-        CHAMP_VIEW.event_mode.get() == 0x13,
+        crate::menu::owner::menus().play.champ_view.event_mode.get() == 0x13,
         &rows,
     )?;
     Ok(())

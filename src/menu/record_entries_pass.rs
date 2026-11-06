@@ -10,7 +10,6 @@
 //! Callers: the event drivers. The steps are their Rust versions. Refuses what the steps refuse and
 //! a player count of 0 or past 4 or a player missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
 // dword_7559EC
@@ -27,17 +26,31 @@ impl rc2k_core::menu::bests::RecordEntries for Entries {
     }
 
     fn set_entered(&mut self, on: u32) {
-        EVENT_STATE.any_time_qualified.set(on);
+        crate::menu::owner::menus()
+            .screens
+            .event
+            .any_time_qualified
+            .set(on);
     }
 
     fn set_current(&mut self, n: u32) {
-        EVENT_STATE.current_player.set(n);
+        crate::menu::owner::menus()
+            .screens
+            .event
+            .current_player
+            .set(n);
     }
 
     fn beats(&mut self, n: u32) -> Result<bool, Refused> {
         let _ = n;
         crate::menu::beat_target_time::beat_target_time()?;
-        Ok({ EVENT_STATE.time_qualifies.get() } == 1)
+        Ok({
+            crate::menu::owner::menus()
+                .screens
+                .event
+                .time_qualifies
+                .get()
+        } == 1)
     }
 
     fn enter(&mut self, n: u32) -> Result<(), Refused> {

@@ -27,15 +27,19 @@ pub struct MenuPages {
 }
 
 /// First values the image's (`tests::menu_pages_starts_as_the_games`).
-pub static MENU_PAGES: MenuPages = MenuPages {
-    save_page: Dword::new(0x0),
-    scores_page: Dword::new(0x0),
-    setup_slot_page: Dword::new(0x0),
-    replay_page: Dword::new(0x0),
-    yes_no_answer: Dword::new(0x1),
-    reset_times: Dword::new(0x0),
-    services: Dword::new(0x0),
-};
+impl MenuPages {
+    pub const fn new() -> Self {
+        MenuPages {
+            save_page: Dword::new(0x0),
+            scores_page: Dword::new(0x0),
+            setup_slot_page: Dword::new(0x0),
+            replay_page: Dword::new(0x0),
+            yes_no_answer: Dword::new(0x1),
+            reset_times: Dword::new(0x0),
+            services: Dword::new(0x0),
+        }
+    }
+}
 
 /// IDA 0x75523C, the first byte of the piece.
 pub const START: usize = 0x75523C;
@@ -45,7 +49,7 @@ pub const END: usize = 0x755258;
 /// Where IDA 0x75523C is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn menu_pages_addr() -> u32 {
-    crate::pointers::game_address(&raw const MENU_PAGES)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.pages)
 }
 
 #[cfg(test)]

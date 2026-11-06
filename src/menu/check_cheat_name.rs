@@ -12,7 +12,6 @@
 //! original's `bts` would reach past `g_cheats`), and what the coding refuses.
 
 use crate::errors::Refused;
-use crate::menu::cheats_store::CHEAT_VARS;
 use crate::pointers::GamePtr;
 use crate::strings::rot13_into_text::rot13_into_text;
 use rc2k_core::strings::bytes::Bytes;
@@ -23,7 +22,7 @@ const HIDDEN_NAME: u32 = 0x18F;
 /// The list's entry and the cheat's bit for the coded name in the text buffer, if it is in
 /// the list.
 fn find(coded: GamePtr) -> Result<Option<(u32, u32)>, Refused> {
-    let list = GamePtr::to(&CHEAT_VARS.cheat_names);
+    let list = GamePtr::to(&crate::menu::owner::menus().play.cheats.cheat_names);
     let text = coded.bytes("a coded name")?;
     let coded: Vec<u8> = (0..)
         .map_while(|n| text.byte(n))
@@ -49,8 +48,11 @@ pub fn check_cheat_name() -> Result<(), Refused> {
         return Ok(());
     };
     // Converted: `rc2k_core::menu::cheat_names::with_cheat`.
-    let cheats = rc2k_core::menu::cheat_names::with_cheat(CHEAT_VARS.cheats.get(), bit as u8)?;
-    CHEAT_VARS.cheats.set(cheats);
+    let cheats = rc2k_core::menu::cheat_names::with_cheat(
+        crate::menu::owner::menus().play.cheats.cheats.get(),
+        bit as u8,
+    )?;
+    crate::menu::owner::menus().play.cheats.cheats.set(cheats);
     // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi
     // the record.
     crate::sound::play_menu_sound::play_menu_sound_in_game(8);

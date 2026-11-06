@@ -21,12 +21,16 @@ pub struct Names {
 }
 
 /// First values the image's (`tests::name_buffers_starts_as_the_games`).
-pub static NAME_BUFFERS: Names = Names {
-    player_names: Bytes::new([0; 128]),
-    more_names: Bytes::new([0; 128]),
-    kept_name: Bytes::new([0; 32]),
-    text_backup: Bytes::new([0; 32]),
-};
+impl Names {
+    pub const fn new() -> Self {
+        Names {
+            player_names: Bytes::new([0; 128]),
+            more_names: Bytes::new([0; 128]),
+            kept_name: Bytes::new([0; 32]),
+            text_backup: Bytes::new([0; 32]),
+        }
+    }
+}
 
 /// IDA 0x755784, the first byte of the piece.
 pub const START: usize = 0x755784;
@@ -36,7 +40,7 @@ pub const END: usize = 0x7558C4;
 /// Where IDA 0x755784 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn names_addr() -> u32 {
-    crate::pointers::game_address(&raw const NAME_BUFFERS)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.names)
 }
 
 #[cfg(test)]

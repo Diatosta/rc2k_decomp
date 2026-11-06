@@ -110,11 +110,16 @@ pub fn chosen_frame(
     step: u32,
     cells: u32,
 ) -> Result<(), Refused> {
-    use crate::menu::draw_work_store::DRAW_WORK;
-    use crate::menu::loop_store::LOOP_FLAGS;
-    use crate::menu::state_store::MENU_STATE;
-    let blinking = DRAW_WORK.blink.get() == 1;
-    let wanted = if MENU_STATE.service_ui.box_shown.get() == 1 && LOOP_FLAGS.item.get() == item {
+    let blinking = crate::menu::owner::menus().screens.draw_work.blink.get() == 1;
+    let wanted = if crate::menu::owner::menus()
+        .screens
+        .state
+        .service_ui
+        .box_shown
+        .get()
+        == 1
+        && crate::menu::owner::menus().screens.loop_flags.item.get() == item
+    {
         blinking
     } else {
         setup.installed.get() != setup.chosen.get() || flag.get() == 1

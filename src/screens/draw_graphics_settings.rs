@@ -14,7 +14,6 @@
 use crate::errors::Refused;
 use crate::menu::disable_item::disable_item;
 use crate::menu::enable_item::enable_item;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::text::draw_text::Canvas;
 
 /// (the setting, its first string, its row) for the names; row 1 is the screen mode.
@@ -36,11 +35,61 @@ const NAMES: [Name; 8] = [
         0x56D,
         3,
     ),
-    (|| OPTION_WORK.setting_0.get(), 0x56D, 4),
-    (|| OPTION_WORK.setting_1.get(), 0x56D, 5),
-    (|| OPTION_WORK.setting_2.get(), 0x396, 6),
-    (|| OPTION_WORK.setting_3.get(), 0x393, 7),
-    (|| OPTION_WORK.setting_4.get(), 0x394, 8),
+    (
+        || {
+            crate::menu::owner::menus()
+                .screens
+                .option_work
+                .setting_0
+                .get()
+        },
+        0x56D,
+        4,
+    ),
+    (
+        || {
+            crate::menu::owner::menus()
+                .screens
+                .option_work
+                .setting_1
+                .get()
+        },
+        0x56D,
+        5,
+    ),
+    (
+        || {
+            crate::menu::owner::menus()
+                .screens
+                .option_work
+                .setting_2
+                .get()
+        },
+        0x396,
+        6,
+    ),
+    (
+        || {
+            crate::menu::owner::menus()
+                .screens
+                .option_work
+                .setting_3
+                .get()
+        },
+        0x393,
+        7,
+    ),
+    (
+        || {
+            crate::menu::owner::menus()
+                .screens
+                .option_work
+                .setting_4
+                .get()
+        },
+        0x394,
+        8,
+    ),
 ];
 
 /// The Rust version (the registers the last name leaves: the menus read none of them).

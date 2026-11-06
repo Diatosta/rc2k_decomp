@@ -3,12 +3,18 @@
 //! its key's place (`menu/redefine_keys.rs`): `g_redefiningKey` = 1 and
 //! `g_redefinedKeyPlace` = the place. `choose_key_8` is in no menu.
 
-use crate::menu::option_work_store::OPTION_WORK;
-
 pub fn choose_key(place: u32) {
     // Converted: `rc2k_core::menu::player::Redefining`.
     let r = rc2k_core::menu::player::Redefining::start(place);
 
-    OPTION_WORK.redefining_key.set(r.on);
-    OPTION_WORK.redefined_key_place.set(r.place);
+    crate::menu::owner::menus()
+        .screens
+        .option_work
+        .redefining_key
+        .set(r.on);
+    crate::menu::owner::menus()
+        .screens
+        .option_work
+        .redefined_key_place
+        .set(r.place);
 }

@@ -15,17 +15,20 @@
 use crate::errors::Refused;
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
-use crate::menu::state_store::MENU_STATE;
 use crate::service::state::{blink_on, edit_mode, menu_item, repair_flag};
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::setup_markers::{BAR_WIDTH, LEFT_X, RIGHT_X};
 
-pub const LOWER_LEFT_CHOSEN: &Dword = &MENU_STATE.driver_stats.setups[2].chosen;
-pub const LOWER_LEFT_INSTALLED: &Dword = &MENU_STATE.driver_stats.setups[2].installed;
-pub const LOWER_RIGHT_CHOSEN: &Dword = &MENU_STATE.driver_stats.setups[3].chosen;
-pub const LOWER_RIGHT_INSTALLED: &Dword = &MENU_STATE.driver_stats.setups[3].installed;
+pub const LOWER_LEFT_CHOSEN: &Dword =
+    &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].chosen;
+pub const LOWER_LEFT_INSTALLED: &Dword =
+    &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].installed;
+pub const LOWER_RIGHT_CHOSEN: &Dword =
+    &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].chosen;
+pub const LOWER_RIGHT_INSTALLED: &Dword =
+    &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].installed;
 
 /// One of the six functions.
 #[derive(Clone, Copy)]

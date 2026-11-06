@@ -3,7 +3,6 @@
 //! screen is entered as from a menu item.
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
 use core::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 
 /// A race has been played this session (`drive::play_race`).
@@ -78,13 +77,21 @@ pub fn serve() -> Result<bool, Refused> {
         )?;
         return Ok(true);
     }
-    let section = EVENT_STATE.section.get();
-    EVENT_STATE.section.set(wanted - 1);
+    let section = crate::menu::owner::menus().screens.event.section.get();
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .section
+        .set(wanted - 1);
     let result = crate::menu::screen_loop::screen_entry(
         "menu::section_times_loop",
         &crate::menu::section_times_loop::SCREEN,
     );
-    EVENT_STATE.section.set(section);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .section
+        .set(section);
     result?;
     Ok(true)
 }

@@ -16,8 +16,6 @@
 //! before anything.
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
@@ -31,9 +29,17 @@ pub fn inspection_pass() -> Result<(), Refused> {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
-    EVENT_STATE.event_goes_on.set(1u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .event_goes_on
+        .set(1u32);
     for (n, &p) in players.iter().enumerate() {
-        EVENT_STATE.current_player.set(n as u32);
+        crate::menu::owner::menus()
+            .screens
+            .event
+            .current_player
+            .set(n as u32);
         if !passes::takes_part(p.get().entry) {
             continue;
         }
@@ -43,9 +49,14 @@ pub fn inspection_pass() -> Result<(), Refused> {
         if !passes::is_out(p.get().entry) {
             continue;
         }
-        EVENT_STATE
-            .event_out
-            .set(EVENT_STATE.event_out.get().wrapping_add(1));
+        crate::menu::owner::menus().screens.event.event_out.set(
+            crate::menu::owner::menus()
+                .screens
+                .event
+                .event_out
+                .get()
+                .wrapping_add(1),
+        );
         crate::menu::inspection_screen::inspection_screen()?;
         crate::system::sleep::sleep(passes::SCREEN_PAUSE);
         crate::menu::fade_in::fade_in()?;
@@ -53,14 +64,21 @@ pub fn inspection_pass() -> Result<(), Refused> {
             &crate::menu::inspection_area_loop::SCREEN,
             &Entry::default(),
         )?;
-        if MENU_PAGES.yes_no_answer.get() == 1 {
+        if crate::menu::owner::menus().tables.pages.yes_no_answer.get() == 1 {
             return Ok(());
         }
         crate::menu::fades::fade(true)?;
         crate::system::sleep::sleep(passes::INSPECTION_PAUSE);
     }
-    if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
-        EVENT_STATE.event_goes_on.set(0u32);
+    if !passes::goes_on(
+        crate::menu::owner::menus().screens.event.event_out.get(),
+        PLAYER_COUNT_RVA.get(),
+    ) {
+        crate::menu::owner::menus()
+            .screens
+            .event
+            .event_goes_on
+            .set(0u32);
     }
     Ok(())
 }

@@ -13,37 +13,52 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn before(_: &Entry) -> Result<(), Refused> {
-    SCREEN_ITEMS.current[slot::NEXT_STAGE].set(SCREEN_ITEMS.first[slot::NEXT_STAGE].get());
+    crate::menu::owner::menus().screens.items.current[slot::NEXT_STAGE]
+        .set(crate::menu::owner::menus().screens.items.first[slot::NEXT_STAGE].get());
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.next_stage.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::NEXT_STAGE],
+    menu: || crate::menu::owner::menus().tables.menus.next_stage.id(),
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::NEXT_STAGE],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.next_stage_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .next_stage_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.next_stage_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .next_stage_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.next_stage_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .next_stage_overlay
+                    .id()
+            },
             run: false,
         },
     ],
@@ -53,7 +68,10 @@ pub const SCREEN: Screen = Screen {
     before: &[Step::Do(before)],
     set_up_first: &[],
     prepare: &[],
-    after_lists: &[Step::Write(|| &CHAMP_VIEW.stage_mode, 0x3)],
+    after_lists: &[Step::Write(
+        || &crate::menu::owner::menus().play.champ_view.stage_mode,
+        0x3,
+    )],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],
     confirm: Some(&[]),

@@ -9,8 +9,6 @@
 //! Left/right handlers of the event pages' items (menu tables 0x74FAFC ..).
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
 
 // g_captionText
 
@@ -19,13 +17,17 @@ pub fn step_rows(of_90: bool, on: bool) -> Result<(), Refused> {
     let count = if of_90 {
         0x5A
     } else {
-        EVENT_STATE.count_a.get()
+        crate::menu::owner::menus().screens.event.count_a.get()
     };
     let _last = count.wrapping_sub(9);
-    let row: u32 = CHAMP_VIEW.first_row.get();
+    let row: u32 = crate::menu::owner::menus().play.champ_view.first_row.get();
     // Converted: `rc2k_core::menu::steps::rows`.
     let row = rc2k_core::menu::steps::rows(row, count, on);
-    CHAMP_VIEW.first_row.set(row);
+    crate::menu::owner::menus()
+        .play
+        .champ_view
+        .first_row
+        .set(row);
     crate::menu::stage_range_caption::stage_range_caption()?;
     Ok(())
 }

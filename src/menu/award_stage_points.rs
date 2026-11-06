@@ -16,9 +16,7 @@
 //! 0x100, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::drivers_store::{Driver, IN_EVENT};
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
 
 const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
@@ -41,7 +39,7 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused>
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn award_stage_points() -> Result<(), Refused> {
-    let classes: u32 = EVENT_STATE.classes.get();
+    let classes: u32 = crate::menu::owner::menus().screens.event.classes.get();
     let section: u32 = SECTION_RVA.get();
     if classes == 0 || classes > 0x100 || section > 5 {
         return Err(BadInput("a class count of 0 or past 0x100, or a section past 5").into());
@@ -55,16 +53,24 @@ pub fn award_stage_points() -> Result<(), Refused> {
     use rc2k_core::menu::points::{Points, kept, total};
     for class in 0..classes {
         let mut points = Points::default();
-        DRAW_WORK.seconds.set(points.0);
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .seconds
+            .set(points.0);
         for (e, o) in all.iter_mut().zip(&owners) {
-            EVENT_STATE.class.set(class);
+            crate::menu::owner::menus().screens.event.class.set(class);
             if e.group != class {
                 continue;
             }
             crate::logfile::log_write::log_nul(&STATUS_TEXT_RVA, false, 1);
             crate::logfile::log_int::log_int(e.status as i32, true, 1);
             let given = points.take();
-            DRAW_WORK.seconds.set(points.0);
+            crate::menu::owner::menus()
+                .screens
+                .draw_work
+                .seconds
+                .set(points.0);
             let keeps = match *o {
                 Owner::Driver(d) => d.in_event.get() == IN_EVENT,
                 Owner::Player(p) => p.get().entry == 1,

@@ -14,36 +14,49 @@
 //! Callers: `sub_46F786`.
 
 use crate::errors::Refused;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::option_work_store::OPTION_WORK;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Flow, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn each_frame(_: &Entry) -> Result<Flow, Refused> {
-    if OPTION_WORK.typing.get() == 0x1 {
+    if crate::menu::owner::menus().screens.option_work.typing.get() == 0x1 {
         let failed = Callee::EditReplayName.run()?;
         if !failed {
-            if OPTION_WORK.typing.get() != 0x0 {
+            if crate::menu::owner::menus().screens.option_work.typing.get() != 0x0 {
                 return Ok(Flow::NextFrame);
             }
-            if CAPTIONS.screen_left.get() == 0x1 {
-                CAPTIONS.screen_left.set(0x0u32);
-                DRAW_WORK.work_0c.set(0xFFFFFFFFu32);
+            if crate::menu::owner::menus()
+                .tables
+                .captions
+                .screen_left
+                .get()
+                == 0x1
+            {
+                crate::menu::owner::menus()
+                    .tables
+                    .captions
+                    .screen_left
+                    .set(0x0u32);
+                crate::menu::owner::menus()
+                    .screens
+                    .draw_work
+                    .work_0c
+                    .set(0xFFFFFFFFu32);
                 return Ok(Flow::Leave);
             }
             // 0x14 replays a page; the items count from 1.
-            let replay = MENU_PAGES.replay_page.get().wrapping_mul(0x14);
-            DRAW_WORK
-                .work_0c
-                .set(replay.wrapping_add(LOOP_FLAGS.item.get()).wrapping_sub(1));
+            let replay = crate::menu::owner::menus()
+                .tables
+                .pages
+                .replay_page
+                .get()
+                .wrapping_mul(0x14);
+            crate::menu::owner::menus().screens.draw_work.work_0c.set(
+                replay
+                    .wrapping_add(crate::menu::owner::menus().screens.loop_flags.item.get())
+                    .wrapping_sub(1),
+            );
             return Ok(Flow::Leave);
         }
     }
@@ -53,59 +66,104 @@ fn each_frame(_: &Entry) -> Result<Flow, Refused> {
 /// What the loop returns in eax, written by hand from the end of the listing (after the
 /// `popa`): `dword_755A0C`, which the step above leaves at -1 or at the replay's number.
 fn result() -> u32 {
-    DRAW_WORK.work_0c.get()
+    crate::menu::owner::menus().screens.draw_work.work_0c.get()
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.save_replay.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::SAVE_REPLAY],
+    menu: || crate::menu::owner::menus().tables.menus.save_replay.id(),
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::SAVE_REPLAY],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.unread_list, // g_unreadList
-            table: || DRAW_LISTS.unread_758b72.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.unread_list, // g_unreadList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .unread_758b72
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bce.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .draw_758bce
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.save_replay_setup.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.setup_list, // dword_755500
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .save_replay_setup
+                    .id()
+            },
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75914e.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .overlay_75914e
+                    .id()
+            },
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.save_replay_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .save_replay_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.draw_758bce.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .draw_758bce
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.overlay_75914e.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .overlay_75914e
+                    .id()
+            },
             run: false,
         },
     ]),
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &DRAW_WORK.escaped, 0x0)],
+    before: &[Step::Write(
+        || &crate::menu::owner::menus().screens.draw_work.escaped,
+        0x0,
+    )],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::texts_store::MENU_TEXTS.save_replay_picture
+        &crate::menu::owner::menus().tables.texts.save_replay_picture
     }))],
     after_first_frame: &[],
     confirm: None,

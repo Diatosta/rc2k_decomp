@@ -12,28 +12,35 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
-use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(_: &Entry) -> Result<(), Refused> {
-    SCREEN_FLOW.turning.set(0x1u32);
-    MENU_STATE.carousel.menu.set(0x1u32);
+    crate::menu::owner::menus().screens.flow.turning.set(0x1u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .menu
+        .set(0x1u32);
     carousel(None)?;
-    let item = SCREEN_ITEMS.current[slot::START_RALLY].get();
-    LOOP_FLAGS.item.set(item);
-    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
+    let item = crate::menu::owner::menus().screens.items.current[slot::START_RALLY].get();
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .item
+        .set(item);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .front
+        .set(item.wrapping_sub(1));
     DRAW.view_offset[0].set(0x7u32);
     DRAW.view_offset[1].set(0xAu32);
     DRAW.view_zoom.set(0x100u32);
@@ -42,37 +49,71 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
 }
 
 fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
-    if CAPTIONS.screen_left.get() == 0x1 {
-        CAPTIONS.screen_left.set(0x0u32);
+    if crate::menu::owner::menus()
+        .tables
+        .captions
+        .screen_left
+        .get()
+        == 0x1
+    {
+        crate::menu::owner::menus()
+            .tables
+            .captions
+            .screen_left
+            .set(0x0u32);
         return Ok(Flow::SetUp);
     }
     Ok(Flow::On)
 }
 
 fn leaving(_: &Entry) -> Result<(), Refused> {
-    if CAPTIONS.screen_left.get() == 0x1 {
+    if crate::menu::owner::menus()
+        .tables
+        .captions
+        .screen_left
+        .get()
+        == 0x1
+    {
         Callee::GoBack.run()?;
     }
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.start_rally.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::START_RALLY],
+    menu: || crate::menu::owner::menus().tables.menus.start_rally.id(),
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::START_RALLY],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.start_rally_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .start_rally_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.start_rally_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .start_rally_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.start_rally_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .start_rally_overlay
+                    .id()
+            },
             run: false,
         },
     ],
@@ -84,9 +125,12 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::Write(|| &EVENT_STATE.clears_escape_flag, 0x1),
+        Step::Write(
+            || &crate::menu::owner::menus().screens.event.clears_escape_flag,
+            0x1,
+        ),
         Step::Call(Callee::LoadBackground(|| {
-            &crate::menu::texts_store::MENU_TEXTS.start_rally_picture
+            &crate::menu::owner::menus().tables.texts.start_rally_picture
         })),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],

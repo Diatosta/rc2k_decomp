@@ -10,25 +10,30 @@
 //! past the four (the original reads past `g_players`) and no list of cars.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::{CarList, MENU_LISTS};
+use crate::menu::lists_store::CarList;
 use crate::menu::player::{PLAYERS, Player, player};
 use crate::session::Dword;
 
-pub const CURRENT_PLAYER_RVA: &Dword = &EVENT_STATE.current_player; // dword_75598C
+pub const CURRENT_PLAYER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
 const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
 const _: () = assert!(std::mem::offset_of!(Player, class) == 0x90);
 
 pub fn take_shown_car(list: Option<CarList>) -> Result<(), Refused> {
     let list = list.ok_or(BadInput("no list of cars"))?;
-    let current: u32 = EVENT_STATE.current_player.get();
+    let current: u32 = crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .get();
     if current >= PLAYERS {
         return Err(BadInput("a current player past the four").into());
     }
-    let shown: u32 = EVENT_STATE.shown_car.get();
+    let shown: u32 = crate::menu::owner::menus().screens.event.shown_car.get();
     // Converted: `rc2k_core::menu::player::Player::take_car`.
     {
-        let entry = MENU_LISTS
+        let entry = crate::menu::owner::menus()
+            .tables
+            .lists
             .cars(list)
             .offset(shown.wrapping_mul(4))
             .read::<u32>("take shown car: a game value")?;

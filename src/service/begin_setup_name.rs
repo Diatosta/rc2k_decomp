@@ -12,7 +12,6 @@
 use crate::errors::BadInput;
 use crate::menu::backup_text::backup_text;
 use crate::menu::clear_text::clear_text;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::text_entry::set_length;
 use crate::service::load_setup_slot::highlighted_slot;
 use crate::service::read_setup_slot::{SLOT_COUNT, slot_name};
@@ -27,7 +26,11 @@ pub fn begin_setup_name() -> Result<(), BadInput> {
     {
         backup_text(slot_name(slot))?;
         clear_text(slot_name(slot))?;
-        OPTION_WORK.typing.set(1u32);
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .typing
+            .set(1u32);
     }
     set_length(0);
     Ok(())

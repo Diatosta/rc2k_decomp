@@ -13,7 +13,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::menu::state_store::MENU_STATE;
 use crate::service::state::current_player;
 
 // ---- game data ----
@@ -23,7 +22,14 @@ use crate::service::state::current_player;
 /// Refuses a missing player: the original reads through a null pointer.
 pub fn load_setup_values() -> Result<(), BadInput> {
     {
-        if MENU_STATE.menus.skip_edit_values.get() == 1 {
+        if crate::menu::owner::menus()
+            .screens
+            .state
+            .menus
+            .skip_edit_values
+            .get()
+            == 1
+        {
             return Ok(());
         }
         let Some(player) = current_player() else {
@@ -33,14 +39,30 @@ pub fn load_setup_values() -> Result<(), BadInput> {
         };
         // Converted: `rc2k_core::service::setups` (`Player::setup_edit_values`).
         let values = player.get().setup_edit_values();
-        let setups = &MENU_STATE.driver_stats.setups;
+        let setups = &crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .setups;
         for (value, item) in values.into_iter().zip([&setups[1], &setups[0], &setups[3]]) {
             item.installed.set(value);
             item.chosen.set(value);
         }
         // The original loads car +0x114 here and then stores this instead.
-        let kept: u32 = MENU_STATE.driver_stats.setups[2].installed.get();
-        MENU_STATE.driver_stats.setups[2].chosen.set(kept);
+        let kept: u32 = crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .setups[2]
+            .installed
+            .get();
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .setups[2]
+            .chosen
+            .set(kept);
         Ok(())
     }
 }

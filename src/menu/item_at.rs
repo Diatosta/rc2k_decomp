@@ -9,12 +9,16 @@
 //! Refuses item number 0, for which the original counts through all 32 bits.
 
 use crate::errors::BadInput;
-use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::menus_store::MenuItem;
 
 // ---- Rust version ----
 
 /// Item `number` (from 1) of the current menu.
 pub fn item_at(number: u32) -> Result<&'static MenuItem, BadInput> {
-    LOOP_FLAGS.menu.get()?.item(number)
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .menu
+        .get()?
+        .item(number)
 }

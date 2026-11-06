@@ -8,12 +8,11 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::menu::state_store::MENU_STATE;
 use crate::service::setup_values::Change;
 
 // ---- Rust version: `setup_values::toggle_change` with this ----
 
 pub const CHANGE: Change = Change {
-    chosen: &MENU_STATE.driver_stats.setups[3].chosen,
-    installed: &MENU_STATE.driver_stats.setups[3].installed,
+    chosen: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].chosen,
+    installed: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].installed,
 };

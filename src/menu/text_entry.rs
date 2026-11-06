@@ -2,40 +2,52 @@
 //! the length typed so far, the longest allowed, whether an entry is going on, and the copy
 //! of the text as it was before, which Escape brings back.
 
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::names_store::NAME_BUFFERS;
-use crate::menu::option_work_store::OPTION_WORK;
-
 pub use rc2k_core::menu::text_entry::{Entry, TEXT_LEN, Text};
 
 pub fn length() -> i32 {
-    LOOP_FLAGS.text_length.get() as i32
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .text_length
+        .get() as i32
 }
 
 pub fn set_length(length: i32) {
-    LOOP_FLAGS.text_length.set(length as u32);
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .text_length
+        .set(length as u32);
 }
 
 /// Where the backup copy of the text is.
 pub fn backup() -> crate::place::Place {
-    crate::place::Place::from(&NAME_BUFFERS.text_backup)
+    crate::place::Place::from(&crate::menu::owner::menus().play.names.text_backup)
 }
 
 /// The entry's state, as the game holds it.
 pub fn entry() -> Entry {
     Entry {
         length: length(),
-        entering: OPTION_WORK.typing.get(),
-        backup: std::array::from_fn(|i| NAME_BUFFERS.text_backup.get(i)),
+        entering: crate::menu::owner::menus().screens.option_work.typing.get(),
+        backup: std::array::from_fn(|i| crate::menu::owner::menus().play.names.text_backup.get(i)),
     }
 }
 
 /// The entry's state stored back.
 pub fn put_entry(e: &Entry) {
     set_length(e.length);
-    OPTION_WORK.typing.set(e.entering);
+    crate::menu::owner::menus()
+        .screens
+        .option_work
+        .typing
+        .set(e.entering);
     for (i, &byte) in e.backup.iter().enumerate() {
-        NAME_BUFFERS.text_backup.set(i, byte);
+        crate::menu::owner::menus()
+            .play
+            .names
+            .text_backup
+            .set(i, byte);
     }
 }
 

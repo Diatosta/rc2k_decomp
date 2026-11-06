@@ -22,8 +22,6 @@
 //! (`menu::table_routes`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::state_store::MENU_STATE;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::race;
 use crate::race::switches_store::FRAME_SWITCHES;
@@ -58,26 +56,53 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
 
 /// `sub_490238`.
 pub fn pick_pictures() -> Result<(), Refused> {
-    if MENU_STATE.carousel.menu.get() != 0xB {
+    if crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .menu
+        .get()
+        != 0xB
+    {
         return Ok(());
     }
-    let entries = picked(EVENT_STATE.shown_car.get(), MENU_STATE.carousel.count.get());
-    write_all(&MENU_STATE.carousel_pictures.wanted, entries);
+    let entries = picked(
+        crate::menu::owner::menus().screens.event.shown_car.get(),
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .carousel
+            .count
+            .get(),
+    );
+    write_all(
+        &crate::menu::owner::menus()
+            .screens
+            .state
+            .carousel_pictures
+            .wanted,
+        entries,
+    );
     update(entries)?;
     Ok(())
 }
 
 /// `sub_49040D`: the car shown's object set up and drawn by `draw`.
 pub fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
-    let car: u32 = EVENT_STATE.shown_car.get();
+    let car: u32 = crate::menu::owner::menus().screens.event.shown_car.get();
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
     }
     let clock: u32 = PHYSICS.scene_clock.bits();
     OBJECT_WORK.angles[1].set((clock << 3) & 0xFFFF);
-    OBJECT_WORK.place[2].set(MENU_STATE.carousel.z.get());
-    let kind = MENU_STATE.carousel.kinds[car as usize].get();
-    MENU_STATE.carousel.kind.set(kind);
+    OBJECT_WORK.place[2].set(crate::menu::owner::menus().screens.state.carousel.z.get());
+    let kind = crate::menu::owner::menus().screens.state.carousel.kinds[car as usize].get();
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .kind
+        .set(kind);
     let object = find_object_of_kind(kind);
     FRAME_SWITCHES.object_number.set_bits(object);
     draw()
@@ -89,7 +114,7 @@ pub fn draw_shown_car(draw: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(
 /// ebx `sub_49040D` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
     let race = race();
-    if EVENT_STATE.car_page.get() != 0 {
+    if crate::menu::owner::menus().screens.event.car_page.get() != 0 {
         return Ok(());
     }
     clear_depth_buffer();

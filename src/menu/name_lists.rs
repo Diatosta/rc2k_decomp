@@ -4,7 +4,6 @@
 //! the code that reads `savedata\savegame\svgameNN` and `savedata\replay\replayNN` into them.
 
 use crate::errors::BadInput;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::place::Place;
 use crate::service::state::menu_item;
 use crate::session::{Bytes, Dword};
@@ -12,10 +11,10 @@ use crate::session::{Bytes, Dword};
 pub const NAME_LEN: usize = 0x20;
 const NAMES: u32 = 100;
 
-pub const SAVEGAME_PAGE_RVA: &Dword = &MENU_PAGES.save_page; // dword_75523C
+pub const SAVEGAME_PAGE_RVA: &Dword = &crate::menu::owner::MENUS.tables.pages.save_page; // dword_75523C
 const SAVEGAMES_PER_PAGE: u32 = 10;
 
-pub const REPLAY_PAGE_RVA: &Dword = &MENU_PAGES.replay_page; // dword_755248
+pub const REPLAY_PAGE_RVA: &Dword = &crate::menu::owner::MENUS.tables.pages.replay_page; // dword_755248
 const REPLAYS_PER_PAGE: u32 = 20;
 
 fn highlighted<const N: usize>(

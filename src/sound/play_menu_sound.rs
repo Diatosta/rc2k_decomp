@@ -11,16 +11,14 @@
 //! `dword_755690`. Then `sound::play_sound` with edx = 0xFFFFFF91 and ecx, edi, ebp = 0.
 //! 25 callers (1 is the highlight's click, 2 Enter's sound: `menu::handle_keys`).
 
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::session::Dword;
 use crate::system::tick_count::tick_count;
 
 // ---- game data ----
 
-const VOLUME_A: &Dword = &OPTION_WORK.menu_sounds_a; // dword_755694
-const VOLUME_B: &Dword = &SCREEN_FLOW.menu_sounds_volume; // dword_7554E8
-const VOLUME_C: &Dword = &OPTION_WORK.menu_sounds_c; // dword_755690
+const VOLUME_A: &Dword = &crate::menu::owner::MENUS.screens.option_work.menu_sounds_a; // dword_755694
+const VOLUME_B: &Dword = &crate::menu::owner::MENUS.screens.flow.menu_sounds_volume; // dword_7554E8
+const VOLUME_C: &Dword = &crate::menu::owner::MENUS.screens.option_work.menu_sounds_c; // dword_755690
 
 // ---- Rust version ----
 

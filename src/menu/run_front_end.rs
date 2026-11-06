@@ -15,7 +15,6 @@ use crate::audio::store::AUDIO;
 use crate::errors::Refused;
 use crate::framework::log;
 use crate::gfx::fonts_store::FONTS;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 // ---- game data ----
@@ -29,7 +28,9 @@ const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finish
 /// as the main menu does, which its callers do not read).
 pub fn run_front_end() -> Result<(), Refused> {
     log("menu::run_front_end: the Rust version runs");
-    OPTION_WORK
+    crate::menu::owner::menus()
+        .screens
+        .option_work
         .master_volume_shown
         .set(AUDIO.master_volume.get());
     crate::menu::drop_missing_controllers::drop_missing_controllers()?;

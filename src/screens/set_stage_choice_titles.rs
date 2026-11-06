@@ -14,7 +14,6 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::menus_store::MENUS;
 use crate::pointers::GamePtr;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
@@ -26,9 +25,9 @@ fn places() -> Result<(GamePtr, Option<GamePtr>), BadInput> {
     // Item 1's place is worked out from the menu's labels' address, as if it were the
     // menu's (the original's slip, `notes/bugs.md`): it lands in the memory after them.
     Ok((
-        GamePtr::to(&MENUS.select_stage.items[0].string),
+        GamePtr::to(&crate::menu::owner::menus().tables.menus.select_stage.items[0].string),
         crate::menu::menus_store::labels_slot(
-            &MENUS.select_stage.head,
+            &crate::menu::owner::menus().tables.menus.select_stage.head,
             MENU_HEAD_LEN + ITEM_LEN + 0x14,
         )?,
     ))
@@ -45,7 +44,7 @@ pub fn set_stage_choice_titles() -> Result<(), Refused> {
     build_second_heading(s.record)?;
     item_0.write(
         table_dword_at(
-            &crate::menu::results_store::RESULT_FIGURES,
+            &crate::menu::owner::menus().play.results,
             GROUP_TITLES,
             s.group,
         )?,

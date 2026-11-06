@@ -13,7 +13,6 @@
 //! entry, a section past 5, a player past 4 or missing, before anything; a driver not found is the
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::drivers_store::Driver;
 use crate::menu::standings::*;
 
@@ -49,13 +48,21 @@ pub fn award_overall_points() -> Result<(), Refused> {
         // Converted: `rc2k_core::menu::points` (`Points`, `total`).
         use rc2k_core::menu::points::{Points, total};
         let mut points = Points::default();
-        DRAW_WORK.seconds.set(points.0);
+        crate::menu::owner::menus()
+            .screens
+            .draw_work
+            .seconds
+            .set(points.0);
         for (e, &o) in all.iter_mut().zip(&owners) {
             if e.group == 0 {
                 continue;
             }
             let given = points.take();
-            DRAW_WORK.seconds.set(points.0);
+            crate::menu::owner::menus()
+                .screens
+                .draw_work
+                .seconds
+                .set(points.0);
             e.overall[section as usize] = given;
             match o {
                 Owner::Driver(d) => d.overall(section as usize).set(given),

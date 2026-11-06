@@ -6,8 +6,6 @@
 //! `sound::play_car_stream`) and the carousels.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::state_store::MENU_STATE;
 
 pub use rc2k_core::screens::car_pages::CarDescription;
 
@@ -18,12 +16,14 @@ const ENTRIES: u32 = 0x100;
 
 /// The description of the entry shown (`dword_755990` through `dword_75A65C`), by handle.
 pub fn shown_description() -> Result<u32, Refused> {
-    let table = MENU_STATE.carousel.list()?;
-    let entry: u32 = EVENT_STATE.shown_car.get();
+    let table = crate::menu::owner::menus().screens.state.carousel.list()?;
+    let entry: u32 = crate::menu::owner::menus().screens.event.shown_car.get();
     let (Some(table), true) = (table, entry < ENTRIES) else {
         return Err(BadInput("no carousel records, or an entry past them").into());
     };
-    let record = crate::menu::lists_store::MENU_LISTS
+    let record = crate::menu::owner::menus()
+        .tables
+        .lists
         .cars(table)
         .offset(entry * 4)
         .read::<u32>("a car description handle")?;

@@ -15,26 +15,28 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::players_store::PLAYER_TABLE;
 use crate::text::draw_text::Canvas;
 
 /// The Rust version.
 pub fn draw_players_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let rows = if EVENT_STATE.player_count.get() == 3 {
+    let rows = if crate::menu::owner::menus().screens.event.player_count.get() == 3 {
         3
     } else {
         4
     };
     let mut totals = [0u32; 4];
     for (row, total) in totals.iter_mut().enumerate().take(rows) {
-        if PLAYER_TABLE.players[row].get().name_player().is_none() {
+        if crate::menu::owner::menus().play.players.players[row]
+            .get()
+            .name_player()
+            .is_none()
+        {
             return Err(BadInput("a standings row without its name").into());
         }
         *total = CaptionTables::total_of(row)?.get();
     }
     // Converted: `rc2k_core::screens::players_results::standings`.
-    let player = |row: usize| PLAYER_TABLE.players[row].get();
+    let player = |row: usize| crate::menu::owner::menus().play.players.players[row].get();
     let rows: Vec<
         rc2k_core::screens::players_results::Standing<crate::screens::game_screen::HeldText>,
     > = (0..rows)

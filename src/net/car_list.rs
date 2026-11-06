@@ -10,7 +10,7 @@
 //! Lists without their end in 0x100 entries are refused. Caller: `net::choose_car`.
 
 use crate::errors::Refused;
-use crate::menu::lists_store::{CarList, MENU_LISTS};
+use crate::menu::lists_store::CarList;
 use crate::session::Dword;
 
 /// Whether one of the cars in `won` is in the list `secret` (read on past their ends, as
@@ -24,11 +24,16 @@ pub fn any_won(secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
         refused: &'a std::cell::Cell<Option<crate::errors::BadInput>>,
     ) -> impl Fn(u32) -> u32 + 'a {
         move |n: u32| {
-            crate::session::read_on_in(&MENU_LISTS, list, n as usize, "a car list's entry")
-                .unwrap_or_else(|e| {
-                    refused.set(Some(e));
-                    0
-                })
+            crate::session::read_on_in(
+                &crate::menu::owner::menus().tables.lists,
+                list,
+                n as usize,
+                "a car list's entry",
+            )
+            .unwrap_or_else(|e| {
+                refused.set(Some(e));
+                0
+            })
         }
     }
     let answer = rc2k_core::net::cars::any_won(reader(secret, &refused), reader(won, &refused));
@@ -41,7 +46,10 @@ pub fn any_won(secret: &[Dword], won: &[Dword]) -> Result<bool, Refused> {
 /// The Rust version.
 pub fn car_list() -> Result<CarList, Refused> {
     Ok(
-        if any_won(&MENU_LISTS.cars_second, &MENU_LISTS.secret_cars)? {
+        if any_won(
+            &crate::menu::owner::menus().tables.lists.cars_second,
+            &crate::menu::owner::menus().tables.lists.secret_cars,
+        )? {
             CarList::WithClio
         } else {
             CarList::First

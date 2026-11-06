@@ -17,9 +17,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::records::find_record::find_record_in;
 use crate::records::stages_store::RecordRef;
 use crate::screens::draw_stage_heading::draw_stage_heading;
@@ -38,8 +35,8 @@ pub const TITLE_Y: i32 = 0x77;
 /// The record of the event's stage, and its section.
 pub fn event_stage() -> Result<(RecordRef, u32), crate::errors::BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let section: u32 = EVENT_STATE.section.get();
-    let index: u32 = EVENT_STATE.index.get();
+    let section: u32 = crate::menu::owner::menus().screens.event.section.get();
+    let index: u32 = crate::menu::owner::menus().screens.event.index.get();
     Ok((find_record_in(table, index as i32, section)?, section))
 }
 
@@ -47,10 +44,14 @@ pub fn event_stage() -> Result<(RecordRef, u32), crate::errors::BadInput> {
 /// section's first record.
 pub fn event_title() -> Result<u32, crate::errors::BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let section: u32 = EVENT_STATE.section.get();
+    let section: u32 = crate::menu::owner::menus().screens.event.section.get();
     let first = find_record_in(table, 0, section)?;
-    if CHAMP_VIEW.event_mode.get() == 0x13 {
-        table_dword_at(&MENU_LISTS, &MENU_LISTS.section_titles, section)
+    if crate::menu::owner::menus().play.champ_view.event_mode.get() == 0x13 {
+        table_dword_at(
+            &crate::menu::owner::menus().tables.lists,
+            &crate::menu::owner::menus().tables.lists.section_titles,
+            section,
+        )
     } else {
         Ok(first.record()?.name())
     }

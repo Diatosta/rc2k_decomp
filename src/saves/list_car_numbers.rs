@@ -11,7 +11,6 @@
 //! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
 
 use crate::errors::BadInput;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::session::Dword;
 use crate::system::checked_reads::CheckedReads;
 
@@ -23,11 +22,11 @@ const FILLED: usize = 0x28;
 const LISTS: [(&[Dword], &[Dword]); 2] = [
     (
         &crate::menu::owner::MENUS.cars.numbers.first_numbers,
-        &MENU_LISTS.cars_second,
+        &crate::menu::owner::MENUS.tables.lists.cars_second,
     ), // unk_755258, off_75A042
     (
         &crate::menu::owner::MENUS.cars.numbers.second_numbers,
-        &MENU_LISTS.shown_cars,
+        &crate::menu::owner::MENUS.tables.lists.shown_cars,
     ), // unk_7552F8, off_75A12E
 ];
 

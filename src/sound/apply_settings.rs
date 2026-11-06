@@ -10,7 +10,6 @@
 //! Five callers; `system::main_loop` calls it once the window is there.
 
 use crate::audio::store::AUDIO;
-use crate::menu::option_work_store::OPTION_WORK;
 use rc2k_core::audio::commands::SoundList;
 
 // ---- Rust version ----
@@ -43,7 +42,11 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
     let steps = menus(
         AUDIO.menu_sound_mode.get(),
         SoundList::Menu,
-        OPTION_WORK.master_volume_shown.get(),
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .master_volume_shown
+            .get(),
     );
     for s in steps {
         run_step(s)?;

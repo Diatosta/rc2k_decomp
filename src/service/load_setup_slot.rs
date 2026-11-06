@@ -20,8 +20,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::go_back;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::service::clear_repair_flags::clear_repair_flags;
 use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
@@ -43,7 +41,14 @@ type Editor = fn(bool) -> Result<(), Refused>;
 
 pub fn highlighted_slot() -> u32 {
     // Converted: `rc2k_core::service::setups::highlighted_slot`.
-    rc2k_core::service::setups::highlighted_slot(MENU_PAGES.setup_slot_page.get(), menu_item())
+    rc2k_core::service::setups::highlighted_slot(
+        crate::menu::owner::menus()
+            .tables
+            .pages
+            .setup_slot_page
+            .get(),
+        menu_item(),
+    )
 }
 
 // ---- Rust version ----
@@ -95,11 +100,19 @@ pub fn load_setup_slot() -> Result<(), Refused> {
             _ => (SUSPENSION_STIFFNESS, edit_suspension_stiffness),
         };
         if change.change.chosen.get() != change.change.installed.get() {
-            LOOP_FLAGS.item.set(change.item);
+            crate::menu::owner::menus()
+                .screens
+                .loop_flags
+                .item
+                .set(change.item);
             edit(true)?;
         }
     }
-    LOOP_FLAGS.item.set(highlighted);
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .item
+        .set(highlighted);
     go_back::go_back();
     Ok(())
 }

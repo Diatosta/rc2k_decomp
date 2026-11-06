@@ -2,9 +2,7 @@
 //! open (stream A, part F1, 2026-10-18).
 
 use crate::errors::Refused;
-use crate::menu::arcade_store::{ARCADE_GAME, Arcade};
-use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::loop_store::LOOP_FLAGS;
+use crate::menu::arcade_store::Arcade;
 use crate::race::state_store::RACE_STATE;
 
 /// A note's box put up (converted: `rc2k_core::screens::locked`). The original's x for the
@@ -25,8 +23,8 @@ fn show(note: rc2k_core::screens::locked::Note) -> Result<(), Refused> {
 /// (`dword_755525`) and `dword_75ACCC` not 1, the message box.
 pub fn note_locked_item_3() -> Result<(), Refused> {
     show(rc2k_core::screens::locked::item_3(
-        CHEAT_VARS.cheats.get(),
-        LOOP_FLAGS.item.get(),
+        crate::menu::owner::menus().play.cheats.cheats.get(),
+        crate::menu::owner::menus().screens.loop_flags.item.get(),
         RACE_STATE.settings.a8_game.get(),
     ))
 }
@@ -36,12 +34,12 @@ pub fn note_locked_item_3() -> Result<(), Refused> {
 pub fn note_locked_stage() -> Result<(), Refused> {
     let fault = crate::menu::event_flow::Fault::default();
     let note = rc2k_core::screens::locked::stage(
-        CHEAT_VARS.cheats.get(),
-        LOOP_FLAGS.item.get(),
+        crate::menu::owner::menus().play.cheats.cheats.get(),
+        crate::menu::owner::menus().screens.loop_flags.item.get(),
         |index| {
             fault.read_at::<u8>(
                 // Bounded to the arcade's store, not the six bytes: item 0 reads before them.
-                crate::pointers::GamePtr::to(&ARCADE_GAME)
+                crate::pointers::GamePtr::to(&crate::menu::owner::menus().play.arcade)
                     .offset(core::mem::offset_of!(Arcade, levels_won) as u32)
                     .offset(index),
                 "a stage\'s lock",

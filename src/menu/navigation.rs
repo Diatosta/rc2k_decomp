@@ -12,10 +12,7 @@
 //! went with the screen loops' registers).
 
 use crate::errors::Refused;
-use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::item_at::item_at;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::state_store::MENU_STATE;
 
 // ---- game data ----
 
@@ -54,17 +51,38 @@ pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
     let way = direction.slot();
     let sideways = matches!(direction, Direction::Left | Direction::Right);
     {
-        let highlighted: u32 = LOOP_FLAGS.item.get();
+        let highlighted: u32 = crate::menu::owner::menus().screens.loop_flags.item.get();
         let item = item_at(highlighted)?;
-        let turned = (sideways && SCREEN_FLOW.turning.get() == 1).then(|| {
-            let t = Turn {
-                count: MENU_STATE.carousel.count.get() as i32,
-                value: MENU_STATE.carousel.front.get() as i32,
-                way: MENU_STATE.carousel.direction.get(),
-                step: MENU_STATE.carousel.angle.get(),
-            };
-            turn(t, direction == Direction::Right)
-        });
+        let turned = (sideways && crate::menu::owner::menus().screens.flow.turning.get() == 1)
+            .then(|| {
+                let t = Turn {
+                    count: crate::menu::owner::menus()
+                        .screens
+                        .state
+                        .carousel
+                        .count
+                        .get() as i32,
+                    value: crate::menu::owner::menus()
+                        .screens
+                        .state
+                        .carousel
+                        .front
+                        .get() as i32,
+                    way: crate::menu::owner::menus()
+                        .screens
+                        .state
+                        .carousel
+                        .direction
+                        .get(),
+                    step: crate::menu::owner::menus()
+                        .screens
+                        .state
+                        .carousel
+                        .angle
+                        .get(),
+                };
+                turn(t, direction == Direction::Right)
+            });
         let next = item.links[way].get();
         let to = match link(next) {
             Link::To(n) if !sideways => Some(walk(n, |n| {
@@ -75,18 +93,33 @@ pub fn move_highlight(direction: Direction) -> Result<(), Refused> {
             _ => None,
         };
         if let Some(t) = turned {
-            MENU_STATE.carousel.front.set(t.value as u32);
-            MENU_STATE.carousel.direction.set(t.way);
-            MENU_STATE.carousel.angle.set(t.step);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .carousel
+                .front
+                .set(t.value as u32);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .carousel
+                .direction
+                .set(t.way);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .carousel
+                .angle
+                .set(t.step);
         }
         if link(next) == Link::None {
             return Ok(());
         }
-        if !sideways || SCREEN_FLOW.quiet.get() != 1 {
+        if !sideways || crate::menu::owner::menus().screens.flow.quiet.get() != 1 {
             crate::sound::play_menu_sound::play_menu_sound_in_game(1);
         }
         match to {
-            Some(n) => LOOP_FLAGS.item.set(n),
+            Some(n) => crate::menu::owner::menus().screens.loop_flags.item.set(n),
             None => crate::menu::table_calls::call_key(item.on_key[way].get(), item)?,
         }
     }

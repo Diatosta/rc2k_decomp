@@ -30,9 +30,6 @@
 //! One caller, `menu::draw_menu`. Refuses a menu without an end in its first 256 items.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::session::CLOCKS;
 use crate::text::draw_text::Canvas;
 
@@ -78,18 +75,31 @@ pub fn draw_menu_items(
             spaced: i.spaced.get() == 1,
         })
         .collect();
-    let since_key = if OPTION_WORK.redefining_key.get() == 1 {
+    let since_key = if crate::menu::owner::menus()
+        .screens
+        .option_work
+        .redefining_key
+        .get()
+        == 1
+    {
         0
     } else {
-        CLOCKS
-            .frame
-            .get()
-            .wrapping_sub(CHAMP_VIEW.last_key_time.get())
+        CLOCKS.frame.get().wrapping_sub(
+            crate::menu::owner::menus()
+                .play
+                .champ_view
+                .last_key_time
+                .get(),
+        )
     };
     let mut screen = MenuScreen::new(canvas);
     screen.menu_items = all;
     let line = &crate::screens::text_buffers_store::TEXT_BUFFERS.line;
-    rc2k_core::screens::menus::items(&mut screen, &list, LOOP_FLAGS.item.get(), since_key, &|n| {
-        line.get(n)
-    })
+    rc2k_core::screens::menus::items(
+        &mut screen,
+        &list,
+        crate::menu::owner::menus().screens.loop_flags.item.get(),
+        since_key,
+        &|n| line.get(n),
+    )
 }

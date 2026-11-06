@@ -9,15 +9,12 @@
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::players_store::PLAYER_TABLE;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::store::{NET, PlayerRecord};
 use crate::session::Dword;
 
-const CLEARED: &Dword = &EVENT_STATE.current_player; // dword_75598C
-pub const ESCAPED: &Dword = &DRAW_WORK.escaped; // dword_755A3C: the screen was left with Escape
+const CLEARED: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C
+pub const ESCAPED: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escaped; // dword_755A3C: the screen was left with Escape
 
 /// The Rust version. The car screen is handed the list of cars (the original's esi); the
 /// car it starts from its set-up finds itself (the current player's record,
@@ -32,11 +29,15 @@ pub fn choose_car() -> Result<(), Refused> {
         crate::menu::take_shown_car::take_shown_car(Some(cars))?;
         NET.own.head.set(
             PlayerRecord::CAR,
-            PLAYER_TABLE.players[0].get().car_number as u8,
+            crate::menu::owner::menus().play.players.players[0]
+                .get()
+                .car_number as u8,
         );
         NET.own.head.set(
             PlayerRecord::COLOURS,
-            PLAYER_TABLE.players[0].get().gearing as u8,
+            crate::menu::owner::menus().play.players.players[0]
+                .get()
+                .gearing as u8,
         );
     }
     crate::net::show_background::show_background()?;

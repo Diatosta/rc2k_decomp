@@ -4,10 +4,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_glyph::BlitCall;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::results_store::RESULT_FIGURES;
 use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::text::draw_text::{Canvas, draw_text_at};
@@ -381,10 +377,10 @@ impl GameWork for rc2k_core::screens::best_scores::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::best_scores::Work as W;
         match self {
-            W::Rank => &DRAW_WORK.seconds,
-            W::RowY => &DRAW_WORK.work_b0,
-            W::CarGlyph => &DRAW_WORK.work_b4,
-            W::Heading => &DRAW_WORK.figure,
+            W::Rank => &crate::menu::owner::menus().screens.draw_work.seconds,
+            W::RowY => &crate::menu::owner::menus().screens.draw_work.work_b0,
+            W::CarGlyph => &crate::menu::owner::menus().screens.draw_work.work_b4,
+            W::Heading => &crate::menu::owner::menus().screens.draw_work.figure,
         }
     }
 }
@@ -409,8 +405,8 @@ impl GameWork for rc2k_core::screens::stage_panel::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::stage_panel::Work as W;
         match self {
-            W::Scratch => &DRAW_WORK.figure,
-            W::Finish => &DRAW_WORK.hhmm,
+            W::Scratch => &crate::menu::owner::menus().screens.draw_work.figure,
+            W::Finish => &crate::menu::owner::menus().screens.draw_work.hhmm,
             W::Entry34 => &crate::race::state_store::RACE_STATE.settings.stage,
         }
     }
@@ -433,11 +429,11 @@ impl GameWork for rc2k_core::screens::itinerary::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::itinerary::Work as W;
         match self {
-            W::Y => &DRAW_WORK.seconds,
-            W::Row => &DRAW_WORK.work_b0,
-            W::Stage => &DRAW_WORK.work_b4,
-            W::Service => &DRAW_WORK.work_0c,
-            W::ServiceString => &DRAW_WORK.work_08,
+            W::Y => &crate::menu::owner::menus().screens.draw_work.seconds,
+            W::Row => &crate::menu::owner::menus().screens.draw_work.work_b0,
+            W::Stage => &crate::menu::owner::menus().screens.draw_work.work_b4,
+            W::Service => &crate::menu::owner::menus().screens.draw_work.work_0c,
+            W::ServiceString => &crate::menu::owner::menus().screens.draw_work.work_08,
         }
     }
 }
@@ -459,10 +455,10 @@ impl GameWork for rc2k_core::screens::settings_pages::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::settings_pages::Work as W;
         match self {
-            W::Scratch => &DRAW_WORK.figure,
-            W::Seconds => &DRAW_WORK.seconds,
-            W::Glyph => &DRAW_WORK.hhmm,
-            W::CheckX => &DRAW_WORK.marker_x,
+            W::Scratch => &crate::menu::owner::menus().screens.draw_work.figure,
+            W::Seconds => &crate::menu::owner::menus().screens.draw_work.seconds,
+            W::Glyph => &crate::menu::owner::menus().screens.draw_work.hhmm,
+            W::CheckX => &crate::menu::owner::menus().screens.draw_work.marker_x,
         }
     }
 }
@@ -509,9 +505,15 @@ impl GameFont for rc2k_core::screens::slot_lists::Font {
 impl GameWork for rc2k_core::screens::slot_lists::Work {
     fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::slot_lists::Work::X => &DRAW_WORK.marker_x,
-            rc2k_core::screens::slot_lists::Work::Y => &DRAW_WORK.marker_y,
-            rc2k_core::screens::slot_lists::Work::Row => &DRAW_WORK.figure,
+            rc2k_core::screens::slot_lists::Work::X => {
+                &crate::menu::owner::menus().screens.draw_work.marker_x
+            }
+            rc2k_core::screens::slot_lists::Work::Y => {
+                &crate::menu::owner::menus().screens.draw_work.marker_y
+            }
+            rc2k_core::screens::slot_lists::Work::Row => {
+                &crate::menu::owner::menus().screens.draw_work.figure
+            }
         }
     }
 }
@@ -558,8 +560,15 @@ impl GameFont for rc2k_core::screens::players_results::Font {
 impl GameWork for rc2k_core::screens::players_results::Work {
     fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::players_results::Work::Gap => &DRAW_WORK.work_b8,
-            rc2k_core::screens::players_results::Work::FirstTime => &DRAW_WORK.first_player_time,
+            rc2k_core::screens::players_results::Work::Gap => {
+                &crate::menu::owner::menus().screens.draw_work.work_b8
+            }
+            rc2k_core::screens::players_results::Work::FirstTime => {
+                &crate::menu::owner::menus()
+                    .screens
+                    .draw_work
+                    .first_player_time
+            }
         }
     }
 }
@@ -580,11 +589,17 @@ impl GameWork for rc2k_core::screens::stage_results::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::stage_results::Work as W;
         match self {
-            W::Rank => &DRAW_WORK.seconds,
-            W::Scratch => &DRAW_WORK.figure,
-            W::FirstTime => &crate::menu::state_store::MENU_STATE.menus.first_row_time,
-            W::Gap => &DRAW_WORK.hhmm,
-            W::RowY => &DRAW_WORK.work_b0,
+            W::Rank => &crate::menu::owner::menus().screens.draw_work.seconds,
+            W::Scratch => &crate::menu::owner::menus().screens.draw_work.figure,
+            W::FirstTime => {
+                &crate::menu::owner::menus()
+                    .screens
+                    .state
+                    .menus
+                    .first_row_time
+            }
+            W::Gap => &crate::menu::owner::menus().screens.draw_work.hhmm,
+            W::RowY => &crate::menu::owner::menus().screens.draw_work.work_b0,
         }
     }
 }
@@ -609,11 +624,21 @@ impl GameWork for rc2k_core::screens::results_pages::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::results_pages::Work as W;
         match self {
-            W::FirstTime => &DRAW_WORK.first_player_time,
-            W::OverallFirst => &DRAW_WORK.overall_first_time,
-            W::Gap => &DRAW_WORK.glyph,
-            W::Row => &LOOP_FLAGS.champ_row,
-            W::RowEnd => &CHAMP_VIEW.row_end,
+            W::FirstTime => {
+                &crate::menu::owner::menus()
+                    .screens
+                    .draw_work
+                    .first_player_time
+            }
+            W::OverallFirst => {
+                &crate::menu::owner::menus()
+                    .screens
+                    .draw_work
+                    .overall_first_time
+            }
+            W::Gap => &crate::menu::owner::menus().screens.draw_work.glyph,
+            W::Row => &crate::menu::owner::menus().screens.loop_flags.champ_row,
+            W::RowEnd => &crate::menu::owner::menus().play.champ_view.row_end,
         }
     }
 }
@@ -622,10 +647,15 @@ impl GameWork for rc2k_core::screens::results_pages::RankingWork {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::results_pages::RankingWork as W;
         match self {
-            W::FirstTime => &DRAW_WORK.first_player_time,
-            W::Place => &DRAW_WORK.seconds,
-            W::Gap => &DRAW_WORK.glyph,
-            W::SpriteY => &DRAW_WORK.work_b0,
+            W::FirstTime => {
+                &crate::menu::owner::menus()
+                    .screens
+                    .draw_work
+                    .first_player_time
+            }
+            W::Place => &crate::menu::owner::menus().screens.draw_work.seconds,
+            W::Gap => &crate::menu::owner::menus().screens.draw_work.glyph,
+            W::SpriteY => &crate::menu::owner::menus().screens.draw_work.work_b0,
         }
     }
 }
@@ -670,8 +700,12 @@ impl GameFont for rc2k_core::screens::duel_result::Font {
 impl GameWork for rc2k_core::screens::duel_result::Work {
     fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::duel_result::Work::First => &RESULT_FIGURES.order[0],
-            rc2k_core::screens::duel_result::Work::Second => &RESULT_FIGURES.order[1],
+            rc2k_core::screens::duel_result::Work::First => {
+                &crate::menu::owner::menus().play.results.order[0]
+            }
+            rc2k_core::screens::duel_result::Work::Second => {
+                &crate::menu::owner::menus().play.results.order[1]
+            }
         }
     }
 }
@@ -722,8 +756,12 @@ impl GameFont for rc2k_core::screens::player_details::Font {
 impl GameWork for rc2k_core::screens::player_details::Work {
     fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::player_details::Work::Seconds => &DRAW_WORK.seconds,
-            rc2k_core::screens::player_details::Work::Kept => &DRAW_WORK.figure,
+            rc2k_core::screens::player_details::Work::Seconds => {
+                &crate::menu::owner::menus().screens.draw_work.seconds
+            }
+            rc2k_core::screens::player_details::Work::Kept => {
+                &crate::menu::owner::menus().screens.draw_work.figure
+            }
         }
     }
 }
@@ -739,10 +777,15 @@ impl GameWork for rc2k_core::screens::menus::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::menus::Work;
         match self {
-            Work::SpacedFont => &DRAW_WORK.figure,
-            Work::MarkerX => &DRAW_WORK.marker_x,
-            Work::MarkerY => &DRAW_WORK.marker_y,
-            Work::Highlighted => &DRAW_WORK.drawing_highlighted_item,
+            Work::SpacedFont => &crate::menu::owner::menus().screens.draw_work.figure,
+            Work::MarkerX => &crate::menu::owner::menus().screens.draw_work.marker_x,
+            Work::MarkerY => &crate::menu::owner::menus().screens.draw_work.marker_y,
+            Work::Highlighted => {
+                &crate::menu::owner::menus()
+                    .screens
+                    .draw_work
+                    .drawing_highlighted_item
+            }
         }
     }
 }
@@ -808,9 +851,9 @@ impl GameWork for rc2k_core::screens::service::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::service::Work;
         match self {
-            Work::Penalty => &crate::menu::state_store::MENU_STATE.driver_stats.money,
-            Work::A => &DRAW_WORK.seconds,
-            Work::B => &DRAW_WORK.figure,
+            Work::Penalty => &crate::menu::owner::menus().screens.state.driver_stats.money,
+            Work::A => &crate::menu::owner::menus().screens.draw_work.seconds,
+            Work::B => &crate::menu::owner::menus().screens.draw_work.figure,
         }
     }
 }
@@ -836,17 +879,17 @@ impl GameWork for rc2k_core::screens::highlighted_caption::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::highlighted_caption::Work;
         match self {
-            Work::MarkerX => &DRAW_WORK.marker_x,
-            Work::MarkerY => &DRAW_WORK.marker_y,
-            Work::Width => &DRAW_WORK.seconds,
-            Work::X => &DRAW_WORK.work_b0,
-            Work::Y => &DRAW_WORK.work_b4,
-            Work::Left => &DRAW_WORK.glyph,
-            Work::Right => &DRAW_WORK.work_c4,
-            Work::LeftX => &DRAW_WORK.marker_end_a,
-            Work::LeftY => &DRAW_WORK.marker_end_b,
-            Work::RightX => &DRAW_WORK.marker_end_c,
-            Work::RightY => &DRAW_WORK.marker_end_d,
+            Work::MarkerX => &crate::menu::owner::menus().screens.draw_work.marker_x,
+            Work::MarkerY => &crate::menu::owner::menus().screens.draw_work.marker_y,
+            Work::Width => &crate::menu::owner::menus().screens.draw_work.seconds,
+            Work::X => &crate::menu::owner::menus().screens.draw_work.work_b0,
+            Work::Y => &crate::menu::owner::menus().screens.draw_work.work_b4,
+            Work::Left => &crate::menu::owner::menus().screens.draw_work.glyph,
+            Work::Right => &crate::menu::owner::menus().screens.draw_work.work_c4,
+            Work::LeftX => &crate::menu::owner::menus().screens.draw_work.marker_end_a,
+            Work::LeftY => &crate::menu::owner::menus().screens.draw_work.marker_end_b,
+            Work::RightX => &crate::menu::owner::menus().screens.draw_work.marker_end_c,
+            Work::RightY => &crate::menu::owner::menus().screens.draw_work.marker_end_d,
         }
     }
 }
@@ -860,9 +903,11 @@ impl GameFont for rc2k_core::screens::inspection::Font {
 impl GameWork for rc2k_core::screens::inspection::Work {
     fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::inspection::Work::Lost => &DRAW_WORK.figure,
+            rc2k_core::screens::inspection::Work::Lost => {
+                &crate::menu::owner::menus().screens.draw_work.figure
+            }
             rc2k_core::screens::inspection::Work::Status => {
-                &crate::menu::state_store::MENU_STATE.driver_stats.score
+                &crate::menu::owner::menus().screens.state.driver_stats.score
             }
         }
     }
@@ -899,8 +944,12 @@ impl GameFont for rc2k_core::screens::championship_table::Font {
 impl GameWork for rc2k_core::screens::championship_table::Work {
     fn cell(self) -> &'static Dword {
         match self {
-            rc2k_core::screens::championship_table::Work::Position => &LOOP_FLAGS.champ_row,
-            rc2k_core::screens::championship_table::Work::End => &CHAMP_VIEW.row_end,
+            rc2k_core::screens::championship_table::Work::Position => {
+                &crate::menu::owner::menus().screens.loop_flags.champ_row
+            }
+            rc2k_core::screens::championship_table::Work::End => {
+                &crate::menu::owner::menus().play.champ_view.row_end
+            }
         }
     }
 }
@@ -915,14 +964,14 @@ impl GameWork for rc2k_core::screens::controller_page::Work {
     fn cell(self) -> &'static Dword {
         use rc2k_core::screens::controller_page::Work;
         match self {
-            Work::Seconds => &DRAW_WORK.seconds,
-            Work::Record => &DRAW_WORK.work_0c,
-            Work::FirstLeft => &DRAW_WORK.slider_a_start,
-            Work::FirstRight => &DRAW_WORK.slider_a_end,
-            Work::SecondLeft => &DRAW_WORK.slider_b_start,
-            Work::SecondRight => &DRAW_WORK.slider_b_end,
-            Work::Place => &DRAW_WORK.figure,
-            Work::Buttons => &DRAW_WORK.hhmm,
+            Work::Seconds => &crate::menu::owner::menus().screens.draw_work.seconds,
+            Work::Record => &crate::menu::owner::menus().screens.draw_work.work_0c,
+            Work::FirstLeft => &crate::menu::owner::menus().screens.draw_work.slider_a_start,
+            Work::FirstRight => &crate::menu::owner::menus().screens.draw_work.slider_a_end,
+            Work::SecondLeft => &crate::menu::owner::menus().screens.draw_work.slider_b_start,
+            Work::SecondRight => &crate::menu::owner::menus().screens.draw_work.slider_b_end,
+            Work::Place => &crate::menu::owner::menus().screens.draw_work.figure,
+            Work::Buttons => &crate::menu::owner::menus().screens.draw_work.hhmm,
         }
     }
 }

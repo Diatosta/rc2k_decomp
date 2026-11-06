@@ -12,42 +12,69 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn before(_: &Entry) -> Result<(), Refused> {
-    SCREEN_ITEMS.current[slot::VIEW_BEST_TIMES]
-        .set(SCREEN_ITEMS.first[slot::VIEW_BEST_TIMES].get());
+    crate::menu::owner::menus().screens.items.current[slot::VIEW_BEST_TIMES]
+        .set(crate::menu::owner::menus().screens.items.first[slot::VIEW_BEST_TIMES].get());
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.view_best_times.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::VIEW_BEST_TIMES],
+    menu: || {
+        crate::menu::owner::menus()
+            .tables
+            .menus
+            .view_best_times
+            .id()
+    },
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::VIEW_BEST_TIMES],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.view_best_times_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .view_best_times_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.view_best_times_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .view_best_times_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.view_best_times_setup.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.setup_list, // dword_755500
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .view_best_times_setup
+                    .id()
+            },
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.view_best_times_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .view_best_times_overlay
+                    .id()
+            },
             run: false,
         },
     ],
@@ -59,7 +86,10 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::texts_store::MENU_TEXTS.view_best_times_picture
+        &crate::menu::owner::menus()
+            .tables
+            .texts
+            .view_best_times_picture
     }))],
     after_first_frame: &[],
     confirm: None,

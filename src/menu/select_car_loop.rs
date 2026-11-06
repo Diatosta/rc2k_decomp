@@ -7,37 +7,61 @@
 //! first on leaving.
 
 use crate::errors::Refused;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, quitting,
 };
-use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     // The current player's +0x30 (its car).
-    let current: u32 = EVENT_STATE.current_player.get();
+    let current: u32 = crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .get();
     let Some(player) = crate::menu::player::player(current) else {
         return Err(crate::errors::BadInput("a current player past the four").into());
     };
-    SCREEN_FLOW.shown_gearing.set(player.get().gearing);
-    SCREEN_FLOW.turning.set(0x1u32);
-    MENU_STATE.carousel.menu.set(0xDu32);
+    crate::menu::owner::menus()
+        .screens
+        .flow
+        .shown_gearing
+        .set(player.get().gearing);
+    crate::menu::owner::menus().screens.flow.turning.set(0x1u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .menu
+        .set(0xDu32);
     carousel(entry.cars)?;
-    let item = SCREEN_ITEMS.current[slot::SELECT_CAR].get();
-    LOOP_FLAGS.item.set(item);
-    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
-    SCREEN_FLOW.turning.set(0x0u32);
-    MENU_STATE.carousel.front.set(0x0u32);
-    EVENT_STATE.shown_car.set(0x0u32);
+    let item = crate::menu::owner::menus().screens.items.current[slot::SELECT_CAR].get();
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .item
+        .set(item);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .front
+        .set(item.wrapping_sub(1));
+    crate::menu::owner::menus().screens.flow.turning.set(0x0u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .front
+        .set(0x0u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .shown_car
+        .set(0x0u32);
     crate::menu::car_choice::find_player_car()?;
     DRAW.view_offset[0].set(0x7u32);
     DRAW.view_offset[1].set(0xFFFFFFCEu32);
@@ -54,34 +78,64 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 fn leaving(_: &Entry) -> Result<(), Refused> {
-    if CAPTIONS.screen_left.get() == 0x1 {
+    if crate::menu::owner::menus()
+        .tables
+        .captions
+        .screen_left
+        .get()
+        == 0x1
+    {
         Callee::GoBack.run()?;
     }
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.select_car.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::SELECT_CAR],
+    menu: || crate::menu::owner::menus().tables.menus.select_car.id(),
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::SELECT_CAR],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.select_car_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .select_car_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.select_car_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .select_car_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.setup_list, // dword_755500
-            table: || DRAW_LISTS.select_car_setup.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.setup_list, // dword_755500
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .select_car_setup
+                    .id()
+            },
             run: true,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.select_car_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .select_car_overlay
+                    .id()
+            },
             run: false,
         },
     ],
@@ -93,7 +147,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::texts_store::MENU_TEXTS.select_car_picture
+        &crate::menu::owner::menus().tables.texts.select_car_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,

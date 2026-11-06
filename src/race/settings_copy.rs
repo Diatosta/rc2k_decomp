@@ -107,10 +107,10 @@ macro_rules! car_bits {
 
 /// `var!(STATIC.field)`: a dword of an overlay store as a `Place` (a `fn` item, as `car!`).
 macro_rules! var {
-    ($s:ident . $($f:tt)+) => {
+    ($($s:ident)::+ . $($f:tt)+) => {
         $crate::race::settings_copy::Place::Var({
             fn f() -> &'static $crate::session::Dword {
-                &$s.$($f)+
+                &$($s)::+.$($f)+
             }
             f
         })

@@ -5,9 +5,7 @@
 //! `number_all_a` 0x4A2090, `_b` 0x4A5A98; `number_standings_a` 0x4A2055, `_b` 0x4A4A9D.
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
 use rc2k_core::menu::standings::Numbering;
 
 /// Gives every entry of `table` a figure of 0 (table A, entry +0x44) or a position of 0
@@ -30,14 +28,24 @@ pub fn clear_standings(table: Which) -> Result<(), Refused> {
 /// a group), each player's number also into its record. Table A's count goes into
 /// `EVENT_STATE.count_a` (`dword_75597C`).
 pub fn number_all(table: Which) -> Result<Numbered, Refused> {
-    let grouped = MENU_STATE.menus.class_mode.get() == 2;
+    let grouped = crate::menu::owner::menus()
+        .screens
+        .state
+        .menus
+        .class_mode
+        .get()
+        == 2;
     let numbering = Numbering::All { grouped };
     let numbered = match table {
         Which::A => number_table(table, numbering, |p| &mut p.number_all_a)?,
         Which::B => number_table(table, numbering, |p| &mut p.number_all_b)?,
     };
     if table == Which::A {
-        EVENT_STATE.count_a.set(numbered.last_number);
+        crate::menu::owner::menus()
+            .screens
+            .event
+            .count_a
+            .set(numbered.last_number);
     }
     Ok(numbered)
 }

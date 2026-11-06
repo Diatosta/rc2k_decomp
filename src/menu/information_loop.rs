@@ -11,17 +11,11 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, log_line, prepare_scene,
     screen_entry,
 };
-use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -37,12 +31,26 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
     DRAW.clip_edges[3].set(0x2F8u32);
     DRAW.clip_screen[2].set(DRAW.clip_edges[2].bits() as i32 as f32);
     DRAW.clip_screen[3].set(DRAW.clip_edges[3].bits() as i32 as f32);
-    SCREEN_FLOW.turning.set(0x1u32);
-    MENU_STATE.carousel.menu.set(0x9u32);
+    crate::menu::owner::menus().screens.flow.turning.set(0x1u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .menu
+        .set(0x9u32);
     carousel(None)?;
-    let item = SCREEN_ITEMS.current[slot::INFORMATION].get();
-    LOOP_FLAGS.item.set(item);
-    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
+    let item = crate::menu::owner::menus().screens.items.current[slot::INFORMATION].get();
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .item
+        .set(item);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .front
+        .set(item.wrapping_sub(1));
     Ok(())
 }
 
@@ -53,22 +61,40 @@ fn after(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.information.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::INFORMATION],
+    menu: || crate::menu::owner::menus().tables.menus.information.id(),
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::INFORMATION],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.information_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .information_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.information_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .information_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.information_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .information_overlay
+                    .id()
+            },
             run: false,
         },
     ],
@@ -80,9 +106,12 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::Write(|| &EVENT_STATE.clears_escape_flag, 0x1),
+        Step::Write(
+            || &crate::menu::owner::menus().screens.event.clears_escape_flag,
+            0x1,
+        ),
         Step::Call(Callee::LoadBackground(|| {
-            &crate::menu::texts_store::MENU_TEXTS.information_picture
+            &crate::menu::owner::menus().tables.texts.information_picture
         })),
     ],
     after_first_frame: &[],

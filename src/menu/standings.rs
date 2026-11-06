@@ -5,12 +5,7 @@
 //! Also the drivers (`g_drivers`, -1 at the end) and the players (`g_players`).
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::drivers_store::Driver;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::names_store::NAME_BUFFERS;
-use crate::menu::players_store::PLAYER_TABLE;
-use crate::menu::state_store::MENU_STATE;
 use crate::session::Dword;
 use rc2k_core::menu::standings::{self, NAME_LEN};
 
@@ -29,7 +24,7 @@ pub fn any_unnamed(players: &[PlayerCell]) -> Result<bool, crate::errors::BadInp
 
 /// Player `n`'s record (`n` one of the four).
 pub fn player(n: u32) -> PlayerCell {
-    &PLAYER_TABLE.players[n as usize]
+    &crate::menu::owner::menus().play.players.players[n as usize]
 }
 
 /// The drivers (`g_drivers`) as the original's `do .. while` walks them: the first always,
@@ -181,21 +176,21 @@ pub fn name_address_of(p: &rc2k_core::menu::player::Player) -> Result<u32, BadIn
 
 /// Runs `f` on `g_keptPlayerName`, the sorts' swap buffer (a copy of it, put back after).
 pub fn with_kept_name<R>(f: impl FnOnce(&mut [u8; NAME_LEN]) -> R) -> R {
-    let mut all = NAME_BUFFERS.kept_name.read();
+    let mut all = crate::menu::owner::menus().play.names.kept_name.read();
     let [kept @ .., _] = &mut all;
     let r = f(kept);
-    NAME_BUFFERS.kept_name.write(&all);
+    crate::menu::owner::menus().play.names.kept_name.write(&all);
     r
 }
 
-pub const PLAYER_COUNT_RVA: &Dword = &EVENT_STATE.player_count; // dword_755984
-pub const SECTION_RVA: &Dword = &EVENT_STATE.section; // section
-pub const INDEX_RVA: &Dword = &EVENT_STATE.index; // index
+pub const PLAYER_COUNT_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.player_count; // dword_755984
+pub const SECTION_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.section; // section
+pub const INDEX_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
 
 /// The players `0 .. dword_755984` (the original's `do .. while`): refused at 0, past 4 or
 /// with one missing.
 pub fn counted_players() -> Result<Vec<PlayerCell>, BadInput> {
-    let n: u32 = EVENT_STATE.player_count.get();
+    let n: u32 = crate::menu::owner::menus().screens.event.player_count.get();
     if n == 0 || n > 4 {
         return Err(BadInput("a player count of 0 or past 4"));
     }
@@ -207,8 +202,8 @@ pub fn counted_players() -> Result<Vec<PlayerCell>, BadInput> {
 /// sections, with no table, or past it.
 pub fn current_event() -> Result<usize, BadInput> {
     let table = crate::records::stages_store::STAGE_TABLES.championship();
-    let section: u32 = EVENT_STATE.section.get();
-    let index: u32 = EVENT_STATE.index.get();
+    let section: u32 = crate::menu::owner::menus().screens.event.section.get();
+    let index: u32 = crate::menu::owner::menus().screens.event.index.get();
     if section >= 64
         || index >= 64
         || !crate::records::find_record::has_section(table, section, 600)?
@@ -251,8 +246,16 @@ pub fn sort_table_a(key: rc2k_core::saves::entries::Field) -> Result<(), BadInpu
         with_kept_name(|kept| rc2k_core::saves::rankings::sort_a(t, SORTED as usize, key, kept));
     })?;
 
-    DRAW_WORK.work_b4.set(SORTED - 1);
-    DRAW_WORK.work_b8.set(SORTED);
+    crate::menu::owner::menus()
+        .screens
+        .draw_work
+        .work_b4
+        .set(SORTED - 1);
+    crate::menu::owner::menus()
+        .screens
+        .draw_work
+        .work_b8
+        .set(SORTED);
 
     Ok(())
 }
@@ -266,7 +269,11 @@ pub fn enter_best(
     group: Option<u32>,
     score: fn(&rc2k_core::menu::player::Player) -> u32,
 ) -> Result<(), BadInput> {
-    let n: u32 = EVENT_STATE.current_player.get();
+    let n: u32 = crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
@@ -309,15 +316,28 @@ pub fn sort_table_b(key: BKey, down: bool) -> Result<(), BadInput> {
         });
     })?;
 
-    DRAW_WORK.work_b4.set(SORTED - 1);
-    DRAW_WORK.work_b8.set(SORTED);
+    crate::menu::owner::menus()
+        .screens
+        .draw_work
+        .work_b4
+        .set(SORTED - 1);
+    crate::menu::owner::menus()
+        .screens
+        .draw_work
+        .work_b8
+        .set(SORTED);
 
     Ok(())
 }
 
 /// Whether the player's part `k` (an `INSPECTED` index) is at or past its limit (signed).
 pub fn past_limit(p: PlayerCell, k: u32) -> Result<bool, BadInput> {
-    let limit = MENU_STATE.driver_stats.limits[k as usize].get() as i32;
+    let limit = crate::menu::owner::menus()
+        .screens
+        .state
+        .driver_stats
+        .limits[k as usize]
+        .get() as i32;
     Ok(p.get().damage[k as usize] as i32 >= limit)
 }
 

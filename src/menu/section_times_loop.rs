@@ -2,11 +2,6 @@
 //! `_1`, 0x466E50): the ten best times of a section (`screens::draw_section_best_times`),
 //! background `results1.png`. Nothing in RAL.EXE reaches either; reached here from the debug
 //! UI's "Screens" tab (`debug::screens`), which says the section (`EVENT_STATE.section`).
-
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::SCREEN_ITEMS;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 /// `unk_747798`'s slot, the item kept between visits.
@@ -15,22 +10,40 @@ const SLOT: usize = (0x747798 - 0x747660) / 4;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.menu_74fea8.id(),
-    saved_item: || &SCREEN_ITEMS.current[SLOT],
+    menu: || crate::menu::owner::menus().tables.menus.menu_74fea8.id(),
+    saved_item: || &crate::menu::owner::menus().screens.items.current[SLOT],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.list_7590ee.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .list_7590ee
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.list_758e4e.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .list_758e4e
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.list_7592ae.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .list_7592ae
+                    .id()
+            },
             run: false,
         },
     ],
@@ -42,7 +55,7 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::texts_store::MENU_TEXTS.results1_png_3
+        &crate::menu::owner::menus().tables.texts.results1_png_3
     }))],
     after_first_frame: &[],
     confirm: None,

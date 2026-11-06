@@ -11,7 +11,6 @@
 //! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
 use crate::errors::Refused;
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
 use crate::race::tables_store::RACE_TABLES;
 use crate::race::work_store::RACE_WORK;
 use crate::records::stages_store::RecordRef;
@@ -42,11 +41,14 @@ pub fn scaled(times: [u32; 4], section: u32) -> ([u32; 4], [u32; 2]) {
 pub fn scale_stage_times(record: RecordRef) -> Result<(), Refused> {
     use crate::logfile::{log_float::log_float, log_int::log_int};
     let section = held_section();
-    let times: [u32; 4] = read_all(&MENU_STATE.menus.class_times);
+    let times: [u32; 4] = read_all(&crate::menu::owner::menus().screens.state.menus.class_times);
     let (times, f) = scaled(times, section);
     RACE_WORK.stage_time_scales[0].set_bits(f[0]);
     RACE_WORK.stage_time_scales[1].set_bits(f[1]);
-    write_all(&MENU_STATE.menus.class_times, times);
+    write_all(
+        &crate::menu::owner::menus().screens.state.menus.class_times,
+        times,
+    );
     let text = |n: usize| &TEXTS_RVA[n];
     crate::logfile::log_write::log_nul(text(0), false, 1);
     log_int(section as i32, false, 1);

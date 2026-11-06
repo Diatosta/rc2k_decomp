@@ -14,7 +14,6 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_file::read_file;
-use crate::menu::loop_store::LOOP_FLAGS;
 use crate::pointers::GamePtr;
 use crate::saves::rebuild_car_lists::rebuild_car_lists;
 use crate::settings::TEXT_ROOM;
@@ -57,12 +56,6 @@ pub const PIECES_LEN: usize = 0xB656;
 #[rustfmt::skip]
 pub fn pieces() -> [(GamePtr, usize); 69] {
     use crate::audio::store::AUDIO;
-    use crate::menu::arcade_store::ARCADE_GAME;
-    use crate::menu::flow_store::SCREEN_FLOW;
-    use crate::menu::names_store::NAME_BUFFERS;
-    use crate::menu::option_work_store::OPTION_WORK;
-    use crate::menu::pages_store::MENU_PAGES;
-    use crate::menu::players_store::PLAYER_TABLE;
     use crate::net::store::NET;
     use crate::race::state_store::RACE_STATE;
     use crate::race::tyre_store::TYRE_CHANGE;
@@ -70,7 +63,7 @@ pub fn pieces() -> [(GamePtr, usize); 69] {
     use crate::service::read_setup_slot::SET_UPS;
 
     use crate::system::load_game_data::RUN_COUNT;
-    let names = |n: u32| GamePtr::to(&NAME_BUFFERS.player_names).offset(0x20 * n).limited(0x20);
+    let names = |n: u32| GamePtr::to(&crate::menu::owner::menus().play.names.player_names).offset(0x20 * n).limited(0x20);
     [
         (GamePtr::to(&RUN_COUNT.runs), 0x4),                            // how many times the game was run
         (GamePtr::to(&crate::gfx::owner::gfx().display.mode.menu_mode), 0x4),                     // the menus' screen mode
@@ -98,24 +91,24 @@ pub fn pieces() -> [(GamePtr, usize); 69] {
         (GamePtr::to(&KEPT[1]), 0x4),
         (GamePtr::to(&KEPT[2]), 0x4),
         (GamePtr::to(&KEPT[3]), 0x4),
-        (GamePtr::to(&PLAYER_TABLE.players[0]), 0x28C),                 // the four players' records
-        (GamePtr::to(&PLAYER_TABLE.players[1]), 0x28C),
-        (GamePtr::to(&PLAYER_TABLE.players[2]), 0x28C),
-        (GamePtr::to(&PLAYER_TABLE.players[3]), 0x28C),
-        (GamePtr::to(&OPTION_WORK.master_volume_shown), 0x4),           // the master volume shown
-        (GamePtr::to(&OPTION_WORK.music_level), 0x4),                   // the music level
-        (GamePtr::to(&OPTION_WORK.other_volume), 0x4),                  // read by the music "up" step
-        (GamePtr::to(&OPTION_WORK.menu_sounds_c), 0x4),                 // the menu sounds' third volume
-        (GamePtr::to(&OPTION_WORK.menu_sounds_a), 0x4),                 // the menu sounds' first volume
-        (GamePtr::to(&OPTION_WORK.speech_level), 0x4),                  // the speech level
-        (GamePtr::to(&OPTION_WORK.sounds_a), 0x4),                      // the sounds' first level
-        (GamePtr::to(&OPTION_WORK.sounds_b), 0x4),                      // the sounds' second level
-        (GamePtr::to(&OPTION_WORK.switch_0).unbounded(), 0x2C),         // the options pages' work copies, switch_0 .. setting_4
-        (GamePtr::to(&OPTION_WORK.audio_quality).unbounded(), 0x18),    // the audio quality, the 3D switches and the channels
-        (GamePtr::to(&MENU_PAGES.services), 0x4),                       // the services counted
-        (GamePtr::to(&SCREEN_FLOW.kept), 0x4),                          // kept by the event races
+        (GamePtr::to(&crate::menu::owner::menus().play.players.players[0]), 0x28C),                 // the four players' records
+        (GamePtr::to(&crate::menu::owner::menus().play.players.players[1]), 0x28C),
+        (GamePtr::to(&crate::menu::owner::menus().play.players.players[2]), 0x28C),
+        (GamePtr::to(&crate::menu::owner::menus().play.players.players[3]), 0x28C),
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.master_volume_shown), 0x4),           // the master volume shown
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.music_level), 0x4),                   // the music level
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.other_volume), 0x4),                  // read by the music "up" step
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.menu_sounds_c), 0x4),                 // the menu sounds' third volume
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.menu_sounds_a), 0x4),                 // the menu sounds' first volume
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.speech_level), 0x4),                  // the speech level
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.sounds_a), 0x4),                      // the sounds' first level
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.sounds_b), 0x4),                      // the sounds' second level
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.switch_0).unbounded(), 0x2C),         // the options pages' work copies, switch_0 .. setting_4
+        (GamePtr::to(&crate::menu::owner::menus().screens.option_work.audio_quality).unbounded(), 0x18),    // the audio quality, the 3D switches and the channels
+        (GamePtr::to(&crate::menu::owner::menus().tables.pages.services), 0x4),                       // the services counted
+        (GamePtr::to(&crate::menu::owner::menus().screens.flow.kept), 0x4),                          // kept by the event races
         (GamePtr::to(&RACE_STATE.settings.a8_game), 0x4),               // the race settings' first word
-        (GamePtr::to(&ARCADE_GAME.levels_won), 0x6),                    // the arcade levels won, a byte each
+        (GamePtr::to(&crate::menu::owner::menus().play.arcade.levels_won), 0x6),                    // the arcade levels won, a byte each
         (GamePtr::to(&crate::menu::owner::menus().cars.numbers.first_numbers), 0xA0),                // the first list of car numbers
         (GamePtr::to(&crate::menu::owner::menus().cars.numbers.second_numbers[..20]), 0x50),         // the second list of car numbers, 20 entries
         (GamePtr::to(&STAGE_TABLES.championship), 0x2A48),              // the championship's records
@@ -185,7 +178,10 @@ pub fn load_game_options() -> Result<bool, Refused> {
     load_options(
         crate::pointers::GamePtr::to(&PATH),
         &mut Places {
-            loaded: &LOOP_FLAGS.options_loaded,
+            loaded: &crate::menu::owner::menus()
+                .screens
+                .loop_flags
+                .options_loaded,
             pieces: &pieces,
             rebuild_car_lists: &mut || rebuild_car_lists(),
         },

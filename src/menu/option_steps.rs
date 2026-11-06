@@ -24,9 +24,6 @@
 use crate::audio::names_store::SampleNames;
 use crate::audio::store::AUDIO;
 use crate::errors::Refused;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
 
@@ -47,10 +44,10 @@ pub struct Volume {
     pub then: Then,
 }
 
-pub const MUSIC_LEVEL_RVA: &Dword = &OPTION_WORK.music_level; // dword_755688
-pub const SPEECH_LEVEL_RVA: &Dword = &OPTION_WORK.speech_level; // dword_755698
-pub const SOUNDS_A_RVA: &Dword = &OPTION_WORK.sounds_a; // dword_75569C
-pub const SOUNDS_B_RVA: &Dword = &OPTION_WORK.sounds_b; // dword_7556A0
+pub const MUSIC_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.music_level; // dword_755688
+pub const SPEECH_LEVEL_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level; // dword_755698
+pub const SOUNDS_A_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.sounds_a; // dword_75569C
+pub const SOUNDS_B_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.sounds_b; // dword_7556A0
 /// The Rust version of a volume step. What it leaves in registers is read by none of its
 /// callers (the item call sites have nothing live after the call).
 pub fn volume_step(v: Volume) {
@@ -71,7 +68,11 @@ pub fn volume_step(v: Volume) {
             value as u32,
         ),
         Then::Sound(sound) => {
-            SCREEN_FLOW.menu_sounds_volume.set(value as u32);
+            crate::menu::owner::menus()
+                .screens
+                .flow
+                .menu_sounds_volume
+                .set(value as u32);
             crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
         }
     }
@@ -91,16 +92,36 @@ pub fn next_screen_mode() {
         .choices
         .resolution
         .set(mode);
-    let changed = OPTION_WORK.mode_changed.get() ^ 1;
-    OPTION_WORK.mode_changed.set(changed);
+    let changed = crate::menu::owner::menus()
+        .screens
+        .option_work
+        .mode_changed
+        .get()
+        ^ 1;
+    crate::menu::owner::menus()
+        .screens
+        .option_work
+        .mode_changed
+        .set(changed);
 }
 
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
 pub fn step_texture_setting(up: bool) {
     // Converted: `rc2k_core::menu::steps::texture`.
-    let v = rc2k_core::menu::steps::texture(OPTION_WORK.setting_3.get(), up);
-    OPTION_WORK.setting_3.set(v);
+    let v = rc2k_core::menu::steps::texture(
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .setting_3
+            .get(),
+        up,
+    );
+    crate::menu::owner::menus()
+        .screens
+        .option_work
+        .setting_3
+        .set(v);
     RACE_STATE.settings.setting_3.set(v);
 }
 
@@ -114,14 +135,14 @@ pub struct Colour {
 }
 
 pub const COLOUR_A: Colour = Colour {
-    number: &SCREEN_FLOW.start_section,
-    table_at: 21,                     // dword_758A66
-    pick: &CAPTIONS.caption_lists[7], // dword_758A2E
+    number: &crate::menu::owner::MENUS.screens.flow.start_section,
+    table_at: 21,                                                      // dword_758A66
+    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[7], // dword_758A2E
 };
 pub const COLOUR_B: Colour = Colour {
-    number: &SCREEN_FLOW.start_section_a8,
-    table_at: 13,                     // dword_758A46
-    pick: &CAPTIONS.caption_lists[8], // dword_758A32
+    number: &crate::menu::owner::MENUS.screens.flow.start_section_a8,
+    table_at: 13,                                                      // dword_758A46
+    pick: &crate::menu::owner::MENUS.tables.captions.caption_lists[8], // dword_758A32
 };
 
 /// `menu::next_colour_a` and the three others.
@@ -132,8 +153,8 @@ pub fn step_colour(c: Colour, up: bool) {
     // `CAPTIONS.caption_lists` from `table_at`: the original does not check `n` (a kept
     // number past 6 steps on from it); the address is resolved by `MOVED`.
     let pick = crate::session::read_on_in(
-        &CAPTIONS,
-        &CAPTIONS.caption_lists,
+        &crate::menu::owner::menus().tables.captions,
+        &crate::menu::owner::menus().tables.captions.caption_lists,
         c.table_at.wrapping_add(n as usize),
         "a caption list",
     )
@@ -145,12 +166,15 @@ pub fn step_colour(c: Colour, up: bool) {
 
 /// (the work value, its place among `g_audioOptions`' six choices and six applied).
 const CHOICES: [(&Dword, usize); 6] = [
-    (&OPTION_WORK.audio_quality, 0), // quality
-    (&OPTION_WORK.channels, 1),      // channels
-    (&OPTION_WORK.dolby, 5),         // Dolby
-    (&OPTION_WORK.a3d, 4),           // A3D
-    (&OPTION_WORK.eax, 3),           // EAX
-    (&OPTION_WORK.ds3d, 2),          // DS3D
+    (
+        &crate::menu::owner::MENUS.screens.option_work.audio_quality,
+        0,
+    ), // quality
+    (&crate::menu::owner::MENUS.screens.option_work.channels, 1), // channels
+    (&crate::menu::owner::MENUS.screens.option_work.dolby, 5),    // Dolby
+    (&crate::menu::owner::MENUS.screens.option_work.a3d, 4),      // A3D
+    (&crate::menu::owner::MENUS.screens.option_work.eax, 3),      // EAX
+    (&crate::menu::owner::MENUS.screens.option_work.ds3d, 2),     // DS3D
 ];
 /// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
 pub fn apply_audio_choices() -> Result<(), Refused> {

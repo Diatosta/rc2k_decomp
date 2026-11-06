@@ -7,10 +7,9 @@
 //! seven more).
 
 use crate::errors::Refused;
-use crate::menu::players_store::PLAYER_TABLE;
 
 pub fn clear_players_284() -> Result<(), Refused> {
-    for player in &PLAYER_TABLE.players {
+    for player in &crate::menu::owner::menus().play.players.players {
         player.update(|p| p.hud_bits = -1);
     }
     Ok(())

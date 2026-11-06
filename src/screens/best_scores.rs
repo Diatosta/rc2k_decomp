@@ -8,13 +8,8 @@
 //! `rc2k_core::screens::best_scores` draws through `game_screen::GameScreen`.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::arcade_store::ARCADE_GAME;
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_flow::Fault;
 use crate::menu::event_flow::StageTable;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::GameScreen;
 use crate::screens::game_screen::{Held, HeldText};
@@ -22,7 +17,7 @@ use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::best_scores::{Row, Rows};
 
-const PAGE: &Dword = &MENU_PAGES.scores_page; // dword_755240
+const PAGE: &Dword = &crate::menu::owner::MENUS.tables.pages.scores_page; // dword_755240
 /// Which typed table a page shows.
 pub enum Source {
     /// The best scores (`saves::best_times::SCORES`): the name, the score, the
@@ -80,7 +75,7 @@ pub const CLASS_TIMES: Table = Table {
 pub const MARKED_CLASS_TIMES: Table = Table {
     at: Source::LevelScores,
     keeps_y: true,
-    group_at: Some(&ARCADE_GAME.level),
+    group_at: Some(&crate::menu::owner::MENUS.play.arcade.level),
     group_fixed: None,
     highlight: true,
     sprite_dy: 4,
@@ -110,8 +105,8 @@ pub fn draw_scores(t: &Table, canvas: &mut dyn Canvas) -> Result<(), Refused> {
             (Some(g), _) => g,
             (None, Some(a)) => a.get(),
             (None, None) => crate::session::read_on_in(
-                &MENU_LISTS,
-                &MENU_LISTS.page_titles_b,
+                &crate::menu::owner::menus().tables.lists,
+                &crate::menu::owner::menus().tables.lists.page_titles_b,
                 PAGE.get() as usize,
                 "best scores: a game value",
             )?,
@@ -206,8 +201,8 @@ pub fn best_scores_caption() -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::fit` (through `car_caption::put_string`); refused
     // where the original writes past the caption's 0x100 bytes.
     let id = crate::session::read_on_in(
-        &MENU_LISTS,
-        &MENU_LISTS.page_titles_a,
+        &crate::menu::owner::menus().tables.lists,
+        &crate::menu::owner::menus().tables.lists.page_titles_a,
         PAGE.get() as usize,
         "best scores: a game value",
     )?;
@@ -222,7 +217,9 @@ pub fn best_scores_caption() -> Result<(), Refused> {
 /// m = n + 19 (`strings::append_u32`, `append_minus`). Every register kept.
 pub fn replay_range_caption() -> Result<(), BadInput> {
     // Converted: `rc2k_core::screens::best_scores::range_caption`.
-    let mut bytes = rc2k_core::screens::best_scores::range_caption(MENU_PAGES.replay_page.get());
+    let mut bytes = rc2k_core::screens::best_scores::range_caption(
+        crate::menu::owner::menus().tables.pages.replay_page.get(),
+    );
     bytes.push(0);
     crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption)
         .write_bytes(&bytes, "the caption")
@@ -242,12 +239,14 @@ pub struct StageTimes {
 }
 
 fn champ_records() -> Result<RecordTable, BadInput> {
-    crate::records::stages_store::STAGE_TABLES
-        .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())
+    crate::records::stages_store::STAGE_TABLES.group_event_table(
+        crate::menu::owner::menus().screens.event.stage_group.get(),
+        crate::menu::owner::menus().screens.event.stage_sub.get(),
+    )
 }
 
 fn champ_table() -> &'static StageTable {
-    if EVENT_STATE.stage_group.get() == 1 {
+    if crate::menu::owner::menus().screens.event.stage_group.get() == 1 {
         &crate::saves::best_times::STAGE_TIMES_ALT
     } else {
         &crate::saves::best_times::TIME_TRIAL_TIMES
@@ -255,7 +254,8 @@ fn champ_table() -> &'static StageTable {
 }
 
 fn rally_records() -> Result<RecordTable, BadInput> {
-    crate::records::stages_store::STAGE_TABLES.level_table(ARCADE_GAME.level.get())
+    crate::records::stages_store::STAGE_TABLES
+        .level_table(crate::menu::owner::menus().play.arcade.level.get())
 }
 
 fn rally_table() -> &'static StageTable {
@@ -265,14 +265,14 @@ fn rally_table() -> &'static StageTable {
 /// `screens::draw_stage_times`' (0x48D0F2).
 pub const STAGE_TIMES: StageTimes = StageTimes {
     records: champ_records,
-    record: &EVENT_STATE.stage_number,
+    record: &crate::menu::owner::MENUS.screens.event.stage_number,
     table: champ_table,
     rally: false,
 };
 /// `screens::draw_rally_stage_times`' (0x48A948).
 pub const RALLY_STAGE_TIMES: StageTimes = StageTimes {
     records: rally_records,
-    record: &ARCADE_GAME.stage,
+    record: &crate::menu::owner::MENUS.play.arcade.stage,
     table: rally_table,
     rally: true,
 };
@@ -374,8 +374,8 @@ pub fn draw_time_rows(
     drawn
 }
 
-const SECTION: &Dword = &EVENT_STATE.section; // section
-const INDEX: &Dword = &EVENT_STATE.index; // index
+const SECTION: &Dword = &crate::menu::owner::MENUS.screens.event.section; // section
+const INDEX: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
 
 /// `records::find_record` of the record table: the section's record `index`.
 pub fn record_at(index: u32) -> Result<RecordRef, crate::errors::BadInput> {
@@ -407,10 +407,10 @@ pub fn draw_record_heading(canvas: &mut dyn Canvas) -> Result<(), Refused> {
             return Err(BadInput("a section past the record table").into());
         }
         let first = record_at(0)?;
-        let id = if CHAMP_VIEW.event_mode.get() == 0x13 {
+        let id = if crate::menu::owner::menus().play.champ_view.event_mode.get() == 0x13 {
             crate::session::read_on_in(
-                &MENU_LISTS,
-                &MENU_LISTS.section_titles,
+                &crate::menu::owner::menus().tables.lists,
+                &crate::menu::owner::menus().tables.lists.section_titles,
                 SECTION.get() as usize,
                 "best scores: a game value",
             )?
@@ -464,7 +464,7 @@ pub fn draw_record_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
 /// `screens::draw_event_best_scores`' (0x4A8DBF): group `dword_7558F4`, the player's own
 /// (+0x14 1) in the highlight fonts.
 pub const EVENT_BEST_SCORES: Table = Table {
-    group_at: Some(&EVENT_STATE.class),
+    group_at: Some(&crate::menu::owner::MENUS.screens.event.class),
     highlight: true,
     ..BEST_SCORES
 };
@@ -489,12 +489,12 @@ pub fn draw_scores_with_heading(
 ) -> Result<(), Refused> {
     t.at.need("no best scores table")?;
     // Converted: `rc2k_core::screens::best_scores::scores_heading`, `heading`.
-    let section = (CHAMP_VIEW.event_mode.get() == 0x13)
+    let section = (crate::menu::owner::menus().play.champ_view.event_mode.get() == 0x13)
         .then(|| {
             crate::session::read_on_in(
-                &MENU_LISTS,
-                &MENU_LISTS.section_titles,
-                EVENT_STATE.section.get() as usize,
+                &crate::menu::owner::menus().tables.lists,
+                &crate::menu::owner::menus().tables.lists.section_titles,
+                crate::menu::owner::menus().screens.event.section.get() as usize,
                 "a section title",
             )
         })
@@ -503,7 +503,7 @@ pub fn draw_scores_with_heading(
     let id = rc2k_core::screens::best_scores::scores_heading(
         &mut screen,
         section,
-        event.then(|| EVENT_STATE.class.get()),
+        event.then(|| crate::menu::owner::menus().screens.event.class.get()),
     );
     rc2k_core::screens::best_scores::heading(&mut screen, id, None)?;
     draw_scores(t, screen.canvas)

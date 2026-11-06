@@ -29,9 +29,7 @@
 //! `routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::name_lists::NAME_LEN;
-use crate::menu::names_store::NAME_BUFFERS;
 use crate::net::store::NET;
 use crate::race::tyre_store::TYRE_CHANGE;
 use crate::session::Bytes;
@@ -121,28 +119,55 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
     RUN_COUNT.runs.set(RUN_COUNT.runs.get().wrapping_add(1));
     outside(Call::ReadDriverNames)?;
     outside(Call::ApplyPatches)?;
-    if removes_secret_cars(CHEAT_VARS.all_secret_cars.get()) {
+    if removes_secret_cars(
+        crate::menu::owner::menus()
+            .play
+            .cheats
+            .all_secret_cars
+            .get(),
+    ) {
         outside(Call::RemoveSecretCars)?;
     }
-    if all_secret_cars(CHEAT_VARS.all_secret_cars.get()) {
-        CHEAT_VARS
+    if all_secret_cars(
+        crate::menu::owner::menus()
+            .play
             .cheats
-            .set(CHEAT_VARS.cheats.get() | ALL_CARS_CHEATS);
+            .all_secret_cars
+            .get(),
+    ) {
+        crate::menu::owner::menus()
+            .play
+            .cheats
+            .cheats
+            .set(crate::menu::owner::menus().play.cheats.cheats.get() | ALL_CARS_CHEATS);
         outside(Call::ApplyCheats)?;
     }
 
     for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
         // The player's name bytes at their slot in the names buffer.
-        let name = crate::pointers::GamePtr::to(&NAME_BUFFERS.player_names)
-            .offset((player * NAME_LEN) as u32);
-        if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
+        let name =
+            crate::pointers::GamePtr::to(&crate::menu::owner::menus().play.names.player_names)
+                .offset((player * NAME_LEN) as u32);
+        if crate::menu::owner::menus()
+            .play
+            .names
+            .player_names
+            .get(player * NAME_LEN)
+            != 0
+        {
             continue;
         }
         if player == 0 {
             let place = name;
             outside(Call::UserName(place))?;
             copy_printable(place, place, USER_NAME_ROOM)?;
-            if NAME_BUFFERS.player_names.get(player * NAME_LEN) != 0 {
+            if crate::menu::owner::menus()
+                .play
+                .names
+                .player_names
+                .get(player * NAME_LEN)
+                != 0
+            {
                 continue;
             }
         }

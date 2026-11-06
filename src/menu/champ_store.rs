@@ -65,29 +65,33 @@ pub struct ChampView {
 }
 
 /// First values the image's (`tests::champ_view_starts_as_the_games`).
-pub static CHAMP_VIEW: ChampView = ChampView {
-    count: Dword::new(0x0),
-    first_row: Dword::new(0x0),
-    row_end: Dword::new(0x0),
-    ranked_player: Dword::new(0x1),
-    last_key_time: Dword::new(0x0),
-    cursor_time: Dword::new(0x0),
-    _gap_7556cc: Bytes::new(with_runs::<4>(&[(0x0, &[0x01])])),
-    event_mode: Dword::new(0x2),
-    best_scores: Dword::new(0),
-    stage_best_times: Dword::new(0),
-    level_best_scores: Dword::new(0),
-    course_best_times: Dword::new(0),
-    stage_best_times_alt: Dword::new(0),
-    time_trial_best_times: Dword::new(0),
-    ranked_times: Dword::new(0),
-    champ_history: Dword::new(0),
-    summary: Dword::new(0),
-    switch_f8: Dword::new(0x1),
-    switch_fc: Dword::new(0x1),
-    stage_mode: Dword::new(0x1),
-    _gap_755704: Bytes::new([0; 128]),
-};
+impl ChampView {
+    pub const fn new() -> Self {
+        ChampView {
+            count: Dword::new(0x0),
+            first_row: Dword::new(0x0),
+            row_end: Dword::new(0x0),
+            ranked_player: Dword::new(0x1),
+            last_key_time: Dword::new(0x0),
+            cursor_time: Dword::new(0x0),
+            _gap_7556cc: Bytes::new(with_runs::<4>(&[(0x0, &[0x01])])),
+            event_mode: Dword::new(0x2),
+            best_scores: Dword::new(0),
+            stage_best_times: Dword::new(0),
+            level_best_scores: Dword::new(0),
+            course_best_times: Dword::new(0),
+            stage_best_times_alt: Dword::new(0),
+            time_trial_best_times: Dword::new(0),
+            ranked_times: Dword::new(0),
+            champ_history: Dword::new(0),
+            summary: Dword::new(0),
+            switch_f8: Dword::new(0x1),
+            switch_fc: Dword::new(0x1),
+            stage_mode: Dword::new(0x1),
+            _gap_755704: Bytes::new([0; 128]),
+        }
+    }
+}
 
 /// IDA 0x7556B4, the first byte of the piece.
 pub const START: usize = 0x7556B4;
@@ -97,7 +101,7 @@ pub const END: usize = 0x755784;
 /// Where IDA 0x7556B4 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn champ_view_addr() -> u32 {
-    crate::pointers::game_address(&raw const CHAMP_VIEW)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.champ_view)
 }
 
 #[cfg(test)]

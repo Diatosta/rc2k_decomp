@@ -13,9 +13,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::state_store::MENU_STATE;
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
@@ -26,8 +23,8 @@ pub fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         let mut ticks = Vec::new();
         loop {
             let tick = crate::session::read_on_in(
-                &MENU_LISTS,
-                &MENU_LISTS.inspection_faults,
+                &crate::menu::owner::menus().tables.lists,
+                &crate::menu::owner::menus().tables.lists.inspection_faults,
                 ticks.len(),
                 "a checklist tick",
             )?;
@@ -38,8 +35,17 @@ pub fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         }
         rc2k_core::screens::settings_pages::options_checklist(
             &mut crate::screens::game_screen::SettingsScreen::new(canvas),
-            EVENT_STATE.current_player.get(),
-            MENU_STATE.driver_stats.score.get() as i32,
+            crate::menu::owner::menus()
+                .screens
+                .event
+                .current_player
+                .get(),
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .driver_stats
+                .score
+                .get() as i32,
             &ticks,
         )
     }

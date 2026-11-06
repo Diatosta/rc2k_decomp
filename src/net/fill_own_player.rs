@@ -12,9 +12,7 @@
 //! Callers: `net::start_link`, `net::open_lobby`.
 
 use crate::errors::Refused;
-use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::player::Player;
-use crate::menu::players_store::PLAYER_TABLE;
 use crate::net::lobby::copy_printable;
 use crate::net::store::NET;
 use crate::race::state_store::RACE_STATE;
@@ -52,18 +50,33 @@ const SETTINGS: [Setting; 13] = [
 ];
 /// Copied after the HUD's bits: (to, from).
 const MORE: [(&Dword, &Dword); 5] = [
-    (&RACE_STATE.settings.setting_0, &OPTION_WORK.setting_0),
-    (&RACE_STATE.settings.setting_1, &OPTION_WORK.setting_1),
-    (&RACE_STATE.settings.setting_2, &OPTION_WORK.setting_2),
-    (&RACE_STATE.settings.setting_3, &OPTION_WORK.setting_3),
-    (&RACE_STATE.settings.setting_4, &OPTION_WORK.setting_4),
+    (
+        &RACE_STATE.settings.setting_0,
+        &crate::menu::owner::MENUS.screens.option_work.setting_0,
+    ),
+    (
+        &RACE_STATE.settings.setting_1,
+        &crate::menu::owner::MENUS.screens.option_work.setting_1,
+    ),
+    (
+        &RACE_STATE.settings.setting_2,
+        &crate::menu::owner::MENUS.screens.option_work.setting_2,
+    ),
+    (
+        &RACE_STATE.settings.setting_3,
+        &crate::menu::owner::MENUS.screens.option_work.setting_3,
+    ),
+    (
+        &RACE_STATE.settings.setting_4,
+        &crate::menu::owner::MENUS.screens.option_work.setting_4,
+    ),
 ];
 
 /// The Rust version.
 pub fn fill_own_player(name: impl Into<crate::place::Place>) -> Result<(), Refused> {
     copy_printable(name, &NET.player_name, 0x1F)?;
     // Converted: `rc2k_core::net::record::own_record`.
-    let player = PLAYER_TABLE.players[0].get();
+    let player = crate::menu::owner::menus().play.players.players[0].get();
     let own = record::own_record(
         player.car_number as u8,
         player.gearing as u8,

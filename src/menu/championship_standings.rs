@@ -13,10 +13,8 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::standings::Which;
 use crate::menu::standings_steps::number_all;
-use crate::menu::state_store::MENU_STATE;
 
 /// The Rust version (see the header).
 pub fn championship_standings() -> Result<(), Refused> {
@@ -24,7 +22,7 @@ pub fn championship_standings() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::results_pages` (`class_pages_only`, `standings_sorts`).
     use rc2k_core::menu::results_pages::{Sort, class_pages_only, standings_sorts};
     crate::menu::standings_b_from_all::standings_b_from_all()?;
-    let a8 = class_pages_only(CHAMP_VIEW.event_mode.get());
+    let a8 = class_pages_only(crate::menu::owner::menus().play.champ_view.event_mode.get());
     for sort in standings_sorts(a8) {
         match sort {
             Sort::ByFigure => fig::sort_standings_b_by_figure()?,
@@ -35,12 +33,22 @@ pub fn championship_standings() -> Result<(), Refused> {
     if !a8 {
         number_all(Which::B)?;
     }
-    MENU_STATE.menus.standings_shown.set(1u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .menus
+        .standings_shown
+        .set(1u32);
     if a8 {
         crate::menu::class_championship_pass::class_championship_pass()?;
     } else {
         crate::menu::show_championship_standings::show_championship_standings()?;
     }
-    MENU_STATE.menus.standings_shown.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .menus
+        .standings_shown
+        .set(0u32);
     Ok(())
 }

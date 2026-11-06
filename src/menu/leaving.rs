@@ -1,11 +1,5 @@
 //! The game's leaving switches and yes/no question as `rc2k_core::menu::leaving`'s
 //! `Leaving` and `Question`: read, changed, written back whole.
-
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::session::Dword;
 use rc2k_core::menu::leaving::{Leaving, Question};
 
@@ -13,11 +7,11 @@ use rc2k_core::menu::leaving::{Leaving, Question};
 /// `dword_755569` and `dword_755A0C`.
 fn leaving_cells() -> [&'static Dword; 5] {
     [
-        &LOOP_FLAGS.went_back,
-        &LOOP_FLAGS.back,
-        &LOOP_FLAGS.ended_b,
-        &LOOP_FLAGS.ended_a,
-        &DRAW_WORK.work_0c,
+        &crate::menu::owner::menus().screens.loop_flags.went_back,
+        &crate::menu::owner::menus().screens.loop_flags.back,
+        &crate::menu::owner::menus().screens.loop_flags.ended_b,
+        &crate::menu::owner::menus().screens.loop_flags.ended_a,
+        &crate::menu::owner::menus().screens.draw_work.work_0c,
     ]
 }
 
@@ -25,9 +19,9 @@ fn leaving_cells() -> [&'static Dword; 5] {
 /// `g_yesNoAnswer` (1 = yes, 0 = no) and `dword_758806` (the screen was left).
 fn question_cells() -> [&'static Dword; 3] {
     [
-        &SCREEN_FLOW.asking,
-        &MENU_PAGES.yes_no_answer,
-        &CAPTIONS.screen_left,
+        &crate::menu::owner::menus().screens.flow.asking,
+        &crate::menu::owner::menus().tables.pages.yes_no_answer,
+        &crate::menu::owner::menus().tables.captions.screen_left,
     ]
 }
 

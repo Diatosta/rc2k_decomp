@@ -14,7 +14,6 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::menu::state_store::MENU_STATE;
 use crate::physics::tables_store::PHYSICS;
 
 // ---- game data ----
@@ -26,21 +25,74 @@ pub fn step_carousel() -> Result<(), BadInput> {
     // anything is written.
     use rc2k_core::menu::navigation::{Turn, passed, spin};
     let clock: u32 = PHYSICS.scene_clock.bits();
-    let passed = passed(clock, MENU_STATE.carousel.last_clock.get());
+    let passed = passed(
+        clock,
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .carousel
+            .last_clock
+            .get(),
+    );
     let t = Turn {
-        count: MENU_STATE.carousel.count.get() as i32,
-        value: MENU_STATE.carousel.front.get() as i32,
-        way: MENU_STATE.carousel.direction.get(),
-        step: MENU_STATE.carousel.angle.get(),
+        count: crate::menu::owner::menus()
+            .screens
+            .state
+            .carousel
+            .count
+            .get() as i32,
+        value: crate::menu::owner::menus()
+            .screens
+            .state
+            .carousel
+            .front
+            .get() as i32,
+        way: crate::menu::owner::menus()
+            .screens
+            .state
+            .carousel
+            .direction
+            .get(),
+        step: crate::menu::owner::menus()
+            .screens
+            .state
+            .carousel
+            .angle
+            .get(),
     };
     let turned = spin(t, passed)?;
-    MENU_STATE.carousel.last_clock.set(clock);
-    MENU_STATE.carousel.passed.set(passed);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .last_clock
+        .set(clock);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .passed
+        .set(passed);
     if t.way != 0 {
-        MENU_STATE.carousel.angle.set(turned.step);
-        MENU_STATE.carousel.direction.set(turned.way);
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .carousel
+            .angle
+            .set(turned.step);
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .carousel
+            .direction
+            .set(turned.way);
         if turned.value != t.value {
-            MENU_STATE.carousel.front.set(turned.value as u32);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .carousel
+                .front
+                .set(turned.value as u32);
         }
     }
     Ok(())

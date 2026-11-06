@@ -1,5 +1,4 @@
 use crate::errors::{BadInput, Refused};
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_flow::Fault;
 use crate::race::state_store::RACE_STATE;
 use crate::session::Dword;
@@ -63,8 +62,8 @@ fn cell(v: Var) -> Option<&'static Dword> {
         Var::SetUpDriver => &RACE_STATE.results.finish_kind,
         Var::SetUpDriver2 => &RACE_STATE.settings.car_kind_current,
         Var::SetUpSection => &RACE_STATE.results.stage_index,
-        Var::EventMode => &CHAMP_VIEW.event_mode,
-        Var::Section => &crate::menu::event_store::EVENT_STATE.section,
+        Var::EventMode => &crate::menu::owner::menus().play.champ_view.event_mode,
+        Var::Section => &crate::menu::owner::menus().screens.event.section,
         _ => return None,
     })
 }

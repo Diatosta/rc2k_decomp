@@ -5,7 +5,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
-use crate::menu::loop_store::LOOP_FLAGS;
 use crate::pointers::GamePtr;
 use crate::records::stages_store::RecordRef;
 use crate::records::trakpak_entry::record_entry;
@@ -99,7 +98,9 @@ pub fn draw_stage_body_in(
         let made = Entry {
             // `MENU_LISTS.durations` (dword_75A49A) has 37 entries; the original's index
             // has no bound (fixed: refused).
-            duration: crate::menu::lists_store::MENU_LISTS
+            duration: crate::menu::owner::menus()
+                .tables
+                .lists
                 .durations
                 .get(f(8) as usize)
                 .ok_or(BadInput("a stage duration past the 37"))?
@@ -195,6 +196,11 @@ pub fn draw_records_for_group(
 /// The string id (+0x14) of item `n` (from 0) of the current menu, or None without a menu
 /// (or past its end).
 pub fn menu_item_id(n: u32) -> Option<&'static crate::session::Dword> {
-    let menu = LOOP_FLAGS.menu.get().ok()?;
+    let menu = crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .menu
+        .get()
+        .ok()?;
     menu.items().get(n as usize).map(|i| &i.string)
 }

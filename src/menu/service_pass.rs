@@ -20,11 +20,8 @@
 //! taking-part player's car without its table, before anything.
 
 use crate::errors::Refused;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
 // service::service_area_loop
 
 /// The Rust version (see the header).
@@ -33,31 +30,64 @@ pub fn service_pass() -> Result<(), Refused> {
     // pauses, `goes_on`).
     use rc2k_core::menu::passes;
     let players = counted_players()?;
-    let due = { EVENT_STATE.service_due.get() } == 1;
+    let due = { crate::menu::owner::menus().screens.event.service_due.get() } == 1;
     for &p in &players {
         if due && passes::takes_part(p.get().entry) {
             crate::menu::driver_stats::car_table(p)?;
         }
     }
-    MENU_STATE.driver_stats.money.set(0u32);
-    EVENT_STATE
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .driver_stats
+        .money
+        .set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
         .service_minutes
-        .set(passes::more_minutes(EVENT_STATE.service_minutes.get()));
-    EVENT_STATE.event_goes_on.set(1u32);
+        .set(passes::more_minutes(
+            crate::menu::owner::menus()
+                .screens
+                .event
+                .service_minutes
+                .get(),
+        ));
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .event_goes_on
+        .set(1u32);
     'all: {
         for (n, &p) in players.iter().enumerate() {
-            EVENT_STATE.current_player.set(n as u32);
+            crate::menu::owner::menus()
+                .screens
+                .event
+                .current_player
+                .set(n as u32);
             let entry = p.get().entry;
-            if !passes::serviced(entry, || EVENT_STATE.service_due.get()) {
+            if !passes::serviced(entry, || {
+                crate::menu::owner::menus().screens.event.service_due.get()
+            }) {
                 continue;
             }
             crate::menu::inspection_screen::inspection_screen()?;
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in()?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
-            MENU_STATE.driver_stats.repair_time.set(0);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .driver_stats
+                .repair_time
+                .set(0);
             crate::menu::driver_stats::driver_stats()?;
-            MENU_STATE.menus.service_flag.set(0);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .menus
+                .service_flag
+                .set(0);
             crate::menu::reset_driver_condition::reset_driver_condition()?;
             crate::service::clear_repair_flags::clear_repair_flags()?;
             for _ in 0..passes::DROPPED_KEYS {
@@ -67,7 +97,7 @@ pub fn service_pass() -> Result<(), Refused> {
                 &crate::service::service_area_loop::SCREEN,
                 &Entry::default(),
             )?;
-            if MENU_PAGES.yes_no_answer.get() == 1 {
+            if crate::menu::owner::menus().tables.pages.yes_no_answer.get() == 1 {
                 break 'all;
             }
             crate::service::apply_repairs::apply_repairs_in_game()?;
@@ -78,20 +108,43 @@ pub fn service_pass() -> Result<(), Refused> {
                     &crate::menu::inspection_area_loop::SCREEN,
                     &Entry::default(),
                 )?;
-                if MENU_PAGES.yes_no_answer.get() == 1 {
+                if crate::menu::owner::menus().tables.pages.yes_no_answer.get() == 1 {
                     break 'all;
                 }
-                EVENT_STATE
-                    .event_out
-                    .set(EVENT_STATE.event_out.get().wrapping_add(1));
+                crate::menu::owner::menus().screens.event.event_out.set(
+                    crate::menu::owner::menus()
+                        .screens
+                        .event
+                        .event_out
+                        .get()
+                        .wrapping_add(1),
+                );
             }
-            let spent = passes::spent(MENU_STATE.driver_stats.money.get());
+            let spent = passes::spent(
+                crate::menu::owner::menus()
+                    .screens
+                    .state
+                    .driver_stats
+                    .money
+                    .get(),
+            );
             p.update(|q| q.service_spent = spent);
         }
-        if !passes::goes_on(EVENT_STATE.event_out.get(), PLAYER_COUNT_RVA.get()) {
-            EVENT_STATE.event_goes_on.set(0u32);
+        if !passes::goes_on(
+            crate::menu::owner::menus().screens.event.event_out.get(),
+            PLAYER_COUNT_RVA.get(),
+        ) {
+            crate::menu::owner::menus()
+                .screens
+                .event
+                .event_goes_on
+                .set(0u32);
         }
     }
-    EVENT_STATE.service_due.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .service_due
+        .set(0u32);
     Ok(())
 }

@@ -10,7 +10,6 @@
 //! Caller: `sub_436790` (0x4367E3). Refuses what `set_flag_5165a4` refuses.
 
 use crate::errors::Refused;
-use crate::menu::cheats_store::CHEAT_VARS;
 use crate::physics::car_store::CAR;
 use crate::physics::listed_car_flags::set_flag;
 use crate::race::owner_frame::Frame;
@@ -24,7 +23,7 @@ pub fn start_go_notice(frame: &Frame) -> Result<(), Refused> {
         countdown: c.time_left.get(),
         gone: c.go_stand_timer.get(),
         finished: c.finish_flag.get(),
-        cheats: CHEAT_VARS.cheats.get(),
+        cheats: crate::menu::owner::menus().play.cheats.cheats.get(),
     };
     if !facts.go_due() {
         return Ok(());

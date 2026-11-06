@@ -57,7 +57,7 @@ pub fn load_stage() -> Result<(), Refused> {
     {
         // As `menu::show_loading_picture`.
         crate::gfx::show_picture_file::show_picture_file(crate::pointers::GamePtr::to(
-            &crate::menu::texts_store::MENU_TEXTS.loading_pcx,
+            &crate::menu::owner::menus().tables.texts.loading_pcx,
         ))?;
     }
     race.replay.replay_frames.last_kept.set(u32::MAX);

@@ -23,17 +23,20 @@
 //! Refuses (before anything) no current player (or one past the four).
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::state_store::MENU_STATE;
 use crate::pointers::GamePtr;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
 /// The current player's record.
 fn player() -> Result<crate::menu::standings::PlayerCell, Refused> {
-    crate::menu::player::player(EVENT_STATE.current_player.get())
-        .ok_or_else(|| BadInput("no current player (or one past the four)").into())
+    crate::menu::player::player(
+        crate::menu::owner::menus()
+            .screens
+            .event
+            .current_player
+            .get(),
+    )
+    .ok_or_else(|| BadInput("no current player (or one past the four)").into())
 }
 
 // ---- the Rust versions ----
@@ -79,35 +82,67 @@ pub fn toggle_controller_mode() -> Result<(), Refused> {
 }
 
 pub fn next_scores_page() {
-    MENU_PAGES
+    crate::menu::owner::menus()
+        .tables
+        .pages
         .scores_page
-        .set(steps::scores_page(MENU_PAGES.scores_page.get(), true));
+        .set(steps::scores_page(
+            crate::menu::owner::menus().tables.pages.scores_page.get(),
+            true,
+        ));
 }
 
 pub fn previous_scores_page() {
-    MENU_PAGES
+    crate::menu::owner::menus()
+        .tables
+        .pages
         .scores_page
-        .set(steps::scores_page(MENU_PAGES.scores_page.get(), false));
+        .set(steps::scores_page(
+            crate::menu::owner::menus().tables.pages.scores_page.get(),
+            false,
+        ));
 }
 
 pub fn previous_replay_range() -> Result<(), BadInput> {
-    MENU_PAGES
+    crate::menu::owner::menus()
+        .tables
+        .pages
         .replay_page
-        .set(steps::replay_range(MENU_PAGES.replay_page.get(), false));
+        .set(steps::replay_range(
+            crate::menu::owner::menus().tables.pages.replay_page.get(),
+            false,
+        ));
     crate::screens::best_scores::replay_range_caption()
 }
 
 pub fn next_replay_range() -> Result<(), BadInput> {
-    MENU_PAGES
+    crate::menu::owner::menus()
+        .tables
+        .pages
         .replay_page
-        .set(steps::replay_range(MENU_PAGES.replay_page.get(), true));
+        .set(steps::replay_range(
+            crate::menu::owner::menus().tables.pages.replay_page.get(),
+            true,
+        ));
     crate::screens::best_scores::replay_range_caption()
 }
 
 /// `menu::toggle_caption_choice`: the choice flipped and its caption written.
 pub fn toggle_caption_choice() -> Result<(), BadInput> {
-    let choice = steps::flip(MENU_STATE.menus.caption_choice.get());
-    MENU_STATE.menus.caption_choice.set(choice);
+    let choice = steps::flip(
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .menus
+            .caption_choice
+            .get(),
+    );
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .menus
+        .caption_choice
+        .set(choice);
     let mut cursor = GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption);
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
     let fault = crate::menu::event_flow::Fault::default();
@@ -127,9 +162,21 @@ pub fn leave_with_carry() {
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
 /// one.
 pub fn player_car_specs(n: u32) -> Result<(), Refused> {
-    let kept = EVENT_STATE.current_player.get();
-    EVENT_STATE.current_player.set(n);
+    let kept = crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .get();
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .set(n);
     let done = { crate::menu::show_car_specs::show_car_specs() };
-    EVENT_STATE.current_player.set(kept);
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .set(kept);
     done
 }

@@ -328,12 +328,12 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"allsecretcars",
         0x758710,
-        dword!(crate::menu::cheats_store::CHEAT_VARS.all_secret_cars),
+        dword!(crate::menu::owner::menus().play.cheats.all_secret_cars),
     ),
     (
         b"secretcar",
         0x758710,
-        dword!(crate::menu::cheats_store::CHEAT_VARS.all_secret_cars),
+        dword!(crate::menu::owner::menus().play.cheats.all_secret_cars),
     ),
     (
         b"usesavegamekeys",
@@ -347,7 +347,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"sensiblesaving",
         0x75AAD8,
-        dword!(crate::menu::state_store::MENU_STATE.menus.review_kind),
+        dword!(crate::menu::owner::menus().screens.state.menus.review_kind),
     ),
     (
         b"noprecipitation",
@@ -457,7 +457,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"sparksmode",
         0x7558DC,
-        dword!(crate::menu::event_store::EVENT_STATE.sparks_mode),
+        dword!(crate::menu::owner::menus().screens.event.sparks_mode),
     ),
 ];
 

@@ -18,9 +18,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::take_key::take_key;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::state_store::MENU_STATE;
 use crate::service::setup_values::{Change, Stepper, step};
 use crate::service::state::{
     chosen_repairs_time, current_player, flagged_item, has_repair_time, leave_edit_mode,
@@ -76,7 +73,7 @@ pub const GEAR_RATIO: ChangePage = ChangePage {
     down: step_gear_ratio_down::STEPPER,
     up: step_gear_ratio_up::STEPPER,
     change: toggle_gear_ratio_change::CHANGE,
-    entry: &MENU_STATE.driver_stats.setups[0].start,
+    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[0].start,
     in_car: None,
     item: 0xE,
 };
@@ -84,7 +81,7 @@ pub const TYRE: ChangePage = ChangePage {
     down: step_tyre_down::STEPPER,
     up: step_tyre_up::STEPPER,
     change: toggle_tyre_change::CHANGE,
-    entry: &MENU_STATE.driver_stats.setups[1].start,
+    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[1].start,
     in_car: None,
     item: 0xF,
 };
@@ -92,7 +89,7 @@ pub const RIDE_HEIGHT: ChangePage = ChangePage {
     down: step_ride_height_down::STEPPER,
     up: step_ride_height_up::STEPPER,
     change: toggle_ride_height_change::CHANGE,
-    entry: &MENU_STATE.driver_stats.setups[2].start,
+    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[2].start,
     in_car: Some(SetupField::RideHeight),
     item: 0x12,
 };
@@ -100,7 +97,7 @@ pub const SUSPENSION_STIFFNESS: ChangePage = ChangePage {
     down: step_suspension_stiffness_down::STEPPER,
     up: step_suspension_stiffness_up::STEPPER,
     change: toggle_suspension_stiffness_change::CHANGE,
-    entry: &MENU_STATE.driver_stats.setups[3].start,
+    entry: &crate::menu::owner::MENUS.screens.state.driver_stats.setups[3].start,
     in_car: Some(SetupField::Stiffness),
     item: 0x13,
 };
@@ -120,7 +117,11 @@ fn key_and_step(down: Stepper, up: Stepper) -> Result<u8, Refused> {
     if action == PageKey::None {
         return Ok(0);
     }
-    CHAMP_VIEW.last_key_time.set(CLOCKS.frame.get());
+    crate::menu::owner::menus()
+        .play
+        .champ_view
+        .last_key_time
+        .set(CLOCKS.frame.get());
     match action {
         PageKey::Down => {
             step(down)?;
@@ -177,7 +178,11 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
         &mut f,
         &mut m,
         item as usize,
-        EVENT_STATE.service_minutes.get() as i32,
+        crate::menu::owner::menus()
+            .screens
+            .event
+            .service_minutes
+            .get() as i32,
         v,
         time_of,
     )
@@ -186,9 +191,19 @@ pub fn change_page(page: ChangePage, confirm: bool) -> Result<(), Refused> {
     store_marks(&m);
     page.change.chosen.set(c.chosen);
     if let Some(status) = c.status {
-        MENU_STATE.service_ui.status.set(status);
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .service_ui
+            .status
+            .set(status);
     }
-    MENU_STATE.driver_stats.repair_time.set(c.total as u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .driver_stats
+        .repair_time
+        .set(c.total as u32);
     leave_edit_mode();
     Ok(())
 }

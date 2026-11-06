@@ -9,15 +9,15 @@
 //!
 //! Caller: `sub_4A8556`. Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn inspection_verdict() -> Result<(), Refused> {
-    let n: u32 = EVENT_STATE.current_player.get();
+    let n: u32 = crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing").into());
     }
@@ -27,12 +27,28 @@ pub fn inspection_verdict() -> Result<(), Refused> {
     let fault = crate::menu::event_flow::Fault::default();
     let v = rc2k_core::menu::inspection::verdict(
         |k| fault.ok(past_limit(p, k as u32)),
-        |k| MENU_LISTS.inspection_flags_a[k + 2].get() != 0,
-        |k| MENU_STATE.driver_stats.penalties[k].get(),
+        |k| crate::menu::owner::menus().tables.lists.inspection_flags_a[k + 2].get() != 0,
+        |k| {
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .driver_stats
+                .penalties[k]
+                .get()
+        },
     );
     fault.check()?;
-    DRAW_WORK.figure.set(v.penalties);
-    MENU_STATE.driver_stats.score.set(v.score);
+    crate::menu::owner::menus()
+        .screens
+        .draw_work
+        .figure
+        .set(v.penalties);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .driver_stats
+        .score
+        .set(v.score);
     p.update(|q| q.entry = v.kind);
 
     Ok(())

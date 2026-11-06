@@ -1,8 +1,5 @@
 //! The four players' names and the players that keep a copy of them.
 
-use crate::menu::names_store::NAME_BUFFERS;
-use crate::menu::players_store::PLAYER_TABLE;
-
 pub const PLAYERS: usize = 4;
 pub const NAME_LEN: usize = 0x20;
 
@@ -34,7 +31,7 @@ pub fn name_of(player: &rc2k_core::menu::player::Player) -> Result<usize, crate:
 /// Player `player`'s name as a pointer bounded by the names' store (the original runs on
 /// past a name that lacks its end).
 pub fn name_ptr(player: usize) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&NAME_BUFFERS).offset(
+    crate::pointers::GamePtr::to(&crate::menu::owner::menus().play.names).offset(
         (std::mem::offset_of!(crate::menu::names_store::Names, player_names) + player * NAME_LEN)
             as u32,
     )
@@ -43,18 +40,28 @@ pub fn name_ptr(player: usize) -> crate::pointers::GamePtr {
 /// Player `player`'s name replaced.
 pub fn set_name_bytes(player: usize, name: &[u8; NAME_LEN]) {
     for (i, &b) in name.iter().enumerate() {
-        NAME_BUFFERS.player_names.set(player * NAME_LEN + i, b);
+        crate::menu::owner::menus()
+            .play
+            .names
+            .player_names
+            .set(player * NAME_LEN + i, b);
     }
 }
 
 /// Player `player`'s name, the whole 0x20 bytes.
 pub fn name_bytes(player: usize) -> [u8; NAME_LEN] {
-    std::array::from_fn(|i| NAME_BUFFERS.player_names.get(player * NAME_LEN + i))
+    std::array::from_fn(|i| {
+        crate::menu::owner::menus()
+            .play
+            .names
+            .player_names
+            .get(player * NAME_LEN + i)
+    })
 }
 
 /// The four players' records.
 pub fn cars() -> &'static [crate::session::Shared<crate::menu::player::Player>; 4] {
-    &PLAYER_TABLE.players
+    &crate::menu::owner::menus().play.players.players
 }
 
 #[cfg(test)]

@@ -22,8 +22,6 @@ use crate::files::numbered_path::numbered_path_in_game;
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::load_car_background::shown_car;
 use crate::pointers::GamePtr;
 
@@ -47,9 +45,10 @@ pub fn load_slideshow_picture(
     // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car()?)?;
-    let template =
-        crate::menu::texts_store::text_at(MENU_LISTS.slideshow_templates[car as usize].get())?;
-    let start: u32 = EVENT_STATE.picture.get();
+    let template = crate::menu::texts_store::text_at(
+        crate::menu::owner::menus().tables.lists.slideshow_templates[car as usize].get(),
+    )?;
+    let start: u32 = crate::menu::owner::menus().screens.event.picture.get();
     // Set by the first try (`search` always makes one).
     let mut path = None;
     slides::search(
@@ -67,10 +66,10 @@ pub fn load_slideshow_picture(
             at.write_bytes(&text, "a picture path")?;
             Ok(file_exists_at(at)?)
         },
-        |next| EVENT_STATE.picture.set(next),
+        |next| crate::menu::owner::menus().screens.event.picture.set(next),
     )?;
     let path = path.ok_or(crate::errors::BadInput("no slideshow picture tried"))?;
-    let title_bar = GamePtr::to(&crate::menu::texts_store::MENU_TEXTS.titlebar_png);
+    let title_bar = GamePtr::to(&crate::menu::owner::menus().tables.texts.titlebar_png);
     if step(Step::Overlay(path, title_bar))? {
         step(Step::Load(title_bar))?;
     }

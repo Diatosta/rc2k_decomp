@@ -70,38 +70,42 @@ pub struct OptionWork {
     pub redefined_key_place: Dword,
 }
 
-/// First values the image's (`tests::option_work_starts_as_the_games`).
-pub static OPTION_WORK: OptionWork = OptionWork {
-    switch_0: Dword::new(0x0),
-    switch_1: Dword::new(0x0),
-    mode_changed: Dword::new(0x0),
-    modes_switch: Dword::new(0x1),
-    setting_0: Dword::new(0x1),
-    dword_755654: Dword::new(0x64),
-    dword_755658: Dword::new(0x64),
-    setting_1: Dword::new(0x1),
-    setting_2: Dword::new(0x1),
-    setting_3: Dword::new(0x1),
-    setting_4: Dword::new(0x0),
-    audio_quality: Dword::new(0x3),
-    ds3d: Dword::new(0x0),
-    eax: Dword::new(0x0),
-    a3d: Dword::new(0x0),
-    dolby: Dword::new(0x0),
-    channels: Dword::new(0x1),
-    master_volume_shown: Dword::new(0x40),
-    music_level: Dword::new(0x40),
-    other_volume: Dword::new(0x40),
-    menu_sounds_c: Dword::new(0x40),
-    menu_sounds_a: Dword::new(0x40),
-    speech_level: Dword::new(0x40),
-    sounds_a: Dword::new(0x40),
-    sounds_b: Dword::new(0x40),
-    menu_sound: Dword::new(0x6F),
-    typing: Dword::new(0x0),
-    redefining_key: Dword::new(0x0),
-    redefined_key_place: Dword::new(0x3E7),
-};
+impl OptionWork {
+    /// First values the image's (`tests::option_work_starts_as_the_games`).
+    pub const fn new() -> Self {
+        OptionWork {
+            switch_0: Dword::new(0x0),
+            switch_1: Dword::new(0x0),
+            mode_changed: Dword::new(0x0),
+            modes_switch: Dword::new(0x1),
+            setting_0: Dword::new(0x1),
+            dword_755654: Dword::new(0x64),
+            dword_755658: Dword::new(0x64),
+            setting_1: Dword::new(0x1),
+            setting_2: Dword::new(0x1),
+            setting_3: Dword::new(0x1),
+            setting_4: Dword::new(0x0),
+            audio_quality: Dword::new(0x3),
+            ds3d: Dword::new(0x0),
+            eax: Dword::new(0x0),
+            a3d: Dword::new(0x0),
+            dolby: Dword::new(0x0),
+            channels: Dword::new(0x1),
+            master_volume_shown: Dword::new(0x40),
+            music_level: Dword::new(0x40),
+            other_volume: Dword::new(0x40),
+            menu_sounds_c: Dword::new(0x40),
+            menu_sounds_a: Dword::new(0x40),
+            speech_level: Dword::new(0x40),
+            sounds_a: Dword::new(0x40),
+            sounds_b: Dword::new(0x40),
+            menu_sound: Dword::new(0x6F),
+            typing: Dword::new(0x0),
+            redefining_key: Dword::new(0x0),
+            redefined_key_place: Dword::new(0x3E7),
+        }
+    }
+}
 
 /// IDA 0x755640, the first byte of the piece.
 pub const START: usize = 0x755640;
@@ -111,7 +115,7 @@ pub const END: usize = 0x7556B4;
 /// Where IDA 0x755640 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn option_work_addr() -> u32 {
-    crate::pointers::game_address(&raw const OPTION_WORK)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.option_work)
 }
 
 impl OptionWork {

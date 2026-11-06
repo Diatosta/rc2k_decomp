@@ -16,7 +16,6 @@
 //! index. That only works because those sprites do not use a palette; it is reproduced as is.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
 use crate::records::stages_store::{Holder as RecordHolder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
 use crate::screens::stage_panel::PanelScreen;
@@ -44,9 +43,9 @@ pub struct Selection {
 
 /// None while the tables are not there; the original then reads through a null pointer.
 pub fn selection() -> Result<Option<Selection>, BadInput> {
-    let group: u32 = EVENT_STATE.stage_group.get();
-    let index: u32 = EVENT_STATE.stage_number.get();
-    let sub: u32 = EVENT_STATE.stage_sub.get();
+    let group: u32 = crate::menu::owner::menus().screens.event.stage_group.get();
+    let index: u32 = crate::menu::owner::menus().screens.event.stage_number.get();
+    let sub: u32 = crate::menu::owner::menus().screens.event.stage_sub.get();
     let table = crate::records::stages_store::STAGE_TABLES.group_event_table(group, sub)?;
     Ok(Some(Selection {
         group,

@@ -18,15 +18,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::menu::state_store::MENU_STATE;
 use crate::session::Dword;
 
-const SERVICE_TIME: &Dword = &EVENT_STATE.service_minutes; // dword_75593C
-const GOES_ON: &Dword = &EVENT_STATE.event_goes_on; // dword_75592C
-const OUT: &Dword = &EVENT_STATE.event_out; // dword_755978
-const DUE: &Dword = &EVENT_STATE.service_due; // dword_755938
+const SERVICE_TIME: &Dword = &crate::menu::owner::MENUS.screens.event.service_minutes; // dword_75593C
+const GOES_ON: &Dword = &crate::menu::owner::MENUS.screens.event.event_goes_on; // dword_75592C
+const OUT: &Dword = &crate::menu::owner::MENUS.screens.event.event_out; // dword_755978
+const DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due; // dword_755938
 
 /// The Rust version.
 pub fn time_trial_service() -> Result<(), Refused> {
@@ -44,9 +42,19 @@ pub fn time_trial_service() -> Result<(), Refused> {
             crate::system::sleep::sleep(passes::SCREEN_PAUSE);
             crate::menu::fade_in::fade_in()?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
-            MENU_STATE.driver_stats.repair_time.set(0);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .driver_stats
+                .repair_time
+                .set(0);
             { crate::menu::driver_stats::driver_stats() }?;
-            MENU_STATE.menus.service_flag.set(0);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .menus
+                .service_flag
+                .set(0);
             {
                 run_screen(
                     &crate::service::service_area_loop::SCREEN,

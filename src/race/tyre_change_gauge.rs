@@ -31,7 +31,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::input::store::DEVICES;
 use crate::input::types::InputDevice;
-use crate::menu::names_store::NAME_BUFFERS;
 use crate::race::tyre_store::TYRE_CHANGE as TYRE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::MACHINE;
@@ -111,8 +110,14 @@ impl Io for GameIo {
         // g_playerNames, or the second name, byte_7557A4: 30 bytes.
         let from = 0x20 * (TYRE.player.get() != 0) as usize;
         for n in 0..30 {
-            TYRE.record_name
-                .set(n, NAME_BUFFERS.player_names.get(from + n));
+            TYRE.record_name.set(
+                n,
+                crate::menu::owner::menus()
+                    .play
+                    .names
+                    .player_names
+                    .get(from + n),
+            );
         }
     }
 }

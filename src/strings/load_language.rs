@@ -41,7 +41,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;
 use crate::gfx::glyph_tables::TABLES;
 use crate::input::layouts::layouts;
-use crate::menu::players_store::PLAYER_TABLE;
 use crate::pointers::GamePtr;
 use crate::session::Bytes;
 use crate::session::MACHINE;
@@ -159,7 +158,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     let units = file.units as u32;
     crate::strings::units::set_units(units);
     // Each car's copy of the units, at its +0x178.
-    for player in &PLAYER_TABLE.players {
+    for player in &crate::menu::owner::menus().play.players.players {
         player.update(|p| p.metric_units = units);
     }
 

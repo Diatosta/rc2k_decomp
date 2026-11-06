@@ -13,17 +13,22 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::standings::Which;
 use crate::menu::standings_steps::{clear_standings, number_all};
-use crate::menu::state_store::MENU_STATE;
 
 /// The Rust version (see the header).
 pub fn rally_results() -> Result<(), Refused> {
-    MENU_STATE.menus.which_title.set(1u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .menus
+        .which_title
+        .set(1u32);
     crate::menu::standings_a_from_all::standings_a_from_all()?;
     // Converted: `rc2k_core::menu::results_pages::class_pages_only`.
-    if !rc2k_core::menu::results_pages::class_pages_only(CHAMP_VIEW.event_mode.get()) {
+    if !rc2k_core::menu::results_pages::class_pages_only(
+        crate::menu::owner::menus().play.champ_view.event_mode.get(),
+    ) {
         crate::menu::sort_standings_by_total::sort_standings_by_total()?;
         clear_standings(Which::A)?;
         number_all(Which::A)?;
@@ -31,6 +36,11 @@ pub fn rally_results() -> Result<(), Refused> {
     } else {
         crate::menu::class_rally_results_pass::class_rally_results_pass()?;
     }
-    MENU_STATE.menus.which_title.set(0u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .menus
+        .which_title
+        .set(0u32);
     Ok(())
 }

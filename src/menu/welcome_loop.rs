@@ -8,42 +8,60 @@
 //! question is put.
 //! The name is a reading from the title string of its menu, "BEM-VINDO", not yet a visit.
 //! Callers: `sub_4A0E60`, `sub_4AA4D7`.
-
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.welcome.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::WELCOME],
+    menu: || crate::menu::owner::menus().tables.menus.welcome.id(),
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::WELCOME],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.welcome_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .welcome_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.welcome_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .welcome_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.welcome_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .welcome_overlay
+                    .id()
+            },
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &DRAW_WORK.escaped, 0x0)],
-    set_up_first: &[Step::Write(|| &MENU_PAGES.yes_no_answer, 0x0)],
+    before: &[Step::Write(
+        || &crate::menu::owner::menus().screens.draw_work.escaped,
+        0x0,
+    )],
+    set_up_first: &[Step::Write(
+        || &crate::menu::owner::menus().tables.pages.yes_no_answer,
+        0x0,
+    )],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadWelcomePicture)],

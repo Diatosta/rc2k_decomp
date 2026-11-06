@@ -50,27 +50,31 @@ pub struct ScreenFlow {
     pub _gap_755508: Bytes<32>,
 }
 
-/// First values the image's (`tests::screen_flow_starts_as_the_games`).
-pub static SCREEN_FLOW: ScreenFlow = ScreenFlow {
-    start_section: Dword::new(0x0),
-    start_section_a8: Dword::new(0x0),
-    kept: Dword::new(0x1),
-    asking: Dword::new(0x0),
-    quiet: Dword::new(0x0),
-    enter_skips_name_entry: Dword::new(0x0),
-    car_list_kind: Dword::new(0x0),
-    _gap_7554dc: Bytes::new([0; 8]),
-    left_service: Dword::new(0x1),
-    menu_sounds_volume: Dword::new(0x0),
-    turning: Dword::new(0x1),
-    shown_gearing: Dword::new(0x1),
-    unread_list: ListCell::new(),
-    draw_list: ListCell::new(),
-    overlay_list: ListCell::new(),
-    setup_list: ListCell::new(),
-    scene_list: ListCell::new(),
-    _gap_755508: Bytes::new(with_runs::<32>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
-};
+impl ScreenFlow {
+    /// First values the image's (`tests::screen_flow_starts_as_the_games`).
+    pub const fn new() -> Self {
+        ScreenFlow {
+            start_section: Dword::new(0x0),
+            start_section_a8: Dword::new(0x0),
+            kept: Dword::new(0x1),
+            asking: Dword::new(0x0),
+            quiet: Dword::new(0x0),
+            enter_skips_name_entry: Dword::new(0x0),
+            car_list_kind: Dword::new(0x0),
+            _gap_7554dc: Bytes::new([0; 8]),
+            left_service: Dword::new(0x1),
+            menu_sounds_volume: Dword::new(0x0),
+            turning: Dword::new(0x1),
+            shown_gearing: Dword::new(0x1),
+            unread_list: ListCell::new(),
+            draw_list: ListCell::new(),
+            overlay_list: ListCell::new(),
+            setup_list: ListCell::new(),
+            scene_list: ListCell::new(),
+            _gap_755508: Bytes::new(with_runs::<32>(&[(0x0, &[0xff, 0xff, 0xff, 0xff])])),
+        }
+    }
+}
 
 /// IDA 0x7554C0, the first byte of the piece.
 pub const START: usize = 0x7554C0;
@@ -80,7 +84,7 @@ pub const END: usize = 0x755525;
 /// Where IDA 0x7554C0 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn screen_flow_addr() -> u32 {
-    crate::pointers::game_address(&raw const SCREEN_FLOW)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.screens.flow)
 }
 
 #[cfg(test)]

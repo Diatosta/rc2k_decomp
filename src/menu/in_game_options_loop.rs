@@ -12,16 +12,10 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
 };
-use crate::menu::state_store::MENU_STATE;
 use crate::scene::draw_store::DRAW;
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -31,45 +25,89 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
     DRAW.view_offset[1].set(0x27u32);
     DRAW.view_zoom.set(0x140u32);
     prepare_scene();
-    SCREEN_FLOW.turning.set(0x1u32);
-    MENU_STATE.carousel.menu.set(0x11u32);
+    crate::menu::owner::menus().screens.flow.turning.set(0x1u32);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .menu
+        .set(0x11u32);
     carousel(None)?;
-    let item = SCREEN_ITEMS.current[slot::IN_GAME_OPTIONS].get();
-    LOOP_FLAGS.item.set(item);
-    MENU_STATE.carousel.front.set(item.wrapping_sub(1));
-    SCREEN_FLOW.turning.set(0x0u32);
+    let item = crate::menu::owner::menus().screens.items.current[slot::IN_GAME_OPTIONS].get();
+    crate::menu::owner::menus()
+        .screens
+        .loop_flags
+        .item
+        .set(item);
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .carousel
+        .front
+        .set(item.wrapping_sub(1));
+    crate::menu::owner::menus().screens.flow.turning.set(0x0u32);
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.in_game_options.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::IN_GAME_OPTIONS],
+    menu: || {
+        crate::menu::owner::menus()
+            .tables
+            .menus
+            .in_game_options
+            .id()
+    },
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::IN_GAME_OPTIONS],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.in_game_options_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .in_game_options_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.list_758eae.from(2),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .list_758eae
+                    .from(2)
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.in_game_options_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .in_game_options_overlay
+                    .id()
+            },
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &DRAW_WORK.escaped, 0x0)],
+    before: &[Step::Write(
+        || &crate::menu::owner::menus().screens.draw_work.escaped,
+        0x0,
+    )],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::texts_store::MENU_TEXTS.in_game_options_picture
+        &crate::menu::owner::menus()
+            .tables
+            .texts
+            .in_game_options_picture
     }))],
     after_first_frame: &[],
     confirm: None,

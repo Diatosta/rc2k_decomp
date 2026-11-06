@@ -865,12 +865,16 @@ pub const fn level_code(ida: u32) -> u32 {
 
 /// The level a record's `volume_factor` names (`level_code`; 0 is no level).
 pub fn volume_level(code: u32) -> Result<&'static Dword, crate::errors::BadInput> {
-    use crate::menu::option_work_store::OPTION_WORK;
     Ok(match code {
         1 => &AUDIO.unit_volume_factor,
-        2 => &OPTION_WORK.menu_sounds_a,
-        3 => &OPTION_WORK.sounds_a,
-        4 => &OPTION_WORK.sounds_b,
+        2 => {
+            &crate::menu::owner::menus()
+                .screens
+                .option_work
+                .menu_sounds_a
+        }
+        3 => &crate::menu::owner::menus().screens.option_work.sounds_a,
+        4 => &crate::menu::owner::menus().screens.option_work.sounds_b,
         _ => {
             return Err(crate::errors::BadInput(
                 "a sample record's volume level unknown",

@@ -12,7 +12,6 @@
 //! tyres), and in the last row the 1:20 under "ride height" and "suspension stiffness".
 
 use crate::errors::Refused;
-use crate::menu::state_store::MENU_STATE;
 use crate::session::read_all;
 use crate::text::draw_text::Canvas;
 
@@ -24,7 +23,13 @@ const COUNT: usize = 16;
 
 pub fn draw_repair_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::service::repair_times`.
-    let times: [u32; COUNT] = read_all(&MENU_STATE.driver_stats.repair_times);
+    let times: [u32; COUNT] = read_all(
+        &crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .repair_times,
+    );
     rc2k_core::screens::service::repair_times(
         &mut crate::screens::game_screen::ServiceScreen::new(canvas),
         &times,

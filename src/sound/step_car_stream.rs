@@ -12,8 +12,6 @@
 
 use crate::audio::store::AUDIO;
 use crate::errors::BadInput;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::option_work_store::OPTION_WORK;
 
 // ---- game data ----
 
@@ -32,7 +30,7 @@ pub fn step_car_stream(
     let list: u32 = crate::sound::owner::sound().race.car_stream.stream.get();
     let failed = std::cell::Cell::new(None);
     let step = stream_step(
-        CHAMP_VIEW.event_mode.get(),
+        crate::menu::owner::menus().play.champ_view.event_mode.get(),
         crate::sound::owner::sound().race.car_stream.on.get(),
         playing,
         crate::sound::owner::sound().race.car_stream.place.get(),
@@ -64,7 +62,14 @@ pub fn step_car_stream(
         .car_stream
         .place
         .set(place);
-    start(part, OPTION_WORK.speech_level.get());
+    start(
+        part,
+        crate::menu::owner::menus()
+            .screens
+            .option_work
+            .speech_level
+            .get(),
+    );
     Ok(())
 }
 

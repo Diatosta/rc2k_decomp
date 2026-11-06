@@ -574,7 +574,9 @@ pub struct MenuTables {
 
 /// First values the image's (`tests::menus_start_as_the_games`).
 #[rustfmt::skip]
-pub static MENUS: MenuTables = MenuTables {
+impl MenuTables {
+    pub const fn new() -> Self {
+        MenuTables {
         review_options_485f5e_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
         arcade_review_options_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
         review_options_4882e2_labels: LabelList::new([0x310, 0x30, 0x51E944, 0x514]),
@@ -769,109 +771,264 @@ pub static MENUS: MenuTables = MenuTables {
         time_trial_stage_details: Menu::new(0x747F74, [MenuItem::new([0x2EB, 0x227, 0x2EB, 0x225, 0x1, 0x138, 0x51E9A4, 0xFFFFFFA7, 0x747A10, 0x1, 0x1, 0x6F, 0x6F, 0x471C81, 0x471C81, 0x471C81, 0x471C81, 0x471C82, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0])]),
         review_options_48108e: Menu::new(0x747EFC, [MenuItem::new([0x2EB, 0x77, 0x0, 0x0, 0x1, 0x515, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x7, 0x2, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x471C82, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0x92, 0x0, 0x0, 0x2, 0x518, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x1, 0x3, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47053E, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xAD, 0x0, 0x0, 0x3, 0x519, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x2, 0x4, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47052F, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xC8, 0x0, 0x0, 0x4, 0x51A, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x3, 0x5, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47D8F7, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xE3, 0x0, 0x0, 0x5, 0x51F, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x4, 0x6, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A94EC, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xFE, 0x0, 0x0, 0x6, 0x51E, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x5, 0x7, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A9583, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0x119, 0x0, 0x0, 0x7, 0x1F8, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x6, 0x1, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47E8BB, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0])]),
         review_options_481429: Menu::new(0x747F10, [MenuItem::new([0x2EB, 0x77, 0x0, 0x0, 0x1, 0x1F8, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x6, 0x2, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x471C82, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0x92, 0x0, 0x0, 0x2, 0x518, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x1, 0x3, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47053E, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xAD, 0x0, 0x0, 0x3, 0x519, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x2, 0x4, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47052F, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xC8, 0x0, 0x0, 0x4, 0x51A, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x3, 0x5, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x47D8F7, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xE3, 0x0, 0x0, 0x5, 0x51F, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x4, 0x6, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A94EC, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0]), MenuItem::new([0x2EB, 0xFE, 0x0, 0x0, 0x6, 0x51E, 0x51E9A4, 0xFFFFFFA7, 0x747A24, 0x5, 0x1, 0x6F, 0x6F, 0x471C80, 0x471C80, 0x471C80, 0x471C80, 0x4A9583, 0xFFFFFC1B, 0x51E824, 0x51E884, 0x1, 0x0])]),
-};
+        }
+    }
+}
 
 /// The 98 label lists, in the image's order (the first 98 fields of `MenuTables`, one after
 /// the other from IDA 0x747AD8).
 pub static LABEL_LISTS: [&LabelList; 98] = [
-    &MENUS.review_options_485f5e_labels,
-    &MENUS.arcade_review_options_labels,
-    &MENUS.review_options_4882e2_labels,
-    &MENUS.review_options_48861d_labels,
-    &MENUS.menu_74bafc_labels,
-    &MENUS.stage_result_labels,
-    &MENUS.labels_747b50,
-    &MENUS.results_48584b_labels,
-    &MENUS.menu_750b94_labels,
-    &MENUS.results_482e9b_labels,
-    &MENUS.screen_483163_labels,
-    &MENUS.time_trial_results_labels,
-    &MENUS.labels_747bc8,
-    &MENUS.main_menu_labels,
-    &MENUS.network_rally_labels,
-    &MENUS.start_rally_labels,
-    &MENUS.championship_new_simulation_labels,
-    &MENUS.new_simulation_labels,
-    &MENUS.menu_749290_labels,
-    &MENUS.menu_7493ac_labels,
-    &MENUS.simple_select_players_labels,
-    &MENUS.time_trial_select_players_labels,
-    &MENUS.labels_747c90,
-    &MENUS.arcade_select_level_labels,
-    &MENUS.service_area_labels,
-    &MENUS.menu_74d1e8_labels,
-    &MENUS.in_game_options_labels,
-    &MENUS.menu_7509b0_labels,
-    &MENUS.audio_setup_labels,
-    &MENUS.advanced_audio_labels,
-    &MENUS.leave_question_labels,
-    &MENUS.car_specification_labels,
-    &MENUS.slideshow_labels,
-    &MENUS.select_car_labels,
-    &MENUS.car_specs_47af4c_labels,
-    &MENUS.menu_74ba3c_labels,
-    &MENUS.inspection_area_labels,
-    &MENUS.welcome_labels,
-    &MENUS.arcade_next_stage_labels,
-    &MENUS.screen_488f4c_labels,
-    &MENUS.arcade_results_labels,
-    &MENUS.rally_stages_labels,
-    &MENUS.class_stage_results_labels,
-    &MENUS.overall_stage_results_labels,
-    &MENUS.class_rally_results_labels,
-    &MENUS.overall_rally_results_labels,
-    &MENUS.menu_74fde0_labels,
-    &MENUS.menu_74fe44_labels,
-    &MENUS.class_championship_standings_labels,
-    &MENUS.championship_standings_labels,
-    &MENUS.menu_74fea8_labels,
-    &MENUS.review_options_47d5a5_labels,
-    &MENUS.review_options_480d46_labels,
-    &MENUS.review_options_48108e_labels,
-    &MENUS.review_options_481429_labels,
-    &MENUS.select_stage_labels,
-    &MENUS.time_trial_select_stage_labels,
-    &MENUS.next_stage_labels,
-    &MENUS.view_stage_labels,
-    &MENUS.view_courses_labels,
-    &MENUS.labels_747f88,
-    &MENUS.player1_controller_labels,
-    &MENUS.player1_buttons_labels,
-    &MENUS.player2_controller_labels,
-    &MENUS.player2_buttons_labels,
-    &MENUS.player3_controller_labels,
-    &MENUS.player3_buttons_labels,
-    &MENUS.player4_controller_labels,
-    &MENUS.player4_buttons_labels,
-    &MENUS.redefine_keys_player1_labels,
-    &MENUS.redefine_keys_player2_labels,
-    &MENUS.redefine_keys_player3_labels,
-    &MENUS.redefine_keys_player4_labels,
-    &MENUS.view_best_times_labels,
-    &MENUS.view_best_scores_labels,
-    &MENUS.best_times_labels,
-    &MENUS.arcade_best_times_labels,
-    &MENUS.time_trial_best_times_labels,
-    &MENUS.best_scores_48a69e_labels,
-    &MENUS.best_class_scores_labels,
-    &MENUS.best_overall_scores_labels,
-    &MENUS.menu_74e168_labels,
-    &MENUS.options_labels,
-    &MENUS.menu_74e79c_labels,
-    &MENUS.player1_details_labels,
-    &MENUS.player2_details_labels,
-    &MENUS.player3_details_labels,
-    &MENUS.player4_details_labels,
-    &MENUS.player_details_labels,
-    &MENUS.information_labels,
-    &MENUS.load_championship_labels,
-    &MENUS.save_championship_labels,
-    &MENUS.load_replay_labels,
-    &MENUS.save_replay_labels,
-    &MENUS.labels_748230,
-    &MENUS.save_setup_labels,
-    &MENUS.visual_preferences_labels,
-    &MENUS.visual_options_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_485f5e_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .arcade_review_options_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_4882e2_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_48861d_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74bafc_labels,
+    &crate::menu::owner::MENUS.tables.menus.stage_result_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_747b50,
+    &crate::menu::owner::MENUS.tables.menus.results_48584b_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_750b94_labels,
+    &crate::menu::owner::MENUS.tables.menus.results_482e9b_labels,
+    &crate::menu::owner::MENUS.tables.menus.screen_483163_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .time_trial_results_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_747bc8,
+    &crate::menu::owner::MENUS.tables.menus.main_menu_labels,
+    &crate::menu::owner::MENUS.tables.menus.network_rally_labels,
+    &crate::menu::owner::MENUS.tables.menus.start_rally_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .championship_new_simulation_labels,
+    &crate::menu::owner::MENUS.tables.menus.new_simulation_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_749290_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_7493ac_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .simple_select_players_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .time_trial_select_players_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_747c90,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .arcade_select_level_labels,
+    &crate::menu::owner::MENUS.tables.menus.service_area_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74d1e8_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .in_game_options_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_7509b0_labels,
+    &crate::menu::owner::MENUS.tables.menus.audio_setup_labels,
+    &crate::menu::owner::MENUS.tables.menus.advanced_audio_labels,
+    &crate::menu::owner::MENUS.tables.menus.leave_question_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .car_specification_labels,
+    &crate::menu::owner::MENUS.tables.menus.slideshow_labels,
+    &crate::menu::owner::MENUS.tables.menus.select_car_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .car_specs_47af4c_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74ba3c_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .inspection_area_labels,
+    &crate::menu::owner::MENUS.tables.menus.welcome_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .arcade_next_stage_labels,
+    &crate::menu::owner::MENUS.tables.menus.screen_488f4c_labels,
+    &crate::menu::owner::MENUS.tables.menus.arcade_results_labels,
+    &crate::menu::owner::MENUS.tables.menus.rally_stages_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .class_stage_results_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .overall_stage_results_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .class_rally_results_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .overall_rally_results_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74fde0_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74fe44_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .class_championship_standings_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .championship_standings_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74fea8_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_47d5a5_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_480d46_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_48108e_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .review_options_481429_labels,
+    &crate::menu::owner::MENUS.tables.menus.select_stage_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .time_trial_select_stage_labels,
+    &crate::menu::owner::MENUS.tables.menus.next_stage_labels,
+    &crate::menu::owner::MENUS.tables.menus.view_stage_labels,
+    &crate::menu::owner::MENUS.tables.menus.view_courses_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_747f88,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player1_controller_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player1_buttons_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player2_controller_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player2_buttons_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player3_controller_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player3_buttons_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player4_controller_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player4_buttons_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .redefine_keys_player1_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .redefine_keys_player2_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .redefine_keys_player3_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .redefine_keys_player4_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .view_best_times_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .view_best_scores_labels,
+    &crate::menu::owner::MENUS.tables.menus.best_times_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .arcade_best_times_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .time_trial_best_times_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .best_scores_48a69e_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .best_class_scores_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .best_overall_scores_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74e168_labels,
+    &crate::menu::owner::MENUS.tables.menus.options_labels,
+    &crate::menu::owner::MENUS.tables.menus.menu_74e79c_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player1_details_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player2_details_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player3_details_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .player4_details_labels,
+    &crate::menu::owner::MENUS.tables.menus.player_details_labels,
+    &crate::menu::owner::MENUS.tables.menus.information_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .load_championship_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .save_championship_labels,
+    &crate::menu::owner::MENUS.tables.menus.load_replay_labels,
+    &crate::menu::owner::MENUS.tables.menus.save_replay_labels,
+    &crate::menu::owner::MENUS.tables.menus.labels_748230,
+    &crate::menu::owner::MENUS.tables.menus.save_setup_labels,
+    &crate::menu::owner::MENUS
+        .tables
+        .menus
+        .visual_preferences_labels,
+    &crate::menu::owner::MENUS.tables.menus.visual_options_labels,
 ];
 
 /// Where the label list a menu's +0 names is now; 0 for a menu without any. A name off the
@@ -899,9 +1056,10 @@ pub fn labels_slot(
     if at == 0 {
         return Ok(None);
     }
-    Ok(Some(crate::pointers::GamePtr::to(&MENUS).offset(
-        at.wrapping_sub(menus_addr()).wrapping_add(offset),
-    )))
+    Ok(Some(
+        crate::pointers::GamePtr::to(&crate::menu::owner::menus().tables.menus)
+            .offset(at.wrapping_sub(menus_addr()).wrapping_add(offset)),
+    ))
 }
 
 /// The font of the label whose font field is at `at` (a game address in the label lists;
@@ -930,7 +1088,7 @@ pub const END: usize = 0x755144;
 
 /// Where IDA 0x747AD8 is now (`moved::MOVED`'s home).
 pub fn menus_addr() -> u32 {
-    crate::pointers::game_address(&raw const MENUS)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.menus)
 }
 
 /// A menu by handle (phase 13, 2026-10-28): its number among `MENUS`' menus, in the image's
@@ -947,220 +1105,844 @@ impl MenuId {
     fn parts(self) -> (&'static Dword, &'static [MenuItem]) {
         match self.0 {
             0 => (
-                &MENUS.visual_preferences.head,
-                &MENUS.visual_preferences.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .visual_preferences
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .visual_preferences
+                    .items,
             ),
-            1 => (&MENUS.select_stage.head, &MENUS.select_stage.items),
+            1 => (
+                &crate::menu::owner::menus().tables.menus.select_stage.head,
+                &crate::menu::owner::menus().tables.menus.select_stage.items,
+            ),
             2 => (
-                &MENUS.time_trial_select_stage.head,
-                &MENUS.time_trial_select_stage.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_select_stage
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_select_stage
+                    .items,
             ),
             3 => (
-                &MENUS.time_trial_select_players.head,
-                &MENUS.time_trial_select_players.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_select_players
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_select_players
+                    .items,
             ),
             4 => (
-                &MENUS.simple_select_players.head,
-                &MENUS.simple_select_players.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .simple_select_players
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .simple_select_players
+                    .items,
             ),
-            5 => (&MENUS.main_menu.head, &MENUS.main_menu.items),
+            5 => (
+                &crate::menu::owner::menus().tables.menus.main_menu.head,
+                &crate::menu::owner::menus().tables.menus.main_menu.items,
+            ),
             6 => (
-                &MENUS.arcade_select_level.head,
-                &MENUS.arcade_select_level.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_select_level
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_select_level
+                    .items,
             ),
-            7 => (&MENUS.network_rally.head, &MENUS.network_rally.items),
-            8 => (&MENUS.menu_749290.head, &MENUS.menu_749290.items),
-            9 => (&MENUS.menu_7493ac.head, &MENUS.menu_7493ac.items),
+            7 => (
+                &crate::menu::owner::menus().tables.menus.network_rally.head,
+                &crate::menu::owner::menus().tables.menus.network_rally.items,
+            ),
+            8 => (
+                &crate::menu::owner::menus().tables.menus.menu_749290.head,
+                &crate::menu::owner::menus().tables.menus.menu_749290.items,
+            ),
+            9 => (
+                &crate::menu::owner::menus().tables.menus.menu_7493ac.head,
+                &crate::menu::owner::menus().tables.menus.menu_7493ac.items,
+            ),
             10 => (
-                &MENUS.championship_new_simulation.head,
-                &MENUS.championship_new_simulation.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .championship_new_simulation
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .championship_new_simulation
+                    .items,
             ),
-            11 => (&MENUS.new_simulation.head, &MENUS.new_simulation.items),
+            11 => (
+                &crate::menu::owner::menus().tables.menus.new_simulation.head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .new_simulation
+                    .items,
+            ),
             12 => (
-                &MENUS.player1_controller.head,
-                &MENUS.player1_controller.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player1_controller
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player1_controller
+                    .items,
             ),
-            13 => (&MENUS.player1_buttons.head, &MENUS.player1_buttons.items),
+            13 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player1_buttons
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player1_buttons
+                    .items,
+            ),
             14 => (
-                &MENUS.player2_controller.head,
-                &MENUS.player2_controller.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player2_controller
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player2_controller
+                    .items,
             ),
-            15 => (&MENUS.player2_buttons.head, &MENUS.player2_buttons.items),
+            15 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player2_buttons
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player2_buttons
+                    .items,
+            ),
             16 => (
-                &MENUS.player3_controller.head,
-                &MENUS.player3_controller.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player3_controller
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player3_controller
+                    .items,
             ),
-            17 => (&MENUS.player3_buttons.head, &MENUS.player3_buttons.items),
+            17 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player3_buttons
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player3_buttons
+                    .items,
+            ),
             18 => (
-                &MENUS.player4_controller.head,
-                &MENUS.player4_controller.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player4_controller
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .player4_controller
+                    .items,
             ),
-            19 => (&MENUS.player4_buttons.head, &MENUS.player4_buttons.items),
+            19 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player4_buttons
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player4_buttons
+                    .items,
+            ),
             20 => (
-                &MENUS.car_specification.head,
-                &MENUS.car_specification.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .car_specification
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .car_specification
+                    .items,
             ),
-            21 => (&MENUS.slideshow.head, &MENUS.slideshow.items),
-            22 => (&MENUS.select_car.head, &MENUS.select_car.items),
-            23 => (&MENUS.car_specs_47af4c.head, &MENUS.car_specs_47af4c.items),
-            24 => (&MENUS.menu_74ba3c.head, &MENUS.menu_74ba3c.items),
-            25 => (&MENUS.menu_74bafc.head, &MENUS.menu_74bafc.items),
+            21 => (
+                &crate::menu::owner::menus().tables.menus.slideshow.head,
+                &crate::menu::owner::menus().tables.menus.slideshow.items,
+            ),
+            22 => (
+                &crate::menu::owner::menus().tables.menus.select_car.head,
+                &crate::menu::owner::menus().tables.menus.select_car.items,
+            ),
+            23 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .car_specs_47af4c
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .car_specs_47af4c
+                    .items,
+            ),
+            24 => (
+                &crate::menu::owner::menus().tables.menus.menu_74ba3c.head,
+                &crate::menu::owner::menus().tables.menus.menu_74ba3c.items,
+            ),
+            25 => (
+                &crate::menu::owner::menus().tables.menus.menu_74bafc.head,
+                &crate::menu::owner::menus().tables.menus.menu_74bafc.items,
+            ),
             26 => (
-                &MENUS.redefine_keys_player1.head,
-                &MENUS.redefine_keys_player1.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player1
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player1
+                    .items,
             ),
             27 => (
-                &MENUS.redefine_keys_player2.head,
-                &MENUS.redefine_keys_player2.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player2
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player2
+                    .items,
             ),
             28 => (
-                &MENUS.redefine_keys_player3.head,
-                &MENUS.redefine_keys_player3.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player3
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player3
+                    .items,
             ),
             29 => (
-                &MENUS.redefine_keys_player4.head,
-                &MENUS.redefine_keys_player4.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player4
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .redefine_keys_player4
+                    .items,
             ),
-            30 => (&MENUS.audio_setup.head, &MENUS.audio_setup.items),
+            30 => (
+                &crate::menu::owner::menus().tables.menus.audio_setup.head,
+                &crate::menu::owner::menus().tables.menus.audio_setup.items,
+            ),
             31 => (
-                &MENUS.arcade_next_stage.head,
-                &MENUS.arcade_next_stage.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_next_stage
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_next_stage
+                    .items,
             ),
-            32 => (&MENUS.screen_488f4c.head, &MENUS.screen_488f4c.items),
-            33 => (&MENUS.arcade_results.head, &MENUS.arcade_results.items),
-            34 => (&MENUS.menu_74d1e8.head, &MENUS.menu_74d1e8.items),
-            35 => (&MENUS.service_area.head, &MENUS.service_area.items),
-            36 => (&MENUS.next_stage.head, &MENUS.next_stage.items),
-            37 => (&MENUS.view_stage.head, &MENUS.view_stage.items),
-            38 => (&MENUS.rally_stages.head, &MENUS.rally_stages.items),
-            39 => (&MENUS.view_courses.head, &MENUS.view_courses.items),
-            40 => (&MENUS.view_best_times.head, &MENUS.view_best_times.items),
-            41 => (&MENUS.best_times.head, &MENUS.best_times.items),
+            32 => (
+                &crate::menu::owner::menus().tables.menus.screen_488f4c.head,
+                &crate::menu::owner::menus().tables.menus.screen_488f4c.items,
+            ),
+            33 => (
+                &crate::menu::owner::menus().tables.menus.arcade_results.head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .arcade_results
+                    .items,
+            ),
+            34 => (
+                &crate::menu::owner::menus().tables.menus.menu_74d1e8.head,
+                &crate::menu::owner::menus().tables.menus.menu_74d1e8.items,
+            ),
+            35 => (
+                &crate::menu::owner::menus().tables.menus.service_area.head,
+                &crate::menu::owner::menus().tables.menus.service_area.items,
+            ),
+            36 => (
+                &crate::menu::owner::menus().tables.menus.next_stage.head,
+                &crate::menu::owner::menus().tables.menus.next_stage.items,
+            ),
+            37 => (
+                &crate::menu::owner::menus().tables.menus.view_stage.head,
+                &crate::menu::owner::menus().tables.menus.view_stage.items,
+            ),
+            38 => (
+                &crate::menu::owner::menus().tables.menus.rally_stages.head,
+                &crate::menu::owner::menus().tables.menus.rally_stages.items,
+            ),
+            39 => (
+                &crate::menu::owner::menus().tables.menus.view_courses.head,
+                &crate::menu::owner::menus().tables.menus.view_courses.items,
+            ),
+            40 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .view_best_times
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .view_best_times
+                    .items,
+            ),
+            41 => (
+                &crate::menu::owner::menus().tables.menus.best_times.head,
+                &crate::menu::owner::menus().tables.menus.best_times.items,
+            ),
             42 => (
-                &MENUS.arcade_best_times.head,
-                &MENUS.arcade_best_times.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_best_times
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_best_times
+                    .items,
             ),
             43 => (
-                &MENUS.time_trial_best_times.head,
-                &MENUS.time_trial_best_times.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_best_times
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_best_times
+                    .items,
             ),
             44 => (
-                &MENUS.best_scores_48a69e.head,
-                &MENUS.best_scores_48a69e.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_scores_48a69e
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_scores_48a69e
+                    .items,
             ),
             45 => (
-                &MENUS.best_class_scores.head,
-                &MENUS.best_class_scores.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_class_scores
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_class_scores
+                    .items,
             ),
             46 => (
-                &MENUS.best_overall_scores.head,
-                &MENUS.best_overall_scores.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_overall_scores
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .best_overall_scores
+                    .items,
             ),
-            47 => (&MENUS.menu_74e168.head, &MENUS.menu_74e168.items),
-            48 => (&MENUS.start_rally.head, &MENUS.start_rally.items),
-            49 => (&MENUS.options.head, &MENUS.options.items),
-            50 => (&MENUS.menu_74e79c.head, &MENUS.menu_74e79c.items),
-            51 => (&MENUS.player_details.head, &MENUS.player_details.items),
-            52 => (&MENUS.player1_details.head, &MENUS.player1_details.items),
-            53 => (&MENUS.player2_details.head, &MENUS.player2_details.items),
-            54 => (&MENUS.player3_details.head, &MENUS.player3_details.items),
-            55 => (&MENUS.player4_details.head, &MENUS.player4_details.items),
-            56 => (&MENUS.information.head, &MENUS.information.items),
+            47 => (
+                &crate::menu::owner::menus().tables.menus.menu_74e168.head,
+                &crate::menu::owner::menus().tables.menus.menu_74e168.items,
+            ),
+            48 => (
+                &crate::menu::owner::menus().tables.menus.start_rally.head,
+                &crate::menu::owner::menus().tables.menus.start_rally.items,
+            ),
+            49 => (
+                &crate::menu::owner::menus().tables.menus.options.head,
+                &crate::menu::owner::menus().tables.menus.options.items,
+            ),
+            50 => (
+                &crate::menu::owner::menus().tables.menus.menu_74e79c.head,
+                &crate::menu::owner::menus().tables.menus.menu_74e79c.items,
+            ),
+            51 => (
+                &crate::menu::owner::menus().tables.menus.player_details.head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player_details
+                    .items,
+            ),
+            52 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player1_details
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player1_details
+                    .items,
+            ),
+            53 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player2_details
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player2_details
+                    .items,
+            ),
+            54 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player3_details
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player3_details
+                    .items,
+            ),
+            55 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player4_details
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .player4_details
+                    .items,
+            ),
+            56 => (
+                &crate::menu::owner::menus().tables.menus.information.head,
+                &crate::menu::owner::menus().tables.menus.information.items,
+            ),
             57 => (
-                &MENUS.class_stage_results.head,
-                &MENUS.class_stage_results.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_stage_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_stage_results
+                    .items,
             ),
             58 => (
-                &MENUS.overall_stage_results.head,
-                &MENUS.overall_stage_results.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .overall_stage_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .overall_stage_results
+                    .items,
             ),
             59 => (
-                &MENUS.class_rally_results.head,
-                &MENUS.class_rally_results.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_rally_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_rally_results
+                    .items,
             ),
             60 => (
-                &MENUS.overall_rally_results.head,
-                &MENUS.overall_rally_results.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .overall_rally_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .overall_rally_results
+                    .items,
             ),
-            61 => (&MENUS.menu_74fde0.head, &MENUS.menu_74fde0.items),
-            62 => (&MENUS.menu_74fe44.head, &MENUS.menu_74fe44.items),
-            63 => (&MENUS.menu_74fea8.head, &MENUS.menu_74fea8.items),
+            61 => (
+                &crate::menu::owner::menus().tables.menus.menu_74fde0.head,
+                &crate::menu::owner::menus().tables.menus.menu_74fde0.items,
+            ),
+            62 => (
+                &crate::menu::owner::menus().tables.menus.menu_74fe44.head,
+                &crate::menu::owner::menus().tables.menus.menu_74fe44.items,
+            ),
+            63 => (
+                &crate::menu::owner::menus().tables.menus.menu_74fea8.head,
+                &crate::menu::owner::menus().tables.menus.menu_74fea8.items,
+            ),
             64 => (
-                &MENUS.class_championship_standings.head,
-                &MENUS.class_championship_standings.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_championship_standings
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .class_championship_standings
+                    .items,
             ),
             65 => (
-                &MENUS.championship_standings.head,
-                &MENUS.championship_standings.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .championship_standings
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .championship_standings
+                    .items,
             ),
             66 => (
-                &MENUS.review_options_47d5a5.head,
-                &MENUS.review_options_47d5a5.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_47d5a5
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_47d5a5
+                    .items,
             ),
             67 => (
-                &MENUS.review_options_480d46.head,
-                &MENUS.review_options_480d46.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_480d46
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_480d46
+                    .items,
             ),
-            68 => (&MENUS.inspection_area.head, &MENUS.inspection_area.items),
-            69 => (&MENUS.welcome.head, &MENUS.welcome.items),
-            70 => (&MENUS.in_game_options.head, &MENUS.in_game_options.items),
-            71 => (&MENUS.menu_7509b0.head, &MENUS.menu_7509b0.items),
-            72 => (&MENUS.stage_result.head, &MENUS.stage_result.items),
-            73 => (&MENUS.results_48584b.head, &MENUS.results_48584b.items),
-            74 => (&MENUS.menu_750b94.head, &MENUS.menu_750b94.items),
-            75 => (&MENUS.results_482e9b.head, &MENUS.results_482e9b.items),
+            68 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .inspection_area
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .inspection_area
+                    .items,
+            ),
+            69 => (
+                &crate::menu::owner::menus().tables.menus.welcome.head,
+                &crate::menu::owner::menus().tables.menus.welcome.items,
+            ),
+            70 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .in_game_options
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .in_game_options
+                    .items,
+            ),
+            71 => (
+                &crate::menu::owner::menus().tables.menus.menu_7509b0.head,
+                &crate::menu::owner::menus().tables.menus.menu_7509b0.items,
+            ),
+            72 => (
+                &crate::menu::owner::menus().tables.menus.stage_result.head,
+                &crate::menu::owner::menus().tables.menus.stage_result.items,
+            ),
+            73 => (
+                &crate::menu::owner::menus().tables.menus.results_48584b.head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .results_48584b
+                    .items,
+            ),
+            74 => (
+                &crate::menu::owner::menus().tables.menus.menu_750b94.head,
+                &crate::menu::owner::menus().tables.menus.menu_750b94.items,
+            ),
+            75 => (
+                &crate::menu::owner::menus().tables.menus.results_482e9b.head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .results_482e9b
+                    .items,
+            ),
             76 => (
-                &MENUS.time_trial_results.head,
-                &MENUS.time_trial_results.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_results
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_results
+                    .items,
             ),
-            77 => (&MENUS.screen_483163.head, &MENUS.screen_483163.items),
+            77 => (
+                &crate::menu::owner::menus().tables.menus.screen_483163.head,
+                &crate::menu::owner::menus().tables.menus.screen_483163.items,
+            ),
             78 => (
-                &MENUS.review_options_485f5e.head,
-                &MENUS.review_options_485f5e.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_485f5e
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_485f5e
+                    .items,
             ),
             79 => (
-                &MENUS.arcade_review_options.head,
-                &MENUS.arcade_review_options.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_review_options
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .arcade_review_options
+                    .items,
             ),
             80 => (
-                &MENUS.review_options_4882e2.head,
-                &MENUS.review_options_4882e2.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_4882e2
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_4882e2
+                    .items,
             ),
             81 => (
-                &MENUS.review_options_48861d.head,
-                &MENUS.review_options_48861d.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_48861d
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_48861d
+                    .items,
             ),
-            82 => (&MENUS.view_best_scores.head, &MENUS.view_best_scores.items),
+            82 => (
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .view_best_scores
+                    .head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .view_best_scores
+                    .items,
+            ),
             83 => (
-                &MENUS.load_championship.head,
-                &MENUS.load_championship.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .load_championship
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .load_championship
+                    .items,
             ),
             84 => (
-                &MENUS.save_championship.head,
-                &MENUS.save_championship.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .save_championship
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .save_championship
+                    .items,
             ),
             85 => (
-                &MENUS.load_championship_46e899.head,
-                &MENUS.load_championship_46e899.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .load_championship_46e899
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .load_championship_46e899
+                    .items,
             ),
-            86 => (&MENUS.save_setup.head, &MENUS.save_setup.items),
-            87 => (&MENUS.save_replay.head, &MENUS.save_replay.items),
-            88 => (&MENUS.load_replay.head, &MENUS.load_replay.items),
-            89 => (&MENUS.leave_question.head, &MENUS.leave_question.items),
-            90 => (&MENUS.visual_options.head, &MENUS.visual_options.items),
-            91 => (&MENUS.advanced_audio.head, &MENUS.advanced_audio.items),
-            92 => (&MENUS.menu_754bc0.head, &MENUS.menu_754bc0.items),
+            86 => (
+                &crate::menu::owner::menus().tables.menus.save_setup.head,
+                &crate::menu::owner::menus().tables.menus.save_setup.items,
+            ),
+            87 => (
+                &crate::menu::owner::menus().tables.menus.save_replay.head,
+                &crate::menu::owner::menus().tables.menus.save_replay.items,
+            ),
+            88 => (
+                &crate::menu::owner::menus().tables.menus.load_replay.head,
+                &crate::menu::owner::menus().tables.menus.load_replay.items,
+            ),
+            89 => (
+                &crate::menu::owner::menus().tables.menus.leave_question.head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .leave_question
+                    .items,
+            ),
+            90 => (
+                &crate::menu::owner::menus().tables.menus.visual_options.head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .visual_options
+                    .items,
+            ),
+            91 => (
+                &crate::menu::owner::menus().tables.menus.advanced_audio.head,
+                &crate::menu::owner::menus()
+                    .tables
+                    .menus
+                    .advanced_audio
+                    .items,
+            ),
+            92 => (
+                &crate::menu::owner::menus().tables.menus.menu_754bc0.head,
+                &crate::menu::owner::menus().tables.menus.menu_754bc0.items,
+            ),
             93 => (
-                &MENUS.time_trial_stage_details.head,
-                &MENUS.time_trial_stage_details.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_stage_details
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .time_trial_stage_details
+                    .items,
             ),
             94 => (
-                &MENUS.review_options_48108e.head,
-                &MENUS.review_options_48108e.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_48108e
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_48108e
+                    .items,
             ),
             95 => (
-                &MENUS.review_options_481429.head,
-                &MENUS.review_options_481429.items,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_481429
+                    .head,
+                &crate::menu::owner::MENUS
+                    .tables
+                    .menus
+                    .review_options_481429
+                    .items,
             ),
             _ => unreachable!("a menu handle is made only from a menu"),
         }
@@ -1211,7 +1993,7 @@ impl MenuId {
         (0..MENU_COUNT)
             .map(MenuId)
             .find(|m| std::ptr::eq(m.labels(), head))
-            .expect("a menu of MENUS'")
+            .expect("a menu of crate::menu::owner::menus().tables.menus'")
     }
 }
 
@@ -1278,7 +2060,7 @@ mod tests {
             assert_eq!(MenuId::of(m.labels()), m);
             // The -1 after the items is the dword right after the last: read through the
             // whole tables (a reference to the last item reaches no further than it).
-            let tables = std::ptr::from_ref(&MENUS).cast::<u8>();
+            let tables = std::ptr::from_ref(&crate::menu::owner::menus().tables.menus).cast::<u8>();
             let last = std::ptr::from_ref::<MenuItem>(m.items().last().unwrap());
             let after = last.addr() + size_of::<MenuItem>() - tables.addr();
             assert!(after + 4 <= size_of::<MenuTables>());
@@ -1288,15 +2070,37 @@ mod tests {
             );
         }
         assert_eq!(
-            MENUS.stage_result.id().items().len(),
-            MENUS.stage_result.items.len()
+            crate::menu::owner::menus()
+                .tables
+                .menus
+                .stage_result
+                .id()
+                .items()
+                .len(),
+            crate::menu::owner::menus()
+                .tables
+                .menus
+                .stage_result
+                .items
+                .len()
         );
         assert!(MenuId::from_code(0).is_err());
-        assert!(MENUS.select_stage.id().item(0).is_err());
+        assert!(
+            crate::menu::owner::menus()
+                .tables
+                .menus
+                .select_stage
+                .id()
+                .item(0)
+                .is_err()
+        );
         let c = MenuCell::new();
         assert!(c.get().is_err());
-        c.set(MENUS.service_area.id());
-        assert_eq!(c.get().unwrap(), MENUS.service_area.id());
+        c.set(crate::menu::owner::menus().tables.menus.service_area.id());
+        assert_eq!(
+            c.get().unwrap(),
+            crate::menu::owner::menus().tables.menus.service_area.id()
+        );
     }
 
     #[test]

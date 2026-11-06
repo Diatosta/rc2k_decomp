@@ -12,6 +12,6 @@ use crate::gfx::show_picture_file::show_picture_file;
 /// The picture shown.
 pub fn show_loading_picture() -> Result<(), crate::errors::Refused> {
     show_picture_file(crate::pointers::GamePtr::to(
-        &crate::menu::texts_store::MENU_TEXTS.loading_pcx,
+        &crate::menu::owner::menus().tables.texts.loading_pcx,
     ))
 }

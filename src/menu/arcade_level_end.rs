@@ -11,26 +11,34 @@
 //! anything) a level past 5.
 
 use crate::errors::Refused;
-use crate::menu::arcade_store::ARCADE_GAME;
 use crate::menu::lists_store::CarList;
-use crate::menu::results_store::RESULT_FIGURES;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 /// The Rust version.
 pub fn arcade_level_end() -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};
-    if !won(RESULT_FIGURES.positions[0].get()) {
+    if !won(crate::menu::owner::menus().play.results.positions[0].get()) {
         crate::sound::play_tune_7::play_tune_7();
         run_screen(&crate::menu::screen_488f4c_loop::SCREEN, &Entry::default())?;
-        ARCADE_GAME.retry.set(1u32);
+        crate::menu::owner::menus().play.arcade.retry.set(1u32);
         return Ok(());
     }
-    let level = won_level(ARCADE_GAME.level.get())?;
+    let level = won_level(crate::menu::owner::menus().play.arcade.level.get())?;
     crate::sound::play_tune_6::play_tune_6();
     crate::menu::arcade_finale::arcade_finale()?;
-    if first_win(ARCADE_GAME.levels_won.get(level as usize)) {
-        ARCADE_GAME.levels_won.set(level as usize, 1);
+    if first_win(
+        crate::menu::owner::menus()
+            .play
+            .arcade
+            .levels_won
+            .get(level as usize),
+    ) {
+        crate::menu::owner::menus()
+            .play
+            .arcade
+            .levels_won
+            .set(level as usize, 1);
         let shown = Entry {
             cars: Some(CarList::Shown),
         };

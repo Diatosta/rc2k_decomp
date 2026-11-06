@@ -628,1480 +628,1484 @@ pub struct MenuTexts {
     pub _tail: Bytes<2>,
 }
 
-pub static MENU_TEXTS: MenuTexts = MenuTexts {
-    _lead: Bytes::new([0; 2]),
-    no_point_text: Bytes::new(with_runs::<17>(&[(0, b"No point in poly")])),
-    no_second_point_text: Bytes::new(with_runs::<40>(&[(
-        0,
-        b"While scanning right didnt find point 2",
-    )])),
-    keys_menu: Loose::new(0x0),
-    loading_pcx: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\loading.pcx",
-    )])),
-    leave_question_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\mainscr.png",
-    )])),
-    mob_welc_png: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\mob_welc.png",
-    )])),
-    a8_welc_png: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\a8_welc.png",
-    )])),
-    titlebar_png: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\titlebar.png",
-    )])),
-    main_menu_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\mainscr.png",
-    )])),
-    start_rally_picture: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\sral.png",
-    )])),
-    network_rally_picture: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\nral.png",
-    )])),
-    player1_details_picture: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\pdet1.png",
-    )])),
-    player2_details_picture: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\pdet1.png",
-    )])),
-    player3_details_picture: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\pdet1.png",
-    )])),
-    player4_details_picture: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\pdet1.png",
-    )])),
-    player_details_picture: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\pdetc.png",
-    )])),
-    options_picture: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\opts.png",
-    )])),
-    information_picture: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\info.png",
-    )])),
-    video_png: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\video.png",
-    )])),
-    visual_preferences_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\visual.png",
-    )])),
-    visual_options_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\visual.png",
-    )])),
-    cspecs_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs.png",
-    )])),
-    cspecs_png_2: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs.png",
-    )])),
-    load_championship_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\loadsv.png",
-    )])),
-    save_championship_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\loadsv.png",
-    )])),
-    save_replay_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\loadsv.png",
-    )])),
-    load_replay_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\loadsv.png",
-    )])),
-    select_car_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs.png",
-    )])),
-    car_specs_47af4c_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs.png",
-    )])),
-    cspecs_png_3: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs.png",
-    )])),
-    view_best_times_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\btimes.png",
-    )])),
-    view_best_scores_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\bascores.png",
-    )])),
-    best_times_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\btimes.png",
-    )])),
-    arcade_best_times_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\btimes.png",
-    )])),
-    time_trial_best_times_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\btimes.png",
-    )])),
-    best_scores_48a69e_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\bascores.png",
-    )])),
-    best_class_scores_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\bascores.png",
-    )])),
-    best_overall_scores_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\bascores.png",
-    )])),
-    audio_setup_picture: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\audio.png",
-    )])),
-    advanced_audio_picture: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\audio.png",
-    )])),
-    vcourses_png: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\vcourses.png",
-    )])),
-    vcourses_png_2: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\vcourses.png",
-    )])),
-    vcourses_png_3: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\vcourses.png",
-    )])),
-    vcourses_png_4: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\vcourses.png",
-    )])),
-    ukmap_png: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\ukmap.png",
-    )])),
-    loading_png: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\loading.png",
-    )])),
-    player1_controller_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\control.png",
-    )])),
-    player1_buttons_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\control.png",
-    )])),
-    player2_controller_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\control.png",
-    )])),
-    player2_buttons_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\control.png",
-    )])),
-    player3_controller_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\control.png",
-    )])),
-    player3_buttons_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\control.png",
-    )])),
-    player4_controller_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\control.png",
-    )])),
-    player4_buttons_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\control.png",
-    )])),
-    redefine_keys_player1_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\defkeys.png",
-    )])),
-    redefine_keys_player2_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\defkeys.png",
-    )])),
-    redefine_keys_player3_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\defkeys.png",
-    )])),
-    redefine_keys_player4_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\defkeys.png",
-    )])),
-    sral_png: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\sral.png",
-    )])),
-    sral_png_2: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\sral.png",
-    )])),
-    championship_new_simulation_picture: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\sral.png",
-    )])),
-    new_simulation_picture: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\sral.png",
-    )])),
-    endday_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\endday.png",
-    )])),
-    endday_png_2: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\endday.png",
-    )])),
-    rally_stages_picture: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\ukmap.png",
-    )])),
-    serv00_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv00.png",
-    )])),
-    serv00_png_2: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv00.png",
-    )])),
-    serv00_png_3: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv00.png",
-    )])),
-    class_stage_results_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    overall_stage_results_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    class_rally_results_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    overall_rally_results_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    results1_png: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    results1_png_2: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    results1_png_3: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    inspection_area_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\service.png",
-    )])),
-    review_options_47d5a5_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    review_options_480d46_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    review_options_48108e_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    review_options_481429_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    in_game_options_picture: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\opts.png",
-    )])),
-    welcomer_png: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\welcomer.png",
-    )])),
-    welvx_png: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\welvx.png",
-    )])),
-    welpir_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\welpir.png",
-    )])),
-    welsct_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\welsct.png",
-    )])),
-    weljc_png: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\weljc.png",
-    )])),
-    welul_png: Bytes::new(with_runs::<35>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\welul.png",
-    )])),
-    welmnx_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\welmnx.png",
-    )])),
-    a8_1_png: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\a8_1.png",
-    )])),
-    a8_2_png: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\a8_2.png",
-    )])),
-    a8_3_png: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\a8_3.png",
-    )])),
-    a8_4_png: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\a8_4.png",
-    )])),
-    a8_5_png: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\a8_5.png",
-    )])),
-    a8_6_png: Bytes::new(with_runs::<34>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\a8_6.png",
-    )])),
-    setcar_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\setcar.png",
-    )])),
-    class_championship_standings_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\champoc.png",
-    )])),
-    championship_standings_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\champoc.png",
-    )])),
-    simple_select_players_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\arcade1.png",
-    )])),
-    review_options_485f5e_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    arcade_review_options_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    time_trial_select_players_picture: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\arcade1.png",
-    )])),
-    review_options_4882e2_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    review_options_48861d_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    roptions_png: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    screen_488f4c_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    stage_result_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    results1_png_4: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    results_48584b_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    results_482e9b_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    time_trial_results_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    screen_483163_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    results1_png_5: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    selstage_png: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\selstage.png",
-    )])),
-    selstage_png_2: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\selstage.png",
-    )])),
-    arcstage_png: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\arcstage.png",
-    )])),
-    arcade1_png: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\arcade1.png",
-    )])),
-    arcade_select_level_picture: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\Selarc.png",
-    )])),
-    arcade_results_picture: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\results1.png",
-    )])),
-    roptions_png_2: Bytes::new(with_runs::<38>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\roptions.png",
-    )])),
-    racing_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\racing.png",
-    )])),
-    racing_png_2: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\racing.png",
-    )])),
-    mbuts00_pcx: Bytes::new(with_runs::<37>(&[(
-        0,
-        b"files\\g\\graphics\\sprites\\mbuts00.pcx",
-    )])),
-    serv00_png_4: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv00.png",
-    )])),
-    serv01_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv01.png",
-    )])),
-    serv02_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv02.png",
-    )])),
-    serv03_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv03.png",
-    )])),
-    serv04_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv04.png",
-    )])),
-    serv05_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv05.png",
-    )])),
-    serv06_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv06.png",
-    )])),
-    serv07_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv07.png",
-    )])),
-    serv08_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv08.png",
-    )])),
-    serv09_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv09.png",
-    )])),
-    serv10_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv10.png",
-    )])),
-    serv11_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv11.png",
-    )])),
-    serv12_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv12.png",
-    )])),
-    serv13_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv13.png",
-    )])),
-    serv14_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv14.png",
-    )])),
-    serv15_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv15.png",
-    )])),
-    serv16_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv16.png",
-    )])),
-    serv17_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv17.png",
-    )])),
-    serv18_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv18.png",
-    )])),
-    serv19_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv19.png",
-    )])),
-    serv20_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv20.png",
-    )])),
-    serv21_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv21.png",
-    )])),
-    serv22_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv22.png",
-    )])),
-    serv33_png: Bytes::new(with_runs::<36>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\serv33.png",
-    )])),
-    vrw_001_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\vrw_001.png",
-    )])),
-    vrw_002_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\vrw_002.png",
-    )])),
-    vrw_003_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\vrw_003.png",
-    )])),
-    vrw_004_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\vrw_004.png",
-    )])),
-    vrw_005_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\vrw_005.png",
-    )])),
-    vrw_006_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\vrw_006.png",
-    )])),
-    pir_001_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\pir_001.png",
-    )])),
-    pir_002_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\pir_002.png",
-    )])),
-    pir_003_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\pir_003.png",
-    )])),
-    pir_004_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\pir_004.png",
-    )])),
-    pir_005_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\pir_005.png",
-    )])),
-    pir_006_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\pir_006.png",
-    )])),
-    sc_001_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\sc_001.png",
-    )])),
-    sc_002_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\sc_002.png",
-    )])),
-    sc_003_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\sc_003.png",
-    )])),
-    sc_004_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\sc_004.png",
-    )])),
-    sc_005_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\sc_005.png",
-    )])),
-    sc_006_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\sc_006.png",
-    )])),
-    jc_001_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\jc_001.png",
-    )])),
-    jc_002_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\jc_002.png",
-    )])),
-    jc_003_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\jc_003.png",
-    )])),
-    jc_004_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\jc_004.png",
-    )])),
-    jc_005_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\jc_005.png",
-    )])),
-    jc_006_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\jc_006.png",
-    )])),
-    ul_001_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\ul_001.png",
-    )])),
-    ul_002_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\ul_002.png",
-    )])),
-    ul_003_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\ul_003.png",
-    )])),
-    ul_004_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\ul_004.png",
-    )])),
-    ul_005_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\ul_005.png",
-    )])),
-    ul_006_png: Bytes::new(with_runs::<41>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\ul_006.png",
-    )])),
-    mnx_001_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\mnx_001.png",
-    )])),
-    mnx_002_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\mnx_002.png",
-    )])),
-    mnx_003_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\mnx_003.png",
-    )])),
-    mnx_004_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\mnx_004.png",
-    )])),
-    mnx_005_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\mnx_005.png",
-    )])),
-    mnx_006_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\maps\\mnx_006.png",
-    )])),
-    mgnvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mgnvc.png",
-    )])),
-    vxavc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\vxavc.png",
-    )])),
-    stcvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\stcvc.png",
-    )])),
-    hycvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\hycvc.png",
-    )])),
-    sbivc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sbivc.png",
-    )])),
-    pgovc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\pgovc.png",
-    )])),
-    mxpvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mxpvc.png",
-    )])),
-    mtlvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mtlvc.png",
-    )])),
-    vwgvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\vwgvc.png",
-    )])),
-    nsavc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\nsavc.png",
-    )])),
-    ptwvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ptwvc.png",
-    )])),
-    ctsvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ctsvc.png",
-    )])),
-    hncvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\hncvc.png",
-    )])),
-    nsmvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\nsmvc.png",
-    )])),
-    pgtvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\pgtvc.png",
-    )])),
-    frtvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\frtvc.png",
-    )])),
-    sdovc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sdovc.png",
-    )])),
-    stivc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\stivc.png",
-    )])),
-    sdfvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sdfvc.png",
-    )])),
-    ptcvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ptcvc.png",
-    )])),
-    fmxvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\fmxvc.png",
-    )])),
-    fpmvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\fpmvc.png",
-    )])),
-    oscvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\oscvc.png",
-    )])),
-    rclvc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\rclvc.png",
-    )])),
-    mgndm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mgndm.png",
-    )])),
-    vxadm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\vxadm.png",
-    )])),
-    stcdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\stcdm.png",
-    )])),
-    hycdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\hycdm.png",
-    )])),
-    sbidm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sbidm.png",
-    )])),
-    pgodm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\pgodm.png",
-    )])),
-    mxpdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mxpdm.png",
-    )])),
-    mtldm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mtldm.png",
-    )])),
-    vwgdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\vwgdm.png",
-    )])),
-    nsadm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\nsadm.png",
-    )])),
-    ptwdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ptwdm.png",
-    )])),
-    ctsdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ctsdm.png",
-    )])),
-    hncdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\hncdm.png",
-    )])),
-    nsmdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\nsmdm.png",
-    )])),
-    pgtdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\pgtdm.png",
-    )])),
-    frtdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\frtdm.png",
-    )])),
-    sdodm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sdodm.png",
-    )])),
-    stidm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\stidm.png",
-    )])),
-    sdfdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sdfdm.png",
-    )])),
-    ptcdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ptcdm.png",
-    )])),
-    fmxdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\fmxdm.png",
-    )])),
-    fpmdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\fpmdm.png",
-    )])),
-    oscdm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\oscdm.png",
-    )])),
-    rcldm_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\rcldm.png",
-    )])),
-    mgnen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mgnen.png",
-    )])),
-    vxaen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\vxaen.png",
-    )])),
-    stcen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\stcen.png",
-    )])),
-    hycen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\hycen.png",
-    )])),
-    sbien_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sbien.png",
-    )])),
-    pgoen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\pgoen.png",
-    )])),
-    mxpen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mxpen.png",
-    )])),
-    mtlen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mtlen.png",
-    )])),
-    vwgen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\vwgen.png",
-    )])),
-    nsaen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\nsaen.png",
-    )])),
-    ptwen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ptwen.png",
-    )])),
-    ctsen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ctsen.png",
-    )])),
-    hncen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\hncen.png",
-    )])),
-    nsmen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\nsmen.png",
-    )])),
-    pgten_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\pgten.png",
-    )])),
-    frten_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\frten.png",
-    )])),
-    sdoen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sdoen.png",
-    )])),
-    stien_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\stien.png",
-    )])),
-    sdfen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sdfen.png",
-    )])),
-    ptcen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ptcen.png",
-    )])),
-    fmxen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\fmxen.png",
-    )])),
-    fpmen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\fpmen.png",
-    )])),
-    oscen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\oscen.png",
-    )])),
-    rclen_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\rclen.png",
-    )])),
-    mgntc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mgntc.png",
-    )])),
-    vxatc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\vxatc.png",
-    )])),
-    stctc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\stctc.png",
-    )])),
-    hyctc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\hyctc.png",
-    )])),
-    sbitc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sbitc.png",
-    )])),
-    pgotc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\pgotc.png",
-    )])),
-    mxptc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mxptc.png",
-    )])),
-    mtltc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\mtltc.png",
-    )])),
-    vwgtc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\vwgtc.png",
-    )])),
-    nsatc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\nsatc.png",
-    )])),
-    ptwtc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ptwtc.png",
-    )])),
-    ctstc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ctstc.png",
-    )])),
-    hnctc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\hnctc.png",
-    )])),
-    nsmtc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\nsmtc.png",
-    )])),
-    pgttc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\pgttc.png",
-    )])),
-    frttc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\frttc.png",
-    )])),
-    sdotc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sdotc.png",
-    )])),
-    stitc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\stitc.png",
-    )])),
-    sdftc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\sdftc.png",
-    )])),
-    ptctc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\ptctc.png",
-    )])),
-    fmxtc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\fmxtc.png",
-    )])),
-    fpmtc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\fpmtc.png",
-    )])),
-    osctc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\osctc.png",
-    )])),
-    rcltc_png: Bytes::new(with_runs::<42>(&[(
-        0,
-        b"files\\g\\graphics\\screens\\cspecs\\rcltc.png",
-    )])),
-    mgnsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\mgnsl00.png")])),
-    vxasl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\vxasl00.png")])),
-    stcsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\stcsl00.png")])),
-    hycsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\hycsl00.png")])),
-    sbisl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\sbisl00.png")])),
-    pgosl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\pgosl00.png")])),
-    mxpsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\mxpsl00.png")])),
-    mtlsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\mtlsl00.png")])),
-    vwgsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\vwgsl00.png")])),
-    nsasl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\nsasl00.png")])),
-    ptwsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\ptwsl00.png")])),
-    ctssl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\ctssl00.png")])),
-    hncsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\hncsl00.png")])),
-    nsmsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\nsmsl00.png")])),
-    pgtsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\pgtsl00.png")])),
-    frtsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\frtsl00.png")])),
-    sdosl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\sdosl00.png")])),
-    stisl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\stisl00.png")])),
-    sdfsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\sdfsl00.png")])),
-    ptcsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\ptcsl00.png")])),
-    fmxsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\fmxsl00.png")])),
-    fpmsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\fpmsl00.png")])),
-    oscsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\oscsl00.png")])),
-    rclsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\rclsl00.png")])),
-    car_speech: [
-        [
-            Loose::new(speech_key(0x50a15d)),
-            Loose::new(speech_key(0x50a17e)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a19f)),
-            Loose::new(speech_key(0x50a1bf)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a1df)),
-            Loose::new(speech_key(0x50a201)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a223)),
-            Loose::new(speech_key(0x50a243)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a263)),
-            Loose::new(speech_key(0x50a285)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a2a7)),
-            Loose::new(speech_key(0x50a2c5)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a3e3)),
-            Loose::new(speech_key(0x50a402)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a2e3)),
-            Loose::new(speech_key(0x50a304)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a325)),
-            Loose::new(speech_key(0x50a344)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a363)),
-            Loose::new(speech_key(0x50a384)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a3a5)),
-            Loose::new(speech_key(0x50a3c4)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a3e3)),
-            Loose::new(speech_key(0x50a402)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a421)),
-            Loose::new(speech_key(0x50a441)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a461)),
-            Loose::new(speech_key(0x50a481)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a4a1)),
-            Loose::new(speech_key(0x50a4bf)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a4dd)),
-            Loose::new(speech_key(0x50a4fe)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a51f)),
-            Loose::new(speech_key(0x50a541)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a563)),
-            Loose::new(speech_key(0x50a583)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a5a3)),
-            Loose::new(speech_key(0x50a5c5)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a5e7)),
-            Loose::new(speech_key(0x50a609)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a62b)),
-            Loose::new(speech_key(0x50a64c)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a66d)),
-            Loose::new(speech_key(0x50a68c)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a6ab)),
-            Loose::new(speech_key(0x50a6ca)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50a6e9)),
-            Loose::new(speech_key(0x50a706)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-    ],
-    stage_speech: [
-        [
-            Loose::new(speech_key(0x50962f)),
-            Loose::new(speech_key(0x509c71)),
-            Loose::new(speech_key(0x5097a9)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50964d)),
-            Loose::new(speech_key(0x509c94)),
-            Loose::new(speech_key(0x5097cb)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50966b)),
-            Loose::new(speech_key(0x509cb7)),
-            Loose::new(speech_key(0x5097ed)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x509689)),
-            Loose::new(speech_key(0x509cda)),
-            Loose::new(speech_key(0x50980f)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096a7)),
-            Loose::new(speech_key(0x509cfd)),
-            Loose::new(speech_key(0x509831)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096c5)),
-            Loose::new(speech_key(0x509d20)),
-            Loose::new(speech_key(0x509853)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50962f)),
-            Loose::new(speech_key(0x509d43)),
-            Loose::new(speech_key(0x509875)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50964d)),
-            Loose::new(speech_key(0x509d66)),
-            Loose::new(speech_key(0x509897)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50966b)),
-            Loose::new(speech_key(0x509d89)),
-            Loose::new(speech_key(0x5098b9)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x509689)),
-            Loose::new(speech_key(0x509dac)),
-            Loose::new(speech_key(0x5098db)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096a7)),
-            Loose::new(speech_key(0x509dcf)),
-            Loose::new(speech_key(0x5098fd)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096c5)),
-            Loose::new(speech_key(0x509df2)),
-            Loose::new(speech_key(0x50991f)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50962f)),
-            Loose::new(speech_key(0x509e15)),
-            Loose::new(speech_key(0x509941)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50964d)),
-            Loose::new(speech_key(0x509e38)),
-            Loose::new(speech_key(0x509963)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50966b)),
-            Loose::new(speech_key(0x509e5b)),
-            Loose::new(speech_key(0x509985)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x509689)),
-            Loose::new(speech_key(0x509e7e)),
-            Loose::new(speech_key(0x5099a7)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096a7)),
-            Loose::new(speech_key(0x509ea1)),
-            Loose::new(speech_key(0x5099c9)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096c5)),
-            Loose::new(speech_key(0x509ec4)),
-            Loose::new(speech_key(0x5099eb)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50962f)),
-            Loose::new(speech_key(0x509ee7)),
-            Loose::new(speech_key(0x509a0d)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50964d)),
-            Loose::new(speech_key(0x509f0a)),
-            Loose::new(speech_key(0x509a2f)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50966b)),
-            Loose::new(speech_key(0x509f2d)),
-            Loose::new(speech_key(0x509a51)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x509689)),
-            Loose::new(speech_key(0x509f50)),
-            Loose::new(speech_key(0x509a73)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096a7)),
-            Loose::new(speech_key(0x509f73)),
-            Loose::new(speech_key(0x509a95)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096c5)),
-            Loose::new(speech_key(0x509f96)),
-            Loose::new(speech_key(0x509ab7)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50962f)),
-            Loose::new(speech_key(0x509fb9)),
-            Loose::new(speech_key(0x509ad9)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50964d)),
-            Loose::new(speech_key(0x509fdc)),
-            Loose::new(speech_key(0x509afb)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50966b)),
-            Loose::new(speech_key(0x509fff)),
-            Loose::new(speech_key(0x509b1d)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x509689)),
-            Loose::new(speech_key(0x50a022)),
-            Loose::new(speech_key(0x509b3f)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096a7)),
-            Loose::new(speech_key(0x50a045)),
-            Loose::new(speech_key(0x509b61)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096c5)),
-            Loose::new(speech_key(0x50a068)),
-            Loose::new(speech_key(0x509b83)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50962f)),
-            Loose::new(speech_key(0x50a08b)),
-            Loose::new(speech_key(0x509ba5)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50964d)),
-            Loose::new(speech_key(0x50a0ae)),
-            Loose::new(speech_key(0x509bc7)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x50966b)),
-            Loose::new(speech_key(0x50a0d1)),
-            Loose::new(speech_key(0x509be9)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x509689)),
-            Loose::new(speech_key(0x50a0f4)),
-            Loose::new(speech_key(0x509c0b)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096a7)),
-            Loose::new(speech_key(0x50a117)),
-            Loose::new(speech_key(0x509c2d)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-        [
-            Loose::new(speech_key(0x5096c5)),
-            Loose::new(speech_key(0x50a13a)),
-            Loose::new(speech_key(0x509c4f)),
-            Loose::new(speech_key(0xffffffff)),
-        ],
-    ],
-    _tail: Bytes::new([0; 2]),
-};
+impl MenuTexts {
+    pub const fn new() -> Self {
+        MenuTexts {
+            _lead: Bytes::new([0; 2]),
+            no_point_text: Bytes::new(with_runs::<17>(&[(0, b"No point in poly")])),
+            no_second_point_text: Bytes::new(with_runs::<40>(&[(
+                0,
+                b"While scanning right didnt find point 2",
+            )])),
+            keys_menu: Loose::new(0x0),
+            loading_pcx: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\loading.pcx",
+            )])),
+            leave_question_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\mainscr.png",
+            )])),
+            mob_welc_png: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\mob_welc.png",
+            )])),
+            a8_welc_png: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\a8_welc.png",
+            )])),
+            titlebar_png: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\titlebar.png",
+            )])),
+            main_menu_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\mainscr.png",
+            )])),
+            start_rally_picture: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\sral.png",
+            )])),
+            network_rally_picture: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\nral.png",
+            )])),
+            player1_details_picture: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\pdet1.png",
+            )])),
+            player2_details_picture: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\pdet1.png",
+            )])),
+            player3_details_picture: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\pdet1.png",
+            )])),
+            player4_details_picture: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\pdet1.png",
+            )])),
+            player_details_picture: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\pdetc.png",
+            )])),
+            options_picture: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\opts.png",
+            )])),
+            information_picture: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\info.png",
+            )])),
+            video_png: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\video.png",
+            )])),
+            visual_preferences_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\visual.png",
+            )])),
+            visual_options_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\visual.png",
+            )])),
+            cspecs_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs.png",
+            )])),
+            cspecs_png_2: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs.png",
+            )])),
+            load_championship_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\loadsv.png",
+            )])),
+            save_championship_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\loadsv.png",
+            )])),
+            save_replay_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\loadsv.png",
+            )])),
+            load_replay_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\loadsv.png",
+            )])),
+            select_car_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs.png",
+            )])),
+            car_specs_47af4c_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs.png",
+            )])),
+            cspecs_png_3: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs.png",
+            )])),
+            view_best_times_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\btimes.png",
+            )])),
+            view_best_scores_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\bascores.png",
+            )])),
+            best_times_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\btimes.png",
+            )])),
+            arcade_best_times_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\btimes.png",
+            )])),
+            time_trial_best_times_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\btimes.png",
+            )])),
+            best_scores_48a69e_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\bascores.png",
+            )])),
+            best_class_scores_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\bascores.png",
+            )])),
+            best_overall_scores_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\bascores.png",
+            )])),
+            audio_setup_picture: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\audio.png",
+            )])),
+            advanced_audio_picture: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\audio.png",
+            )])),
+            vcourses_png: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\vcourses.png",
+            )])),
+            vcourses_png_2: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\vcourses.png",
+            )])),
+            vcourses_png_3: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\vcourses.png",
+            )])),
+            vcourses_png_4: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\vcourses.png",
+            )])),
+            ukmap_png: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\ukmap.png",
+            )])),
+            loading_png: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\loading.png",
+            )])),
+            player1_controller_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\control.png",
+            )])),
+            player1_buttons_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\control.png",
+            )])),
+            player2_controller_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\control.png",
+            )])),
+            player2_buttons_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\control.png",
+            )])),
+            player3_controller_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\control.png",
+            )])),
+            player3_buttons_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\control.png",
+            )])),
+            player4_controller_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\control.png",
+            )])),
+            player4_buttons_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\control.png",
+            )])),
+            redefine_keys_player1_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\defkeys.png",
+            )])),
+            redefine_keys_player2_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\defkeys.png",
+            )])),
+            redefine_keys_player3_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\defkeys.png",
+            )])),
+            redefine_keys_player4_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\defkeys.png",
+            )])),
+            sral_png: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\sral.png",
+            )])),
+            sral_png_2: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\sral.png",
+            )])),
+            championship_new_simulation_picture: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\sral.png",
+            )])),
+            new_simulation_picture: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\sral.png",
+            )])),
+            endday_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\endday.png",
+            )])),
+            endday_png_2: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\endday.png",
+            )])),
+            rally_stages_picture: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\ukmap.png",
+            )])),
+            serv00_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv00.png",
+            )])),
+            serv00_png_2: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv00.png",
+            )])),
+            serv00_png_3: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv00.png",
+            )])),
+            class_stage_results_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            overall_stage_results_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            class_rally_results_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            overall_rally_results_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            results1_png: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            results1_png_2: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            results1_png_3: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            inspection_area_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\service.png",
+            )])),
+            review_options_47d5a5_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            review_options_480d46_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            review_options_48108e_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            review_options_481429_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            in_game_options_picture: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\opts.png",
+            )])),
+            welcomer_png: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\welcomer.png",
+            )])),
+            welvx_png: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\welvx.png",
+            )])),
+            welpir_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\welpir.png",
+            )])),
+            welsct_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\welsct.png",
+            )])),
+            weljc_png: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\weljc.png",
+            )])),
+            welul_png: Bytes::new(with_runs::<35>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\welul.png",
+            )])),
+            welmnx_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\welmnx.png",
+            )])),
+            a8_1_png: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\a8_1.png",
+            )])),
+            a8_2_png: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\a8_2.png",
+            )])),
+            a8_3_png: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\a8_3.png",
+            )])),
+            a8_4_png: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\a8_4.png",
+            )])),
+            a8_5_png: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\a8_5.png",
+            )])),
+            a8_6_png: Bytes::new(with_runs::<34>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\a8_6.png",
+            )])),
+            setcar_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\setcar.png",
+            )])),
+            class_championship_standings_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\champoc.png",
+            )])),
+            championship_standings_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\champoc.png",
+            )])),
+            simple_select_players_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\arcade1.png",
+            )])),
+            review_options_485f5e_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            arcade_review_options_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            time_trial_select_players_picture: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\arcade1.png",
+            )])),
+            review_options_4882e2_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            review_options_48861d_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            roptions_png: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            screen_488f4c_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            stage_result_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            results1_png_4: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            results_48584b_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            results_482e9b_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            time_trial_results_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            screen_483163_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            results1_png_5: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            selstage_png: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\selstage.png",
+            )])),
+            selstage_png_2: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\selstage.png",
+            )])),
+            arcstage_png: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\arcstage.png",
+            )])),
+            arcade1_png: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\arcade1.png",
+            )])),
+            arcade_select_level_picture: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\Selarc.png",
+            )])),
+            arcade_results_picture: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\results1.png",
+            )])),
+            roptions_png_2: Bytes::new(with_runs::<38>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\roptions.png",
+            )])),
+            racing_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\racing.png",
+            )])),
+            racing_png_2: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\racing.png",
+            )])),
+            mbuts00_pcx: Bytes::new(with_runs::<37>(&[(
+                0,
+                b"files\\g\\graphics\\sprites\\mbuts00.pcx",
+            )])),
+            serv00_png_4: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv00.png",
+            )])),
+            serv01_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv01.png",
+            )])),
+            serv02_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv02.png",
+            )])),
+            serv03_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv03.png",
+            )])),
+            serv04_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv04.png",
+            )])),
+            serv05_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv05.png",
+            )])),
+            serv06_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv06.png",
+            )])),
+            serv07_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv07.png",
+            )])),
+            serv08_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv08.png",
+            )])),
+            serv09_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv09.png",
+            )])),
+            serv10_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv10.png",
+            )])),
+            serv11_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv11.png",
+            )])),
+            serv12_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv12.png",
+            )])),
+            serv13_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv13.png",
+            )])),
+            serv14_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv14.png",
+            )])),
+            serv15_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv15.png",
+            )])),
+            serv16_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv16.png",
+            )])),
+            serv17_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv17.png",
+            )])),
+            serv18_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv18.png",
+            )])),
+            serv19_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv19.png",
+            )])),
+            serv20_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv20.png",
+            )])),
+            serv21_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv21.png",
+            )])),
+            serv22_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv22.png",
+            )])),
+            serv33_png: Bytes::new(with_runs::<36>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\serv33.png",
+            )])),
+            vrw_001_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\vrw_001.png",
+            )])),
+            vrw_002_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\vrw_002.png",
+            )])),
+            vrw_003_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\vrw_003.png",
+            )])),
+            vrw_004_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\vrw_004.png",
+            )])),
+            vrw_005_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\vrw_005.png",
+            )])),
+            vrw_006_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\vrw_006.png",
+            )])),
+            pir_001_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\pir_001.png",
+            )])),
+            pir_002_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\pir_002.png",
+            )])),
+            pir_003_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\pir_003.png",
+            )])),
+            pir_004_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\pir_004.png",
+            )])),
+            pir_005_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\pir_005.png",
+            )])),
+            pir_006_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\pir_006.png",
+            )])),
+            sc_001_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\sc_001.png",
+            )])),
+            sc_002_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\sc_002.png",
+            )])),
+            sc_003_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\sc_003.png",
+            )])),
+            sc_004_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\sc_004.png",
+            )])),
+            sc_005_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\sc_005.png",
+            )])),
+            sc_006_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\sc_006.png",
+            )])),
+            jc_001_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\jc_001.png",
+            )])),
+            jc_002_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\jc_002.png",
+            )])),
+            jc_003_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\jc_003.png",
+            )])),
+            jc_004_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\jc_004.png",
+            )])),
+            jc_005_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\jc_005.png",
+            )])),
+            jc_006_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\jc_006.png",
+            )])),
+            ul_001_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\ul_001.png",
+            )])),
+            ul_002_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\ul_002.png",
+            )])),
+            ul_003_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\ul_003.png",
+            )])),
+            ul_004_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\ul_004.png",
+            )])),
+            ul_005_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\ul_005.png",
+            )])),
+            ul_006_png: Bytes::new(with_runs::<41>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\ul_006.png",
+            )])),
+            mnx_001_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\mnx_001.png",
+            )])),
+            mnx_002_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\mnx_002.png",
+            )])),
+            mnx_003_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\mnx_003.png",
+            )])),
+            mnx_004_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\mnx_004.png",
+            )])),
+            mnx_005_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\mnx_005.png",
+            )])),
+            mnx_006_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\maps\\mnx_006.png",
+            )])),
+            mgnvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mgnvc.png",
+            )])),
+            vxavc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\vxavc.png",
+            )])),
+            stcvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\stcvc.png",
+            )])),
+            hycvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\hycvc.png",
+            )])),
+            sbivc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sbivc.png",
+            )])),
+            pgovc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\pgovc.png",
+            )])),
+            mxpvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mxpvc.png",
+            )])),
+            mtlvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mtlvc.png",
+            )])),
+            vwgvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\vwgvc.png",
+            )])),
+            nsavc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\nsavc.png",
+            )])),
+            ptwvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ptwvc.png",
+            )])),
+            ctsvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ctsvc.png",
+            )])),
+            hncvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\hncvc.png",
+            )])),
+            nsmvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\nsmvc.png",
+            )])),
+            pgtvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\pgtvc.png",
+            )])),
+            frtvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\frtvc.png",
+            )])),
+            sdovc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sdovc.png",
+            )])),
+            stivc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\stivc.png",
+            )])),
+            sdfvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sdfvc.png",
+            )])),
+            ptcvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ptcvc.png",
+            )])),
+            fmxvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\fmxvc.png",
+            )])),
+            fpmvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\fpmvc.png",
+            )])),
+            oscvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\oscvc.png",
+            )])),
+            rclvc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\rclvc.png",
+            )])),
+            mgndm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mgndm.png",
+            )])),
+            vxadm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\vxadm.png",
+            )])),
+            stcdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\stcdm.png",
+            )])),
+            hycdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\hycdm.png",
+            )])),
+            sbidm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sbidm.png",
+            )])),
+            pgodm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\pgodm.png",
+            )])),
+            mxpdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mxpdm.png",
+            )])),
+            mtldm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mtldm.png",
+            )])),
+            vwgdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\vwgdm.png",
+            )])),
+            nsadm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\nsadm.png",
+            )])),
+            ptwdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ptwdm.png",
+            )])),
+            ctsdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ctsdm.png",
+            )])),
+            hncdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\hncdm.png",
+            )])),
+            nsmdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\nsmdm.png",
+            )])),
+            pgtdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\pgtdm.png",
+            )])),
+            frtdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\frtdm.png",
+            )])),
+            sdodm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sdodm.png",
+            )])),
+            stidm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\stidm.png",
+            )])),
+            sdfdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sdfdm.png",
+            )])),
+            ptcdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ptcdm.png",
+            )])),
+            fmxdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\fmxdm.png",
+            )])),
+            fpmdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\fpmdm.png",
+            )])),
+            oscdm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\oscdm.png",
+            )])),
+            rcldm_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\rcldm.png",
+            )])),
+            mgnen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mgnen.png",
+            )])),
+            vxaen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\vxaen.png",
+            )])),
+            stcen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\stcen.png",
+            )])),
+            hycen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\hycen.png",
+            )])),
+            sbien_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sbien.png",
+            )])),
+            pgoen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\pgoen.png",
+            )])),
+            mxpen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mxpen.png",
+            )])),
+            mtlen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mtlen.png",
+            )])),
+            vwgen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\vwgen.png",
+            )])),
+            nsaen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\nsaen.png",
+            )])),
+            ptwen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ptwen.png",
+            )])),
+            ctsen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ctsen.png",
+            )])),
+            hncen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\hncen.png",
+            )])),
+            nsmen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\nsmen.png",
+            )])),
+            pgten_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\pgten.png",
+            )])),
+            frten_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\frten.png",
+            )])),
+            sdoen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sdoen.png",
+            )])),
+            stien_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\stien.png",
+            )])),
+            sdfen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sdfen.png",
+            )])),
+            ptcen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ptcen.png",
+            )])),
+            fmxen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\fmxen.png",
+            )])),
+            fpmen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\fpmen.png",
+            )])),
+            oscen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\oscen.png",
+            )])),
+            rclen_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\rclen.png",
+            )])),
+            mgntc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mgntc.png",
+            )])),
+            vxatc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\vxatc.png",
+            )])),
+            stctc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\stctc.png",
+            )])),
+            hyctc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\hyctc.png",
+            )])),
+            sbitc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sbitc.png",
+            )])),
+            pgotc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\pgotc.png",
+            )])),
+            mxptc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mxptc.png",
+            )])),
+            mtltc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\mtltc.png",
+            )])),
+            vwgtc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\vwgtc.png",
+            )])),
+            nsatc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\nsatc.png",
+            )])),
+            ptwtc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ptwtc.png",
+            )])),
+            ctstc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ctstc.png",
+            )])),
+            hnctc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\hnctc.png",
+            )])),
+            nsmtc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\nsmtc.png",
+            )])),
+            pgttc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\pgttc.png",
+            )])),
+            frttc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\frttc.png",
+            )])),
+            sdotc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sdotc.png",
+            )])),
+            stitc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\stitc.png",
+            )])),
+            sdftc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\sdftc.png",
+            )])),
+            ptctc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\ptctc.png",
+            )])),
+            fmxtc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\fmxtc.png",
+            )])),
+            fpmtc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\fpmtc.png",
+            )])),
+            osctc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\osctc.png",
+            )])),
+            rcltc_png: Bytes::new(with_runs::<42>(&[(
+                0,
+                b"files\\g\\graphics\\screens\\cspecs\\rcltc.png",
+            )])),
+            mgnsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\mgnsl00.png")])),
+            vxasl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\vxasl00.png")])),
+            stcsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\stcsl00.png")])),
+            hycsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\hycsl00.png")])),
+            sbisl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\sbisl00.png")])),
+            pgosl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\pgosl00.png")])),
+            mxpsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\mxpsl00.png")])),
+            mtlsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\mtlsl00.png")])),
+            vwgsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\vwgsl00.png")])),
+            nsasl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\nsasl00.png")])),
+            ptwsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\ptwsl00.png")])),
+            ctssl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\ctssl00.png")])),
+            hncsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\hncsl00.png")])),
+            nsmsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\nsmsl00.png")])),
+            pgtsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\pgtsl00.png")])),
+            frtsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\frtsl00.png")])),
+            sdosl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\sdosl00.png")])),
+            stisl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\stisl00.png")])),
+            sdfsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\sdfsl00.png")])),
+            ptcsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\ptcsl00.png")])),
+            fmxsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\fmxsl00.png")])),
+            fpmsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\fpmsl00.png")])),
+            oscsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\oscsl00.png")])),
+            rclsl00_png: Bytes::new(with_runs::<29>(&[(0, b";3files\\g\\slides\\rclsl00.png")])),
+            car_speech: [
+                [
+                    Loose::new(speech_key(0x50a15d)),
+                    Loose::new(speech_key(0x50a17e)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a19f)),
+                    Loose::new(speech_key(0x50a1bf)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a1df)),
+                    Loose::new(speech_key(0x50a201)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a223)),
+                    Loose::new(speech_key(0x50a243)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a263)),
+                    Loose::new(speech_key(0x50a285)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a2a7)),
+                    Loose::new(speech_key(0x50a2c5)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a3e3)),
+                    Loose::new(speech_key(0x50a402)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a2e3)),
+                    Loose::new(speech_key(0x50a304)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a325)),
+                    Loose::new(speech_key(0x50a344)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a363)),
+                    Loose::new(speech_key(0x50a384)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a3a5)),
+                    Loose::new(speech_key(0x50a3c4)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a3e3)),
+                    Loose::new(speech_key(0x50a402)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a421)),
+                    Loose::new(speech_key(0x50a441)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a461)),
+                    Loose::new(speech_key(0x50a481)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a4a1)),
+                    Loose::new(speech_key(0x50a4bf)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a4dd)),
+                    Loose::new(speech_key(0x50a4fe)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a51f)),
+                    Loose::new(speech_key(0x50a541)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a563)),
+                    Loose::new(speech_key(0x50a583)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a5a3)),
+                    Loose::new(speech_key(0x50a5c5)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a5e7)),
+                    Loose::new(speech_key(0x50a609)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a62b)),
+                    Loose::new(speech_key(0x50a64c)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a66d)),
+                    Loose::new(speech_key(0x50a68c)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a6ab)),
+                    Loose::new(speech_key(0x50a6ca)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50a6e9)),
+                    Loose::new(speech_key(0x50a706)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+            ],
+            stage_speech: [
+                [
+                    Loose::new(speech_key(0x50962f)),
+                    Loose::new(speech_key(0x509c71)),
+                    Loose::new(speech_key(0x5097a9)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50964d)),
+                    Loose::new(speech_key(0x509c94)),
+                    Loose::new(speech_key(0x5097cb)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50966b)),
+                    Loose::new(speech_key(0x509cb7)),
+                    Loose::new(speech_key(0x5097ed)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x509689)),
+                    Loose::new(speech_key(0x509cda)),
+                    Loose::new(speech_key(0x50980f)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096a7)),
+                    Loose::new(speech_key(0x509cfd)),
+                    Loose::new(speech_key(0x509831)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096c5)),
+                    Loose::new(speech_key(0x509d20)),
+                    Loose::new(speech_key(0x509853)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50962f)),
+                    Loose::new(speech_key(0x509d43)),
+                    Loose::new(speech_key(0x509875)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50964d)),
+                    Loose::new(speech_key(0x509d66)),
+                    Loose::new(speech_key(0x509897)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50966b)),
+                    Loose::new(speech_key(0x509d89)),
+                    Loose::new(speech_key(0x5098b9)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x509689)),
+                    Loose::new(speech_key(0x509dac)),
+                    Loose::new(speech_key(0x5098db)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096a7)),
+                    Loose::new(speech_key(0x509dcf)),
+                    Loose::new(speech_key(0x5098fd)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096c5)),
+                    Loose::new(speech_key(0x509df2)),
+                    Loose::new(speech_key(0x50991f)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50962f)),
+                    Loose::new(speech_key(0x509e15)),
+                    Loose::new(speech_key(0x509941)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50964d)),
+                    Loose::new(speech_key(0x509e38)),
+                    Loose::new(speech_key(0x509963)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50966b)),
+                    Loose::new(speech_key(0x509e5b)),
+                    Loose::new(speech_key(0x509985)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x509689)),
+                    Loose::new(speech_key(0x509e7e)),
+                    Loose::new(speech_key(0x5099a7)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096a7)),
+                    Loose::new(speech_key(0x509ea1)),
+                    Loose::new(speech_key(0x5099c9)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096c5)),
+                    Loose::new(speech_key(0x509ec4)),
+                    Loose::new(speech_key(0x5099eb)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50962f)),
+                    Loose::new(speech_key(0x509ee7)),
+                    Loose::new(speech_key(0x509a0d)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50964d)),
+                    Loose::new(speech_key(0x509f0a)),
+                    Loose::new(speech_key(0x509a2f)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50966b)),
+                    Loose::new(speech_key(0x509f2d)),
+                    Loose::new(speech_key(0x509a51)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x509689)),
+                    Loose::new(speech_key(0x509f50)),
+                    Loose::new(speech_key(0x509a73)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096a7)),
+                    Loose::new(speech_key(0x509f73)),
+                    Loose::new(speech_key(0x509a95)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096c5)),
+                    Loose::new(speech_key(0x509f96)),
+                    Loose::new(speech_key(0x509ab7)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50962f)),
+                    Loose::new(speech_key(0x509fb9)),
+                    Loose::new(speech_key(0x509ad9)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50964d)),
+                    Loose::new(speech_key(0x509fdc)),
+                    Loose::new(speech_key(0x509afb)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50966b)),
+                    Loose::new(speech_key(0x509fff)),
+                    Loose::new(speech_key(0x509b1d)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x509689)),
+                    Loose::new(speech_key(0x50a022)),
+                    Loose::new(speech_key(0x509b3f)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096a7)),
+                    Loose::new(speech_key(0x50a045)),
+                    Loose::new(speech_key(0x509b61)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096c5)),
+                    Loose::new(speech_key(0x50a068)),
+                    Loose::new(speech_key(0x509b83)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50962f)),
+                    Loose::new(speech_key(0x50a08b)),
+                    Loose::new(speech_key(0x509ba5)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50964d)),
+                    Loose::new(speech_key(0x50a0ae)),
+                    Loose::new(speech_key(0x509bc7)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x50966b)),
+                    Loose::new(speech_key(0x50a0d1)),
+                    Loose::new(speech_key(0x509be9)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x509689)),
+                    Loose::new(speech_key(0x50a0f4)),
+                    Loose::new(speech_key(0x509c0b)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096a7)),
+                    Loose::new(speech_key(0x50a117)),
+                    Loose::new(speech_key(0x509c2d)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+                [
+                    Loose::new(speech_key(0x5096c5)),
+                    Loose::new(speech_key(0x50a13a)),
+                    Loose::new(speech_key(0x509c4f)),
+                    Loose::new(speech_key(0xffffffff)),
+                ],
+            ],
+            _tail: Bytes::new([0; 2]),
+        }
+    }
+}
 
 /// IDA 0x731B82, the first byte of the piece.
 pub const START: usize = 0x731B82;
@@ -2153,7 +2157,7 @@ pub fn text_at(key: u32) -> Result<crate::pointers::GamePtr, crate::errors::BadI
             "a text's handle off the menus' texts",
         ));
     }
-    Ok(crate::pointers::GamePtr::to(&MENU_TEXTS).offset(key))
+    Ok(crate::pointers::GamePtr::to(&crate::menu::owner::menus().tables.texts).offset(key))
 }
 
 /// IDA 0x734BC6, the end of the piece.
@@ -2167,7 +2171,7 @@ const SPEECH_TABLES_END: usize = 0x734986 + 36 * 4 * 4;
 
 #[cfg(test)]
 pub fn menu_texts_addr() -> u32 {
-    crate::pointers::game_address(&raw const MENU_TEXTS) + 2
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.texts) + 2
 }
 
 #[cfg(test)]

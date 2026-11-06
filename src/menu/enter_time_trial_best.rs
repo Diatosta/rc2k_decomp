@@ -15,12 +15,11 @@
 //! past the four or missing, a stage the tables do not give, or a name pointer of 0.
 
 use crate::errors::Refused;
-use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_flow::*;
 use crate::menu::standings::name_address_of;
 use crate::session::Dword;
 
-const STAGE_SLOT: &Dword = &DRAW_WORK.figure; // dword_7559EC
+const STAGE_SLOT: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure; // dword_7559EC
 // hhmm
 
 /// The Rust version (see the header).

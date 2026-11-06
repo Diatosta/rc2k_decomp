@@ -12,7 +12,6 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::menu::car_description::{read, shown_description};
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::load_background::load_background;
 use crate::text::draw_text::GameCanvas;
 
@@ -36,10 +35,12 @@ pub fn load_car_background(
     load: &mut dyn FnMut(crate::pointers::GamePtr) -> Result<bool, Refused>,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::slides::background_page`.
-    let page = rc2k_core::menu::slides::background_page(EVENT_STATE.car_page.get())?;
+    let page = rc2k_core::menu::slides::background_page(
+        crate::menu::owner::menus().screens.event.car_page.get(),
+    )?;
     let car = shown_car()?;
     let path = crate::menu::texts_store::text_at(crate::session::read_on_in(
-        &crate::menu::lists_store::MENU_LISTS,
+        &crate::menu::owner::menus().tables.lists,
         crate::menu::lists_store::page_pictures(page)?,
         car as usize,
         "load car background: a game value",

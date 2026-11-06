@@ -10,7 +10,6 @@
 //! past its end), before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
 use crate::saves::best_times::SUMMARY;
 
 /// The Rust version (see the header): the registers it leaves.
@@ -18,7 +17,13 @@ pub fn copy_standings_summary() -> Result<(), Refused> {
     if !SUMMARY.is_taken() {
         return Err(BadInput("no standings summary").into());
     }
-    let grouped = MENU_STATE.menus.class_mode.get() == 2;
+    let grouped = crate::menu::owner::menus()
+        .screens
+        .state
+        .menus
+        .class_mode
+        .get()
+        == 2;
     // Converted: `rc2k_core::saves::rankings::summary_rows`.
     let Some(rows) = rc2k_core::saves::rankings::summary_rows(&walked_entries_a()?, grouped) else {
         return Err(BadInput("standings table A runs out").into());

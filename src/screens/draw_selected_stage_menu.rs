@@ -36,7 +36,7 @@ pub fn menu_titles() -> Result<Option<(u32, u32)>, BadInput> {
     };
     Ok(Some((
         table_dword_at(
-            &crate::menu::results_store::RESULT_FIGURES,
+            &crate::menu::owner::menus().play.results,
             GROUP_TITLES,
             sel.group,
         )?,

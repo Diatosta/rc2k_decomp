@@ -10,13 +10,12 @@
 //!
 //! Called by `net::start_link`.
 
-use crate::menu::players_store::PLAYER_TABLE;
 use crate::race::state_store::{RACE_STATE, RaceState};
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
 /// Player 1's record into the network game's settings, its entry marked as taking part.
 pub fn take_player_settings() {
-    let player = &PLAYER_TABLE.players[0];
+    let player = &crate::menu::owner::menus().play.players.players[0];
     player.update(|p| p.entry = TAKES_PART);
     copy_player_settings(&player.get(), &RACE_STATE);
 }

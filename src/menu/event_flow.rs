@@ -5,16 +5,6 @@
 //! (the callees' Rust versions, the screens through `menu::screen_loop`).
 
 use crate::errors::BadInput;
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::cheats_store::CHEAT_VARS;
-use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::loop_store::LOOP_FLAGS;
-use crate::menu::pages_store::MENU_PAGES;
-use crate::menu::players_store::PLAYER_TABLE;
-use crate::menu::results_store::RESULT_FIGURES;
 use crate::records::stages_store::RecordRef;
 use crate::session::Dword;
 
@@ -73,32 +63,32 @@ pub fn refuse_here<T>(r: Result<T, BadInput>, at: &str) -> T {
 
 // ---- the variables ----
 
-pub const ANSWER: &Dword = &MENU_PAGES.yes_no_answer; // g_yesNoAnswer
-pub const CURRENT: &Dword = &EVENT_STATE.current_player; // dword_75598C: the current player
-pub const PLAYER_COUNT: &Dword = &EVENT_STATE.player_count; // dword_755984
-pub const EVENT_MODE: &Dword = &EVENT_STATE.event_kind; // dword_755988 (9 .. 0x18, `menu::run_event_races`)
-pub const EVENT_TYPE: &Dword = &EVENT_STATE.event_type; // dword_755954: 3 time trial, 4, 5 the championships
-pub const MODE: &Dword = &CHAMP_VIEW.event_mode; // g_eventMode: 2, 3, 0x13
-pub const CAR_LEFT: &Dword = &CAPTIONS.screen_left; // dword_758806: the car choice was left
-pub const LEAVE: &Dword = &LOOP_FLAGS.went_back; // dword_75555D
-pub const LEAVE_561: &Dword = &LOOP_FLAGS.back; // dword_755561
-pub const ENDED_565: &Dword = &LOOP_FLAGS.ended_b; // dword_755565
-pub const ENDED_569: &Dword = &LOOP_FLAGS.ended_a; // dword_755569
-pub const DONE: &Dword = &EVENT_STATE.event_done; // dword_755980: 1 when an event is over
-pub const LEFT_A3C: &Dword = &DRAW_WORK.escaped; // dword_755A3C
-pub const CONTINUING: &Dword = &EVENT_STATE.continuing_save; // dword_755970: 1 when a saved game goes on
-pub const INDEX: &Dword = &EVENT_STATE.index; // index
-pub const SECTION: &Dword = &EVENT_STATE.section; // section
-pub const CHEATS: &Dword = &CHEAT_VARS.cheats; // g_cheats
-pub const ROUND: &Dword = &RESULT_FIGURES.round; // dword_758714: the rounds of a multi-player event
+pub const ANSWER: &Dword = &crate::menu::owner::MENUS.tables.pages.yes_no_answer; // g_yesNoAnswer
+pub const CURRENT: &Dword = &crate::menu::owner::MENUS.screens.event.current_player; // dword_75598C: the current player
+pub const PLAYER_COUNT: &Dword = &crate::menu::owner::MENUS.screens.event.player_count; // dword_755984
+pub const EVENT_MODE: &Dword = &crate::menu::owner::MENUS.screens.event.event_kind; // dword_755988 (9 .. 0x18, `menu::run_event_races`)
+pub const EVENT_TYPE: &Dword = &crate::menu::owner::MENUS.screens.event.event_type; // dword_755954: 3 time trial, 4, 5 the championships
+pub const MODE: &Dword = &crate::menu::owner::MENUS.play.champ_view.event_mode; // g_eventMode: 2, 3, 0x13
+pub const CAR_LEFT: &Dword = &crate::menu::owner::MENUS.tables.captions.screen_left; // dword_758806: the car choice was left
+pub const LEAVE: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.went_back; // dword_75555D
+pub const LEAVE_561: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.back; // dword_755561
+pub const ENDED_565: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.ended_b; // dword_755565
+pub const ENDED_569: &Dword = &crate::menu::owner::MENUS.screens.loop_flags.ended_a; // dword_755569
+pub const DONE: &Dword = &crate::menu::owner::MENUS.screens.event.event_done; // dword_755980: 1 when an event is over
+pub const LEFT_A3C: &Dword = &crate::menu::owner::MENUS.screens.draw_work.escaped; // dword_755A3C
+pub const CONTINUING: &Dword = &crate::menu::owner::MENUS.screens.event.continuing_save; // dword_755970: 1 when a saved game goes on
+pub const INDEX: &Dword = &crate::menu::owner::MENUS.screens.event.index; // index
+pub const SECTION: &Dword = &crate::menu::owner::MENUS.screens.event.section; // section
+pub const CHEATS: &Dword = &crate::menu::owner::MENUS.play.cheats.cheats; // g_cheats
+pub const ROUND: &Dword = &crate::menu::owner::MENUS.play.results.round; // dword_758714: the rounds of a multi-player event
 
 /// The car lists: `off_759CAE` (the championship's), `off_759D16` (the A8 championship's),
 /// `off_759DCA` / `off_75A042` (by `dword_7554D8`), `off_75A412` (with cheat bit 1).
-pub const CAR_LIST_KIND: &Dword = &SCREEN_FLOW.car_list_kind; // dword_7554D8: 1 picks the first list
+pub const CAR_LIST_KIND: &Dword = &crate::menu::owner::MENUS.screens.flow.car_list_kind; // dword_7554D8: 1 picks the first list
 
 /// Player `n`'s record (`g_players`).
 pub fn player(n: u32) -> crate::menu::standings::PlayerCell {
-    &PLAYER_TABLE.players[n as usize]
+    &crate::menu::owner::menus().play.players.players[n as usize]
 }
 
 pub fn yes() -> bool {
@@ -115,9 +105,9 @@ pub fn current_player() -> Result<crate::menu::standings::PlayerCell, BadInput> 
 }
 
 /// The stage chosen: `off_735512[dword_7558C8][dword_7558D0]` + `dword_7558CC` x 0xA4.
-pub const STAGE_KIND: &Dword = &EVENT_STATE.stage_group; // dword_7558C8
-pub const STAGE_SUB: &Dword = &EVENT_STATE.stage_sub; // dword_7558D0
-pub const STAGE_NUMBER: &Dword = &EVENT_STATE.stage_number; // dword_7558CC
+pub const STAGE_KIND: &Dword = &crate::menu::owner::MENUS.screens.event.stage_group; // dword_7558C8
+pub const STAGE_SUB: &Dword = &crate::menu::owner::MENUS.screens.event.stage_sub; // dword_7558D0
+pub const STAGE_NUMBER: &Dword = &crate::menu::owner::MENUS.screens.event.stage_number; // dword_7558CC
 const KINDS: u32 = 4;
 /// The stages' best times: `g_stageBestTimesAlt` (kind 1) or `dword_7556E8`, ten for each
 /// stage (the record's +0x3C).

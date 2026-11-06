@@ -11,7 +11,6 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::menu::cheats_store::CHEAT_VARS;
 use crate::race::owner::race;
 use crate::race::save_seal::seal_block;
 use crate::race::work_store::RACE_WORK;
@@ -28,7 +27,11 @@ pub use rc2k_core::files::records::seal_block as block;
 /// nothing else it leaves (register liveness, 2026-10-23).
 pub fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
     let replay = &race().replay;
-    let value = sealed_value(time, CHEAT_VARS.cheats.get(), RACE_WORK.patch_switch.bits());
+    let value = sealed_value(
+        time,
+        crate::menu::owner::menus().play.cheats.cheats.get(),
+        RACE_WORK.patch_switch.bits(),
+    );
     let bytes = block(value, bytes);
     replay.seal_work.block[0].set(u32::from_le_bytes(bytes[..4].try_into().unwrap()));
     replay.seal_work.block[1].set(u32::from_le_bytes(bytes[4..].try_into().unwrap()));

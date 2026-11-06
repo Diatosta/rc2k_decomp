@@ -14,9 +14,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::blit_bar::BAR_HAS_NO_LENGTH;
 use crate::gfx::blit_glyph::BlitCall;
-use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::item_sprites_store::ItemSprite;
-use crate::menu::loop_store::LOOP_FLAGS;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
 use crate::text::measure_string_by_id::measure_string_by_id_at;
@@ -50,11 +48,11 @@ const BAD_ALIGN: &str = "Invalid Active Vbutt Align Tag";
 pub const PLAIN: Kind = Kind {
     left_at: 0,
     right_at: 1,
-    width: &DRAW_WORK.seconds,
-    x: &DRAW_WORK.work_b0,
-    y: &DRAW_WORK.work_b4,
-    left: &DRAW_WORK.glyph,
-    right: &DRAW_WORK.work_c4,
+    width: &crate::menu::owner::MENUS.screens.draw_work.seconds,
+    x: &crate::menu::owner::MENUS.screens.draw_work.work_b0,
+    y: &crate::menu::owner::MENUS.screens.draw_work.work_b4,
+    left: &crate::menu::owner::MENUS.screens.draw_work.glyph,
+    right: &crate::menu::owner::MENUS.screens.draw_work.work_c4,
     slips: true,
     borrows: false,
     bad_align: FatalError {
@@ -79,11 +77,11 @@ pub const HIGHLIGHTED: Kind = Kind {
 pub const ALT: Kind = Kind {
     left_at: 0,
     right_at: 1,
-    width: &DRAW_WORK.figure,
-    x: &DRAW_WORK.hhmm,
-    y: &DRAW_WORK.work_f4,
-    left: &DRAW_WORK.work_00,
-    right: &DRAW_WORK.work_04,
+    width: &crate::menu::owner::MENUS.screens.draw_work.figure,
+    x: &crate::menu::owner::MENUS.screens.draw_work.hhmm,
+    y: &crate::menu::owner::MENUS.screens.draw_work.work_f4,
+    left: &crate::menu::owner::MENUS.screens.draw_work.work_00,
+    right: &crate::menu::owner::MENUS.screens.draw_work.work_04,
     slips: false,
     borrows: true,
     bad_align: FatalError {
@@ -125,7 +123,11 @@ pub fn draw_button(
     kind.y.set(y as u32);
     kind.left.set(sprites[0]);
     kind.right.set(sprites[1]);
-    DRAW_WORK.middle.set(sprites[2]);
+    crate::menu::owner::menus()
+        .screens
+        .draw_work
+        .middle
+        .set(sprites[2]);
     // Converted: `rc2k_core::screens::buttons::draw`; the pieces blitted from the sprite table.
     use rc2k_core::screens::buttons::{Borrowed, Error};
     let borrowed = Borrowed {
@@ -163,7 +165,7 @@ pub fn draw_item_button(
     item: &crate::menu::menus_store::MenuItem,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let highlighted = LOOP_FLAGS.item.get() == item.id.get();
+    let highlighted = crate::menu::owner::menus().screens.loop_flags.item.get() == item.id.get();
     draw_button(
         if highlighted { &HIGHLIGHTED } else { &PLAIN },
         item.text_x.get(),

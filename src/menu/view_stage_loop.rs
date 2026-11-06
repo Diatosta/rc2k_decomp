@@ -12,12 +12,7 @@
 //! Callers: `sub_47037E`.
 
 use crate::errors::Refused;
-use crate::menu::champ_store::CHAMP_VIEW;
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
@@ -34,10 +29,20 @@ fn take_kept() -> u32 {
 }
 
 fn before(_: &Entry) -> Result<(), Refused> {
-    KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.section.get()));
-    KEPT.with_borrow_mut(|stack| stack.push(EVENT_STATE.index.get()));
-    EVENT_STATE.dword_755964.set(EVENT_STATE.section.get());
-    EVENT_STATE.first_page_stage.set(EVENT_STATE.index.get());
+    KEPT.with_borrow_mut(|stack| {
+        stack.push(crate::menu::owner::menus().screens.event.section.get());
+    });
+    KEPT.with_borrow_mut(|stack| stack.push(crate::menu::owner::menus().screens.event.index.get()));
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .dword_755964
+        .set(crate::menu::owner::menus().screens.event.section.get());
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .first_page_stage
+        .set(crate::menu::owner::menus().screens.event.index.get());
 
     Ok(())
 }
@@ -45,37 +50,67 @@ fn before(_: &Entry) -> Result<(), Refused> {
 fn after_lists(_: &Entry) -> Result<(), Refused> {
     Callee::CountStagePages.run()?;
     Callee::StyleChosenStageItem.run()?;
-    if EVENT_STATE.stage_pages.get() == 0x0 {
+    if crate::menu::owner::menus().screens.event.stage_pages.get() == 0x0 {
         Callee::StyleStageItem.run()?;
     }
-    CHAMP_VIEW.stage_mode.set(0x3u32);
+    crate::menu::owner::menus()
+        .play
+        .champ_view
+        .stage_mode
+        .set(0x3u32);
     Ok(())
 }
 
 fn after(_: &Entry) -> Result<(), Refused> {
-    EVENT_STATE.index.set(take_kept());
-    EVENT_STATE.section.set(take_kept());
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .index
+        .set(take_kept());
+    crate::menu::owner::menus()
+        .screens
+        .event
+        .section
+        .set(take_kept());
     Callee::StopStream.run()?;
     Ok(())
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.view_stage.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::VIEW_STAGE],
+    menu: || crate::menu::owner::menus().tables.menus.view_stage.id(),
+    saved_item: || &crate::menu::owner::menus().screens.items.current[slot::VIEW_STAGE],
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.view_stage_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .view_stage_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.view_stage_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .view_stage_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.view_stage_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .view_stage_overlay
+                    .id()
+            },
             run: false,
         },
     ],

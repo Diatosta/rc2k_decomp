@@ -12,7 +12,6 @@
 //! original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::pages_store::MENU_PAGES;
 use crate::text::draw_text::Canvas;
 
 const NAME_LEN: usize = 0x20;
@@ -20,7 +19,7 @@ const NAME_LEN: usize = 0x20;
 
 pub fn draw_savegame_names(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // Converted: `rc2k_core::screens::slot_lists::names`.
-    let page: u32 = MENU_PAGES.save_page.get();
+    let page: u32 = crate::menu::owner::menus().tables.pages.save_page.get();
     let names = crate::pointers::GamePtr::to(&crate::saves::owner::saves().save_games.names);
     rc2k_core::screens::slot_lists::names(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),

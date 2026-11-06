@@ -9,33 +9,54 @@
 //! returns at once on leaving if `dword_75AB34` is 1.
 //! A reading from the title string of its menu, not yet a visit: "CAMPEONATO DE CLASSE".
 //! Callers: `sub_4A4AD5`.
-
-use crate::menu::draw_lists_store::DRAW_LISTS;
-use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::menus_store::MENUS;
-use crate::menu::screen_items_store::{SCREEN_ITEMS, slot};
+use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
-use crate::menu::state_store::MENU_STATE;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || MENUS.class_championship_standings.id(),
-    saved_item: || &SCREEN_ITEMS.current[slot::CLASS_CHAMPIONSHIP_STANDINGS],
+    menu: || {
+        crate::menu::owner::menus()
+            .tables
+            .menus
+            .class_championship_standings
+            .id()
+    },
+    saved_item: || {
+        &crate::menu::owner::menus().screens.items.current[slot::CLASS_CHAMPIONSHIP_STANDINGS]
+    },
     lists: &[
         List {
-            pointer: || &SCREEN_FLOW.scene_list, // g_sceneList
-            table: || DRAW_LISTS.class_championship_standings_scene.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.scene_list, // g_sceneList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .class_championship_standings_scene
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.draw_list, // g_drawList
-            table: || DRAW_LISTS.class_championship_standings_draw.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.draw_list, // g_drawList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .class_championship_standings_draw
+                    .id()
+            },
             run: false,
         },
         List {
-            pointer: || &SCREEN_FLOW.overlay_list, // g_overlayList
-            table: || DRAW_LISTS.class_championship_standings_overlay.id(),
+            pointer: || &crate::menu::owner::menus().screens.flow.overlay_list, // g_overlayList
+            table: || {
+                crate::menu::owner::menus()
+                    .tables
+                    .draw_lists
+                    .class_championship_standings_overlay
+                    .id()
+            },
             run: false,
         },
     ],
@@ -47,7 +68,10 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadBackground(|| {
-        &crate::menu::texts_store::MENU_TEXTS.class_championship_standings_picture
+        &crate::menu::owner::menus()
+            .tables
+            .texts
+            .class_championship_standings_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -58,7 +82,13 @@ pub const SCREEN: Screen = Screen {
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
-    leave_at_once: Some(|| &MENU_STATE.menus.standings_shown),
+    leave_at_once: Some(|| {
+        &crate::menu::owner::menus()
+            .screens
+            .state
+            .menus
+            .standings_shown
+    }),
     next_frame_repeats_first: false,
     action_saved_item: None,
     action_menu: None,

@@ -19,9 +19,6 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::captions_store::CAPTIONS;
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::results_store::RESULT_FIGURES;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::text::draw_text::Canvas;
 
@@ -31,11 +28,16 @@ use crate::text::draw_text::Canvas;
 /// The stage's section's first record and the stage's record (`off_735512[dword_7558C8]
 /// [dword_7558D0]`, + 0xA4 x `dword_7558CC`); none: 0.
 fn records() -> Result<(RecordTable, RecordRef), BadInput> {
-    let base = crate::records::stages_store::STAGE_TABLES
-        .group_event_table(EVENT_STATE.stage_group.get(), EVENT_STATE.stage_sub.get())?;
+    let base = crate::records::stages_store::STAGE_TABLES.group_event_table(
+        crate::menu::owner::menus().screens.event.stage_group.get(),
+        crate::menu::owner::menus().screens.event.stage_sub.get(),
+    )?;
     Ok((
         base,
-        crate::records::stages_store::row(base, EVENT_STATE.stage_number.get())?,
+        crate::records::stages_store::row(
+            base,
+            crate::menu::owner::menus().screens.event.stage_number.get(),
+        )?,
     ))
 }
 
@@ -44,7 +46,7 @@ fn label(v: u32) -> Result<u32, Refused> {
     if !(1..=21).contains(&v) {
         return Err(BadInput("a string index past dword_7588D2's 21").into());
     }
-    Ok(CAPTIONS.duel_labels[v as usize - 1].get())
+    Ok(crate::menu::owner::menus().tables.captions.duel_labels[v as usize - 1].get())
 }
 
 pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
@@ -61,8 +63,8 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         return Err(BadInput("a stage line past the line buffer").into());
     }
     let (label1, label2) = (
-        label(RESULT_FIGURES.positions[0].get())?,
-        label(RESULT_FIGURES.positions[1].get())?,
+        label(crate::menu::owner::menus().play.results.positions[0].get())?,
+        label(crate::menu::owner::menus().play.results.positions[1].get())?,
     );
     // Converted: `rc2k_core::screens::duel_result`.
     use rc2k_core::screens::player_result::Player;
@@ -81,17 +83,17 @@ pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let figures = rc2k_core::screens::duel_result::Figures {
         labels: [label1, label2],
         best: [
-            RESULT_FIGURES.time_bonus[0].get(),
-            RESULT_FIGURES.time_bonus[1].get(),
+            crate::menu::owner::menus().play.results.time_bonus[0].get(),
+            crate::menu::owner::menus().play.results.time_bonus[1].get(),
         ],
         columns: [0, 1].map(|p| {
             [
-                RESULT_FIGURES.points[p].get(),
-                RESULT_FIGURES.time_bonus[p].get(),
-                RESULT_FIGURES.extra[p].get(),
-                RESULT_FIGURES.sums[p].get(),
-                RESULT_FIGURES.before[p].get(),
-                RESULT_FIGURES.totals[p].get(),
+                crate::menu::owner::menus().play.results.points[p].get(),
+                crate::menu::owner::menus().play.results.time_bonus[p].get(),
+                crate::menu::owner::menus().play.results.extra[p].get(),
+                crate::menu::owner::menus().play.results.sums[p].get(),
+                crate::menu::owner::menus().play.results.before[p].get(),
+                crate::menu::owner::menus().play.results.totals[p].get(),
             ]
         }),
     };

@@ -4,15 +4,17 @@
 //! Part of `screens::draw_service_boxes`.
 
 use crate::errors::Refused;
-use crate::menu::lists_store::MENU_LISTS;
-use crate::menu::state_store::MENU_STATE;
 use crate::screens::service_boxes::chosen_frame;
 
 pub fn service_box_frame_4() -> Result<(), Refused> {
     chosen_frame(
         0xF,
-        &MENU_STATE.driver_stats.setups[1],
-        &MENU_LISTS.inspection_flags_a[0xF],
+        &crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .setups[1],
+        &crate::menu::owner::menus().tables.lists.inspection_flags_a[0xF],
         0x193,
         0x37,
         6,

@@ -26,15 +26,19 @@ pub struct Arcade {
 }
 
 /// First values the image's (`tests::arcade_game_starts_as_the_games`).
-pub static ARCADE_GAME: Arcade = Arcade {
-    scene_let_go: Dword::new(0x0),
-    level: Dword::new(0x0),
-    stage: Dword::new(0x1),
-    retry: Dword::new(0x0),
-    places: Dword::new(0x64),
-    _gap_7587fc: Bytes::new([0; 4]),
-    levels_won: Bytes::new([0; 8]),
-};
+impl Arcade {
+    pub const fn new() -> Self {
+        Arcade {
+            scene_let_go: Dword::new(0x0),
+            level: Dword::new(0x0),
+            stage: Dword::new(0x1),
+            retry: Dword::new(0x0),
+            places: Dword::new(0x64),
+            _gap_7587fc: Bytes::new([0; 4]),
+            levels_won: Bytes::new([0; 8]),
+        }
+    }
+}
 
 /// IDA 0x7587E8, the first byte of the piece.
 pub const START: usize = 0x7587E8;
@@ -44,7 +48,7 @@ pub const END: usize = 0x758806;
 /// Where IDA 0x7587E8 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn arcade_addr() -> u32 {
-    crate::pointers::game_address(&raw const ARCADE_GAME)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.play.arcade)
 }
 
 #[cfg(test)]

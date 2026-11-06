@@ -20,7 +20,6 @@
 //! without its end, or without room for a car more.
 
 use crate::errors::BadInput;
-use crate::menu::cheats_store::CHEAT_VARS;
 use crate::menu::remove_secret_cars::{FIRST, List, SECOND, read_list, write_list};
 use crate::race::state_store::RACE_STATE;
 use rc2k_core::menu::car_lists;
@@ -57,7 +56,7 @@ const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
 pub fn apply_cheats(log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
     {
-        let cheats: u32 = CHEAT_VARS.cheats.get();
+        let cheats: u32 = crate::menu::owner::menus().play.cheats.cheats.get();
         let list = |l: List| -> Result<car_lists::List, BadInput> {
             Ok(car_lists::List {
                 cars: read_list(l)?,
@@ -70,7 +69,7 @@ pub fn apply_cheats(log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
             CHEATS[bit].1.map_or(0, crate::menu::cars_store::car_handle)
         })?;
         // Nothing has been written or logged up to here.
-        CHEAT_VARS.cheats.set(a.cheats);
+        crate::menu::owner::menus().play.cheats.cheats.set(a.cheats);
         if first.changed {
             write_list(FIRST, &first.cars);
         }

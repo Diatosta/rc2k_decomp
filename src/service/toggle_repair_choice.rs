@@ -15,8 +15,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::event_store::EVENT_STATE;
-use crate::menu::state_store::MENU_STATE;
 use crate::service::state::flagged_item;
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
@@ -26,16 +24,35 @@ pub fn toggle_repair_choice() -> Result<(), Refused> {
     // refuses).
     let item = flagged_item()?;
     let (mut f, mut m) = (flags(), marks());
-    let budget = EVENT_STATE.service_minutes.get() as i32;
+    let budget = crate::menu::owner::menus()
+        .screens
+        .event
+        .service_minutes
+        .get() as i32;
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, time_of)
             .map_err(|e| BadInput(e.0))?;
     store_flags(&f);
     store_marks(&m);
     {
-        MENU_STATE.service_ui.status.set(status);
-        MENU_STATE.service_ui.box_shown.set(0u32);
-        MENU_STATE.driver_stats.repair_time.set(total as u32);
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .service_ui
+            .status
+            .set(status);
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .service_ui
+            .box_shown
+            .set(0u32);
+        crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .repair_time
+            .set(total as u32);
     }
     Ok(())
 }

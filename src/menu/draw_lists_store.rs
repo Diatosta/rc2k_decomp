@@ -830,7 +830,9 @@ pub struct DrawLists {
 
 /// First values the image's (`tests::draw_lists_start_as_the_games`).
 #[rustfmt::skip]
-pub static DRAW_LISTS: DrawLists = DrawLists {
+impl DrawLists {
+    pub const fn new() -> Self {
+        DrawLists {
         unread_758b72: DrawList::new([0xFFFFFFFF]),
         main_menu_draw: DrawList::new([0x46989B, 0x4695C6, 0xFFFFFFFF]),
         start_rally_draw: DrawList::new([0x46989B, 0x4695C6, 0xFFFFFFFF]),
@@ -1223,7 +1225,9 @@ pub static DRAW_LISTS: DrawLists = DrawLists {
         player3_controller_setup: DrawList::new([0x46AF58, 0xFFFFFFFF]),
         player3_buttons_setup: DrawList::new([0xFFFFFFFF]),
         player4_controller_setup: DrawList::new([0x46AF8F, 0xFFFFFFFF]),
-};
+        }
+    }
+}
 
 /// IDA 0x758B72, the first byte of the piece.
 pub const START: usize = 0x758B72;
@@ -1233,7 +1237,7 @@ pub const END: usize = 0x7594AA;
 /// Where IDA 0x758B72 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn draw_lists_addr() -> u32 {
-    crate::pointers::game_address(&raw const DRAW_LISTS)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.draw_lists)
 }
 
 #[cfg(test)]

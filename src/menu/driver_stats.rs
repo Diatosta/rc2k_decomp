@@ -23,11 +23,8 @@
 //! (level 1). Refuses a current player past 3 or missing, a car past 0xFF or without its table,
 //! before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::event_flow::Fault;
-use crate::menu::event_store::EVENT_STATE;
 use crate::menu::standings::*;
-use crate::menu::state_store::MENU_STATE;
 use crate::session::write_all;
 
 /// The parts' names in the log, by inspected part.
@@ -54,7 +51,11 @@ const EQUALS_RVA: [&std::ffi::CStr; 13] = [
 const PARTS: u32 = 14;
 /// The current player and its car's table.
 pub fn player_and_table() -> Result<(PlayerCell, crate::pointers::GamePtr), BadInput> {
-    let n: u32 = EVENT_STATE.current_player.get();
+    let n: u32 = crate::menu::owner::menus()
+        .screens
+        .event
+        .current_player
+        .get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }
@@ -87,17 +88,59 @@ pub fn driver_stats() -> Result<(), Refused> {
     };
     fault.check()?;
     let c = Constants {
-        steps: MENU_STATE.driver_stats.steps.get(),
-        scale: MENU_STATE.driver_stats.scale.get(),
-        keep_part_1: MENU_STATE.driver_stats.switch_a.get(),
-        short_part_5: MENU_STATE.driver_stats.switch_b.get(),
+        steps: crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .steps
+            .get(),
+        scale: crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .scale
+            .get(),
+        keep_part_1: crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .switch_a
+            .get(),
+        short_part_5: crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .switch_b
+            .get(),
     };
     let f = figures(&table, &car, &c);
-    write_all(&MENU_STATE.driver_stats.repair_times, f.values);
-    write_all(&MENU_STATE.driver_stats.highs, f.highs);
-    write_all(&MENU_STATE.driver_stats.limits, f.limits);
-    MENU_STATE.driver_stats.total.set(f.total);
-    let ds = &MENU_STATE.driver_stats;
+    write_all(
+        &crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .repair_times,
+        f.values,
+    );
+    write_all(
+        &crate::menu::owner::menus().screens.state.driver_stats.highs,
+        f.highs,
+    );
+    write_all(
+        &crate::menu::owner::menus()
+            .screens
+            .state
+            .driver_stats
+            .limits,
+        f.limits,
+    );
+    crate::menu::owner::menus()
+        .screens
+        .state
+        .driver_stats
+        .total
+        .set(f.total);
+    let ds = &crate::menu::owner::menus().screens.state.driver_stats;
     for (cell, value) in [
         &ds.setups[2].chosen,
         &ds.setups[2].installed,
@@ -111,15 +154,29 @@ pub fn driver_stats() -> Result<(), Refused> {
     }
     for k in 0..PARTS as usize {
         if let Some(w) = f.weights[k] {
-            MENU_STATE.driver_stats.weights[k].set(w);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .driver_stats
+                .weights[k]
+                .set(w);
         }
         if let Some(v) = f.penalties[k] {
-            MENU_STATE.driver_stats.penalties[k].set(v);
+            crate::menu::owner::menus()
+                .screens
+                .state
+                .driver_stats
+                .penalties[k]
+                .set(v);
         }
     }
-    DRAW_WORK.figure.set(f.figure);
+    crate::menu::owner::menus()
+        .screens
+        .draw_work
+        .figure
+        .set(f.figure);
     if let Some(span) = f.span {
-        DRAW_WORK.hhmm.set(span);
+        crate::menu::owner::menus().screens.draw_work.hhmm.set(span);
     }
     for (slot, line) in f.logged.iter().enumerate() {
         crate::logfile::log_write::log_nul(&NAMES_RVA[slot], false, 1);

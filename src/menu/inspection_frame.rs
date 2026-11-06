@@ -13,15 +13,14 @@
 //! The surface and the showing are the platform's, as in `frame_callback`.
 
 use crate::errors::Refused;
-use crate::menu::flow_store::SCREEN_FLOW;
 use crate::menu::fn_list::ListCell;
 use crate::menu::frame_callback::{copy_picture, draw_menu, lock_failed, run_listed};
 use crate::platform::{show_frame_now, unlock_surface};
 use crate::scene::light_store::LIGHT_STATE;
 
-const DRAW_LIST: &ListCell = &SCREEN_FLOW.draw_list; // g_drawList
-const SCENE_LIST: &ListCell = &SCREEN_FLOW.scene_list; // g_sceneList
-const OVERLAY_LIST: &ListCell = &SCREEN_FLOW.overlay_list; // g_overlayList
+const DRAW_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.draw_list; // g_drawList
+const SCENE_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.scene_list; // g_sceneList
+const OVERLAY_LIST: &ListCell = &crate::menu::owner::MENUS.screens.flow.overlay_list; // g_overlayList
 
 /// The Rust version, `menu` being edi at entry: whether the frame was made.
 pub fn inspection_frame(menu: crate::menu::menus_store::MenuId) -> Result<bool, Refused> {
