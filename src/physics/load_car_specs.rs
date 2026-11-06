@@ -14,9 +14,6 @@
 //! (from IDA) being `asm_reference` in the tests; the compares and the integer
 //! steps in Rust.
 //!
-//! In:  nothing
-//! Out: eax the record's gear count, ebx the drive kind, esi the record; no flags read
-//!
 //! Callers: `sub_43B635` (0x43B63A), `sub_4217E4`. Refuses (before anything) a drive kind
 //! past 3 (`flt_613FB8`'s size not worked out).
 
@@ -36,6 +33,7 @@ use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
 use std::cmp::Ordering;
 
+/// `a` is below `b`, or one of them is not a number.
 fn below(a: u32, b: u32) -> bool {
     !matches!(
         f32::from_bits(a).partial_cmp(&f32::from_bits(b)),
@@ -77,7 +75,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
     let drive = check_drive(spec.drive_kind.get())?;
     CAR.drive_kind.set(drive);
     // 0x4214A7 .. 0x421543
-    x87_1(spec);
+    load_figures_and_shift_points(spec);
     if below(CAR.engine_speed_limit.bits(), NUMBERS.thousand.bits()) {
         CAR.engine_speed_limit
             .set_bits(x87::loaded(NUMBERS.thousand.bits()));
@@ -89,20 +87,20 @@ pub fn load_car_specs() -> Result<(), Refused> {
     }
     words(spec);
     // 0x4216C5 .. 0x421704
-    x87_2(spec);
+    scale_record_ratios(spec);
     if kind < OWN_FIGURES_FROM {
         // 0x42170D .. 0x421755
-        x87_3();
+        scale_default_ratios();
     }
     PHYSICS.spec_grip.set_bits(PHYSICS.spec_default_ba0.get());
     PHYSICS.spec_grip_b.set_bits(PHYSICS.spec_default_ba4.get());
     PHYSICS.spec_wheel.set_bits(PHYSICS.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
-    x87_4(spec);
+    scale_record_grips(spec);
     DRAW.scratch.set(spec.scratch_value.get());
     PHYSICS.downforce_spec.set(spec.downforce.get());
     // 0x4217CA .. 0x4217E3
-    x87_5(drive as usize);
+    set_rev_limits(drive as usize);
     Ok(())
 }
 
@@ -122,7 +120,7 @@ pub fn load_car_specs() -> Result<(), Refused> {
 /// `[rc + 0x1CB960] = [s + 0xAC] + [rc + 0x1C5DDC]`
 /// `[rc + 0x1CB968] = (int [s + 0x78] * [rc + 0x213EB8]) / [rc + 0x31A1B4]`
 /// `[rc + 0x214104] = [rc + 0x31A1B4] * [rc + 0x213FE4]`
-fn x87_1(s: &CarSpec) {
+fn load_figures_and_shift_points(s: &CarSpec) {
     let t0 = int(s.figures[0].get() as i32);
     GEAR.figures[0].set_bits(st(t0));
     let t1 = int(s.figures[1].get() as i32);
@@ -134,7 +132,7 @@ fn x87_1(s: &CarSpec) {
     let t4 = int(s.engine_top.get() as i32);
     CAR.engine_speed_limit.set_bits(st(t4));
     let t5 = ld(PHYSICS.spec_scale_1b8.bits());
-    CAR.unknown_1e0.set_bits(st(t5));
+    CAR.spec_scale_copy.set_bits(st(t5));
     let t6 = ld(s.shift_points[0].bits());
     GEAR.shift_up_point.set_bits(st(t6));
     let t7 = ld(PHYSICS.spec_scale_a4.bits());
@@ -165,7 +163,7 @@ fn x87_1(s: &CarSpec) {
 /// `int [rc + 0x214BC0] = (int [s + 0x40] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC4] = (int [s + 0x44] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [s + 0x48] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
-fn x87_2(s: &CarSpec) {
+fn scale_record_ratios(s: &CarSpec) {
     let t0 = int(s.whole_figures[0].get() as i32);
     let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 * t1;
@@ -191,7 +189,7 @@ fn x87_2(s: &CarSpec) {
 /// `int [rc + 0x214BC0] = (int [rc + 0x213F04] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC4] = (int [rc + 0x213F08] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
 /// `int [rc + 0x214BC8] = (int [rc + 0x213F0C] * [rc + 0x1C5D98]) / [rc + 0x1C5D18]`
-fn x87_3() {
+fn scale_default_ratios() {
     let t0 = int(PHYSICS.spec_default_bc0[0].bits() as i32);
     let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 * t1;
@@ -216,7 +214,7 @@ fn x87_3() {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214BAC] = [s + 0x38] * [rc + 0x213FC8]`
 /// `[rc + 0x214BB0] = [s + 0x3C] * [rc + 0x213FC8]`
-fn x87_4(s: &CarSpec) {
+fn scale_record_grips(s: &CarSpec) {
     let t0 = ld(s.weights[0].bits());
     let t1 = ld(PHYSICS.gravity.bits());
     let t2 = t0 * t1;
@@ -233,7 +231,7 @@ fn x87_4(s: &CarSpec) {
 /// `[rc + 0x2140FC] = [rc + k * 4 + 0x213FB8] + [rc + 0x1C5D14]`
 /// `k` is the drive kind (0 .. 2): kind 2 reads past the two rev limits into `camera_drop`,
 /// as the original (`notes/bugs.md`).
-fn x87_5(k: usize) {
+fn set_rev_limits(k: usize) {
     let limit = [
         &PHYSICS.rev_limits[0],
         &PHYSICS.rev_limits[1],
@@ -322,7 +320,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1]) },
-                plain: |a| x87_1(&spec_at(a[0], 0x64, 0xB0)),
+                plain: |a| load_figures_and_shift_points(&spec_at(a[0], 0x64, 0xB0)),
             },
             Block {
                 name: "load_car_specs line 145",
@@ -338,7 +336,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(&spec_at(a[0], 0x40, 0x4C)),
+                plain: |a| scale_record_ratios(&spec_at(a[0], 0x40, 0x4C)),
             },
             Block {
                 name: "load_car_specs line 162",
@@ -354,7 +352,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| x87_3(),
+                plain: |_| scale_default_ratios(),
             },
             Block {
                 name: "load_car_specs line 182",
@@ -370,7 +368,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0], a[1]) },
-                plain: |a| x87_4(&spec_at(a[0], 0x38, 0x40)),
+                plain: |a| scale_record_grips(&spec_at(a[0], 0x38, 0x40)),
             },
             Block {
                 name: "load_car_specs line 194 idx k=0",
@@ -383,7 +381,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_5(a[1]),
+                plain: |a| set_rev_limits(a[1]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=1",
@@ -396,7 +394,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_5(a[1]),
+                plain: |a| set_rev_limits(a[1]),
             },
             Block {
                 name: "load_car_specs line 194 idx k=2 (camera_drop)",
@@ -409,7 +407,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0], a[1]) },
-                plain: |a| x87_5(a[1]),
+                plain: |a| set_rev_limits(a[1]),
             },
         ]
     }

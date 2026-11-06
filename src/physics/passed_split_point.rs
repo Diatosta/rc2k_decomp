@@ -13,15 +13,9 @@
 //! instructions, in plain Rust over `X` (`math/x87_float.rs`); the instructions are
 //! `asm_reference` in the tests.
 //!
-//! In:  nothing
-//! Out: CF; eax, ebx, ecx, esi as left; no other flag read (the caller `jnb`s)
-//!
 //! Caller: `physics::track_checkpoints`. Raises fatal error 0x80601843 where the original
 //! does. Refuses (before anything) a split past 0x40, a checkpoint past 0x1418, no faces or
 //! points.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::drive::finish_store::FINISH;
 use crate::errors::{BadInput, FatalError, Refused};
@@ -72,9 +66,8 @@ fn angle(point: [u32; 3]) {
     DRAW.scratch.set_bits(DRAW.scratch.bits() & 0xFFFF);
 }
 
-/// The split's checkpoint, its face and the face's first point's number, refused or fatal
-/// as said.
-fn point() -> Result<(u32, u32, u32), Refused> {
+/// The split's checkpoint and its face's first point's number, refused or fatal as said.
+fn point() -> Result<(u32, u32), Refused> {
     let split = CAR.splits_passed.get();
     let cp =
         progress::check_split_point(split, || SPLIT_TABLES.checkpoints[1 + split as usize].get())?;
@@ -95,18 +88,17 @@ fn point() -> Result<(u32, u32, u32), Refused> {
         "physics::passed_split_point's operand",
     )
     .unwrap_or_else(|e| crate::fatal::raise::end("physics::passed_split_point's operand", e));
-    Ok((cp, index, index))
+    Ok((cp, index))
 }
 
-/// The Rust version: whether the car has passed the split's point (CF). The registers it
-/// leaves are read by none of its callers.
+/// The Rust version: whether the car has passed the split's point (CF).
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
 pub fn passed_split_point() -> Result<bool, Refused> {
     if FINISH.no_place.get() != 0 {
         return Ok(false);
     }
-    let (cp, _, pt) = point()?;
+    let (cp, pt) = point()?;
     // The point read from `race::scene_points` (phase 13); the x87 runs read a copy.
     let pt = crate::race::scene_points::point_number(pt)?;
     GROUND_WORK.ground_x.set(CAR.position[0].get());
@@ -121,11 +113,11 @@ pub fn passed_split_point() -> Result<bool, Refused> {
         return Ok(false);
     }
     angle(pt);
-    let eax = DRAW.scratch.get() << 16;
-    PHYSICS.split_word.set(eax);
+    let car_angle = DRAW.scratch.get() << 16;
+    PHYSICS.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle(cp as usize).get();
     PHYSICS.split_heading.set(heading);
-    let (carry, _) = progress::passed_point(eax, heading);
+    let (carry, _) = progress::passed_point(car_angle, heading);
     Ok(carry)
 }
 

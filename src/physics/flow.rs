@@ -28,6 +28,24 @@ pub fn c3(a: u32, b: u32) -> bool {
     compare_full(a, b) & 0x4000 != 0
 }
 
+/// The float `a` is below `b`, or one of them is not a number (the x87's C0 after
+/// comparing them); `!below_or_unordered(a, b)` is "`a` is at least `b`".
+pub fn below_or_unordered(a: u32, b: u32) -> bool {
+    c0(a, b)
+}
+
+/// The float `a` equals `b`, or one of them is not a number (the x87's C3 after comparing
+/// them).
+pub fn equal_or_unordered(a: u32, b: u32) -> bool {
+    c3(a, b)
+}
+
+/// The size of the float `a` is below `b`, or one of them is not a number (`fabs` then
+/// the comparison's C0).
+pub fn abs_below_or_unordered(a: u32, b: u32) -> bool {
+    crate::math::x87_run::abs_compare(a, b) & 0x100 != 0
+}
+
 /// `fld lim; fld v; fcompp; jnb skip; fld lim; fstp v`: v raised to lim when below it
 /// (or unordered).
 pub fn hold_low(v: &impl crate::session::Cell32, lim: &impl crate::session::Cell32) {

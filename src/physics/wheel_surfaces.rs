@@ -255,7 +255,7 @@ fn x87_3(s: &Surface, d: &Surface, c: usize) {
     let t9 = ld(CAR.wheel_surface_blend[c].bits());
     let t10 = t8 * t9;
     let t11 = t6 + t10;
-    CAR.unknown_948[c].set_bits(st(t11));
+    CAR.point_surface_2c[c].set_bits(st(t11));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'

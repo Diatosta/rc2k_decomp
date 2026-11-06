@@ -5,7 +5,7 @@
 //! the point and coordinate tables follow at +0x1000 each). #[repr(C)] with the image's layout, over the race
 //! block's bytes. Names are readings unless IDA's.
 
-use crate::session::{Dword, Float};
+use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -48,20 +48,20 @@ pub struct GroundWork {
     pub face_share_a: Float,
     /// +0xec (0x639768): `dword_639768`: written by `physics::face_shares` only with the SSE switch (a reading, the reciprocal) (`physics::ground`).
     pub face_share_scale: Float,
-    /// +0xf0 (0x63976C): not named.
-    pub unknown_f0: [Dword; 37],
+    /// +0xf0 (0x63976C): unreferenced bytes (0x94 of them).
+    pub _gap_f0: Bytes<148>,
     /// +0x184 (0x639800): `dword_639800`: a share as a whole number (`fistp`) from `physics::face_shares`; read by `physics::car_lighting`, copied to `dword_62DB08`.
     pub share_s: Dword,
     /// +0x188 (0x639804): `dword_639804`: the second share as a whole number (`fistp`) from `physics::face_shares`; read by `physics::car_lighting`, copied to `dword_62DB0C`.
     pub share_t: Dword,
-    /// +0x18c (0x639808): not named.
-    pub unknown_18c: [Dword; 2],
+    /// +0x18c (0x639808): unreferenced bytes (0x8 of them).
+    pub _gap_18c: Bytes<8>,
     /// +0x194 (0x639810): `flt_639810`: a float from `physics::face_shares`, a `physics::plane_height` factor; `race::car_shadow` writes it; `physics::probe_ground` copies it on.
     pub plane_f: Float,
     /// +0x198 (0x639814): `flt_639814`: a float from `physics::face_shares`, a `physics::plane_height` factor; `physics::probe_ground` copies it on.
     pub plane_g: Float,
-    /// +0x19c (0x639818): not named.
-    pub unknown_19c: [Dword; 2],
+    /// +0x19c (0x639818): unreferenced bytes (0x8 of them).
+    pub _gap_19c: Bytes<8>,
     /// +0x1a4 (0x639820): `dword_639820`: set to 1 by `physics::face_under_point` (`physics::ground`, a reading).
     pub face_under_point_done: Dword,
     /// +0x1a8 (0x639824): `dword_639824`: the x of the place whose ground is asked for (`physics::ground`, `physics::probe_ground`, `physics::car_lighting`, `race::car_shadow`, `race::start_place`).
@@ -80,14 +80,14 @@ pub struct GroundWork {
     pub unknown_220: [Dword; 40],
     /// +0x2c0 (0x63993C): `dword_63993C`: set while a mirrored view is drawn (`race::frame_views`, `scene::draw_polygon`, `race::frame_draw`) (a reading).
     pub view_mirrored: Dword,
-    /// +0x2c4 (0x639940): not named.
-    pub unknown_2c4: [Dword; 5],
+    /// +0x2c4 (0x639940): unreferenced bytes (0x14 of them).
+    pub _gap_2c4: Bytes<20>,
     /// +0x2d8 (0x639954): `g_objectTextureSet`: added to an object's face texture numbers (`scene::draw_scene_object`, `scene::draw_object_faces`).
     pub object_texture_set: Dword,
     /// +0x2dc (0x639958): `dword_639958`: the strength of the lamp light worked out (`scene::add_point_lights`, `race::frame_draw`).
     pub point_light_strength: Dword,
-    /// +0x2e0 (0x63995C): not named.
-    pub unknown_2e0: Dword,
+    /// +0x2e0 (0x63995C): unreferenced bytes (0x4 of them).
+    pub _gap_2e0: Bytes<4>,
     /// +0x2e4 (0x639960): `dword_639960`: polygons drawn whole this frame (`scene::draw_object_polygon`; zeroed by `race::draw_race_scene`) (a reading).
     pub whole_polygon_count: Dword,
     /// +0x2e8 (0x639964): `dword_639964`: polygons drawn split this frame (`scene::draw_object_polygon`; zeroed by `race::draw_race_scene`) (a reading).
@@ -100,8 +100,8 @@ pub struct GroundWork {
     pub object_see_through: Dword,
     /// +0x2f8 (0x639974): `dword_639974`, `dword_639978`: the fade value (0x100 = none) written twice by `scene::set_object_fade` (`scene::list_object_face`).
     pub object_fade: [Dword; 2],
-    /// +0x300 (0x63997C): not named.
-    pub unknown_300: [Dword; 11],
+    /// +0x300 (0x63997C): unreferenced bytes (0x2c of them).
+    pub _gap_300: Bytes<44>,
     /// +0x32c (0x6399A8): `dword_6399A8`: the normal's number `scene::reflection_coordinates` is asked for (`scene::cached_reflection_coordinates`).
     pub reflection_normal_number: Dword,
     /// +0x330 (0x6399AC): `dword_6399AC`: the point's number it is asked for (`scene::reflection_coordinates`).

@@ -3,7 +3,7 @@
 //! Stops before the draw batch's vertex buffer (`unk_6D3CF4`, 0x4000 bytes to 0x6D7CF4).
 //! Names are readings unless IDA's.
 
-use crate::session::{Dword, Float};
+use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
@@ -68,16 +68,16 @@ pub struct ContactWork {
     pub crash_ground_scale: Float,
     /// +0x1240 (0x6D3018): The contact force copied from the record (`physics::crash_contact`, `ground_contact`).
     pub ground_force: [Dword; 3],
-    /// +0x124c (0x6D3024): not named.
-    pub unknown_124c: Dword,
+    /// +0x124c (0x6D3024): unreferenced bytes (0x4 of them).
+    pub _gap_124c: Bytes<4>,
     /// +0x1250 (0x6D3028): 0 then 1 in `physics::ground_contact` (a reading).
     pub ground_contact_started: Dword,
     /// +0x1254 (0x6D302C): `drive::animate_lit_faces`: face word +0x30 saved while it changes.
     pub lit_face_saved_30: Dword,
     /// +0x1258 (0x6D3030): `drive::animate_lit_faces`: face word +0x38 saved.
     pub lit_face_saved_38: Dword,
-    /// +0x125c (0x6D3034): not named.
-    pub unknown_125c: Dword,
+    /// +0x125c (0x6D3034): unreferenced bytes (0x4 of them).
+    pub _gap_125c: Bytes<4>,
     /// +0x1260 (0x6D3038): `physics::wall_contacts`: the faces' word +2 bits (& 0xC00) or-ed.
     pub wall_bits: Dword,
     /// +0x1264 (0x6D303C): `drive::animate_lit_faces`: the distance to a lit face (`fistp`).
@@ -96,16 +96,16 @@ pub struct ContactWork {
     pub lowest_point: Dword,
     /// +0x1298 (0x6D3070): `flt_6D3070`: a share held to 0 .. 1 (`lowest_body_point`, `set_wheel_weights`).
     pub wheel_share: Float,
-    /// +0x129c (0x6D3074): not named.
-    pub unknown_129c: Dword,
+    /// +0x129c (0x6D3074): unreferenced bytes (0x4 of them).
+    pub _gap_129c: Bytes<4>,
     /// +0x12a0 (0x6D3078): The surface's normal (`physics::contact_force`, `crash_contact`, `wall_edge_contact`, `wall_push_back`).
     pub contact_normal: [Float; 3],
-    /// +0x12ac (0x6D3084): not named.
-    pub unknown_12ac: [Dword; 3],
+    /// +0x12ac (0x6D3084): unreferenced bytes (0xc of them).
+    pub _gap_12ac: Bytes<12>,
     /// +0x12b8 (0x6D3090): The contact's point in the car frame (`physics::contact_force`, `crash_contact`, `face_contact`, `bump_cars`).
     pub contact_point: [Float; 3],
-    /// +0x12c4 (0x6D309C): not named.
-    pub unknown_12c4: [Dword; 3],
+    /// +0x12c4 (0x6D309C): unreferenced bytes (0xc of them).
+    pub _gap_12c4: Bytes<12>,
     /// +0x12d0 (0x6D30A8): The car's speed copied (`physics::face_contact`, `wall_edge_contact`, `crossed_edge_contact`).
     pub contact_car_speed: [Float; 3],
     /// +0x12dc (0x6D30B4): The car's turn speed (`physics::apply_torque`, `crash_contact`, `contact_force`).
@@ -114,8 +114,8 @@ pub struct ContactWork {
     pub contact_turn_cross: [Float; 3],
     /// +0x12f4 (0x6D30CC): The point's speed (`physics::contact_force`).
     pub contact_point_speed: [Float; 3],
-    /// +0x1300 (0x6D30D8): not named.
-    pub unknown_1300: [Dword; 3],
+    /// +0x1300 (0x6D30D8): unreferenced bytes (0xc of them).
+    pub _gap_1300: Bytes<12>,
     /// +0x130c (0x6D30E4): The speed along the normal (`physics::contact_force`).
     pub contact_normal_speed: [Float; 3],
     /// +0x1318 (0x6D30F0): The speed across the normal (`physics::contact_force`).
@@ -124,30 +124,30 @@ pub struct ContactWork {
     pub contact_slide_limit_held: Float,
     /// +0x1328 (0x6D3100): `flt_6D3100`: the slide limit the callers set (0 for none).
     pub contact_slide_limit: Float,
-    /// +0x132c (0x6D3104): not named.
-    pub unknown_132c: Dword,
+    /// +0x132c (0x6D3104): unreferenced bytes (0x4 of them).
+    pub _gap_132c: Bytes<4>,
     /// +0x1330 (0x6D3108): `flt_6D3108`: the speed's length (`contact_force`, `wall_contacts`, `point_hits_car`, sound bands).
     pub contact_speed_length: Float,
     /// +0x1334 (0x6D310C): `dword_6D310C`: the across speed's length, into the car's contact value (`contact_force`, `crash_contact`).
     pub contact_value: Float,
-    /// +0x1338 (0x6D3110): not named.
-    pub unknown_1338: [Dword; 8],
+    /// +0x1338 (0x6D3110): unreferenced bytes (0x20 of them).
+    pub _gap_1338: Bytes<32>,
     /// +0x1358 (0x6D3130): The normal push (`physics::contact_force`).
     pub contact_normal_push: [Float; 3],
-    /// +0x1364 (0x6D313C): not named.
-    pub unknown_1364: Dword,
+    /// +0x1364 (0x6D313C): unreferenced bytes (0x4 of them).
+    pub _gap_1364: Bytes<4>,
     /// +0x1368 (0x6D3140): The slide against the motion (`physics::contact_force`).
     pub contact_slide: [Float; 3],
-    /// +0x1374 (0x6D314C): not named.
-    pub unknown_1374: Dword,
+    /// +0x1374 (0x6D314C): unreferenced bytes (0x4 of them).
+    pub _gap_1374: Bytes<4>,
     /// +0x1378 (0x6D3150): The sum turned into the record's force (`physics::contact_force`).
     pub contact_total: [Float; 3],
-    /// +0x1384 (0x6D315C): not named.
-    pub unknown_1384: Dword,
+    /// +0x1384 (0x6D315C): unreferenced bytes (0x4 of them).
+    pub _gap_1384: Bytes<4>,
     /// +0x1388 (0x6D3160): A part of the normal added (`physics::contact_force`).
     pub contact_extra: [Float; 3],
-    /// +0x1394 (0x6D316C): not named.
-    pub unknown_1394: Dword,
+    /// +0x1394 (0x6D316C): unreferenced bytes (0x4 of them).
+    pub _gap_1394: Bytes<4>,
     /// +0x1398 (0x6D3170): `physics::wall_contacts`: the probe's face before (the wall).
     pub wall_face_before: Dword,
     /// +0x139c (0x6D3174): `physics::wall_contacts`: the probe's face now.
@@ -162,18 +162,18 @@ pub struct ContactWork {
     pub crossed_figures: [Dword; 5],
     /// +0x13dc (0x6D31B4): The crossed edge's heading (`physics::crossed_edge_contact`).
     pub crossed_heading: Dword,
-    /// +0x13e0 (0x6D31B8): not named.
-    pub unknown_13e0: Dword,
+    /// +0x13e0 (0x6D31B8): unreferenced bytes (0x4 of them).
+    pub _gap_13e0: Bytes<4>,
     /// +0x13e4 (0x6D31BC): `g_carPointCount`: `race::set_up_car_points`' count of the car's points.
     pub car_point_count: Dword,
-    /// +0x13e8 (0x6D31C0): not named.
-    pub unknown_13e8: Dword,
+    /// +0x13e8 (0x6D31C0): unreferenced bytes (0x4 of them).
+    pub _gap_13e8: Bytes<4>,
     /// +0x13ec (0x6D31C4): The car's up turned by the crash matrix (`physics::crash_contact`).
     pub crash_car_up: [Float; 3],
     /// +0x13f8 (0x6D31D0): Minus up dotted with the normal (`physics::crash_contact`).
     pub crash_up_dot: Float,
-    /// +0x13fc (0x6D31D4): not named.
-    pub unknown_13fc: Dword,
+    /// +0x13fc (0x6D31D4): unreferenced bytes (0x4 of them).
+    pub _gap_13fc: Bytes<4>,
     /// +0x1400 (0x6D31D8): `flt_6D31D8`: the push the turn gives along the normal (`contact_force`).
     pub contact_turn_push: Float,
     /// +0x1404 (0x6D31DC): `flt_6D31DC`: the depth along the normal (`contact_force`).
@@ -202,20 +202,20 @@ pub struct ContactWork {
     pub contact_kind: Dword,
     /// +0x1850 (0x6D3628): `physics::probe_ground`: the last probe x float (a reading).
     pub probe_turned_x_last: Float,
-    /// +0x1854 (0x6D362C): not named.
-    pub unknown_1854: Dword,
+    /// +0x1854 (0x6D362C): unreferenced bytes (0x4 of them).
+    pub _gap_1854: Bytes<4>,
     /// +0x1858 (0x6D3630): `physics::probe_ground`: the last probe z float (a reading).
     pub probe_turned_z_last: Float,
-    /// +0x185c (0x6D3634): not named.
-    pub unknown_185c: [Dword; 323],
+    /// +0x185c (0x6D3634): unreferenced bytes (0x50c of them).
+    pub _gap_185c: Bytes<1292>,
     /// +0x1d68 (0x6D3B40): The object's offset, whole numbers (`physics::scene_point_hits_car`, `object_hits_car`, `point_hits_car`).
     pub object_offset: [Dword; 3],
     /// +0x1d74 (0x6D3B4C): The point relative to the car, whole numbers (`physics::point_hits_car`, `place_sound_object`).
     pub object_point_offset: [Dword; 3],
     /// +0x1d80 (0x6D3B58): The point / 65536 turned by the heading (`physics::point_hits_car`, `face_contact`).
     pub object_point_turned: [Float; 3],
-    /// +0x1d8c (0x6D3B64): not named.
-    pub unknown_1d8c: [Dword; 3],
+    /// +0x1d8c (0x6D3B64): unreferenced bytes (0xc of them).
+    pub _gap_1d8c: Bytes<12>,
     /// +0x1d98 (0x6D3B70): The contact's angle byte (`physics::face_contact`, `touch_face`).
     pub face_angle: Dword,
     /// +0x1d9c (0x6D3B74): The car's speed x 65536 (`physics::face_contact`, `touch_face`).
@@ -226,12 +226,12 @@ pub struct ContactWork {
     pub crossed_probe: Dword,
     /// +0x1db0 (0x6D3B88): `flt_6D3B88`: scales the places' difference (`physics::bump_cars`).
     pub bump_push_scale: Float,
-    /// +0x1db4 (0x6D3B8C): not named.
-    pub unknown_1db4: [Dword; 4],
+    /// +0x1db4 (0x6D3B8C): unreferenced bytes (0x10 of them).
+    pub _gap_1db4: Bytes<16>,
     /// +0x1dc4 (0x6D3B9C): The push apart (`physics::bump_cars`).
     pub bump_push: [Float; 3],
-    /// +0x1dd0 (0x6D3BA8): not named.
-    pub unknown_1dd0: Dword,
+    /// +0x1dd0 (0x6D3BA8): unreferenced bytes (0x4 of them).
+    pub _gap_1dd0: Bytes<4>,
     /// +0x1dd4 (0x6D3BAC): `flt_6D3BAC` (`physics::bump_cars`).
     pub bump_share_a: Float,
     /// +0x1dd8 (0x6D3BB0): `flt_6D3BB0` (`physics::bump_cars`).
@@ -256,16 +256,16 @@ pub struct ContactWork {
     pub corner_matrix: [Float; 24],
     /// +0x1ec8 (0x6D3CA0): The note of the meeting (`physics::bump_cars`).
     pub bump_note: [Dword; 8],
-    /// +0x1ee8 (0x6D3CC0): not named.
-    pub unknown_1ee8: [Dword; 4],
+    /// +0x1ee8 (0x6D3CC0): unreferenced bytes (0x10 of them).
+    pub _gap_1ee8: Bytes<16>,
     /// +0x1ef8 (0x6D3CD0): `flt_6D3CD0` (`physics::bump_cars`, sound bands).
     pub bump_speed_length: Float,
     /// +0x1efc (0x6D3CD4): `dword_6D3CD4` (`car_collisions`, `bump_cars`, `place_sound_e1_other`).
     pub other_car_number: Dword,
     /// +0x1f00 (0x6D3CD8): The speed between the cars (`physics::bump_cars`).
     pub bump_relative_speed: [Float; 3],
-    /// +0x1f0c (0x6D3CE4): not named.
-    pub unknown_1f0c: [Dword; 2],
+    /// +0x1f0c (0x6D3CE4): unreferenced bytes (0x8 of them).
+    pub _gap_1f0c: Bytes<8>,
     /// +0x1f14 (0x6D3CEC): `dword_6D3CEC` (`race::flush_draw_batch`).
     pub batch_index_count: Dword,
     /// +0x1f18 (0x6D3CF0): `dword_6D3CF0` (`race::flush_draw_batch`).

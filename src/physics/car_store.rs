@@ -76,8 +76,8 @@ pub struct Car {
     pub stop_state: Dword,
     /// +0xb4 (0x71A08C): g_crashMatrix: the 4 x 4 orientation, translation row at +0x30.
     pub crash_matrix: [Float; 16],
-    /// +0xf4 (0x71A0CC): not named.
-    pub unknown_f4: [Dword; 16],
+    /// +0xf4 (0x71A0CC): unreferenced bytes (0x40 of them).
+    pub _gap_f4: Bytes<64>,
     /// +0x134 (0x71A10C): world position x, y, z (x 65536).
     pub position: [Dword; 3],
     /// +0x140 (0x71A118): one figure per split taken.
@@ -86,16 +86,16 @@ pub struct Car {
     pub drive_slip_speed: Float,
     /// +0x184 (0x71A15C): angular velocity x, y, z.
     pub spin: [Float; 3],
-    /// +0x190 (0x71A168): not named.
-    pub unknown_190: Dword,
+    /// +0x190 (0x71A168): unreferenced bytes (0x4 of them).
+    pub _gap_190: Bytes<4>,
     /// +0x194 (0x71A16C): length of the spin.
     pub spin_length: Float,
     /// +0x198 (0x71A170): world-frame velocity.
     pub velocity: [Float; 3],
     /// +0x1a4 (0x71A17C): velocity in the car's frame (z forward: g_carSpeed).
     pub local_velocity: [Float; 3],
-    /// +0x1b0 (0x71A188): not named.
-    pub unknown_1b0: [Dword; 2],
+    /// +0x1b0 (0x71A188): unreferenced bytes (0x8 of them).
+    pub _gap_1b0: Bytes<8>,
     /// +0x1b8 (0x71A190): driven wheels' speed (g_carDriveSpeed).
     pub drive_speed_a: Float,
     /// +0x1bc (0x71A194): second driven speed (g_carDriveSpeed2).
@@ -116,8 +116,9 @@ pub struct Car {
     pub engine_speed: Float,
     /// +0x1dc (0x71A1B4): engine top revs.
     pub engine_speed_limit: Float,
-    /// +0x1e0 (0x71A1B8): written by load_car_specs, read by gear code.
-    pub unknown_1e0: Dword,
+    /// +0x1e0 (0x71A1B8): a copy of the car spec's scale (`spec_scale_1b8`) written by
+    /// load_car_specs; no reader.
+    pub spec_scale_copy: Dword,
     /// +0x1e4 (0x71A1BC): revs for the sound object.
     pub engine_sound_revs: Dword,
     /// +0x1e8 (0x71A1C0): steps stuck.
@@ -381,8 +382,8 @@ pub struct Car {
     pub unknown_6cc: [Dword; 9],
     /// +0x6f0 (0x71A6C8): 1 when the camera mode is 2 or 3.
     pub camera_mode_is_2_or_3: Dword,
-    /// +0x6f4 (0x71A6CC): not named.
-    pub unknown_6f4: [Dword; 2],
+    /// +0x6f4 (0x71A6CC): unreferenced bytes (0x8 of them).
+    pub _gap_6f4: Bytes<8>,
     /// +0x6fc (0x71A6D4): the car's state bits (lights, seen from inside 0x10, casts a
     /// shadow; `race::car_draw`, `race::car_shadow`, `race::frame_views`).
     pub state_bits: Dword,
@@ -433,8 +434,9 @@ pub struct Car {
     pub wheel_surface_a: [Dword; 5],
     /// +0x934 (0x71A90C): per ground point: surface kind of the second cell.
     pub wheel_surface_b: [Dword; 5],
-    /// +0x948 (0x71A920): not named.
-    pub unknown_948: [Dword; 5],
+    /// +0x948 (0x71A920): per point: the surface's `blend_2c` figure blended between the two
+    /// surfaces by `wheel_surface_blend`.
+    pub point_surface_2c: [Dword; 5],
     /// +0x95c (0x71A934): per point: byte +0x18 of the first cell's record.
     pub wheel_cell_a_byte18: [Dword; 5],
     /// +0x970 (0x71A948): same for the second cell.
@@ -486,8 +488,8 @@ pub struct Car {
     /// +0xac0 (0x71AA98): the parts' switch bytes (`rc2k_core::race::car_parts::
     /// mark_switches`).
     pub part_switches: Bytes<0x11>,
-    /// +0xad1 (0x71AAA9): not named.
-    pub unknown_ad1: Bytes<3>,
+    /// +0xad1 (0x71AAA9): unreferenced bytes (0x3 of them).
+    pub _gap_ad1: Bytes<3>,
     /// +0xad4 (0x71AAAC): the course map picture's corner x, y (16-pixel steps;
     /// `race::map_scroll`).
     pub map_corner: [Dword; 2],

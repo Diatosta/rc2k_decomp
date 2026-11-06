@@ -3,18 +3,11 @@
 //! `60667C`, `6066D4`, `6066D8`, `606730`, `606734` and the last into `dword_60668C`,
 //! `6066E8`, `606744`; the offset (`dword_608B30` ..) turned by `unk_71A69C`,
 //! `71A694`, `71A698` then `71A68C`, `71A690`, `71A688` (`math::turn_point_xz_ebx`,
-//! `_ecx`, `turn_point_xz`, in the original's registers) into the place `unk_71A67C`
+//! `_ecx`, `turn_point_xz`) into the place `unk_71A67C`
 //! ..; then the second offset (`dword_608B74` .., / 65536) turned by `g_crashMatrix`
 //! (`scene::rotate_point`), x 65536 (`fistp`), plus `dword_6416E8` .., added to it.
 //!
-//! In:  nothing
-//! Out: eax, ebx, ecx the last offset added, edx the last turn's, esi `g_crashMatrix`;
-//!      the rest kept; no flags read
-//!
 //! Callers: `sub_43907F` (seven).
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87_float::{f80, int, ld};
 use crate::physics::camera_store::CAMERA_WORK;
@@ -37,7 +30,7 @@ type Turns = (
 
 /// The steps both versions share; `second` the second offset turned with the car.
 fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
-    let esi = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
+    let figures = if RACE_VARS.split.get() == SECOND_RECORD_MODE {
         &LIGHTS_DATA.place_second
     } else {
         &LIGHTS_DATA.place_usual
@@ -53,18 +46,21 @@ fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
         &r6.offset[2],
     ];
     for (k, to) in places.iter().enumerate() {
-        to.set(esi[k].get());
+        to.set(figures[k].get());
     }
-    let last = esi[6].get();
+    let last = figures[6].get();
     for to in [&r4.angles[0], &r5.angles[0], &r6.angles[0]] {
         to.set(last);
     }
-    let (mut eax, mut ebx, mut ecx) = (
+    // The offset (x, y, z) turned about each axis in turn: the `turn_point_xz*` functions
+    // take the three coordinates in the order of the original's registers, which name
+    // them here (`eax` x, `ebx` y, `ecx` z).
+    let (mut x, mut y, mut z) = (
         CAMERA_WORK.camera_offset_x.get(),
         CAMERA_WORK.camera_offset_y.get(),
         CAMERA_WORK.camera_offset_z.get(),
     );
-    for (ebx_turn, ecx_turn, eax_turn) in [
+    for (y_turn, z_turn, x_turn) in [
         (
             &CAR.camera_offset_turns[2],
             &CAR.camera_offset_turns[0],
@@ -77,19 +73,19 @@ fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
         ),
     ] {
         let i = |v: u32| v as i32;
-        let [x, z, _] = { turns.0(i(ebx), i(ecx), i(eax), ebx_turn.get()) };
-        ebx = x;
-        eax = z;
-        let [x, z, _] = { turns.1(i(ecx), i(eax), i(ebx), ecx_turn.get()) };
-        ecx = x;
-        ebx = z;
-        let [x, _, z, _] = { turns.2(i(eax), i(ebx), i(ecx), eax_turn.get()) };
-        eax = x;
-        ecx = z;
+        let [new_y, new_x, _] = { turns.0(i(y), i(z), i(x), y_turn.get()) };
+        y = new_y;
+        x = new_x;
+        let [new_z, new_y, _] = { turns.1(i(z), i(x), i(y), z_turn.get()) };
+        z = new_z;
+        y = new_y;
+        let [new_x, _, new_z, _] = { turns.2(i(x), i(y), i(z), x_turn.get()) };
+        x = new_x;
+        z = new_z;
     }
-    CAR.camera_position[0].set(eax);
-    CAR.camera_position[1].set(ebx);
-    CAR.camera_position[2].set(ecx);
+    CAR.camera_position[0].set(x);
+    CAR.camera_position[1].set(y);
+    CAR.camera_position[2].set(z);
     // 0x438F14: the second offset, turned with the car.
     let whole = second();
     DRAW.scratch.set(whole[2] as u32);
@@ -109,8 +105,7 @@ fn place_with(turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     CAR.camera_position[2].set(place[2]);
 }
 
-/// The Rust version (the exact one, for `physics::camera_avoid_ground`). The registers it
-/// leaves are read by none of its callers.
+/// The Rust version (the exact one, for `physics::camera_avoid_ground`).
 pub fn place_camera() {
     use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
     let second = || {
@@ -119,7 +114,7 @@ pub fn place_camera() {
             &CAMERA_WORK.view_turn_y,
             &CAMERA_WORK.view_turn_z,
         ];
-        let parts = turns.map(x87_1);
+        let parts = turns.map(view_turn_part);
         let turned = { crate::scene::rotate_point::rotate_point(&CAR.crash_matrix, parts) };
         let k = NUMBERS.k65536.bits();
         turned.map(|e| crate::math::x87_run::ext_to_int(crate::math::x87_run::ext_times(e, k)))
@@ -139,7 +134,7 @@ pub fn place_camera() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `ext [o + 0] = int [v + 0] / [rc + 0x1C5D98]`; the value is `o`'s ten bytes.
-fn x87_1(v: &impl Cell32) -> [u8; 10] {
+fn view_turn_part(v: &impl Cell32) -> [u8; 10] {
     let t0 = int(v.bits() as i32);
     let t1 = ld(NUMBERS.k65536.bits());
     let t2 = t0 / t1;
@@ -174,7 +169,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-            plain: |a| a[2].set_tbyte(0, x87_1(&HostCell(a[0]))),
+            plain: |a| a[2].set_tbyte(0, view_turn_part(&HostCell(a[0]))),
         }]
     }
 

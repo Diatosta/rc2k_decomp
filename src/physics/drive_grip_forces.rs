@@ -14,17 +14,10 @@
 //! (`flt_5C5E48`) and split over the rear wheels' places (+0xCF0 ..).
 //!
 //! The flow, the compares and the integer steps are Rust; each straight x87 run is plain
-//! Rust over `X` (`math/x87_float.rs`) in the `x87_N` functions below, the original's
+//! Rust over `X` (`math/x87_float.rs`) in the named helpers below, the original's
 //! instructions being `asm_reference` in the tests.
 //!
-//! In:  nothing
-//! Out: eax, ebx and edx as the instructions leave them; no flags read (the caller calls
-//!      on)
-//!
 //! Caller: `sub_43B635` (0x43B7A3), every physics step.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
 
 use crate::math::x87;
 use crate::math::x87_float::X;
@@ -32,40 +25,39 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::math::x87_float::to_int;
-use crate::math::x87_run::{abs_compare, mul_status};
+use crate::math::x87_run::mul_status;
 use crate::physics::car_store::CAR;
-use crate::physics::flow::{c3, ease_zero, hold_high, hold_low, negate};
+use crate::physics::flow::{abs_below_or_unordered, c3, ease_zero, hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::numbers_store::NUMBERS;
 use crate::scene::draw_store::DRAW;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::session::Float;
 
-/// `edx` = the steer angle's table index (+0x64C >> 20).
+/// The steer angle's table index (the angle >> 20).
 fn steer_index() -> u32 {
     CAR.steer_angle.get() >> 20
 }
 
-/// 0x43CDFF / 0x43CE21: +0x210 = sine x speed / `dword_614BA0`.
-fn steer_force(e: u32) {
-    x87_1(e as usize);
+/// `a b` is below `c`, or one of them is not a number (the compare's C0).
+fn product_below(a: u32, b: u32, c: u32) -> bool {
+    mul_status(a, b, c) & 0x100 != 0
 }
 
-/// The Rust version. The eax, ebx and edx it leaves are read by none of its callers.
+/// The Rust version.
 pub fn drive_grip_forces() {
-    let mut edx;
     let kind = CAR.drive_kind.get();
     // 0x43CD79: the share of +0x1F4 out of 50, from 1, held 0 ..= 1.
     DRAW.scratch.set(0x32);
-    x87_2();
+    lever_share_from_timer();
     hold_low(&PHYSICS.lever_share, &NUMBERS.zero);
     hold_high(&PHYSICS.lever_share, &NUMBERS.one);
     CAR.grip_forces[0].set_bits(0);
     if CAR.front_wheels_off.get() == 0 {
-        steer_force(steer_index());
+        steer_sine_force(steer_index() as usize);
     }
-    edx = steer_index();
-    steer_force(edx);
+    // The original takes the force a second time over.
+    steer_sine_force(steer_index() as usize);
     if !c3(CAR.local_velocity[2].bits(), NUMBERS.zero.bits()) {
         // 0x43CE53: the slip limit, by the drive kind's factor.
         let factor = if kind == 1 {
@@ -73,14 +65,14 @@ pub fn drive_grip_forces() {
         } else {
             &PHYSICS.grip_factor[0]
         };
-        x87_3(factor);
+        grip_limit_for(factor);
         DRAW.scratch.set(CAR.grip_forces[0].bits());
         // +0x210 held to ±the limit (the value negated in place between).
         hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
         negate(&CAR.grip_forces[0]);
         hold_high(&CAR.grip_forces[0], &PHYSICS.grip_limit);
         negate(&CAR.grip_forces[0]);
-        let slow = |v: &Float| abs_compare(v.bits(), PHYSICS.grip_slow_speed.bits()) & 0x100 != 0;
+        let slow = |v: &Float| abs_below_or_unordered(v.bits(), PHYSICS.grip_slow_speed.bits());
         if !slow(&CAR.local_velocity[2]) && slow(&CAR.drive_speed_a) {
             CAR.grip_forces[0].set_bits(0);
         }
@@ -88,10 +80,10 @@ pub fn drive_grip_forces() {
             if DRAW.scratch.get() == 0 {
                 CAR.steering.set(0);
             } else {
-                x87_4(&CAR.grip_forces[0], &DRAW.scratch);
+                divide_into_scratch(&CAR.grip_forces[0], &DRAW.scratch);
                 hold_high(&DRAW.scratch, &NUMBERS.one);
                 hold_low(&DRAW.scratch, &NUMBERS.zero);
-                x87_5();
+                scale_steering();
             }
         }
     }
@@ -106,34 +98,31 @@ pub fn drive_grip_forces() {
     }
     CAR.grip_forces[3].set_bits(0);
     if kind == 0 {
-        x87_6();
+        ground_speed_into_scratch();
         hold_high(&DRAW.scratch, &PHYSICS.grip_ramp);
-        edx = steer_index();
-        x87_7(edx as usize);
+        lean_force(steer_index() as usize);
     }
     // 0x43D08E: the engine braking.
-    let eax = if kind != 0 {
-        x87_8();
+    let braking_word = if kind != 0 {
+        braking_count_geared();
         ((CAR.brake.get().wrapping_sub(CAR.throttle.get()) as i32 >> 1) as u32)
             .wrapping_add(0x80)
             .wrapping_add(DRAW.scratch.get())
             .wrapping_add(CAR.handbrake.get())
     } else {
-        x87_9();
+        braking_count_neutral();
         0x100u32
             .wrapping_sub(CAR.throttle.get())
             .wrapping_add(DRAW.scratch.get())
             .wrapping_add(CAR.handbrake.get())
     };
-    PHYSICS.grip_drive_word.set(eax);
-    x87_10();
-    if mul_status(
+    PHYSICS.grip_drive_word.set(braking_word);
+    engine_braking_force();
+    if product_below(
         CAR.grip_forces[1].bits(),
         CAR.grip_forces[0].bits(),
         NUMBERS.zero.bits(),
-    ) & 0x100
-        != 0
-    {
+    ) {
         CAR.grip_forces[1].set_bits(x87::mul(
             CAR.grip_forces[1].bits(),
             PHYSICS.side_grip_share.bits(),
@@ -149,21 +138,20 @@ pub fn drive_grip_forces() {
     }
     CAR.grip_forces[2].set_bits(0);
     if kind == 1 {
-        x87_11();
+        abs_speed_into_work();
         hold_high(&DRAW.work_float_a, &PHYSICS.grip_slip_limit);
-        x87_12();
+        yaw_share_from_limit();
         DRAW.scratch.set(x87::loaded(CAR.drive_slip_speed.bits()));
         // Held to ±`flt_613E80`, the limit negated in place between and put back.
         hold_high(&DRAW.scratch, &PHYSICS.grip_force_limit);
         negate(&PHYSICS.grip_force_limit);
         hold_low(&DRAW.scratch, &PHYSICS.grip_force_limit);
         negate(&PHYSICS.grip_force_limit);
-        x87_4(&DRAW.scratch, &PHYSICS.grip_force_limit);
-        edx = steer_index();
-        x87_13(edx as usize);
+        divide_into_scratch(&DRAW.scratch, &PHYSICS.grip_force_limit);
+        yaw_force(steer_index() as usize);
     }
     // 0x43D2C9: the sum, and the yaw twist on the rear wheels.
-    x87_14();
+    sum_grip_forces();
     PHYSICS.forces[19].force[0].set_bits(0);
     PHYSICS.forces[20].force[0].set_bits(0);
     if CAR.all_wheels_off.get() != 0 {
@@ -175,7 +163,7 @@ pub fn drive_grip_forces() {
         .grip_change
         .set_bits(x87::sub(old, CAR.grip_force_sum.bits()));
     ease_zero(&NUMBERS.grip_change, &PHYSICS.grip_ease_step);
-    x87_15(old);
+    ease_yaw_twist(old);
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -183,7 +171,7 @@ pub fn drive_grip_forces() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A1E8] = ([bf + e * 4 + 0x623AE4] * [rc + 0x31A184]) / [rc + 0x214BA0]`
-fn x87_1(e: usize) {
+fn steer_sine_force(e: usize) {
     let t0 = ld(ENGINE_TABLES.sines[e].bits());
     let t1 = ld(CAR.local_velocity[2].bits());
     let t2 = t0 * t1;
@@ -195,7 +183,7 @@ fn x87_1(e: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214768] = -((int [rc + 0x31A1CC] / int [rc + 0x22400C]) - [rc + 0x1C5D38])`
-fn x87_2() {
+fn lever_share_from_timer() {
     let t0 = int(CAR.wall_hit_timer.bits() as i32);
     let t1 = int(DRAW.scratch.bits() as i32);
     let t2 = t0 / t1;
@@ -208,7 +196,7 @@ fn x87_2() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214260] = |(((([rc + 0x2142A8] * [rc + 0x213FC8]) * [f + 0]) * [rc + 0x214B74]) / [rc + 0x31A184])|`
-fn x87_3(f: &Float) {
+fn grip_limit_for(f: &Float) {
     let t0 = ld(PHYSICS.wheel_grips[4].bits());
     let t1 = ld(PHYSICS.gravity.bits());
     let t2 = t0 * t1;
@@ -225,7 +213,7 @@ fn x87_3(f: &Float) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = [rc + o0] / [rc + o1]`
-fn x87_4(o0: &impl crate::session::Cell32, o1: &impl crate::session::Cell32) {
+fn divide_into_scratch(o0: &impl crate::session::Cell32, o1: &impl crate::session::Cell32) {
     let t0 = ld(o0.bits());
     let t1 = ld(o1.bits());
     let t2 = t0 / t1;
@@ -235,7 +223,7 @@ fn x87_4(o0: &impl crate::session::Cell32, o1: &impl crate::session::Cell32) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x31A61C] = [rc + 0x22400C] * int [rc + 0x31A61C]`
-fn x87_5() {
+fn scale_steering() {
     let t0 = ld(DRAW.scratch.bits());
     let t1 = int(CAR.steering.bits() as i32);
     let t2 = t0 * t1;
@@ -245,7 +233,7 @@ fn x87_5() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = sqrt((([rc + 0x31A17C] * [rc + 0x31A17C]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
-fn x87_6() {
+fn ground_speed_into_scratch() {
     let t0 = ld(CAR.local_velocity[0].bits());
     let t1 = t0 * t0;
     let t2 = ld(CAR.local_velocity[2].bits());
@@ -258,7 +246,7 @@ fn x87_6() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_7(e: usize) {
+fn lean_force(e: usize) {
     let t0 = ld(PHYSICS.grip_ramp.bits());
     let t1 = ld(DRAW.scratch.bits());
     let t2 = t0 - t1;
@@ -284,7 +272,7 @@ fn x87_7(e: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x214BF0] * int [rc + 0x31A614]) * [rc + 0x1C5DB4]`
-fn x87_8() {
+fn braking_count_geared() {
     let t0 = ld(PHYSICS.handling[1].bits());
     let t1 = int(CAR.brake.bits() as i32);
     let t2 = t0 * t1;
@@ -296,7 +284,7 @@ fn x87_8() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x214BF0] * int [rc + 0x31A614]) + ([rc + 0x214BF0] * int [rc + 0x31A614])`
-fn x87_9() {
+fn braking_count_neutral() {
     let t0 = ld(PHYSICS.handling[1].bits());
     let t1 = int(CAR.brake.bits() as i32);
     let t2 = t0 * t1;
@@ -307,7 +295,7 @@ fn x87_9() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A1EC] = (-((int [rc + 0x214164] / [rc + 0x1C5E2C]) * [rc + 0x31A1A0]) * [rc + 0x213ECC]) * [rc + 0x214B78]`
-fn x87_10() {
+fn engine_braking_force() {
     let t0 = int(PHYSICS.grip_drive_word.bits() as i32);
     let t1 = ld(NUMBERS.k256.bits());
     let t2 = t0 / t1;
@@ -324,7 +312,7 @@ fn x87_10() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22401C] = |[rc + 0x31A184]|`
-fn x87_11() {
+fn abs_speed_into_work() {
     let t0 = ld(CAR.local_velocity[2].bits());
     let t1 = t0.abs();
     DRAW.work_float_a.set_bits(st(t1));
@@ -333,7 +321,7 @@ fn x87_11() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22401C] = ([rc + 0x213E7C] - [rc + 0x22401C]) / [rc + 0x213E7C]`
-fn x87_12() {
+fn yaw_share_from_limit() {
     let t0 = ld(PHYSICS.grip_slip_limit.bits());
     let t1 = ld(DRAW.work_float_a.bits());
     let t2 = t0 - t1;
@@ -345,7 +333,7 @@ fn x87_12() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_13(e: usize) {
+fn yaw_force(e: usize) {
     let t0 = ld(ENGINE_TABLES.sines[e].bits());
     let t1 = ld(PHYSICS.spec_grip.bits());
     let t2 = t0 / t1;
@@ -365,7 +353,7 @@ fn x87_13(e: usize) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A1DC] = (([rc + 0x31A1E8] + [rc + 0x31A1EC]) + [rc + 0x31A1F0]) + [rc + 0x31A1F4]`
-fn x87_14() {
+fn sum_grip_forces() {
     let t0 = ld(CAR.grip_forces[0].bits());
     let t1 = ld(CAR.grip_forces[1].bits());
     let t2 = t0 + t1;
@@ -388,7 +376,7 @@ fn x87_14() {
 /// `[rc + 0x2149E4] = [rc + 0x2149E4] * [rc + 0x31ACC8]`
 /// `[rc + 0x2149F0] = -([rc + 0x2149F0] / [rc + 0x31ACD4])`
 /// `[rc + 0x214A04] = -([rc + 0x214A04] * [rc + 0x31ACD4])`
-fn x87_15(o: u32) {
+fn ease_yaw_twist(o: u32) {
     let t0 = ld(NUMBERS.grip_change.bits());
     let t1 = ld(CAR.grip_force_sum.bits());
     let t2 = t0 + t1;
@@ -474,7 +462,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[1]),
+                plain: |a| steer_sine_force(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 39 idx e=1",
@@ -491,7 +479,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[1]),
+                plain: |a| steer_sine_force(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 39 idx e=4",
@@ -508,7 +496,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(a[1]),
+                plain: |a| steer_sine_force(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 54",
@@ -518,7 +506,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(),
+                plain: |_| lever_share_from_timer(),
             },
             Block {
                 name: "drive_grip_forces line 74",
@@ -539,7 +527,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0], a[1]) },
-                plain: |a| x87_3(view(a[1], 0)),
+                plain: |a| grip_limit_for(view(a[1], 0)),
             },
             Block {
                 name: "drive_grip_forces line 98",
@@ -549,7 +537,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_3(a[0]) },
-                plain: |_| x87_4(&CAR.grip_forces[0], &DRAW.scratch),
+                plain: |_| divide_into_scratch(&CAR.grip_forces[0], &DRAW.scratch),
             },
             Block {
                 name: "drive_grip_forces line 106",
@@ -559,7 +547,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_4(a[0]) },
-                plain: |_| x87_5(),
+                plain: |_| scale_steering(),
             },
             Block {
                 name: "drive_grip_forces line 122",
@@ -569,7 +557,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_5(a[0]) },
-                plain: |_| x87_6(),
+                plain: |_| ground_speed_into_scratch(),
             },
             Block {
                 name: "drive_grip_forces line 134 idx e=0",
@@ -594,7 +582,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1], a[2]) },
-                plain: |a| x87_7(a[2]),
+                plain: |a| lean_force(a[2]),
             },
             Block {
                 name: "drive_grip_forces line 134 idx e=1",
@@ -619,7 +607,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1], a[2]) },
-                plain: |a| x87_7(a[2]),
+                plain: |a| lean_force(a[2]),
             },
             Block {
                 name: "drive_grip_forces line 134 idx e=4",
@@ -644,7 +632,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0], a[1], a[2]) },
-                plain: |a| x87_7(a[2]),
+                plain: |a| lean_force(a[2]),
             },
             Block {
                 name: "drive_grip_forces line 151",
@@ -654,7 +642,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0]) },
-                plain: |_| x87_8(),
+                plain: |_| braking_count_geared(),
             },
             Block {
                 name: "drive_grip_forces line 163",
@@ -664,7 +652,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_8(a[0]) },
-                plain: |_| x87_9(),
+                plain: |_| braking_count_neutral(),
             },
             Block {
                 name: "drive_grip_forces line 176",
@@ -680,7 +668,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_9(a[0]) },
-                plain: |_| x87_10(),
+                plain: |_| engine_braking_force(),
             },
             Block {
                 name: "drive_grip_forces line 195",
@@ -690,7 +678,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_10(a[0]) },
-                plain: |_| x87_11(),
+                plain: |_| abs_speed_into_work(),
             },
             Block {
                 name: "drive_grip_forces line 202",
@@ -700,7 +688,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_11(a[0]) },
-                plain: |_| x87_12(),
+                plain: |_| yaw_share_from_limit(),
             },
             Block {
                 name: "drive_grip_forces line 215",
@@ -710,7 +698,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_12(a[0]) },
-                plain: |_| x87_4(&DRAW.scratch, &PHYSICS.grip_force_limit),
+                plain: |_| divide_into_scratch(&DRAW.scratch, &PHYSICS.grip_force_limit),
             },
             Block {
                 name: "drive_grip_forces line 222 idx e=0",
@@ -734,7 +722,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1], a[2]) },
-                plain: |a| x87_13(a[1]),
+                plain: |a| yaw_force(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 222 idx e=1",
@@ -758,7 +746,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1], a[2]) },
-                plain: |a| x87_13(a[1]),
+                plain: |a| yaw_force(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 222 idx e=4",
@@ -782,7 +770,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_13(a[0], a[1], a[2]) },
-                plain: |a| x87_13(a[1]),
+                plain: |a| yaw_force(a[1]),
             },
             Block {
                 name: "drive_grip_forces line 235",
@@ -797,7 +785,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_14(a[0]) },
-                plain: |_| x87_14(),
+                plain: |_| sum_grip_forces(),
             },
             Block {
                 name: "drive_grip_forces line 253",
@@ -834,7 +822,7 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_15(a[0], a[1]) },
-                plain: |a| x87_15(HostCell(a[1]).bits()),
+                plain: |a| ease_yaw_twist(HostCell(a[1]).bits()),
             },
         ]
     }
