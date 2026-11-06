@@ -5,31 +5,15 @@
 //! width, the rest centred (or, with bit 2, at 0, with bit 3, at the right edge); then the
 //! whole centred across and down in the box (by an even number of pixels down in the
 //! title's box `unk_51DD98`), moved to its place.
-//!
-//! In:  ebx the first piece, ecx the pieces, esi the box, eax as it comes (a value the
-//!      wrap reads before setting it)
-//! Out: eax the box's x, ebx past the pieces, ecx 0, edx the centring down, edi the height,
-//!      ebp the centring across; esi kept; no flags read
-//! Caller `install::place_pieces`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
 
 use crate::errors::Refused;
 use crate::install::page_records::{BoxRecord, Piece as LaidPiece};
 use rc2k_core::install::layout::{self, Area, Piece};
 
-/// `first` the first piece, `count` the pieces, `the_box` the box, `eax` as it comes (the
-/// wrap reads it before setting it).
+/// `first` the first piece, `count` the pieces, `the_box` the box.
 ///
 /// `title`: the box is the title's (`unk_51DD98`).
-pub fn place_row(
-    first: u32,
-    count: u32,
-    the_box: BoxRecord,
-    title: bool,
-    eax: u32,
-) -> Result<(), Refused> {
+pub fn place_row(first: u32, count: u32, the_box: BoxRecord, title: bool) -> Result<(), Refused> {
     let at = |k: u32| LaidPiece::nth(first.wrapping_add(k));
     // Converted: `rc2k_core::install::layout::place_row`, on the pieces' fields it reads;
     // their x and y written back.
@@ -49,7 +33,7 @@ pub fn place_row(
         width: the_box.width(),
         height: the_box.height(),
     };
-    layout::place_row(&mut pieces, area, title, eax)?;
+    layout::place_row(&mut pieces, area, title)?;
     for (k, p) in (0..).zip(&pieces) {
         at(k).set_x(p.x);
         at(k).set_y(p.y);

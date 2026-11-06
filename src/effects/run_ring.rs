@@ -24,6 +24,7 @@
 //! is read, and the draws' own refusals for an entry that may be drawn.
 
 use crate::effects::emitters::matrix_cell;
+use crate::effects::ring_entries::field;
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
 use crate::effects::ring_store::{RING_WORK, RingWork};
 use crate::effects::setup::{CLOCK, MarksClock};
@@ -47,7 +48,7 @@ fn k(cell: &f32) -> u32 {
 /// The original's 0x4CE9AF .. 0x4CEA40 (and 0x4CEC77 ..): the place less the object's (`[p + 0x30]` ..) into `flt_935718` .., turned by the object's matrix (`m`), |x| and |z| `fistp`ed into `dword_935680` / `dword_935684`.
 /// The car a ring entry is on (its +0x68, a `marks_settings_store::car_handle`).
 fn entry_car(e: u32) -> Result<&'static MarkCar, Refused> {
-    car_or_none(eg(e, 0x68)?).ok_or_else(|| BadInput("a ring entry without its car").into())
+    car_or_none(eg(e, field::CAR)?).ok_or_else(|| BadInput("a ring entry without its car").into())
 }
 
 fn box_(e: u32, whole: &[Float; 16], car: &MarkCar) {
@@ -178,9 +179,9 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
             if e == 0 || eg(e, 0)? == 0 || eg(e, 4)? == 0 {
                 return Ok(Some("a null ring entry or link"));
             }
-            let kind = eg(e, 0xC)?;
+            let kind = eg(e, field::KIND)?;
             if [5, 0xB, 6, 0x15, 1, 0xD, 0x13, 0x16, 0x10, 0x11].contains(&kind) {
-                let obj = car_or_none(eg(e, 0x68)?);
+                let obj = car_or_none(eg(e, field::CAR)?);
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
                     || entry_flag(marks, eg(e, 8)?)? != 0;
                 if needs && !obj.map_or(Ok(false), |c| c.has_block(0x24))? {
@@ -192,9 +193,9 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
                         return Ok(Some("the fog table is not there"));
                     }
                     let bad = if matches!(kind, 0x10 | 0x11) {
-                        eg(e, 0x58)?.wrapping_add(3) >= 0x410
+                        eg(e, field::CELL)?.wrapping_add(3) >= 0x410
                     } else {
-                        eg(e, 0x58)? > 0x40 || eg(e, 0x50)? >= 0x1000
+                        eg(e, field::CELL)? > 0x40 || eg(e, field::ANGLE)? >= 0x1000
                     };
                     if bad {
                         return Ok(Some("a ring entry's cell or angle past its table"));
@@ -211,12 +212,12 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
 fn aged(e: u32, ground: bool) -> Result<bool, Refused> {
     Ok({
         let t: u32 = CLOCK.frame_ticks.get();
-        let life = eg(e, 0x84)?;
-        ep(e, 0x84, life.wrapping_sub(t))?;
+        let life = eg(e, field::LIFE)?;
+        ep(e, field::LIFE, life.wrapping_sub(t))?;
         if life < t {
             return Ok(true);
         }
-        ground && x87::compare_status(eg(e, 0x14)?, eg(e, 0x28)?) == 0x100
+        ground && x87::compare_status(eg(e, field::PLACE_Y)?, eg(e, field::GROUND_Y)?) == 0x100
     })
 }
 
@@ -225,9 +226,9 @@ fn on_object(e: u32) -> Result<[[u8; 10]; 3], Refused> {
     Ok({
         let m = entry_car(e)?.whole()?;
         [
-            x87::add_80(eg(e, 0x10)?, matrix_cell(m, 0x30)?),
-            x87::add_80(eg(e, 0x14)?, matrix_cell(m, 0x34)?),
-            x87::add_80(eg(e, 0x18)?, matrix_cell(m, 0x38)?),
+            x87::add_80(eg(e, field::PLACE_X)?, matrix_cell(m, 0x30)?),
+            x87::add_80(eg(e, field::PLACE_Y)?, matrix_cell(m, 0x34)?),
+            x87::add_80(eg(e, field::PLACE_Z)?, matrix_cell(m, 0x38)?),
         ]
     })
 }
@@ -235,9 +236,9 @@ fn on_object(e: u32) -> Result<[[u8; 10]; 3], Refused> {
 fn at_place(e: u32) -> Result<[[u8; 10]; 3], Refused> {
     Ok({
         [
-            extended(eg(e, 0x10)?),
-            extended(eg(e, 0x14)?),
-            extended(eg(e, 0x18)?),
+            extended(eg(e, field::PLACE_X)?),
+            extended(eg(e, field::PLACE_Y)?),
+            extended(eg(e, field::PLACE_Z)?),
         ]
     })
 }
@@ -250,7 +251,7 @@ fn shown(e: u32) -> Result<bool, Refused> {
 /// The alpha (top byte) as a whole number (`fistp` through `dword_9356C0`).
 fn whole_alpha(e: u32) -> Result<u32, Refused> {
     Ok({
-        let a = x87::to_int(eg(e, 0x74)?);
+        let a = x87::to_int(eg(e, field::ALPHA)?);
         RING_WORK.whole.set(a as u32);
         (a as u32) << 24
     })
@@ -267,11 +268,22 @@ fn spin_and_move(e: u32, spin: bool) -> Result<(), Refused> {
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
         if spin {
-            let turn = x87::int_times_to_int(eg(e, 0x54)? as i32, CLOCK.ticks_scaled.bits()) as u32;
-            ep(e, 0x50, eg(e, 0x50)?.wrapping_add(turn) & 0xFFF)?;
+            let turn =
+                x87::int_times_to_int(eg(e, field::ANGLE_RATE)? as i32, CLOCK.ticks_scaled.bits())
+                    as u32;
+            ep(
+                e,
+                field::ANGLE,
+                eg(e, field::ANGLE)?.wrapping_add(turn) & 0xFFF,
+            )?;
         }
-        for o in [0x10u32, 0x14, 0x18] {
-            ep(e, o, x87::plus_times_int(eg(e, o)?, eg(e, o + 0x1C)?, t))?;
+        for o in [field::PLACE_X, field::PLACE_Y, field::PLACE_Z] {
+            // The place plus the motion (which lies 0x1C after it) times the ticks.
+            ep(
+                e,
+                o,
+                x87::plus_times_int(eg(e, o)?, eg(e, o + field::MOTION_X - field::PLACE_X)?, t),
+            )?;
         }
     }
     Ok(())
@@ -280,7 +292,11 @@ fn spin_and_move(e: u32, spin: bool) -> Result<(), Refused> {
 fn gain_y(e: u32, k_addr: &f32) -> Result<(), Refused> {
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
-        ep(e, 0x30, x87::plus_times_int(eg(e, 0x30)?, k(k_addr), t))?;
+        ep(
+            e,
+            field::MOTION_Y,
+            x87::plus_times_int(eg(e, field::MOTION_Y)?, k(k_addr), t),
+        )?;
     }
     Ok(())
 }
@@ -289,7 +305,10 @@ fn gain_y(e: u32, k_addr: &f32) -> Result<(), Refused> {
 fn damp3(e: u32, ks: [&f32; 3]) -> Result<(), Refused> {
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
-        for (o, kk) in [0x2Cu32, 0x30, 0x34].into_iter().zip(ks) {
+        for (o, kk) in [field::MOTION_X, field::MOTION_Y, field::MOTION_Z]
+            .into_iter()
+            .zip(ks)
+        {
             let old = eg(e, o)?;
             RING_WORK.whole.set(old);
             let new = x87::damp(old, k(kk), t);
@@ -306,11 +325,20 @@ fn damp3(e: u32, ks: [&f32; 3]) -> Result<(), Refused> {
 fn pull_size(e: u32, k_addr: &f32) -> Result<(), Refused> {
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
-        let (w, f) = x87::approach(eg(e, 0x70)? as i32, eg(e, 0x60)?, k(k_addr), t);
+        let (w, f) = x87::approach(
+            eg(e, field::SIZE_GOAL)? as i32,
+            eg(e, field::SIZE)?,
+            k(k_addr),
+            t,
+        );
         RING_WORK.whole.set(w as u32);
-        ep(e, 0x60, f)?;
-        if w > eg(e, 0x70)? as i32 {
-            ep(e, 0x60, x87::int_to_float(eg(e, 0x70)? as i32))?;
+        ep(e, field::SIZE, f)?;
+        if w > eg(e, field::SIZE_GOAL)? as i32 {
+            ep(
+                e,
+                field::SIZE,
+                x87::int_to_float(eg(e, field::SIZE_GOAL)? as i32),
+            )?;
         }
     }
     Ok(())
@@ -319,7 +347,11 @@ fn pull_size(e: u32, k_addr: &f32) -> Result<(), Refused> {
 fn fade(e: u32) -> Result<(), Refused> {
     {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
-        ep(e, 0x74, x87::less_times_int(eg(e, 0x74)?, eg(e, 0x78)?, t))?;
+        ep(
+            e,
+            field::ALPHA,
+            x87::less_times_int(eg(e, field::ALPHA)?, eg(e, field::ALPHA_FADE)?, t),
+        )?;
     }
     Ok(())
 }
@@ -367,8 +399,12 @@ fn drift_kind(e: u32, place: u32, ks: [&f32; 3]) -> Result<bool, Refused> {
         }
         if shown(e)? {
             let p = on_object(e)?;
-            let [cell, angle, alpha, size] =
-                [eg(e, 0x58)?, eg(e, 0x50)?, eg(e, 0x74)?, eg(e, 0x60)?];
+            let [cell, angle, alpha, size] = [
+                eg(e, field::CELL)?,
+                eg(e, field::ANGLE)?,
+                eg(e, field::ALPHA)?,
+                eg(e, field::SIZE)?,
+            ];
             draw(place, cell, angle, alpha, size, e, p)?;
         }
         spin_and_move(e, true)?;
@@ -376,13 +412,13 @@ fn drift_kind(e: u32, place: u32, ks: [&f32; 3]) -> Result<bool, Refused> {
         let t: i32 = CLOCK.frame_ticks.get() as i32;
         ep(
             e,
-            0x60,
-            x87::times_int_plus_int_to_int(k(ks[1]), t, eg(e, 0x60)? as i32) as u32,
+            field::SIZE,
+            x87::times_int_plus_int_to_int(k(ks[1]), t, eg(e, field::SIZE)? as i32) as u32,
         )?;
         ep(
             e,
-            0x74,
-            x87::int_times_int_plus_int(k(ks[2]) as i32, t, eg(e, 0x74)? as i32) as u32,
+            field::ALPHA,
+            x87::int_times_int_plus_int(k(ks[2]) as i32, t, eg(e, field::ALPHA)? as i32) as u32,
         )?;
     }
     Ok(false)
@@ -394,8 +430,8 @@ fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
         if aged(e, true)? {
             return Ok(true);
         }
-        if (eg(e, 0x74)? as i32) < 0 {
-            ep(e, 0x74, 0)?;
+        if (eg(e, field::ALPHA)? as i32) < 0 {
+            ep(e, field::ALPHA, 0)?;
         }
         if shown(e)? {
             let p = if kind == 0xD {
@@ -403,12 +439,12 @@ fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
             } else {
                 at_place(e)?
             };
-            let [cell, angle] = [eg(e, 0x58)?, eg(e, 0x50)?];
+            let [cell, angle] = [eg(e, field::CELL)?, eg(e, field::ANGLE)?];
             let alpha = whole_alpha(e)?;
             let size = if kind == 1 {
-                x87::plus_product_to_int(eg(e, 0x60)?, eg(e, 0x64)?, k(&RING_KINDS.k1_size))
+                x87::plus_product_to_int(eg(e, field::SIZE)?, eg(e, 0x64)?, k(&RING_KINDS.k1_size))
             } else {
-                x87::to_int(eg(e, 0x60)?)
+                x87::to_int(eg(e, field::SIZE)?)
             };
             let size = whole(size);
             draw(1, cell, angle, alpha, size, e, p)?;
@@ -437,7 +473,11 @@ fn fading_kind(e: u32, kind: u32, c: &Kind) -> Result<bool, Refused> {
             _ => {
                 fade(e)?;
                 let t: i32 = CLOCK.frame_ticks.get() as i32;
-                ep(e, 0x60, x87::plus_times_int(eg(e, 0x60)?, k(c.gain()?), t))?;
+                ep(
+                    e,
+                    field::SIZE,
+                    x87::plus_times_int(eg(e, field::SIZE)?, k(c.gain()?), t),
+                )?;
             }
         }
     }
@@ -474,14 +514,14 @@ fn boxed_kind(e: u32, gain: &f32, both: bool) -> Result<bool, Refused> {
     gain_y(e, gain)?;
     if shown(e)? {
         let p = on_object(e)?;
-        let size = eg(e, 0x60)?;
+        let size = eg(e, field::SIZE)?;
         let f = x87::int_times_times_to_int(
-            eg(e, 0x84)? as i32,
+            eg(e, field::LIFE)? as i32,
             MARKS_FLOATS.twentieth.bits(),
             eg(e, 0x5C)?,
         );
         RING_WORK.whole.set(f as u32);
-        let subcell = ((f as u32) & 3).wrapping_add(eg(e, 0x58)?);
+        let subcell = ((f as u32) & 3).wrapping_add(eg(e, field::CELL)?);
         draw(3, subcell, 0, 0, size, e, p)?;
     }
     box_place(e, entry_car(e)?);
@@ -489,10 +529,10 @@ fn boxed_kind(e: u32, gain: &f32, both: bool) -> Result<bool, Refused> {
     if !outside && both {
         outside = (eg(e, 0x80)? as i32) < (RING_WORK.extent[1].get() as i32);
     }
-    if !outside && x87::compare_status(eg(e, 0x14)?, RING_WORK.top.bits()) == 0 {
+    if !outside && x87::compare_status(eg(e, field::PLACE_Y)?, RING_WORK.top.bits()) == 0 {
         return Ok(true);
     }
-    Ok(x87::compare_status(eg(e, 0x14)?, eg(e, 0x28)?) == 0x100)
+    Ok(x87::compare_status(eg(e, field::PLACE_Y)?, eg(e, field::GROUND_Y)?) == 0x100)
 }
 
 /// The Rust version (see the header).
@@ -509,7 +549,7 @@ pub fn run_ring() -> Result<(), Refused> {
                 break;
             }
             let next = eg(e, 4)?;
-            let dies = match eg(e, 0xC)? {
+            let dies = match eg(e, field::KIND)? {
                 5 => drift_kind(
                     e,
                     1,
@@ -575,13 +615,13 @@ fn turn(car: &MarkCar, off: usize) -> bh::X {
 
 /// `box_`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
 fn box_x87(w: &RingWork, e: u32, whole: &[Float; 16], car: &MarkCar) {
-    let t0 = eld(e, 0x10);
+    let t0 = eld(e, field::PLACE_X);
     let t1 = t0 - ld_cell(&whole[12]);
     w.away[0].set_bits(bh::st(t1));
-    let t2 = eld(e, 0x14);
+    let t2 = eld(e, field::PLACE_Y);
     let t3 = t2 - ld_cell(&whole[13]);
     w.away[1].set_bits(bh::st(t3));
-    let t4 = eld(e, 0x18);
+    let t4 = eld(e, field::PLACE_Z);
     let t5 = t4 - ld_cell(&whole[14]);
     w.away[2].set_bits(bh::st(t5));
     let t6 = bh::ld(w.away[2].bits());
@@ -652,13 +692,13 @@ fn facing_x87(car: &MarkCar, f: &MarksFloats, w: &RingWork) {
 /// `pull_length`'s x87 block as plain Rust on the x87 model (22 instructions), same order and memory places.
 /// `rk` the ring kinds' constants (`RingKinds`).
 fn pull_length_x87(e: u32, whole: &[Float; 16], l: &mut [u8; 10], w: &RingWork, rk: &RingKinds) {
-    let t0 = eld(e, 0x10);
+    let t0 = eld(e, field::PLACE_X);
     let t1 = t0 - ld_cell(&whole[12]);
     w.away[0].set_bits(bh::st(t1));
-    let t2 = eld(e, 0x14);
+    let t2 = eld(e, field::PLACE_Y);
     let t3 = t2 - ld_cell(&whole[13]);
     w.away[1].set_bits(bh::st(t3));
-    let t4 = eld(e, 0x18);
+    let t4 = eld(e, field::PLACE_Z);
     let t5 = t4 - ld_cell(&whole[14]);
     w.away[2].set_bits(bh::st(t5));
     let t6 = bh::ld(w.away[0].bits());
@@ -740,9 +780,9 @@ fn pull_strength_x87(
 
 /// `box_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
 fn box_place_x87(w: &RingWork, e: u32, car: &MarkCar) {
-    let t0 = eld(e, 0x18);
-    let t1 = eld(e, 0x14);
-    let t2 = eld(e, 0x10);
+    let t0 = eld(e, field::PLACE_Z);
+    let t1 = eld(e, field::PLACE_Y);
+    let t2 = eld(e, field::PLACE_X);
     let t3 = turn(car, 0);
     let t4 = t3 * t2;
     let t5 = turn(car, 0x10);

@@ -19,6 +19,7 @@
 //! version. Refuses, before anything (the walk simulated), null settings, a null entry or
 //! link on the way, and a colour index out of its table.
 
+use crate::effects::ring_entries::field;
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
 use crate::effects::ring_store::RING_WORK;
 use crate::effects::run_ring::RING_KINDS;
@@ -112,13 +113,18 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
             if e == 0 || eg(e, 0)? == 0 || eg(e, 4)? == 0 {
                 return Ok(Some("a null ring entry or link"));
             }
-            if marks.cars[0].word(0)? != 0 && eg(e, 0xC)? == STREAK {
-                let life = eg(e, 0x84)?;
-                if life >= ticks && x87::compare_status(eg(e, 0x14)?, eg(e, 0x28)?) != 0x100 {
+            if marks.cars[0].word(0)? != 0 && eg(e, field::KIND)? == STREAK {
+                let life = eg(e, field::LIFE)?;
+                if life >= ticks
+                    && x87::compare_status(eg(e, field::PLACE_Y)?, eg(e, field::GROUND_Y)?) != 0x100
+                {
                     if fog_at(0).is_err() {
                         return Ok(Some("the fog table is not there"));
                     }
-                    let i = x87::int_times_to_int(life.wrapping_sub(ticks) as i32, eg(e, 0x78)?);
+                    let i = x87::int_times_to_int(
+                        life.wrapping_sub(ticks) as i32,
+                        eg(e, field::ALPHA_FADE)?,
+                    );
                     if !(0..colour_count()).contains(&i) {
                         return Ok(Some("a streak's colour index past its table"));
                     }
@@ -133,30 +139,32 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
 /// The streak step at e (see the header): whether the entry dies.
 fn streak(e: u32) -> Result<bool, Refused> {
     let t: u32 = CLOCK.frame_ticks.get();
-    let life = eg(e, 0x84)?;
-    ep(e, 0x84, life.wrapping_sub(t))?;
+    let life = eg(e, field::LIFE)?;
+    ep(e, field::LIFE, life.wrapping_sub(t))?;
     if life < t {
         return Ok(true);
     }
-    if x87::compare_status(eg(e, 0x14)?, eg(e, 0x28)?) == 0x100 {
+    if x87::compare_status(eg(e, field::PLACE_Y)?, eg(e, field::GROUND_Y)?) == 0x100 {
         return Ok(true);
     }
-    if eg(e, 0x10)? == 0 {
+    if eg(e, field::PLACE_X)? == 0 {
         first_frame(e);
     }
     move_on(e);
-    DRAW_WORK.second[0].set_bits(eg(e, 0x1C)?);
-    DRAW_WORK.second[1].set_bits(eg(e, 0x20)?);
-    DRAW_WORK.second[2].set_bits(eg(e, 0x24)?);
+    DRAW_WORK.second[0].set_bits(eg(e, field::LAST_PLACE_X)?);
+    DRAW_WORK.second[1].set_bits(eg(e, field::LAST_PLACE_Y)?);
+    DRAW_WORK.second[2].set_bits(eg(e, field::LAST_PLACE_Z)?);
     turn_place(e);
     let marks = crate::effects::setup::marks()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
-        ep(e, 0x1C, DRAW_WORK.turned[0].bits())?;
-        ep(e, 0x20, DRAW_WORK.turned[1].bits())?;
-        ep(e, 0x24, DRAW_WORK.turned[2].bits())?;
+        ep(e, field::LAST_PLACE_X, DRAW_WORK.turned[0].bits())?;
+        ep(e, field::LAST_PLACE_Y, DRAW_WORK.turned[1].bits())?;
+        ep(e, field::LAST_PLACE_Z, DRAW_WORK.turned[2].bits())?;
     }
-    VERTICES.vertices[0].specular.set(fog_at(eg(e, 0x24)?)?);
-    let i = x87::int_times_to_int(eg(e, 0x84)? as i32, eg(e, 0x78)?);
+    VERTICES.vertices[0]
+        .specular
+        .set(fog_at(eg(e, field::LAST_PLACE_Z)?)?);
+    let i = x87::int_times_to_int(eg(e, field::LIFE)? as i32, eg(e, field::ALPHA_FADE)?);
     RING_WORK.whole.set(i as u32);
     let colour = colour_at(i as usize);
     crate::effects::draw_ribbon::draw_ribbon(0x20, i as u32, 0x800, colour)?;
@@ -183,7 +191,7 @@ pub fn run_ribbons() -> Result<(), Refused> {
             let next = eg(e, 4)?;
             // The settings' +0x60: the first car record's first word.
             if crate::effects::setup::marks()?.cars[0].word(0)? != 0
-                && eg(e, 0xC)? == STREAK
+                && eg(e, field::KIND)? == STREAK
                 && streak(e)?
             {
                 RING_WORK.count.set(RING_WORK.count.get().wrapping_sub(1));
@@ -215,9 +223,9 @@ use crate::race::matrices_store::MATRICES;
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
 fn first_frame_x87(e: u32, c: &MarksClock, ribbon_a: f32) {
-    let t0 = eld(e, 0x18);
-    let t1 = eld(e, 0x14);
-    let t2 = eld(e, 0x10);
+    let t0 = eld(e, field::PLACE_Z);
+    let t1 = eld(e, field::PLACE_Y);
+    let t2 = eld(e, field::PLACE_X);
     let t3 = crate::math::x87_float::ld(MATRICES.view_matrix[0].bits());
     let t4 = t3 * t2;
     let t5 = crate::math::x87_float::ld(MATRICES.view_matrix[4].bits());
@@ -245,52 +253,52 @@ fn first_frame_x87(e: u32, c: &MarksClock, ribbon_a: f32) {
     let t27 = t26 + t24;
     let t28 = t22 + t27;
     let t29 = t28 + crate::math::x87_float::ld(MATRICES.view_matrix[14].bits());
-    est(e, 0x1C, t11);
-    est(e, 0x20, t20);
-    est(e, 0x24, t29);
-    let t30 = eld(e, 0x2C);
+    est(e, field::LAST_PLACE_X, t11);
+    est(e, field::LAST_PLACE_Y, t20);
+    est(e, field::LAST_PLACE_Z, t29);
+    let t30 = eld(e, field::MOTION_X);
     let t31 = t30 * int(c.frame_ticks.get() as i32);
-    let t32 = t31 + eld(e, 0x10);
-    est(e, 0x10, t32);
-    let t33 = eld(e, 0x30);
+    let t32 = t31 + eld(e, field::PLACE_X);
+    est(e, field::PLACE_X, t32);
+    let t33 = eld(e, field::MOTION_Y);
     let t34 = t33 * int(c.frame_ticks.get() as i32);
-    let t35 = t34 + eld(e, 0x14);
-    est(e, 0x14, t35);
-    let t36 = eld(e, 0x34);
+    let t35 = t34 + eld(e, field::PLACE_Y);
+    est(e, field::PLACE_Y, t35);
+    let t36 = eld(e, field::MOTION_Z);
     let t37 = t36 * int(c.frame_ticks.get() as i32);
-    let t38 = t37 + eld(e, 0x18);
-    est(e, 0x18, t38);
+    let t38 = t37 + eld(e, field::PLACE_Z);
+    est(e, field::PLACE_Z, t38);
     let t39 = bh::ld(ribbon_a.to_bits());
     let t40 = t39 * int(c.frame_ticks.get() as i32);
-    let t41 = t40 + eld(e, 0x30);
-    est(e, 0x30, t41);
+    let t41 = t40 + eld(e, field::MOTION_Y);
+    est(e, field::MOTION_Y, t41);
 }
 
 /// `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
 fn move_x87(e: u32, c: &MarksClock, ribbon_b: f32) {
-    let t0 = eld(e, 0x2C);
+    let t0 = eld(e, field::MOTION_X);
     let t1 = t0 * int(c.frame_ticks.get() as i32);
-    let t2 = t1 + eld(e, 0x10);
-    est(e, 0x10, t2);
-    let t3 = eld(e, 0x30);
+    let t2 = t1 + eld(e, field::PLACE_X);
+    est(e, field::PLACE_X, t2);
+    let t3 = eld(e, field::MOTION_Y);
     let t4 = t3 * int(c.frame_ticks.get() as i32);
-    let t5 = t4 + eld(e, 0x14);
-    est(e, 0x14, t5);
-    let t6 = eld(e, 0x34);
+    let t5 = t4 + eld(e, field::PLACE_Y);
+    est(e, field::PLACE_Y, t5);
+    let t6 = eld(e, field::MOTION_Z);
     let t7 = t6 * int(c.frame_ticks.get() as i32);
-    let t8 = t7 + eld(e, 0x18);
-    est(e, 0x18, t8);
+    let t8 = t7 + eld(e, field::PLACE_Z);
+    est(e, field::PLACE_Z, t8);
     let t9 = bh::ld(ribbon_b.to_bits());
     let t10 = t9 * int(c.frame_ticks.get() as i32);
-    let t11 = t10 + eld(e, 0x30);
-    est(e, 0x30, t11);
+    let t11 = t10 + eld(e, field::MOTION_Y);
+    est(e, field::MOTION_Y, t11);
 }
 
 /// `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
 fn turn_place_x87(e: u32, dw: &DrawWork) {
-    let t0 = eld(e, 0x18);
-    let t1 = eld(e, 0x14);
-    let t2 = eld(e, 0x10);
+    let t0 = eld(e, field::PLACE_Z);
+    let t1 = eld(e, field::PLACE_Y);
+    let t2 = eld(e, field::PLACE_X);
     let t3 = crate::math::x87_float::ld(MATRICES.view_matrix[0].bits());
     let t4 = t3 * t2;
     let t5 = crate::math::x87_float::ld(MATRICES.view_matrix[4].bits());

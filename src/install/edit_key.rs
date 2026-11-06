@@ -1,5 +1,5 @@
 //! `install::edit_key` (0x4148F7): a key while an edit item (kind 4) is being edited.
-//! - ah bit 0: al is the character itself;
+//! - bit 8 of the key word set: its low byte is the character itself;
 //! - Escape (1): the edit ended (record bit 0 off) and the text put back from
 //!   `byte_95EAF8` (its most bytes and two); ah gets bit 3;
 //! - Enter (0x1C): the edit ended; a text of nothing but spaces and control bytes is cleared
@@ -12,13 +12,9 @@
 //!   (the most bytes), and cut again if the text is then wider than `[record+6]`
 //!   (`text::measure_text` with the font of the record's kind: `byte_51D52D`, `dword_51D4C4`).
 //!
-//! In:  al the key, ah its bits, esi the item (+8 the text, +0xC the record)
-//! Out: esi, edi, ebp kept; zero set and carry clear, but for Escape and Enter (the flags of
-//!      `or ah, 8`: zero clear); eax, ebx, ecx, edx as each way leaves them
-//! Caller `install::page_key`.
-//!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! The key word is the key in its low byte and its bits in the next; what comes back is
+//! that word as the caller reads it, and whether the key was a plain edit (not Escape or
+//! Enter, the keys that set bit 3). Caller `install::page_key`.
 
 use crate::errors::Refused;
 use crate::install::installer::{append_string_by_id, measure_text, rb, wb};
@@ -55,8 +51,8 @@ fn clear(text: Place, most: u32) {
     }
 }
 
-/// `key` as eax (al the key, ah its bits). Returns eax as the original leaves it (its
-/// caller reads al again) and its zero: set, but for Escape and Enter (`or ah, 8`).
+/// `key`: the key and its bits (see above). Returns the key word as the caller reads it
+/// and whether the key was a plain edit: true, but for Escape and Enter (bit 3 set).
 pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
     let text = item.text();
     let record = item.edit_field();
@@ -124,7 +120,7 @@ pub fn edit_key(key: u32, item: ListItem) -> Result<(u32, bool), Refused> {
     }
     wb(text.add(end.wrapping_sub(1)), ch);
     wb(text.add(end), 0);
-    // ecx as the original has it at the measure: the text's last place.
+    // The measure takes the text's last place as its limit.
     let (width, _) = measure_text(
         edit_font(record)?,
         text,

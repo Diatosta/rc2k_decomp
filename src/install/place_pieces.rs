@@ -22,8 +22,7 @@ pub fn place_pieces() -> Result<(), Refused> {
     for (first, n, the_box) in rows {
         let link = PageLink::from_raw(the_box);
         let title = link.is_none() || link == title_box_link();
-        // The register as it comes: the wrap sets it before it reads it.
-        place_row(first, n, BoxRecord::linked(link), title, the_box)?;
+        place_row(first, n, BoxRecord::linked(link), title)?;
     }
     Ok(())
 }

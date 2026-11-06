@@ -47,7 +47,7 @@ fn path_b() -> Place {
     Place::from(&INSTALLER_PATHS.path_b)
 }
 
-/// `to` = `base` + name `index` of `table`, NUL-ended (`loc_4131A3`, `loc_4131F5`).
+/// `to` = `base` + name `index` of `table`, NUL-ended.
 fn build(
     base: Place,
     to: Place,
@@ -61,7 +61,7 @@ fn build(
 }
 
 /// The error (count 2, `unk_51D453`, y 0) or cancel (count 1, `unk_51D463`, y -0x32)
-/// message shown, then a wait for a key (`loc_4133AB`).
+/// message shown, then a wait for a key.
 fn message(count: u32, table: impl Into<crate::place::Place>, y: u32) -> Result<(), Refused> {
     let table: u32 = table.into().game();
     crate::platform_events::hold_quit(false);
@@ -111,7 +111,7 @@ pub fn install_files() -> Result<(), Refused> {
             .add(4 * crate::install::installer::media_mode()),
     );
     INSTALLER_RUN.room_needed.set(room);
-    // loc_413130: the path is bad; loc_4134D6: no room or not a CD.
+    // The path is bad (or there is no room, or it is not a CD): the page is told.
     let bad_path = || {
         INSTALLER_RUN.path_problem.set(1);
         INSTALLER_PAGES.list_answer.set(0);

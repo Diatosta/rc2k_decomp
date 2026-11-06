@@ -31,8 +31,8 @@ pub struct Area {
     pub height: u32,
 }
 
-/// What `place_row` leaves in the registers: eax the box's x, edx the centring down, edi
-/// the height, ebp the centring across.
+/// What `place_row` works out: the box's x, how far the whole was moved down in the box,
+/// the height of the pieces, and how far the labels and choices were centred across.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Placed {
     pub x: u32,
@@ -45,129 +45,33 @@ fn i(v: u32) -> i32 {
     v as i32
 }
 
+/// A label's mark in a piece's kind, and a choice's.
+const LABEL: u8 = 1;
+const CHOICE: u8 = 2;
+/// With neither, bit 2 keeps a piece at the left and bit 3 puts it at the right edge.
+const AT_LEFT: u8 = 4;
+const AT_RIGHT: u8 = 8;
+/// The pixels between a choice and what follows it.
+const GAP: u32 = 10;
+
 /// The pieces of one box placed in it: labels in a column as wide as the widest, choices
 /// after their label and each other 10 pixels apart, wrapped to a new line where they would
 /// pass the box's width, the rest centred (or at the left, or at the right edge); then the
 /// whole centred across and down in the box (by an even number of pixels down in the
-/// title's box) and moved to its place. `eax` is the register as it comes (the wrap may
-/// read it). Refused: no pieces (the original goes round 2^32 times).
-pub fn place_row(
-    pieces: &mut [Piece],
-    area: Area,
-    title: bool,
-    eax: u32,
-) -> Result<Placed, Invalid> {
-    let n = pieces.len();
-    if n == 0 {
+/// title's box) and moved to its place. Refused: no pieces (the original goes round 2^32
+/// times).
+pub fn place_row(pieces: &mut [Piece], area: Area, title: bool) -> Result<Placed, Invalid> {
+    if pieces.is_empty() {
         return Err(Invalid("a box of no pieces"));
     }
-    let mut eax = eax;
-    // The widest label; a choice followed by a choice pushes it on (414F15).
-    let mut ebp = 0u32;
-    for k in 0..n {
-        let kind = pieces[k].kind;
-        if kind & 1 != 0 {
-            if i(ebp) < i(pieces[k].width) {
-                ebp = pieces[k].width;
-            }
-        } else if kind & 2 != 0 {
-            if k == n - 1 {
-                break;
-            }
-            if pieces[k + 1].kind & 2 != 0 {
-                eax = pieces[k].x.wrapping_add(pieces[k].width).wrapping_add(0xA);
-                if i(eax) > i(pieces[k + 1].x) {
-                    pieces[k + 1].x = eax;
-                }
-            }
-        }
-    }
-    let labels = ebp;
-    // The wrap (414F4D .. 414FAB).
-    let edi = area.width.wrapping_sub(labels);
-    let mut k = 0usize;
-    let mut line = 0usize;
-    enum At {
-        Test,
-        Wrap,
-        Taller,
-        Height,
-        Next,
-    }
-    let mut state = At::Height;
-    loop {
-        state = match state {
-            At::Test => {
-                if pieces[k].kind & 2 == 0 {
-                    At::Wrap
-                } else {
-                    eax = pieces[k].x.wrapping_add(pieces[k].width);
-                    if i(eax) <= i(edi) {
-                        At::Taller
-                    } else {
-                        eax = pieces[k].x;
-                        At::Wrap
-                    }
-                }
-            }
-            At::Wrap => {
-                for p in &mut pieces[k..] {
-                    if p.kind & 2 == 0 {
-                        eax = 0;
-                    }
-                    p.x = p.x.wrapping_sub(eax);
-                    p.y = p.y.wrapping_add(ebp);
-                }
-                for p in &mut pieces[line..k] {
-                    eax = ebp.wrapping_sub(p.height);
-                    p.y = p.y.wrapping_add(eax);
-                }
-                line = k;
-                At::Height
-            }
-            At::Taller => {
-                if i(ebp) >= i(pieces[k].height) {
-                    At::Next
-                } else {
-                    At::Height
-                }
-            }
-            At::Height => {
-                ebp = pieces[k].height;
-                At::Next
-            }
-            At::Next => {
-                k += 1;
-                if k == n {
-                    break;
-                }
-                At::Test
-            }
-        };
-    }
-    let ebp = labels;
-    // Across (414FB8).
-    let mut edi = 0u32;
-    for p in pieces.iter_mut() {
-        if p.kind & 1 != 0 {
-            p.x = p.x.wrapping_add(ebp);
-        } else if p.kind & 2 != 0 {
-            p.x = p.x.wrapping_add(ebp).wrapping_add(0xA);
-            let right = p.x.wrapping_add(p.width);
-            if i(edi) < i(right) {
-                edi = right;
-            }
-        } else if p.marks & 0x20 != 0 || p.kind & 0xC == 0 {
-            p.x = p.x.wrapping_add((i(area.width) >> 1) as u32);
-        } else if p.kind & 4 == 0 {
-            p.x = p.x.wrapping_add(area.width.wrapping_sub(1));
-        }
-    }
-    // The labels and choices centred across, the height found (415007).
-    let across = (i(area.width.wrapping_sub(edi)) >> 1) as u32;
+    let labels = widest_label_and_push_choices(pieces);
+    wrap_lines(pieces, area.width.wrapping_sub(labels));
+    let right_edge = place_across(pieces, area.width, labels);
+    // The labels and choices centred across, the height found.
+    let across = (i(area.width.wrapping_sub(right_edge)) >> 1) as u32;
     let mut height = 0u32;
     for p in pieces.iter_mut() {
-        if p.kind & 3 != 0 {
+        if p.kind & (LABEL | CHOICE) != 0 {
             p.x = p.x.wrapping_add(across);
         }
         let bottom = p.y.wrapping_add(p.height);
@@ -175,7 +79,7 @@ pub fn place_row(
             height = bottom;
         }
     }
-    // The whole moved to the box (415032).
+    // The whole moved to the box.
     let mut down = (i(area.height.wrapping_sub(height)) >> 1) as u32;
     if title {
         down &= !1;
@@ -191,6 +95,86 @@ pub fn place_row(
         height,
         across,
     })
+}
+
+/// The widest label's width; a choice followed by a choice pushes the next one to the right
+/// of its own end (and the gap).
+fn widest_label_and_push_choices(pieces: &mut [Piece]) -> u32 {
+    let mut widest = 0u32;
+    for k in 0..pieces.len() {
+        let kind = pieces[k].kind;
+        if kind & LABEL != 0 {
+            if i(widest) < i(pieces[k].width) {
+                widest = pieces[k].width;
+            }
+        } else if kind & CHOICE != 0 && k + 1 < pieces.len() && pieces[k + 1].kind & CHOICE != 0 {
+            let after = pieces[k].x.wrapping_add(pieces[k].width).wrapping_add(GAP);
+            if i(after) > i(pieces[k + 1].x) {
+                pieces[k + 1].x = after;
+            }
+        }
+    }
+    widest
+}
+
+/// Breaks the pieces into lines. A choice stays on its line while its end is within `limit`
+/// (the box's width less the label column); any other piece, and a choice past the limit,
+/// starts a new line: the pieces from it on move down by the line's height (and back left by
+/// the new line's first choice's x, which choices after a plain piece do not follow), and the
+/// pieces of the line just ended move down to its bottom.
+fn wrap_lines(pieces: &mut [Piece], limit: u32) {
+    let mut line_start = 0usize;
+    let mut line_height = pieces[0].height;
+    for k in 1..pieces.len() {
+        let piece = pieces[k];
+        let back = if piece.kind & CHOICE == 0 {
+            0
+        } else if i(piece.x.wrapping_add(piece.width)) <= i(limit) {
+            // It fits: the line is as high as its highest piece.
+            if i(line_height) < i(piece.height) {
+                line_height = piece.height;
+            }
+            continue;
+        } else {
+            piece.x
+        };
+        let mut back = back;
+        for p in &mut pieces[k..] {
+            if p.kind & CHOICE == 0 {
+                back = 0;
+            }
+            p.x = p.x.wrapping_sub(back);
+            p.y = p.y.wrapping_add(line_height);
+        }
+        for p in &mut pieces[line_start..k] {
+            p.y = p.y.wrapping_add(line_height.wrapping_sub(p.height));
+        }
+        line_start = k;
+        line_height = piece.height;
+    }
+}
+
+/// Each piece's place across: labels at the label column's end, choices after it and the
+/// gap, the rest centred, at the left or at the right edge. The right-most end of the
+/// choices.
+fn place_across(pieces: &mut [Piece], width: u32, labels: u32) -> u32 {
+    let mut right_edge = 0u32;
+    for p in pieces.iter_mut() {
+        if p.kind & LABEL != 0 {
+            p.x = p.x.wrapping_add(labels);
+        } else if p.kind & CHOICE != 0 {
+            p.x = p.x.wrapping_add(labels).wrapping_add(GAP);
+            let right = p.x.wrapping_add(p.width);
+            if i(right_edge) < i(right) {
+                right_edge = right;
+            }
+        } else if p.marks & 0x20 != 0 || p.kind & (AT_LEFT | AT_RIGHT) == 0 {
+            p.x = p.x.wrapping_add((i(width) >> 1) as u32);
+        } else if p.kind & AT_LEFT == 0 {
+            p.x = p.x.wrapping_add(width.wrapping_sub(1));
+        }
+    }
+    right_edge
 }
 
 /// A page's pieces in rows of the same box (`box_of`, asked of each piece in turn, the next
@@ -268,7 +252,7 @@ mod tests {
             height: 40,
         };
         let mut pieces = [piece(1, 30, 10), piece(2, 50, 10), piece(2, 60, 12)];
-        let placed = place_row(&mut pieces, area, false, 0).unwrap();
+        let placed = place_row(&mut pieces, area, false).unwrap();
         // Label 30 wide; the choices at 0 and 60, after the label and 10: 40, 100; their
         // right edge 160: centred across by 20; height 12, down by 14.
         assert_eq!(
@@ -282,7 +266,7 @@ mod tests {
         );
         assert_eq!((pieces[0].x, pieces[1].x, pieces[2].x), (150, 160, 220));
         assert_eq!((pieces[0].y, pieces[1].y, pieces[2].y), (64, 64, 64));
-        assert!(place_row(&mut [], area, false, 0).is_err());
+        assert!(place_row(&mut [], area, false).is_err());
     }
 
     #[test]
@@ -299,7 +283,7 @@ mod tests {
             piece(0, 40, 5),
             piece(4, 8, 5),
         ];
-        let placed = place_row(&mut pieces, area, true, 0).unwrap();
+        let placed = place_row(&mut pieces, area, true).unwrap();
         // The second choice wraps under the first (y 10, x back to 0); the plain pieces go
         // on lines of their own (y 30, 35), one centred, the one with bit 2 at 0; the
         // choices centred across by 15; 40 high, down by 30 (61 / 2, made even).

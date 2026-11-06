@@ -17,6 +17,7 @@
 
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
+use crate::effects::ring_entries::field;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::Refused;
@@ -60,7 +61,8 @@ pub fn emit_particle_18(record: &MarkRecord, object: &'static MarkCar) -> Result
             }
             let tag = match before {
                 None => object.word(0x1C)?,
-                Some(b) => crate::effects::ring_entries::get(b, 0x1C)?,
+                // (The original's esi: the entry before's last x, 0 here.)
+                Some(b) => crate::effects::ring_entries::get(b, field::LAST_PLACE_X)?,
             };
             let e = take_entry(tag & 0xFF_FFFF, 0x12)?;
             before = Some(e);
@@ -72,23 +74,27 @@ pub fn emit_particle_18(record: &MarkRecord, object: &'static MarkCar) -> Result
                 m[1],
                 m[0],
             ]);
-            put(0x34, rounded(moved[0]))?;
-            put(0x30, rounded(moved[1]) & 0x7FFF_FFFF)?;
-            put(0x2C, rounded(moved[2]))?;
-            put(0x10, x87::loaded(record.place[0].bits()))?;
-            put(0x14, x87::loaded(record.place[1].bits()))?;
+            put(field::MOTION_Z, rounded(moved[0]))?;
+            put(field::MOTION_Y, rounded(moved[1]) & 0x7FFF_FFFF)?;
+            put(field::MOTION_X, rounded(moved[2]))?;
+            put(field::PLACE_X, x87::loaded(record.place[0].bits()))?;
+            put(field::PLACE_Y, x87::loaded(record.place[1].bits()))?;
             put(
-                0x28,
+                field::GROUND_Y,
                 x87::sub(record.place[1].bits(), MARKS_FLOATS.two_pow_16.bits()),
             )?;
-            put(0x18, x87::loaded(record.place[2].bits()))?;
-            for o in [0x1C, 0x20, 0x24] {
+            put(field::PLACE_Z, x87::loaded(record.place[2].bits()))?;
+            for o in [
+                field::LAST_PLACE_X,
+                field::LAST_PLACE_Y,
+                field::LAST_PLACE_Z,
+            ] {
                 put(o, 0)?;
             }
-            put(0x84, LIFE)?;
-            put(0x68, EMITTER.car.get())?;
+            put(field::LIFE, LIFE)?;
+            put(field::CAR, EMITTER.car.get())?;
             put(
-                0x78,
+                field::ALPHA_FADE,
                 x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), LIFE as i32),
             )?;
         }

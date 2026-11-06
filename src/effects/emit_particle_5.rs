@@ -22,6 +22,7 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
+use crate::effects::ring_entries::field;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
@@ -140,10 +141,10 @@ pub fn emit_particle_5_with(
                 )
             })
         })?;
-        put(0x18, place[2])?;
-        put(0x28, place[1])?;
-        put(0x14, place[1])?;
-        put(0x10, place[0])?;
+        put(field::PLACE_Z, place[2])?;
+        put(field::GROUND_Y, place[1])?;
+        put(field::PLACE_Y, place[1])?;
+        put(field::PLACE_X, place[0])?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let lift = (k == 1).then(|| set.lift.bits());
@@ -159,7 +160,10 @@ pub fn emit_particle_5_with(
         let (moved, last) =
             jitter_point([extended(set.spread.bits()), motion[2], motion[1], motion[0]]);
         let speed = wheel.speed_18.bits();
-        for (n, o) in [0x34u32, 0x30, 0x2C].into_iter().enumerate() {
+        for (n, o) in [field::MOTION_Z, field::MOTION_Y, field::MOTION_X]
+            .into_iter()
+            .enumerate()
+        {
             let row = matrix_cell(m, 0x28 - 4 * n as u32)?;
             put(
                 o,
@@ -167,14 +171,14 @@ pub fn emit_particle_5_with(
             )?;
         }
         put(
-            0x54,
+            field::ANGLE_RATE,
             x87::float_times_int_to_int(set.spin.bits(), sign) as u32,
         )?;
-        put(0x58, wheel.flags.get() & 0x3F)?;
-        put(0x60, ((last >> 2) & 0xFFF) + 0x7800)?;
-        put(0x74, 0xFF00_0000)?;
-        put(0x84, set.life)?;
-        put(0x68, EMITTER.car.get())?;
+        put(field::CELL, wheel.flags.get() & 0x3F)?;
+        put(field::SIZE, ((last >> 2) & 0xFFF) + 0x7800)?;
+        put(field::ALPHA, 0xFF00_0000)?;
+        put(field::LIFE, set.life)?;
+        put(field::CAR, EMITTER.car.get())?;
     }
     Ok(())
 }

@@ -1,19 +1,12 @@
 //! `math::nearest_on_segment` (0x4633DE): the point of a segment nearest a point, seen
 //! from above.
 //!
-//! In:  the segment's ends A (`dword_71C384` .. `dword_71C38C`) and B (`dword_71C390` ..
-//!      `dword_71C398`), the point O (`dword_71C39C` .. `dword_71C3A4`): floats
-//! Out: `dword_71C3A8` .. `dword_71C3B0` the point; every register preserved
-//! With x and z only (A - O, B - O and A - B into `flt_71C3B8` .. `flt_71C3D4`): t =
-//! (A - O).(A - B) over |A - B|^2, 0 when that is equal to `flt_71C3C8` (0.0); held to
-//! `flt_5C5D90` (0) .. `flt_5C5D38` (1) into `flt_71C3B4`; the point = A + (B - A) t in
-//! all three. Converted 2026-10-20: `rc2k_core::math::geometry::nearest_on_segment`, plain `f32`.
-//! Callers: `sound::merge_spot_voices` (and unreached code at 0x463349).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
-//!
-//! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
-//! above are the original's, for reference.
+//! In:  the segment's ends A and B and the point O, each as three floats (bits).
+//! Out: the nearest point, three floats.
+//! With x and z only: t = (A - O).(A - B) over |A - B|^2 (0 when that is zero), held to
+//! 0 .. 1; the point = A + (B - A) t in all three. The arithmetic is the original's x87
+//! (the sound code's calls by place, whose own comparisons stay exact until `sound` is
+//! converted); the same maths in plain `f32` is `rc2k_core::math::geometry::nearest_on_segment`.
 
 use crate::math::x87::loaded;
 use crate::math::x87_float::{compare, ld};
@@ -21,11 +14,26 @@ use crate::physics::flow::c0;
 use crate::scene::x87_mem::{Base, cells, fld, fld80, fstp, fstp80};
 use std::cell::Cell;
 
-/// The work block's dwords (0x71C384 .. 0x71C3D7 in the image until 2026-10-24: the
-/// function's own; `sound::merge_spot_voices` wrote the ends and read the point).
+/// The work block's dwords (the function's own variables, 0x71C384 .. 0x71C3D7 in the
+/// image until 2026-10-24); the x87 code reaches them by these byte offsets.
 const WORK_LEN: usize = 0x54 / 4;
-/// t's dword (`g_segmentT`, 0x71C3B4).
-const T: usize = 0x30 / 4;
+/// A float's place in a three-float point.
+const X: usize = 0;
+const Y: usize = 1;
+const Z: usize = 2;
+/// The segment's ends A and B and the point O (inputs): x, y, z.
+const A: [usize; 3] = [0x00, 0x04, 0x08];
+const B: [usize; 3] = [0x0C, 0x10, 0x14];
+const O: [usize; 3] = [0x18, 0x1C, 0x20];
+/// The nearest point (output): x, y, z.
+const NEAREST: [usize; 3] = [0x24, 0x28, 0x2C];
+/// t along the segment (`g_segmentT`, 0x71C3B4), as a byte offset and a dword index.
+const T_AT: usize = 0x30;
+const T: usize = T_AT / 4;
+/// A - O, B - O and A - B in x and z.
+const A_MINUS_O: [usize; 2] = [0x34, 0x38];
+const B_MINUS_O: [usize; 2] = [0x3C, 0x40];
+const A_MINUS_B: [usize; 2] = [0x4C, 0x50];
 /// `flt_71C3C8`: 0.0 (never written).
 const SEGMENT_ZERO: u32 = 0;
 /// `flt_5C5D90` (0.0) and `flt_5C5D38` (1.0).
@@ -38,39 +46,47 @@ const ONE: u32 = 0x3F80_0000;
 /// 80-bit dot (A - O).(A - B) less (B - O).(A - B) into `top`, the dot (A - O).(A - B)
 /// into `below` (`fstp tbyte`).
 fn differences(w: impl Base, top: impl Base, below: impl Base) {
-    fstp(w, 0x34, fld(w, 0x00) - fld(w, 0x18));
-    fstp(w, 0x38, fld(w, 0x08) - fld(w, 0x20));
-    fstp(w, 0x3C, fld(w, 0x0C) - fld(w, 0x18));
-    fstp(w, 0x40, fld(w, 0x14) - fld(w, 0x20));
-    fstp(w, 0x4C, fld(w, 0x34) - fld(w, 0x3C));
-    fstp(w, 0x50, fld(w, 0x38) - fld(w, 0x40));
-    let dot = fld(w, 0x34) * fld(w, 0x4C) + fld(w, 0x38) * fld(w, 0x50);
-    let other = fld(w, 0x3C) * fld(w, 0x4C) + fld(w, 0x40) * fld(w, 0x50);
+    // Only x and z count (seen from above).
+    for (k, axis) in [X, Z].into_iter().enumerate() {
+        fstp(w, A_MINUS_O[k], fld(w, A[axis]) - fld(w, O[axis]));
+    }
+    for (k, axis) in [X, Z].into_iter().enumerate() {
+        fstp(w, B_MINUS_O[k], fld(w, B[axis]) - fld(w, O[axis]));
+    }
+    for k in 0..2 {
+        fstp(w, A_MINUS_B[k], fld(w, A_MINUS_O[k]) - fld(w, B_MINUS_O[k]));
+    }
+    let dot =
+        fld(w, A_MINUS_O[0]) * fld(w, A_MINUS_B[0]) + fld(w, A_MINUS_O[1]) * fld(w, A_MINUS_B[1]);
+    let other =
+        fld(w, B_MINUS_O[0]) * fld(w, A_MINUS_B[0]) + fld(w, B_MINUS_O[1]) * fld(w, A_MINUS_B[1]);
     fstp80(top, 0, dot - other);
     fstp80(below, 0, dot);
 }
 
 /// t = `below` / `top` into the work block (`fdivp`).
 fn ratio(w: impl Base, top: impl Base, below: impl Base) {
-    fstp(w, 0x30, fld80(below, 0) / fld80(top, 0));
+    fstp(w, T_AT, fld80(below, 0) / fld80(top, 0));
 }
 
 /// The point (A + (B - A) t in x, y and z) into the work block.
 fn point(w: impl Base) {
-    for (b, a, out) in [(0x0C, 0x00, 0x24), (0x10, 0x04, 0x28), (0x14, 0x08, 0x2C)] {
-        fstp(w, out, (fld(w, b) - fld(w, a)) * fld(w, 0x30) + fld(w, a));
+    for axis in [X, Y, Z] {
+        let (a, b) = (fld(w, A[axis]), fld(w, B[axis]));
+        fstp(w, NEAREST[axis], (b - a) * fld(w, T_AT) + a);
     }
 }
 
 /// Exactly as the original (the x87 at its precision): the sound code's calls by place,
 /// whose own comparisons stay exact until `sound` is converted.
 pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
-    // The work block as the image laid it out (0x71C384 ..): A, B, O, the point, t, the
-    // differences; the x87 reads and writes it by these offsets.
+    // The work block as the image laid it out: A, B, O, the point, t, the differences.
     let mut block = [0u32; WORK_LEN];
-    block[..3].copy_from_slice(&a);
-    block[3..6].copy_from_slice(&b);
-    block[6..9].copy_from_slice(&o);
+    for axis in [X, Y, Z] {
+        block[A[axis] / 4] = a[axis];
+        block[B[axis] / 4] = b[axis];
+        block[O[axis] / 4] = o[axis];
+    }
     let (top, below) = ([Cell::new([0u8; 10])], [Cell::new([0u8; 10])]);
     differences(cells(&mut block), &top[..], &below[..]);
     // fcom flt_71C3C8; C3: equal (or unordered).
@@ -87,7 +103,7 @@ pub fn nearest_on_segment(a: [u32; 3], b: [u32; 3], o: [u32; 3]) -> [u32; 3] {
         }
     }
     point(cells(&mut block));
-    [block[9], block[10], block[11]]
+    [NEAREST[X], NEAREST[Y], NEAREST[Z]].map(|at| block[at / 4])
 }
 
 #[cfg(all(test, target_arch = "x86"))]

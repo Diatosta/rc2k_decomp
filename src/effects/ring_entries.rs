@@ -16,6 +16,42 @@ pub const ENTRY_LEN: u32 = 0x94;
 /// The block's bytes, as counted.
 pub const RING_BYTES: u32 = 0x2_5000;
 
+/// Byte offsets of an entry's fields (the ones whose meaning is certain, used by the emitters and
+/// the ring walks; the rest, and the links at 0 and 4, are read by number).
+pub mod field {
+    /// The particle's kind (1, 5, 6, 0xB, 0xD, 0x10 ..).
+    pub const KIND: u32 = 0x0C;
+    /// Its place (floats).
+    pub const PLACE_X: u32 = 0x10;
+    pub const PLACE_Y: u32 = 0x14;
+    pub const PLACE_Z: u32 = 0x18;
+    /// Its last place (the streaks), kept for the next frame's segment.
+    pub const LAST_PLACE_X: u32 = 0x1C;
+    pub const LAST_PLACE_Y: u32 = 0x20;
+    pub const LAST_PLACE_Z: u32 = 0x24;
+    /// The height of the ground under it: it dies when its y is below this.
+    pub const GROUND_Y: u32 = 0x28;
+    /// Its motion a frame (floats).
+    pub const MOTION_X: u32 = 0x2C;
+    pub const MOTION_Y: u32 = 0x30;
+    pub const MOTION_Z: u32 = 0x34;
+    /// The sprite's angle, and how fast it turns.
+    pub const ANGLE: u32 = 0x50;
+    pub const ANGLE_RATE: u32 = 0x54;
+    /// The sprite's cell in its picture.
+    pub const CELL: u32 = 0x58;
+    /// The sprite's size, and the size it is pulled toward.
+    pub const SIZE: u32 = 0x60;
+    pub const SIZE_GOAL: u32 = 0x70;
+    /// The car it was emitted for (a `marks_settings_store::car_handle`).
+    pub const CAR: u32 = 0x68;
+    /// The sprite's alpha, and how much of it goes a tick.
+    pub const ALPHA: u32 = 0x74;
+    pub const ALPHA_FADE: u32 = 0x78;
+    /// The ticks of life left.
+    pub const LIFE: u32 = 0x84;
+}
+
 pub type Entry = [u32; (ENTRY_LEN / 4) as usize];
 
 pub static RING: Owned<Vec<Entry>> = Owned::new("no marks ring");

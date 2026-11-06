@@ -12,9 +12,8 @@
 //! In:  nothing (`g_marksSettings`)
 //! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `sub_4BAC87` (0x4BAF08). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! items and the game's variables. Refuses, before anything, null settings and a live item
-//! of a kind past 7.
+//! The float steps run on the x87 model (`math::x87_float`), in the original's order and
+//! rounding. Refuses, before anything, null settings and a live item of a kind past 7.
 
 use crate::effects::edges::EDGE_MASK;
 use crate::effects::expire_windscreen_drops::{ITEM_LEN, ITEMS};
@@ -29,6 +28,14 @@ use crate::math::x87;
 /// `unk_628A44`, past the 0x40 records of 0xC0 bytes.
 const BUFFER_BYTES: usize = 0x3000;
 const KINDS: u32 = 8;
+
+/// An item's fields (byte offsets in the items buffer): live flag at 0, then the shape kind,
+/// the place (x, z) and the motion eased toward the drift (x, z).
+const ITEM_KIND: u32 = 4;
+const ITEM_X: u32 = 0x14;
+const ITEM_Z: u32 = 0x18;
+const ITEM_MOTION_X: u32 = 0x1C;
+const ITEM_MOTION_Z: u32 = 0x20;
 
 /// The dword at byte `e` of the items.
 fn get(e: u32) -> u32 {
@@ -73,7 +80,7 @@ fn refusal() -> Result<Option<&'static str>, Refused> {
         let items = &HEX.items;
         let bad = (0..ITEMS as usize).any(|n| {
             let e = n * ITEM_LEN as usize;
-            items.get_u32(e) == 1 && items.get_u32(e + 4) >= KINDS
+            items.get_u32(e) == 1 && items.get_u32(e + ITEM_KIND as usize) >= KINDS
         });
         bad.then_some("a live windscreen drop of a kind past 7")
     })
@@ -105,20 +112,20 @@ pub fn windscreen_drops_frame() -> Result<(), Refused> {
                 .live
                 .set(WINDSCREEN_DROP_STATE.live.get().wrapping_add(1));
             if MARKS_KIND_FLOATS.running.bits() != 0 {
-                let x = x87::to_int(get(e + 0x14));
+                let x = x87::to_int(get(e + ITEM_X));
                 MARKS_WORK.scratch.set(x as u32);
                 drift_cell(4 * (((x as u32) >> 3) & 0xFF));
-                drift_move(4 * get(e + 4), e);
+                drift_move(4 * get(e + ITEM_KIND), e);
             }
-            let x = x87::to_int(get(e + 0x14));
-            let z = x87::to_int(get(e + 0x18));
+            let x = x87::to_int(get(e + ITEM_X));
+            let z = x87::to_int(get(e + ITEM_Z));
             WINDSCREEN_DROP_WORK.whole[0].set(x as u32);
             WINDSCREEN_DROP_WORK.whole[1].set(z as u32);
             if (x as u32 | (z as u32).wrapping_add(z as u32)) & 0x800 != 0 {
                 put(e, 0);
                 continue;
             }
-            let shape = get(e + 4);
+            let shape = get(e + ITEM_KIND);
             let cell = ((((z as u32) >> 3) & 0x7F) << 8) + (((x as u32) >> 3) & 0xFF);
             if EDGE_MASK.mask.get(cell as usize) != 0 {
                 put(e, 0);
@@ -154,280 +161,129 @@ use crate::effects::plain::{ld_at, ld_cell, st_at};
 use crate::math::x87_float as bh;
 use crate::scene::draw_store::DRAW;
 
-/// `drift_cell`'s x87 block as plain Rust on the x87 model (7 instructions), same order and memory places.
+/// `drift_cell`: the drift at the item's cell (`curve[k / 4]`) into `drift`: x from the
+/// shape tilt's point, y its second coordinate.
 fn drift_cell_x87(k: usize) {
-    {
-        let t0 = bh::ld(WINDSCREEN_DROP_WORK.curve[k / 4].bits());
-        let t1 = t0 * bh::ld(SHAPE_TILT.point[2].bits());
-        let t2 = -t1;
-        let t3 = t2 + bh::ld(SHAPE_TILT.point[0].bits());
-        WINDSCREEN_DROP_WORK.drift[0].set_bits(bh::st(t3));
-        let t4 = bh::ld(SHAPE_TILT.point[1].bits());
-        WINDSCREEN_DROP_WORK.drift[1].set_bits(bh::st(t4));
+    let x = -(bh::ld(WINDSCREEN_DROP_WORK.curve[k / 4].bits())
+        * bh::ld(SHAPE_TILT.point[2].bits()))
+        + bh::ld(SHAPE_TILT.point[0].bits());
+    WINDSCREEN_DROP_WORK.drift[0].set_bits(bh::st(x));
+    let y = bh::ld(SHAPE_TILT.point[1].bits());
+    WINDSCREEN_DROP_WORK.drift[1].set_bits(bh::st(y));
+}
+
+/// `drift_move`: the item at byte `s` of the items has its motion eased toward the drift
+/// (scaled by its kind's radius `radii[k / 4]`) and its place moved by the new motion.
+fn drift_move_x87(k: usize, s: usize) {
+    let ld_item = |field: u32| ld_at(&HEX.items, s + field as usize);
+    let st_item = |field: u32, x| st_at(&HEX.items, s + field as usize, x);
+    for (motion, drift) in [(ITEM_MOTION_X, 0), (ITEM_MOTION_Z, 1)] {
+        let toward = bh::ld(WINDSCREEN_DROP_WORK.drift[drift].bits())
+            * bh::ld(WINDSCREEN_DROP_WORK.radii[k / 4].bits());
+        let eased = (toward - ld_item(motion)) * ld_cell(&HEX.ease) + ld_item(motion);
+        st_item(motion, eased);
+    }
+    let x = ld_item(ITEM_X) + ld_item(ITEM_MOTION_X);
+    let z = ld_item(ITEM_Z) + ld_item(ITEM_MOTION_Z);
+    st_item(ITEM_Z, z);
+    st_item(ITEM_X, x);
+}
+
+/// The dword at `offset` of the record batch, as the x87 loads it.
+fn ld_record(offset: usize) -> bh::X {
+    ld_at(&WINDSCREEN_DROP_BATCH.records, offset)
+}
+
+/// `sprite_depth`: the item's whole-number place turned by the view into `cell` (and the
+/// depth, which is `cell[2]` too). Same order and rounding as the original's x87 block.
+fn sprite_depth_x87() {
+    let work = &WINDSCREEN_DROP_WORK;
+    let x = bh::int(work.whole[0].bits() as i32);
+    let z = ld_cell(&HEX.frame_k) - bh::int(work.whole[1].bits() as i32);
+    let z = z * bh::ld(work.shares[1].bits());
+    let x = x * bh::ld(work.shares[0].bits());
+    // Output i: x times the first axes row, z times the second, plus the view's place. The
+    // last one adds the products the other way round (the original's order) and is also
+    // the depth.
+    for i in 0..3 {
+        let from_x = x * bh::ld(work.axes[i].bits());
+        let from_z = z * bh::ld(work.axes[3 + i].bits());
+        let sum = if i < 2 {
+            from_x + from_z
+        } else {
+            from_z + from_x
+        };
+        let out = sum + bh::ld(work.place[i].bits());
+        if i == 2 {
+            WINDSCREEN_DROP_STATE.depth.set_bits(bh::st(out));
+        }
+        work.cell[i].set_bits(bh::st(out));
     }
 }
 
-/// `drift_move`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
-fn drift_move_x87(k: usize, s: usize) {
-    let t0 = bh::ld(WINDSCREEN_DROP_WORK.drift[0].bits());
-    let t1 = t0 * bh::ld(WINDSCREEN_DROP_WORK.radii[k / 4].bits());
-    let t2 = t1 - ld_at(&HEX.items, s + 0x1C);
-    let t3 = t2 * ld_cell(&HEX.ease);
-    let t4 = t3 + ld_at(&HEX.items, s + 0x1C);
-    st_at(&HEX.items, s + 0x1C, t4);
-    let t5 = bh::ld(WINDSCREEN_DROP_WORK.drift[1].bits());
-    let t6 = t5 * bh::ld(WINDSCREEN_DROP_WORK.radii[k / 4].bits());
-    let t7 = t6 - ld_at(&HEX.items, s + 0x20);
-    let t8 = t7 * ld_cell(&HEX.ease);
-    let t9 = t8 + ld_at(&HEX.items, s + 0x20);
-    st_at(&HEX.items, s + 0x20, t9);
-    let t10 = ld_at(&HEX.items, s + 0x14);
-    let t11 = t10 + ld_at(&HEX.items, s + 0x1C);
-    let t12 = ld_at(&HEX.items, s + 0x18);
-    let t13 = t12 + ld_at(&HEX.items, s + 0x20);
-    st_at(&HEX.items, s + 0x18, t13);
-    st_at(&HEX.items, s + 0x14, t11);
-}
-
-/// `sprite_depth`'s x87 block as plain Rust on the x87 model (28 instructions), same order and memory places.
-fn sprite_depth_x87() {
-    let t0 = bh::int(WINDSCREEN_DROP_WORK.whole[0].bits() as i32);
-    let t1 = ld_cell(&HEX.frame_k);
-    let t2 = t1 - bh::int(WINDSCREEN_DROP_WORK.whole[1].bits() as i32);
-    let t3 = t2 * bh::ld(WINDSCREEN_DROP_WORK.shares[1].bits());
-    let t4 = t0 * bh::ld(WINDSCREEN_DROP_WORK.shares[0].bits());
-    let t5 = t4 * bh::ld(WINDSCREEN_DROP_WORK.axes[0].bits());
-    let t6 = t3 * bh::ld(WINDSCREEN_DROP_WORK.axes[3].bits());
-    let t7 = t5 + t6;
-    let t8 = t7 + bh::ld(WINDSCREEN_DROP_WORK.place[0].bits());
-    WINDSCREEN_DROP_WORK.cell[0].set_bits(bh::st(t8));
-    let t9 = t4 * bh::ld(WINDSCREEN_DROP_WORK.axes[1].bits());
-    let t10 = t3 * bh::ld(WINDSCREEN_DROP_WORK.axes[4].bits());
-    let t11 = t9 + t10;
-    let t12 = t11 + bh::ld(WINDSCREEN_DROP_WORK.place[1].bits());
-    WINDSCREEN_DROP_WORK.cell[1].set_bits(bh::st(t12));
-    let t13 = t3 * bh::ld(WINDSCREEN_DROP_WORK.axes[5].bits());
-    let t14 = t4 * bh::ld(WINDSCREEN_DROP_WORK.axes[2].bits());
-    let t15 = t13 + t14;
-    let t16 = t15 + bh::ld(WINDSCREEN_DROP_WORK.place[2].bits());
-    WINDSCREEN_DROP_STATE.depth.set_bits(bh::st(t16));
-    WINDSCREEN_DROP_WORK.cell[2].set_bits(bh::st(t16));
-}
-
-/// `sprite_corners`'s x87 block as plain Rust on the x87 model (56 instructions), same order and memory places.
+/// `sprite_corners`: the six corners of the kind's shape (its offsets from `scaled[c / 4]`)
+/// placed around the item's `cell` into `corners`. Returns the inverse depth the projection
+/// takes (`view_scale / cell[2]`).
 fn sprite_corners_x87(c: usize) -> bh::X {
-    let t0 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t1 = crate::math::x87_float::ld(DRAW.view_scale.bits()) / t0;
-    let t2 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t3 = t2 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4].bits());
-    WINDSCREEN_DROP_WORK.corners[0].set_bits(bh::st(t3));
-    let t4 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t5 = t4 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 3].bits());
-    WINDSCREEN_DROP_WORK.corners[3].set_bits(bh::st(t5));
-    let t6 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t7 = t6 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 6].bits());
-    WINDSCREEN_DROP_WORK.corners[6].set_bits(bh::st(t7));
-    let t8 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t9 = t8 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 9].bits());
-    WINDSCREEN_DROP_WORK.corners[9].set_bits(bh::st(t9));
-    let t10 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t11 = t10 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 12].bits());
-    WINDSCREEN_DROP_WORK.corners[12].set_bits(bh::st(t11));
-    let t12 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t13 = t12 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 15].bits());
-    WINDSCREEN_DROP_WORK.corners[15].set_bits(bh::st(t13));
-    let t14 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t15 = t14 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 1].bits());
-    WINDSCREEN_DROP_WORK.corners[1].set_bits(bh::st(t15));
-    let t16 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t17 = t16 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 4].bits());
-    WINDSCREEN_DROP_WORK.corners[4].set_bits(bh::st(t17));
-    let t18 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t19 = t18 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 7].bits());
-    WINDSCREEN_DROP_WORK.corners[7].set_bits(bh::st(t19));
-    let t20 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t21 = t20 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 10].bits());
-    WINDSCREEN_DROP_WORK.corners[10].set_bits(bh::st(t21));
-    let t22 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t23 = t22 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 13].bits());
-    WINDSCREEN_DROP_WORK.corners[13].set_bits(bh::st(t23));
-    let t24 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t25 = t24 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 16].bits());
-    WINDSCREEN_DROP_WORK.corners[16].set_bits(bh::st(t25));
-    let t26 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t27 = t26 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 2].bits());
-    WINDSCREEN_DROP_WORK.corners[2].set_bits(bh::st(t27));
-    let t28 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t29 = t28 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 5].bits());
-    WINDSCREEN_DROP_WORK.corners[5].set_bits(bh::st(t29));
-    let t30 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t31 = t30 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 8].bits());
-    WINDSCREEN_DROP_WORK.corners[8].set_bits(bh::st(t31));
-    let t32 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t33 = t32 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 11].bits());
-    WINDSCREEN_DROP_WORK.corners[11].set_bits(bh::st(t33));
-    let t34 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t35 = t34 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 14].bits());
-    WINDSCREEN_DROP_WORK.corners[14].set_bits(bh::st(t35));
-    let t36 = bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t37 = t36 + bh::ld(WINDSCREEN_DROP_WORK.scaled[c / 4 + 17].bits());
-    WINDSCREEN_DROP_WORK.corners[17].set_bits(bh::st(t37));
-    t1
+    let work = &WINDSCREEN_DROP_WORK;
+    let inverse_depth = bh::ld(DRAW.view_scale.bits()) / bh::ld(work.cell[2].bits());
+    // Axis by axis (x, y, z), each of the six corners.
+    for axis in 0..3 {
+        for corner in 0..6 {
+            let i = 3 * corner + axis;
+            let sum = bh::ld(work.cell[axis].bits()) + bh::ld(work.scaled[c / 4 + i].bits());
+            work.corners[i].set_bits(bh::st(sum));
+        }
+    }
+    inverse_depth
 }
 
-/// `sprite_project`'s x87 block as plain Rust on the x87 model (152 instructions), same order and memory places.
-fn sprite_project_x87(e: usize, pre0: bh::X) {
-    WINDSCREEN_DROP_WORK.cell[2].set_bits(bh::st(pre0));
-    let t0 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t1 = t0 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t2 = -t1;
-    let t3 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t4 = t3 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t5 = t4 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
-    WINDSCREEN_DROP_WORK.cell[0].set_bits(bh::st(t5));
-    let t6 = t2 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
-    WINDSCREEN_DROP_WORK.cell[1].set_bits(bh::st(t6));
-    let t7 = bh::ld(WINDSCREEN_DROP_WORK.corners[0].bits());
-    let t8 = t7 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t9 = bh::ld(WINDSCREEN_DROP_WORK.corners[1].bits());
-    let t10 = t9 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t11 = -t10;
-    let t12 = t11 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x1C, t12);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x4, t12);
-    let t13 = t8 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x18, t13);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e, t13);
-    let t14 = bh::ld(WINDSCREEN_DROP_WORK.corners[3].bits());
-    let t15 = t14 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t16 = bh::ld(WINDSCREEN_DROP_WORK.corners[4].bits());
-    let t17 = t16 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t18 = -t17;
-    let t19 = t18 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x3C, t19);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x24, t19);
-    let t20 = t15 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x38, t20);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x20, t20);
-    let t21 = bh::ld(WINDSCREEN_DROP_WORK.corners[6].bits());
-    let t22 = t21 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t23 = bh::ld(WINDSCREEN_DROP_WORK.corners[7].bits());
-    let t24 = t23 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t25 = -t24;
-    let t26 = t25 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x5C, t26);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x44, t26);
-    let t27 = t22 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x58, t27);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x40, t27);
-    let t28 = bh::ld(WINDSCREEN_DROP_WORK.corners[9].bits());
-    let t29 = t28 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t30 = bh::ld(WINDSCREEN_DROP_WORK.corners[10].bits());
-    let t31 = t30 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t32 = -t31;
-    let t33 = t32 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x7C, t33);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x64, t33);
-    let t34 = t29 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x78, t34);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x60, t34);
-    let t35 = bh::ld(WINDSCREEN_DROP_WORK.corners[12].bits());
-    let t36 = t35 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t37 = bh::ld(WINDSCREEN_DROP_WORK.corners[13].bits());
-    let t38 = t37 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t39 = -t38;
-    let t40 = t39 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x9C, t40);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x84, t40);
-    let t41 = t36 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x98, t41);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x80, t41);
-    let t42 = bh::ld(WINDSCREEN_DROP_WORK.corners[15].bits());
-    let t43 = t42 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t44 = bh::ld(WINDSCREEN_DROP_WORK.corners[16].bits());
-    let t45 = t44 * bh::ld(WINDSCREEN_DROP_WORK.cell[2].bits());
-    let t46 = -t45;
-    let t47 = t46 + crate::math::x87_float::ld(DRAW.view_centre[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0xBC, t47);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0xA4, t47);
-    let t48 = t43 + crate::math::x87_float::ld(DRAW.view_centre[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0xB8, t48);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0xA0, t48);
-    let t49 = bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t50 = t49 * ld_cell(&HEX.scale[0]);
-    let t51 = bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t52 = t51 * ld_cell(&HEX.scale[1]);
-    WINDSCREEN_DROP_WORK.screen[0].set_bits(bh::st(t50));
-    WINDSCREEN_DROP_WORK.screen[1].set_bits(bh::st(t52));
-    let t53 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x18);
-    let t54 = t53 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t55 = t54 * ld_cell(&HEX.scale[2]);
-    let t56 = t55 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x18, t56);
-    let t57 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x1C);
-    let t58 = t57 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t59 = t58 * ld_cell(&HEX.scale[3]);
-    let t60 = t59 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x1C, t60);
-    let t61 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x38);
-    let t62 = t61 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t63 = t62 * ld_cell(&HEX.scale[2]);
-    let t64 = t63 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x38, t64);
-    let t65 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x3C);
-    let t66 = t65 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t67 = t66 * ld_cell(&HEX.scale[3]);
-    let t68 = t67 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x3C, t68);
-    let t69 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x58);
-    let t70 = t69 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t71 = t70 * ld_cell(&HEX.scale[2]);
-    let t72 = t71 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x58, t72);
-    let t73 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x5C);
-    let t74 = t73 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t75 = t74 * ld_cell(&HEX.scale[3]);
-    let t76 = t75 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x5C, t76);
-    let t77 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x78);
-    let t78 = t77 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t79 = t78 * ld_cell(&HEX.scale[2]);
-    let t80 = t79 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x78, t80);
-    let t81 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x7C);
-    let t82 = t81 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t83 = t82 * ld_cell(&HEX.scale[3]);
-    let t84 = t83 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x7C, t84);
-    let t85 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x98);
-    let t86 = t85 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t87 = t86 * ld_cell(&HEX.scale[2]);
-    let t88 = t87 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x98, t88);
-    let t89 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0x9C);
-    let t90 = t89 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t91 = t90 * ld_cell(&HEX.scale[3]);
-    let t92 = t91 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x9C, t92);
-    let t93 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0xB8);
-    let t94 = t93 - bh::ld(WINDSCREEN_DROP_WORK.cell[0].bits());
-    let t95 = t94 * ld_cell(&HEX.scale[2]);
-    let t96 = t95 + bh::ld(WINDSCREEN_DROP_WORK.screen[0].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0xB8, t96);
-    let t97 = ld_at(&WINDSCREEN_DROP_BATCH.records, e + 0xBC);
-    let t98 = t97 - bh::ld(WINDSCREEN_DROP_WORK.cell[1].bits());
-    let t99 = t98 * ld_cell(&HEX.scale[3]);
-    let t100 = t99 + bh::ld(WINDSCREEN_DROP_WORK.screen[1].bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0xBC, t100);
-    let t101 = bh::ld(WINDSCREEN_DROP_STATE.depth.bits());
-    let t102 = t101 + bh::ld(MARKS_KIND_FLOATS.kind_float.bits());
-    let t103 = t102 * bh::ld(WINDSCREEN_DROP_WORK.inverse.bits());
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x8, t103);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x28, t103);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x48, t103);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x68, t103);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0x88, t103);
-    st_at(&WINDSCREEN_DROP_BATCH.records, e + 0xA8, t103);
+/// `sprite_project`: the centre and the six corners projected to the screen into the six
+/// vertices at `e` of the batch's records (0x20 bytes each; the depth at +8), `inverse_depth`
+/// being `view_scale / depth`. Same order and rounding as the original's x87 block.
+fn sprite_project_x87(e: usize, inverse_depth: bh::X) {
+    let work = &WINDSCREEN_DROP_WORK;
+    let records = &WINDSCREEN_DROP_BATCH.records;
+    let centre = |axis: usize| bh::ld(DRAW.view_centre[axis].bits());
+    work.cell[2].set_bits(bh::st(inverse_depth));
+    // The centre.
+    let up = -(bh::ld(work.cell[1].bits()) * bh::ld(work.cell[2].bits()));
+    let across = bh::ld(work.cell[0].bits()) * bh::ld(work.cell[2].bits()) + centre(0);
+    work.cell[0].set_bits(bh::st(across));
+    work.cell[1].set_bits(bh::st(up + centre(1)));
+    // The corners: x and y written both at the vertex's +0x18 / +0x1C and at its +0 / +4.
+    for v in 0..6 {
+        let at = e + 0x20 * v;
+        let x = bh::ld(work.corners[3 * v].bits()) * bh::ld(work.cell[2].bits());
+        let y = -(bh::ld(work.corners[3 * v + 1].bits()) * bh::ld(work.cell[2].bits()));
+        let y = y + centre(1);
+        st_at(records, at + 0x1C, y);
+        st_at(records, at + 0x4, y);
+        let x = x + centre(0);
+        st_at(records, at + 0x18, x);
+        st_at(records, at, x);
+    }
+    // The vertices' screen places moved around the centre by the scales.
+    let screen_x = bh::ld(work.cell[0].bits()) * ld_cell(&HEX.scale[0]);
+    let screen_y = bh::ld(work.cell[1].bits()) * ld_cell(&HEX.scale[1]);
+    work.screen[0].set_bits(bh::st(screen_x));
+    work.screen[1].set_bits(bh::st(screen_y));
+    for v in 0..6 {
+        let at = e + 0x20 * v;
+        let x = (ld_record(at + 0x18) - bh::ld(work.cell[0].bits())) * ld_cell(&HEX.scale[2])
+            + bh::ld(work.screen[0].bits());
+        st_at(records, at + 0x18, x);
+        let y = (ld_record(at + 0x1C) - bh::ld(work.cell[1].bits())) * ld_cell(&HEX.scale[3])
+            + bh::ld(work.screen[1].bits());
+        st_at(records, at + 0x1C, y);
+    }
+    // Every vertex's depth.
+    let depth = (bh::ld(WINDSCREEN_DROP_STATE.depth.bits())
+        + bh::ld(MARKS_KIND_FLOATS.kind_float.bits()))
+        * bh::ld(work.inverse.bits());
+    for v in 0..6 {
+        st_at(records, e + 0x20 * v + 0x8, depth);
+    }
 }
 
 #[cfg(all(test, target_arch = "x86"))]

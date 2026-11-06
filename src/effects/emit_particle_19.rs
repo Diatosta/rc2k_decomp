@@ -21,6 +21,7 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
+use crate::effects::ring_entries::field;
 use crate::effects::setup::CLOCK;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
@@ -111,10 +112,10 @@ pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused>
         set.tuning.lift.bits(),
         car.whole()?,
     );
-    put(0x10, x)?;
-    put(0x14, y)?;
-    put(0x28, y_less)?;
-    put(0x18, z)?;
+    put(field::PLACE_X, x)?;
+    put(field::PLACE_Y, y)?;
+    put(field::GROUND_Y, y_less)?;
+    put(field::PLACE_Z, z)?;
     let row =
         crate::effects::try_from_fn::<u32, 3>(|i| matrix_cell(cells, [0x18u32, 0x14, 0x10][i]))?
             .into_iter()
@@ -125,7 +126,7 @@ pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused>
     let step: u32 = CLOCK.reciprocal.bits();
     for n in 0..3 {
         put(
-            0x2C + 4 * n as u32,
+            field::MOTION_X + 4 * n as u32,
             x87::product_plus(
                 motion[n],
                 step,
@@ -135,20 +136,20 @@ pub fn emit_twin(set: &TwinSet, object: &'static MarkCar) -> Result<(), Refused>
         )?;
     }
     let r = next_c5(&set.tuning.spin_random);
-    put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
-    put(0x50, r.rotate_right(6) & 0xFFF)?;
-    put(0x58, set.flags & 0x3F)?;
+    put(field::ANGLE_RATE, (r & 0x3F).wrapping_sub(0x20))?;
+    put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
+    put(field::CELL, set.flags & 0x3F)?;
     let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
     RING_WORK.whole.set(size);
-    put(0x60, x87::from_int(size as i32))?;
+    put(field::SIZE, x87::from_int(size as i32))?;
     let life: u32 = SURFACE.lives_by_level[level as usize].get();
-    put(0x84, life)?;
+    put(field::LIFE, life)?;
     put(
-        0x78,
+        field::ALPHA_FADE,
         x87::over_int(MARKS_FLOATS.two_fifty_seven.bits(), life as i32),
     )?;
-    put(0x74, MARKS_FLOATS.two_fifty_five.bits())?;
-    put(0x68, EMITTER.car.get())?;
+    put(field::ALPHA, MARKS_FLOATS.two_fifty_five.bits())?;
+    put(field::CAR, EMITTER.car.get())?;
     Ok(())
 }
 

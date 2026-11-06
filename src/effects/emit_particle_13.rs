@@ -20,6 +20,7 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
+use crate::effects::ring_entries::field;
 use crate::effects::setup::CLOCK;
 use crate::effects::splines::SPLINE_HEAD;
 use crate::effects::tuning::MARKS_FLOATS;
@@ -68,10 +69,10 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
         KIND13_SET.lift.bits(),
         car.whole()?,
     );
-    put(0x10, x)?;
-    put(0x14, y)?;
-    put(0x28, y_less)?;
-    put(0x18, z)?;
+    put(field::PLACE_X, x)?;
+    put(field::PLACE_Y, y)?;
+    put(field::GROUND_Y, y_less)?;
+    put(field::PLACE_Z, z)?;
     let one: u32 = MARKS_FLOATS.one.bits();
     let s = x87::one_less_inverse(object.word(8)?, KIND13_SET.strength_k.bits(), one);
     RING_WORK.whole.set(s);
@@ -84,9 +85,9 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
             )
         })
     })?;
-    put(0x2C, motion[0])?;
-    put(0x30, motion[1])?;
-    put(0x34, motion[2])?;
+    put(field::MOTION_X, motion[0])?;
+    put(field::MOTION_Y, motion[1])?;
+    put(field::MOTION_Z, motion[2])?;
     let r = (next_c5(&KIND13_SET.drift_random) & 0xFFFF) as i32;
     let moved = x87::drifted(
         r,
@@ -95,24 +96,27 @@ pub fn emit_particle_13(object: &'static MarkCar) -> Result<(), Refused> {
         CLOCK.frame_ticks.get() as i32,
         [x, y, z],
     );
-    put(0x10, moved[0])?;
-    put(0x14, moved[1])?;
-    put(0x18, moved[2])?;
+    put(field::PLACE_X, moved[0])?;
+    put(field::PLACE_Y, moved[1])?;
+    put(field::PLACE_Z, moved[2])?;
     let r = next_c5(&KIND13_SET.spin_random);
-    put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
-    put(0x50, r.rotate_right(6) & 0xFFF)?;
-    put(0x58, LOOK)?;
-    put(0x84, LIFE)?;
+    put(field::ANGLE_RATE, (r & 0x3F).wrapping_sub(0x20))?;
+    put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
+    put(field::CELL, LOOK)?;
+    put(field::LIFE, LIFE)?;
     put(
-        0x78,
+        field::ALPHA_FADE,
         x87::times_over_int(s, MARKS_FLOATS.two_fifty_seven.bits(), LIFE as i32),
     )?;
-    put(0x74, x87::mul(s, MARKS_FLOATS.two_fifty_six.bits()))?;
-    put(0x68, EMITTER.car.get())?;
+    put(field::ALPHA, x87::mul(s, MARKS_FLOATS.two_fifty_six.bits()))?;
+    put(field::CAR, EMITTER.car.get())?;
     let size = x87::times_plus_to_int(KIND13_SET.size_k[0].bits(), s, KIND13_SET.size_k[1].bits());
-    put(0x70, size as u32)?;
+    put(field::SIZE_GOAL, size as u32)?;
     put(0x6C, car.word(0x88)?)?;
-    put(0x60, x87::int_times(size, KIND13_SET.size_k[2].bits()))?;
+    put(
+        field::SIZE,
+        x87::int_times(size, KIND13_SET.size_k[2].bits()),
+    )?;
     Ok(())
 }
 
