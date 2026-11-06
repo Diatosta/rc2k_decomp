@@ -8,7 +8,8 @@
 //! Caller: layout 0's drawer (0x4B1F0C).
 
 use crate::errors::Refused;
-use crate::hud::store::{HUD, rect_place};
+use crate::hud::owner::Hud;
+use crate::hud::store::rect_place;
 use crate::race::panel_store::PANEL;
 use rc2k_core::hud::quads::marker_x;
 
@@ -16,17 +17,17 @@ const RECT: u32 = 0x5C;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::quads::marker_x`
-pub fn draw_marker() -> Result<(), Refused> {
-    HUD.quad[5].set(HUD.marker_colours[0].get());
+pub fn draw_marker(hud: &Hud) -> Result<(), Refused> {
+    hud.block.quad[5].set(hud.block.marker_colours[0].get());
     {
         let f = f32::from_bits;
         let x = marker_x(
             f(PANEL.distance[0].get()),
             f(PANEL.overlay_miles.get()),
-            HUD.marker_k[0].get(),
-            HUD.marker_k[1].get(),
+            hud.block.marker_k[0].get(),
+            hud.block.marker_k[1].get(),
         );
-        HUD.scratch.set(x);
-        crate::hud::add_sprite::add_sprite(x, 0, rect_place(RECT))
+        hud.block.scratch.set(x);
+        crate::hud::add_sprite::add_sprite(hud, x, 0, rect_place(hud, RECT))
     }
 }

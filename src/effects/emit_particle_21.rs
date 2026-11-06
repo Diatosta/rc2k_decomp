@@ -54,6 +54,7 @@ fn rate(particles: &Particles, wheel: &MarkRecord) -> Result<i32, Refused> {
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
 fn refusal(
     particles: &Particles,
+    ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<Option<&'static str>, Refused> {
@@ -62,7 +63,7 @@ fn refusal(
             return Ok(None);
         }
         // The ring full: nothing more is read.
-        next_entry()?;
+        next_entry(ring)?;
         if !car_with_matrix()? {
             return Ok(Some("a null car object or matrix"));
         }
@@ -73,23 +74,24 @@ fn refusal(
 /// The Rust version (see the header).
 pub fn emit_particle_21(
     particles: &Particles,
+    ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
-        if let Some(why) = refusal(particles, wheel, object)? {
+        if let Some(why) = refusal(particles, ring, wheel, object)? {
             return Err(BadInput(why).into());
         }
         let g = gate_with(wheel, object, rate(particles, wheel)?)?;
-        RING_WORK.rate.set(g.rate as u32);
+        ring.work.rate.set(g.rate as u32);
         if let Some(count) = g.count {
             wheel.pace.set(count);
         }
-        if !g.passes || next_entry()?.is_none() {
+        if !g.passes || next_entry(ring)?.is_none() {
             return Ok(());
         }
-        let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 0x15)?;
-        let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
+        let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, 0x15)?;
+        let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
         let car = emitting_car()?;
         let m = car.whole()?;
         let r = next_c5(&particles.kind21_set.side_random);

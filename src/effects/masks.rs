@@ -3,9 +3,8 @@
 //! rows of spans are filled into a mask of 0x8000 bytes (rows of 0x100) with the shape's
 //! number, 0xFF elsewhere. These are the leaves.
 
-use crate::effects::mask_picks::PICKS;
 use crate::effects::mask_vars::MASKS;
-use crate::effects::shape_work::SHAPE_WORK;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::session::Dword;
 use rc2k_core::effects::masks::{ShapeRows, Span};
@@ -13,31 +12,39 @@ use rc2k_core::effects::masks::{ShapeRows, Span};
 pub const MASK_LEN: u32 = rc2k_core::effects::masks::MASK_LEN as u32;
 
 /// The two point lists `collect_points_a` and `_b` fill: count, ids, faces.
-pub struct PointList {
-    pub count: &'static Dword,
-    pub ids: &'static [Dword; 64],
-    pub faces: &'static [Dword; 64],
+#[derive(Clone, Copy)]
+pub struct PointList<'a> {
+    pub count: &'a Dword,
+    pub ids: &'a [Dword; 64],
+    pub faces: &'a [Dword; 64],
 }
 
-pub static POINTS_A: PointList = PointList {
-    count: &SHAPE_WORK.work.count_a, // g_marksPointsACount
-    ids: &SHAPE_WORK.work.ids_a,     // g_marksPointsA
-    faces: &SHAPE_WORK.work.faces_a, // g_marksPointsAFaces
-};
-pub static POINTS_B: PointList = PointList {
-    count: &SHAPE_WORK.work.count_b, // g_marksPointsBCount
-    ids: &SHAPE_WORK.work.ids_b,     // g_marksPointsB
-    faces: &SHAPE_WORK.work.faces_b, // g_marksPointsBFaces
-};
-pub const MOST_POINTS: u32 = rc2k_core::effects::masks::MOST_POINTS;
+impl PointList<'_> {
+    /// `collect_points_a`'s list.
+    pub fn a(drops: &WindscreenDrops) -> PointList<'_> {
+        PointList {
+            count: &drops.shape_work.work.count_a, // g_marksPointsACount
+            ids: &drops.shape_work.work.ids_a,     // g_marksPointsA
+            faces: &drops.shape_work.work.faces_a, // g_marksPointsAFaces
+        }
+    }
 
-impl PointList {}
+    /// `collect_points_b`'s list.
+    pub fn b(drops: &WindscreenDrops) -> PointList<'_> {
+        PointList {
+            count: &drops.shape_work.work.count_b, // g_marksPointsBCount
+            ids: &drops.shape_work.work.ids_b,     // g_marksPointsB
+            faces: &drops.shape_work.work.faces_b, // g_marksPointsBFaces
+        }
+    }
+}
+pub const MOST_POINTS: u32 = rc2k_core::effects::masks::MOST_POINTS;
 
 /// `effects::collect_points_a` (0x4BD551) and `_b` (0x4BD59F): face `face`'s points (+0 the
 /// count, from +0x10, 16 bytes apart) added to the list unless there already, up to 0x40,
 /// each with the face. Refuses a list of more than 0x40. Converted:
 /// `rc2k_core::effects::masks::PointList::add_face`.
-pub fn collect_points(list: &PointList, face: u32) -> Result<(), Refused> {
+pub fn collect_points(list: &PointList<'_>, face: u32) -> Result<(), Refused> {
     let most = MOST_POINTS as usize;
     let mut ids: Vec<u32> = (0..most).map(|n| list.ids[n].get()).collect();
     let mut faces: Vec<u32> = (0..most).map(|n| list.faces[n].get()).collect();
@@ -102,7 +109,7 @@ fn shape_rows(entries: u32, index: u32) -> Result<ShapeRows, Refused> {
 /// Refuses a count of 0 or less (the original's loop tests after counting and would run
 /// round) or a span outside the mask, before writing. Converted:
 /// `rc2k_core::effects::masks::draw_mask`.
-pub fn draw_mask(n: u32) -> Result<(), Refused> {
+pub fn draw_mask(drops: &WindscreenDrops, n: u32) -> Result<(), Refused> {
     {
         let shapes = MASKS
             .shapes
@@ -123,8 +130,8 @@ pub fn draw_mask(n: u32) -> Result<(), Refused> {
         let mut mask = place.read_at(0, MASK_LEN as usize, "a mark mask")?;
         rc2k_core::effects::masks::draw_mask(&mut mask, &rows)?;
         place.write_at(0, &mask, "a mark mask")?;
-        PICKS.mask.set(n);
-        PICKS.shapes.set(n);
+        drops.picks.mask.set(n);
+        drops.picks.shapes.set(n);
         MASKS.mask_value.set(count as u32 - 1);
     }
     Ok(())
@@ -165,24 +172,24 @@ pub fn work_put(at: u32, v: u32) -> Result<(), BadInput> {
 /// (`draw_mask`) and pixels (`map_shapes`); the list freed (`memory::free_list`). Refuses
 /// as its steps do, mid-way (the work block is on the list, which the original's run
 /// frees with its own).
-pub fn make_masks() -> Result<(), Refused> {
+pub fn make_masks(drops: &WindscreenDrops) -> Result<(), Refused> {
     // The two shapes' ring-angle tables (each shape's mask, pixel and corner tables are
     // found by its number).
     let ring_angles = [&MASKS.ring_angles_a, &MASKS.ring_angles_b];
     let list = crate::pointers::GamePtr::to(&MASKS.list);
     MASK_WORK.take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
-    crate::effects::shape_points::make_shape_sets()?;
-    crate::effects::corners::make_corners()?;
+    crate::effects::shape_points::make_shape_sets(drops)?;
+    crate::effects::corners::make_corners(drops)?;
     reset_mask_cursor();
     for (n, (shape, angles)) in MASKS.shapes.iter().zip(ring_angles).enumerate() {
         MASKS.ring_corners.set(n as u32);
         crate::effects::rings::span_ring(shape, angles)?;
     }
     for n in 0..2 {
-        draw_mask(n as u32)?;
+        draw_mask(drops, n as u32)?;
     }
     for n in 0..2 {
-        crate::effects::pixels::map_shapes(n as u32)?;
+        crate::effects::pixels::map_shapes(drops, n as u32)?;
     }
     crate::memory::free_list::free_list(list)?;
     MASK_WORK.give_back();

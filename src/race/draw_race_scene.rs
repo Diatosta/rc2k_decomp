@@ -210,7 +210,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
         set_render_state(2, state);
     }
     if RACE_WORK.in_credits.bits() == 0 && crate::drive::finish_store::FINISH.no_place.get() == 0 {
-        crate::hud::overlay_pass::overlay_pass()?;
+        crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud())?;
     }
     race_sound_tick()?; // 0x11
     crate::race::skid_laying::lay_skidmarks_if_on()?;

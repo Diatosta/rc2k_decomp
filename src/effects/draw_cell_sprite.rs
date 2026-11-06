@@ -18,7 +18,8 @@
 //! fog's and the clip's refusals.
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
-use crate::effects::ring_store::{RING_WORK, RingWork};
+use crate::effects::ring_store::Ring;
+use crate::effects::ring_store::RingWork;
 use crate::effects::surface_store::SURFACE;
 use crate::errors::{BadInput, Refused};
 use crate::scene::draw_store::DRAW;
@@ -30,8 +31,8 @@ const CELLS: u32 = 0x41;
 const ANGLES: u32 = 0x1000;
 
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
-fn turn(p: &[[u8; 10]; 3]) {
-    turn_x87(p, &RING_WORK, &DRAW_WORK);
+fn turn(ring: &Ring, p: &[[u8; 10]; 3]) {
+    turn_x87(p, &ring.work, &DRAW_WORK);
 }
 
 /// The original's 0x4CB84C .. 0x4CBA37 (its integer moves done before but those it does
@@ -44,6 +45,7 @@ fn square(k: u32, angle: u32) -> u32 {
 /// The Rust version (see the header): `cell` (eax), `angle` (ebx), `alpha` (ecx, its top
 /// byte), `size` (edx), `entry` (esi). No caller reads a register it leaves.
 pub fn draw_cell_sprite(
+    ring: &Ring,
     cell: u32,
     angle: u32,
     alpha: u32,
@@ -65,12 +67,12 @@ pub fn draw_cell_sprite(
     if SETTINGS.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    turn(&place);
+    turn(ring, &place);
     if DRAW_WORK.turned[2].bits() as i32 <= DRAW_WORK.near.bits() as i32 {
         return Ok(());
     }
-    let fog = fog_at(RING_WORK.whole.get())?;
-    let colour = (alpha & 0xFF00_0000) | crate::effects::ring_entries::get(entry, 0x90)?;
+    let fog = fog_at(ring.work.whole.get())?;
+    let colour = (alpha & 0xFF00_0000) | crate::effects::ring_entries::get(ring, entry, 0x90)?;
     for n in 0..4 {
         VERTICES.vertices[n].specular.set(fog);
         VERTICES.vertices[n].colour.set(colour);

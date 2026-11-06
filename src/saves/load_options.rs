@@ -60,7 +60,6 @@ pub fn pieces() -> [(GamePtr, usize); 69] {
     use crate::gfx::choices_store::SCREEN_CHOICES;
     use crate::gfx::screen_state::SCREEN_MODE;
     use crate::menu::arcade_store::ARCADE_GAME;
-    use crate::menu::car_numbers_store::CAR_NUMBERS;
     use crate::menu::flow_store::SCREEN_FLOW;
     use crate::menu::names_store::NAME_BUFFERS;
     use crate::menu::option_work_store::OPTION_WORK;
@@ -70,10 +69,8 @@ pub fn pieces() -> [(GamePtr, usize); 69] {
     use crate::race::state_store::RACE_STATE;
     use crate::race::tyre_store::TYRE_CHANGE;
     use crate::records::stages_store::STAGE_TABLES;
-    use crate::saves::best_times_store::RALLY_TIMES;
-    use crate::saves::write_savegame_slot::SAVE_GAMES;
     use crate::service::read_setup_slot::SET_UPS;
-    use crate::sound::store::SOUND_OPTIONS;
+
     use crate::system::load_game_data::RUN_COUNT;
     let names = |n: u32| GamePtr::to(&NAME_BUFFERS.player_names).offset(0x20 * n).limited(0x20);
     [
@@ -84,18 +81,18 @@ pub fn pieces() -> [(GamePtr, usize); 69] {
         (GamePtr::to(&AUDIO.menu_sound_mode), 0x4),                     // the menus' sound mode
         (GamePtr::to(&AUDIO.race_sound_mode), 0x4),                     // the race's sound mode
         (GamePtr::to(&AUDIO.master_volume), 0x4),                       // the master volume
-        (GamePtr::to(&SOUND_OPTIONS.kept_f0), 0x4),                     // a sound option, not worked out
-        (GamePtr::to(&SOUND_OPTIONS.name_switch), 0x4),                 // the driver names switch
-        (GamePtr::to(&SOUND_OPTIONS.tune_turn), 0x4),                   // which tune comes next
-        (GamePtr::to(&SOUND_OPTIONS.music_volume), 0x4),                // the music volume
-        (GamePtr::to(&SOUND_OPTIONS.race_music_volume), 0x4),           // the race music's volume
+        (GamePtr::to(&crate::sound::owner::sound().menu.options.kept_f0), 0x4),                     // a sound option, not worked out
+        (GamePtr::to(&crate::sound::owner::sound().menu.options.name_switch), 0x4),                 // the driver names switch
+        (GamePtr::to(&crate::sound::owner::sound().menu.options.tune_turn), 0x4),                   // which tune comes next
+        (GamePtr::to(&crate::sound::owner::sound().menu.options.music_volume), 0x4),                // the music volume
+        (GamePtr::to(&crate::sound::owner::sound().menu.options.race_music_volume), 0x4),           // the race music's volume
         (GamePtr::to(&NET.machine_name), 0x40),                         // the machine's name
         (GamePtr::to(&NET.most_players), 0x4),                          // the most players a hosted session takes
         (GamePtr::to(&NET.host_address), 0x40),                         // the host's address (TCP/IP)
         (GamePtr::to(&NET.port), 0x4),                                  // the TCP/IP port
         (GamePtr::to(&NET.saved_connection), 0x10),                     // the saved connection's GUID
-        (GamePtr::to(&SAVE_GAMES.kept_a), 0x4),                         // a saved-games word, not worked out
-        (GamePtr::to(&SAVE_GAMES.kept_b), 0x4),                         // a saved-games word, not worked out
+        (GamePtr::to(&crate::saves::owner::saves().save_games.kept_a), 0x4),                         // a saved-games word, not worked out
+        (GamePtr::to(&crate::saves::owner::saves().save_games.kept_b), 0x4),                         // a saved-games word, not worked out
         (GamePtr::to(&SET_UPS.kept), 0x4),                              // a car set-ups word, not worked out
         (GamePtr::to(&TYRE_CHANGE.record_name), 0x20),                  // the tyre change record holder's name
         (GamePtr::to(&TYRE_CHANGE.record), 0x4),                        // the tyre change record time
@@ -121,8 +118,8 @@ pub fn pieces() -> [(GamePtr, usize); 69] {
         (GamePtr::to(&SCREEN_FLOW.kept), 0x4),                          // kept by the event races
         (GamePtr::to(&RACE_STATE.settings.a8_game), 0x4),               // the race settings' first word
         (GamePtr::to(&ARCADE_GAME.levels_won), 0x6),                    // the arcade levels won, a byte each
-        (GamePtr::to(&CAR_NUMBERS.first_numbers), 0xA0),                // the first list of car numbers
-        (GamePtr::to(&CAR_NUMBERS.second_numbers[..20]), 0x50),         // the second list of car numbers, 20 entries
+        (GamePtr::to(&crate::menu::owner::menus().cars.numbers.first_numbers), 0xA0),                // the first list of car numbers
+        (GamePtr::to(&crate::menu::owner::menus().cars.numbers.second_numbers[..20]), 0x50),         // the second list of car numbers, 20 entries
         (GamePtr::to(&STAGE_TABLES.championship), 0x2A48),              // the championship's records
         (GamePtr::to(&STAGE_TABLES.events[5].records), 0x47C),          // the events' record tables, in the file's order
         (GamePtr::to(&STAGE_TABLES.events[4].records), 0x47C),
@@ -136,12 +133,12 @@ pub fn pieces() -> [(GamePtr, usize); 69] {
         (GamePtr::to(&STAGE_TABLES.events[9].records), 0x47C),
         (GamePtr::to(&STAGE_TABLES.events[10].records), 0x47C),
         (GamePtr::to(&STAGE_TABLES.events[11].records), 0x47C),
-        (GamePtr::to(&RALLY_TIMES.rallies[0]), 0xC30),                  // the six rallies' best times
-        (GamePtr::to(&RALLY_TIMES.rallies[1]), 0xC30),
-        (GamePtr::to(&RALLY_TIMES.rallies[2]), 0xC30),
-        (GamePtr::to(&RALLY_TIMES.rallies[3]), 0xC30),
-        (GamePtr::to(&RALLY_TIMES.rallies[4]), 0xC30),
-        (GamePtr::to(&RALLY_TIMES.rallies[5]), 0xC30),
+        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[0]), 0xC30),                  // the six rallies' best times
+        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[1]), 0xC30),
+        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[2]), 0xC30),
+        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[3]), 0xC30),
+        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[4]), 0xC30),
+        (GamePtr::to(&crate::saves::owner::saves().rally_times.rallies[5]), 0xC30),
         (names(0), 0x20),                                               // the four players' names
         (names(1), 0x20),
         (names(2), 0x20),

@@ -17,9 +17,13 @@ pub type SendCommand<'a> = &'a mut dyn FnMut(u32, u32, u32, u32) -> u32;
 // ---- Rust version ----
 
 pub fn stop_cd_track(send: SendCommand) {
-    use crate::sound::store::CD_AUDIO;
-    if CD_AUDIO.open.get() == 1 {
-        send(CD_AUDIO.mci_id.get(), MCI_STOP, 0, 0);
+    if crate::sound::owner::sound().menu.cd_audio.open.get() == 1 {
+        send(
+            crate::sound::owner::sound().menu.cd_audio.mci_id.get(),
+            MCI_STOP,
+            0,
+            0,
+        );
     }
 }
 

@@ -36,7 +36,7 @@ use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::race::settings_copy::{Place, var};
 use crate::race::state_store::RACE_STATE;
-use crate::sound::store::SOUND_OPTIONS;
+use crate::sound::owner::SOUND;
 
 /// After a volume step.
 #[derive(Clone, Copy)]
@@ -201,7 +201,7 @@ option_item!(
     toggle_5180f4,
     "menu::toggle_5180f4",
     Item {
-        var: var!(SOUND_OPTIONS.name_switch),
+        var: var!(SOUND.menu.options.name_switch),
         kind: Kind::Switch,
     }
 );
@@ -237,7 +237,7 @@ option_item!(
         var: var!(OPTION_WORK.other_volume),
         kind: Kind::Volume {
             up: false,
-            then: Then::Store(var!(SOUND_OPTIONS.race_music_volume))
+            then: Then::Store(var!(SOUND.menu.options.race_music_volume))
         },
     }
 );
@@ -249,7 +249,7 @@ option_item!(
         var: var!(OPTION_WORK.other_volume),
         kind: Kind::Volume {
             up: true,
-            then: Then::Store(var!(SOUND_OPTIONS.race_music_volume))
+            then: Then::Store(var!(SOUND.menu.options.race_music_volume))
         },
     }
 );

@@ -3,6 +3,7 @@
 //! scaled, and the eight settings blocks reset.
 
 use crate::effects::frame_state::DRAW_WORK;
+use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -70,9 +71,9 @@ pub fn set_particle(particles: &Particles, p: u32, offset: u32, v: u32) -> Resul
 /// `g_marksRing` and `g_marksRingFree`, `g_marksRingUsed` 0, and the 0x1000 entries of
 /// 0x4C made a ring (+0 the one before, +4 the one after). The particles are Rust's
 /// (`Particles::ring`), counted on the list as the game's block was.
-pub fn allocate_ring(particles: &Particles) -> Result<(), Refused> {
+pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> {
     // Converted: `rc2k_core::effects::rings::neighbours`.
-    let ring: Vec<Particle> = (0..rc2k_core::effects::rings::ENTRIES)
+    let links: Vec<Particle> = (0..rc2k_core::effects::rings::ENTRIES)
         .map(|n| {
             let mut p = [0; (RING_ENTRY / 4) as usize];
             let [before, after] = rc2k_core::effects::rings::neighbours(n);
@@ -82,13 +83,13 @@ pub fn allocate_ring(particles: &Particles) -> Result<(), Refused> {
         })
         .collect();
     particles.ring.take(
-        crate::pointers::GamePtr::to(&RING_POOL.list),
+        crate::pointers::GamePtr::to(&ring.pool.list),
         RING_LEN,
-        ring,
+        links,
     )?;
-    RING_POOL.ring.set(1);
-    RING_POOL.free.set(1);
-    RING_POOL.used.set(0u32);
+    ring.pool.ring.set(1);
+    ring.pool.free.set(1);
+    ring.pool.used.set(0u32);
     Ok(())
 }
 
@@ -364,27 +365,31 @@ pub struct RingPool {
 }
 
 /// RingPool's first values.
-pub static RING_POOL: RingPool = RingPool {
-    list: [
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-        Dword::new(0x0),
-    ],
-    _gap_93a590: Bytes::new([0; 48]),
-    free: Dword::new(0x0),
-    _gap_93a5c4: Bytes::new([0; 4]),
-    ring: Dword::new(0x0),
-    _gap_93a5cc: Bytes::new([0; 4]),
-    nine: Dword::new(0x0),
-    kind: Dword::new(0x0),
-    _gap_93a5d8: Bytes::new([
-        0x0D, 0x00, 0x80, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-    ]),
-    burst_radius: Float::from_bits(0x0),
-    index: Dword::new(0x0),
-    used: Dword::new(0x0),
-};
+impl RingPool {
+    pub const fn new() -> Self {
+        RingPool {
+            list: [
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+                Dword::new(0x0),
+            ],
+            _gap_93a590: Bytes::new([0; 48]),
+            free: Dword::new(0x0),
+            _gap_93a5c4: Bytes::new([0; 4]),
+            ring: Dword::new(0x0),
+            _gap_93a5cc: Bytes::new([0; 4]),
+            nine: Dword::new(0x0),
+            kind: Dword::new(0x0),
+            _gap_93a5d8: Bytes::new([
+                0x0D, 0x00, 0x80, 0x39, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ]),
+            burst_radius: Float::from_bits(0x0),
+            index: Dword::new(0x0),
+            used: Dword::new(0x0),
+        }
+    }
+}
 
 impl RingPool {
     pub const START: usize = 0x93A580;
@@ -488,7 +493,8 @@ mod ring_pool_tests {
     fn ring_pool_starts_as_the_games() {
         assert_eq!(size_of::<RingPool>(), RingPool::LEN);
         assert!(
-            bytes(&RING_POOL) == crate::moved::image_bytes(RingPool::START, RingPool::LEN),
+            bytes(&crate::effects::owner::effects().ring.pool)
+                == crate::moved::image_bytes(RingPool::START, RingPool::LEN),
             "RING_POOL starts differently from the image"
         );
         assert_eq!(offset_of!(RingPool, list), 0x93A580 - RingPool::START);

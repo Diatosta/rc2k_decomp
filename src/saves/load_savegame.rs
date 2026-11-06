@@ -33,9 +33,8 @@ use crate::menu::go_back;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::pointers::GamePtr;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
-use crate::saves::preview_store::SAVEGAME_PREVIEW;
 use crate::saves::read_savegame_slot::read_savegame_slot;
-use crate::saves::write_savegame_slot::{SAVE_GAMES, SLOTS};
+use crate::saves::write_savegame_slot::SLOTS;
 use crate::service::state::menu_item;
 use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
 
@@ -72,12 +71,18 @@ pub fn load_savegame() -> Result<(), Refused> {
         return Ok(());
     }
 
-    let mut cursor = GamePtr::to(&SAVE_GAMES.file).offset(PAYLOAD_OFFSET as u32);
+    let mut cursor =
+        GamePtr::to(&crate::saves::owner::saves().save_games.file).offset(PAYLOAD_OFFSET as u32);
     for at in head() {
         at.set(cursor.read::<u32>("the savegame's head")?);
         cursor = cursor.offset(4);
     }
-    if SAVEGAME_PREVIEW.use_savegame_keys.get() == 0 {
+    if crate::saves::owner::saves()
+        .savegame_preview
+        .use_savegame_keys
+        .get()
+        == 0
+    {
         crate::saves::keep_player_settings::keep_player_settings(cursor)?;
     }
     crate::menu::drop_missing_controllers::drop_missing_controllers()?;
@@ -96,7 +101,7 @@ pub fn load_savegame() -> Result<(), Refused> {
         cursor = cursor.offset(CAR_LEN as u32);
     }
     cursor.copy_to(
-        GamePtr::to(&crate::menu::drivers_store::DRIVERS),
+        GamePtr::to(&crate::menu::owner::menus().cars.drivers),
         RECORDS_LEN,
         "the saved drivers",
     )?;

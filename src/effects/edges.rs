@@ -3,7 +3,7 @@
 //! a byte a pixel, the shape tilt of the kind, then the masks and the two item kinds.
 
 use crate::effects::kind_values::MARKS_KIND;
-use crate::effects::tilt_shape::SHAPE_TILT;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::picture_store::PICTURE;
 use crate::math::x87;
@@ -32,7 +32,7 @@ fn clamped(kind: u32) -> u32 {
 /// `set_up_windscreen_drops`, `set_up_windscreen_flakes` (and `nullsub_17`). Refuses a mark neither 0 nor
 /// `resume`, before writing; a picture that is not read (the original then counts
 /// 0x1FFFFFFF down and leaves with its stack one off), after the path is written.
-pub fn load_edges(resume: u32) -> Result<(), Refused> {
+pub fn load_edges(drops: &WindscreenDrops, resume: u32) -> Result<(), Refused> {
     let done: u32 = EDGE_SETTINGS.done.get();
     if done != 0 && done != resume {
         return Err(BadInput("the edges' mark is neither 0 nor loc_4C0FFD").into());
@@ -81,12 +81,14 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
         EDGE_MASK.mask.set(k, !(p[0] | p[1] | p[2] | p[3]));
     }
     let float = KIND_BOXES.kind_floats[kind as usize].bits();
-    SHAPE_TILT
+    drops
+        .tilt
         .tilt
         .set_bits(x87::mul(float, EDGE_SETTINGS.tilt_scale.get()));
-    crate::effects::masks::make_masks()?;
+    crate::effects::masks::make_masks(drops)?;
     crate::effects::shapes::set_up_windscreen_drops(
-        crate::effects::shapes::WINDSCREEN_DROPS.resume,
+        drops,
+        crate::effects::shapes::WINDSCREEN_DROPS_RESUME,
     )?;
     crate::effects::shapes::set_up_windscreen_flakes(
         &crate::effects::owner::effects().pong,
@@ -99,12 +101,12 @@ pub fn load_edges(resume: u32) -> Result<(), Refused> {
 /// `effects::load_kind_data` (0x4C1235), `init_marks`' step 1: `g_marksKind` the settings'
 /// +0x26A8; `nullsub_1` (twice, between them), `load_edges`, `load_splines`. Refuses as
 /// its steps do.
-pub fn load_kind_data() -> Result<(), Refused> {
+pub fn load_kind_data(drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let marks = crate::effects::setup::marks()?;
         let kind = marks.mark_car_file_number.get();
         MARKS_KIND.kind.set_bits(kind);
-        load_edges(RESUME)?;
+        load_edges(drops, RESUME)?;
         crate::effects::splines::load_splines(crate::effects::splines::RESUME)?;
     }
     Ok(())

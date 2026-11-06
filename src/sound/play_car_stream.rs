@@ -45,9 +45,17 @@ pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
     if let Some(e) = failed.take() {
         return Err(e.into());
     }
-    crate::sound::store::CAR_STREAM.on.set(s.on);
-    crate::sound::store::CAR_STREAM.stream.set(s.list);
-    crate::sound::store::CAR_STREAM.place.set(s.place);
+    crate::sound::owner::sound().race.car_stream.on.set(s.on);
+    crate::sound::owner::sound()
+        .race
+        .car_stream
+        .stream
+        .set(s.list);
+    crate::sound::owner::sound()
+        .race
+        .car_stream
+        .place
+        .set(s.place);
     start(s.first, s.volume);
     Ok(())
 }

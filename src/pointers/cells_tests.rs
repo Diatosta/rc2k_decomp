@@ -128,7 +128,7 @@ fn every_store_s_cells_tile_it_and_copy_as_raw_copies_do() {
         crate::audio::store::AUDIO,
         crate::audio::store::SAMPLE_RECORDS,
         crate::menu::players_store::PLAYER_TABLE,
-        crate::menu::cars_store::CAR_TABLE,
+        crate::menu::owner::menus().cars.table,
         crate::drive::finish_store::FINISH,
         crate::drive::replay_frames_store::REPLAY_FRAMES,
         crate::effects::frame_state::VIEW_VARS,

@@ -8,13 +8,14 @@
 //! Caller: `sub_4D14B4`. Refuses null settings before anything, and its steps' refusals
 //! (all it may write is put back first).
 
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::{
     aim_vector, keep_vectors, run_splines, scale_kept_vectors, shapes_frame, view_step,
 };
 use crate::errors::{BadInput, Refused};
 
 /// The Rust version (see the header).
-pub fn view_frame() -> Result<(), Refused> {
+pub fn view_frame(drops: &WindscreenDrops) -> Result<(), Refused> {
     if crate::effects::setup::SETTINGS.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
@@ -24,7 +25,7 @@ pub fn view_frame() -> Result<(), Refused> {
         scale_kept_vectors::scale_kept_vectors();
         view_step::view_step();
         aim_vector::aim_vector();
-        shapes_frame::shapes_frame()?;
+        shapes_frame::shapes_frame(drops)?;
         run_splines::run_splines()
     }
 }

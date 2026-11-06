@@ -43,7 +43,7 @@ pub fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refused> {
         let present = [true; RALLIES];
         for rally in 0..RALLIES {
             tables.push(Target::Rally(
-                crate::saves::best_times_store::RallyTimes::table(rally)?,
+                crate::saves::owner::saves().rally_times.table(rally)?,
             ));
         }
         let filled = championship_times(

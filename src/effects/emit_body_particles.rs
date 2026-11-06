@@ -13,7 +13,6 @@
 
 use crate::effects::emit_wheel_particles::{Table, emit};
 use crate::effects::emitters::*;
-use crate::effects::ring_store::RING_WORK;
 use crate::effects::run_particles::Particles;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::Refused;
@@ -22,7 +21,7 @@ use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 const PACE: u32 = 0x386A0;
 
 /// The first part (see the header), written.
-fn prepare(record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
+fn prepare(ring: &Ring, record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
     {
         let size = x87::int_times_to_int(object.word(0x90)? as i32, MARKS_FLOATS.three.bits());
         object.at(0x90).write::<i32>(size, "a mark's field")?;
@@ -35,7 +34,7 @@ fn prepare(record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused>
         }
         record.speed_c.set_bits(0);
         let chance = x87::mul_to_int(record.chance.bits(), MARKS_FLOATS.two_pow_16.bits());
-        RING_WORK.whole.set(chance as u32);
+        ring.work.whole.set(chance as u32);
         let r = next_c5(&EMITTER.body_random);
         if ((r & 0xFFFF) as i32) < chance {
             record.take_surface();
@@ -48,11 +47,19 @@ fn prepare(record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused>
 /// `object` the car's object (esi).
 pub fn emit_body_particles(
     particles: &Particles,
+    ring: &Ring,
     record: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
-        prepare(record, object)?;
-        emit(particles, Table::Body, record.kind.get(), record, object)
+        prepare(ring, record, object)?;
+        emit(
+            particles,
+            ring,
+            Table::Body,
+            record.kind.get(),
+            record,
+            object,
+        )
     }
 }

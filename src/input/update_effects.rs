@@ -25,7 +25,6 @@ use crate::input::store::DEVICES;
 use crate::input::store::device_of;
 use crate::race::view_store::RACE_VIEW;
 use crate::session::Dword;
-use crate::sound::store::RACE_SOUNDS;
 
 /// The variables it reads (the game's or a test's).
 #[derive(Clone, Copy)]
@@ -43,12 +42,12 @@ impl Vars {
     pub fn game() -> Self {
         Self {
             // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount.
-            cars: &RACE_SOUNDS.player_cars,
-            one_player: &RACE_SOUNDS.one_player,
-            count: &RACE_SOUNDS.count,
+            cars: &crate::sound::owner::sound().race.sounds.player_cars,
+            one_player: &crate::sound::owner::sound().race.sounds.one_player,
+            count: &crate::sound::owner::sound().race.sounds.count,
             devices: &DEVICES.input_devices,
             views: &RACE_VIEW.view_blocks,
-            objects: &RACE_SOUNDS.objects,
+            objects: &crate::sound::owner::sound().race.sounds.objects,
             two_devices: &DEVICES.two_devices_one_player,
         }
     }

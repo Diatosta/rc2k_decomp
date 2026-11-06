@@ -6,7 +6,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::draw_work_store::DRAW_WORK;
-use crate::menu::drivers_store::{DRIVERS, Driver};
+use crate::menu::drivers_store::Driver;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::names_store::NAME_BUFFERS;
 use crate::menu::players_store::PLAYER_TABLE;
@@ -34,14 +34,14 @@ pub fn player(n: u32) -> PlayerCell {
 
 /// The drivers (`g_drivers`) as the original's `do .. while` walks them: the first always,
 /// then each while its first dword is not -1. The walk ends at the latest on the -1 after the
-/// 180 (`DRIVERS.end`); refused when that is gone (the original would read on).
+/// 180 (`DriverTable.end`); refused when that is gone (the original would read on).
 pub fn drivers() -> Result<&'static [Driver], BadInput> {
-    let all = &DRIVERS.drivers;
+    let all = &crate::menu::owner::menus().cars.drivers.drivers;
     let count = 1 + all[1..]
         .iter()
         .take_while(|d| d.name_entry.get() != u32::MAX)
         .count();
-    if count == all.len() && DRIVERS.end.get() != u32::MAX {
+    if count == all.len() && crate::menu::owner::menus().cars.drivers.end.get() != u32::MAX {
         return Err(BadInput("the drivers without their end entry"));
     }
     Ok(&all[..count])

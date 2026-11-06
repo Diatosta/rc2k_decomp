@@ -20,7 +20,9 @@ use crate::text::draw_text::Canvas;
 pub fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::volume`.
 
-    let id = crate::sound::store::SOUND_OPTIONS
+    let id = crate::sound::owner::sound()
+        .menu
+        .options
         .name_switch
         .get()
         .wrapping_add(0x56D);

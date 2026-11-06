@@ -87,7 +87,7 @@ mod asm_reference {
                         set,
                         &bx.throttle_input,
                         EnginePlace::Behind,
-                        &crate::sound::store::SURFACE_SOUNDS,
+                        &crate::sound::owner::sound().race.surface,
                         request,
                     );
                 },

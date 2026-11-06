@@ -70,7 +70,9 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
             to.set(from.get());
         }
         // g_onePlayer (the sound module's) takes the header's setting too.
-        crate::sound::store::RACE_SOUNDS
+        crate::sound::owner::sound()
+            .race
+            .sounds
             .one_player
             .set(REPLAY_WORK.header_one_player.get());
         RACE_STATE.settings.cars[0].controller.set(0);
@@ -78,7 +80,7 @@ pub fn viewer_load_stage() -> Result<(), Refused> {
         RACE_STATE
             .settings
             .race_mode
-            .set(crate::sound::store::RACE_SOUNDS.one_player.get());
+            .set(crate::sound::owner::sound().race.sounds.one_player.get());
         // byte_719C8C: the low byte of the first dword of `unknown_7d0`.
         let door = REPLAY_WORK.unknown_7d0[0].get() & 0xFF;
         RACE_STATE.settings.cars[0].race_number.set(door);

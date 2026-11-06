@@ -18,6 +18,7 @@
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::ring_entries::field;
+use crate::effects::ring_store::Ring;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::Refused;
@@ -44,29 +45,33 @@ fn count(record: &MarkRecord) -> Result<(i32, i32), Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_18(record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
+pub fn emit_particle_18(
+    ring: &Ring,
+    record: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
     {
         let flags = record.flags.get();
         SURFACE.wheel_flags.set(flags);
         let (count, n) = count(record)?;
-        RING_WORK.whole.set(n as u32);
-        RING_WORK.whole.set(count as u32);
+        ring.work.whole.set(n as u32);
+        ring.work.whole.set(count as u32);
         let mut left = count;
         // The first entry's tag is the object's, each next one's the entry before's.
         let mut before: Option<u32> = None;
         loop {
             left = left.wrapping_sub(1);
-            if left < 0 || next_entry()?.is_none() {
+            if left < 0 || next_entry(ring)?.is_none() {
                 break;
             }
             let tag = match before {
                 None => object.word(0x1C)?,
                 // (The original's esi: the entry before's last x, 0 here.)
-                Some(b) => crate::effects::ring_entries::get(b, field::LAST_PLACE_X)?,
+                Some(b) => crate::effects::ring_entries::get(ring, b, field::LAST_PLACE_X)?,
             };
-            let e = take_entry(tag & 0xFF_FFFF, 0x12)?;
+            let e = take_entry(ring, tag & 0xFF_FFFF, 0x12)?;
             before = Some(e);
-            let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
+            let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
             let m = EMITTER.motion.each_ref().map(|r| extended(r.bits()));
             let (moved, _) = jitter_point([
                 extended(MARKS_FLOATS.hundred_twenty_eight.bits()),

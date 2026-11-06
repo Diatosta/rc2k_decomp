@@ -11,7 +11,7 @@
 use crate::errors::Refused;
 use crate::sound::revs_sound::fill_pitch_and_volume;
 use crate::sound::sets_store::SoundRequest;
-use crate::sound::store::{SURFACE_SOUNDS, SoundObject};
+use crate::sound::store::SoundObject;
 use rc2k_core::sound::engine::{computers, speed_stopped};
 
 /// A player's sound by the speed for object `so` of sound kind number `kind`, through
@@ -36,7 +36,7 @@ pub fn speed_sound(so: &SoundObject, kind: u32, request: &SoundRequest) -> Resul
         set,
         &so.speed_input,
         &so.speed_input,
-        &SURFACE_SOUNDS.speed_gain,
+        &crate::sound::owner::sound().race.surface.speed_gain,
         request,
     );
     for (cell, place) in request.place.iter().zip(&so.place) {
@@ -81,7 +81,7 @@ mod asm_reference {
                     let set = view::<SoundSet>(a[1], 0);
                     bx.view_flag.set(1);
                     let request = view::<SoundRequest>(a[2], 0);
-                    let gain = &&crate::sound::store::SURFACE_SOUNDS.speed_gain;
+                    let gain = &&crate::sound::owner::sound().race.surface.speed_gain;
                     fill_pitch_and_volume(bx, set, &bx.speed_input, &bx.speed_input, gain, request);
                 },
             },

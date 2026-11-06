@@ -16,6 +16,8 @@
 //! or past 8 (the original's loop would run on) and a missing block or record, before
 //! anything.
 
+use crate::effects::ring_store::Ring;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
@@ -24,7 +26,7 @@ use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
-pub fn init_mark_step() -> Result<(), Refused> {
+pub fn init_mark_step(drops: &WindscreenDrops, ring: &Ring) -> Result<(), Refused> {
     use rc2k_core::effects::race;
     {
         // In a network race `g_players` is 1 but this machine's car may be any: every car's
@@ -67,7 +69,7 @@ pub fn init_mark_step() -> Result<(), Refused> {
             }
         }
         // The file number is left in eax: `init_marks`' seed.
-        crate::effects::init_marks::init_marks(file)?;
+        crate::effects::init_marks::init_marks(drops, ring, file)?;
     }
     Ok(())
 }

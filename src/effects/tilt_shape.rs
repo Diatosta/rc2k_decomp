@@ -10,12 +10,13 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;
 use crate::session::{Dword, Float, read_bits, write_bits};
 
 /// The Rust version (see the header).
-pub fn tilt_shape() {
-    let t = &SHAPE_TILT;
+pub fn tilt_shape(drops: &WindscreenDrops) {
+    let t = &drops.tilt;
     let (s, c) = x87::sine_and_cosine(t.tilt.bits());
     t.cosine.set_bits(c);
     t.sine.set_bits(s);
@@ -45,22 +46,26 @@ pub struct ShapeTilt {
     pub point: [Float; 3],
 }
 
-pub static SHAPE_TILT: ShapeTilt = ShapeTilt {
-    tilt: Float::from_bits(0x0),
-    sine: Float::from_bits(0x0),
-    cosine: Float::from_bits(0x0),
-    length: Dword::new(0x0),
-    unit: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-    ],
-    point: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-    ],
-};
+impl ShapeTilt {
+    pub const fn new() -> Self {
+        ShapeTilt {
+            tilt: Float::from_bits(0x0),
+            sine: Float::from_bits(0x0),
+            cosine: Float::from_bits(0x0),
+            length: Dword::new(0x0),
+            unit: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+            ],
+            point: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+            ],
+        }
+    }
+}
 
 impl ShapeTilt {
     pub const START: usize = 0x811BC3;
@@ -75,7 +80,7 @@ mod shape_tilt_tests {
     fn shape_tilt_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<ShapeTilt>(), ShapeTilt::LEN);
-        let p = (&raw const SHAPE_TILT).cast::<u8>();
+        let p = (&raw const crate::effects::owner::EFFECTS.windscreen_drops.tilt).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<ShapeTilt>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

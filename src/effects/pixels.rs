@@ -4,11 +4,11 @@
 //! of 0x400 a row (`dword_8445D2`).
 
 use crate::effects::mask_constants::MASK_CONSTANTS;
-use crate::effects::mask_picks::PICKS;
 use crate::effects::mask_vars::MASKS;
 use crate::effects::mask_vars::Shape;
 use crate::effects::spans::run_get;
 use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair};
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -16,8 +16,8 @@ use crate::scene::matrix3::{extended, rounded};
 use crate::session::{Bytes, Dword, read_bits, write_bits};
 
 /// The pixel table `n` (0 or 1, the shape's: `PICKS.pixel_table_a`, `_b`).
-fn pixel_table(n: u32) -> Result<&'static Bytes<0x2_0000>, BadInput> {
-    [&PICKS.pixel_table_a, &PICKS.pixel_table_b]
+fn pixel_table(drops: &WindscreenDrops, n: u32) -> Result<&Bytes<0x2_0000>, BadInput> {
+    [&drops.picks.pixel_table_a, &drops.picks.pixel_table_b]
         .get(n as usize)
         .copied()
         .ok_or(BadInput("a pixel table's number that names none"))
@@ -67,8 +67,8 @@ fn next_seed(s: u32) -> u32 {
 /// worked out from its x by a shake of the seed (one draw of 0x3FFF, a second of 0xFFFF
 /// when the x is not below the span: `x87::random_step`); turned back
 /// (`set_line_turn_back`), rounded with the line's start added, the low bytes kept.
-pub fn map_pixel(row: u32, x: u32) -> Result<(), Refused> {
-    let table = pixel_table(MASKS.pixel_table.get())?;
+pub fn map_pixel(drops: &WindscreenDrops, row: u32, x: u32) -> Result<(), Refused> {
+    let table = pixel_table(drops, MASKS.pixel_table.get())?;
     let f = |o: usize| -> Result<_, Refused> { Ok(MASKS.lines[o].get()) };
     MASKS.pixel[0].set(x);
     let pixel: [u32; 2] = read_bits(&MASKS.pixel);
@@ -165,7 +165,7 @@ fn rows_fit(entries: u32, index: u32) -> Result<(), Refused> {
 /// `flt_8445E2` the row's squared distance (`x87::int_plus_less_squared`) and `map_pixel`
 /// for each of its span's pixels. Refuses rows or spans outside the 0x100 x 0x80 table,
 /// before writing.
-pub fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
+pub fn map_shape_rows(drops: &WindscreenDrops, entries: u32, index: u32) -> Result<(), Refused> {
     {
         rows_fit(entries, index)?;
         let e = entries.wrapping_add(index.wrapping_mul(16));
@@ -184,7 +184,7 @@ pub fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
                 MASKS.middle[1].bits(),
             ));
             for n in 0..(len as i32).max(0) as u32 {
-                map_pixel(at, x.wrapping_add(n))?;
+                map_pixel(drops, at, x.wrapping_add(n))?;
             }
             MASKS.pixel[1].set(y.wrapping_add(1));
             at = at.wrapping_add(0x400);
@@ -196,15 +196,15 @@ pub fn map_shape_rows(entries: u32, index: u32) -> Result<(), Refused> {
 /// `effects::map_shape` (0x4BE83E): quad `shape` of the shape `shapes`:
 /// `g_marksMaskValue` the quad, its two entries (2 n, 2 n + 1) of the rows at +8 mapped
 /// (`map_shape_rows`). Refuses as `map_shape_rows`, before writing.
-pub fn map_shape(shapes: &Shape, shape: u32) -> Result<(), Refused> {
+pub fn map_shape(drops: &WindscreenDrops, shapes: &Shape, shape: u32) -> Result<(), Refused> {
     {
         let entries = shapes.rows.get();
         let first = shape.wrapping_add(shape);
         rows_fit(entries, first)?;
         rows_fit(entries, first.wrapping_add(1))?;
         MASKS.mask_value.set(shape);
-        map_shape_rows(entries, first)?;
-        map_shape_rows(entries, first.wrapping_add(1))?;
+        map_shape_rows(drops, entries, first)?;
+        map_shape_rows(drops, entries, first.wrapping_add(1))?;
     }
     Ok(())
 }
@@ -229,13 +229,13 @@ const LINE_FROM: [(u32, u32); 8] = [
 /// `dword_8445DE`) hold the shape's number where the original kept addresses. Refuses a
 /// count of 0 or less or past 0x80 (its loop tests after counting), and rows or spans
 /// outside the table, before writing.
-pub fn map_shapes(n: u32) -> Result<(), Refused> {
+pub fn map_shapes(drops: &WindscreenDrops, n: u32) -> Result<(), Refused> {
     {
         let shapes = MASKS
             .shapes
             .get(n as usize)
             .ok_or(BadInput("a shape's number that names none"))?;
-        let table = pixel_table(n)?;
+        let table = pixel_table(drops, n)?;
         let corners = crate::effects::corners::tables()[n as usize];
         let count = shapes.count.get() as i32;
         if count <= 0 || count > 0x80 {
@@ -247,12 +247,12 @@ pub fn map_shapes(n: u32) -> Result<(), Refused> {
         }
         let came = x87::control_word();
         x87::set_control_word((came & 0xF3FF) | 0xC00);
-        PICKS.shapes.set(n);
-        PICKS.table_in_use.set(n);
-        PICKS.corners.set(n);
+        drops.picks.shapes.set(n);
+        drops.picks.table_in_use.set(n);
+        drops.picks.corners.set(n);
         table.write_at(0, &vec![0; 0x2_0000], "the pixel table")?;
-        MASKS.pixel_table.set(PICKS.table_in_use.get());
-        MASKS.pixel_corners.set(PICKS.corners.get());
+        MASKS.pixel_table.set(drops.picks.table_in_use.get());
+        MASKS.pixel_corners.set(drops.picks.corners.get());
         write_bits(
             &MASKS.middle,
             [
@@ -267,7 +267,7 @@ pub fn map_shapes(n: u32) -> Result<(), Refused> {
                 MASKS.lines[to as usize / 4]
                     .set(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]));
             }
-            map_shape(shapes, k)?;
+            map_shape(drops, shapes, k)?;
         }
         x87::set_control_word(came);
     }

@@ -2,7 +2,6 @@
 //! carousel's entries, and the carousel turned to the next or the previous car.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::menu::loop_store::LOOP_FLAGS;
@@ -68,7 +67,7 @@ fn turn(on: bool) {
                 step: MENU_STATE.carousel.angle.get(),
             },
             shown: EVENT_STATE.shown_car.get(),
-            last: CAR_TABLE.last_car.get(),
+            last: crate::menu::owner::menus().cars.table.last_car.get(),
         },
         on,
     );

@@ -20,7 +20,7 @@
 //! the value there between, read by nothing).
 
 use crate::errors::Refused;
-use crate::hud::store::HUD;
+use crate::hud::owner::Hud;
 use crate::math::x87;
 use crate::math::x87_float::{ld, to_int};
 use crate::scene::matrix3::extended;
@@ -37,13 +37,15 @@ fn turn_of(v: u32, less: Option<u32>, over: u32, plus: u32, k: [u32; 2]) -> u32 
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{needle_turn, needle_edx, needle_corners}`
-pub fn draw_needle() -> Result<(), Refused> {
+pub fn draw_needle(hud: &Hud) -> Result<(), Refused> {
     use rc2k_core::hud::disc::{needle_corners, needle_edx, needle_turn};
     use rc2k_core::math::extended::to_f64;
-    let kind = HUD.needle_kind.get() != 0;
-    let value = f32::from_bits(x87::from_int(HUD.needle_value.get() as i32));
-    let t = needle_turn(value, kind, HUD.least.get(), |n| HUD.needle_k[n].get());
-    let tk = [HUD.uv_scale_y.bits(), HUD.turn_k.bits()];
+    let kind = hud.block.needle_kind.get() != 0;
+    let value = f32::from_bits(x87::from_int(hud.block.needle_value.get() as i32));
+    let t = needle_turn(value, kind, hud.block.least.get(), |n| {
+        hud.block.needle_k[n].get()
+    });
+    let tk = [hud.block.uv_scale_y.bits(), hud.block.turn_k.bits()];
     // The rounding follows the x87's control word: the x87's.
     let turn = turn_of(
         t.value.to_bits(),
@@ -52,10 +54,11 @@ pub fn draw_needle() -> Result<(), Refused> {
         t.plus.to_bits(),
         tk,
     );
-    HUD.scratch.set(turn);
+    hud.block.scratch.set(turn);
     let angle = needle_edx(turn);
     for (n, (x, y)) in needle_corners(
-        HUD.needle_corners
+        hud.block
+            .needle_corners
             .each_ref()
             .map(super::super::session::Float::bits),
     )
@@ -64,12 +67,12 @@ pub fn draw_needle() -> Result<(), Refused> {
     {
         let vertex = &crate::d3d::vertices_store::VERTICES.vertices[n];
         let point = [extended(y), extended(x)].map(to_f64);
-        crate::hud::turned_vertex::turned_vertex(vertex, angle, point);
+        crate::hud::turned_vertex::turned_vertex(hud, vertex, angle, point);
     }
     crate::scene::draw_store::DRAW
         .polygon_vertex_count
         .set_bits(4u32);
-    crate::hud::add_polygon::add_polygon()
+    crate::hud::add_polygon::add_polygon(hud)
 }
 
 // ---- the arithmetic that was x87 assembly ----

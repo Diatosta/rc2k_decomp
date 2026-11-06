@@ -85,8 +85,12 @@ pub fn play_placed_sound(request: &SoundRequest, mode: u32) -> Result<(), BadInp
         let (angle, place) = angle_and_place(
             request.place[2].get(),
             request.place[0].get(),
-            crate::sound::store::RACE_CLOCK.pan_per_radian.bits(),
-            crate::sound::store::RACE_CLOCK.pan_centre.bits(),
+            crate::sound::owner::sound()
+                .race
+                .clock
+                .pan_per_radian
+                .bits(),
+            crate::sound::owner::sound().race.clock.pan_centre.bits(),
         );
         request.angle.set(angle);
         request.pan.set(place);

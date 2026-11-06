@@ -8,8 +8,8 @@ use crate::effects::kind_values::MARKS_KIND;
 use crate::effects::mask_constants::MASK_CONSTANTS;
 use crate::effects::mask_vars::MASKS;
 use crate::effects::shape_points::{farthest_pair, turn_shape_checks, turn_shape_points, turned};
-use crate::effects::shape_work::SHAPE_WORK;
 use crate::effects::turns::{clamp_pair, smooth_pair, smooth_steps};
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -23,17 +23,19 @@ pub fn tables() -> [&'static Bytes<3096>; 2] {
 pub const ENTRIES: u32 = 0x81;
 const ENTRY: u32 = 0x18;
 /// Each table's two steps' starts and the end they both go to.
-static STEPS: [([usize; 2], &Dword); 2] = [
-    ([0, 2], &SHAPE_WORK.work.steps[0]), // `MaskConstants::corner_angles`: dword_89C9CC, dword_89C9D4; dword_884FC4
-    ([4, 6], &SHAPE_WORK.work.steps[1]), // dword_89C9DC, dword_89C9E4; dword_884FC8
-];
+fn steps(drops: &WindscreenDrops) -> [([usize; 2], &Dword); 2] {
+    [
+        ([0, 2], &drops.shape_work.work.steps[0]), // `MaskConstants::corner_angles`: dword_89C9CC, dword_89C9D4; dword_884FC4
+        ([4, 6], &drops.shape_work.work.steps[1]), // dword_89C9DC, dword_89C9E4; dword_884FC8
+    ]
+}
 const LIFT: u32 = 0xB2A7;
 /// The block's lowest points (x, y).
-fn offsets(n: usize) -> [u32; 2] {
+fn offsets(drops: &WindscreenDrops, n: usize) -> [u32; 2] {
     let low = if n == 0 {
-        &SHAPE_WORK.work.low_a
+        &drops.shape_work.work.low_a
     } else {
-        &SHAPE_WORK.work.low_b
+        &drops.shape_work.work.low_b
     };
     read_first(low)
 }
@@ -56,8 +58,8 @@ fn put<const N: usize>(table: &Bytes<N>, at: u32, v: u32) -> Result<(), BadInput
 }
 
 /// The two turns step k gives table n: the second result of each of its two steps.
-fn turns(n: usize, k: u32) -> (u32, u32) {
-    let (starts, end) = STEPS[n];
+fn turns(drops: &WindscreenDrops, n: usize, k: u32) -> (u32, u32) {
+    let (starts, end) = steps(drops)[n];
     let b: u32 = end.get();
     (
         smooth_pair(k, MASK_CONSTANTS.corner_angles[starts[0]].bits(), b).1,
@@ -74,35 +76,45 @@ fn turns(n: usize, k: u32) -> (u32, u32) {
 /// +0x18, +0x1C) over them as floats; y from 0x80; and `clamp_pair`. Refuses a kind of
 /// 0x22 or more, a farthest pair past 0x3F, what `turn_shape_points` refuses at any step,
 /// before writing.
-pub fn make_corners() -> Result<(), Refused> {
+pub fn make_corners(drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let kind: u32 = MARKS_KIND.kind.bits();
         if kind >= 0x22 {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }
         for n in 0..2 {
-            let pair: [u32; 2] = read_bits(farthest_pair(n));
+            let pair: [u32; 2] = read_bits(farthest_pair(drops, n));
             if pair.iter().any(|&i| i >= 0x40) {
                 return Err(BadInput("a farthest pair past 0x3F").into());
             }
         }
         for n in 0..2 {
             for k in 0..ENTRIES {
-                let (a, b) = turns(n, k);
-                turn_shape_checks(a, b)?;
+                let (a, b) = turns(drops, n, k);
+                turn_shape_checks(drops, a, b)?;
             }
         }
-        for (n, &(starts, end)) in STEPS.iter().enumerate() {
+        for (n, &(starts, end)) in steps(drops).iter().enumerate() {
             for k in 0..ENTRIES {
-                let first =
-                    smooth_steps(k, MASK_CONSTANTS.corner_angles[starts[0]].bits(), end.get()).1;
-                let second =
-                    smooth_steps(k, MASK_CONSTANTS.corner_angles[starts[1]].bits(), end.get()).1;
-                turn_shape_points(first, second)?;
+                let first = smooth_steps(
+                    drops,
+                    k,
+                    MASK_CONSTANTS.corner_angles[starts[0]].bits(),
+                    end.get(),
+                )
+                .1;
+                let second = smooth_steps(
+                    drops,
+                    k,
+                    MASK_CONSTANTS.corner_angles[starts[1]].bits(),
+                    end.get(),
+                )
+                .1;
+                turn_shape_points(drops, first, second)?;
                 let table = tables()[n];
                 let mut to = k * ENTRY;
-                let pair: [u32; 2] = read_bits(farthest_pair(n));
-                let turned = turned(n);
+                let pair: [u32; 2] = read_bits(farthest_pair(drops, n));
+                let turned = turned(drops, n);
                 for p in pair {
                     let from = p * 12;
                     for c in 0..3 {
@@ -142,7 +154,7 @@ pub fn make_corners() -> Result<(), Refused> {
             for n in 0..2 {
                 let table = tables()[n];
                 let e = 12 * k;
-                let offset: [u32; 2] = offsets(n);
+                let offset: [u32; 2] = offsets(drops, n);
                 let x = get(table, e)?
                     .wrapping_add(offset[0])
                     .wrapping_sub(bx(0x18)? as u32);

@@ -21,8 +21,7 @@
 
 use crate::effects::ring_entries::field;
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
-use crate::effects::ring_store::RING_WORK;
-use crate::effects::run_ring::RING_KINDS;
+use crate::effects::ring_store::Ring;
 use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
@@ -41,21 +40,25 @@ pub struct Colours257 {
 }
 
 /// The 257 colours as the image has them: 0x00FFFF00 + 2 i for the first 128, then 0x00FFFFFF.
-pub static COLOURS_257: Colours257 = Colours257 {
-    colours: {
-        let mut colours = [0; 257];
-        let mut i = 0;
-        while i < 257 {
-            colours[i] = if i < 128 {
-                0x00FF_FF00 + 2 * i as u32
-            } else {
-                0x00FF_FFFF
-            };
-            i += 1;
+impl Colours257 {
+    pub const fn new() -> Self {
+        Colours257 {
+            colours: {
+                let mut colours = [0; 257];
+                let mut i = 0;
+                while i < 257 {
+                    colours[i] = if i < 128 {
+                        0x00FF_FF00 + 2 * i as u32
+                    } else {
+                        0x00FF_FFFF
+                    };
+                    i += 1;
+                }
+                colours
+            },
         }
-        colours
-    },
-};
+    }
+}
 
 #[cfg(test)]
 impl Colours257 {
@@ -64,18 +67,18 @@ impl Colours257 {
 }
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
-fn first_frame(e: u32) {
-    first_frame_x87(e, &CLOCK, RING_KINDS.ribbon_a);
+fn first_frame(ring: &Ring, e: u32) {
+    first_frame_x87(ring, e, &CLOCK, ring.kinds.ribbon_a);
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
-fn move_(e: u32) {
-    move_x87(e, &CLOCK, RING_KINDS.ribbon_b);
+fn move_(ring: &Ring, e: u32) {
+    move_x87(ring, e, &CLOCK, ring.kinds.ribbon_b);
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
-fn turn_place(e: u32) {
-    turn_place_x87(e, &DRAW_WORK);
+fn turn_place(ring: &Ring, e: u32) {
+    turn_place_x87(ring, e, &DRAW_WORK);
 }
 
 /// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
@@ -89,124 +92,130 @@ fn colour_count() -> i32 {
 }
 
 /// The colour `i` of the table in use (`i` below `colour_count`).
-fn colour_at(i: usize) -> u32 {
+fn colour_at(ring: &Ring, i: usize) -> u32 {
     if MARKS_KIND_FLOATS.other.bits() != 0 {
         SURFACE.colours[i].get()
     } else {
-        COLOURS_257.colours[i]
+        ring.colours.colours[i]
     }
 }
 
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
-fn refusal() -> Result<Option<&'static str>, Refused> {
+fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
     Ok({
         let Ok(marks) = crate::effects::setup::marks() else {
             return Ok(Some("no marks settings"));
         };
         let ticks: u32 = CLOCK.frame_ticks.get();
-        let mut e: u32 = RING_WORK.cursor.get();
-        let count = RING_WORK.count.get() as i32;
-        if count > 0 && (e == 0 || eg(e, 0)? == 0) {
+        let mut e: u32 = ring.work.cursor.get();
+        let count = ring.work.count.get() as i32;
+        if count > 0 && (e == 0 || eg(ring, e, 0)? == 0) {
             return Ok(Some("a null ring entry"));
         }
         for _ in 0..count.max(0) {
-            if e == 0 || eg(e, 0)? == 0 || eg(e, 4)? == 0 {
+            if e == 0 || eg(ring, e, 0)? == 0 || eg(ring, e, 4)? == 0 {
                 return Ok(Some("a null ring entry or link"));
             }
-            if marks.cars[0].word(0)? != 0 && eg(e, field::KIND)? == STREAK {
-                let life = eg(e, field::LIFE)?;
+            if marks.cars[0].word(0)? != 0 && eg(ring, e, field::KIND)? == STREAK {
+                let life = eg(ring, e, field::LIFE)?;
                 if life >= ticks
-                    && x87::compare_status(eg(e, field::PLACE_Y)?, eg(e, field::GROUND_Y)?) != 0x100
+                    && x87::compare_status(
+                        eg(ring, e, field::PLACE_Y)?,
+                        eg(ring, e, field::GROUND_Y)?,
+                    ) != 0x100
                 {
                     if fog_at(0).is_err() {
                         return Ok(Some("the fog table is not there"));
                     }
                     let i = x87::int_times_to_int(
                         life.wrapping_sub(ticks) as i32,
-                        eg(e, field::ALPHA_FADE)?,
+                        eg(ring, e, field::ALPHA_FADE)?,
                     );
                     if !(0..colour_count()).contains(&i) {
                         return Ok(Some("a streak's colour index past its table"));
                     }
                 }
             }
-            e = eg(e, 4)?;
+            e = eg(ring, e, 4)?;
         }
         None
     })
 }
 
 /// The streak step at e (see the header): whether the entry dies.
-fn streak(e: u32) -> Result<bool, Refused> {
+fn streak(ring: &Ring, e: u32) -> Result<bool, Refused> {
     let t: u32 = CLOCK.frame_ticks.get();
-    let life = eg(e, field::LIFE)?;
-    ep(e, field::LIFE, life.wrapping_sub(t))?;
+    let life = eg(ring, e, field::LIFE)?;
+    ep(ring, e, field::LIFE, life.wrapping_sub(t))?;
     if life < t {
         return Ok(true);
     }
-    if x87::compare_status(eg(e, field::PLACE_Y)?, eg(e, field::GROUND_Y)?) == 0x100 {
+    if x87::compare_status(eg(ring, e, field::PLACE_Y)?, eg(ring, e, field::GROUND_Y)?) == 0x100 {
         return Ok(true);
     }
-    if eg(e, field::PLACE_X)? == 0 {
-        first_frame(e);
+    if eg(ring, e, field::PLACE_X)? == 0 {
+        first_frame(ring, e);
     }
-    move_on(e);
-    DRAW_WORK.second[0].set_bits(eg(e, field::LAST_PLACE_X)?);
-    DRAW_WORK.second[1].set_bits(eg(e, field::LAST_PLACE_Y)?);
-    DRAW_WORK.second[2].set_bits(eg(e, field::LAST_PLACE_Z)?);
-    turn_place(e);
+    move_on(ring, e);
+    DRAW_WORK.second[0].set_bits(eg(ring, e, field::LAST_PLACE_X)?);
+    DRAW_WORK.second[1].set_bits(eg(ring, e, field::LAST_PLACE_Y)?);
+    DRAW_WORK.second[2].set_bits(eg(ring, e, field::LAST_PLACE_Z)?);
+    turn_place(ring, e);
     let marks = crate::effects::setup::marks()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
-        ep(e, field::LAST_PLACE_X, DRAW_WORK.turned[0].bits())?;
-        ep(e, field::LAST_PLACE_Y, DRAW_WORK.turned[1].bits())?;
-        ep(e, field::LAST_PLACE_Z, DRAW_WORK.turned[2].bits())?;
+        ep(ring, e, field::LAST_PLACE_X, DRAW_WORK.turned[0].bits())?;
+        ep(ring, e, field::LAST_PLACE_Y, DRAW_WORK.turned[1].bits())?;
+        ep(ring, e, field::LAST_PLACE_Z, DRAW_WORK.turned[2].bits())?;
     }
     VERTICES.vertices[0]
         .specular
-        .set(fog_at(eg(e, field::LAST_PLACE_Z)?)?);
-    let i = x87::int_times_to_int(eg(e, field::LIFE)? as i32, eg(e, field::ALPHA_FADE)?);
-    RING_WORK.whole.set(i as u32);
-    let colour = colour_at(i as usize);
+        .set(fog_at(eg(ring, e, field::LAST_PLACE_Z)?)?);
+    let i = x87::int_times_to_int(
+        eg(ring, e, field::LIFE)? as i32,
+        eg(ring, e, field::ALPHA_FADE)?,
+    );
+    ring.work.whole.set(i as u32);
+    let colour = colour_at(ring, i as usize);
     crate::effects::draw_ribbon::draw_ribbon(0x20, i as u32, 0x800, colour)?;
     Ok(false)
 }
 
-fn move_on(e: u32) {
-    move_(e);
+fn move_on(ring: &Ring, e: u32) {
+    move_(ring, e);
 }
 
 /// The Rust version (see the header).
-pub fn run_ribbons() -> Result<(), Refused> {
-    if let Some(why) = refusal()? {
+pub fn run_ribbons(ring: &Ring) -> Result<(), Refused> {
+    if let Some(why) = refusal(ring)? {
         return Err(BadInput(why).into());
     }
     {
-        let mut e: u32 = RING_WORK.cursor.get();
-        let mut counter = RING_WORK.count.get() as i32;
+        let mut e: u32 = ring.work.cursor.get();
+        let mut counter = ring.work.count.get() as i32;
         loop {
             counter = counter.wrapping_sub(1);
             if counter < 0 {
                 break;
             }
-            let next = eg(e, 4)?;
+            let next = eg(ring, e, 4)?;
             // The settings' +0x60: the first car record's first word.
             if crate::effects::setup::marks()?.cars[0].word(0)? != 0
-                && eg(e, field::KIND)? == STREAK
-                && streak(e)?
+                && eg(ring, e, field::KIND)? == STREAK
+                && streak(ring, e)?
             {
-                RING_WORK.count.set(RING_WORK.count.get().wrapping_sub(1));
-                if e == RING_WORK.cursor.get() {
-                    RING_WORK.cursor.set(eg(e, 4)?);
+                ring.work.count.set(ring.work.count.get().wrapping_sub(1));
+                if e == ring.work.cursor.get() {
+                    ring.work.cursor.set(eg(ring, e, 4)?);
                 } else {
-                    let (before, after) = (eg(e, 0)?, eg(e, 4)?);
-                    ep(before, 4, after)?;
-                    ep(after, 0, before)?;
-                    let cursor: u32 = RING_WORK.cursor.get();
-                    let last = eg(cursor, 0)?;
-                    ep(cursor, 0, e)?;
-                    ep(last, 4, e)?;
-                    ep(e, 0, last)?;
-                    ep(e, 4, cursor)?;
+                    let (before, after) = (eg(ring, e, 0)?, eg(ring, e, 4)?);
+                    ep(ring, before, 4, after)?;
+                    ep(ring, after, 0, before)?;
+                    let cursor: u32 = ring.work.cursor.get();
+                    let last = eg(ring, cursor, 0)?;
+                    ep(ring, cursor, 0, e)?;
+                    ep(ring, last, 4, e)?;
+                    ep(ring, e, 0, last)?;
+                    ep(ring, e, 4, cursor)?;
                 }
             }
             e = next;
@@ -222,10 +231,10 @@ use crate::math::x87_float::int;
 use crate::race::matrices_store::MATRICES;
 
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
-fn first_frame_x87(e: u32, c: &MarksClock, ribbon_a: f32) {
-    let t0 = eld(e, field::PLACE_Z);
-    let t1 = eld(e, field::PLACE_Y);
-    let t2 = eld(e, field::PLACE_X);
+fn first_frame_x87(ring: &Ring, e: u32, c: &MarksClock, ribbon_a: f32) {
+    let t0 = eld(ring, e, field::PLACE_Z);
+    let t1 = eld(ring, e, field::PLACE_Y);
+    let t2 = eld(ring, e, field::PLACE_X);
     let t3 = crate::math::x87_float::ld(MATRICES.view_matrix[0].bits());
     let t4 = t3 * t2;
     let t5 = crate::math::x87_float::ld(MATRICES.view_matrix[4].bits());
@@ -253,52 +262,52 @@ fn first_frame_x87(e: u32, c: &MarksClock, ribbon_a: f32) {
     let t27 = t26 + t24;
     let t28 = t22 + t27;
     let t29 = t28 + crate::math::x87_float::ld(MATRICES.view_matrix[14].bits());
-    est(e, field::LAST_PLACE_X, t11);
-    est(e, field::LAST_PLACE_Y, t20);
-    est(e, field::LAST_PLACE_Z, t29);
-    let t30 = eld(e, field::MOTION_X);
+    est(ring, e, field::LAST_PLACE_X, t11);
+    est(ring, e, field::LAST_PLACE_Y, t20);
+    est(ring, e, field::LAST_PLACE_Z, t29);
+    let t30 = eld(ring, e, field::MOTION_X);
     let t31 = t30 * int(c.frame_ticks.get() as i32);
-    let t32 = t31 + eld(e, field::PLACE_X);
-    est(e, field::PLACE_X, t32);
-    let t33 = eld(e, field::MOTION_Y);
+    let t32 = t31 + eld(ring, e, field::PLACE_X);
+    est(ring, e, field::PLACE_X, t32);
+    let t33 = eld(ring, e, field::MOTION_Y);
     let t34 = t33 * int(c.frame_ticks.get() as i32);
-    let t35 = t34 + eld(e, field::PLACE_Y);
-    est(e, field::PLACE_Y, t35);
-    let t36 = eld(e, field::MOTION_Z);
+    let t35 = t34 + eld(ring, e, field::PLACE_Y);
+    est(ring, e, field::PLACE_Y, t35);
+    let t36 = eld(ring, e, field::MOTION_Z);
     let t37 = t36 * int(c.frame_ticks.get() as i32);
-    let t38 = t37 + eld(e, field::PLACE_Z);
-    est(e, field::PLACE_Z, t38);
+    let t38 = t37 + eld(ring, e, field::PLACE_Z);
+    est(ring, e, field::PLACE_Z, t38);
     let t39 = bh::ld(ribbon_a.to_bits());
     let t40 = t39 * int(c.frame_ticks.get() as i32);
-    let t41 = t40 + eld(e, field::MOTION_Y);
-    est(e, field::MOTION_Y, t41);
+    let t41 = t40 + eld(ring, e, field::MOTION_Y);
+    est(ring, e, field::MOTION_Y, t41);
 }
 
 /// `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
-fn move_x87(e: u32, c: &MarksClock, ribbon_b: f32) {
-    let t0 = eld(e, field::MOTION_X);
+fn move_x87(ring: &Ring, e: u32, c: &MarksClock, ribbon_b: f32) {
+    let t0 = eld(ring, e, field::MOTION_X);
     let t1 = t0 * int(c.frame_ticks.get() as i32);
-    let t2 = t1 + eld(e, field::PLACE_X);
-    est(e, field::PLACE_X, t2);
-    let t3 = eld(e, field::MOTION_Y);
+    let t2 = t1 + eld(ring, e, field::PLACE_X);
+    est(ring, e, field::PLACE_X, t2);
+    let t3 = eld(ring, e, field::MOTION_Y);
     let t4 = t3 * int(c.frame_ticks.get() as i32);
-    let t5 = t4 + eld(e, field::PLACE_Y);
-    est(e, field::PLACE_Y, t5);
-    let t6 = eld(e, field::MOTION_Z);
+    let t5 = t4 + eld(ring, e, field::PLACE_Y);
+    est(ring, e, field::PLACE_Y, t5);
+    let t6 = eld(ring, e, field::MOTION_Z);
     let t7 = t6 * int(c.frame_ticks.get() as i32);
-    let t8 = t7 + eld(e, field::PLACE_Z);
-    est(e, field::PLACE_Z, t8);
+    let t8 = t7 + eld(ring, e, field::PLACE_Z);
+    est(ring, e, field::PLACE_Z, t8);
     let t9 = bh::ld(ribbon_b.to_bits());
     let t10 = t9 * int(c.frame_ticks.get() as i32);
-    let t11 = t10 + eld(e, field::MOTION_Y);
-    est(e, field::MOTION_Y, t11);
+    let t11 = t10 + eld(ring, e, field::MOTION_Y);
+    est(ring, e, field::MOTION_Y, t11);
 }
 
 /// `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
-fn turn_place_x87(e: u32, dw: &DrawWork) {
-    let t0 = eld(e, field::PLACE_Z);
-    let t1 = eld(e, field::PLACE_Y);
-    let t2 = eld(e, field::PLACE_X);
+fn turn_place_x87(ring: &Ring, e: u32, dw: &DrawWork) {
+    let t0 = eld(ring, e, field::PLACE_Z);
+    let t1 = eld(ring, e, field::PLACE_Y);
+    let t2 = eld(ring, e, field::PLACE_X);
     let t3 = crate::math::x87_float::ld(MATRICES.view_matrix[0].bits());
     let t4 = t3 * t2;
     let t5 = crate::math::x87_float::ld(MATRICES.view_matrix[4].bits());
@@ -553,13 +562,20 @@ mod asm_differential {
             &SPEC,
             |b| reference::first_frame_x87(b[0], b[1], b[2], b[3]),
             |b| {
-                crate::effects::ring_entries::with_entry_at(b[2], 0x10, 0x38, |e| {
-                    super::first_frame_x87(
-                        e,
-                        crate::effects::setup::clock_at(b[1]),
-                        f32::from_bits(word(b[3] + 0x94)),
-                    );
-                });
+                crate::effects::ring_entries::with_entry_at(
+                    &crate::effects::owner::effects().ring,
+                    b[2],
+                    0x10,
+                    0x38,
+                    |e| {
+                        super::first_frame_x87(
+                            &crate::effects::owner::effects().ring,
+                            e,
+                            crate::effects::setup::clock_at(b[1]),
+                            f32::from_bits(word(b[3] + 0x94)),
+                        );
+                    },
+                );
             },
         );
     }
@@ -600,13 +616,20 @@ mod asm_differential {
             &SPEC,
             |b| reference::move_x87(b[0], b[1], b[2]),
             |b| {
-                crate::effects::ring_entries::with_entry_at(b[1], 0x10, 0x38, |e| {
-                    super::move_x87(
-                        e,
-                        crate::effects::setup::clock_at(b[0]),
-                        f32::from_bits(word(b[2] + 0x98)),
-                    );
-                });
+                crate::effects::ring_entries::with_entry_at(
+                    &crate::effects::owner::effects().ring,
+                    b[1],
+                    0x10,
+                    0x38,
+                    |e| {
+                        super::move_x87(
+                            &crate::effects::owner::effects().ring,
+                            e,
+                            crate::effects::setup::clock_at(b[0]),
+                            f32::from_bits(word(b[2] + 0x98)),
+                        );
+                    },
+                );
             },
         );
     }
@@ -652,9 +675,15 @@ mod asm_differential {
             |b| reference::turn_place_x87(b[0], b[1], b[2]),
             |b| {
                 with_copy::<DrawWork, _>(b[1], DrawWork::START, |dw| {
-                    crate::effects::ring_entries::with_entry_at(b[2], 0x10, 0x1C, |e| {
-                        super::turn_place_x87(e, dw);
-                    });
+                    crate::effects::ring_entries::with_entry_at(
+                        &crate::effects::owner::effects().ring,
+                        b[2],
+                        0x10,
+                        0x1C,
+                        |e| {
+                            super::turn_place_x87(&crate::effects::owner::effects().ring, e, dw);
+                        },
+                    );
                 });
             },
         );
@@ -668,7 +697,7 @@ mod colours_tests {
     #[test]
     fn colours_start_as_the_games() {
         assert_eq!(size_of::<Colours257>(), Colours257::LEN);
-        let p = (&raw const COLOURS_257).cast::<u8>();
+        let p = (&raw const crate::effects::owner::EFFECTS.ring.colours).cast::<u8>();
         let own: Vec<u8> = (0..Colours257::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

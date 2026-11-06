@@ -14,7 +14,7 @@
 //! game's variables; the picks their Rust versions (under the same rounding).
 
 use crate::effects::pick_windscreen_flake::pick_windscreen_flake;
-use crate::effects::tilt_shape::SHAPE_TILT;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::Refused;
@@ -23,16 +23,19 @@ use crate::math::x87;
 const MOST: i32 = 0x80;
 
 /// The original's 0x4C053C .. 0x4C059D: the rate, compared (`fstsw` into `g_fpuStatus`).
-fn rate(fl: &WindscreenFlakes) {
-    rate_x87(&KEPT, &fl.timing, &fl.state);
+fn rate(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
+    rate_x87(drops, &KEPT, &fl.timing, &fl.state);
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_flakes_spawn(fl: &WindscreenFlakes) -> Result<(), Refused> {
+pub fn windscreen_flakes_spawn(
+    drops: &WindscreenDrops,
+    fl: &WindscreenFlakes,
+) -> Result<(), Refused> {
     {
         fl.timing.frames.set(fl.timing.frames.get().wrapping_add(1));
         let old = x87::set_chop();
-        rate(fl);
+        rate(drops, fl);
         let status = MARKS_WORK.fpu_status.get() & 0x700;
         MARKS_WORK.fpu_status.set(status);
         if status != 0x100 {
@@ -63,17 +66,22 @@ use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFl
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn rate_x87(kv: &KeptView, sti: &WindscreenFlakeTiming, ss: &WindscreenFlakeState) {
+fn rate_x87(
+    drops: &WindscreenDrops,
+    kv: &KeptView,
+    sti: &WindscreenFlakeTiming,
+    ss: &WindscreenFlakeState,
+) {
     let t0 = bh::ld(kv.first_angle.bits());
-    let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
+    let t1 = t0 + bh::ld(drops.tilt.tilt.bits());
     let t2 = t1.sin();
     let t3 = t2 * bh::ld(sti.rate.bits());
     sti.spawn_rate.set_bits(bh::st(t3));
     let t4 = bh::ld(sti.rate.bits());
-    let t5 = t4 * bh::ld(SHAPE_TILT.point[2].bits());
+    let t5 = t4 * bh::ld(drops.tilt.point[2].bits());
     let t6 = -t5;
     let t7 = bh::ld(kv.first_angle.bits());
-    let t8 = t7 + bh::ld(SHAPE_TILT.tilt.bits());
+    let t8 = t7 + bh::ld(drops.tilt.tilt.bits());
     let t9 = t8.cos();
     let t10 = t6 * t9;
     let t11 = t10 * bh::ld(ss.rate_constants[0].bits());
@@ -127,7 +135,7 @@ mod asm_differential {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::tilt_shape::{SHAPE_TILT, ShapeTilt};
+    use crate::effects::tilt_shape::ShapeTilt;
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::view_vectors::KeptView;
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeState, WindscreenFlakeTiming};
@@ -172,8 +180,18 @@ mod asm_differential {
                                 |ss| {
                                     with_overlays(
                                         b[1],
-                                        &[overlay(&SHAPE_TILT, ShapeTilt::START)],
-                                        || super::rate_x87(kv, sti, ss),
+                                        &[overlay(
+                                            &crate::effects::owner::EFFECTS.windscreen_drops.tilt,
+                                            ShapeTilt::START,
+                                        )],
+                                        || {
+                                            super::rate_x87(
+                                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                                kv,
+                                                sti,
+                                                ss,
+                                            );
+                                        },
                                     );
                                 },
                             );

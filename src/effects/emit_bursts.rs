@@ -21,6 +21,7 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
+use crate::effects::ring_store::Ring;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
 use crate::errors::{BadInput, Refused};
@@ -53,7 +54,7 @@ pub struct BurstSet {
 pub const HALVES: [Half; 2] = [
     Half {
         kind: 0x11,
-        strength: &RING_WORK.strength[0],
+        strength: &crate::effects::owner::EFFECTS.ring.work.strength[0],
         factors: [&EMITTER.side_a[0], &EMITTER.side_a[1], &EMITTER.side_a[2]],
         scaled: false,
         size: (0x7FF, 0x400),
@@ -61,7 +62,7 @@ pub const HALVES: [Half; 2] = [
     },
     Half {
         kind: 0x10,
-        strength: &RING_WORK.strength[1],
+        strength: &crate::effects::owner::EFFECTS.ring.work.strength[1],
         factors: [&EMITTER.side_b[0], &EMITTER.side_b[1], &EMITTER.side_b[2]],
         scaled: true,
         size: (0x3FF, 0x600),
@@ -140,12 +141,17 @@ pub fn refusal(set: &BurstSet, wheel: &MarkRecord) -> Result<Option<&'static str
 }
 
 /// The Rust version (see the header).
-pub fn emit_bursts(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
-    emit_bursts_with(&FIRST, wheel, object)
+pub fn emit_bursts(
+    ring: &Ring,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
+    emit_bursts_with(ring, &FIRST, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_bursts_with(
+    ring: &Ring,
     set: &BurstSet,
     wheel: &MarkRecord,
     object: &'static MarkCar,
@@ -162,7 +168,7 @@ pub fn emit_bursts_with(
         for (n, h) in set.halves.iter().enumerate() {
             let (s, rate) = strength(set, n, wheel)?;
             h.strength.set_bits(s);
-            RING_WORK.whole.set(rate as u32);
+            ring.work.whole.set(rate as u32);
             let r = next_c5(&set.tuning.randoms(n)[0]);
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 continue;
@@ -176,19 +182,19 @@ pub fn emit_bursts_with(
                 x87::times_less_abs_times(h.factors[1].bits(), s, scale, k),
                 x87::mul2(h.factors[2].bits(), s, k),
             ];
-            write_bits(&RING_WORK.direction, direction);
+            write_bits(&ring.work.direction, direction);
             let count = (next_c5(&set.tuning.randoms(n)[1]) & 0xFFF) % ((flags2 >> 6) << 2);
             for _ in 0..count {
                 // The ring full (0x3FE taken): the original leaves by 0x4CD741 / 0x4CDC6E,
                 // whose stack slip crashed the game (section 16). Fixed 2026-10-23: the
                 // bursts end there, the caller's registers kept, as `lea esp, [esp+8]`
                 // would leave them.
-                if RING_WORK.count.get() == MOST_TAKEN {
+                if ring.work.count.get() == MOST_TAKEN {
                     return Ok(());
                 }
-                let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, h.kind)?;
-                let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
-                let d = read_bits(&RING_WORK.direction);
+                let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, h.kind)?;
+                let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
+                let d = read_bits(&ring.work.direction);
                 let (out, _) = crate::effects::spread_point::spread_point([
                     extended(MARKS_FLOATS.half.bits()),
                     extended(d[2]),
@@ -227,7 +233,7 @@ pub fn emit_bursts_with(
                 put(0x28, place[1])?;
                 put(0x18, place[2])?;
                 let pick = r & 0x7_FFFF;
-                RING_WORK.whole.set(pick);
+                ring.work.whole.set(pick);
                 put(
                     0x5C,
                     x87::int_times_plus(

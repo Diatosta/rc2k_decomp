@@ -48,12 +48,16 @@ pub struct Films {
 }
 
 /// The films' names (the leading `;3` is the game's own marker for the file functions).
-pub static FILMS: Films = Films {
-    intro: crate::session::Bytes::new(*b";3files\\fmv\\intro.mpg\0"),
-    mflogo: crate::session::Bytes::new(*b";3files\\fmv\\mflogo.mpg\0"),
-    allogo: crate::session::Bytes::new(*b";3files\\fmv\\allogo.avi\0"),
-    _gap_44: crate::session::Bytes::new([0; 3]),
-};
+impl Films {
+    pub const fn new() -> Self {
+        Films {
+            intro: crate::session::Bytes::new(*b";3files\\fmv\\intro.mpg\0"),
+            mflogo: crate::session::Bytes::new(*b";3files\\fmv\\mflogo.mpg\0"),
+            allogo: crate::session::Bytes::new(*b";3files\\fmv\\allogo.avi\0"),
+            _gap_44: crate::session::Bytes::new([0; 3]),
+        }
+    }
+}
 
 // ---- Rust version ----
 
@@ -66,9 +70,15 @@ struct Game {
 
 fn film(f: Film) -> crate::pointers::GamePtr {
     match f {
-        Film::AlLogo => crate::pointers::GamePtr::to(&FILMS.allogo),
-        Film::MfLogo => crate::pointers::GamePtr::to(&FILMS.mflogo),
-        Film::Intro => crate::pointers::GamePtr::to(&FILMS.intro),
+        Film::AlLogo => {
+            crate::pointers::GamePtr::to(&crate::menu::owner::menus().panels.films.allogo)
+        }
+        Film::MfLogo => {
+            crate::pointers::GamePtr::to(&crate::menu::owner::menus().panels.films.mflogo)
+        }
+        Film::Intro => {
+            crate::pointers::GamePtr::to(&crate::menu::owner::menus().panels.films.intro)
+        }
     }
 }
 
@@ -175,8 +185,18 @@ mod films_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&FILMS, FILMS_START, FILMS_START + FILMS_LEN);
-        assert_eq!(crate::moved::place(0x52980B), FILMS.mflogo.addr() as usize);
-        assert_eq!(crate::moved::place(0x529822), FILMS.allogo.addr() as usize);
+        crate::gfx::first_values_are_the_games(
+            &crate::menu::owner::menus().panels.films,
+            FILMS_START,
+            FILMS_START + FILMS_LEN,
+        );
+        assert_eq!(
+            crate::moved::place(0x52980B),
+            crate::menu::owner::menus().panels.films.mflogo.addr() as usize
+        );
+        assert_eq!(
+            crate::moved::place(0x529822),
+            crate::menu::owner::menus().panels.films.allogo.addr() as usize
+        );
     }
 }

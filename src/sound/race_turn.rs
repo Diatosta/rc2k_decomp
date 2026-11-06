@@ -27,7 +27,7 @@ pub fn race_turn() -> Result<(), Refused> {
         // ended as `start` ends it.
         crate::standalone::leave_on_close();
     }
-    if crate::sound::store::RACE_CLOCK.started.get() != 1 {
+    if crate::sound::owner::sound().race.clock.started.get() != 1 {
         return Ok(());
     }
     if crate::sound::turn_parts::step_clock() {

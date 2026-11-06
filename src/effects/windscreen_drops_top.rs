@@ -22,8 +22,7 @@
 use crate::effects::plain::{ld_cell, ldi_cell, st_cell};
 use crate::effects::setup::{CLOCK, MarksClock};
 use crate::effects::tuning::MARKS_KIND_FLOATS;
-use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WINDSCREEN_DROP_WORK};
-use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
 use crate::math::x87;
@@ -38,70 +37,70 @@ use crate::session::Float;
 const POINTS: u32 = 0x30;
 
 /// The original's 0x4BAC91 .. 0x4BAD3F: `flt_81622A` (the ease by the ticks), `flt_814728` (the rate), the place (`flt_814C0E` ..) and the first axis (`flt_814C1A` ..) from the settings, its length over `flt_82E272` into `flt_814C06`.
-fn frame_axes(m: &MarksSettings) {
-    frame_axes_x87(m, &CLOCK);
+fn frame_axes(drops: &WindscreenDrops, m: &MarksSettings) {
+    frame_axes_x87(drops, m, &CLOCK);
 }
 
 /// The original's 0x4BAD4C .. 0x4BADAC: the second axis (`flt_814C26` ..) from the settings, its length over `flt_82E276` into `flt_814C0A`.
-fn frame_up(m: &MarksSettings) {
-    frame_up_x87(m);
+fn frame_up(drops: &WindscreenDrops, m: &MarksSettings) {
+    frame_up_x87(drops, m);
 }
 
 /// The original's 0x4BADF8 .. 0x4BAE1C: the place again as floats into `flt_8161A2` ...
-fn frame_place(m: &MarksSettings) {
-    frame_place_x87(m);
+fn frame_place(drops: &WindscreenDrops, m: &MarksSettings) {
+    frame_place_x87(drops, m);
 }
 
 /// The original's 0x4BAE27 .. 0x4BAE4D: the place's way dotted with the third axis into `flt_814718`.
-fn frame_facing() {
-    frame_facing_x87();
+fn frame_facing(drops: &WindscreenDrops) {
+    frame_facing_x87(drops);
 }
 
 /// The original's 0x4BAEAB .. 0x4BAEEC: a point (x, y at p) turned onto the axes (x, y, z back at p).
-fn point_turned(p: &[Float; 3]) {
-    point_turned_x87(p);
+fn point_turned(drops: &WindscreenDrops, p: &[Float; 3]) {
+    point_turned_x87(drops, p);
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_top() -> Result<(), Refused> {
+pub fn windscreen_drops_top(drops: &WindscreenDrops) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
-    HEX.buffer.set(0);
-    frame_axes(m);
-    let w = &WINDSCREEN_DROP_WORK.axes;
+    drops.hex.buffer.set(0);
+    frame_axes(drops, m);
+    let w = &drops.work.axes;
     let (a0, a1, a2) = (&w[0..3], &w[3..6], &w[6..9]);
     normalise(a0);
-    frame_up(m);
+    frame_up(drops, m);
     normalise(a1);
     cross(a1, a0, a2);
     normalise(a2);
     cross(a0, a2, a1);
-    frame_place(m);
-    normalise(&HEX.place);
-    frame_facing();
-    if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
+    frame_place(drops, m);
+    normalise(&drops.hex.place);
+    frame_facing(drops);
+    if drops.state.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
-    let [kx, ky] = WINDSCREEN_DROP_WORK
+    let [kx, ky] = drops
+        .work
         .shares
         .each_ref()
         .map(super::super::session::Float::bits);
     for n in 0..POINTS as usize {
         let (p, o) = (3 * n, 3 * n);
-        WINDSCREEN_DROP_WORK.scaled[o]
-            .set_bits(x87::mul(WINDSCREEN_DROP_WORK.points[p].bits(), kx));
-        WINDSCREEN_DROP_WORK.scaled[o + 1]
-            .set_bits(x87::mul(WINDSCREEN_DROP_WORK.points[p + 1].bits(), ky));
-        WINDSCREEN_DROP_WORK.scaled[o + 2].set_bits(0);
+        drops.work.scaled[o].set_bits(x87::mul(drops.work.points[p].bits(), kx));
+        drops.work.scaled[o + 1].set_bits(x87::mul(drops.work.points[p + 1].bits(), ky));
+        drops.work.scaled[o + 2].set_bits(0);
     }
-    for p in WINDSCREEN_DROP_WORK.scaled.as_chunks::<3>().0 {
-        point_turned(p);
+    for p in drops.work.scaled.as_chunks::<3>().0 {
+        point_turned(drops, p);
     }
-    if WINDSCREEN_DROP_STATE.rate.bits() != 0 {
-        crate::effects::windscreen_drops_frame::windscreen_drops_frame()?;
-        let at_now: u32 = HEX.buffer.get();
+    if drops.state.rate.bits() != 0 {
+        crate::effects::windscreen_drops_frame::windscreen_drops_frame(drops)?;
+        let at_now: u32 = drops.hex.buffer.get();
         if at_now != 0 {
-            let quads = x87::int_over_int_to_int(at_now as i32, HEX.per_vertex.get() as i32) as u32;
-            HEX.buffer.set(0);
+            let quads =
+                x87::int_over_int_to_int(at_now as i32, drops.hex.per_vertex.get() as i32) as u32;
+            drops.hex.buffer.set(0);
             WINDSCREEN_DROP_BATCH
                 .index_count
                 .set(quads.wrapping_mul(12));
@@ -112,7 +111,7 @@ pub fn windscreen_drops_top() -> Result<(), Refused> {
         }
         let marks = crate::effects::setup::marks()?;
         if marks.listener_switch_6.get() != 0 && MARKS_KIND_FLOATS.running.bits() != 0 {
-            crate::effects::windscreen_drops_step::windscreen_drops_step()?;
+            crate::effects::windscreen_drops_step::windscreen_drops_step(drops)?;
         }
     }
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].bits());
@@ -121,102 +120,102 @@ pub fn windscreen_drops_top() -> Result<(), Refused> {
 }
 
 /// `frame_axes`'s x87 block as plain Rust on the x87 model (32 instructions), same order and memory places.
-fn frame_axes_x87(m: &MarksSettings, c: &MarksClock) {
-    let t0 = ld_cell(&HEX.top_k[0]);
+fn frame_axes_x87(drops: &WindscreenDrops, m: &MarksSettings, c: &MarksClock) {
+    let t0 = ld_cell(&drops.hex.top_k[0]);
     let t1 = t0 * crate::math::x87_float::int(c.frame_ticks.get() as i32);
-    st_cell(&HEX.ease, t1);
+    st_cell(&drops.hex.ease, t1);
     let t2 = ldi_cell(&m.listener_switch_0);
-    let t3 = t2 * ld_cell(&HEX.top_k[1]);
-    WINDSCREEN_DROP_STATE.rate.set_bits(bh::st(t3));
+    let t3 = t2 * ld_cell(&drops.hex.top_k[1]);
+    drops.state.rate.set_bits(bh::st(t3));
     let t4 = ldi_cell(&m.listener_point_b_negated[0]);
     let t5 = ldi_cell(&m.listener_point_b_negated[1]);
     let t6 = ldi_cell(&m.listener_point_b_negated[2]);
-    WINDSCREEN_DROP_WORK.place[2].set_bits(bh::st(t6));
-    WINDSCREEN_DROP_WORK.place[1].set_bits(bh::st(t5));
-    WINDSCREEN_DROP_WORK.place[0].set_bits(bh::st(t4));
+    drops.work.place[2].set_bits(bh::st(t6));
+    drops.work.place[1].set_bits(bh::st(t5));
+    drops.work.place[0].set_bits(bh::st(t4));
     let t7 = ldi_cell(&m.listener_point_b[0]);
     let t8 = t7 - ldi_cell(&m.listener_point_b_negated[0]);
-    WINDSCREEN_DROP_WORK.axes[0].set_bits(bh::st(t8));
+    drops.work.axes[0].set_bits(bh::st(t8));
     let t9 = ldi_cell(&m.listener_point_b[1]);
     let t10 = t9 - ldi_cell(&m.listener_point_b_negated[1]);
-    WINDSCREEN_DROP_WORK.axes[1].set_bits(bh::st(t10));
+    drops.work.axes[1].set_bits(bh::st(t10));
     let t11 = ldi_cell(&m.listener_point_b[2]);
     let t12 = t11 - ldi_cell(&m.listener_point_b_negated[2]);
-    WINDSCREEN_DROP_WORK.axes[2].set_bits(bh::st(t12));
-    let t13 = bh::ld(WINDSCREEN_DROP_WORK.axes[0].bits());
+    drops.work.axes[2].set_bits(bh::st(t12));
+    let t13 = bh::ld(drops.work.axes[0].bits());
     let t14 = t13 * t13;
-    let t15 = bh::ld(WINDSCREEN_DROP_WORK.axes[1].bits());
+    let t15 = bh::ld(drops.work.axes[1].bits());
     let t16 = t15 * t15;
-    let t17 = bh::ld(WINDSCREEN_DROP_WORK.axes[2].bits());
+    let t17 = bh::ld(drops.work.axes[2].bits());
     let t18 = t17 * t17;
     let t19 = t16 + t18;
     let t20 = t14 + t19;
     let t21 = t20.sqrt();
-    let t22 = t21 / ld_cell(&HEX.top_k[2]);
-    WINDSCREEN_DROP_WORK.shares[0].set_bits(bh::st(t22));
+    let t22 = t21 / ld_cell(&drops.hex.top_k[2]);
+    drops.work.shares[0].set_bits(bh::st(t22));
 }
 
 /// `frame_up`'s x87 block as plain Rust on the x87 model (20 instructions), same order and memory places.
-fn frame_up_x87(m: &MarksSettings) {
+fn frame_up_x87(drops: &WindscreenDrops, m: &MarksSettings) {
     let t0 = ldi_cell(&m.listener_point_a_negated[0]);
     let t1 = t0 - ldi_cell(&m.listener_point_b_negated[0]);
-    WINDSCREEN_DROP_WORK.axes[3].set_bits(bh::st(t1));
+    drops.work.axes[3].set_bits(bh::st(t1));
     let t2 = ldi_cell(&m.listener_point_a_negated[1]);
     let t3 = t2 - ldi_cell(&m.listener_point_b_negated[1]);
-    WINDSCREEN_DROP_WORK.axes[4].set_bits(bh::st(t3));
+    drops.work.axes[4].set_bits(bh::st(t3));
     let t4 = ldi_cell(&m.listener_point_a_negated[2]);
     let t5 = t4 - ldi_cell(&m.listener_point_b_negated[2]);
-    WINDSCREEN_DROP_WORK.axes[5].set_bits(bh::st(t5));
-    let t6 = bh::ld(WINDSCREEN_DROP_WORK.axes[3].bits());
+    drops.work.axes[5].set_bits(bh::st(t5));
+    let t6 = bh::ld(drops.work.axes[3].bits());
     let t7 = t6 * t6;
-    let t8 = bh::ld(WINDSCREEN_DROP_WORK.axes[4].bits());
+    let t8 = bh::ld(drops.work.axes[4].bits());
     let t9 = t8 * t8;
-    let t10 = bh::ld(WINDSCREEN_DROP_WORK.axes[5].bits());
+    let t10 = bh::ld(drops.work.axes[5].bits());
     let t11 = t10 * t10;
     let t12 = t9 + t11;
     let t13 = t7 + t12;
     let t14 = t13.sqrt();
-    let t15 = t14 / ld_cell(&HEX.top_k[3]);
-    WINDSCREEN_DROP_WORK.shares[1].set_bits(bh::st(t15));
+    let t15 = t14 / ld_cell(&drops.hex.top_k[3]);
+    drops.work.shares[1].set_bits(bh::st(t15));
 }
 
 /// `frame_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-fn frame_place_x87(m: &MarksSettings) {
+fn frame_place_x87(drops: &WindscreenDrops, m: &MarksSettings) {
     let t0 = ldi_cell(&m.listener_point_b_negated[0]);
-    st_cell(&HEX.place[0], t0);
+    st_cell(&drops.hex.place[0], t0);
     let t1 = ldi_cell(&m.listener_point_b_negated[1]);
-    st_cell(&HEX.place[1], t1);
+    st_cell(&drops.hex.place[1], t1);
     let t2 = ldi_cell(&m.listener_point_b_negated[2]);
-    st_cell(&HEX.place[2], t2);
+    st_cell(&drops.hex.place[2], t2);
 }
 
 /// `frame_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
-fn frame_facing_x87() {
-    let t0 = ld_cell(&HEX.place[0]);
-    let t1 = t0 * bh::ld(WINDSCREEN_DROP_WORK.axes[6].bits());
-    let t2 = ld_cell(&HEX.place[1]);
-    let t3 = t2 * bh::ld(WINDSCREEN_DROP_WORK.axes[7].bits());
-    let t4 = ld_cell(&HEX.place[2]);
-    let t5 = t4 * bh::ld(WINDSCREEN_DROP_WORK.axes[8].bits());
+fn frame_facing_x87(drops: &WindscreenDrops) {
+    let t0 = ld_cell(&drops.hex.place[0]);
+    let t1 = t0 * bh::ld(drops.work.axes[6].bits());
+    let t2 = ld_cell(&drops.hex.place[1]);
+    let t3 = t2 * bh::ld(drops.work.axes[7].bits());
+    let t4 = ld_cell(&drops.hex.place[2]);
+    let t5 = t4 * bh::ld(drops.work.axes[8].bits());
     let t6 = t3 + t5;
     let t7 = t1 + t6;
-    WINDSCREEN_DROP_STATE.facing.set_bits(bh::st(t7));
+    drops.state.facing.set_bits(bh::st(t7));
 }
 
 /// `point_turned`'s x87 block as plain Rust on the x87 model (19 instructions), same order and memory places.
-fn point_turned_x87(p: &[Float; 3]) {
+fn point_turned_x87(drops: &WindscreenDrops, p: &[Float; 3]) {
     let t0 = ld_cell(&p[0]);
     let t1 = ld_cell(&p[1]);
-    let t2 = t0 * bh::ld(WINDSCREEN_DROP_WORK.axes[0].bits());
-    let t3 = t1 * bh::ld(WINDSCREEN_DROP_WORK.axes[3].bits());
+    let t2 = t0 * bh::ld(drops.work.axes[0].bits());
+    let t3 = t1 * bh::ld(drops.work.axes[3].bits());
     let t4 = t2 + t3;
     st_cell(&p[0], t4);
-    let t5 = t0 * bh::ld(WINDSCREEN_DROP_WORK.axes[1].bits());
-    let t6 = t1 * bh::ld(WINDSCREEN_DROP_WORK.axes[4].bits());
+    let t5 = t0 * bh::ld(drops.work.axes[1].bits());
+    let t6 = t1 * bh::ld(drops.work.axes[4].bits());
     let t7 = t5 + t6;
     st_cell(&p[1], t7);
-    let t8 = t1 * bh::ld(WINDSCREEN_DROP_WORK.axes[5].bits());
-    let t9 = t0 * bh::ld(WINDSCREEN_DROP_WORK.axes[2].bits());
+    let t8 = t1 * bh::ld(drops.work.axes[5].bits());
+    let t9 = t0 * bh::ld(drops.work.axes[2].bits());
     let t10 = t8 + t9;
     st_cell(&p[2], t10);
 }
@@ -378,10 +377,8 @@ mod asm_differential {
     use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_state::{
-        WINDSCREEN_DROP_STATE, WINDSCREEN_DROP_WORK, WindscreenDropState, WindscreenDropWork,
-    };
-    use crate::effects::windscreen_drop_vars::{HEX, WindscreenDropVars};
+    use crate::effects::windscreen_drop_state::{WindscreenDropState, WindscreenDropWork};
+    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
     use crate::session::Float;
 
     #[test]
@@ -436,13 +433,26 @@ mod asm_differential {
                 with_overlays(
                     b[0],
                     &[
-                        overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
-                        overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START),
-                        overlay(&HEX, WindscreenDropVars::START),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                            WindscreenDropState::START,
+                        ),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                            WindscreenDropWork::START,
+                        ),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            WindscreenDropVars::START,
+                        ),
                     ],
                     || {
                         with_settings(b[1], |m| {
-                            super::frame_axes_x87(m, crate::effects::setup::clock_at(b[0]));
+                            super::frame_axes_x87(
+                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                m,
+                                crate::effects::setup::clock_at(b[0]),
+                            );
                         });
                     },
                 );
@@ -493,10 +503,23 @@ mod asm_differential {
                 with_overlays(
                     b[0],
                     &[
-                        overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START),
-                        overlay(&HEX, WindscreenDropVars::START),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                            WindscreenDropWork::START,
+                        ),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            WindscreenDropVars::START,
+                        ),
                     ],
-                    || with_settings(b[1], super::frame_up_x87),
+                    || {
+                        with_settings(b[1], |m| {
+                            super::frame_up_x87(
+                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                m,
+                            );
+                        });
+                    },
                 );
             },
         );
@@ -525,9 +548,21 @@ mod asm_differential {
             &SPEC,
             |b| reference::frame_place_x87(b[0], b[1]),
             |b| {
-                with_overlays(b[0], &[overlay(&HEX, WindscreenDropVars::START)], || {
-                    with_settings(b[1], super::frame_place_x87);
-                });
+                with_overlays(
+                    b[0],
+                    &[overlay(
+                        &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                        WindscreenDropVars::START,
+                    )],
+                    || {
+                        with_settings(b[1], |m| {
+                            super::frame_place_x87(
+                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                m,
+                            );
+                        });
+                    },
+                );
             },
         );
     }
@@ -557,11 +592,20 @@ mod asm_differential {
                 with_overlays(
                     b[0],
                     &[
-                        overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
-                        overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START),
-                        overlay(&HEX, WindscreenDropVars::START),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                            WindscreenDropState::START,
+                        ),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                            WindscreenDropWork::START,
+                        ),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            WindscreenDropVars::START,
+                        ),
                     ],
-                    super::frame_facing_x87,
+                    || super::frame_facing_x87(&crate::effects::owner::EFFECTS.windscreen_drops),
                 );
             },
         );
@@ -599,14 +643,20 @@ mod asm_differential {
             |b| {
                 with_overlays(
                     b[0],
-                    &[overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START)],
+                    &[overlay(
+                        &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                        WindscreenDropWork::START,
+                    )],
                     || {
                         // The point's three floats, as the buffer holds them at b[1].
                         let host = |n: usize| crate::pointers::host_at(b[1] + 4 * n).cast::<u32>();
                         let p: [Float; 3] = std::array::from_fn(|n| {
                             Float::from_bits(unsafe { host(n).read_unaligned() })
                         });
-                        super::point_turned_x87(&p);
+                        super::point_turned_x87(
+                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            &p,
+                        );
                         for (n, cell) in p.iter().enumerate() {
                             unsafe { host(n).write_unaligned(cell.bits()) };
                         }

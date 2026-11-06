@@ -13,7 +13,7 @@ use crate::errors::Refused;
 
 /// `sound::race_turn` while the race's sounds are on: true when it ran.
 pub fn race_turn_if() -> Result<bool, Refused> {
-    if crate::sound::store::RACE_SOUNDS_ON.get() == 0 {
+    if crate::sound::owner::sound().race.sounds_on.get() == 0 {
         return Ok(false);
     }
     crate::sound::race_turn::race_turn()?;

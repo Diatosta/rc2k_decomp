@@ -28,13 +28,17 @@ pub struct SavegamePreview {
 }
 
 /// First values the image's (`tests::savegame_preview_starts_as_the_games`).
-pub static SAVEGAME_PREVIEW: SavegamePreview = SavegamePreview {
-    use_savegame_keys: Dword::new(0),
-    shown_slot: Dword::new(0x65),
-    nothing_to_show: Dword::new(1),
-    saved: [const { Dword::new(0) }; 7],
-    saved_cars: Dword::new(0),
-};
+impl SavegamePreview {
+    pub const fn new() -> Self {
+        SavegamePreview {
+            use_savegame_keys: Dword::new(0),
+            shown_slot: Dword::new(0x65),
+            nothing_to_show: Dword::new(1),
+            saved: [const { Dword::new(0) }; 7],
+            saved_cars: Dword::new(0),
+        }
+    }
+}
 
 /// IDA 0X755144, the first byte of the piece.
 pub const START: usize = 0x755144;
@@ -44,7 +48,7 @@ pub const END: usize = 0x755170;
 /// Where IDA 0X755144 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn savegame_preview_addr() -> u32 {
-    crate::pointers::game_address(&raw const SAVEGAME_PREVIEW)
+    crate::pointers::game_address(&raw const crate::saves::owner::SAVES.savegame_preview)
 }
 
 #[cfg(test)]

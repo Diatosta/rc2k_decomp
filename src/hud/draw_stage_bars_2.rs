@@ -7,9 +7,10 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_stage_bars_1::bars_with;
+use crate::hud::owner::Hud;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::stage_bars` (through `draw_stage_bar::bars`)
-pub fn draw_stage_bars_2() -> Result<(), Refused> {
-    bars_with(0x11E)
+pub fn draw_stage_bars_2(hud: &Hud) -> Result<(), Refused> {
+    bars_with(hud, 0x11E)
 }

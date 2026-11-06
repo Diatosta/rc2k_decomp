@@ -28,7 +28,6 @@ use crate::race::clock_ticks_store::CLOCK_TICKS;
 use crate::race::numbers_store::NUMBERS;
 use crate::race::state_store::RACE_STATE;
 use crate::race::viewer_state_store::REPLAY_VIEW;
-use crate::sound::store::RACE_SOUNDS;
 
 /// The car's lift: `dword_70F524` += `flt_64BB38` x `flt_5C5D98` (`fiadd`, `fistp`), over the
 /// race block at `rc`.
@@ -53,7 +52,9 @@ pub fn finish_run() -> Result<(), Refused> {
     restart_clock();
     FINISH.start_clock.set(PHYSICS.scene_clock.get());
     loop {
-        RACE_SOUNDS.objects[0].revs.set(0);
+        crate::sound::owner::sound().race.sounds.objects[0]
+            .revs
+            .set(0);
         input_update();
         crate::drive::finish_timing::finish_timing();
         let n = RACE_STATE.results.finished.get();

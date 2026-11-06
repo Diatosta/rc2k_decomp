@@ -34,11 +34,11 @@ pub fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32) {
     let Some((next, pick)) = menu_sound(
         sound,
         now(),
-        crate::sound::store::NEXT_MENU_SOUND_TIME.get(),
+        crate::sound::owner::sound().menu.next_sound_time.get(),
     ) else {
         return;
     };
-    crate::sound::store::NEXT_MENU_SOUND_TIME.set(next);
+    crate::sound::owner::sound().menu.next_sound_time.set(next);
     let Some((sound, volume)) = pick else {
         return;
     };

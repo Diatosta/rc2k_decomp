@@ -14,8 +14,9 @@
 //! Callers: `sub_4CFB49` and code at 0x4D032B. Refuses a null record or ring (when an entry
 //! is to be taken), before anything.
 
-use crate::effects::blocks::{RING_POOL, particle, set_particle};
+use crate::effects::blocks::{particle, set_particle};
 use crate::effects::frame_state::DRAW_WORK;
+use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
@@ -33,15 +34,15 @@ fn next_seed() -> u32 {
 }
 
 /// The entries the burst takes, from `g_marksRingFree` along +0.
-fn entries_taken(particles: &Particles) -> Result<Vec<u32>, Refused> {
+fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused> {
     Ok({
-        let used: u32 = RING_POOL.used.get();
+        let used: u32 = ring.pool.used.get();
         let count = if used <= FULL {
             (FULL - used).min(ENTRIES)
         } else {
             ENTRIES
         };
-        let mut e: u32 = RING_POOL.free.get();
+        let mut e: u32 = ring.pool.free.get();
         let mut out = Vec::new();
         for _ in 0..count {
             if e == 0 {
@@ -55,17 +56,17 @@ fn entries_taken(particles: &Particles) -> Result<Vec<u32>, Refused> {
 }
 
 /// The Rust version (see the header): `record` the particle it bursts from (esi).
-pub fn burst_particles(particles: &Particles, record: u32) -> Result<(), Refused> {
+pub fn burst_particles(particles: &Particles, ring: &Ring, record: u32) -> Result<(), Refused> {
     {
-        if RING_POOL.used.get() != FULL {
+        if ring.pool.used.get() != FULL {
             if record == 0 {
                 return Err(BadInput("a null record").into());
             }
-            if entries_taken(particles)?.contains(&0) || RING_POOL.free.get() == 0 {
+            if entries_taken(particles, ring)?.contains(&0) || ring.pool.free.get() == 0 {
                 return Err(BadInput("a null ring entry").into());
             }
         }
-        crate::sound::store::STAGE_SOUNDS.random[1].set(1);
+        crate::sound::owner::sound().race.stage.random[1].set(1);
         let s = next_seed();
         let r = s & 0xFFFF;
         let m = DRAW_WORK.uv_k.bits();
@@ -74,29 +75,29 @@ pub fn burst_particles(particles: &Particles, record: u32) -> Result<(), Refused
             .each_ref()
             .map(super::super::session::Float::bits);
         let radius = x87::int_times_plus_times(r as i32, m, c, k);
-        RING_POOL.burst_radius.set_bits(radius);
-        RING_POOL.kind.set((s & 7) * 0x400);
-        RING_POOL.nine.set((s.rotate_right(16) & 1) + 8);
+        ring.pool.burst_radius.set_bits(radius);
+        ring.pool.kind.set((s & 7) * 0x400);
+        ring.pool.nine.set((s.rotate_right(16) & 1) + 8);
         let sine = |n: u32| crate::scene::engine_tables_store::sine(n as usize).bits();
         let cosine = |n: u32| crate::scene::engine_tables_store::cosine(n as usize).bits();
         for _ in 0..ENTRIES {
-            let used: u32 = RING_POOL.used.get();
+            let used: u32 = ring.pool.used.get();
             if used == FULL {
                 continue;
             }
-            let e: u32 = particle(particles, RING_POOL.free.get(), 0)?;
-            RING_POOL.free.set(e);
-            RING_POOL.used.set(used.wrapping_add(1));
+            let e: u32 = particle(particles, ring.pool.free.get(), 0)?;
+            ring.pool.free.set(e);
+            ring.pool.used.set(used.wrapping_add(1));
             let put = |o: u32, v: u32| set_particle(particles, e, o, v);
-            put(8, RING_POOL.nine.get())?;
-            put(0x48, RING_POOL.kind.get())?;
+            put(8, ring.pool.nine.get())?;
+            put(0x48, ring.pool.kind.get())?;
             for o in [0xC, 0x10, 0x14] {
                 put(o, x87::loaded(particle(particles, record, o)?))?;
             }
             let s = next_seed();
             let a = s.rotate_right(16) & 0xFFF;
             let b = s & 0xFFF;
-            let radius: u32 = RING_POOL.burst_radius.bits();
+            let radius: u32 = ring.pool.burst_radius.bits();
             put(0x34, x87::mul(sine(a), radius))?;
             put(
                 0x28,

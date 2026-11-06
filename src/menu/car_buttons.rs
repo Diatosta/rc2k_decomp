@@ -4,7 +4,6 @@
 //! leaving switch. Each button is `pusha` .. `popa`.
 
 use crate::errors::Refused;
-use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::load_car_background::load_car_background;
 use crate::menu::load_slideshow_picture::load_slideshow_picture_in_game;
@@ -21,7 +20,7 @@ pub fn press(b: Which, call: &mut dyn FnMut(Call) -> Result<(), Refused>) -> Res
 
     let mut s = Shown {
         car: EVENT_STATE.shown_car.get(),
-        last_car: CAR_TABLE.last_car.get(),
+        last_car: crate::menu::owner::menus().cars.table.last_car.get(),
         picture: EVENT_STATE.picture.get(),
         page: EVENT_STATE.car_page.get(),
         leave: LOOP_FLAGS.back.get(),

@@ -12,9 +12,7 @@
 //! game's variables; the picks their Rust versions (under the same rounding).
 
 use crate::effects::pick_windscreen_drop::pick_windscreen_drop;
-use crate::effects::tilt_shape::SHAPE_TILT;
-use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
-use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -22,31 +20,32 @@ use crate::math::x87;
 const MOST: i32 = 0x80;
 
 /// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
-fn rate() {
-    rate_x87(&KEPT);
+fn rate(drops: &WindscreenDrops) {
+    rate_x87(drops, &KEPT);
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_spawn() -> Result<(), Refused> {
+pub fn windscreen_drops_spawn(drops: &WindscreenDrops) -> Result<(), Refused> {
     {
-        WINDSCREEN_DROP_STATE
+        drops
+            .state
             .frames
-            .set(WINDSCREEN_DROP_STATE.frames.get().wrapping_add(1));
+            .set(drops.state.frames.get().wrapping_add(1));
         let old = x87::set_chop();
-        rate();
+        rate(drops);
         let status = MARKS_WORK.fpu_status.get() & 0x700;
         MARKS_WORK.fpu_status.set(status);
         if status != 0x100 {
-            let v: u32 = WINDSCREEN_DROP_STATE.spawn_rate.bits();
+            let v: u32 = drops.state.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                pick_windscreen_drop()?;
+                pick_windscreen_drop(drops)?;
             }
-            let share = x87::fraction_times_to_int(v, HEX.share_k.bits());
+            let share = x87::fraction_times_to_int(v, drops.hex.share_k.bits());
             let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
             MARKS_WORK.seed.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
-                pick_windscreen_drop()?;
+                pick_windscreen_drop(drops)?;
             }
         }
         x87::set_control(old);
@@ -59,24 +58,24 @@ use crate::effects::view_vectors::{KEPT, KeptView};
 use crate::math::x87_float as bh;
 
 /// `rate`'s x87 block as plain Rust on the x87 model (18 instructions), same order and memory places.
-fn rate_x87(kv: &KeptView) {
+fn rate_x87(drops: &WindscreenDrops, kv: &KeptView) {
     let t0 = bh::ld(kv.first_angle.bits());
-    let t1 = t0 + bh::ld(SHAPE_TILT.tilt.bits());
+    let t1 = t0 + bh::ld(drops.tilt.tilt.bits());
     let t2 = t1.sin();
-    let t3 = t2 * bh::ld(WINDSCREEN_DROP_STATE.rate.bits());
-    WINDSCREEN_DROP_STATE.spawn_rate.set_bits(bh::st(t3));
-    let t4 = bh::ld(WINDSCREEN_DROP_STATE.rate.bits());
-    let t5 = t4 * bh::ld(SHAPE_TILT.point[2].bits());
+    let t3 = t2 * bh::ld(drops.state.rate.bits());
+    drops.state.spawn_rate.set_bits(bh::st(t3));
+    let t4 = bh::ld(drops.state.rate.bits());
+    let t5 = t4 * bh::ld(drops.tilt.point[2].bits());
     let t6 = -t5;
     let t7 = bh::ld(kv.first_angle.bits());
-    let t8 = t7 + bh::ld(SHAPE_TILT.tilt.bits());
+    let t8 = t7 + bh::ld(drops.tilt.tilt.bits());
     let t9 = t8.cos();
     let t10 = t6 * t9;
-    let t11 = t10 * ld_cell(&HEX.spawn_k[0]);
-    let t12 = t11 + bh::ld(WINDSCREEN_DROP_STATE.spawn_rate.bits());
-    WINDSCREEN_DROP_STATE.spawn_rate.set_bits(bh::st(t12));
-    let t13 = bh::ld(WINDSCREEN_DROP_STATE.spawn_rate.bits());
-    crate::effects::plain::set_status(bh::compare(t13, ld_cell(&HEX.spawn_k[1])));
+    let t11 = t10 * ld_cell(&drops.hex.spawn_k[0]);
+    let t12 = t11 + bh::ld(drops.state.spawn_rate.bits());
+    drops.state.spawn_rate.set_bits(bh::st(t12));
+    let t13 = bh::ld(drops.state.spawn_rate.bits());
+    crate::effects::plain::set_status(bh::compare(t13, ld_cell(&drops.hex.spawn_k[1])));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -120,11 +119,11 @@ mod asm_differential {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_copy;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::tilt_shape::{SHAPE_TILT, ShapeTilt};
+    use crate::effects::tilt_shape::ShapeTilt;
     use crate::effects::typed_sync::{overlay, with_overlays};
     use crate::effects::view_vectors::KeptView;
-    use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WindscreenDropState};
-    use crate::effects::windscreen_drop_vars::{HEX, WindscreenDropVars};
+    use crate::effects::windscreen_drop_state::WindscreenDropState;
+    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
 
     #[test]
     fn rate_x87_matches() {
@@ -159,11 +158,20 @@ mod asm_differential {
                     with_overlays(
                         b[1],
                         &[
-                            overlay(&SHAPE_TILT, ShapeTilt::START),
-                            overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
-                            overlay(&HEX, WindscreenDropVars::START),
+                            overlay(
+                                &crate::effects::owner::EFFECTS.windscreen_drops.tilt,
+                                ShapeTilt::START,
+                            ),
+                            overlay(
+                                &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                                WindscreenDropState::START,
+                            ),
+                            overlay(
+                                &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                                WindscreenDropVars::START,
+                            ),
                         ],
-                        || super::rate_x87(kv),
+                        || super::rate_x87(&crate::effects::owner::EFFECTS.windscreen_drops, kv),
                     );
                 });
             },

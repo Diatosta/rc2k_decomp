@@ -16,11 +16,11 @@
 
 use crate::effects::emitters::next_c5;
 use crate::effects::mask_constants::MASK_CONSTANTS;
-use crate::effects::mask_picks::PICKS;
 use crate::effects::mask_vars::MASKS;
 use crate::effects::pick_shapes::pick_shapes;
 use crate::effects::setup::CLOCK;
 use crate::effects::shape_points::turn_all_shapes;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 
 use crate::math::x87;
@@ -28,15 +28,16 @@ use crate::physics::tables_store::PHYSICS;
 const MASK_COUNT: u32 = 9;
 
 /// The Rust version (see the header).
-pub fn run_shapes() -> Result<(), Refused> {
+pub fn run_shapes(drops: &WindscreenDrops) -> Result<(), Refused> {
     let marks = crate::effects::setup::marks()?;
     {
-        pick_shapes()?;
-        turn_all_shapes()?;
+        pick_shapes(drops)?;
+        turn_all_shapes(drops)?;
         let clock: u32 = PHYSICS.scene_clock.bits();
-        if clock as i32 >= PICKS.next.get() as i32 {
+        if clock as i32 >= drops.picks.next.get() as i32 {
             let r = next_c5(&MASK_CONSTANTS.time_random);
-            PICKS
+            drops
+                .picks
                 .next
                 .set((r & 0xFF).wrapping_add(PHYSICS.scene_clock.bits()));
             let mask = marks.listener_switch_7.get();
@@ -46,18 +47,18 @@ pub fn run_shapes() -> Result<(), Refused> {
             let moving = next_c5(&MASK_CONSTANTS.move_random)
                 .rotate_right(16)
                 .wrapping_add(clock)
-                & PICKS.masks[mask as usize].get();
-            PICKS.moving.set(1);
+                & drops.picks.masks[mask as usize].get();
+            drops.picks.moving.set(1);
             if moving == 0 {
-                PICKS.moving.set(0);
+                drops.picks.moving.set(0);
                 return Ok(());
             }
         }
-        if PICKS.moving.get() == 0 {
+        if drops.picks.moving.get() == 0 {
             return Ok(());
         }
         let rate = if marks.listener_switch_5.get() == 1 {
-            (PICKS.index.get() >> 3 != 0).then_some(&MASK_CONSTANTS.rates[0])
+            (drops.picks.index.get() >> 3 != 0).then_some(&MASK_CONSTANTS.rates[0])
         } else {
             Some(&MASK_CONSTANTS.rates[1])
         };
@@ -68,9 +69,9 @@ pub fn run_shapes() -> Result<(), Refused> {
                 MASKS.count.get() as i32,
             );
             MASKS.count.set(count as u32);
-            PICKS.index.set((count as u32 >> 16) & 0xFF);
+            drops.picks.index.set((count as u32 >> 16) & 0xFF);
         }
-        pick_shapes()?;
+        pick_shapes(drops)?;
     }
     Ok(())
 }

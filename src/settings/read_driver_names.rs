@@ -91,12 +91,12 @@ pub fn read_driver_names(path: impl crate::files::handle::GamePath) -> Result<()
                 pool_used += name.len() as u32 + 1;
             }
             if let Some(n) = entry.first {
-                crate::menu::drivers_store::DRIVERS.drivers[driver]
+                crate::menu::owner::menus().cars.drivers.drivers[driver]
                     .nation
                     .set(n);
             }
             if let Some(n) = entry.second {
-                crate::menu::drivers_store::DRIVERS.drivers[driver]
+                crate::menu::owner::menus().cars.drivers.drivers[driver]
                     .car
                     .set(n);
             }

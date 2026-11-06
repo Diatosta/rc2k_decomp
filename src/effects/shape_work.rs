@@ -108,59 +108,63 @@ pub struct ShapeWork {
     pub _gap_89bc24: Bytes<128>,
 }
 
-pub static SHAPE_WORK: ShapeWork = ShapeWork {
-    first_point: Dword::new(0x0),
-    turn_x: [const { Float::from_bits(0x0) }; 9],
-    _gap_884e84: Bytes::new([0; 204]),
-    turn_a: [const { Float::from_bits(0x0) }; 9],
-    _gap_884f74: Bytes::new([0; 12]),
-    turn_b: [const { Float::from_bits(0x0) }; 9],
-    _gap_884fa4: Bytes::new([0; 12]),
-    sets_made: Dword::new(0x0),
-    work: MarkShapes {
-        farthest_a: [const { Dword::new(0x0) }; 2],
-        farthest_b: [const { Dword::new(0x0) }; 2],
-        steps: [const { Dword::new(0x0) }; 8],
-        _gap_30: Bytes::new([0; 8]),
-        count_a: Dword::new(0x0),
-        count_b: Dword::new(0x0),
-        ids_a: [const { Dword::new(0x0) }; 64],
-        ids_b: [const { Dword::new(0x0) }; 64],
-        faces_a: [const { Dword::new(0x0) }; 64],
-        faces_b: [const { Dword::new(0x0) }; 64],
-        turned_a: Bytes::new([0; 768]),
-        turned_b: Bytes::new([0; 768]),
-        low_a: [const { Dword::new(0x0) }; 3],
-        low_b: [const { Dword::new(0x0) }; 3],
-        matrix_a: [const { Float::from_bits(0x0) }; 9],
-        _gap_a7c: Bytes::new([0; 12]),
-        matrix_b: [const { Float::from_bits(0x0) }; 9],
-        _gap_aac: Bytes::new([0; 12]),
-    },
-    sets: [const {
-        MarkShapes {
-            farthest_a: [const { Dword::new(0x0) }; 2],
-            farthest_b: [const { Dword::new(0x0) }; 2],
-            steps: [const { Dword::new(0x0) }; 8],
-            _gap_30: Bytes::new([0; 8]),
-            count_a: Dword::new(0x0),
-            count_b: Dword::new(0x0),
-            ids_a: [const { Dword::new(0x0) }; 64],
-            ids_b: [const { Dword::new(0x0) }; 64],
-            faces_a: [const { Dword::new(0x0) }; 64],
-            faces_b: [const { Dword::new(0x0) }; 64],
-            turned_a: Bytes::new([0; 768]),
-            turned_b: Bytes::new([0; 768]),
-            low_a: [const { Dword::new(0x0) }; 3],
-            low_b: [const { Dword::new(0x0) }; 3],
-            matrix_a: [const { Float::from_bits(0x0) }; 9],
-            _gap_a7c: Bytes::new([0; 12]),
-            matrix_b: [const { Float::from_bits(0x0) }; 9],
-            _gap_aac: Bytes::new([0; 12]),
+impl ShapeWork {
+    pub const fn new() -> Self {
+        ShapeWork {
+            first_point: Dword::new(0x0),
+            turn_x: [const { Float::from_bits(0x0) }; 9],
+            _gap_884e84: Bytes::new([0; 204]),
+            turn_a: [const { Float::from_bits(0x0) }; 9],
+            _gap_884f74: Bytes::new([0; 12]),
+            turn_b: [const { Float::from_bits(0x0) }; 9],
+            _gap_884fa4: Bytes::new([0; 12]),
+            sets_made: Dword::new(0x0),
+            work: MarkShapes {
+                farthest_a: [const { Dword::new(0x0) }; 2],
+                farthest_b: [const { Dword::new(0x0) }; 2],
+                steps: [const { Dword::new(0x0) }; 8],
+                _gap_30: Bytes::new([0; 8]),
+                count_a: Dword::new(0x0),
+                count_b: Dword::new(0x0),
+                ids_a: [const { Dword::new(0x0) }; 64],
+                ids_b: [const { Dword::new(0x0) }; 64],
+                faces_a: [const { Dword::new(0x0) }; 64],
+                faces_b: [const { Dword::new(0x0) }; 64],
+                turned_a: Bytes::new([0; 768]),
+                turned_b: Bytes::new([0; 768]),
+                low_a: [const { Dword::new(0x0) }; 3],
+                low_b: [const { Dword::new(0x0) }; 3],
+                matrix_a: [const { Float::from_bits(0x0) }; 9],
+                _gap_a7c: Bytes::new([0; 12]),
+                matrix_b: [const { Float::from_bits(0x0) }; 9],
+                _gap_aac: Bytes::new([0; 12]),
+            },
+            sets: [const {
+                MarkShapes {
+                    farthest_a: [const { Dword::new(0x0) }; 2],
+                    farthest_b: [const { Dword::new(0x0) }; 2],
+                    steps: [const { Dword::new(0x0) }; 8],
+                    _gap_30: Bytes::new([0; 8]),
+                    count_a: Dword::new(0x0),
+                    count_b: Dword::new(0x0),
+                    ids_a: [const { Dword::new(0x0) }; 64],
+                    ids_b: [const { Dword::new(0x0) }; 64],
+                    faces_a: [const { Dword::new(0x0) }; 64],
+                    faces_b: [const { Dword::new(0x0) }; 64],
+                    turned_a: Bytes::new([0; 768]),
+                    turned_b: Bytes::new([0; 768]),
+                    low_a: [const { Dword::new(0x0) }; 3],
+                    low_b: [const { Dword::new(0x0) }; 3],
+                    matrix_a: [const { Float::from_bits(0x0) }; 9],
+                    _gap_a7c: Bytes::new([0; 12]),
+                    matrix_b: [const { Float::from_bits(0x0) }; 9],
+                    _gap_aac: Bytes::new([0; 12]),
+                }
+            }; 33],
+            _gap_89bc24: Bytes::new([0; 128]),
         }
-    }; 33],
-    _gap_89bc24: Bytes::new([0; 128]),
-};
+    }
+}
 
 impl ShapeWork {
     pub const START: usize = 0x884E5C;
@@ -188,7 +192,8 @@ mod tests_shape_work {
         );
         assert_eq!(offset_of!(ShapeWork, work), 0x884FB4 - ShapeWork::START);
         assert_eq!(offset_of!(ShapeWork, sets), 0x885A6C - ShapeWork::START);
-        let p = core::ptr::addr_of!(SHAPE_WORK).cast::<u8>();
+        let p = core::ptr::addr_of!(crate::effects::owner::EFFECTS.windscreen_drops.shape_work)
+            .cast::<u8>();
         let now: Vec<u8> = (0..ShapeWork::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

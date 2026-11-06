@@ -12,122 +12,126 @@ pub struct ItemSprites {
     pub lists: [[Dword; 5]; 16],
 }
 
-pub static ITEM_SPRITES: ItemSprites = ItemSprites {
-    lists: [
-        [
-            Dword::new(0xa),
-            Dword::new(0xc),
-            Dword::new(0xa),
-            Dword::new(0xc),
-            Dword::new(0xb),
-        ],
-        [
-            Dword::new(0xa),
-            Dword::new(0xc),
-            Dword::new(0xf),
-            Dword::new(0x10),
-            Dword::new(0xb),
-        ],
-        [
-            Dword::new(0xa),
-            Dword::new(0xc),
-            Dword::new(0xf),
-            Dword::new(0xe),
-            Dword::new(0xb),
-        ],
-        [
-            Dword::new(0xa),
-            Dword::new(0xc),
-            Dword::new(0xd),
-            Dword::new(0x10),
-            Dword::new(0xb),
-        ],
-        [
-            Dword::new(0xa),
-            Dword::new(0xc),
-            Dword::new(0xa),
-            Dword::new(0xe),
-            Dword::new(0xb),
-        ],
-        [
-            Dword::new(0xa),
-            Dword::new(0xc),
-            Dword::new(0xd),
-            Dword::new(0xc),
-            Dword::new(0xb),
-        ],
-        [
-            Dword::new(0xa),
-            Dword::new(0xc),
-            Dword::new(0xf),
-            Dword::new(0xc),
-            Dword::new(0xb),
-        ],
-        [
-            Dword::new(0xa),
-            Dword::new(0xc),
-            Dword::new(0xa),
-            Dword::new(0x10),
-            Dword::new(0xb),
-        ],
-        [
-            Dword::new(0x11),
-            Dword::new(0x13),
-            Dword::new(0x11),
-            Dword::new(0x13),
-            Dword::new(0x12),
-        ],
-        [
-            Dword::new(0x11),
-            Dword::new(0x13),
-            Dword::new(0x16),
-            Dword::new(0x17),
-            Dword::new(0x12),
-        ],
-        [
-            Dword::new(0x11),
-            Dword::new(0x13),
-            Dword::new(0x16),
-            Dword::new(0x15),
-            Dword::new(0x12),
-        ],
-        [
-            Dword::new(0x11),
-            Dword::new(0x13),
-            Dword::new(0x14),
-            Dword::new(0x17),
-            Dword::new(0x12),
-        ],
-        [
-            Dword::new(0x11),
-            Dword::new(0x13),
-            Dword::new(0x11),
-            Dword::new(0x15),
-            Dword::new(0x12),
-        ],
-        [
-            Dword::new(0x11),
-            Dword::new(0x13),
-            Dword::new(0x14),
-            Dword::new(0x13),
-            Dword::new(0x12),
-        ],
-        [
-            Dword::new(0x11),
-            Dword::new(0x13),
-            Dword::new(0x16),
-            Dword::new(0x13),
-            Dword::new(0x12),
-        ],
-        [
-            Dword::new(0x11),
-            Dword::new(0x13),
-            Dword::new(0x11),
-            Dword::new(0x17),
-            Dword::new(0x12),
-        ],
-    ],
-};
+impl ItemSprites {
+    pub const fn new() -> Self {
+        ItemSprites {
+            lists: [
+                [
+                    Dword::new(0xa),
+                    Dword::new(0xc),
+                    Dword::new(0xa),
+                    Dword::new(0xc),
+                    Dword::new(0xb),
+                ],
+                [
+                    Dword::new(0xa),
+                    Dword::new(0xc),
+                    Dword::new(0xf),
+                    Dword::new(0x10),
+                    Dword::new(0xb),
+                ],
+                [
+                    Dword::new(0xa),
+                    Dword::new(0xc),
+                    Dword::new(0xf),
+                    Dword::new(0xe),
+                    Dword::new(0xb),
+                ],
+                [
+                    Dword::new(0xa),
+                    Dword::new(0xc),
+                    Dword::new(0xd),
+                    Dword::new(0x10),
+                    Dword::new(0xb),
+                ],
+                [
+                    Dword::new(0xa),
+                    Dword::new(0xc),
+                    Dword::new(0xa),
+                    Dword::new(0xe),
+                    Dword::new(0xb),
+                ],
+                [
+                    Dword::new(0xa),
+                    Dword::new(0xc),
+                    Dword::new(0xd),
+                    Dword::new(0xc),
+                    Dword::new(0xb),
+                ],
+                [
+                    Dword::new(0xa),
+                    Dword::new(0xc),
+                    Dword::new(0xf),
+                    Dword::new(0xc),
+                    Dword::new(0xb),
+                ],
+                [
+                    Dword::new(0xa),
+                    Dword::new(0xc),
+                    Dword::new(0xa),
+                    Dword::new(0x10),
+                    Dword::new(0xb),
+                ],
+                [
+                    Dword::new(0x11),
+                    Dword::new(0x13),
+                    Dword::new(0x11),
+                    Dword::new(0x13),
+                    Dword::new(0x12),
+                ],
+                [
+                    Dword::new(0x11),
+                    Dword::new(0x13),
+                    Dword::new(0x16),
+                    Dword::new(0x17),
+                    Dword::new(0x12),
+                ],
+                [
+                    Dword::new(0x11),
+                    Dword::new(0x13),
+                    Dword::new(0x16),
+                    Dword::new(0x15),
+                    Dword::new(0x12),
+                ],
+                [
+                    Dword::new(0x11),
+                    Dword::new(0x13),
+                    Dword::new(0x14),
+                    Dword::new(0x17),
+                    Dword::new(0x12),
+                ],
+                [
+                    Dword::new(0x11),
+                    Dword::new(0x13),
+                    Dword::new(0x11),
+                    Dword::new(0x15),
+                    Dword::new(0x12),
+                ],
+                [
+                    Dword::new(0x11),
+                    Dword::new(0x13),
+                    Dword::new(0x14),
+                    Dword::new(0x13),
+                    Dword::new(0x12),
+                ],
+                [
+                    Dword::new(0x11),
+                    Dword::new(0x13),
+                    Dword::new(0x16),
+                    Dword::new(0x13),
+                    Dword::new(0x12),
+                ],
+                [
+                    Dword::new(0x11),
+                    Dword::new(0x13),
+                    Dword::new(0x11),
+                    Dword::new(0x17),
+                    Dword::new(0x12),
+                ],
+            ],
+        }
+    }
+}
 
 /// What a menu item's +0x20 holds: a sprite number (the glyph drawn behind an item that is no
 /// button, and its palette), or for a button one of the lists (the original kept its
@@ -143,7 +147,10 @@ impl ItemSprite {
     pub fn raw(self) -> u32 {
         match self {
             Self::Sprite(n) => n,
-            Self::List(n) => crate::pointers::GamePtr::to(&ITEM_SPRITES.lists[n]).addr(),
+            Self::List(n) => crate::pointers::GamePtr::to(
+                &crate::menu::owner::menus().panels.item_sprites.lists[n],
+            )
+            .addr(),
         }
     }
 }
@@ -205,7 +212,7 @@ pub const END: usize = 0x747AD8;
 /// Where IDA 0x747998 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn item_sprites_addr() -> u32 {
-    crate::pointers::game_address(&raw const ITEM_SPRITES)
+    crate::pointers::game_address(&raw const crate::menu::owner::MENUS.panels.item_sprites)
 }
 
 #[cfg(test)]

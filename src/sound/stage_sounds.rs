@@ -26,7 +26,6 @@
 use crate::errors::Refused;
 use crate::session::MACHINE;
 use crate::sound::sample_settings::OWN;
-use crate::sound::store::STAGE_SOUNDS;
 
 /// The one-off sounds: the flag's index in `once` and the sound.
 const ONE_OFFS: [(usize, u32); 3] = [(0, 0x1AB), (1, 0x1AC), (2, 0x1AD)];
@@ -42,7 +41,7 @@ const MINUS_ONE: u32 = 0xBF80_0000;
 pub fn stage_sounds() -> Result<(), Refused> {
     use crate::sound::turn_parts::play;
     let request = crate::sound::turn_parts::request();
-    let stage = &STAGE_SOUNDS;
+    let stage = &crate::sound::owner::sound().race.stage;
     request.pitch_factor.set(ONE);
     request.volume_factor.set(ONE);
     for (n, sound) in ONE_OFFS {
@@ -52,7 +51,7 @@ pub fn stage_sounds() -> Result<(), Refused> {
         }
     }
     // Converted: `rc2k_core::sound::stage::wait_turn`.
-    let clock = crate::sound::store::RACE_CLOCK.last.get();
+    let clock = crate::sound::owner::sound().race.clock.last.get();
     let mut wait = rc2k_core::sound::stage::Wait {
         arm: stage.timed_arm.get(),
         delay: stage.timed_delay.get(),

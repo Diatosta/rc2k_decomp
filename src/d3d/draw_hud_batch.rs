@@ -9,21 +9,19 @@
 //! Platform: the original always runs. In the standalone program the rasteriser draws
 //! each triangle (`platform_3d::draw_triangles`) and the result is 0.
 
-use crate::hud::store::HUD;
-
 /// Draws the HUD's batch. Its leftovers (eax 0, ecx, edx) are read by none of the
 /// original's callers (register liveness, 2026-10-23).
-pub fn draw_hud_batch() {
+pub fn draw_hud_batch(hud: &crate::hud::owner::Hud) {
     // The vertices and indices are the HUD block's (`hud::store`); the image's two
     // pointers to them (`off_764F2C`, `off_764F30`) are no longer read.
     let past = |what: &str| -> ! {
         crate::fatal::raise::end(what, crate::errors::BadInput("past the HUD's batch"))
     };
     crate::platform_3d::draw_triangles(
-        HUD.vertex_count.get(),
-        HUD.index_count.get(),
+        hud.block.vertex_count.get(),
+        hud.block.index_count.get(),
         |n| {
-            let Some(v) = HUD.vertices.get(n as usize) else {
+            let Some(v) = hud.block.vertices.get(n as usize) else {
                 past("a vertex")
             };
             [
@@ -37,7 +35,7 @@ pub fn draw_hud_batch() {
                 v.v.bits(),
             ]
         },
-        |k| match HUD.indices.get(k) {
+        |k| match hud.block.indices.get(k) {
             Some(i) => i.get(),
             None => past("an index"),
         },

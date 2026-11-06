@@ -35,10 +35,10 @@ const LOOK: u32 = 0x3F;
 const LIFE: u32 = 0xFA;
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-fn refusal(object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
+fn refusal(ring: &Ring, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
     Ok({
         // The ring full: nothing more is read.
-        next_entry()?;
+        next_entry(ring)?;
         if !car_with_matrix()? {
             return Ok(Some("a null g_marksCar or matrix"));
         }
@@ -50,16 +50,20 @@ fn refusal(object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_13(particles: &Particles, object: &'static MarkCar) -> Result<(), Refused> {
-    if let Some(why) = refusal(object)? {
+pub fn emit_particle_13(
+    particles: &Particles,
+    ring: &Ring,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
+    if let Some(why) = refusal(ring, object)? {
         return Err(BadInput(why).into());
     }
-    if next_entry()?.is_none() {
+    if next_entry(ring)?.is_none() {
         return Ok(());
     }
     let model = object.word(4)? as usize;
-    let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 0xD)?;
-    let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
+    let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, 0xD)?;
+    let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
     let car = emitting_car()?;
     let cells = car.whole()?;
     let t: [u32; 3] = read_first(&SPLINE_HEAD.points[3 * model..]);
@@ -76,7 +80,7 @@ pub fn emit_particle_13(particles: &Particles, object: &'static MarkCar) -> Resu
     put(field::PLACE_Z, z)?;
     let one: u32 = MARKS_FLOATS.one.bits();
     let s = x87::one_less_inverse(object.word(8)?, particles.kind13_set.strength_k.bits(), one);
-    RING_WORK.whole.set(s);
+    ring.work.whole.set(s);
     let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
         Ok({
             x87::mul2(

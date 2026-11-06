@@ -12,7 +12,6 @@ use crate::race::tables_store::RACE_TABLES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::view_vars_store::VIEW_VARS;
-use crate::sound::sets_store::SPOT_VOICES;
 
 /// Where a header setting lives in the race's variables (its first place).
 pub fn setting_cell(s: rc2k_core::race::replay::Setting) -> &'static crate::session::Dword {
@@ -107,7 +106,7 @@ fn reset_object(o: &crate::sound::store::SoundObject) {
 }
 /// dword_51659C .. dword_5165E8: set 0.
 fn clear_stage_flags() {
-    let s = &crate::sound::store::STAGE_SOUNDS;
+    let s = &crate::sound::owner::sound().race.stage;
     for flag in [
         &s.once[0],
         &s.once[1],
@@ -152,7 +151,7 @@ pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
     wait_for_commands();
     crate::sound::hold_sounds_back::hold_sounds_back();
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-    for o in &crate::sound::store::RACE_SOUNDS.objects {
+    for o in &crate::sound::owner::sound().race.sounds.objects {
         reset_object(o);
     }
     clear_stage_flags();
@@ -160,11 +159,15 @@ pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
         voice[0].set(0x1888_FFFF);
         voice[5].set(0xFFFF_FFFE);
     }
-    crate::sound::store::STAGE_SOUNDS.shared_count.set(0);
-    crate::sound::store::SPOT_PICKS.spot_work_a.set(0);
+    crate::sound::owner::sound().race.stage.shared_count.set(0);
+    crate::sound::owner::sound()
+        .race
+        .spot_picks
+        .spot_work_a
+        .set(0);
     crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
     command(2, 3);
-    crate::sound::store::RACE_CLOCK.started.set(0);
+    crate::sound::owner::sound().race.clock.started.set(0);
     Ok(())
 }
 
@@ -177,7 +180,7 @@ pub struct SoundVars {
 impl SoundVars {
     pub fn game() -> Self {
         Self {
-            voices: &SPOT_VOICES.voices,
+            voices: &crate::sound::owner::sound().race.spot_voices.voices,
         }
     }
 }
@@ -259,7 +262,7 @@ pub fn tidy_stage() -> Result<(), Refused> {
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    crate::effects::tidy_marks::tidy_marks()?;
+    crate::effects::tidy_marks::tidy_marks(&crate::effects::owner::effects().ring)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
     s.step(STAGE_WORDS[3], || free(&FONTS))?;

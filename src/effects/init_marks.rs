@@ -13,8 +13,10 @@
 
 use crate::effects::clip::CLIP;
 use crate::effects::kind_values::MARKS_KIND;
+use crate::effects::ring_store::Ring;
 use crate::effects::setup::CLOCK;
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME, MARKS_KIND_FLOATS};
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -29,7 +31,7 @@ const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 /// The Rust version (see the header): `seed` the seed (eax). The original took the settings'
 /// address in esi; the race hands its one record (`race::marks_settings_store`), so none is
 /// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
-pub fn init_marks(seed: u32) -> Result<(), Refused> {
+pub fn init_marks(drops: &WindscreenDrops, ring: &Ring, seed: u32) -> Result<(), Refused> {
     use crate::effects::*;
     let weather = &owner::effects().weather;
     {
@@ -41,7 +43,7 @@ pub fn init_marks(seed: u32) -> Result<(), Refused> {
         crate::effects::setup::SETTINGS.is_set.set(1);
         MARKS_WORK.seed.set(seed);
         CLOCK.started.set(0);
-        edges::load_kind_data()?;
+        edges::load_kind_data(drops)?;
         setup::make_wave_tables()?;
         profiles::make_profiles(profiles::RESUME)?;
         setup::seed_noise(weather);
@@ -51,8 +53,8 @@ pub fn init_marks(seed: u32) -> Result<(), Refused> {
         kind_values::set_kind_values(&kind_values::SECOND)?;
         load_mask_pictures::load_mask_pictures()?;
         setup::clear_slots();
-        set_up_surface::set_up_surface()?;
-        blocks::allocate_ring(&crate::effects::owner::effects().particles)?;
+        set_up_surface::set_up_surface(ring)?;
+        blocks::allocate_ring(&crate::effects::owner::effects().particles, ring)?;
         lines::set_up_blocks()?;
         marks.unknown_67c[1].set(1);
         for r in &CLOCK.settings_copies {

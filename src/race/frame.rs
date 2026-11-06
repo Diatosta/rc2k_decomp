@@ -162,10 +162,16 @@ pub fn race_keys() -> Result<(), Refused> {
                 let from: u32 = if up {
                     OPTION_WORK.other_volume.get()
                 } else {
-                    crate::sound::store::SOUND_OPTIONS.race_music_volume.get()
+                    crate::sound::owner::sound()
+                        .menu
+                        .options
+                        .race_music_volume
+                        .get()
                 };
                 let volume = volume_step(from, step);
-                crate::sound::store::SOUND_OPTIONS
+                crate::sound::owner::sound()
+                    .menu
+                    .options
                     .race_music_volume
                     .set(volume);
                 crate::sound::set_music_volume::set_music_volume(volume);

@@ -53,7 +53,7 @@ pub static NINETEENTH: TwinSet = TwinSet {
 
 /// Whether an entry is to be made (the chance and a free entry), worked out without
 /// writing.
-fn makes(set: &TwinSet, object: &'static MarkCar) -> Result<bool, Refused> {
+fn makes(ring: &Ring, set: &TwinSet, object: &'static MarkCar) -> Result<bool, Refused> {
     Ok({
         let level = object.word(set.level_at)? as i32;
         let r = set
@@ -62,14 +62,18 @@ fn makes(set: &TwinSet, object: &'static MarkCar) -> Result<bool, Refused> {
             .get()
             .wrapping_mul(0xC5)
             .wrapping_add(0x5D);
-        ((r.rotate_right(16) & 7) as i32) < level && next_entry()?.is_some()
+        ((r.rotate_right(16) & 7) as i32) < level && next_entry(ring)?.is_some()
     })
 }
 
 /// Why the Rust version refuses, if it does, worked out without writing.
-pub fn refusal(set: &TwinSet, object: &'static MarkCar) -> Result<Option<&'static str>, Refused> {
+pub fn refusal(
+    ring: &Ring,
+    set: &TwinSet,
+    object: &'static MarkCar,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if !makes(set, object)? {
+        if !makes(ring, set, object)? {
             return Ok(None);
         }
         if !car_with_matrix()? {
@@ -83,17 +87,22 @@ pub fn refusal(set: &TwinSet, object: &'static MarkCar) -> Result<Option<&'stati
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_19(particles: &Particles, object: &'static MarkCar) -> Result<(), Refused> {
-    emit_twin(particles, &NINETEENTH, object)
+pub fn emit_particle_19(
+    particles: &Particles,
+    ring: &Ring,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
+    emit_twin(particles, ring, &NINETEENTH, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_twin(
     particles: &Particles,
+    ring: &Ring,
     set: &TwinSet,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(set, object)? {
+    if let Some(why) = refusal(ring, set, object)? {
         return Err(BadInput(why).into());
     }
     let level = object.word(set.level_at)?;
@@ -105,11 +114,11 @@ pub fn emit_twin(
     SURFACE.wheel_flags.set(set.flags);
     let motion = [object.word(0x4C)?, object.word(0x50)?, object.word(0x54)?];
     crate::session::write_bits(&particles.twin_state.motion, motion);
-    if next_entry()?.is_none() {
+    if next_entry(ring)?.is_none() {
         return Ok(());
     }
-    let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
-    let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
+    let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
+    let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
     let car = emitting_car()?;
     let cells = car.whole()?;
     let [x, y, y_less, z] = x87::turned_place(
@@ -145,7 +154,7 @@ pub fn emit_twin(
     put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
     put(field::CELL, set.flags & 0x3F)?;
     let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
-    RING_WORK.whole.set(size);
+    ring.work.whole.set(size);
     put(field::SIZE, x87::from_int(size as i32))?;
     let life: u32 = SURFACE.lives_by_level[level as usize].get();
     put(field::LIFE, life)?;

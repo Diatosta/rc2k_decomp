@@ -19,7 +19,7 @@ impl Driver {
             return Err(BadInput("a driver past the 180"));
         }
         Ok(Self(
-            &crate::menu::drivers_store::DRIVERS.drivers[number as usize],
+            &crate::menu::owner::menus().cars.drivers.drivers[number as usize],
         ))
     }
 

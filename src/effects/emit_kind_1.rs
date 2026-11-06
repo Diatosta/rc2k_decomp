@@ -26,7 +26,6 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
-use crate::effects::ring_store::RING_WORK;
 use crate::effects::run_particles::Particles;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::{MARKS_FLOATS, MARKS_FRAME};
@@ -87,13 +86,13 @@ fn pace(wheel: &MarkRecord) -> Result<Pace, Refused> {
 }
 
 /// Why `emit_particle_1` refuses, if it does, worked out without writing.
-fn refusal(wheel: &MarkRecord) -> Result<Option<&'static str>, Refused> {
+fn refusal(ring: &Ring, wheel: &MarkRecord) -> Result<Option<&'static str>, Refused> {
     Ok({
         match pace(wheel)?.strength {
             Some((_, false)) => {}
             _ => return Ok(None),
         }
-        next_entry()?;
+        next_entry(ring)?;
         if !car_with_matrix()? {
             return Ok(Some("a null car object or matrix"));
         }
@@ -104,42 +103,43 @@ fn refusal(wheel: &MarkRecord) -> Result<Option<&'static str>, Refused> {
 /// The body at 0x4CCF71 (see the header).
 pub fn emit_particle_1(
     particles: &Particles,
+    ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
-        if let Some(why) = refusal(wheel)? {
+        if let Some(why) = refusal(ring, wheel)? {
             return Err(BadInput(why).into());
         }
         let flags = wheel.flags.get();
         SURFACE.wheel_flags.set(flags);
         let p = pace(wheel)?;
-        RING_WORK.whole.set(p.grown.0 as u32);
+        ring.work.whole.set(p.grown.0 as u32);
         wheel.pace.set(p.grown.1);
         let Some((kept, under)) = p.strength else {
             return Ok(());
         };
         let rest = p.grown.0 % STEP;
-        RING_WORK.whole.set(rest as u32);
+        ring.work.whole.set(rest as u32);
         wheel.pace.set(x87::from_int(rest));
-        RING_WORK.whole.set(kept);
+        ring.work.whole.set(kept);
         if under {
             return Ok(());
         }
         let one: u32 = MARKS_FLOATS.one.bits();
         if x87::compare_status(kept, one) != 0x100 {
-            RING_WORK.whole.set(one);
+            ring.work.whole.set(one);
         }
-        let strength: u32 = RING_WORK.whole.get();
+        let strength: u32 = ring.work.whole.get();
         let life = x87::times_plus_to_int(strength, LIFE_K[0].bits(), LIFE_K[1].bits());
-        RING_WORK.life.set(life as u32);
+        ring.work.life.set(life as u32);
         let fade = x87::mul(strength, MARKS_FLOATS.two_fifty_five.bits());
-        RING_WORK.fade.set_bits(fade);
-        if next_entry()?.is_none() {
+        ring.work.fade.set_bits(fade);
+        if next_entry(ring)?.is_none() {
             return Ok(());
         }
-        let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, 1)?;
-        let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
+        let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, 1)?;
+        let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
         let car = emitting_car()?;
         let m = car.whole()?;
         let side = (next_c5(&particles.kind1_set.side_random) & 0x3FFF) as i32 - 0x2000;
@@ -203,13 +203,14 @@ pub fn emit_particle_1(
 /// The Rust version (see the header).
 pub fn emit_kind_1(
     particles: &Particles,
+    ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     if particles.kind1_choice.choice.get() != 0 {
-        emit_particle_21(particles, wheel, object)
+        emit_particle_21(particles, ring, wheel, object)
     } else {
-        emit_particle_1(particles, wheel, object)
+        emit_particle_1(particles, ring, wheel, object)
     }
 }
 

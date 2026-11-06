@@ -14,6 +14,7 @@
 //! call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
+use crate::hud::owner::Hud;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::level_grid_store::LEVEL_GRID;
 use crate::race::panel_store::PANEL;
@@ -36,7 +37,7 @@ pub fn shown_layout() -> u32 {
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
-pub fn overlay_pass() -> Result<(), Refused> {
+pub fn overlay_pass(hud: &Hud) -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
     PANEL.players.set(shown_layout());
     depth_buffer(false);
@@ -50,7 +51,7 @@ pub fn overlay_pass() -> Result<(), Refused> {
             }
         }
     }
-    let done = crate::hud::draw_hud::draw_hud();
+    let done = crate::hud::draw_hud::draw_hud(hud);
     PANEL.hud_flags[1].set(kept[1]);
     PANEL.hud_flags[0].set(kept[0]);
     done?;

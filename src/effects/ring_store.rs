@@ -1,5 +1,10 @@
 //! The ring's work and the surface pictures' names (IDA 0x935620 .. 0x935766), out of the marks' block (phase 7, typed state).
 
+use crate::effects::blocks::RingPool;
+use crate::effects::ring_entries::Entry;
+use crate::effects::run_ribbons::Colours257;
+use crate::effects::run_ring::RingKinds;
+use crate::memory::owned::Owned;
 use crate::session::{Bytes, Dword, Float};
 
 /// The ring's work (IDA 0x935620 .. 0x93573C, the image's layout; phase 7, typed state): its list, cursor and count, the emitters' and the draws' integers.
@@ -58,40 +63,44 @@ pub struct RingWork {
     pub _gap_935730: Bytes<12>,
 }
 
-pub static RING_WORK: RingWork = RingWork {
-    list: Bytes::new([0; 16]),
-    _gap_935630: Bytes::new([0; 48]),
-    cursor: Dword::new(0x0),
-    _gap_935664: Bytes::new([0; 4]),
-    block: Dword::new(0x0),
-    _gap_93566c: Bytes::new([0x00, 0x80, 0xFF, 0xFF]),
-    top: Float::from_bits(0xC7000000),
-    _gap_935674: Bytes::new([0; 4]),
-    fade: Float::from_bits(0x0),
-    life: Dword::new(0x0),
-    extent: [const { Dword::new(0x0) }; 2],
-    direction: [const { Float::from_bits(0x0) }; 3],
-    strength: [const { Float::from_bits(0x0) }; 2],
-    _gap_93569c: Bytes::new([0; 20]),
-    rate: Dword::new(0x0),
-    facing: Float::from_bits(0x0),
-    _gap_9356b8: Bytes::new([0; 4]),
-    near: Float::from_bits(0x0),
-    whole: Dword::new(0x0),
-    _gap_9356c4: Bytes::new([0; 4]),
-    count: Dword::new(0x0),
-    _gap_9356cc: Bytes::new([
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC5, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00,
-    ]),
-    away: [const { Float::from_bits(0x0) }; 3],
-    turned: [const { Float::from_bits(0x0) }; 3],
-    _gap_935730: Bytes::new([0; 12]),
-};
+impl RingWork {
+    pub const fn new() -> Self {
+        RingWork {
+            list: Bytes::new([0; 16]),
+            _gap_935630: Bytes::new([0; 48]),
+            cursor: Dword::new(0x0),
+            _gap_935664: Bytes::new([0; 4]),
+            block: Dword::new(0x0),
+            _gap_93566c: Bytes::new([0x00, 0x80, 0xFF, 0xFF]),
+            top: Float::from_bits(0xC7000000),
+            _gap_935674: Bytes::new([0; 4]),
+            fade: Float::from_bits(0x0),
+            life: Dword::new(0x0),
+            extent: [const { Dword::new(0x0) }; 2],
+            direction: [const { Float::from_bits(0x0) }; 3],
+            strength: [const { Float::from_bits(0x0) }; 2],
+            _gap_93569c: Bytes::new([0; 20]),
+            rate: Dword::new(0x0),
+            facing: Float::from_bits(0x0),
+            _gap_9356b8: Bytes::new([0; 4]),
+            near: Float::from_bits(0x0),
+            whole: Dword::new(0x0),
+            _gap_9356c4: Bytes::new([0; 4]),
+            count: Dword::new(0x0),
+            _gap_9356cc: Bytes::new([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0xC5, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ]),
+            away: [const { Float::from_bits(0x0) }; 3],
+            turned: [const { Float::from_bits(0x0) }; 3],
+            _gap_935730: Bytes::new([0; 12]),
+        }
+    }
+}
 
 impl RingWork {
     pub const START: usize = 0x935620;
@@ -106,7 +115,7 @@ mod tests {
     #[test]
     fn the_ring_work_starts_as_the_games() {
         assert_eq!(size_of::<RingWork>(), RingWork::LEN);
-        let p = (&raw const RING_WORK).cast::<u8>();
+        let p = (&raw const crate::effects::owner::EFFECTS.ring.work).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<RingWork>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -143,16 +152,20 @@ pub struct PictureNames {
     pub surfmask: Bytes<21>,
 }
 
-pub static PICTURE_NAMES: PictureNames = PictureNames {
-    surfdata: Bytes::new([
-        0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x75, 0x72, 0x66, 0x64, 0x61, 0x74,
-        0x61, 0x2E, 0x70, 0x63, 0x78, 0x00,
-    ]),
-    surfmask: Bytes::new([
-        0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x75, 0x72, 0x66, 0x6D, 0x61, 0x73,
-        0x6B, 0x2E, 0x70, 0x63, 0x78, 0x00,
-    ]),
-};
+impl PictureNames {
+    pub const fn new() -> Self {
+        PictureNames {
+            surfdata: Bytes::new([
+                0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x75, 0x72, 0x66, 0x64, 0x61,
+                0x74, 0x61, 0x2E, 0x70, 0x63, 0x78, 0x00,
+            ]),
+            surfmask: Bytes::new([
+                0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D, 0x5C, 0x73, 0x75, 0x72, 0x66, 0x6D, 0x61,
+                0x73, 0x6B, 0x2E, 0x70, 0x63, 0x78, 0x00,
+            ]),
+        }
+    }
+}
 
 impl PictureNames {
     pub const START: usize = 0x93573C;
@@ -167,7 +180,7 @@ mod name_tests {
     #[test]
     fn the_picture_names_starts_as_the_games() {
         assert_eq!(size_of::<PictureNames>(), PictureNames::LEN);
-        let p = (&raw const PICTURE_NAMES).cast::<u8>();
+        let p = (&raw const crate::effects::owner::EFFECTS.ring.names).cast::<u8>();
         let bytes: Vec<u8> = (0..size_of::<PictureNames>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -183,5 +196,30 @@ mod name_tests {
             offset_of!(PictureNames, surfmask),
             0x935751 - PictureNames::START
         );
+    }
+}
+
+/// The marks ring's state, one part of the effects' owner (`effects::owner::Effects`): the ring's
+/// entries, the particle pool, the ring work, the picture names, the kinds' tuning and the
+/// 257 colours.
+pub struct Ring {
+    pub entries: Owned<Vec<Entry>>,
+    pub pool: RingPool,
+    pub work: RingWork,
+    pub names: PictureNames,
+    pub kinds: RingKinds,
+    pub colours: Colours257,
+}
+
+impl Ring {
+    pub const fn new() -> Self {
+        Ring {
+            entries: Owned::new("no marks ring"),
+            pool: RingPool::new(),
+            work: RingWork::new(),
+            names: PictureNames::new(),
+            kinds: RingKinds::new(),
+            colours: Colours257::new(),
+        }
     }
 }

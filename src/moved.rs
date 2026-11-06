@@ -331,7 +331,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::hud::store::START, // the HUD's variables, batch included
         len: crate::hud::store::LEN,
-        home: Home::Store(&crate::hud::store::HUD),
+        home: Home::Store(&crate::hud::owner::HUD.block),
     },
     Moved {
         ida: crate::gfx::decoder::START, // The picture decoders' and glyph builder's variables (decoded picture, palette)
@@ -469,7 +469,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::build_notice::BuildNotice::START, // BuildNotice
         len: crate::menu::build_notice::BuildNotice::LEN,
-        home: Home::Store(&crate::menu::build_notice::NOTICE),
+        home: Home::Store(&crate::menu::owner::MENUS.panels.notice),
     },
     Moved {
         ida: crate::install::store::DriveRows::START, // DriveRows
@@ -494,7 +494,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::saves::write_savegame_slot::START, // The saved games' file buffer and names
         len: crate::saves::write_savegame_slot::LEN,
-        home: Home::Store(&crate::saves::write_savegame_slot::SAVE_GAMES),
+        home: Home::Store(&crate::saves::owner::SAVES.save_games),
     },
     Moved {
         ida: crate::service::read_setup_slot::START, // The set-ups' file head and names
@@ -534,7 +534,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::play_films::FILMS_START, // The films' file names
         len: crate::menu::play_films::FILMS_LEN,
-        home: Home::Store(&crate::menu::play_films::FILMS),
+        home: Home::Store(&crate::menu::owner::MENUS.panels.films),
     },
     Moved {
         ida: crate::screens::draw_message_box::BOX_START, // The message box's rectangle
@@ -652,32 +652,32 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x512A10, // the race sounds' objects (`sound::store::RaceSounds`)
         len: 0x2580,
-        home: Home::Store(&crate::sound::store::RACE_SOUNDS),
+        home: Home::Store(&crate::sound::owner::SOUND.race.sounds),
     },
     Moved {
         ida: 0x5124E4, // the race sounds' clock (`sound::store::RaceClock`)
         len: 0x24,
-        home: Home::Store(&crate::sound::store::RACE_CLOCK),
+        home: Home::Store(&crate::sound::owner::SOUND.race.clock),
     },
     Moved {
         ida: 0x516358, // the surface sounds' constants (`sound::store::SurfaceSounds`)
         len: 0x44,
-        home: Home::Store(&crate::sound::store::SURFACE_SOUNDS),
+        home: Home::Store(&crate::sound::owner::SOUND.race.surface),
     },
     Moved {
         ida: 0x51655C, // the stage sounds (`sound::store::StageSounds`)
         len: 0x364,
-        home: Home::Store(&crate::sound::store::STAGE_SOUNDS),
+        home: Home::Store(&crate::sound::owner::SOUND.race.stage),
     },
     Moved {
         ida: crate::sound::store::SpotPicks::START, // The spot voices' pickers' work and the sound kinds per spot
         len: crate::sound::store::SpotPicks::LEN,
-        home: Home::Store(&crate::sound::store::SPOT_PICKS),
+        home: Home::Store(&crate::sound::owner::SOUND.race.spot_picks),
     },
     Moved {
         ida: crate::sound::store::SettingsApplied::START, // Set once the kept sound settings are applied
         len: crate::sound::store::SettingsApplied::LEN,
-        home: Home::Store(&crate::sound::store::SETTINGS_APPLIED),
+        home: Home::Store(&crate::sound::owner::SOUND.menu.settings_applied),
     },
     Moved {
         ida: crate::input::store::ForceFeedback::START, // The force-feedback effects' clock, surface kinds and constants
@@ -687,12 +687,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::sound::store::SoundOptions::START, // The kept sound options
         len: crate::sound::store::SoundOptions::LEN,
-        home: Home::Store(&crate::sound::store::SOUND_OPTIONS),
+        home: Home::Store(&crate::sound::owner::SOUND.menu.options),
     },
     Moved {
         ida: crate::sound::store::CdAudio::START, // The CD audio's state
         len: crate::sound::store::CdAudio::LEN,
-        home: Home::Store(&crate::sound::store::CD_AUDIO),
+        home: Home::Store(&crate::sound::owner::SOUND.menu.cd_audio),
     },
     // input: the devices, keyboard and mouse (`input::store`, typed)
     Moved {
@@ -713,17 +713,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: 0x511B0C, // g_nextMenuSoundTime
         len: 4,
-        home: Home::Store(&crate::sound::store::NEXT_MENU_SOUND_TIME),
+        home: Home::Store(&crate::sound::owner::SOUND.menu.next_sound_time),
     },
     Moved {
         ida: 0x6218F0, // g_raceSoundsOn
         len: 4,
-        home: Home::Store(&crate::sound::store::RACE_SOUNDS_ON),
+        home: Home::Store(&crate::sound::owner::SOUND.race.sounds_on),
     },
     Moved {
         ida: crate::sound::store::CAR_STREAM_IDA, // the car stream's place, list and switch
         len: 12,
-        home: Home::Store(&crate::sound::store::CAR_STREAM),
+        home: Home::Store(&crate::sound::owner::SOUND.race.car_stream),
     },
     // menu: the front end's variables, typed (phase 7): the savegame preview (`saves::preview_store`),
     // the controller screen (`screens::controls_store`), the pages, car numbers, screen flow, loop
@@ -734,7 +734,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::saves::preview_store::START,
         len: crate::saves::preview_store::END - crate::saves::preview_store::START,
-        home: Home::Store(&crate::saves::preview_store::SAVEGAME_PREVIEW),
+        home: Home::Store(&crate::saves::owner::SAVES.savegame_preview),
     },
     Moved {
         ida: crate::screens::controls_store::START,
@@ -749,7 +749,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::cars_store::START,
         len: crate::menu::cars_store::END - crate::menu::cars_store::START,
-        home: Home::Store(&crate::menu::cars_store::CAR_TABLE),
+        home: Home::Store(&crate::menu::owner::MENUS.cars.table),
     },
     Moved {
         ida: crate::menu::cheats_store::START,
@@ -779,7 +779,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::car_numbers_store::START,
         len: crate::menu::car_numbers_store::END - crate::menu::car_numbers_store::START,
-        home: Home::Store(&crate::menu::car_numbers_store::CAR_NUMBERS),
+        home: Home::Store(&crate::menu::owner::MENUS.cars.numbers),
     },
     Moved {
         ida: crate::menu::flow_store::START,
@@ -794,7 +794,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::keys_store::START,
         len: crate::menu::keys_store::END - crate::menu::keys_store::START,
-        home: Home::Store(&crate::menu::keys_store::KEY_TABLES),
+        home: Home::Store(&crate::menu::owner::MENUS.keys.tables),
     },
     Moved {
         ida: crate::menu::option_work_store::START,
@@ -843,18 +843,18 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::drivers_store::START,
         len: crate::menu::drivers_store::END - crate::menu::drivers_store::START,
-        home: Home::Store(&crate::menu::drivers_store::DRIVERS),
+        home: Home::Store(&crate::menu::owner::MENUS.cars.drivers),
     },
     Moved {
         ida: crate::saves::best_times_store::RallyTimes::START,
         len: crate::saves::best_times_store::RallyTimes::END
             - crate::saves::best_times_store::RallyTimes::START,
-        home: Home::Store(&crate::saves::best_times_store::RALLY_TIMES),
+        home: Home::Store(&crate::saves::owner::SAVES.rally_times),
     },
     Moved {
         ida: crate::saves::best_times_store::START,
         len: crate::saves::best_times_store::END - crate::saves::best_times_store::START,
-        home: Home::Store(&crate::saves::best_times_store::BEST_TIMES),
+        home: Home::Store(&crate::saves::owner::SAVES.best_times),
     },
     Moved {
         ida: crate::menu::screen_items_store::START,
@@ -864,7 +864,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::menu::item_sprites_store::START,
         len: crate::menu::item_sprites_store::END - crate::menu::item_sprites_store::START,
-        home: Home::Store(&crate::menu::item_sprites_store::ITEM_SPRITES),
+        home: Home::Store(&crate::menu::owner::MENUS.panels.item_sprites),
     },
     Moved {
         ida: crate::menu::menus_store::START,
@@ -909,40 +909,40 @@ pub(crate) const MOVED: &[Moved] = &[
         ida: crate::sound::sets_store::MenuSounds::START,
         len: crate::sound::sets_store::MenuSounds::LEN,
         home: Home::Store(&crate::race::store::Window::new(
-            &crate::sound::sets_store::MENU_SOUNDS,
+            &crate::sound::owner::SOUND.menu.menu_sounds,
             4,
         )),
     },
     Moved {
         ida: crate::sound::sets_store::RaceSoundSets::START,
         len: crate::sound::sets_store::RaceSoundSets::LEN,
-        home: Home::Store(&crate::sound::sets_store::RACE_SOUND_SETS),
+        home: Home::Store(&crate::sound::owner::SOUND.race.sets),
     },
     Moved {
         ida: crate::sound::sets_store::CueLists::START,
         len: crate::sound::sets_store::CueLists::LEN,
         home: Home::Store(&crate::race::store::Window::new(
-            &crate::sound::sets_store::CUE_LISTS,
+            &crate::sound::owner::SOUND.race.cue_lists,
             8,
         )),
     },
     Moved {
         ida: crate::sound::sets_store::SoundKinds::START,
         len: crate::sound::sets_store::SoundKinds::LEN,
-        home: Home::Store(&crate::sound::sets_store::SOUND_KINDS),
+        home: Home::Store(&crate::sound::owner::SOUND.race.kinds),
     },
     Moved {
         ida: crate::sound::sets_store::SurfaceSets::START,
         len: crate::sound::sets_store::SurfaceSets::LEN,
         home: Home::Store(&crate::race::store::Window::new(
-            &crate::sound::sets_store::SURFACE_SETS,
+            &crate::sound::owner::SOUND.race.surface_sets,
             12,
         )),
     },
     Moved {
         ida: crate::sound::sets_store::SpotVoices::START,
         len: crate::sound::sets_store::SpotVoices::LEN,
-        home: Home::Store(&crate::sound::sets_store::SPOT_VOICES),
+        home: Home::Store(&crate::sound::owner::SOUND.race.spot_voices),
     },
     Moved {
         ida: crate::install::vars::InstallerRun::START,
@@ -1691,7 +1691,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::shape_points::ShapeInputs::START,
         len: crate::effects::shape_points::ShapeInputs::LEN,
-        home: Home::Store(&crate::effects::shape_points::SHAPE_INPUTS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.inputs),
     },
     Moved {
         ida: crate::effects::view_vectors::ViewSources::START,
@@ -1786,7 +1786,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::tilt_shape::ShapeTilt::START,
         len: crate::effects::tilt_shape::ShapeTilt::LEN,
-        home: Home::Store(&crate::effects::tilt_shape::SHAPE_TILT),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.tilt),
     },
     Moved {
         ida: crate::effects::edges::KindBoxes::START,
@@ -1796,17 +1796,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::windscreen_drop_state::WindscreenDropState::START,
         len: crate::effects::windscreen_drop_state::WindscreenDropState::LEN,
-        home: Home::Store(&crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.state),
     },
     Moved {
         ida: crate::effects::windscreen_drop_state::WindscreenDropWork::START,
         len: crate::effects::windscreen_drop_state::WindscreenDropWork::LEN,
-        home: Home::Store(&crate::effects::windscreen_drop_state::WINDSCREEN_DROP_WORK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.work),
     },
     Moved {
         ida: crate::effects::windscreen_drop_vars::WindscreenDropVars::START,
         len: crate::effects::windscreen_drop_vars::WindscreenDropVars::LEN,
-        home: Home::Store(&crate::effects::windscreen_drop_vars::HEX),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.hex),
     },
     Moved {
         ida: crate::effects::mask_vars::MaskVars::START,
@@ -1816,17 +1816,17 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::mask_picks::MaskPicks::START,
         len: crate::effects::mask_picks::MaskPicks::LEN,
-        home: Home::Store(&crate::effects::mask_picks::PICKS),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.picks),
     },
     Moved {
         ida: crate::effects::shape_work::ShapeWork::START,
         len: crate::effects::shape_work::ShapeWork::LEN,
-        home: Home::Store(&crate::effects::shape_work::SHAPE_WORK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.shape_work),
     },
     Moved {
         ida: crate::effects::shape_points::ShapeSetTuning::START,
         len: crate::effects::shape_points::ShapeSetTuning::LEN,
-        home: Home::Store(&crate::effects::shape_points::SHAPE_SET_TUNING),
+        home: Home::Store(&crate::effects::owner::EFFECTS.windscreen_drops.tuning),
     },
     Moved {
         ida: crate::effects::mask_constants::MaskConstants::START,
@@ -2026,12 +2026,12 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::ring_store::RingWork::START,
         len: crate::effects::ring_store::RingWork::LEN,
-        home: Home::Store(&crate::effects::ring_store::RING_WORK),
+        home: Home::Store(&crate::effects::owner::EFFECTS.ring.work),
     },
     Moved {
         ida: crate::effects::ring_store::PictureNames::START,
         len: crate::effects::ring_store::PictureNames::LEN,
-        home: Home::Store(&crate::effects::ring_store::PICTURE_NAMES),
+        home: Home::Store(&crate::effects::owner::EFFECTS.ring.names),
     },
     Moved {
         ida: crate::effects::surface_store::SurfaceTables::START,
@@ -2110,7 +2110,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::effects::blocks::RingPool::START,
         len: crate::effects::blocks::RingPool::LEN,
-        home: Home::Store(&crate::effects::blocks::RING_POOL),
+        home: Home::Store(&crate::effects::owner::EFFECTS.ring.pool),
     },
     Moved {
         ida: crate::effects::run_particles::PuffWork::START,

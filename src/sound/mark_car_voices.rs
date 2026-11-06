@@ -15,13 +15,13 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::work_store::RACE_WORK;
-use crate::sound::store::{RACE_SOUNDS, SoundObject};
+use crate::sound::store::SoundObject;
 
 // ---- Rust version ----
 
 /// The (object, car) pairs in use, or a refusal.
 fn pairs() -> Result<Vec<(&'static SoundObject, u32)>, BadInput> {
-    let count = RACE_SOUNDS.count.get();
+    let count = crate::sound::owner::sound().race.sounds.count.get();
     if count == 0 || count > 8 {
         return Err(BadInput("a sound object count of 0 or over 8"));
     }
@@ -36,7 +36,13 @@ fn pairs() -> Result<Vec<(&'static SoundObject, u32)>, BadInput> {
 
 /// Converted: `rc2k_core::sound::cars::voice_mark`.
 pub fn mark_car_voices() -> Result<(), Refused> {
-    if RACE_SOUNDS.mark_car_voices.get() != 1 {
+    if crate::sound::owner::sound()
+        .race
+        .sounds
+        .mark_car_voices
+        .get()
+        != 1
+    {
         return Ok(());
     }
     for (n, (o, car)) in pairs()?.into_iter().enumerate() {

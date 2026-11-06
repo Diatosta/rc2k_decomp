@@ -8,7 +8,9 @@
 
 use crate::effects::pong::Pong;
 use crate::effects::rain::Weather;
+use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
 /// The effects' state.
@@ -17,6 +19,8 @@ pub struct Effects {
     pub pong: Pong,
     pub weather: Weather,
     pub particles: Particles,
+    pub ring: Ring,
+    pub windscreen_drops: WindscreenDrops,
 }
 
 /// The one instance. Reached through `effects()`; `moved` registers its stores' places.
@@ -25,6 +29,8 @@ pub static EFFECTS: Effects = Effects {
     pong: Pong::new(),
     weather: Weather::new(),
     particles: Particles::new(),
+    ring: Ring::new(),
+    windscreen_drops: WindscreenDrops::new(),
 };
 
 /// The effects' state, for a caller that does not take it as a parameter yet.

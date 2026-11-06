@@ -38,7 +38,7 @@ pub fn play_timed_slot(
         volume: slot.volume.get(),
         rate: slot.rate.get(),
     };
-    let clock = crate::sound::store::RACE_CLOCK.last.get();
+    let clock = crate::sound::owner::sound().race.clock.last.get();
     let turn = slot_turn(&mut s, clock, sample_settings, sample_duration)?;
     slot.sound.set(s.sound);
     slot.start.set(s.start);

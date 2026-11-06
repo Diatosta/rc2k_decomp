@@ -37,7 +37,7 @@ fn cars() -> Result<
         (
             RACE_WORK.car_block(n),
             records[n],
-            &crate::sound::store::RACE_SOUNDS.objects[n],
+            &crate::sound::owner::sound().race.sounds.objects[n],
         )
     }))
 }

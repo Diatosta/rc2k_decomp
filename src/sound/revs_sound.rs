@@ -10,7 +10,7 @@ use crate::errors::Refused;
 use crate::math::x87_float::{X, ld, st};
 use crate::session::{Dword, Float};
 use crate::sound::sets_store::{SoundRequest, SoundSet};
-use crate::sound::store::{SURFACE_SOUNDS, SoundObject, SurfaceSounds};
+use crate::sound::store::{SoundObject, SurfaceSounds};
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 
 /// The engine's sound for object `so` of sound kind number `kind`, through `request`.
@@ -50,7 +50,14 @@ pub fn send_engine_sound(
     if revs_stopped(so.state.get()) {
         return crate::sound::turn_parts::stop(request);
     }
-    fill_request(so, set, volume_input, side, &SURFACE_SOUNDS, request);
+    fill_request(
+        so,
+        set,
+        volume_input,
+        side,
+        &crate::sound::owner::sound().race.surface,
+        request,
+    );
     crate::sound::turn_parts::placed(request)
 }
 
@@ -164,7 +171,7 @@ mod asm_reference {
                         set,
                         &bx.revs_input,
                         EnginePlace::Ahead,
-                        &crate::sound::store::SURFACE_SOUNDS,
+                        &crate::sound::owner::sound().race.surface,
                         request,
                     );
                 },

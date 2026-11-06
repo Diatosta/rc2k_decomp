@@ -193,7 +193,7 @@ pub fn load_game_data(outside: Outside) -> Result<(), Refused> {
         outside(Call::ReadSavegameSlot(slot))?;
     }
     number_empty_names(
-        &crate::saves::write_savegame_slot::SAVE_GAMES.names,
+        &crate::saves::owner::saves().save_games.names,
         SAVEGAME_NAME_ID,
     )?;
     for slot in 0..SLOTS {

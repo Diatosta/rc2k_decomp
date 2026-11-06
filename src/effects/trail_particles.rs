@@ -15,9 +15,10 @@
 //! Caller: the ring's update (code at 0x4D033F, kind 0 particles moving up). Refuses a null
 //! particle or ring (an entry to take), before anything.
 
-use crate::effects::blocks::{RING_POOL, particle, set_particle};
+use crate::effects::blocks::{particle, set_particle};
 use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::jitter_point::jitter_point;
+use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::{PARTICLE_TUNING, Particles};
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
@@ -33,15 +34,15 @@ const AXES: [(u32, u32, u32); 3] = [(0xC, 0x18, 0x28), (0x10, 0x1C, 0x2C), (0x14
 const LIFE: u32 = 300;
 
 /// The entries it takes, from `g_marksRingFree` along +0.
-fn entries_taken(particles: &Particles) -> Result<Vec<u32>, Refused> {
+fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused> {
     Ok({
-        let used: u32 = RING_POOL.used.get();
+        let used: u32 = ring.pool.used.get();
         let n = if used <= FULL {
             (FULL - used).min(COUNT)
         } else {
             COUNT
         };
-        let mut e: u32 = RING_POOL.free.get();
+        let mut e: u32 = ring.pool.free.get();
         let mut out = Vec::new();
         for _ in 0..n {
             if e == 0 {
@@ -55,34 +56,34 @@ fn entries_taken(particles: &Particles) -> Result<Vec<u32>, Refused> {
 }
 
 /// The Rust version (see the header): `p` the particle it trails (esi).
-pub fn trail_particles(particles: &Particles, p: u32) -> Result<(), Refused> {
+pub fn trail_particles(particles: &Particles, ring: &Ring, p: u32) -> Result<(), Refused> {
     {
-        if RING_POOL.used.get() != FULL {
+        if ring.pool.used.get() != FULL {
             if p == 0 {
                 return Err(BadInput("a null particle").into());
             }
-            if RING_POOL.free.get() == 0 || entries_taken(particles)?.contains(&0) {
+            if ring.pool.free.get() == 0 || entries_taken(particles, ring)?.contains(&0) {
                 return Err(BadInput("a null particle ring entry").into());
             }
         }
         for _ in 0..COUNT {
-            let used: u32 = RING_POOL.used.get();
+            let used: u32 = ring.pool.used.get();
             if used == FULL {
                 continue;
             }
-            let e = particle(particles, RING_POOL.free.get(), 0)?;
-            RING_POOL.free.set(e);
-            RING_POOL.used.set(used.wrapping_add(1));
+            let e = particle(particles, ring.pool.free.get(), 0)?;
+            ring.pool.free.set(e);
+            ring.pool.used.set(used.wrapping_add(1));
             let put = |o: u32, v: u32| set_particle(particles, e, o, v);
             put(8, 4)?;
             let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
             MARKS_WORK.seed.set(s);
             let k1 = DRAW_WORK.uv_k.bits();
             let k2 = PARTICLE_TUNING.trail_random_k.bits();
-            RING_POOL
+            ring.pool
                 .burst_radius
                 .set_bits(x87::int_times_times((s & 0xFFFF) as i32, k1, k2));
-            let radius: u32 = RING_POOL.burst_radius.bits();
+            let radius: u32 = ring.pool.burst_radius.bits();
             for (place, last, _) in AXES {
                 put(
                     place,

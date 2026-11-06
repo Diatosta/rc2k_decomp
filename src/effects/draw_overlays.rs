@@ -12,6 +12,7 @@
 //! `g_marksCorners`, an angle `fsincos` cannot take), before anything.
 
 use crate::effects::draw_shadow::{SECOND, draw_shadow_with};
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
@@ -32,7 +33,7 @@ fn shadow_refuses() -> Option<Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn draw_overlays() -> Result<(), Refused> {
+pub fn draw_overlays(drops: &WindscreenDrops) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     if let Some(e) = shadow_refuses() {
         return Err(e);
@@ -45,9 +46,9 @@ pub fn draw_overlays() -> Result<(), Refused> {
         }
         let effects = crate::effects::owner::effects();
         let fl = &effects.windscreen_flakes;
-        crate::effects::draw_plane::draw_plane(fl)?;
-        crate::effects::windscreen_flakes_frame::windscreen_flakes_frame(&effects.pong, fl)?;
-        crate::effects::windscreen_drops_top::windscreen_drops_top()?;
+        crate::effects::draw_plane::draw_plane(drops, fl)?;
+        crate::effects::windscreen_flakes_frame::windscreen_flakes_frame(drops, &effects.pong, fl)?;
+        crate::effects::windscreen_drops_top::windscreen_drops_top(drops)?;
         draw_shadow_with(&SECOND, false)
     }
 }

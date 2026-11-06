@@ -21,7 +21,6 @@
 use crate::errors::Refused;
 use crate::input::store::DEVICES;
 use crate::race::state_store::RACE_STATE;
-use crate::sound::store::RACE_SOUNDS;
 
 /// Device `n`'s record: a command names a device the table holds.
 fn device(n: usize) -> Result<&'static crate::input::types::InputDevice, crate::errors::BadInput> {
@@ -39,7 +38,7 @@ pub fn device_command(command: u32) -> Result<(), Refused> {
             command as u8,
             (command >> 8) as u8,
             DEVICES.two_devices_one_player.get(),
-            RACE_SOUNDS.one_player.get(),
+            crate::sound::owner::sound().race.sounds.one_player.get(),
         )?;
         for step in steps {
             match step {

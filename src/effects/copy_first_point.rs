@@ -6,13 +6,13 @@
 //!
 //! Caller: `sub_4C1148`.
 
-use crate::effects::tilt_shape::SHAPE_TILT;
 use crate::effects::view_vectors::KEPT;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 
 /// The Rust version (see the header).
-pub fn copy_first_point() {
-    for (n, to) in SHAPE_TILT.point.iter().enumerate() {
+pub fn copy_first_point(drops: &WindscreenDrops) {
+    for (n, to) in drops.tilt.point.iter().enumerate() {
         to.set_bits(KEPT.vector[n].bits());
     }
-    SHAPE_TILT.length.set(KEPT.length.get());
+    drops.tilt.length.set(KEPT.length.get());
 }

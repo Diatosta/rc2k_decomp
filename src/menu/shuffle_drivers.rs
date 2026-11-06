@@ -11,7 +11,6 @@
 //! Callers: `sub_473126` and one of the game's. The random numbers are `math::random_below`'s.
 //! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::car_numbers_store::CAR_NUMBERS;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::state_store::MENU_STATE;
 use crate::pointers::GamePtr;
@@ -31,11 +30,11 @@ pub fn shuffle_drivers() -> Result<(), Refused> {
         return Err(BadInput("a driver table count of 0").into());
     }
     let [t1, t2] = [
-        GamePtr::to(&CAR_NUMBERS.shuffle_a),
-        GamePtr::to(&CAR_NUMBERS.shuffle_b),
+        GamePtr::to(&crate::menu::owner::menus().cars.numbers.shuffle_a),
+        GamePtr::to(&crate::menu::owner::menus().cars.numbers.shuffle_b),
     ];
     for &(table, count) in &TABLES {
-        let first = GamePtr::to(&crate::menu::drivers_store::DRIVERS.drivers[table]);
+        let first = GamePtr::to(&crate::menu::owner::menus().cars.drivers.drivers[table]);
         let n = count.get();
         for _ in 0..n {
             DRAW_WORK.figure.set(random_below(n)?);

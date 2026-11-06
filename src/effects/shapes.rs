@@ -4,8 +4,7 @@
 //! the radii after the curve), and sets up what follows.
 
 use crate::effects::tuning::MARKS_FLOATS;
-use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_WORK;
-use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
@@ -13,12 +12,12 @@ use crate::math::x87;
 use crate::session::{Bytes, Dword, Float, write_bits};
 
 /// One variable of a kind's tables: a typed cell.
-pub enum Var {
-    Dword(&'static Dword),
-    Float(&'static Float),
+pub enum Var<'a> {
+    Dword(&'a Dword),
+    Float(&'a Float),
 }
 
-impl Var {
+impl Var<'_> {
     fn bits(&self) -> u32 {
         match self {
             Var::Dword(d) => d.get(),
@@ -35,42 +34,47 @@ impl Var {
 }
 
 /// One kind's tables.
-pub struct Shapes {
-    pub done: Var,
-    pub resume: u32,
+pub struct Shapes<'a> {
+    pub done: Var<'a>,
     /// The items (`ITEMS` of `item_len` bytes).
-    pub items: &'static Bytes<0x18000>,
+    pub items: &'a Bytes<0x18000>,
     pub item_len: u32,
-    pub curve: &'static [Float; CURVE as usize],
-    pub curve_a: Var,
-    pub curve_b: Var,
-    pub radii: &'static [Float],
+    pub curve: &'a [Float; CURVE as usize],
+    pub curve_a: Var<'a>,
+    pub curve_b: Var<'a>,
+    pub radii: &'a [Float],
     /// The circles' points, three floats a point, `sides` points a circle.
-    pub points: &'static [Float],
+    pub points: &'a [Float],
     pub sides: u32,
-    pub step_c: Var,
-    pub step_d: Var,
+    pub step_c: Var<'a>,
+    pub step_d: Var<'a>,
 }
 
 pub const ITEMS: u32 = 0x800;
 const CURVE: u32 = 0x100;
 const RADII: u32 = 8;
 
-/// `sub_4BAA55`'s.
-pub static WINDSCREEN_DROPS: Shapes = Shapes {
-    done: Var::Dword(&HEX.done), // g_marksWindscreenDropsDone
-    resume: 0x4BAAC5,            // loc_4BAAC5
-    items: &HEX.items,           // g_marksWindscreenDropItems
-    item_len: 0x30,
-    curve: &WINDSCREEN_DROP_WORK.curve, // g_marksWindscreenDropCurve
-    curve_a: Var::Float(&HEX.curve_a),  // flt_82E25A
-    curve_b: Var::Float(&HEX.curve_b),  // flt_82E25E
-    radii: &WINDSCREEN_DROP_WORK.radii, // flt_814BC2
-    points: &WINDSCREEN_DROP_WORK.points, // g_marksWindscreenDropPoints
-    sides: 6,
-    step_c: Var::Dword(&HEX.step_c), // dword_82E262
-    step_d: Var::Float(&HEX.step_d), // flt_82E266
-};
+/// `sub_4BAA55`'s, over the group's stores.
+impl<'a> Shapes<'a> {
+    pub fn windscreen_drops(drops: &'a WindscreenDrops) -> Self {
+        Shapes {
+            done: Var::Dword(&drops.hex.done), // g_marksWindscreenDropsDone
+            items: &drops.hex.items,           // g_marksWindscreenDropItems
+            item_len: 0x30,
+            curve: &drops.work.curve, // g_marksWindscreenDropCurve
+            curve_a: Var::Float(&drops.hex.curve_a), // flt_82E25A
+            curve_b: Var::Float(&drops.hex.curve_b), // flt_82E25E
+            radii: &drops.work.radii, // flt_814BC2
+            points: &drops.work.points, // g_marksWindscreenDropPoints
+            sides: 6,
+            step_c: Var::Dword(&drops.hex.step_c), // dword_82E262
+            step_d: Var::Float(&drops.hex.step_d), // flt_82E266
+        }
+    }
+}
+
+/// Where `sub_4BAA55` goes on once done: `loc_4BAAC5`.
+pub const WINDSCREEN_DROPS_RESUME: u32 = 0x4BAAC5;
 
 /// Where `sub_4BF529` goes on once done: `loc_4BF545`.
 pub const WINDSCREEN_FLAKES_RESUME: u32 = 0x4BF545;
@@ -146,15 +150,18 @@ mod squares {
 }
 
 /// The four floats `set_up_windscreen_drops` scales once, by one or two factors each.
-static SCALED: [(&Float, &[&Float]); 4] = [
-    (&HEX.scale[0], &[&HEX.factors[0]]),
-    (&HEX.scale[1], &[&HEX.factors[1]]),
-    (&HEX.scale[2], &[&HEX.factors[2], &HEX.factors[3]]),
-    (&HEX.scale[3], &[&HEX.factors[4], &HEX.factors[5]]),
-];
+fn scaled(drops: &WindscreenDrops) -> [(&Float, Vec<&Float>); 4] {
+    let hex = &drops.hex;
+    [
+        (&hex.scale[0], vec![&hex.factors[0]]),
+        (&hex.scale[1], vec![&hex.factors[1]]),
+        (&hex.scale[2], vec![&hex.factors[2], &hex.factors[3]]),
+        (&hex.scale[3], vec![&hex.factors[4], &hex.factors[5]]),
+    ]
+}
 const FANS: u32 = 0x40;
 
-impl Shapes {
+impl<'a> Shapes<'a> {
     /// The once-only mark: refuses one neither 0 nor `resume`; true when not yet done.
     fn first(&self, resume: u32) -> Result<bool, Refused> {
         use rc2k_core::effects::waves::{Mark, mark};
@@ -176,7 +183,7 @@ impl Shapes {
     }
 
     /// Circle `n`'s points.
-    fn circle(&self, n: usize) -> &'static [Float] {
+    fn circle(&self, n: usize) -> &'a [Float] {
         let len = 3 * self.sides as usize;
         &self.points[len * n..len * (n + 1)]
     }
@@ -241,16 +248,17 @@ fn circle_cells(r: u32, out: &[Float], count: u32, c: u32, d: u32) {
 /// points); 0x40 fans of four triangles (words: n6, n6+1 .. n6+5); 0x40 records of six
 /// parts (+0xC `dword_7651A0`, +0x10 -1, +0x14 0xFF000000, 0x20 apart); `dword_8161AE` ..
 /// `dword_8161BA` 0. Refuses a mark neither 0 nor `resume`.
-fn windscreen_drops_with(resume: u32, plain: bool) -> Result<(), Refused> {
+fn windscreen_drops_with(drops: &WindscreenDrops, resume: u32, plain: bool) -> Result<(), Refused> {
     {
-        if WINDSCREEN_DROPS.first(resume)? {
-            for (to, by) in SCALED.iter() {
+        let shapes = Shapes::windscreen_drops(drops);
+        if shapes.first(resume)? {
+            for (to, by) in scaled(drops).iter() {
                 let v: u32 = to.bits();
                 let v = if plain {
                     let by: Vec<f32> = by.iter().map(|b| f32::from_bits(b.bits())).collect();
                     rc2k_core::effects::shapes::scaled(f32::from_bits(v), &by).to_bits()
                 } else {
-                    match by {
+                    match by.as_slice() {
                         [b] => x87::mul(v, b.bits()),
                         [b, c] => x87::mul2(v, b.bits(), c.bits()),
                         _ => unreachable!(),
@@ -258,12 +266,12 @@ fn windscreen_drops_with(resume: u32, plain: bool) -> Result<(), Refused> {
                 };
                 to.set_bits(v);
             }
-            WINDSCREEN_DROPS.done.set_bits(resume);
+            shapes.done.set_bits(resume);
         }
         if plain {
-            WINDSCREEN_DROPS.make_plain()?;
+            shapes.make_plain()?;
         } else {
-            WINDSCREEN_DROPS.make()?;
+            shapes.make()?;
         }
         let mut at = 0usize;
         for n in 0..FANS {
@@ -291,17 +299,17 @@ fn windscreen_drops_with(resume: u32, plain: bool) -> Result<(), Refused> {
                 }
             }
         }
-        HEX.started.set(0);
-        HEX.moved.set(0);
-        HEX.spare[0].set(0);
-        HEX.spare[1].set(0);
+        drops.hex.started.set(0);
+        drops.hex.moved.set(0);
+        drops.hex.spare[0].set(0);
+        drops.hex.spare[1].set(0);
     }
     Ok(())
 }
 
 /// `effects::set_up_windscreen_drops`' x87 version, for `effects::load_edges`.
-pub fn set_up_windscreen_drops(resume: u32) -> Result<(), Refused> {
-    windscreen_drops_with(resume, false)
+pub fn set_up_windscreen_drops(drops: &WindscreenDrops, resume: u32) -> Result<(), Refused> {
+    windscreen_drops_with(drops, resume, false)
 }
 
 /// `effects::set_up_windscreen_flakes` (0x4BF529): its once-only mark set (`g_marksWindscreenFlakesDone`, then

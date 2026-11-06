@@ -15,6 +15,7 @@
 use crate::effects::run_frame::FRAME_K;
 use crate::effects::setup::CLOCK;
 use crate::effects::tuning::{MARKS_FRAME, MARKS_KIND_FLOATS};
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::{morph_object_points, scale_vectors_by, view_frame};
 use crate::errors::Refused;
 use crate::math::x87;
@@ -35,7 +36,7 @@ fn rdtsc() -> (u32, u32) {
 }
 
 /// The Rust version (see the header).
-pub fn frame_marks() -> Result<(), Refused> {
+pub fn frame_marks(drops: &WindscreenDrops) -> Result<(), Refused> {
     let marks = crate::effects::setup::marks()?;
     {
         let (start, _) = rdtsc();
@@ -49,7 +50,7 @@ pub fn frame_marks() -> Result<(), Refused> {
         CLOCK.settings_copies[0].set(marks.unknown_67c[1].get());
         scale_vectors_by::scale_vectors_by();
         morph_object_points::morph_object_points()?;
-        view_frame::view_frame()?;
+        view_frame::view_frame(drops)?;
         marks.unknown_67c[1].set(0);
         MARKS_FRAME
             .steps

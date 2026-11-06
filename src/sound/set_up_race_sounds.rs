@@ -15,7 +15,11 @@ use crate::sound::apply_settings::run_step;
 pub fn set_up_race_sounds() -> Result<(), crate::errors::Refused> {
     // Converted: `rc2k_core::sound::set_up::race`.
     use rc2k_core::sound::set_up::{RACE, race};
-    crate::sound::store::SETTINGS_APPLIED.done.set(RACE);
+    crate::sound::owner::sound()
+        .menu
+        .settings_applied
+        .done
+        .set(RACE);
     for s in race(AUDIO.race_sound_mode.get()) {
         run_step(s)?;
     }

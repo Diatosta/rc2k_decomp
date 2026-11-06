@@ -20,16 +20,16 @@ fn wake(n: u32) -> Result<(), BadInput> {
 /// `sound::let_sounds_play` and `dword_5124E4` 1.
 pub fn start_race_sounds() -> Result<(), Refused> {
     crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-    let count: u32 = crate::sound::store::RACE_SOUNDS.count.get();
+    let count: u32 = crate::sound::owner::sound().race.sounds.count.get();
     if count != 0 {
         let count = count.clamp(1, OBJECTS);
-        crate::sound::store::RACE_SOUNDS.count.set(count);
+        crate::sound::owner::sound().race.sounds.count.set(count);
         for n in 0..count {
             wake(n)?;
         }
     }
     crate::sound::let_sounds_play::let_sounds_play();
-    crate::sound::store::RACE_CLOCK.started.set(1);
+    crate::sound::owner::sound().race.clock.started.set(1);
     Ok(())
 }
 

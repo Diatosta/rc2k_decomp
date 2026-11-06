@@ -17,7 +17,7 @@
 
 use crate::errors::Refused;
 use crate::hud::disc_vertex::disc_vertex;
-use crate::hud::store::HUD;
+use crate::hud::owner::Hud;
 use crate::math::x87;
 use crate::math::x87_float::{ld, to_int};
 use rc2k_core::hud::disc::SEGMENTS;
@@ -29,32 +29,33 @@ fn negated_times_times_to_int(a: u32, b: u32, c: u32) -> u32 {
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::hud::disc::{ring_angles, disc_triangle}`
-pub fn draw_disc() -> Result<(), Refused> {
+pub fn draw_disc(hud: &Hud) -> Result<(), Refused> {
     {
         use rc2k_core::hud::disc::{disc_triangle, ring_angles};
         // The texture's turn follows the x87's control word: the x87's.
         let t = negated_times_times_to_int(
-            HUD.disc_turn.bits(),
-            HUD.disc_turn_a.bits(),
-            HUD.disc_turn_b.bits(),
+            hud.block.disc_turn.bits(),
+            hud.block.disc_turn_a.bits(),
+            hud.block.disc_turn_b.bits(),
         );
         let table = |cell: &crate::session::Float| x87::loaded(cell.bits());
         for (k, [a, b]) in ring_angles(t).into_iter().enumerate() {
             let n = k + 1;
-            HUD.ring_sines[n].set_bits(table(crate::scene::engine_tables_store::sine(a as usize)));
-            HUD.ring_cosines[n]
+            hud.block.ring_sines[n]
+                .set_bits(table(crate::scene::engine_tables_store::sine(a as usize)));
+            hud.block.ring_cosines[n]
                 .set_bits(table(crate::scene::engine_tables_store::cosine(a as usize)));
-            HUD.texture_ring_sines[n]
+            hud.block.texture_ring_sines[n]
                 .set_bits(table(crate::scene::engine_tables_store::sine(b as usize)));
-            HUD.texture_ring_cosines[n]
+            hud.block.texture_ring_cosines[n]
                 .set_bits(table(crate::scene::engine_tables_store::cosine(b as usize)));
         }
-        HUD.scratch.set(t);
+        hud.block.scratch.set(t);
         for k in 0..SEGMENTS {
             for (n, e) in disc_triangle(k).into_iter().enumerate() {
-                disc_vertex(e, &crate::d3d::vertices_store::VERTICES.vertices[n])?;
+                disc_vertex(hud, e, &crate::d3d::vertices_store::VERTICES.vertices[n])?;
             }
-            crate::hud::add_triangle::add_triangle()?;
+            crate::hud::add_triangle::add_triangle(hud)?;
         }
     }
     Ok(())

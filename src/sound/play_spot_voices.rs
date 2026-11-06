@@ -29,7 +29,7 @@ use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, pl
 
 /// The spots' voices played through `request`.
 pub fn play_spot_voices(request: &SoundRequest) -> Result<(), Refused> {
-    let clock = crate::sound::store::RACE_CLOCK.last.get();
+    let clock = crate::sound::owner::sound().race.clock.last.get();
     for n in 0..VOICE_COUNT {
         let v = voice(n);
         if vw(v, 4)? != 1 {

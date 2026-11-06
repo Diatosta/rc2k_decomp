@@ -30,23 +30,27 @@ pub struct WindscreenDropState {
     pub _gap_814738: Bytes<56>,
 }
 
-pub static WINDSCREEN_DROP_STATE: WindscreenDropState = WindscreenDropState {
-    live: Dword::new(0x0),
-    clock: Dword::new(0x0),
-    facing: Float::from_bits(0x0),
-    cell: [Dword::new(0x0), Dword::new(0x0)],
-    frames: Dword::new(0x0),
-    rate: Float::from_bits(0x0),
-    spawn_rate: Float::from_bits(0x3F900000),
-    _gap_814730: Bytes::new([0; 4]),
-    depth: Float::from_bits(0x0),
-    _gap_814738: Bytes::new([
-        0xC8, 0x00, 0x00, 0x00, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x65, 0x3A, 0x5C, 0x72, 0x61, 0x6C, 0x6C, 0x79, 0x35, 0x5C,
-        0x73, 0x72, 0x63, 0x5C, 0x6B, 0x61, 0x6B, 0x00, 0x66, 0x69, 0x6C, 0x65, 0x73, 0x5C, 0x6D,
-        0x5C, 0x62, 0x61, 0x63, 0x6B, 0x62, 0x69, 0x67, 0x2E, 0x70, 0x63,
-    ]),
-};
+impl WindscreenDropState {
+    pub const fn new() -> Self {
+        WindscreenDropState {
+            live: Dword::new(0x0),
+            clock: Dword::new(0x0),
+            facing: Float::from_bits(0x0),
+            cell: [Dword::new(0x0), Dword::new(0x0)],
+            frames: Dword::new(0x0),
+            rate: Float::from_bits(0x0),
+            spawn_rate: Float::from_bits(0x3F900000),
+            _gap_814730: Bytes::new([0; 4]),
+            depth: Float::from_bits(0x0),
+            _gap_814738: Bytes::new([
+                0xC8, 0x00, 0x00, 0x00, 0x40, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x65, 0x3A, 0x5C, 0x72, 0x61, 0x6C, 0x6C, 0x79,
+                0x35, 0x5C, 0x73, 0x72, 0x63, 0x5C, 0x6B, 0x61, 0x6B, 0x00, 0x66, 0x69, 0x6C, 0x65,
+                0x73, 0x5C, 0x6D, 0x5C, 0x62, 0x61, 0x63, 0x6B, 0x62, 0x69, 0x67, 0x2E, 0x70, 0x63,
+            ]),
+        }
+    }
+}
 
 impl WindscreenDropState {
     pub const START: usize = 0x814710;
@@ -61,7 +65,7 @@ mod windscreen_drop_state_tests {
     fn windscreen_drop_state_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<WindscreenDropState>(), WindscreenDropState::LEN);
-        let p = (&raw const WINDSCREEN_DROP_STATE).cast::<u8>();
+        let p = (&raw const crate::effects::owner::EFFECTS.windscreen_drops.state).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<WindscreenDropState>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -146,80 +150,85 @@ pub struct WindscreenDropWork {
     pub whole: [Dword; 2],
 }
 
-pub static WINDSCREEN_DROP_WORK: WindscreenDropWork = WindscreenDropWork {
-    drift: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_81477a: Bytes::new([
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80, 0x3F,
-    ]),
-    curve: [const { Float::from_bits(0x0) }; 256],
-    radii: [
-        Float::from_bits(0x40E00000),
-        Float::from_bits(0x40C00000),
-        Float::from_bits(0x40A00000),
-        Float::from_bits(0x40800000),
-        Float::from_bits(0x40400000),
-        Float::from_bits(0x40000000),
-        Float::from_bits(0x40800000),
-        Float::from_bits(0x40A00000),
-        Float::from_bits(0x40000000),
-        Float::from_bits(0x3FE66666),
-        Float::from_bits(0x3FCCCCCD),
-        Float::from_bits(0x3FB33333),
-        Float::from_bits(0x3F99999A),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x3F99999A),
-        Float::from_bits(0x3FB33333),
-    ],
-    inverse: Float::from_bits(0x0),
-    shares: [Float::from_bits(0x42666666), Float::from_bits(0x42666666)],
-    place: [
-        Float::from_bits(0xC7666666),
-        Float::from_bits(0xC6E66666),
-        Float::from_bits(0x47800000),
-    ],
-    axes: [
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x3F800000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    _gap_814c3e: Bytes::new([0; 48]),
-    setup_axes: [
-        Float::from_bits(0x44D00000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0xC4948000),
-        Float::from_bits(0x44948000),
-        Float::from_bits(0x44D00000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0xC4948000),
-        Float::from_bits(0x44948000),
-    ],
-    screen: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    _gap_814ca6: Bytes::new([0; 4]),
-    cell: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-    corners: [const { Float::from_bits(0x0) }; 18],
-    scaled: [const { Float::from_bits(0x0) }; 144],
-    points: [const { Float::from_bits(0x0) }; 144],
-    cursor: Dword::new(0x0),
-    whole: [Dword::new(0x0), Dword::new(0x0)],
-};
+impl WindscreenDropWork {
+    pub const fn new() -> Self {
+        WindscreenDropWork {
+            drift: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_81477a: Bytes::new([
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x41, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x80, 0x3F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x80, 0x3F,
+            ]),
+            curve: [const { Float::from_bits(0x0) }; 256],
+            radii: [
+                Float::from_bits(0x40E00000),
+                Float::from_bits(0x40C00000),
+                Float::from_bits(0x40A00000),
+                Float::from_bits(0x40800000),
+                Float::from_bits(0x40400000),
+                Float::from_bits(0x40000000),
+                Float::from_bits(0x40800000),
+                Float::from_bits(0x40A00000),
+                Float::from_bits(0x40000000),
+                Float::from_bits(0x3FE66666),
+                Float::from_bits(0x3FCCCCCD),
+                Float::from_bits(0x3FB33333),
+                Float::from_bits(0x3F99999A),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x3F99999A),
+                Float::from_bits(0x3FB33333),
+            ],
+            inverse: Float::from_bits(0x0),
+            shares: [Float::from_bits(0x42666666), Float::from_bits(0x42666666)],
+            place: [
+                Float::from_bits(0xC7666666),
+                Float::from_bits(0xC6E66666),
+                Float::from_bits(0x47800000),
+            ],
+            axes: [
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x3F800000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            _gap_814c3e: Bytes::new([0; 48]),
+            setup_axes: [
+                Float::from_bits(0x44D00000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0xC4948000),
+                Float::from_bits(0x44948000),
+                Float::from_bits(0x44D00000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0xC4948000),
+                Float::from_bits(0x44948000),
+            ],
+            screen: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            _gap_814ca6: Bytes::new([0; 4]),
+            cell: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+            corners: [const { Float::from_bits(0x0) }; 18],
+            scaled: [const { Float::from_bits(0x0) }; 144],
+            points: [const { Float::from_bits(0x0) }; 144],
+            cursor: Dword::new(0x0),
+            whole: [Dword::new(0x0), Dword::new(0x0)],
+        }
+    }
+}
 
 impl WindscreenDropWork {
     pub const START: usize = 0x814772;
@@ -234,7 +243,7 @@ mod windscreen_drop_work_tests {
     fn windscreen_drop_work_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<WindscreenDropWork>(), WindscreenDropWork::LEN);
-        let p = (&raw const WINDSCREEN_DROP_WORK).cast::<u8>();
+        let p = (&raw const crate::effects::owner::EFFECTS.windscreen_drops.work).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<WindscreenDropWork>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();

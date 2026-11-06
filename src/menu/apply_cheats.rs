@@ -28,7 +28,7 @@ use rc2k_core::menu::car_lists;
 // ---- game data ----
 
 /// By bit (what each does: `rc2k_core::menu::car_lists::CHEATS`): the log line's text and
-/// the cheat's car (an index into `CAR_TABLE.descriptions`), if any.
+/// the cheat's car (an index into `CarTable.descriptions`), if any.
 const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
     (c"Cheat 1 (Unlock Arcade)", None),
     (c"Cheat 2 (Unlock Cars)", None),

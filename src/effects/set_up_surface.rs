@@ -12,7 +12,7 @@
 //! again, the 0x40000 block left taken).
 
 use crate::effects::load_mask_pictures::{lock, put_pixel};
-use crate::effects::ring_store::{PICTURE_NAMES, RING_WORK};
+use crate::effects::ring_store::Ring;
 use crate::effects::surface_store::SURFACE;
 use crate::effects::tuning::MARKS_FLOATS;
 use crate::errors::{BadInput, Refused};
@@ -52,7 +52,7 @@ fn unlock_refusing(why: &'static str) -> Result<(), Refused> {
 /// The Rust version (see the header): `memory::allocate`, `d3d::lock_texture` /
 /// `unlock_texture`, `gfx::read_picture_file`, `gfx::put_surface_pixel`,
 /// `scene::forget_slot_texture`, `memory::free_list`, `nullsub_33` (nothing).
-pub fn set_up_surface() -> Result<(), Refused> {
+pub fn set_up_surface(ring: &Ring) -> Result<(), Refused> {
     // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
     // block was.
     let mut mask =
@@ -63,7 +63,7 @@ pub fn set_up_surface() -> Result<(), Refused> {
     {
         return unlock_refusing("a surface under 256 x 256");
     }
-    if !read(&PICTURE_NAMES.surfmask)? {
+    if !read(&ring.names.surfmask)? {
         return unlock_refusing("surfmask.pcx was not read");
     }
     mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
@@ -71,7 +71,7 @@ pub fn set_up_surface() -> Result<(), Refused> {
         0,
         4 * PIXELS as usize,
     )?);
-    if !read(&PICTURE_NAMES.surfdata)? {
+    if !read(&ring.names.surfdata)? {
         return unlock_refusing("surfdata.pcx was not read");
     }
     let picture = crate::gfx::picture::read_bytes(PICTURE.buffer.get(), 0, 4 * PIXELS as usize)?;
@@ -88,10 +88,10 @@ pub fn set_up_surface() -> Result<(), Refused> {
     )?;
     crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&MASK_LIST.list))?;
 
-    crate::effects::ring_entries::take(crate::pointers::GamePtr::to(&RING_WORK.list))?;
-    RING_WORK.block.set(1);
-    RING_WORK.cursor.set(1);
-    RING_WORK.count.set(0);
+    crate::effects::ring_entries::take(ring, crate::pointers::GamePtr::to(&ring.work.list))?;
+    ring.work.block.set(1);
+    ring.work.cursor.set(1);
+    ring.work.count.set(0);
 
     let [eighth, edge, pixel, step]: [u32; 4] = [
         MARKS_FLOATS.eighth.bits(),

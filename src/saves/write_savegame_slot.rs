@@ -44,12 +44,16 @@ pub struct SaveGames {
 }
 
 /// The saved games' buffers; the first values are the image's (all zero).
-pub static SAVE_GAMES: SaveGames = SaveGames {
-    kept_a: Dword::new(0),
-    file: Bytes::new([0; FILE_LEN]),
-    names: Bytes::new([0; SLOTS as usize * NAME_BYTES]),
-    kept_b: Dword::new(0),
-};
+impl SaveGames {
+    pub const fn new() -> Self {
+        SaveGames {
+            kept_a: Dword::new(0),
+            file: Bytes::new([0; FILE_LEN]),
+            names: Bytes::new([0; SLOTS as usize * NAME_BYTES]),
+            kept_b: Dword::new(0),
+        }
+    }
+}
 
 /// IDA's address of the file name's template.
 pub const TEMPLATE_START: usize = 0x5296FB;
@@ -59,7 +63,10 @@ pub static TEMPLATE: Bytes<27> = Bytes::new(*b"savedata\\savegame\\svgame00\0");
 
 // "R5SG"
 pub fn slot_name(slot: u32) -> crate::place::Place {
-    crate::place::Place::In(&SAVE_GAMES.names, slot as usize * NAME_LEN)
+    crate::place::Place::In(
+        &crate::saves::owner::saves().save_games.names,
+        slot as usize * NAME_LEN,
+    )
 }
 
 // ---- Rust version ----
@@ -70,7 +77,7 @@ pub fn write_savegame_slot(slot: u32) -> Result<bool, Refused> {
         return Err(BadInput("slot past the name list").into());
     }
     {
-        let file = &SAVE_GAMES.file;
+        let file = &crate::saves::owner::saves().save_games.file;
         // First, because it is what can be refused: nothing else is written before it.
         gather_savegame(GamePtr::to(file).offset(0x30))?;
         // Converted: `rc2k_core::saves::kept::slot_head`.
@@ -95,7 +102,11 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&SAVE_GAMES, START, START + LEN);
+        crate::gfx::first_values_are_the_games(
+            &crate::saves::owner::SAVES.save_games,
+            START,
+            START + LEN,
+        );
         crate::gfx::first_values_are_the_games(&TEMPLATE, TEMPLATE_START, TEMPLATE_START + 27);
     }
 
@@ -107,11 +118,11 @@ mod block_tests {
         assert_eq!(offset_of!(SaveGames, kept_b), 0x527834 - START);
         assert_eq!(
             crate::moved::place(0x51EBB4),
-            SAVE_GAMES.file.addr() as usize
+            crate::saves::owner::saves().save_games.file.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x526BB4),
-            SAVE_GAMES.names.addr() as usize
+            crate::saves::owner::saves().save_games.names.addr() as usize
         );
         assert_eq!(
             crate::moved::place(TEMPLATE_START),

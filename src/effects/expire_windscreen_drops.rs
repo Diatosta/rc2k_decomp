@@ -10,10 +10,8 @@
 //!
 //! Caller: `effects::windscreen_drops_step` (0x4BCAF1).
 
-use crate::effects::mask_picks::PICKS;
 use crate::effects::mask_vars::MASKS;
-use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
-use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 
 pub const ITEMS: u32 = 0x800;
@@ -21,10 +19,10 @@ pub const ITEM_LEN: u32 = 0x30;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::expiry::{cell, windscreen_drop_draw, windscreen_drop_hit}`
-pub fn expire_windscreen_drops() -> Result<(), Refused> {
+pub fn expire_windscreen_drops(drops: &WindscreenDrops) -> Result<(), Refused> {
     use rc2k_core::effects::expiry;
     {
-        let items = &HEX.items;
+        let items = &drops.hex.items;
         for n in 0..ITEMS {
             let e = (n * ITEM_LEN) as usize;
             if items.get_u32(e) != 1 {
@@ -32,18 +30,18 @@ pub fn expire_windscreen_drops() -> Result<(), Refused> {
             }
             let f = |o: usize| f32::from_bits(items.get_u32(e + o));
             let c = expiry::cell(f(0x14), f(0x18));
-            WINDSCREEN_DROP_STATE.cell[1].set(c.z as u32);
-            WINDSCREEN_DROP_STATE.cell[0].set(c.x as u32);
-            let (r, draw) = expiry::windscreen_drop_draw(HEX.random.get());
-            HEX.random.set(r);
+            drops.state.cell[1].set(c.z as u32);
+            drops.state.cell[0].set(c.x as u32);
+            let (r, draw) = expiry::windscreen_drop_draw(drops.hex.random.get());
+            drops.hex.random.set(r);
             if draw == 0 {
                 items.set_u32(e, 0);
             }
             let (hit, _) = expiry::windscreen_drop_hit(
-                HEX.steps.get() as i32,
+                drops.hex.steps.get() as i32,
                 |k| {
-                    let at = PICKS.index.get().wrapping_add(k) & 0xFF;
-                    PICKS.values[at as usize].get()
+                    let at = drops.picks.index.get().wrapping_add(k) & 0xFF;
+                    drops.picks.values[at as usize].get()
                 },
                 |n| [&MASKS.mask_a, &MASKS.mask_b][n].get(c.at as usize),
             );

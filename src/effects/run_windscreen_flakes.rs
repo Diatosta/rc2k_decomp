@@ -15,6 +15,7 @@
 use crate::effects::edges::EDGE_MASK;
 use crate::effects::setup::CLOCK;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_spawn::windscreen_flakes_spawn;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 
@@ -33,14 +34,17 @@ fn less(k: u32, z: u32) -> [u8; 10] {
 }
 
 /// The Rust version (see the header).
-pub fn run_windscreen_flakes(fl: &WindscreenFlakes) -> Result<(), Refused> {
+pub fn run_windscreen_flakes(
+    drops: &WindscreenDrops,
+    fl: &WindscreenFlakes,
+) -> Result<(), Refused> {
     let old = x87::set_chop();
-    run(fl)?;
+    run(drops, fl)?;
     x87::set_control(old);
     Ok(())
 }
 
-fn run(fl: &WindscreenFlakes) -> Result<(), Refused> {
+fn run(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), Refused> {
     {
         crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl);
         let [a, b, c, d]: [u32; 4] = read_bits(&fl.state.run_places);
@@ -49,7 +53,7 @@ fn run(fl: &WindscreenFlakes) -> Result<(), Refused> {
             VERTICES.vertices[n].v.set_bits(v);
         }
         if MARKS_KIND_FLOATS.running.bits() != 0 {
-            windscreen_flakes_spawn(fl)?;
+            windscreen_flakes_spawn(drops, fl)?;
         }
         for item in &fl.items.items {
             if item.live.get() != 1 {

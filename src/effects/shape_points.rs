@@ -4,11 +4,10 @@
 //! and the two farthest apart of each list on one face.
 
 use crate::effects::kind_values::MARKS_KIND;
-use crate::effects::mask_picks::PICKS;
 use crate::effects::mask_vars::MASKS;
-use crate::effects::masks::{POINTS_A, POINTS_B, PointList};
-use crate::effects::shape_work::{MarkShapes, SHAPE_WORK};
-use crate::effects::tilt_shape::SHAPE_TILT;
+use crate::effects::masks::PointList;
+use crate::effects::shape_work::MarkShapes;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::course_lists_store::COURSE_LISTS;
@@ -43,26 +42,26 @@ impl MarkShapes {
 }
 
 /// The working block's farthest pair of list `n` (`g_marksFarthestA`, `_B`).
-pub fn farthest_pair(n: usize) -> &'static [Dword; 2] {
-    SHAPE_WORK.work.farthest(n)
+pub fn farthest_pair(drops: &WindscreenDrops, n: usize) -> &[Dword; 2] {
+    drops.shape_work.work.farthest(n)
 }
 
 /// The working block's turned points of list `n` (`g_marksTurnedA`, `_B`).
-pub fn turned(n: usize) -> &'static Bytes<0x300> {
-    SHAPE_WORK.work.turned(n)
+pub fn turned(drops: &WindscreenDrops, n: usize) -> &Bytes<0x300> {
+    drops.shape_work.work.turned(n)
 }
 
 /// The shape set the turns use (`g_marksShapeSet`: the first of the sets).
-fn set() -> &'static MarkShapes {
-    &SHAPE_WORK.sets[0]
+fn set(drops: &WindscreenDrops) -> &MarkShapes {
+    &drops.shape_work.sets[0]
 }
 
 /// The turn about X, and the turns about Z of lists A and B (3 x 3 floats).
-fn turn_x() -> &'static [Float; 9] {
-    &SHAPE_WORK.turn_x
+fn turn_x(drops: &WindscreenDrops) -> &[Float; 9] {
+    &drops.shape_work.turn_x
 }
-fn turn_z(n: usize) -> &'static [Float; 9] {
-    [&SHAPE_WORK.turn_a, &SHAPE_WORK.turn_b][n]
+fn turn_z(drops: &WindscreenDrops, n: usize) -> &[Float; 9] {
+    [&drops.shape_work.turn_a, &drops.shape_work.turn_b][n]
 }
 pub const MOST_POINTS: u32 = 0x40;
 
@@ -85,16 +84,16 @@ fn listed(count: &Dword) -> Result<u32, BadInput> {
 /// `g_marksTurnedA` / `B` (the length rounded; a later pair as far wins) into
 /// `g_marksFarthestA` / `B` (the inner then the outer number). Refuses a list of more
 /// than 0x40.
-pub fn find_farthest_pairs() -> Result<(), Refused> {
+pub fn find_farthest_pairs(drops: &WindscreenDrops) -> Result<(), Refused> {
     {
-        let lists: [&PointList; 2] = [&POINTS_A, &POINTS_B];
+        let lists: [PointList; 2] = [PointList::a(drops), PointList::b(drops)];
         for list in lists {
             if list.count.get() as i32 > MOST_POINTS as i32 {
                 return Err(BadInput("a points list of more than 0x40").into());
             }
         }
         for (list, n) in lists.into_iter().zip(0..) {
-            let (faces, points) = (list.faces, turned(n));
+            let (faces, points) = (list.faces, turned(drops, n));
             let count = (list.count.get() as i32).max(0) as u32;
             let mut farthest = 0i32;
             for j in (0..count).rev() {
@@ -108,7 +107,7 @@ pub fn find_farthest_pairs() -> Result<(), Refused> {
                         continue;
                     }
                     farthest = length;
-                    write_bits(farthest_pair(n), [i, j]);
+                    write_bits(farthest_pair(drops, n), [i, j]);
                 }
             }
         }
@@ -117,14 +116,14 @@ pub fn find_farthest_pairs() -> Result<(), Refused> {
 }
 
 /// What `turn_shape_points` refuses for turns `a`, `b`.
-pub fn turn_shape_checks(a: u32, b: u32) -> Result<(), Refused> {
+pub fn turn_shape_checks(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), Refused> {
     for n in 0..2 {
-        let n = set().count(n).get();
+        let n = set(drops).count(n).get();
         if n as i32 > MOST_POINTS as i32 || n == 0x8000_0000 {
             return Err(BadInput("a shape list of more than 0x40").into());
         }
     }
-    for t in [extended(SHAPE_TILT.tilt.bits()), extended(a), extended(b)] {
+    for t in [extended(drops.tilt.tilt.bits()), extended(a), extended(b)] {
         turnable(&t)?;
     }
     Ok(())
@@ -136,24 +135,29 @@ pub fn turn_shape_checks(a: u32, b: u32) -> Result<(), Refused> {
 /// them into `g_marksTurnedA` / `B`, and each turned point plus the list's offset
 /// (`fiadd`) into the point its target names (the last first). Refuses a list of more than
 /// 0x40 or of 0x80000000, or an angle `fsincos` cannot take, before writing.
-pub fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
+pub fn turn_shape_points(drops: &WindscreenDrops, a: u32, b: u32) -> Result<(), Refused> {
     use crate::scene::matrix3::{multiply_matrices3, transform_int_points};
-    turn_shape_checks(a, b)?;
-    let set = set();
-    let angles = [extended(SHAPE_TILT.tilt.bits()), extended(a), extended(b)];
-    turn_matrix3(Axis::X, turn_x(), angles[0])?;
-    SHAPE_INPUTS.scratch.set(a);
-    turn_matrix3(Axis::Z, turn_z(0), angles[1])?;
-    SHAPE_INPUTS.scratch.set(b);
-    turn_matrix3(Axis::Z, turn_z(1), angles[2])?;
+    turn_shape_checks(drops, a, b)?;
+    let set = set(drops);
+    let angles = [extended(drops.tilt.tilt.bits()), extended(a), extended(b)];
+    turn_matrix3(Axis::X, turn_x(drops), angles[0])?;
+    drops.inputs.scratch.set(a);
+    turn_matrix3(Axis::Z, turn_z(drops, 0), angles[1])?;
+    drops.inputs.scratch.set(b);
+    turn_matrix3(Axis::Z, turn_z(drops, 1), angles[2])?;
     for n in 0..2 {
-        multiply_matrices3(turn_x(), turn_z(n), set.matrix(n));
+        multiply_matrices3(turn_x(drops), turn_z(drops, n), set.matrix(n));
     }
     for n in 0..2 {
-        transform_int_points(set.turned(n), turned(n), set.count(n).get(), set.matrix(n))?;
+        transform_int_points(
+            set.turned(n),
+            turned(drops, n),
+            set.count(n).get(),
+            set.matrix(n),
+        )?;
     }
     for n in 0..2 {
-        let turned = turned(n);
+        let turned = turned(drops, n);
         for k in (0..(set.count(n).get() as i32).max(0) as u32).rev() {
             let target = set.ids(n)[k as usize].get();
             for c in 0..3 {
@@ -171,20 +175,22 @@ pub fn turn_shape_points(a: u32, b: u32) -> Result<(), Refused> {
 
 /// The two shapes' steps and ends for `turn_all_shapes`: the step (each shape's +0), a, b,
 /// and the switch that picks the second result.
-static ALL_STEPS: [(&Dword, usize, &Dword, &Dword); 2] = [
-    (
-        &MASKS.shapes[0].step,
-        0,                         // `dword_89C974`, `ShapeSetTuning::turn_angles`
-        &SHAPE_WORK.work.steps[0], // dword_884FC4
-        &PICKS.flags[0],           // dword_844604
-    ),
-    (
-        &MASKS.shapes[1].step,
-        2,                         // `dword_89C97C`
-        &SHAPE_WORK.work.steps[1], // dword_884FC8
-        &PICKS.flags[1],           // dword_844608
-    ),
-];
+fn all_steps(drops: &WindscreenDrops) -> [(&Dword, usize, &Dword, &Dword); 2] {
+    [
+        (
+            &MASKS.shapes[0].step,
+            0,                               // `dword_89C974`, `ShapeSetTuning::turn_angles`
+            &drops.shape_work.work.steps[0], // dword_884FC4
+            &drops.picks.flags[0],           // dword_844604
+        ),
+        (
+            &MASKS.shapes[1].step,
+            2,                               // `dword_89C97C`
+            &drops.shape_work.work.steps[1], // dword_884FC8
+            &drops.picks.flags[1],           // dword_844608
+        ),
+    ]
+}
 
 /// `effects::turn_all_shapes` (0x4BD122): for each of the settings' objects (the last
 /// first) the two shapes' eased steps (`smooth_steps` from `dword_89C974` / `_7C` to
@@ -192,13 +198,14 @@ static ALL_STEPS: [(&Dword, usize, &Dword, &Dword); 2] = [
 /// (`dword_844604` / `_08`) is 0, and `turn_shape_points` with them. The object's offset
 /// (times 0xAB8) is worked out and not used: the one set is turned every time (section
 /// 16). Refuses what `turn_shape_points` would, before writing.
-pub fn turn_all_shapes() -> Result<(), Refused> {
+pub fn turn_all_shapes(drops: &WindscreenDrops) -> Result<(), Refused> {
     use crate::effects::turns::{smooth_pair, smooth_steps};
     {
         let marks = crate::effects::setup::marks()?;
         let count = marks.object_count.get() as i32;
+        let all_steps = all_steps(drops);
         let pick = |n: usize, (first, second): (u32, u32)| -> u32 {
-            if ALL_STEPS[n].3.get() == 0 {
+            if all_steps[n].3.get() == 0 {
                 first
             } else {
                 second
@@ -206,23 +213,28 @@ pub fn turn_all_shapes() -> Result<(), Refused> {
         };
         if count > 0 {
             let mut turns = [0u32; 2];
-            for (n, &(step, a, b, _)) in ALL_STEPS.iter().enumerate() {
+            for (n, &(step, a, b, _)) in all_steps.iter().enumerate() {
                 turns[n] = pick(
                     n,
-                    smooth_pair(step.get(), SHAPE_SET_TUNING.turn_angles[a].bits(), b.get()),
+                    smooth_pair(step.get(), drops.tuning.turn_angles[a].bits(), b.get()),
                 );
             }
-            turn_shape_checks(turns[0], turns[1])?;
+            turn_shape_checks(drops, turns[0], turns[1])?;
         }
         for _ in 0..count.max(0) {
             let mut turns = [0u32; 2];
-            for (n, &(step, a, b, _)) in ALL_STEPS.iter().enumerate() {
+            for (n, &(step, a, b, _)) in all_steps.iter().enumerate() {
                 turns[n] = pick(
                     n,
-                    smooth_steps(step.get(), SHAPE_SET_TUNING.turn_angles[a].bits(), b.get()),
+                    smooth_steps(
+                        drops,
+                        step.get(),
+                        drops.tuning.turn_angles[a].bits(),
+                        b.get(),
+                    ),
                 );
             }
-            turn_shape_points(turns[0], turns[1])?;
+            turn_shape_points(drops, turns[0], turns[1])?;
         }
     }
     Ok(())
@@ -236,10 +248,10 @@ const SETS_HELD: u32 = 33;
 
 /// What `make_shape_set` refuses for object `object`: a set count past 0x22 (or below 0),
 /// an object past 0xFF or its faces past `g_faces`, a tilt `fsincos` cannot take.
-fn shape_set_checks(object: u32) -> Result<(), Refused> {
+fn shape_set_checks(drops: &WindscreenDrops, object: u32) -> Result<(), Refused> {
     use crate::scene::object_slots_store::OBJECT_SLOTS;
     use crate::scene::objects::FACES;
-    let made = SHAPE_WORK.sets_made.get();
+    let made = drops.shape_work.sets_made.get();
     if made > SETS {
         return Err(BadInput("more than 0x22 shape sets").into());
     }
@@ -254,7 +266,7 @@ fn shape_set_checks(object: u32) -> Result<(), Refused> {
     if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
         return Err(BadInput("an object's faces past g_faces").into());
     }
-    let steps: [u32; 2] = read_bits(&SHAPE_INPUTS.tilts);
+    let steps: [u32; 2] = read_bits(&drops.inputs.tilts);
     for t in steps {
         let mut a = extended(t);
         a[9] ^= 0x80;
@@ -272,27 +284,27 @@ fn shape_set_checks(object: u32) -> Result<(), Refused> {
 /// (`turn_matrix3_x`, `transform_int_points`); `find_farthest_pairs`; the block copied to
 /// set n (`memory::move_bytes`), n counted. Refuses a set count past 0x22, an object past
 /// 0xFF or faces past `g_faces`, a tilt `fsincos` cannot take, before writing.
-pub fn make_shape_set(object: u32) -> Result<(), Refused> {
+pub fn make_shape_set(drops: &WindscreenDrops, object: u32) -> Result<(), Refused> {
     use crate::effects::masks::collect_points;
     use crate::scene::object_slots_store::OBJECT_SLOTS;
-    shape_set_checks(object)?;
-    let made: u32 = SHAPE_WORK.sets_made.get();
+    shape_set_checks(drops, object)?;
+    let made: u32 = drops.shape_work.sets_made.get();
     if made == SETS {
         return Ok(());
     }
     if made >= SETS_HELD {
         return Err(BadInput("a shape set past the 33 held (the game makes at most 19)").into());
     }
-    let work = &SHAPE_WORK.work;
+    let work = &drops.shape_work.work;
     let inputs: [u32; 6] = [
-        SHAPE_INPUTS.tilts[0].get(),
-        SHAPE_INPUTS.tilts[1].get(),
-        SHAPE_INPUTS.ends[0].bits(),
-        SHAPE_INPUTS.ends[1].bits(),
-        SHAPE_INPUTS.ends[2].bits(),
-        SHAPE_INPUTS.ends[3].bits(),
+        drops.inputs.tilts[0].get(),
+        drops.inputs.tilts[1].get(),
+        drops.inputs.ends[0].bits(),
+        drops.inputs.ends[1].bits(),
+        drops.inputs.ends[2].bits(),
+        drops.inputs.ends[3].bits(),
     ];
-    let scales: [u32; 4] = read_bits(&SHAPE_SET_TUNING.step_scales);
+    let scales: [u32; 4] = read_bits(&drops.tuning.step_scales);
     // 0x884FC4 .. : a, b (0x764F6C, _74), c, d (_70, _78) scaled, the tilts, two zeros.
     let steps = [
         x87::mul(inputs[2], scales[0]),
@@ -305,27 +317,28 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         inputs[1],
     ];
     write_bits(&work.steps, steps);
-    for list in [&POINTS_A, &POINTS_B] {
+    for list in [PointList::a(drops), PointList::b(drops)] {
         list.count.set(0);
     }
     let object = object as usize;
     let first: u32 = OBJECT_SLOTS.first_face[object].get();
-    SHAPE_WORK
+    drops
+        .shape_work
         .first_point
         .set(OBJECT_SLOTS.first_point[object].get());
     let faces: u32 = OBJECT_SLOTS.face_counts[object].get();
-    let kinds: [u32; 2] = read_bits(&SHAPE_SET_TUNING.face_kinds);
+    let kinds: [u32; 2] = read_bits(&drops.tuning.face_kinds);
     for f in first..first + faces {
         let face: u32 = crate::scene::objects::face_cell(f as usize).get();
         let kind = crate::scene::object_faces::byte(face + 7)?;
         if kind == kinds[0] as u8 {
-            collect_points(&POINTS_A, face)?;
+            collect_points(&PointList::a(drops), face)?;
         } else if kind == kinds[1] as u8 {
-            collect_points(&POINTS_B, face)?;
+            collect_points(&PointList::b(drops), face)?;
         }
     }
-    let lists = [&POINTS_A, &POINTS_B];
-    let counts = [listed(POINTS_A.count)?, listed(POINTS_B.count)?];
+    let lists = [PointList::a(drops), PointList::b(drops)];
+    let counts = [listed(lists[0].count)?, listed(lists[1].count)?];
     let points: u32 = COURSE_LISTS.object_points.bits();
     for (list, n) in lists.into_iter().zip(counts) {
         for id in list.ids[..n as usize].iter().rev() {
@@ -333,7 +346,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         }
     }
     for ((list, count), n) in lists.into_iter().zip(counts).zip(0..) {
-        let turned = turned(n);
+        let turned = turned(drops, n);
         for k in (0..count).rev() {
             let from = list.ids[k as usize].get();
             for c in 0..3 {
@@ -343,7 +356,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         }
     }
     for (count, n) in counts.into_iter().zip(0..) {
-        let turned = turned(n);
+        let turned = turned(drops, n);
         let mut lowest = 0x7FFF_FFFF;
         for k in (0..count).rev() {
             if (part(turned, k, 1) as i32) < lowest {
@@ -355,7 +368,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
         }
     }
     for (count, n) in counts.into_iter().zip(0..) {
-        let turned = turned(n);
+        let turned = turned(drops, n);
         for k in (0..count).rev() {
             for c in 0..3 {
                 let v = part(turned, k, c).wrapping_sub(work.low(n)[c as usize].get());
@@ -363,16 +376,21 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
             }
         }
     }
-    let turn_x = turn_x();
+    let turn_x = turn_x(drops);
     for n in 0..2 {
         let mut angle = extended(steps[6 + n]);
         angle[9] ^= 0x80;
         turn_matrix3(Axis::X, turn_x, angle)?;
-        crate::scene::matrix3::transform_int_points(turned(n), turned(n), MOST_POINTS, turn_x)?;
+        crate::scene::matrix3::transform_int_points(
+            turned(drops, n),
+            turned(drops, n),
+            MOST_POINTS,
+            turn_x,
+        )?;
     }
-    find_farthest_pairs()?;
-    SHAPE_WORK.sets[made as usize].copy_from(&SHAPE_WORK.work);
-    SHAPE_WORK.sets_made.set(made + 1);
+    find_farthest_pairs(drops)?;
+    drops.shape_work.sets[made as usize].copy_from(&drops.shape_work.work);
+    drops.shape_work.sets_made.set(made + 1);
     Ok(())
 }
 
@@ -381,7 +399,7 @@ pub fn make_shape_set(object: u32) -> Result<(), Refused> {
 /// inputs (the tilt twice into 0x764F60, _64; the kind's two values and two floats into
 /// 0x764F6C .. _78) and `make_shape_set`. Refuses a kind of 0x22 or more, more than 19
 /// objects, what `make_shape_set` refuses for any of them, before writing.
-pub fn make_shape_sets() -> Result<(), Refused> {
+pub fn make_shape_sets(drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let kind: u32 = MARKS_KIND.kind.bits();
         if kind >= SETS {
@@ -396,7 +414,7 @@ pub fn make_shape_sets() -> Result<(), Refused> {
             .rev()
             .map(|k| marks.at(0x26BC + 4 * k).read::<u32>("a shape object"))
             .collect::<Result<_, _>>()?;
-        let t = &SHAPE_SET_TUNING;
+        let t = &drops.tuning;
         let k = kind as usize; // under 0x22, checked above
         // The kind's two face kinds and the set's two ends (`dword_89C72C`, `_7B4`, `_8C4`, `_83C`).
         let by_kind = [
@@ -405,7 +423,7 @@ pub fn make_shape_sets() -> Result<(), Refused> {
             t.end_a[k].bits(),
             t.end_b[k].bits(),
         ];
-        let tilt: u32 = SHAPE_TILT.tilt.bits();
+        let tilt: u32 = drops.tilt.tilt.bits();
         let tilts = [tilt, tilt];
         let ends = [
             by_kind[2],
@@ -414,20 +432,23 @@ pub fn make_shape_sets() -> Result<(), Refused> {
             x87::loaded(t.set_ends[1].bits()),
         ];
         // Checked as the sets will see them: none made, these tilts.
-        let saved: ([u32; 2], u32) = (read_bits(&SHAPE_INPUTS.tilts), SHAPE_WORK.sets_made.get());
-        write_bits(&SHAPE_INPUTS.tilts, tilts);
-        SHAPE_WORK.sets_made.set(0);
-        let checked = objects.iter().try_for_each(|&o| shape_set_checks(o));
-        write_bits(&SHAPE_INPUTS.tilts, saved.0);
-        SHAPE_WORK.sets_made.set(saved.1);
+        let saved: ([u32; 2], u32) = (
+            read_bits(&drops.inputs.tilts),
+            drops.shape_work.sets_made.get(),
+        );
+        write_bits(&drops.inputs.tilts, tilts);
+        drops.shape_work.sets_made.set(0);
+        let checked = objects.iter().try_for_each(|&o| shape_set_checks(drops, o));
+        write_bits(&drops.inputs.tilts, saved.0);
+        drops.shape_work.sets_made.set(saved.1);
         checked?;
-        SHAPE_WORK.sets_made.set(0);
+        drops.shape_work.sets_made.set(0);
         t.face_kinds[0].set(by_kind[0]);
         t.face_kinds[1].set(by_kind[1]);
         for o in objects {
-            write_bits(&SHAPE_INPUTS.tilts, tilts);
-            write_bits(&SHAPE_INPUTS.ends, ends);
-            make_shape_set(o)?;
+            write_bits(&drops.inputs.tilts, tilts);
+            write_bits(&drops.inputs.ends, ends);
+            make_shape_set(drops, o)?;
         }
     }
     Ok(())
@@ -449,18 +470,22 @@ pub struct ShapeInputs {
     pub ends: [Float; 4],
 }
 
-pub static SHAPE_INPUTS: ShapeInputs = ShapeInputs {
-    scratch: Dword::new(0x0),
-    _gap_764f44: Bytes::new([0; 28]),
-    tilts: [Dword::new(0x0), Dword::new(0x0)],
-    _gap_764f68: Bytes::new([0; 4]),
-    ends: [
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-        Float::from_bits(0x0),
-    ],
-};
+impl ShapeInputs {
+    pub const fn new() -> Self {
+        ShapeInputs {
+            scratch: Dword::new(0x0),
+            _gap_764f44: Bytes::new([0; 28]),
+            tilts: [Dword::new(0x0), Dword::new(0x0)],
+            _gap_764f68: Bytes::new([0; 4]),
+            ends: [
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+                Float::from_bits(0x0),
+            ],
+        }
+    }
+}
 
 impl ShapeInputs {
     pub const START: usize = 0x764F40;
@@ -475,7 +500,7 @@ mod shape_inputs_tests {
     fn shape_inputs_starts_as_the_games() {
         use core::mem::offset_of;
         assert_eq!(size_of::<ShapeInputs>(), ShapeInputs::LEN);
-        let p = (&raw const SHAPE_INPUTS).cast::<u8>();
+        let p = (&raw const crate::effects::owner::EFFECTS.windscreen_drops.inputs).cast::<u8>();
         let ours: Vec<u8> = (0..size_of::<ShapeInputs>())
             .map(|i| unsafe { p.add(i).read() })
             .collect();
@@ -519,176 +544,180 @@ pub struct ShapeSetTuning {
     pub step_scales: [Float; 4],
 }
 
-pub static SHAPE_SET_TUNING: ShapeSetTuning = ShapeSetTuning {
-    face_kinds: [Dword::new(0x1E), Dword::new(0x1D)],
-    first_face_kind: [
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0x1E),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0x1E),
-    ],
-    second_face_kind: [
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x1D),
-        Dword::new(0x10),
-        Dword::new(0x1D),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0xFFFFFFFF),
-        Dword::new(0x1D),
-    ],
-    end_b: [
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0x42960000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2A00000),
-    ],
-    end_a: [
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0x42A00000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0x42A00000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2960000),
-        Float::from_bits(0x42C60000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0xC2B40000),
-    ],
-    end_pairs: [
-        Float::from_bits(0xC2B40000),
-        Float::from_bits(0x0),
-        Float::from_bits(0xC2A00000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x42A00000),
-        Float::from_bits(0x0),
-        Float::from_bits(0x42B40000),
-        Float::from_bits(0x0),
-    ],
-    set_ends: [Float::from_bits(0x0), Float::from_bits(0x0)],
-    turn_angles: [
-        Float::from_bits(0x0),
-        Float::from_bits(0xBFC90FDB),
-        Float::from_bits(0x0),
-        Float::from_bits(0xBFC90FDB),
-    ],
-    step_scales: [
-        Float::from_bits(0x3C8EFA35),
-        Float::from_bits(0x3C8EFA35),
-        Float::from_bits(0x3C8EFA35),
-        Float::from_bits(0x3C8EFA35),
-    ],
-};
+impl ShapeSetTuning {
+    pub const fn new() -> Self {
+        ShapeSetTuning {
+            face_kinds: [Dword::new(0x1E), Dword::new(0x1D)],
+            first_face_kind: [
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0x1E),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0x1E),
+            ],
+            second_face_kind: [
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x1D),
+                Dword::new(0x10),
+                Dword::new(0x1D),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0xFFFFFFFF),
+                Dword::new(0x1D),
+            ],
+            end_b: [
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0x42960000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2A00000),
+            ],
+            end_a: [
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0x42A00000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0x42A00000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2960000),
+                Float::from_bits(0x42C60000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0xC2B40000),
+            ],
+            end_pairs: [
+                Float::from_bits(0xC2B40000),
+                Float::from_bits(0x0),
+                Float::from_bits(0xC2A00000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x42A00000),
+                Float::from_bits(0x0),
+                Float::from_bits(0x42B40000),
+                Float::from_bits(0x0),
+            ],
+            set_ends: [Float::from_bits(0x0), Float::from_bits(0x0)],
+            turn_angles: [
+                Float::from_bits(0x0),
+                Float::from_bits(0xBFC90FDB),
+                Float::from_bits(0x0),
+                Float::from_bits(0xBFC90FDB),
+            ],
+            step_scales: [
+                Float::from_bits(0x3C8EFA35),
+                Float::from_bits(0x3C8EFA35),
+                Float::from_bits(0x3C8EFA35),
+                Float::from_bits(0x3C8EFA35),
+            ],
+        }
+    }
+}
 
 impl ShapeSetTuning {
     pub const START: usize = 0x89C724;
@@ -697,7 +726,9 @@ impl ShapeSetTuning {
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const SHAPE_SET_TUNING) as usize
+        crate::pointers::game_address(
+            &raw const crate::effects::owner::EFFECTS.windscreen_drops.tuning,
+        ) as usize
     }
 }
 

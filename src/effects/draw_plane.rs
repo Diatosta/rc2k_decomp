@@ -23,8 +23,7 @@ use crate::effects::frame_state::DRAW_WORK;
 use crate::effects::kind_store::{QUAD_3, QuadWork};
 use crate::effects::plain::ldi_cell;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
-use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
-use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -84,13 +83,13 @@ fn plane_up(fl: &WindscreenFlakes, m: &MarksSettings) {
 }
 
 /// The original's 0x4C90BE .. 0x4C90E2: the place as floats into `flt_8161A2` ...
-fn plane_place(m: &MarksSettings) {
-    plane_place_x87(m);
+fn plane_place(drops: &WindscreenDrops, m: &MarksSettings) {
+    plane_place_x87(drops, m);
 }
 
 /// The original's 0x4C90ED .. 0x4C9113: the place's way dotted with the third axis into `flt_814718`.
-fn plane_facing(fl: &WindscreenFlakes) {
-    plane_facing_x87(&fl.tables);
+fn plane_facing(drops: &WindscreenDrops, fl: &WindscreenFlakes) {
+    plane_facing_x87(drops, &fl.tables);
 }
 
 /// The original's 0x4C915A .. 0x4C9244: the plane's centre and corners (`flt_934C98` .. `flt_934CC4`) from the axes.
@@ -104,7 +103,7 @@ fn plane_projected() {
 }
 
 /// The Rust version (see the header).
-pub fn draw_plane(fl: &WindscreenFlakes) -> Result<(), Refused> {
+pub fn draw_plane(drops: &WindscreenDrops, fl: &WindscreenFlakes) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     let m = crate::effects::setup::marks()?;
     let corner: u32 = QUAD_3.corner.get();
@@ -117,10 +116,10 @@ pub fn draw_plane(fl: &WindscreenFlakes) -> Result<(), Refused> {
     normalise(a2);
     cross(a0, a2, a1);
     crate::effects::scale_axes::scale_axes(fl);
-    plane_place(m);
-    normalise(&HEX.place);
-    plane_facing(fl);
-    if WINDSCREEN_DROP_STATE.facing.bits() & 0x8000_0000 == 0 {
+    plane_place(drops, m);
+    normalise(&drops.hex.place);
+    plane_facing(drops, fl);
+    if drops.state.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
     if FRAME_WORK.lead_kept[7].bits() == 0 {
@@ -256,26 +255,26 @@ fn plane_up_x87(m: &MarksSettings, sq: &WindscreenFlakeTables, pt: &PlaneTuning)
 }
 
 /// `plane_place`'s x87 block as plain Rust on the x87 model (6 instructions), same order and memory places.
-fn plane_place_x87(m: &MarksSettings) {
+fn plane_place_x87(drops: &WindscreenDrops, m: &MarksSettings) {
     let t0 = ldi_cell(&m.listener_point_b_negated[0]);
-    st_cell(&HEX.place[0], t0);
+    st_cell(&drops.hex.place[0], t0);
     let t1 = ldi_cell(&m.listener_point_b_negated[1]);
-    st_cell(&HEX.place[1], t1);
+    st_cell(&drops.hex.place[1], t1);
     let t2 = ldi_cell(&m.listener_point_b_negated[2]);
-    st_cell(&HEX.place[2], t2);
+    st_cell(&drops.hex.place[2], t2);
 }
 
 /// `plane_facing`'s x87 block as plain Rust on the x87 model (9 instructions), same order and memory places.
-fn plane_facing_x87(sq: &WindscreenFlakeTables) {
-    let t0 = ld_cell(&HEX.place[0]);
+fn plane_facing_x87(drops: &WindscreenDrops, sq: &WindscreenFlakeTables) {
+    let t0 = ld_cell(&drops.hex.place[0]);
     let t1 = t0 * bh::ld(sq.axes[2][0].bits());
-    let t2 = ld_cell(&HEX.place[1]);
+    let t2 = ld_cell(&drops.hex.place[1]);
     let t3 = t2 * bh::ld(sq.axes[2][1].bits());
-    let t4 = ld_cell(&HEX.place[2]);
+    let t4 = ld_cell(&drops.hex.place[2]);
     let t5 = t4 * bh::ld(sq.axes[2][2].bits());
     let t6 = t3 + t5;
     let t7 = t1 + t6;
-    WINDSCREEN_DROP_STATE.facing.set_bits(bh::st(t7));
+    drops.state.facing.set_bits(bh::st(t7));
 }
 
 /// `plane_corners`'s x87 block as plain Rust on the x87 model (47 instructions), same order and memory places.
@@ -597,8 +596,8 @@ mod asm_differential {
     use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, differential};
     use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WindscreenDropState};
-    use crate::effects::windscreen_drop_vars::{HEX, WindscreenDropVars};
+    use crate::effects::windscreen_drop_state::WindscreenDropState;
+    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
     use crate::effects::windscreen_flakes_store::{WindscreenFlakeTables, WindscreenFlakeTiming};
 
     #[test]
@@ -734,9 +733,21 @@ mod asm_differential {
             &SPEC,
             |b| reference::plane_place_x87(b[0], b[1]),
             |b| {
-                with_overlays(b[0], &[overlay(&HEX, WindscreenDropVars::START)], || {
-                    with_settings(b[1], super::plane_place_x87);
-                });
+                with_overlays(
+                    b[0],
+                    &[overlay(
+                        &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                        WindscreenDropVars::START,
+                    )],
+                    || {
+                        with_settings(b[1], |m| {
+                            super::plane_place_x87(
+                                &crate::effects::owner::EFFECTS.windscreen_drops,
+                                m,
+                            );
+                        });
+                    },
+                );
             },
         );
     }
@@ -766,14 +777,25 @@ mod asm_differential {
                 with_overlays(
                     b[0],
                     &[
-                        overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
-                        overlay(&HEX, WindscreenDropVars::START),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                            WindscreenDropState::START,
+                        ),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            WindscreenDropVars::START,
+                        ),
                     ],
                     || {
                         with_copy::<WindscreenFlakeTables, _>(
                             b[0],
                             WindscreenFlakeTables::START,
-                            super::plane_facing_x87,
+                            |m| {
+                                super::plane_facing_x87(
+                                    &crate::effects::owner::EFFECTS.windscreen_drops,
+                                    m,
+                                );
+                            },
                         );
                     },
                 );

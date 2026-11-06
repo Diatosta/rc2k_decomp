@@ -5,7 +5,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CAPTIONS;
 use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::keys_store::KEY_TABLES;
 use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::results_store::RESULT_FIGURES;
@@ -24,7 +23,11 @@ pub fn pick_player(n: u32) -> Result<(), Refused> {
         .picked();
     EVENT_STATE.current_player.set(n);
     EVENT_STATE.dword_7558c4.set(value);
-    KEY_TABLES.controls.write(&copy);
+    crate::menu::owner::menus()
+        .keys
+        .tables
+        .controls
+        .write(&copy);
     Ok(())
 }
 

@@ -12,7 +12,7 @@ use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 use crate::session::{Bytes, Dword, Float};
 
-pub use crate::effects::ring_store::RING_WORK;
+pub use crate::effects::ring_store::Ring;
 
 pub const MOST_TAKEN: u32 = 0x3FE;
 
@@ -39,25 +39,26 @@ pub fn next_c5(at: impl Random) -> u32 {
 }
 
 /// The entry the next `take_entry` takes, if one is left.
-pub fn next_entry() -> Result<Option<u32>, Refused> {
+pub fn next_entry(ring: &Ring) -> Result<Option<u32>, Refused> {
     Ok({
-        if RING_WORK.count.get() == MOST_TAKEN {
+        if ring.work.count.get() == MOST_TAKEN {
             return Ok(None);
         }
         Some(crate::effects::ring_entries::get(
-            RING_WORK.cursor.get(),
+            ring,
+            ring.work.cursor.get(),
             0,
         )?)
     })
 }
 
 /// The next entry taken (its number + 1; its +8 `dword_93547E`, +0x90 `tag`, +0xC `kind`).
-pub fn take_entry(tag: u32, kind: u32) -> Result<u32, Refused> {
+pub fn take_entry(ring: &Ring, tag: u32, kind: u32) -> Result<u32, Refused> {
     Ok({
-        let e = crate::effects::ring_entries::get(RING_WORK.cursor.get(), 0)?;
-        RING_WORK.cursor.set(e);
-        RING_WORK.count.set(RING_WORK.count.get().wrapping_add(1));
-        let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
+        let e = crate::effects::ring_entries::get(ring, ring.work.cursor.get(), 0)?;
+        ring.work.cursor.set(e);
+        ring.work.count.set(ring.work.count.get().wrapping_add(1));
+        let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
         put(8, EMITTER.tag.get())?;
         put(0x90, tag)?;
         put(0xC, kind)?;

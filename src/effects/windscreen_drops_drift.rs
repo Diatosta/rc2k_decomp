@@ -17,8 +17,7 @@
 
 use crate::effects::adjugate3::adjugate3;
 use crate::effects::setup::{CLOCK, MarksClock};
-use crate::effects::tilt_shape::SHAPE_TILT;
-use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 use crate::race::marks_settings_store::MarksSettings;
 use crate::race::matrices_store::MATRICES;
@@ -26,45 +25,45 @@ use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 use crate::session::{Bytes, Float};
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
-fn view_moved(m: &MarksSettings) {
-    view_moved_x87(m, &CLOCK);
+fn view_moved(drops: &WindscreenDrops, m: &MarksSettings) {
+    view_moved_x87(drops, m, &CLOCK);
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
-fn move_kept(m: &MarksSettings) {
-    move_kept_x87(m, &CLOCK);
+fn move_kept(drops: &WindscreenDrops, m: &MarksSettings) {
+    move_kept_x87(drops, m, &CLOCK);
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_drift() -> Result<(), Refused> {
+pub fn windscreen_drops_drift(drops: &WindscreenDrops) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
     let marks = crate::effects::setup::marks()?;
     for n in 0..3 {
-        SHAPE_TILT.point[n].set_bits(0);
+        drops.tilt.point[n].set_bits(0);
     }
-    let first: u32 = HEX.started.get();
-    HEX.started.set(1);
+    let first: u32 = drops.hex.started.get();
+    drops.hex.started.set(1);
     if first != 0 {
-        let second: u32 = HEX.moved.get();
-        HEX.moved.set(1);
+        let second: u32 = drops.hex.moved.get();
+        drops.hex.moved.set(1);
         if second != 0 {
-            view_moved(m);
+            view_moved(drops, m);
             let view = &MATRICES.view_place;
             for col in 0..3usize {
                 let v = [view[col].bits(), view[4 + col].bits(), view[8 + col].bits()];
                 for (k, x) in v.into_iter().enumerate() {
-                    HEX.turn[3 * col + k].set_bits(x);
+                    drops.hex.turn[3 * col + k].set_bits(x);
                 }
             }
-            adjugate3(&HEX.turn, &HEX.adjugate);
+            adjugate3(&drops.hex.turn, &drops.hex.adjugate);
             // The two temporaries `[esp]` held and the three 80-bit values kept across the two calls.
             let temps = [Float::from_bits(0), Float::from_bits(0)];
             let kept = Bytes::new([0u8; 30]);
-            drift_turned_x87(&HEX.adjugate, &temps, &kept);
-            turn_matrix3(Axis::X, &HEX.turn, extended(HEX.angle.bits()))?;
-            drift_back_x87(&HEX.turn, &temps, &kept);
+            drift_turned_x87(drops, &drops.hex.adjugate, &temps, &kept);
+            turn_matrix3(Axis::X, &drops.hex.turn, extended(drops.hex.angle.bits()))?;
+            drift_back_x87(drops, &drops.hex.turn, &temps, &kept);
         }
-        move_kept(m);
+        move_kept(drops, m);
     }
     for (k, v) in [
         marks.listener_car_place[0].bits(),
@@ -74,7 +73,7 @@ pub fn windscreen_drops_drift() -> Result<(), Refused> {
     .into_iter()
     .enumerate()
     {
-        HEX.kept_place[k].set_bits(v);
+        drops.hex.kept_place[k].set_bits(v);
     }
     Ok(())
 }
@@ -83,47 +82,47 @@ use crate::effects::plain::{ld_cell, ld80_at, st_cell, st80_at};
 use crate::math::x87_float as bh;
 
 /// `view_moved`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-fn view_moved_x87(m: &MarksSettings, c: &MarksClock) {
+fn view_moved_x87(drops: &WindscreenDrops, m: &MarksSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
-    let t1 = t0 - ld_cell(&HEX.kept_place[0]);
+    let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
     let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
     let t3 = ld_cell(&m.listener_car_place[1]);
-    let t4 = t3 - ld_cell(&HEX.kept_place[1]);
+    let t4 = t3 - ld_cell(&drops.hex.kept_place[1]);
     let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
     let t6 = ld_cell(&m.listener_car_place[2]);
-    let t7 = t6 - ld_cell(&HEX.kept_place[2]);
+    let t7 = t6 - ld_cell(&drops.hex.kept_place[2]);
     let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
-    st_cell(&HEX.view_move[2], t8);
-    st_cell(&HEX.view_move[1], t5);
-    st_cell(&HEX.view_move[0], t2);
-    let t9 = ld_cell(&HEX.view_move[0]);
-    let t10 = t9 - ld_cell(&HEX.kept_move[0]);
-    let t11 = ld_cell(&HEX.view_move[1]);
-    let t12 = t11 - ld_cell(&HEX.kept_move[1]);
-    let t13 = ld_cell(&HEX.view_move[2]);
-    let t14 = t13 - ld_cell(&HEX.kept_move[2]);
-    st_cell(&HEX.move_change[2], t14);
-    st_cell(&HEX.move_change[1], t12);
-    st_cell(&HEX.move_change[0], t10);
-    let t15 = ld_cell(&HEX.kept_move[0]);
-    let t16 = t15 * ld_cell(&HEX.decay[0]);
-    let t17 = t16 + ld_cell(&HEX.move_change[0]);
-    st_cell(&HEX.move_change[0], t17);
-    let t18 = ld_cell(&HEX.kept_move[1]);
-    let t19 = t18 * ld_cell(&HEX.decay[1]);
-    let t20 = t19 + ld_cell(&HEX.move_change[1]);
-    st_cell(&HEX.move_change[1], t20);
-    let t21 = ld_cell(&HEX.kept_move[2]);
-    let t22 = t21 * ld_cell(&HEX.decay[2]);
-    let t23 = t22 + ld_cell(&HEX.move_change[2]);
-    st_cell(&HEX.move_change[2], t23);
+    st_cell(&drops.hex.view_move[2], t8);
+    st_cell(&drops.hex.view_move[1], t5);
+    st_cell(&drops.hex.view_move[0], t2);
+    let t9 = ld_cell(&drops.hex.view_move[0]);
+    let t10 = t9 - ld_cell(&drops.hex.kept_move[0]);
+    let t11 = ld_cell(&drops.hex.view_move[1]);
+    let t12 = t11 - ld_cell(&drops.hex.kept_move[1]);
+    let t13 = ld_cell(&drops.hex.view_move[2]);
+    let t14 = t13 - ld_cell(&drops.hex.kept_move[2]);
+    st_cell(&drops.hex.move_change[2], t14);
+    st_cell(&drops.hex.move_change[1], t12);
+    st_cell(&drops.hex.move_change[0], t10);
+    let t15 = ld_cell(&drops.hex.kept_move[0]);
+    let t16 = t15 * ld_cell(&drops.hex.decay[0]);
+    let t17 = t16 + ld_cell(&drops.hex.move_change[0]);
+    st_cell(&drops.hex.move_change[0], t17);
+    let t18 = ld_cell(&drops.hex.kept_move[1]);
+    let t19 = t18 * ld_cell(&drops.hex.decay[1]);
+    let t20 = t19 + ld_cell(&drops.hex.move_change[1]);
+    st_cell(&drops.hex.move_change[1], t20);
+    let t21 = ld_cell(&drops.hex.kept_move[2]);
+    let t22 = t21 * ld_cell(&drops.hex.decay[2]);
+    let t23 = t22 + ld_cell(&drops.hex.move_change[2]);
+    st_cell(&drops.hex.move_change[2], t23);
 }
 
 /// `drift_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places.
-fn drift_turned_x87(m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
-    let t0 = ld_cell(&HEX.move_change[2]);
-    let t1 = ld_cell(&HEX.move_change[1]);
-    let t2 = ld_cell(&HEX.move_change[0]);
+fn drift_turned_x87(drops: &WindscreenDrops, m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
+    let t0 = ld_cell(&drops.hex.move_change[2]);
+    let t1 = ld_cell(&drops.hex.move_change[1]);
+    let t2 = ld_cell(&drops.hex.move_change[0]);
     let t3 = t2 * ld_cell(&m[0]);
     let t4 = t1 * ld_cell(&m[1]);
     let t5 = t0 * ld_cell(&m[2]);
@@ -149,7 +148,7 @@ fn drift_turned_x87(m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
 }
 
 /// `drift_back`'s x87 block as plain Rust on the x87 model (40 instructions), same order and memory places.
-fn drift_back_x87(m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
+fn drift_back_x87(drops: &WindscreenDrops, m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
     let t0 = bh::from_f80(ld80_at(l, 20));
     let t1 = bh::from_f80(ld80_at(l, 10));
     let t2 = bh::from_f80(ld80_at(l, 0));
@@ -173,31 +172,31 @@ fn drift_back_x87(m: &[Float; 9], t: &[Float; 2], l: &Bytes<30>) {
     let t18 = ld_cell(&t[1]);
     let t19 = ld_cell(&t[0]);
     let t20 = -t19;
-    st_cell(&HEX.drift[0], t20);
-    let t21 = t20 * ld_cell(&HEX.result_k[0]);
-    SHAPE_TILT.point[0].set_bits(bh::st(t21));
-    st_cell(&HEX.drift[1], t18);
-    let t22 = t18 * ld_cell(&HEX.result_k[1]);
-    SHAPE_TILT.point[1].set_bits(bh::st(t22));
-    st_cell(&HEX.drift[2], t17);
-    let t23 = t17 * ld_cell(&HEX.result_k[2]);
-    SHAPE_TILT.point[2].set_bits(bh::st(t23));
+    st_cell(&drops.hex.drift[0], t20);
+    let t21 = t20 * ld_cell(&drops.hex.result_k[0]);
+    drops.tilt.point[0].set_bits(bh::st(t21));
+    st_cell(&drops.hex.drift[1], t18);
+    let t22 = t18 * ld_cell(&drops.hex.result_k[1]);
+    drops.tilt.point[1].set_bits(bh::st(t22));
+    st_cell(&drops.hex.drift[2], t17);
+    let t23 = t17 * ld_cell(&drops.hex.result_k[2]);
+    drops.tilt.point[2].set_bits(bh::st(t23));
 }
 
 /// `move_kept`'s x87 block as plain Rust on the x87 model (12 instructions), same order and memory places.
-fn move_kept_x87(m: &MarksSettings, c: &MarksClock) {
+fn move_kept_x87(drops: &WindscreenDrops, m: &MarksSettings, c: &MarksClock) {
     let t0 = ld_cell(&m.listener_car_place[0]);
-    let t1 = t0 - ld_cell(&HEX.kept_place[0]);
+    let t1 = t0 - ld_cell(&drops.hex.kept_place[0]);
     let t2 = t1 * crate::math::x87_float::ld(c.reciprocal.bits());
     let t3 = ld_cell(&m.listener_car_place[1]);
-    let t4 = t3 - ld_cell(&HEX.kept_place[1]);
+    let t4 = t3 - ld_cell(&drops.hex.kept_place[1]);
     let t5 = t4 * crate::math::x87_float::ld(c.reciprocal.bits());
     let t6 = ld_cell(&m.listener_car_place[2]);
-    let t7 = t6 - ld_cell(&HEX.kept_place[2]);
+    let t7 = t6 - ld_cell(&drops.hex.kept_place[2]);
     let t8 = t7 * crate::math::x87_float::ld(c.reciprocal.bits());
-    st_cell(&HEX.kept_move[2], t8);
-    st_cell(&HEX.kept_move[1], t5);
-    st_cell(&HEX.kept_move[0], t2);
+    st_cell(&drops.hex.kept_move[2], t8);
+    st_cell(&drops.hex.kept_move[1], t5);
+    st_cell(&drops.hex.kept_move[0], t2);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -381,14 +380,21 @@ mod asm_differential {
     use crate::effects::asm_test::Kind::*;
     use crate::effects::asm_test::with_settings;
     use crate::effects::asm_test::{Op, Spec, differential};
-    use crate::effects::tilt_shape::{SHAPE_TILT, ShapeTilt};
+    use crate::effects::tilt_shape::ShapeTilt;
     use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_vars::{HEX, WindscreenDropVars};
+    use crate::effects::windscreen_drop_vars::WindscreenDropVars;
     use crate::session::{Bytes, Float};
 
     /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
     fn hex<R>(mk: usize, f: impl FnOnce() -> R) -> R {
-        with_overlays(mk, &[overlay(&HEX, WindscreenDropVars::START)], f)
+        with_overlays(
+            mk,
+            &[overlay(
+                &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                WindscreenDropVars::START,
+            )],
+            f,
+        )
     }
 
     /// The `N` floats at the test address `at`.
@@ -476,7 +482,11 @@ mod asm_differential {
             |b| {
                 hex(b[0], || {
                     with_settings(b[1], |m| {
-                        super::view_moved_x87(m, crate::effects::setup::clock_at(b[0]));
+                        super::view_moved_x87(
+                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            m,
+                            crate::effects::setup::clock_at(b[0]),
+                        );
                     });
                 });
             },
@@ -530,7 +540,12 @@ mod asm_differential {
             |b| {
                 hex(b[0], || {
                     let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
-                    super::drift_turned_x87(&m, &temps, &l);
+                    super::drift_turned_x87(
+                        &crate::effects::owner::EFFECTS.windscreen_drops,
+                        &m,
+                        &temps,
+                        &l,
+                    );
                     put_floats(b[2], &temps);
                     put_kept(b[3], &l);
                 });
@@ -593,12 +608,23 @@ mod asm_differential {
                 with_overlays(
                     b[0],
                     &[
-                        overlay(&SHAPE_TILT, ShapeTilt::START),
-                        overlay(&HEX, WindscreenDropVars::START),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.tilt,
+                            ShapeTilt::START,
+                        ),
+                        overlay(
+                            &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                            WindscreenDropVars::START,
+                        ),
                     ],
                     || {
                         let (m, temps, l) = (floats::<9>(b[1]), floats::<2>(b[2]), kept(b[3]));
-                        super::drift_back_x87(&m, &temps, &l);
+                        super::drift_back_x87(
+                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            &m,
+                            &temps,
+                            &l,
+                        );
                         put_floats(b[2], &temps);
                     },
                 );
@@ -631,7 +657,11 @@ mod asm_differential {
             |b| {
                 hex(b[0], || {
                     with_settings(b[1], |m| {
-                        super::move_kept_x87(m, crate::effects::setup::clock_at(b[0]));
+                        super::move_kept_x87(
+                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            m,
+                            crate::effects::setup::clock_at(b[0]),
+                        );
                     });
                 });
             },

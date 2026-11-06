@@ -28,7 +28,7 @@ pub fn start_go_notice() -> Result<(), Refused> {
     if !facts.go_due() {
         return Ok(());
     }
-    set_flag(&crate::sound::store::STAGE_SOUNDS.once[2])?;
+    set_flag(&crate::sound::owner::sound().race.stage.once[2])?;
     c.go_stand_timer.set(1);
     c.notice_id.set(GO_NOTICE);
     c.notice_time_b.set(0x32);

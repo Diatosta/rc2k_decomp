@@ -10,6 +10,7 @@
 
 use crate::effects::emit_particle_19::TwinTuning;
 use crate::effects::emit_particle_19::{TwinSet, emit_twin};
+use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::Refused;
 use crate::race::marks_settings_store::MarkCar;
@@ -26,8 +27,12 @@ pub static TWENTY_SECOND: TwinSet = TwinSet {
 };
 
 /// The Rust version (see the header).
-pub fn emit_particle_22(particles: &Particles, object: &'static MarkCar) -> Result<(), Refused> {
-    emit_twin(particles, &TWENTY_SECOND, object)
+pub fn emit_particle_22(
+    particles: &Particles,
+    ring: &Ring,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
+    emit_twin(particles, ring, &TWENTY_SECOND, object)
 }
 
 impl TwinTuning {

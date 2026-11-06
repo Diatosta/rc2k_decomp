@@ -79,7 +79,7 @@ pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
             "a player's record",
         )?;
     }
-    GamePtr::to(&crate::menu::drivers_store::DRIVERS).copy_to(
+    GamePtr::to(&crate::menu::owner::menus().cars.drivers).copy_to(
         buffer.offset(RECORDS_AT as u32),
         RECORDS_LEN,
         "the drivers' records",
@@ -90,7 +90,6 @@ pub fn gather_savegame(buffer: GamePtr) -> Result<(), BadInput> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::saves::write_savegame_slot::SAVE_GAMES;
     use rc2k_core::menu::player::Player;
     use rc2k_core::saves::savegame::{LEN, car_at};
 
@@ -99,7 +98,7 @@ mod tests {
     #[test]
     fn the_saved_cars_carry_the_names_addresses() {
         let _guard = crate::store::test_lock();
-        let buffer = GamePtr::to(&SAVE_GAMES.file);
+        let buffer = GamePtr::to(&crate::saves::owner::saves().save_games.file);
         let file_before = buffer.read_bytes(LEN, "the file").unwrap();
         let players_before = PLAYER_TABLE
             .players

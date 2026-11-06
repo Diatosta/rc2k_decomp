@@ -10,6 +10,7 @@
 //! Refuses as `emit_particle_5`.
 
 use crate::effects::emit_particle_5::{JitterSet, emit_particle_5_with};
+use crate::effects::ring_store::Ring;
 use crate::errors::Refused;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 use crate::session::{Bytes, Dword, Float};
@@ -39,8 +40,12 @@ pub static ELEVENTH: JitterSet = JitterSet {
 };
 
 /// The Rust version (see the header).
-pub fn emit_particle_11(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
-    emit_particle_5_with(&ELEVENTH, wheel, object)
+pub fn emit_particle_11(
+    ring: &Ring,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
+    emit_particle_5_with(ring, &ELEVENTH, wheel, object)
 }
 
 /// Kind 0xB's emitter variables (`emit_particle_5::ELEVENTH`), and the constants of code that is in no function (IDA 0x93A262 .. 0x93A312, the image's layout; phase 7, typed state).

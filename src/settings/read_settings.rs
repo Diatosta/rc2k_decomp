@@ -133,7 +133,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"nocdaudio",
         0x518104,
-        dword!(crate::sound::store::CD_AUDIO.no_cd_audio),
+        dword!(crate::sound::owner::sound().menu.cd_audio.no_cd_audio),
     ),
     (
         b"nomusic",
@@ -345,7 +345,11 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"usesavegamekeys",
         0x755144,
-        dword!(crate::saves::preview_store::SAVEGAME_PREVIEW.use_savegame_keys),
+        dword!(
+            crate::saves::owner::saves()
+                .savegame_preview
+                .use_savegame_keys
+        ),
     ),
     (
         b"sensiblesaving",

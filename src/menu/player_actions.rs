@@ -24,7 +24,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_store::EVENT_STATE;
-use crate::menu::keys_store::KEY_TABLES;
 use crate::menu::pages_store::MENU_PAGES;
 use crate::menu::state_store::MENU_STATE;
 use crate::pointers::GamePtr;
@@ -50,7 +49,7 @@ fn with_player(f: impl FnOnce(&mut Player)) -> Result<(), Refused> {
 
 /// `menu::keep_player_keys`: the keys' table's bindings into the player's.
 pub fn keep_player_keys() -> Result<(), Refused> {
-    let controls = KEY_TABLES.controls.read();
+    let controls = crate::menu::owner::menus().keys.tables.controls.read();
     with_player(|p| p.bindings = controls)
 }
 

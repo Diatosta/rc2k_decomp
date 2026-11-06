@@ -25,7 +25,6 @@ use crate::scene::object_slots_store::OBJECT_SLOTS;
 use crate::scene::polygon_store::POLYGON_WORK;
 use crate::scene::texture_places_store::TEXTURE_PLACES;
 use crate::session::Dword;
-use crate::sound::store::STAGE_SOUNDS;
 
 /// `race::car_label` (0x45B1B7): the panel's seven-byte label " CAR nn" for the neighbouring
 /// car, `car_number`'s two digits (tens and units, each + '0' as a byte), or seven spaces
@@ -157,9 +156,11 @@ pub fn share_sound_spots() -> Result<(), Refused> {
     // Converted: `rc2k_core::race::view::shared_spot_bytes`.
     let n: u32 = RACE_SOUND_SPOTS.sound_spot_count.bits();
     let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;
-    STAGE_SOUNDS.shared_count.set(n);
+    crate::sound::owner::sound().race.stage.shared_count.set(n);
     let from = RACE_SOUND_SPOTS.sound_spots.chunks(5);
-    for (spot, d) in STAGE_SOUNDS
+    for (spot, d) in crate::sound::owner::sound()
+        .race
+        .stage
         .shared_spots
         .iter()
         .zip(from)

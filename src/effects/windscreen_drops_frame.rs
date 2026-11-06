@@ -17,10 +17,8 @@
 
 use crate::effects::edges::EDGE_MASK;
 use crate::effects::expire_windscreen_drops::{ITEM_LEN, ITEMS};
-use crate::effects::tilt_shape::SHAPE_TILT;
 use crate::effects::tuning::MARKS_KIND_FLOATS;
-use crate::effects::windscreen_drop_state::{WINDSCREEN_DROP_STATE, WINDSCREEN_DROP_WORK};
-use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::windscreen_drop_batch::WINDSCREEN_DROP_BATCH;
@@ -38,46 +36,46 @@ const ITEM_MOTION_X: u32 = 0x1C;
 const ITEM_MOTION_Z: u32 = 0x20;
 
 /// The dword at byte `e` of the items.
-fn get(e: u32) -> u32 {
-    HEX.items.get_u32(e as usize)
+fn get(drops: &WindscreenDrops, e: u32) -> u32 {
+    drops.hex.items.get_u32(e as usize)
 }
 
-fn put(e: u32, v: u32) {
-    HEX.items.set_u32(e as usize, v);
+fn put(drops: &WindscreenDrops, e: u32, v: u32) {
+    drops.hex.items.set_u32(e as usize, v);
 }
 
 /// The original's 0x4BC107 .. 0x4BC12E: the drift at the item's cell (`g_marksWindscreenDropCurve`[k]) into `flt_814772`, `flt_814776`.
-fn drift_cell(k: u32) {
-    drift_cell_x87(k as usize);
+fn drift_cell(drops: &WindscreenDrops, k: u32) {
+    drift_cell_x87(drops, k as usize);
 }
 
 /// The original's 0x4BC131 .. 0x4BC17B: the item's motion (+0x1C, +0x20) eased toward the drift times its kind's `flt_814BC2`[k] by `flt_81622A`, its place moved by it.
-fn drift_move(k: u32, s: u32) {
-    drift_move_x87(k as usize, s as usize);
+fn drift_move(drops: &WindscreenDrops, k: u32, s: u32) {
+    drift_move_x87(drops, k as usize, s as usize);
 }
 
 /// The original's 0x4BC1DD .. 0x4BC1EF and 0x4BB94D .. 0x4BB9BE: the cell place scaled and turned into `flt_814CAA` .., the depth also in `flt_814734`.
-fn sprite_depth() {
-    sprite_depth_x87();
+fn sprite_depth(drops: &WindscreenDrops) {
+    sprite_depth_x87(drops);
 }
 
 /// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `flt_814CFE`[c] ..) into `flt_814CB6` .., the depth's inverse (left on the x87 stack, so returned).
-fn sprite_corners(c: u32) -> bh::X {
-    sprite_corners_x87(c as usize)
+fn sprite_corners(drops: &WindscreenDrops, c: u32) -> bh::X {
+    sprite_corners_x87(drops, c as usize)
 }
 
 /// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `flt_81619A` / `E`, their depth.
-fn sprite_project(e: u32, inverse_depth: bh::X) {
-    sprite_project_x87(e as usize, inverse_depth);
+fn sprite_project(drops: &WindscreenDrops, e: u32, inverse_depth: bh::X) {
+    sprite_project_x87(drops, e as usize, inverse_depth);
 }
 
 /// Why it refuses, if it does.
-fn refusal() -> Result<Option<&'static str>, Refused> {
+fn refusal(drops: &WindscreenDrops) -> Result<Option<&'static str>, Refused> {
     Ok({
         if crate::effects::setup::marks().is_err() {
             return Ok(Some("no marks settings"));
         }
-        let items = &HEX.items;
+        let items = &drops.hex.items;
         let bad = (0..ITEMS as usize).any(|n| {
             let e = n * ITEM_LEN as usize;
             items.get_u32(e) == 1 && items.get_u32(e + ITEM_KIND as usize) >= KINDS
@@ -93,65 +91,63 @@ pub fn draw_batch() -> Result<(), Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_frame() -> Result<(), Refused> {
-    if let Some(why) = refusal()? {
+pub fn windscreen_drops_frame(drops: &WindscreenDrops) -> Result<(), Refused> {
+    if let Some(why) = refusal(drops)? {
         return Err(BadInput(why).into());
     }
     {
         if MARKS_KIND_FLOATS.running.bits() != 0 {
-            crate::effects::windscreen_drops_drift::windscreen_drops_drift()?;
+            crate::effects::windscreen_drops_drift::windscreen_drops_drift(drops)?;
         }
-        crate::effects::windscreen_drops_setup::windscreen_drops_setup();
-        WINDSCREEN_DROP_STATE.live.set_bits(0u32);
+        crate::effects::windscreen_drops_setup::windscreen_drops_setup(drops);
+        drops.state.live.set_bits(0u32);
         for n in 0..ITEMS {
             let e = n * ITEM_LEN;
-            if get(e) != 1 {
+            if get(drops, e) != 1 {
                 continue;
             }
-            WINDSCREEN_DROP_STATE
-                .live
-                .set(WINDSCREEN_DROP_STATE.live.get().wrapping_add(1));
+            drops.state.live.set(drops.state.live.get().wrapping_add(1));
             if MARKS_KIND_FLOATS.running.bits() != 0 {
-                let x = x87::to_int(get(e + ITEM_X));
+                let x = x87::to_int(get(drops, e + ITEM_X));
                 MARKS_WORK.scratch.set(x as u32);
-                drift_cell(4 * (((x as u32) >> 3) & 0xFF));
-                drift_move(4 * get(e + ITEM_KIND), e);
+                drift_cell(drops, 4 * (((x as u32) >> 3) & 0xFF));
+                drift_move(drops, 4 * get(drops, e + ITEM_KIND), e);
             }
-            let x = x87::to_int(get(e + ITEM_X));
-            let z = x87::to_int(get(e + ITEM_Z));
-            WINDSCREEN_DROP_WORK.whole[0].set(x as u32);
-            WINDSCREEN_DROP_WORK.whole[1].set(z as u32);
+            let x = x87::to_int(get(drops, e + ITEM_X));
+            let z = x87::to_int(get(drops, e + ITEM_Z));
+            drops.work.whole[0].set(x as u32);
+            drops.work.whole[1].set(z as u32);
             if (x as u32 | (z as u32).wrapping_add(z as u32)) & 0x800 != 0 {
-                put(e, 0);
+                put(drops, e, 0);
                 continue;
             }
-            let shape = get(e + ITEM_KIND);
+            let shape = get(drops, e + ITEM_KIND);
             let cell = ((((z as u32) >> 3) & 0x7F) << 8) + (((x as u32) >> 3) & 0xFF);
             if EDGE_MASK.mask.get(cell as usize) != 0 {
-                put(e, 0);
+                put(drops, e, 0);
                 continue;
             }
-            sprite_depth();
-            if (WINDSCREEN_DROP_WORK.cell[2].bits() as i32) < 0x4580_0000 {
+            sprite_depth(drops);
+            if (drops.work.cell[2].bits() as i32) < 0x4580_0000 {
                 continue;
             }
-            let inverse_depth = sprite_corners(shape.wrapping_mul(0x48));
-            sprite_project(HEX.buffer.get(), inverse_depth);
-            let next = HEX.buffer.get().wrapping_add(0xC0);
-            HEX.buffer.set(next);
+            let inverse_depth = sprite_corners(drops, shape.wrapping_mul(0x48));
+            sprite_project(drops, drops.hex.buffer.get(), inverse_depth);
+            let next = drops.hex.buffer.get().wrapping_add(0xC0);
+            drops.hex.buffer.set(next);
             if next as usize == BUFFER_BYTES {
-                HEX.buffer.set(0);
+                drops.hex.buffer.set(0);
                 WINDSCREEN_DROP_BATCH.index_count.set(0x300);
                 WINDSCREEN_DROP_BATCH.vertex_count.set(0x180);
                 draw_batch()?;
             }
         }
         let marks = crate::effects::setup::marks()?;
-        let live: u32 = WINDSCREEN_DROP_STATE.live.bits();
+        let live: u32 = drops.state.live.bits();
         if (live as i32) < marks.listener_switch_2.get() as i32
             && MARKS_KIND_FLOATS.running.bits() != 0
         {
-            crate::effects::windscreen_drops_spawn::windscreen_drops_spawn()?;
+            crate::effects::windscreen_drops_spawn::windscreen_drops_spawn(drops)?;
         }
     }
     Ok(())
@@ -163,24 +159,23 @@ use crate::scene::draw_store::DRAW;
 
 /// `drift_cell`: the drift at the item's cell (`curve[k / 4]`) into `drift`: x from the
 /// shape tilt's point, y its second coordinate.
-fn drift_cell_x87(k: usize) {
-    let x = -(bh::ld(WINDSCREEN_DROP_WORK.curve[k / 4].bits())
-        * bh::ld(SHAPE_TILT.point[2].bits()))
-        + bh::ld(SHAPE_TILT.point[0].bits());
-    WINDSCREEN_DROP_WORK.drift[0].set_bits(bh::st(x));
-    let y = bh::ld(SHAPE_TILT.point[1].bits());
-    WINDSCREEN_DROP_WORK.drift[1].set_bits(bh::st(y));
+fn drift_cell_x87(drops: &WindscreenDrops, k: usize) {
+    let x = -(bh::ld(drops.work.curve[k / 4].bits()) * bh::ld(drops.tilt.point[2].bits()))
+        + bh::ld(drops.tilt.point[0].bits());
+    drops.work.drift[0].set_bits(bh::st(x));
+    let y = bh::ld(drops.tilt.point[1].bits());
+    drops.work.drift[1].set_bits(bh::st(y));
 }
 
 /// `drift_move`: the item at byte `s` of the items has its motion eased toward the drift
 /// (scaled by its kind's radius `radii[k / 4]`) and its place moved by the new motion.
-fn drift_move_x87(k: usize, s: usize) {
-    let ld_item = |field: u32| ld_at(&HEX.items, s + field as usize);
-    let st_item = |field: u32, x| st_at(&HEX.items, s + field as usize, x);
+fn drift_move_x87(drops: &WindscreenDrops, k: usize, s: usize) {
+    let ld_item = |field: u32| ld_at(&drops.hex.items, s + field as usize);
+    let st_item = |field: u32, x| st_at(&drops.hex.items, s + field as usize, x);
     for (motion, drift) in [(ITEM_MOTION_X, 0), (ITEM_MOTION_Z, 1)] {
-        let toward = bh::ld(WINDSCREEN_DROP_WORK.drift[drift].bits())
-            * bh::ld(WINDSCREEN_DROP_WORK.radii[k / 4].bits());
-        let eased = (toward - ld_item(motion)) * ld_cell(&HEX.ease) + ld_item(motion);
+        let toward =
+            bh::ld(drops.work.drift[drift].bits()) * bh::ld(drops.work.radii[k / 4].bits());
+        let eased = (toward - ld_item(motion)) * ld_cell(&drops.hex.ease) + ld_item(motion);
         st_item(motion, eased);
     }
     let x = ld_item(ITEM_X) + ld_item(ITEM_MOTION_X);
@@ -196,10 +191,10 @@ fn ld_record(offset: usize) -> bh::X {
 
 /// `sprite_depth`: the item's whole-number place turned by the view into `cell` (and the
 /// depth, which is `cell[2]` too). Same order and rounding as the original's x87 block.
-fn sprite_depth_x87() {
-    let work = &WINDSCREEN_DROP_WORK;
+fn sprite_depth_x87(drops: &WindscreenDrops) {
+    let work = &drops.work;
     let x = bh::int(work.whole[0].bits() as i32);
-    let z = ld_cell(&HEX.frame_k) - bh::int(work.whole[1].bits() as i32);
+    let z = ld_cell(&drops.hex.frame_k) - bh::int(work.whole[1].bits() as i32);
     let z = z * bh::ld(work.shares[1].bits());
     let x = x * bh::ld(work.shares[0].bits());
     // Output i: x times the first axes row, z times the second, plus the view's place. The
@@ -215,7 +210,7 @@ fn sprite_depth_x87() {
         };
         let out = sum + bh::ld(work.place[i].bits());
         if i == 2 {
-            WINDSCREEN_DROP_STATE.depth.set_bits(bh::st(out));
+            drops.state.depth.set_bits(bh::st(out));
         }
         work.cell[i].set_bits(bh::st(out));
     }
@@ -224,8 +219,8 @@ fn sprite_depth_x87() {
 /// `sprite_corners`: the six corners of the kind's shape (its offsets from `scaled[c / 4]`)
 /// placed around the item's `cell` into `corners`. Returns the inverse depth the projection
 /// takes (`view_scale / cell[2]`).
-fn sprite_corners_x87(c: usize) -> bh::X {
-    let work = &WINDSCREEN_DROP_WORK;
+fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
+    let work = &drops.work;
     let inverse_depth = bh::ld(DRAW.view_scale.bits()) / bh::ld(work.cell[2].bits());
     // Axis by axis (x, y, z), each of the six corners.
     for axis in 0..3 {
@@ -241,8 +236,8 @@ fn sprite_corners_x87(c: usize) -> bh::X {
 /// `sprite_project`: the centre and the six corners projected to the screen into the six
 /// vertices at `e` of the batch's records (0x20 bytes each; the depth at +8), `inverse_depth`
 /// being `view_scale / depth`. Same order and rounding as the original's x87 block.
-fn sprite_project_x87(e: usize, inverse_depth: bh::X) {
-    let work = &WINDSCREEN_DROP_WORK;
+fn sprite_project_x87(drops: &WindscreenDrops, e: usize, inverse_depth: bh::X) {
+    let work = &drops.work;
     let records = &WINDSCREEN_DROP_BATCH.records;
     let centre = |axis: usize| bh::ld(DRAW.view_centre[axis].bits());
     work.cell[2].set_bits(bh::st(inverse_depth));
@@ -264,22 +259,21 @@ fn sprite_project_x87(e: usize, inverse_depth: bh::X) {
         st_at(records, at, x);
     }
     // The vertices' screen places moved around the centre by the scales.
-    let screen_x = bh::ld(work.cell[0].bits()) * ld_cell(&HEX.scale[0]);
-    let screen_y = bh::ld(work.cell[1].bits()) * ld_cell(&HEX.scale[1]);
+    let screen_x = bh::ld(work.cell[0].bits()) * ld_cell(&drops.hex.scale[0]);
+    let screen_y = bh::ld(work.cell[1].bits()) * ld_cell(&drops.hex.scale[1]);
     work.screen[0].set_bits(bh::st(screen_x));
     work.screen[1].set_bits(bh::st(screen_y));
     for v in 0..6 {
         let at = e + 0x20 * v;
-        let x = (ld_record(at + 0x18) - bh::ld(work.cell[0].bits())) * ld_cell(&HEX.scale[2])
+        let x = (ld_record(at + 0x18) - bh::ld(work.cell[0].bits())) * ld_cell(&drops.hex.scale[2])
             + bh::ld(work.screen[0].bits());
         st_at(records, at + 0x18, x);
-        let y = (ld_record(at + 0x1C) - bh::ld(work.cell[1].bits())) * ld_cell(&HEX.scale[3])
+        let y = (ld_record(at + 0x1C) - bh::ld(work.cell[1].bits())) * ld_cell(&drops.hex.scale[3])
             + bh::ld(work.screen[1].bits());
         st_at(records, at + 0x1C, y);
     }
     // Every vertex's depth.
-    let depth = (bh::ld(WINDSCREEN_DROP_STATE.depth.bits())
-        + bh::ld(MARKS_KIND_FLOATS.kind_float.bits()))
+    let depth = (bh::ld(drops.state.depth.bits()) + bh::ld(MARKS_KIND_FLOATS.kind_float.bits()))
         * bh::ld(work.inverse.bits());
     for v in 0..6 {
         st_at(records, e + 0x20 * v + 0x8, depth);
@@ -622,23 +616,30 @@ mod asm_reference {
 
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_differential {
+    use super::WINDSCREEN_DROP_BATCH;
     use super::asm_reference as reference;
-    use super::{HEX, WINDSCREEN_DROP_BATCH};
-    use crate::effects::tilt_shape::{SHAPE_TILT, ShapeTilt};
+    use crate::effects::tilt_shape::ShapeTilt;
     use crate::effects::tuning::{MARKS_KIND_FLOATS, MarksKindFloats};
     use crate::effects::typed_sync::{overlay, with_overlays};
-    use crate::effects::windscreen_drop_state::{
-        WINDSCREEN_DROP_STATE, WINDSCREEN_DROP_WORK, WindscreenDropState, WindscreenDropWork,
-    };
+    use crate::effects::windscreen_drop_state::{WindscreenDropState, WindscreenDropWork};
 
     /// Runs `f` with the windscreen drops' statics holding the buffer's bytes (`typed_sync`).
     fn windscreen_drops<R>(mk: usize, f: impl FnOnce() -> R) -> R {
         with_overlays(
             mk,
             &[
-                overlay(&SHAPE_TILT, ShapeTilt::START),
-                overlay(&WINDSCREEN_DROP_STATE, WindscreenDropState::START),
-                overlay(&WINDSCREEN_DROP_WORK, WindscreenDropWork::START),
+                overlay(
+                    &crate::effects::owner::EFFECTS.windscreen_drops.tilt,
+                    ShapeTilt::START,
+                ),
+                overlay(
+                    &crate::effects::owner::EFFECTS.windscreen_drops.state,
+                    WindscreenDropState::START,
+                ),
+                overlay(
+                    &crate::effects::owner::EFFECTS.windscreen_drops.work,
+                    WindscreenDropWork::START,
+                ),
             ],
             f,
         )
@@ -649,7 +650,14 @@ mod asm_differential {
 
     /// Runs `f` with `HEX` holding the buffer's bytes (`typed_sync`).
     fn hex<R>(mk: usize, f: impl FnOnce() -> R) -> R {
-        with_overlays(mk, &[overlay(&HEX, WindscreenDropVars::START)], f)
+        with_overlays(
+            mk,
+            &[overlay(
+                &crate::effects::owner::EFFECTS.windscreen_drops.hex,
+                WindscreenDropVars::START,
+            )],
+            f,
+        )
     }
 
     /// The test buffer's `len` bytes at `at` run through `f` as `bytes` (a stand-in for the
@@ -702,7 +710,11 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::drift_cell_x87(b[0], b[1]),
-            |b| windscreen_drops(b[0], || super::drift_cell_x87(b[1])),
+            |b| {
+                windscreen_drops(b[0], || {
+                    super::drift_cell_x87(&crate::effects::owner::EFFECTS.windscreen_drops, b[1]);
+                });
+            },
         );
     }
 
@@ -742,9 +754,19 @@ mod asm_differential {
             |b| {
                 windscreen_drops(b[0], || {
                     hex(b[0], || {
-                        staged(b[2], 0x14, 0x10, &HEX.items, || {
-                            super::drift_move_x87(b[1], 0);
-                        });
+                        staged(
+                            b[2],
+                            0x14,
+                            0x10,
+                            &crate::effects::owner::EFFECTS.windscreen_drops.hex.items,
+                            || {
+                                super::drift_move_x87(
+                                    &crate::effects::owner::EFFECTS.windscreen_drops,
+                                    b[1],
+                                    0,
+                                );
+                            },
+                        );
                     });
                 });
             },
@@ -785,7 +807,13 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| reference::sprite_depth_x87(b[0]),
-            |b| windscreen_drops(b[0], || hex(b[0], super::sprite_depth_x87)),
+            |b| {
+                windscreen_drops(b[0], || {
+                    hex(b[0], || {
+                        super::sprite_depth_x87(&crate::effects::owner::EFFECTS.windscreen_drops);
+                    });
+                });
+            },
         );
     }
 
@@ -905,7 +933,17 @@ mod asm_differential {
         differential(
             &SPEC,
             |b| canon(reference::sprite_corners_x87(b[0], b[1], b[2])),
-            |b| canon(windscreen_drops(b[1], || super::sprite_corners_x87(b[2])).0),
+            |b| {
+                canon(
+                    windscreen_drops(b[1], || {
+                        super::sprite_corners_x87(
+                            &crate::effects::owner::EFFECTS.windscreen_drops,
+                            b[2],
+                        )
+                    })
+                    .0,
+                )
+            },
         );
     }
 
@@ -1019,7 +1057,11 @@ mod asm_differential {
                         || {
                             hex(b[1], || {
                                 staged(b[2], 0, 0xC0, &WINDSCREEN_DROP_BATCH.records, || {
-                                    super::sprite_project_x87(0, super::bh::ld(b[3] as u32));
+                                    super::sprite_project_x87(
+                                        &crate::effects::owner::EFFECTS.windscreen_drops,
+                                        0,
+                                        super::bh::ld(b[3] as u32),
+                                    );
                                 });
                             });
                         },

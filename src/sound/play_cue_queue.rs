@@ -35,7 +35,7 @@ pub fn play_cue_queue(so: &crate::sound::store::SoundObject) -> Result<(), Refus
     let in_use = so.in_use.get() == 1;
     let q = GamePtr::to(&so.cue_queue);
     let mut queue = CueQueue::from_words(&q.read::<[u32; 0x84]>("a cue queue")?);
-    let clock = crate::sound::store::RACE_CLOCK.last.get();
+    let clock = crate::sound::owner::sound().race.clock.last.get();
     if !in_use {
         return Ok(());
     }

@@ -92,71 +92,103 @@ pub struct WindscreenDropVars {
     pub result_k: [Float; 3],
 }
 
-pub static HEX: WindscreenDropVars = WindscreenDropVars {
-    scale: [
-        Float::from_bits(0x3A23D70A),
-        Float::from_bits(0x3A5A740E),
-        Float::from_bits(0x3A23D70A),
-        Float::from_bits(0x3A5A740E),
-    ],
-    place: [const { Float::from_bits(0x0) }; 3],
-    started: Dword::new(0x0),
-    moved: Dword::new(0x0),
-    spare: [const { Dword::new(0x0) }; 2],
-    _gap_8161be: Bytes::new([0; 24]),
-    kept_place: [const { Float::from_bits(0x0) }; 3],
-    kept_move: [const { Float::from_bits(0x0) }; 3],
-    view_move: [const { Float::from_bits(0x0) }; 3],
-    move_change: [const { Float::from_bits(0x0) }; 3],
-    _gap_816206: Bytes::new([0; 24]),
-    drift: [const { Float::from_bits(0x0) }; 3],
-    ease: Float::from_bits(0x0),
-    steps: Dword::new(0x0),
-    buffer: Dword::new(0x0),
-    _gap_816236: Bytes::new([0; 4]),
-    windscreen_flakes_cleared: Dword::new(0x0),
-    items: Bytes::new([0; 98304]),
-    done: Dword::new(0x0),
-    factors: [
-        Float::from_bits(0x40000000),
-        Float::from_bits(0x40000000),
-        Float::from_bits(0xC0000000),
-        Float::from_bits(0x41800000),
-        Float::from_bits(0xC0000000),
-        Float::from_bits(0x41800000),
-    ],
-    curve_a: Float::from_bits(0x44800000),
-    curve_b: Float::from_bits(0x3A0EA4A9),
-    step_c: Dword::new(0x6),
-    step_d: Float::from_bits(0x40000000),
-    top_k: [
-        Float::from_bits(0x3B449BA6),
-        Float::from_bits(0x3F333333),
-        Float::from_bits(0x45000000),
-        Float::from_bits(0x44800000),
-    ],
-    per_vertex: Dword::new(0xC0),
-    _gap_82e27e: Bytes::new([0x00, 0x00, 0x80, 0x46, 0x00, 0x00, 0x80, 0x46]),
-    axes_k: [const { Float::from_bits(0x3F000000) }; 6],
-    _gap_82e29e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
-    side: Dword::new(0x3F000000),
-    frame_k: Float::from_bits(0x44800000),
-    spawn_k: [Float::from_bits(0x3DCCCCCD), Float::from_bits(0x0)],
-    share_k: Float::from_bits(0x47800000),
-    random: Dword::new(0x0),
-    _gap_82e2ba: Bytes::new([0; 12]),
-    turn: [const { Float::from_bits(0x0) }; 9],
-    _gap_82e2ea: Bytes::new([0; 12]),
-    adjugate: [const { Float::from_bits(0x0) }; 9],
-    _gap_82e31a: Bytes::new([0; 12]),
-    decay: [const { Float::from_bits(0x3CA3D70A) }; 3],
-    angle: Float::from_bits(0xC2340000),
-    result_k: [const { Float::from_bits(0x3CA3D70A) }; 3],
-};
+impl WindscreenDropVars {
+    pub const fn new() -> Self {
+        WindscreenDropVars {
+            scale: [
+                Float::from_bits(0x3A23D70A),
+                Float::from_bits(0x3A5A740E),
+                Float::from_bits(0x3A23D70A),
+                Float::from_bits(0x3A5A740E),
+            ],
+            place: [const { Float::from_bits(0x0) }; 3],
+            started: Dword::new(0x0),
+            moved: Dword::new(0x0),
+            spare: [const { Dword::new(0x0) }; 2],
+            _gap_8161be: Bytes::new([0; 24]),
+            kept_place: [const { Float::from_bits(0x0) }; 3],
+            kept_move: [const { Float::from_bits(0x0) }; 3],
+            view_move: [const { Float::from_bits(0x0) }; 3],
+            move_change: [const { Float::from_bits(0x0) }; 3],
+            _gap_816206: Bytes::new([0; 24]),
+            drift: [const { Float::from_bits(0x0) }; 3],
+            ease: Float::from_bits(0x0),
+            steps: Dword::new(0x0),
+            buffer: Dword::new(0x0),
+            _gap_816236: Bytes::new([0; 4]),
+            windscreen_flakes_cleared: Dword::new(0x0),
+            items: Bytes::new([0; 98304]),
+            done: Dword::new(0x0),
+            factors: [
+                Float::from_bits(0x40000000),
+                Float::from_bits(0x40000000),
+                Float::from_bits(0xC0000000),
+                Float::from_bits(0x41800000),
+                Float::from_bits(0xC0000000),
+                Float::from_bits(0x41800000),
+            ],
+            curve_a: Float::from_bits(0x44800000),
+            curve_b: Float::from_bits(0x3A0EA4A9),
+            step_c: Dword::new(0x6),
+            step_d: Float::from_bits(0x40000000),
+            top_k: [
+                Float::from_bits(0x3B449BA6),
+                Float::from_bits(0x3F333333),
+                Float::from_bits(0x45000000),
+                Float::from_bits(0x44800000),
+            ],
+            per_vertex: Dword::new(0xC0),
+            _gap_82e27e: Bytes::new([0x00, 0x00, 0x80, 0x46, 0x00, 0x00, 0x80, 0x46]),
+            axes_k: [const { Float::from_bits(0x3F000000) }; 6],
+            _gap_82e29e: Bytes::new([0x00, 0x00, 0x80, 0x43]),
+            side: Dword::new(0x3F000000),
+            frame_k: Float::from_bits(0x44800000),
+            spawn_k: [Float::from_bits(0x3DCCCCCD), Float::from_bits(0x0)],
+            share_k: Float::from_bits(0x47800000),
+            random: Dword::new(0x0),
+            _gap_82e2ba: Bytes::new([0; 12]),
+            turn: [const { Float::from_bits(0x0) }; 9],
+            _gap_82e2ea: Bytes::new([0; 12]),
+            adjugate: [const { Float::from_bits(0x0) }; 9],
+            _gap_82e31a: Bytes::new([0; 12]),
+            decay: [const { Float::from_bits(0x3CA3D70A) }; 3],
+            angle: Float::from_bits(0xC2340000),
+            result_k: [const { Float::from_bits(0x3CA3D70A) }; 3],
+        }
+    }
+}
 
 impl WindscreenDropVars {
     pub const START: usize = 0x816192;
     pub const LEN: usize = 0x181B0;
+}
+
+/// The windscreen drops' state and the shape stores they and the other marks share, one
+/// part of the effects' owner (`effects::owner::Effects`).
+pub struct WindscreenDrops {
+    pub hex: WindscreenDropVars,
+    pub state: crate::effects::windscreen_drop_state::WindscreenDropState,
+    pub work: crate::effects::windscreen_drop_state::WindscreenDropWork,
+    pub shape_work: crate::effects::shape_work::ShapeWork,
+    pub tilt: crate::effects::tilt_shape::ShapeTilt,
+    pub inputs: crate::effects::shape_points::ShapeInputs,
+    pub tuning: crate::effects::shape_points::ShapeSetTuning,
+    pub picks: crate::effects::mask_picks::MaskPicks,
+}
+
+impl WindscreenDrops {
+    pub const fn new() -> Self {
+        WindscreenDrops {
+            hex: WindscreenDropVars::new(),
+            state: crate::effects::windscreen_drop_state::WindscreenDropState::new(),
+            work: crate::effects::windscreen_drop_state::WindscreenDropWork::new(),
+            shape_work: crate::effects::shape_work::ShapeWork::new(),
+            tilt: crate::effects::tilt_shape::ShapeTilt::new(),
+            inputs: crate::effects::shape_points::ShapeInputs::new(),
+            tuning: crate::effects::shape_points::ShapeSetTuning::new(),
+            picks: crate::effects::mask_picks::MaskPicks::new(),
+        }
+    }
 }
 
 #[cfg(test)]
@@ -303,7 +335,8 @@ mod tests_hex {
             offset_of!(WindscreenDropVars, result_k),
             0x82E336 - WindscreenDropVars::START
         );
-        let p = core::ptr::addr_of!(HEX).cast::<u8>();
+        let p =
+            core::ptr::addr_of!(crate::effects::owner::EFFECTS.windscreen_drops.hex).cast::<u8>();
         let now: Vec<u8> = (0..WindscreenDropVars::LEN)
             .map(|i| unsafe { p.add(i).read() })
             .collect();

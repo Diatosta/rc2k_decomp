@@ -22,7 +22,7 @@ use crate::math::x87::from_int;
 use crate::math::x87_float::{X, int, ld, st};
 use crate::session::MACHINE;
 use crate::sound::sets_store::KindRecord;
-use crate::sound::store::{RACE_CLOCK, RaceClock, SURFACE_SOUNDS, SoundObject, SurfaceSounds};
+use crate::sound::store::{RaceClock, SoundObject, SurfaceSounds};
 use rc2k_core::sound::engine::{Engine, extrapolation, over_256, readings, state};
 
 pub const KIND_COUNT: u32 = 36;
@@ -142,7 +142,7 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     let record = crate::sound::sets_store::SoundKinds::record(kind)?;
     let before = load(so);
     let mut object = before;
-    let clock = crate::sound::store::RACE_CLOCK.last.get();
+    let clock = crate::sound::owner::sound().race.clock.last.get();
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let change = extrapolation(&object, clock, || {
         crate::race::replay_file_store::REPLAY_FILE
@@ -155,7 +155,7 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     revs_input(so, record);
     so.throttle_input
         .set_bits(over_256(from_int(so.throttle.get() as i32)));
-    speed_input(so, &SURFACE_SOUNDS);
+    speed_input(so, &crate::sound::owner::sound().race.surface);
     let before = load(so);
     let mut object = before;
     let low = state(&mut object, || record.flags.get(), clock);
@@ -163,9 +163,13 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     if let Some(low) = low {
         gear_pitch(so, low);
     }
-    distance_and_approach(so, &RACE_CLOCK);
+    distance_and_approach(so, &crate::sound::owner::sound().race.clock);
     so.volume_factor.set_bits(0);
-    ease_pitch_factor(so, &RACE_CLOCK, &SURFACE_SOUNDS);
+    ease_pitch_factor(
+        so,
+        &crate::sound::owner::sound().race.clock,
+        &crate::sound::owner::sound().race.surface,
+    );
     so.volume_factor.set_bits(0x3F80_0000);
     if so.distance.bits() as i32 > 0x3F80_0000 {
         volume_factor_by_distance(so);

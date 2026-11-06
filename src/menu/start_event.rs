@@ -12,14 +12,13 @@
 //! `dword_755980` 1. The one-player ones differ (see `Starter::first`).
 
 use crate::errors::Refused;
-use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::session::Dword;
 use rc2k_core::menu::starters;
 
-const REPAIR_SET: &Dword = &CAR_TABLE.last_car; // dword_75649C: 0xF
+const REPAIR_SET: &Dword = &crate::menu::owner::MENUS.cars.table.last_car; // dword_75649C: 0xF
 
 pub struct Starter {
     /// The championship and the seats (see `rc2k_core::menu::starters`).

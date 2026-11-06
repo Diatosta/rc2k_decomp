@@ -202,7 +202,7 @@ fn stack_returns(esp: usize) -> String {
 /// loop..." and returns to `start`), the program ended as `start` ends it. The data is saved
 /// first, once the front end has its tables: before that a save would write blanks.
 pub fn leave_on_close() -> ! {
-    let tables = &crate::saves::best_times_store::BEST_TIMES;
+    let tables = &crate::saves::owner::saves().best_times;
     if [tables.allocated.get(), tables.loaded.get()] == [1, 1]
         && let Err(e) = crate::saves::save_game_data::save_in_game()
     {

@@ -16,7 +16,6 @@
 
 use crate::errors::Refused;
 use crate::menu::pages_store::MENU_PAGES;
-use crate::saves::preview_store::SAVEGAME_PREVIEW;
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::screens::draw_empty_savegame::draw_empty_savegame;
 use crate::screens::draw_savegame_details::draw_savegame_details;
@@ -33,21 +32,45 @@ pub fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
     let page = MENU_PAGES.save_page.get();
-    match preview(menu_item(), page, SAVEGAME_PREVIEW.shown_slot.get()) {
+    match preview(
+        menu_item(),
+        page,
+        crate::saves::owner::saves()
+            .savegame_preview
+            .shown_slot
+            .get(),
+    ) {
         Preview::NoSlot => {
-            SAVEGAME_PREVIEW.nothing_to_show.set(1u32);
-            SAVEGAME_PREVIEW.shown_slot.set(NO_SLOT);
+            crate::saves::owner::saves()
+                .savegame_preview
+                .nothing_to_show
+                .set(1u32);
+            crate::saves::owner::saves()
+                .savegame_preview
+                .shown_slot
+                .set(NO_SLOT);
             return draw_empty_savegame(canvas);
         }
         Preview::Slot { slot, read: true } => {
             // Refused before anything is written: a slot past the list.
             let found = read_savegame_slot(slot)?;
-            SAVEGAME_PREVIEW.shown_slot.set(slot);
-            SAVEGAME_PREVIEW.nothing_to_show.set(!found as u32);
+            crate::saves::owner::saves()
+                .savegame_preview
+                .shown_slot
+                .set(slot);
+            crate::saves::owner::saves()
+                .savegame_preview
+                .nothing_to_show
+                .set(!found as u32);
         }
         Preview::Slot { .. } => {}
     }
-    if SAVEGAME_PREVIEW.nothing_to_show.get() == 1 {
+    if crate::saves::owner::saves()
+        .savegame_preview
+        .nothing_to_show
+        .get()
+        == 1
+    {
         draw_empty_savegame(canvas)
     } else {
         draw_savegame_details(canvas)

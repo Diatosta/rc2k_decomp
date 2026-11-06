@@ -17,7 +17,7 @@ use crate::errors::Refused;
 /// The effects started with sound objects in use (`g_raceSoundObjectCount`), and the
 /// effects' clock set.
 pub fn begin_effects() -> Result<(), Refused> {
-    if crate::sound::store::RACE_SOUNDS.count.get() != 0 {
+    if crate::sound::owner::sound().race.sounds.count.get() != 0 {
         crate::input::start_effects::start_effects()?;
     }
     crate::input::store::FORCE_FEEDBACK

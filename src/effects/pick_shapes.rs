@@ -8,20 +8,20 @@
 //! Callers: 0x4BDF82, 0x4BE09D, 0x4C067D. Refuses (before anything) an index of 0x100 or
 //! more (the table's 256 entries; its writer masks it with 0xFF).
 
-use crate::effects::mask_picks::PICKS;
 use crate::effects::mask_vars::MASKS;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::steps::{shape_entry, pick_shapes}`
-pub fn pick_shapes() -> Result<(), Refused> {
+pub fn pick_shapes(drops: &WindscreenDrops) -> Result<(), Refused> {
     use rc2k_core::effects::steps;
-    let index = steps::shape_entry(PICKS.index.get())?;
+    let index = steps::shape_entry(drops.picks.index.get())?;
     // (the flag, the shape): `dword_844604` / `g_marksShapesA`, `dword_844608` /
     // `g_marksShapesB`.
     for n in 0..2 {
-        let picked = steps::pick_shapes(PICKS.table[index].get() as i32);
-        PICKS.flags[n].set(picked.flag);
+        let picked = steps::pick_shapes(drops.picks.table[index].get() as i32);
+        drops.picks.flags[n].set(picked.flag);
         MASKS.shapes[n].step.set(picked.shapes);
     }
     Ok(())

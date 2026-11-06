@@ -106,7 +106,7 @@ pub fn stream_command(name: u32, volume: i32, action: u32) -> Result<(), Refused
 /// `rc2k_core::audio::streams::music_command` (its calls do not read the three variables,
 /// which are stored once it is done).
 pub fn music_command(tune: u32, next: u32, volume: i32, action: u32) -> Result<(), Refused> {
-    let turn = &crate::sound::store::SOUND_OPTIONS.tune_turn;
+    let turn = &crate::sound::owner::sound().menu.options.tune_turn;
     let mut m = rc2k_core::audio::streams::Music {
         next_tune: AUDIO.next_tune.get(),
         no_music: AUDIO.no_music.get(),

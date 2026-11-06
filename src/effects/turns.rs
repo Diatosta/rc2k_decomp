@@ -3,6 +3,7 @@
 
 use crate::effects::mask_constants::MASK_CONSTANTS;
 use crate::effects::mask_vars::MASKS;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::work_store::MARKS_WORK;
 use crate::math::x87;
 use crate::session::{Dword, Float};
@@ -40,8 +41,8 @@ pub fn scale_rows3(rows: &[Float; 9]) {
 /// `flt_89C9C0` (a float), then the first result (the original's ecx) a + t - t
 /// cos(pi (n plus 1) / `dword_89C9C4`) and the second (its ebx) the same with n over `dword_89C9C8`.
 /// `dword_764F40` and `dword_71C880` left holding a.
-pub fn smooth_steps(n: u32, a: u32, b: u32) -> (u32, u32) {
-    crate::effects::shape_points::SHAPE_INPUTS.scratch.set(a);
+pub fn smooth_steps(drops: &WindscreenDrops, n: u32, a: u32, b: u32) -> (u32, u32) {
+    drops.inputs.scratch.set(a);
     MARKS_WORK.scratch.set(a);
     smooth_pair(n, a, b)
 }

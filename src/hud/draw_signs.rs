@@ -4,7 +4,7 @@
 //! a `SignStyle` for where the signs are in the record and the row they are drawn at.
 
 use crate::errors::Refused;
-use crate::hud::store::HUD;
+use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
 use crate::race::panel_store::PANEL;
 
@@ -75,17 +75,18 @@ pub static LAYOUT_2B: SignStyle = SignStyle {
 
 /// Draws the four signs of `style`.
 // Converted: `rc2k_core::hud::signs::{sign, place, row}`
-pub fn draw_signs(record: GamePtr, style: &SignStyle) -> Result<(), Refused> {
+pub fn draw_signs(hud: &Hud, record: GamePtr, style: &SignStyle) -> Result<(), Refused> {
     use rc2k_core::hud::signs;
     let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
     let places = get(style.start)?.wrapping_add(style.shift);
     for n in 0..signs::SIGNS as u32 {
         let v = get(style.first + 4 * n)?;
-        let Some(sign) = signs::sign(places, n, v, |k| HUD.sign_widths[k as usize].get()) else {
+        let Some(sign) = signs::sign(places, n, v, |k| hud.block.sign_widths[k as usize].get())
+        else {
             continue;
         };
-        let rect = crate::hud::store::rects_at(sign.rectangle);
-        crate::hud::add_sprite::add_sprite(sign.x, row_by(style.y, style.lift), rect)?;
+        let rect = crate::hud::store::rects_at(hud, sign.rectangle);
+        crate::hud::add_sprite::add_sprite(hud, sign.x, row_by(style.y, style.lift), rect)?;
     }
     Ok(())
 }

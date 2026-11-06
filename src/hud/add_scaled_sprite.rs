@@ -9,7 +9,7 @@
 
 use crate::errors::Refused;
 use crate::hud::add_sprite::{put_corners, put_places};
-use crate::hud::store::HUD;
+use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::to_f64;
@@ -19,25 +19,27 @@ use rc2k_core::math::extended::to_f64;
 /// esi; every register kept).
 // Converted: `rc2k_core::hud::quads::{sprite_places, scaled_size, sprite_corners}`
 pub fn add_scaled_sprite_plain(
+    hud: &Hud,
     x: u32,
     y: u32,
     rect: GamePtr,
     scales: [f64; 2],
 ) -> Result<(), Refused> {
-    let [_, _, w, h] = put_places(rect)?;
+    let [_, _, w, h] = put_places(hud, rect)?;
     let w = quads::scaled_size(w, scales[0]);
     let h = quads::scaled_size(h, scales[1]);
-    HUD.scratch.set(h);
-    put_corners(x, y, w, h);
-    crate::hud::add_quad::add_quad()
+    hud.block.scratch.set(h);
+    put_corners(hud, x, y, w, h);
+    crate::hud::add_quad::add_quad(hud)
 }
 
 /// `add_scaled_sprite_plain` with the scales as the x87 holds them.
 pub fn add_scaled_sprite(
+    hud: &Hud,
     x: u32,
     y: u32,
     rect: GamePtr,
     scales: [[u8; 10]; 2],
 ) -> Result<(), Refused> {
-    add_scaled_sprite_plain(x, y, rect, scales.map(to_f64))
+    add_scaled_sprite_plain(hud, x, y, rect, scales.map(to_f64))
 }

@@ -11,5 +11,5 @@ use crate::physics::listed_car_flags::set_flag;
 
 /// The Rust version.
 pub fn set_flag_51659c() -> Result<(), Refused> {
-    set_flag(&crate::sound::store::STAGE_SOUNDS.once[0])
+    set_flag(&crate::sound::owner::sound().race.stage.once[0])
 }

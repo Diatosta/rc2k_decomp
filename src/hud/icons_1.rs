@@ -5,15 +5,19 @@
 
 use crate::errors::Refused;
 use crate::hud::draw_icon::draw_icon;
-use crate::hud::store::HUD;
+use crate::hud::owner::Hud;
 use crate::pointers::GamePtr;
 
 /// The Rust version (see the header).
-pub fn icons_1(record: GamePtr) -> Result<(), Refused> {
-    HUD.icon_scale.set_bits(HUD.icon_scales[2].bits());
-    HUD.icon_shift.set(0xFFFF_FF38);
-    { draw_icon(record, 0xC8, 0) }?;
-    HUD.texture.set(HUD.texture.get().wrapping_add(1));
-    HUD.icon_shift.set(0xC8);
-    draw_icon(record, 0xC8, 0x10)
+pub fn icons_1(hud: &Hud, record: GamePtr) -> Result<(), Refused> {
+    hud.block
+        .icon_scale
+        .set_bits(hud.block.icon_scales[2].bits());
+    hud.block.icon_shift.set(0xFFFF_FF38);
+    { draw_icon(hud, record, 0xC8, 0) }?;
+    hud.block
+        .texture
+        .set(hud.block.texture.get().wrapping_add(1));
+    hud.block.icon_shift.set(0xC8);
+    draw_icon(hud, record, 0xC8, 0x10)
 }

@@ -11,15 +11,17 @@
 //! unconverted code).
 
 use crate::effects::spawn_windscreen_drop::spawn_windscreen_drop;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::work_store::MARKS_WORK;
 use crate::errors::Refused;
 
 /// The Rust version (see the header).
-pub fn pick_windscreen_drop() -> Result<(), Refused> {
+pub fn pick_windscreen_drop(drops: &WindscreenDrops) -> Result<(), Refused> {
     {
         let s = MARKS_WORK.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
         MARKS_WORK.seed.set(s);
         spawn_windscreen_drop(
+            drops,
             s & 0x7FF,
             s.rotate_right(11) & 0x3FF,
             s.rotate_right(22) & 7,

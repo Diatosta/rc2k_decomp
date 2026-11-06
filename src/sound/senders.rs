@@ -22,9 +22,13 @@ pub fn music(m: Music) {
 pub fn play_tune(n: u32) {
     if let Some(m) = rc2k_core::sound::senders::tune_command(
         n,
-        crate::sound::store::SOUND_OPTIONS.music_volume.get(),
-        crate::sound::store::SOUND_OPTIONS.race_music_volume.get(),
-        crate::sound::store::SOUND_OPTIONS.name_switch.get() == 1,
+        crate::sound::owner::sound().menu.options.music_volume.get(),
+        crate::sound::owner::sound()
+            .menu
+            .options
+            .race_music_volume
+            .get(),
+        crate::sound::owner::sound().menu.options.name_switch.get() == 1,
     ) {
         music(m);
     }

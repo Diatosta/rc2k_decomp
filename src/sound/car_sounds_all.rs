@@ -21,14 +21,14 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_float::{ld, st};
-use crate::sound::store::{RACE_SOUNDS, SoundObject};
+use crate::sound::store::SoundObject;
 
 // ---- Rust version ----
 
 /// Every car's sounds for the turn: the players' each, of the computer's the two nearest
 /// the listener (each keeping its voice).
 pub fn car_sounds_all() -> Result<(), Refused> {
-    let count = RACE_SOUNDS.count.get();
+    let count = crate::sound::owner::sound().race.sounds.count.get();
     if count == 0 {
         return Ok(());
     }
@@ -48,15 +48,28 @@ pub fn car_sounds_all() -> Result<(), Refused> {
             crate::sound::car_sounds::car_sounds(n)?;
             continue;
         }
-        x87_1(o, &RACE_SOUNDS);
-        nearest.consider(n, RACE_SOUNDS.nearest_distance.bits());
+        x87_1(o, &crate::sound::owner::sound().race.sounds);
+        nearest.consider(
+            n,
+            crate::sound::owner::sound()
+                .race
+                .sounds
+                .nearest_distance
+                .bits(),
+        );
     }
-    let (first, second) = nearest.kept(RACE_SOUNDS.nearest.get(), RACE_SOUNDS.next.get());
-    RACE_SOUNDS.nearest.set(first);
-    RACE_SOUNDS.next.set(second);
+    let (first, second) = nearest.kept(
+        crate::sound::owner::sound().race.sounds.nearest.get(),
+        crate::sound::owner::sound().race.sounds.next.get(),
+    );
+    crate::sound::owner::sound().race.sounds.nearest.set(first);
+    crate::sound::owner::sound().race.sounds.next.set(second);
     for (which, mark) in [
-        (&RACE_SOUNDS.nearest, NEAREST_MARK),
-        (&RACE_SOUNDS.next, NEXT_MARK),
+        (
+            &crate::sound::owner::sound().race.sounds.nearest,
+            NEAREST_MARK,
+        ),
+        (&crate::sound::owner::sound().race.sounds.next, NEXT_MARK),
     ] {
         let n = which.get();
         if (n as i32) < 0 {

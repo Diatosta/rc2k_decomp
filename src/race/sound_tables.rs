@@ -6,7 +6,7 @@ use crate::errors::{BadInput, Refused};
 use crate::race::state_store::RACE_STATE;
 use crate::race::tyre_store::TYRE_CHANGE;
 use crate::session::{Dword, Float};
-use crate::sound::sets_store::{SOUND_KINDS, SoundSet};
+use crate::sound::sets_store::SoundSet;
 
 /// `race::whole_to_float` (0x40D706): the dword at ebx made a float (`fild` / `fstp`)
 /// when it looks like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's
@@ -60,8 +60,8 @@ pub struct TableVars {
 impl TableVars {
     pub fn game() -> Self {
         Self {
-            done: &crate::sound::store::SURFACE_SOUNDS.tables_done,
-            sines: &SOUND_KINDS.sines,
+            done: &crate::sound::owner::sound().race.surface.tables_done,
+            sines: &crate::sound::owner::sound().race.kinds.sines,
             scratch: &crate::session::MACHINE.scratch,
         }
     }
@@ -106,7 +106,7 @@ pub fn restart_race_sounds() -> Result<(), Refused> {
     wait_for_commands();
     reset_race_sounds(&SoundVars::game())?;
     crate::sound::let_sounds_play::let_sounds_play();
-    crate::sound::store::RACE_CLOCK.started.set(1);
+    crate::sound::owner::sound().race.clock.started.set(1);
     Ok(())
 }
 
@@ -131,7 +131,7 @@ pub struct ObjectVars {
 impl ObjectVars {
     pub fn game() -> Self {
         Self {
-            objects: &crate::sound::store::RACE_SOUNDS.objects,
+            objects: &crate::sound::owner::sound().race.sounds.objects,
         }
     }
 }
@@ -193,35 +193,51 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::sound_objects::{sound_players, sound_objects,
         // object_mark}`; the tables through `prepare_sound_tables_plain`.
-        use crate::sound::store::RACE_SOUNDS;
+
         use rc2k_core::race::sound_objects::{object_mark, sound_objects, sound_players};
         prepare_sound_tables_plain(&TableVars::game())?;
         let players = sound_players(RACE_STATE.settings.race_mode.get());
-        RACE_SOUNDS.one_player.set(players);
+        crate::sound::owner::sound()
+            .race
+            .sounds
+            .one_player
+            .set(players);
         let (count, arcade) = sound_objects(players, RACE_STATE.settings.run_kind.get());
         if arcade {
-            RACE_SOUNDS.mark_car_voices.set(1);
+            crate::sound::owner::sound()
+                .race
+                .sounds
+                .mark_car_voices
+                .set(1);
         }
-        RACE_SOUNDS.count.set(count);
-        RACE_SOUNDS.player_cars[0].set(0);
-        RACE_SOUNDS.player_cars[1].set(1);
+        crate::sound::owner::sound().race.sounds.count.set(count);
+        crate::sound::owner::sound().race.sounds.player_cars[0].set(0);
+        crate::sound::owner::sound().race.sounds.player_cars[1].set(1);
         if one {
-            RACE_SOUNDS.player_cars[0].set(crate::net::store::NET.player.get());
-            RACE_SOUNDS.count.set(crate::net::store::NET.players.get());
+            crate::sound::owner::sound().race.sounds.player_cars[0]
+                .set(crate::net::store::NET.player.get());
+            crate::sound::owner::sound()
+                .race
+                .sounds
+                .count
+                .set(crate::net::store::NET.players.get());
         }
         for (n, o) in v.objects.iter().enumerate() {
             o.sound_offset.set(object_mark(n as u32));
         }
-        let first = crate::sound::store::SoundObject::number(RACE_SOUNDS.player_cars[0].get())?;
+        let first = crate::sound::store::SoundObject::number(
+            crate::sound::owner::sound().race.sounds.player_cars[0].get(),
+        )?;
         first.sound_offset.set(0);
         first.kind.set(RACE_STATE.settings.car_kind_current.get());
         first
             .cue_queue
             .first
             .set(RACE_STATE.settings.cars[0].codriver_sex.get());
-        if RACE_SOUNDS.one_player.get() != 1 {
-            let second =
-                crate::sound::store::SoundObject::number(RACE_SOUNDS.player_cars[1].get())?;
+        if crate::sound::owner::sound().race.sounds.one_player.get() != 1 {
+            let second = crate::sound::store::SoundObject::number(
+                crate::sound::owner::sound().race.sounds.player_cars[1].get(),
+            )?;
             second.sound_offset.set(1);
             second.kind.set(RACE_STATE.settings.car_kind_first.get());
             second
@@ -242,7 +258,7 @@ pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
 /// `dword_514F7C`, `dword_514F8C` 0. Every register kept.
 pub fn clear_race_sound_objects() -> Result<(), Refused> {
     silence_race_sounds()?;
-    let sounds = &crate::sound::store::RACE_SOUNDS;
+    let sounds = &crate::sound::owner::sound().race.sounds;
     for d in [&sounds.one_player, &sounds.count, &sounds.mark_car_voices] {
         d.set(0);
     }

@@ -223,7 +223,8 @@ pub fn loadlevel_init() -> Result<(), Refused> {
     let enabled = crate::logfile::write_line::state::ENABLED
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
-    crate::effects::init_mark_step::init_mark_step()?;
+    let effects = crate::effects::owner::effects();
+    crate::effects::init_mark_step::init_mark_step(&effects.windscreen_drops, &effects.ring)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.progress(0x5E)?;
     s.indent(-3);

@@ -337,7 +337,7 @@ pub fn open_replay() -> Result<(), Refused> {
     }
     let w = &REPLAY_WORK;
     w.header_one_player
-        .set(crate::sound::store::RACE_SOUNDS.one_player.get());
+        .set(crate::sound::owner::sound().race.sounds.one_player.get());
     w.header_codriver_sex_0
         .set(RACE_STATE.settings.cars[0].codriver_sex.get());
     w.header_codriver_sex_1

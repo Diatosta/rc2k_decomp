@@ -7,15 +7,15 @@
 //! Caller: `sub_4B1CD0` (the HUD's start).
 
 use crate::d3d::vertices_store::VERTICES;
+use crate::hud::owner::Hud;
 
-use crate::hud::store::HUD;
 use crate::math::x87;
 
 /// The Rust version (see the header).
-pub fn set_batch_depth() {
+pub fn set_batch_depth(hud: &Hud) {
     {
-        let rhw = x87::loaded(HUD.rhw.bits());
-        let depth = x87::loaded(HUD.depth.bits());
+        let rhw = x87::loaded(hud.block.rhw.bits());
+        let depth = x87::loaded(hud.block.depth.bits());
         for n in 0..4 {
             let v = &VERTICES.vertices[n];
             v.rhw.set_bits(rhw);

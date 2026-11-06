@@ -50,7 +50,7 @@ pub fn run_frame() -> Result<(), Refused> {
     use crate::effects::*;
     use crate::scene::set_render_state::set_render_state;
     let effects = owner::effects();
-    let (weather, particles) = (&effects.weather, &effects.particles);
+    let (weather, particles, ring) = (&effects.weather, &effects.particles, &effects.ring);
     {
         swap_mask::swap_mask()?;
         setup::tick_clock()?;
@@ -62,15 +62,15 @@ pub fn run_frame() -> Result<(), Refused> {
         run_snow::run_snow(weather)?;
         let start = rdtsc();
         share(0, start);
-        draw_frame::draw_frame(particles)?;
+        draw_frame::draw_frame(particles, ring)?;
         let start = rdtsc();
-        ring_frame::ring_frame(weather, particles)?;
+        ring_frame::ring_frame(weather, particles, ring)?;
         share(1, start);
         set_render_state(2, 0x14);
         flare_frame::flare_frame()?;
         set_render_state(1, 3);
         draw_mark_slots::draw_mark_slots()?;
-        run_particles::run_particles(particles)?;
+        run_particles::run_particles(particles, ring)?;
         share(2, whole);
         stage_record::stage_record()?;
         draw_glow::draw_glow()?;

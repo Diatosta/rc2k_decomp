@@ -9,23 +9,21 @@
 //! Caller: `sub_4BAC87` (0x4BAF7D). The call is `expire_windscreen_drops`' Rust version.
 
 use crate::effects::expire_windscreen_drops::expire_windscreen_drops;
-use crate::effects::mask_picks::PICKS;
-use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_STATE;
-use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::steps::steps`
-pub fn windscreen_drops_step() -> Result<(), Refused> {
+pub fn windscreen_drops_step(drops: &WindscreenDrops) -> Result<(), Refused> {
     {
-        let clock: u32 = WINDSCREEN_DROP_STATE.clock.bits();
-        let steps = rc2k_core::effects::steps::steps(PICKS.index.get(), clock);
-        PICKS.index.set(clock);
-        HEX.steps.set(steps);
-        expire_windscreen_drops()?;
-        let latest = PICKS.index.get().wrapping_add(HEX.steps.get());
-        PICKS.index.set(latest & 0xFF);
-        WINDSCREEN_DROP_STATE.clock.set_bits(latest & 0xFF);
+        let clock: u32 = drops.state.clock.bits();
+        let steps = rc2k_core::effects::steps::steps(drops.picks.index.get(), clock);
+        drops.picks.index.set(clock);
+        drops.hex.steps.set(steps);
+        expire_windscreen_drops(drops)?;
+        let latest = drops.picks.index.get().wrapping_add(drops.hex.steps.get());
+        drops.picks.index.set(latest & 0xFF);
+        drops.state.clock.set_bits(latest & 0xFF);
     }
     Ok(())
 }

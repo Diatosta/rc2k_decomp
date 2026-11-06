@@ -14,7 +14,7 @@ use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
 use crate::menu::name_lists::NAME_LEN;
-use crate::saves::write_savegame_slot::{FILE_LEN, SAVE_GAMES, SLOTS, TEMPLATE, slot_name};
+use crate::saves::write_savegame_slot::{FILE_LEN, SLOTS, TEMPLATE, slot_name};
 
 // ---- Rust version ----
 
@@ -25,9 +25,9 @@ pub fn read_savegame_slot(slot: u32) -> Result<bool, Refused> {
     }
     let template = TEMPLATE.read();
     let path = numbered_path_bytes(&template[..template.len() - 1], slot)?;
-    let mut bytes = SAVE_GAMES.file.read();
+    let mut bytes = crate::saves::owner::saves().save_games.file.read();
     let read = read_file_into(&path[..], &mut bytes[..FILE_LEN], 0)?;
-    SAVE_GAMES.file.write(&bytes);
+    crate::saves::owner::saves().save_games.file.write(&bytes);
     // Converted: `rc2k_core::saves::kept::slot_name`.
     use rc2k_core::saves::kept;
     let block = &bytes[..0x30];

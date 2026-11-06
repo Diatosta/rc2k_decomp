@@ -28,15 +28,34 @@ pub fn build_notice() {
     if crate::strings::load_language::notice_kind() != BUILDS {
         return;
     }
-    let first: [u8; FIRST_READ] = std::array::from_fn(|i| NOTICE.notice_first.get(FIRST_FROM + i));
-    let second: [u8; SECOND_READ] =
-        std::array::from_fn(|i| NOTICE.notice_second.get(SECOND_FROM + i));
+    let first: [u8; FIRST_READ] = std::array::from_fn(|i| {
+        crate::menu::owner::menus()
+            .panels
+            .notice
+            .notice_first
+            .get(FIRST_FROM + i)
+    });
+    let second: [u8; SECOND_READ] = std::array::from_fn(|i| {
+        crate::menu::owner::menus()
+            .panels
+            .notice
+            .notice_second
+            .get(SECOND_FROM + i)
+    });
     let built = notice(&first, &second);
     for (i, &byte) in built.iter().take(BUILT_LEN).enumerate() {
         TEXT_BUFFER.text.set(i, byte);
-        NOTICE.notice_first.set(i, byte);
+        crate::menu::owner::menus()
+            .panels
+            .notice
+            .notice_first
+            .set(i, byte);
     }
-    NOTICE.notice_second.set(0, 0);
+    crate::menu::owner::menus()
+        .panels
+        .notice
+        .notice_second
+        .set(0, 0);
 }
 
 // ---- the notice's lines (IDA 0x52A263 .. 0x52A30F, split from the network's block) ----
@@ -53,10 +72,14 @@ pub struct BuildNotice {
     pub notice_second: Bytes<94>,
 }
 
-pub static NOTICE: BuildNotice = BuildNotice {
+impl BuildNotice {
+    pub const fn new() -> Self {
+        BuildNotice {
     notice_first: Bytes::new(with_runs::<78>(&[(0, b"Copyright \xa9 Magnetic Fields (Software Design) Ltd, 1999. All rights reserved.")])),
     notice_second: Bytes::new(with_runs::<94>(&[(0, b"Copyright \xa9 Actualize Ltd, 1999. All rights reserved.\x00http:\x01/\x01/\x01www.rallychampionship.co.uk\x01/")])),
-};
+        }
+    }
+}
 
 impl BuildNotice {
     pub const START: usize = 0x52A263;
@@ -71,7 +94,7 @@ mod notice_tests {
     #[test]
     fn notice_starts_as_the_games_image() {
         assert_eq!(size_of::<BuildNotice>(), BuildNotice::LEN);
-        let p = (&raw const NOTICE).cast::<u8>();
+        let p = (&raw const crate::menu::owner::MENUS.panels.notice).cast::<u8>();
         let image = crate::moved::image_bytes(BuildNotice::START, BuildNotice::LEN);
         for (i, &b) in image.iter().enumerate() {
             assert_eq!(

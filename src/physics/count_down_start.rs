@@ -29,7 +29,7 @@ pub fn count_down_start() -> Result<(), Refused> {
         StartCount::Counted { beep, .. } => {
             CAR.time_left.set(c.countdown);
             if beep {
-                set_flag(&crate::sound::store::STAGE_SOUNDS.once[1])?;
+                set_flag(&crate::sound::owner::sound().race.stage.once[1])?;
             }
             Ok(())
         }

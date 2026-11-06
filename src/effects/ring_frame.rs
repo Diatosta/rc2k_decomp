@@ -11,6 +11,7 @@
 //!
 //! Caller: `effects::run_frame` (0x4D160B). Refuses null settings, before anything.
 
+use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::effects::surface_store::SURFACE;
 use crate::errors::Refused;
@@ -23,6 +24,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1,
 pub fn ring_frame(
     weather: &crate::effects::rain::Weather,
     particles: &Particles,
+    ring: &Ring,
 ) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     {
@@ -36,9 +38,9 @@ pub fn ring_frame(
         // The settings' +0x7C: the first car record's +0x1C.
         SURFACE.lives_by_level[8].set(marks.cars[0].word(0x1C)? & 0xFF_FFFF);
         particles.kind1_choice.choice.set(weather.rain.drops.get());
-        crate::effects::run_ring::run_ring()?;
+        crate::effects::run_ring::run_ring(ring)?;
         set_render_state(2, 0x14);
-        crate::effects::run_ribbons::run_ribbons()?;
+        crate::effects::run_ribbons::run_ribbons(ring)?;
     }
     Ok(())
 }

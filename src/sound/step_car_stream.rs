@@ -29,13 +29,13 @@ pub fn step_car_stream(
 ) -> Result<(), BadInput> {
     // Converted: `rc2k_core::sound::race::stream_step`.
     use rc2k_core::sound::race::{StreamStep, stream_step};
-    let list: u32 = crate::sound::store::CAR_STREAM.stream.get();
+    let list: u32 = crate::sound::owner::sound().race.car_stream.stream.get();
     let failed = std::cell::Cell::new(None);
     let step = stream_step(
         CHAMP_VIEW.event_mode.get(),
-        crate::sound::store::CAR_STREAM.on.get(),
+        crate::sound::owner::sound().race.car_stream.on.get(),
         playing,
-        crate::sound::store::CAR_STREAM.place.get(),
+        crate::sound::owner::sound().race.car_stream.place.get(),
         |place| {
             crate::menu::texts_store::speech_entry(list, place).unwrap_or_else(|e| {
                 failed.set(Some(e));
@@ -49,13 +49,21 @@ pub fn step_car_stream(
     let (place, part) = match step {
         StreamStep::Nothing => return Ok(()),
         StreamStep::Ended { place } => {
-            crate::sound::store::CAR_STREAM.place.set(place);
-            crate::sound::store::CAR_STREAM.on.set(0);
+            crate::sound::owner::sound()
+                .race
+                .car_stream
+                .place
+                .set(place);
+            crate::sound::owner::sound().race.car_stream.on.set(0);
             return Ok(());
         }
         StreamStep::Start { place, part } => (place, part),
     };
-    crate::sound::store::CAR_STREAM.place.set(place);
+    crate::sound::owner::sound()
+        .race
+        .car_stream
+        .place
+        .set(place);
     start(part, OPTION_WORK.speech_level.get());
     Ok(())
 }

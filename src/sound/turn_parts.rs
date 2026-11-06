@@ -12,11 +12,11 @@
 //! are 0 now.
 
 use crate::errors::Refused;
-use crate::sound::sets_store::{RACE_SOUND_SETS, SoundRequest};
+use crate::sound::sets_store::SoundRequest;
 
 /// The request (`g_raceSoundRequest`), the sound command's words.
 pub fn request() -> &'static SoundRequest {
-    &RACE_SOUND_SETS.request
+    &crate::sound::owner::sound().race.sets.request
 }
 
 pub use crate::sound::play_sound::play_sound as play;

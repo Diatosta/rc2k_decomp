@@ -25,9 +25,7 @@ use crate::menu::champ_store::CHAMP_VIEW;
 use crate::menu::draw_work_store::DRAW_WORK;
 use crate::menu::loop_store::LOOP_FLAGS;
 use crate::menu::option_work_store::OPTION_WORK;
-use crate::saves::best_times_store::BEST_TIMES;
 use crate::saves::default_times::to_the_log;
-use crate::sound::store::SOUND_OPTIONS;
 
 // ---- game data ----
 
@@ -67,14 +65,18 @@ pub fn set_up_front_end() -> Result<(), Refused> {
     crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
     crate::menu::fit_player_names::fit_player_names()?;
     // The two dwords: the music volumes, then the tables' copies.
-    SOUND_OPTIONS
+    crate::sound::owner::sound()
+        .menu
+        .options
         .music_volume
         .set(OPTION_WORK.music_level.get());
-    SOUND_OPTIONS
+    crate::sound::owner::sound()
+        .menu
+        .options
         .race_music_volume
         .set(OPTION_WORK.other_volume.get());
     allocate_best_times::allocate_best_times(
-        BEST_TIMES.list(),
+        crate::saves::owner::saves().best_times.list(),
         crate::records::stages_store::STAGE_TABLES.championship(),
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
@@ -82,7 +84,7 @@ pub fn set_up_front_end() -> Result<(), Refused> {
     CHAMP_VIEW
         .summary
         .set(u32::from(crate::saves::best_times::SUMMARY.is_taken()));
-    if BEST_TIMES.loaded.get() != 1 {
+    if crate::saves::owner::saves().best_times.loaded.get() != 1 {
         DRAW_WORK.work_0c.set(0u32);
         default_best_scores::default_best_scores()?;
         DRAW_WORK.work_0c.set(0u32);
@@ -95,7 +97,7 @@ pub fn set_up_front_end() -> Result<(), Refused> {
         default_stage_times::default_stage_times(stage, &mut to_the_log)?;
         DRAW_WORK.work_0c.set(0u32);
         default_stage_times_alt::default_stage_times_alt(stage, &mut to_the_log)?;
-        BEST_TIMES.loaded.set(1);
+        crate::saves::owner::saves().best_times.loaded.set(1);
     }
     if LOOP_FLAGS.options_loaded.get() != 1 {
         for table in record_tables() {

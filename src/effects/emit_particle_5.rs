@@ -23,6 +23,7 @@ use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::ring_entries::field;
+use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
@@ -70,13 +71,17 @@ pub static FIFTH: JitterSet = JitterSet {
 };
 
 /// Why the Rust version refuses these registers, if it does, worked out without writing.
-pub fn refusal(set: &JitterSet, wheel: &MarkRecord) -> Result<Option<&'static str>, Refused> {
+pub fn refusal(
+    ring: &Ring,
+    set: &JitterSet,
+    wheel: &MarkRecord,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
         if !emits(set, wheel)? {
             return Ok(None);
         }
         // The ring full: nothing more is read.
-        next_entry()?;
+        next_entry(ring)?;
         if !car_with_matrix()? {
             return Ok(Some("a null car object or matrix"));
         }
@@ -97,27 +102,32 @@ fn emits(set: &JitterSet, wheel: &MarkRecord) -> Result<bool, Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn emit_particle_5(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
-    emit_particle_5_with(&FIFTH, wheel, object)
+pub fn emit_particle_5(
+    ring: &Ring,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
+    emit_particle_5_with(ring, &FIFTH, wheel, object)
 }
 
 /// The shared body, on `set`'s variables.
 pub fn emit_particle_5_with(
+    ring: &Ring,
     set: &JitterSet,
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
-        if let Some(why) = refusal(set, wheel)? {
+        if let Some(why) = refusal(ring, set, wheel)? {
             return Err(BadInput(why).into());
         }
         let strength = x87::loaded(wheel.speed_18.bits()) & 0x7FFF_FFFF;
         EMITTER.strength.set_bits(strength);
-        if !emits(set, wheel)? || next_entry()?.is_none() {
+        if !emits(set, wheel)? || next_entry(ring)?.is_none() {
             return Ok(());
         }
-        let e = take_entry(object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
-        let put = |o: u32, v: u32| crate::effects::ring_entries::put(e, o, v);
+        let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
+        let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
         let (sign, strength) = if EMITTER.record.get() & 1 == 0 {
             (-1i32, x87::sub(strength, wheel.speed_10.bits()))
         } else {

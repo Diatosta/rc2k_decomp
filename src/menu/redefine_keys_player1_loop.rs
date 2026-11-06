@@ -17,7 +17,6 @@ use crate::errors::Refused;
 use crate::menu::draw_lists_store::DRAW_LISTS;
 use crate::menu::event_store::EVENT_STATE;
 use crate::menu::flow_store::SCREEN_FLOW;
-use crate::menu::keys_store::KEY_TABLES;
 use crate::menu::menus_store::MENUS;
 use crate::menu::option_work_store::OPTION_WORK;
 use crate::menu::players_store::PLAYER_TABLE;
@@ -35,7 +34,11 @@ fn before(_: &Entry) -> Result<(), Refused> {
     {
         let keys = PLAYER_TABLE.players[0].get().keys;
         for (n, key) in keys.into_iter().enumerate() {
-            KEY_TABLES.redefined_keys.set(n, key);
+            crate::menu::owner::menus()
+                .keys
+                .tables
+                .redefined_keys
+                .set(n, key);
         }
         EVENT_STATE.current_player.set(0x0u32);
     }

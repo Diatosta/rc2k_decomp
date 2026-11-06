@@ -33,7 +33,6 @@
 //! through `routes.rs`.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::cars_store::CAR_TABLE;
 use crate::menu::lists_store::{CarList, MENU_LISTS};
 use crate::menu::state_store::MENU_STATE;
 use crate::scene::carousel_set_ups::PLAIN;
@@ -152,7 +151,7 @@ fn cars(list: CarList, size: u32) -> Result<(), BadInput> {
         }
         MENU_STATE.carousel.count.set(n as u32);
         let last = (n as u32).wrapping_sub(1);
-        CAR_TABLE.last_car.set(last);
+        crate::menu::owner::menus().cars.table.last_car.set(last);
         OBJECT_WORK.size.set_bits(size);
         for op in CARS_TAIL {
             run_op(op);
@@ -183,7 +182,7 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
                 OBJECT_WORK.size.set_bits(0xCu32);
                 write_prefix(&MENU_STATE.carousel.kinds, &FIXED_KINDS);
                 MENU_STATE.carousel.count.set(6u32);
-                CAR_TABLE.last_car.set(5u32);
+                crate::menu::owner::menus().cars.table.last_car.set(5u32);
                 for op in CARS_TAIL {
                     run_op(op);
                 }

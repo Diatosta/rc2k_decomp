@@ -26,7 +26,7 @@ use crate::math::x87_float::X;
 use crate::math::x87_float::{ld, st, to_int};
 use crate::scene::x87_mem::{Base, fld, mov};
 use crate::sound::sets_store::SoundRequest;
-use crate::sound::store::{STAGE_SOUNDS, SURFACE_SOUNDS, SoundObject, WHEEL_SURFACES};
+use crate::sound::store::{SoundObject, WHEEL_SURFACES};
 use rc2k_core::sound::surfaces;
 
 // ---- Rust version ----
@@ -35,7 +35,10 @@ use rc2k_core::sound::surfaces;
 /// (the other wheel of the pair, the original's edx, it does not read).
 fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
-    let (first, _) = surfaces::wheel(SURFACE_SOUNDS.across.bits(), SURFACE_SOUNDS.along.bits());
+    let (first, _) = surfaces::wheel(
+        crate::sound::owner::sound().race.surface.across.bits(),
+        crate::sound::owner::sound().race.surface.along.bits(),
+    );
     let surface = o.voices[first].surface.get();
     if second == 0 {
         o.surface.set(surface);
@@ -44,18 +47,20 @@ fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Ref
     if surfaces::quieter(surface) {
         if second == 0 {
             x87_1(
-                &crate::sound::store::SURFACE_SOUNDS,
+                &crate::sound::owner::sound().race.surface,
                 &crate::session::MACHINE.scratch,
             );
         } else {
             x87_2(
-                &crate::sound::store::SURFACE_SOUNDS,
+                &crate::sound::owner::sound().race.surface,
                 &crate::session::MACHINE.scratch,
             );
         }
     }
-    let pair = surfaces::set_pair(surface, |n| STAGE_SOUNDS.surface_sets[n as usize].get())
-        .map_err(BadInput::from)?;
+    let pair = surfaces::set_pair(surface, |n| {
+        crate::sound::owner::sound().race.stage.surface_sets[n as usize].get()
+    })
+    .map_err(BadInput::from)?;
     let set = crate::sound::sets_store::SurfaceSets::set(second + 2 * pair as usize)?;
     crate::sound::surface_sound::surface_sound(o, set, request)
 }
@@ -65,9 +70,9 @@ pub fn surface_sounds(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
 ) -> Result<(), Refused> {
-    x87_3(so, &SURFACE_SOUNDS);
+    x87_3(so, &crate::sound::owner::sound().race.surface);
     one(so, request, 0)?;
-    x87_4(so, &SURFACE_SOUNDS);
+    x87_4(so, &crate::sound::owner::sound().race.surface);
     one(so, request, 1)
 }
 

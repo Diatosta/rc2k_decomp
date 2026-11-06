@@ -12,19 +12,23 @@
 //! unconverted code).
 
 use crate::effects::expire_windscreen_drops::{ITEM_LEN, ITEMS};
-use crate::effects::windscreen_drop_state::WINDSCREEN_DROP_WORK;
-use crate::effects::windscreen_drop_vars::HEX;
+use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
 const WINDOW: u32 = 32;
 
 /// The Rust version (see the header).
-pub fn spawn_windscreen_drop(x: u32, z: u32, kind: u32) -> Result<(), Refused> {
+pub fn spawn_windscreen_drop(
+    drops: &WindscreenDrops,
+    x: u32,
+    z: u32,
+    kind: u32,
+) -> Result<(), Refused> {
     {
-        let items = &HEX.items;
+        let items = &drops.hex.items;
         let end = ITEMS * ITEM_LEN;
-        let mut at = WINDSCREEN_DROP_WORK.cursor.bits();
+        let mut at = drops.work.cursor.bits();
         for _ in 0..WINDOW {
             // The cursor steps by whole items and wraps at the end; one off that grid
             // (only its own writes keep it there) would read past the items.
@@ -45,7 +49,7 @@ pub fn spawn_windscreen_drop(x: u32, z: u32, kind: u32) -> Result<(), Refused> {
                 if at == end {
                     at = 0;
                 }
-                WINDSCREEN_DROP_WORK.cursor.set_bits(at);
+                drops.work.cursor.set_bits(at);
                 return Ok(());
             }
             at += ITEM_LEN;
@@ -53,7 +57,7 @@ pub fn spawn_windscreen_drop(x: u32, z: u32, kind: u32) -> Result<(), Refused> {
                 at = 0;
             }
         }
-        WINDSCREEN_DROP_WORK.cursor.set_bits(at);
+        drops.work.cursor.set_bits(at);
     }
     Ok(())
 }

@@ -11,7 +11,6 @@
 //! 0x400 or more.
 
 use crate::errors::BadInput;
-use crate::menu::car_numbers_store::CAR_NUMBERS;
 use crate::menu::lists_store::MENU_LISTS;
 use crate::session::Dword;
 use crate::system::checked_reads::CheckedReads;
@@ -20,8 +19,16 @@ use crate::system::checked_reads::CheckedReads;
 
 /// (the numbers, the pointers, how many entries each has)
 const LISTS: [(&[Dword], &[Dword], usize); 2] = [
-    (&CAR_NUMBERS.first_numbers, &MENU_LISTS.cars_second, 0x28), // unk_755258, off_75A042
-    (&CAR_NUMBERS.second_numbers, &MENU_LISTS.shown_cars, 0x14), // unk_7552F8, off_75A12E
+    (
+        &crate::menu::owner::MENUS.cars.numbers.first_numbers,
+        &MENU_LISTS.cars_second,
+        0x28,
+    ), // unk_755258, off_75A042
+    (
+        &crate::menu::owner::MENUS.cars.numbers.second_numbers,
+        &MENU_LISTS.shown_cars,
+        0x14,
+    ), // unk_7552F8, off_75A12E
 ];
 
 // ---- Rust version ----

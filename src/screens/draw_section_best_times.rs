@@ -30,7 +30,9 @@ pub fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     if section >= SECTIONS {
         return Err(BadInput("a section past the six best-times tables").into());
     }
-    let table = crate::saves::best_times_store::RallyTimes::table(section as usize)?;
+    let table = crate::saves::owner::saves()
+        .rally_times
+        .table(section as usize)?;
     // Converted: `rc2k_core::screens::best_scores::section_best_times`.
     use rc2k_core::screens::best_scores::SectionRow;
     // The rallies' tables are the game's (`RALLY_TIMES`), not blocks.

@@ -60,7 +60,9 @@ pub fn volume_step(v: Volume) {
     v.value.set(value as u32);
     match v.then {
         Then::Music => {
-            crate::sound::store::SOUND_OPTIONS
+            crate::sound::owner::sound()
+                .menu
+                .options
                 .music_volume
                 .set(value as u32);
             crate::sound::set_music_volume::set_music_volume(value as u32);

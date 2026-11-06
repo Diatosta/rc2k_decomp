@@ -11,6 +11,7 @@
 
 use crate::effects::emit_bursts::BurstTuning;
 use crate::effects::emit_bursts::{BurstSet, HALVES, emit_bursts_with};
+use crate::effects::ring_store::Ring;
 use crate::errors::Refused;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 use crate::session::{Dword, Float};
@@ -22,8 +23,12 @@ pub static SECOND: BurstSet = BurstSet {
 };
 
 /// The Rust version (see the header).
-pub fn emit_bursts_2(wheel: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
-    emit_bursts_with(&SECOND, wheel, object)
+pub fn emit_bursts_2(
+    ring: &Ring,
+    wheel: &MarkRecord,
+    object: &'static MarkCar,
+) -> Result<(), Refused> {
+    emit_bursts_with(ring, &SECOND, wheel, object)
 }
 
 impl BurstTuning {

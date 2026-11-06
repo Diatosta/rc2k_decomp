@@ -58,11 +58,11 @@ fn lengths(list: GamePtr) -> Result<Vec<u32>, BadInput> {
 // ---- Rust version ----
 
 /// `send` gets each command 3's list (by handle: the audio thread resolves it).
-/// The variables (`crate::sound::store::RACE_SOUNDS`): dword_514F70 and dword_514F74 the
+/// The variables (`sound::owner::Sound::race`'s `sounds`): dword_514F70 and dword_514F74 the
 /// two cars' numbers, dword_514F78, dword_514F7C the counts, off_512A10 the eight sound
 /// objects; dword_75B108 the replay switch.
 pub fn load_race_sounds(send: &mut dyn FnMut(SoundList)) -> Result<(), BadInput> {
-    use crate::sound::store::RACE_SOUNDS as R;
+    let r = &crate::sound::owner::sound().race.sounds;
     let object = |number: &Dword| -> Result<u32, BadInput> {
         let number = number.get();
         if number >= OBJECTS {
@@ -70,13 +70,13 @@ pub fn load_race_sounds(send: &mut dyn FnMut(SoundList)) -> Result<(), BadInput>
         }
         Ok(number)
     };
-    let (first, second) = (object(&R.player_cars[0])?, object(&R.player_cars[1])?);
+    let (first, second) = (object(&r.player_cars[0])?, object(&r.player_cars[1])?);
     let kind = |object: u32| match crate::sound::store::SoundObject::number(object)?.kind.get() {
         kind if kind < KINDS => Ok(kind as usize),
         _ => Err(BadInput("a car's kind past the table of sound sets")),
     };
     let replay = RACE_STATE.results.finished.get() != 0;
-    let (count, other_count) = (R.one_player.get(), R.count.get());
+    let (count, other_count) = (r.one_player.get(), r.count.get());
     let kinds = if replay {
         None
     } else {

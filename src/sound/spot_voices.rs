@@ -12,7 +12,6 @@
 
 use crate::errors::BadInput;
 use crate::session::{Dword, MACHINE};
-use crate::sound::sets_store::SPOT_VOICES;
 
 pub const VOICE_LEN: u32 = 0x50;
 pub const VOICE_COUNT: u32 = 0x48;
@@ -24,12 +23,13 @@ pub type VoiceWords = [Dword; 20];
 
 /// Voice `n` (under `VOICE_COUNT`).
 pub fn voice(n: u32) -> &'static VoiceWords {
-    &SPOT_VOICES.voices[n as usize]
+    &crate::sound::owner::sound().race.spot_voices.voices[n as usize]
 }
 
 /// The address of voice `n` (the pickers' work holds addresses).
 fn voice_address(n: u32) -> u32 {
-    crate::session::address_of(&SPOT_VOICES.voices) + n * VOICE_LEN
+    crate::session::address_of(&crate::sound::owner::sound().race.spot_voices.voices)
+        + n * VOICE_LEN
 }
 
 /// The dword at byte `at` of voice `v`.
@@ -53,15 +53,22 @@ pub fn set(v: &VoiceWords, at: u32, value: u32) -> Result<(), BadInput> {
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).
 pub fn load_voices() -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
-    let words: [[u32; 20]; VOICE_COUNT as usize] =
-        std::array::from_fn(|n| std::array::from_fn(|k| SPOT_VOICES.voices[n][k].get()));
+    let words: [[u32; 20]; VOICE_COUNT as usize] = std::array::from_fn(|n| {
+        std::array::from_fn(|k| crate::sound::owner::sound().race.spot_voices.voices[n][k].get())
+    });
     words.map(rc2k_core::sound::spot_voices::Voice::from_words)
 }
 
 /// The voices stored back.
 pub fn store_voices(voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize]) {
     let words = voices.map(|v| v.to_words());
-    for (voice, words) in SPOT_VOICES.voices.iter().zip(words) {
+    for (voice, words) in crate::sound::owner::sound()
+        .race
+        .spot_voices
+        .voices
+        .iter()
+        .zip(words)
+    {
         for (cell, word) in voice.iter().zip(words) {
             cell.set(word);
         }
@@ -79,7 +86,7 @@ pub fn store_picks(
     picks: &rc2k_core::sound::spot_voices::Picks,
     trail: &rc2k_core::sound::spot_voices::Trail,
 ) {
-    let work = &crate::sound::store::SPOT_PICKS;
+    let work = &crate::sound::owner::sound().race.spot_picks;
     work.pick_playing.set(voice_or_0(picks.playing));
     work.pick_nearest_distance.set(picks.nearest_distance);
     work.pick_nearest.set(voice_or_0(picks.nearest));

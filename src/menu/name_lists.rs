@@ -37,7 +37,7 @@ fn highlighted<const N: usize>(
 /// The name of the highlighted saved game.
 pub fn savegame_name() -> Result<Place, BadInput> {
     highlighted(
-        &crate::saves::write_savegame_slot::SAVE_GAMES.names,
+        &crate::saves::owner::saves().save_games.names,
         SAVEGAME_PAGE_RVA,
         SAVEGAMES_PER_PAGE,
     )

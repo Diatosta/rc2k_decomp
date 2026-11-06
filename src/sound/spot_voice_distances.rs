@@ -26,14 +26,14 @@ pub fn spot_voice_distances() -> Result<(), crate::errors::BadInput> {
         if vw(bx, 4)? != 1 {
             continue;
         }
-        x87_1(bx, &crate::sound::store::RACE_CLOCK);
+        x87_1(bx, &crate::sound::owner::sound().race.clock);
         set(bx, 0x4C, 0)?;
         set(bx, 0x48, 0x3F80_0000)?;
         if vw(bx, 0x20)? != 1 {
             x87_2(
                 bx,
-                &crate::sound::store::RACE_CLOCK,
-                &crate::sound::store::SURFACE_SOUNDS,
+                &crate::sound::owner::sound().race.clock,
+                &crate::sound::owner::sound().race.surface,
             );
         }
         set(bx, 0x4C, 0x3F80_0000)?;

@@ -20,7 +20,7 @@ use crate::sound::spot_voices::{MOST_KIND, MOST_SPOTS, load_voices, store_voices
 pub fn match_spot_voices() -> Result<(), Refused> {
     use rc2k_core::sound::spot_voices::Spot;
     // Converted: `rc2k_core::sound::spot_voices::match_spots`.
-    let stage = &crate::sound::store::STAGE_SOUNDS;
+    let stage = &crate::sound::owner::sound().race.stage;
     let count = stage.shared_count.get();
     if count > MOST_SPOTS {
         return Err(BadInput("more than 36 shared spots").into());
@@ -36,7 +36,9 @@ pub fn match_spot_voices() -> Result<(), Refused> {
             kind: spot.kind.get(),
         })
         .collect();
-    let kinds: [u32; MOST_KIND as usize + 1] = crate::sound::store::SPOT_PICKS
+    let kinds: [u32; MOST_KIND as usize + 1] = crate::sound::owner::sound()
+        .race
+        .spot_picks
         .kind_sounds
         .each_ref()
         .map(super::super::session::Dword::get);

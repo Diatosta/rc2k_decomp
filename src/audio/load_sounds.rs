@@ -23,7 +23,7 @@ use crate::audio::voices::*;
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
 use crate::session::FLAGS;
-use crate::sound::sets_store::{MENU_SOUNDS, MenuSounds, RaceSoundSets};
+use crate::sound::sets_store::{MenuSounds, RaceSoundSets};
 use rc2k_core::audio::commands::SoundList;
 
 /// The core's loader: each step the Rust version of the original's callee, with what it
@@ -97,9 +97,8 @@ impl rc2k_core::audio::load::Loader for GameLoader {
 /// refused.
 fn list_place(list: SoundList) -> Result<GamePtr, BadInput> {
     match list {
-        SoundList::Menu => {
-            Ok(GamePtr::to(&MENU_SOUNDS).offset(core::mem::offset_of!(MenuSounds, list) as u32))
-        }
+        SoundList::Menu => Ok(GamePtr::to(&crate::sound::owner::sound().menu.menu_sounds)
+            .offset(core::mem::offset_of!(MenuSounds, list) as u32)),
         SoundList::Race { offset } => RaceSoundSets::list_place(offset),
     }
 }
