@@ -5,6 +5,8 @@
 //! scaled to a split). `#[repr(C)]` with the image's layout, over the race block's bytes
 //! (`SPLIT_TABLES`). Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 #[repr(C)]
@@ -69,9 +71,7 @@ const _: () = assert!(END - START == core::mem::size_of::<SplitTables>());
 /// Where IDA 0x60101C is now.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race().physics.split_tables,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.split_tables))
 }
 
 #[cfg(test)]

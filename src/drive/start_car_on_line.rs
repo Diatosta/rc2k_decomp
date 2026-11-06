@@ -62,7 +62,7 @@ pub fn start_car_on_line(course: &Course, distance: u32) -> Result<(), Refused> 
     .to_bits();
     RACE_TABLES.start_share.set_bits(share);
     CAR.start_share.set_bits(share);
-    crate::race::start_place::place_car_on_line()?;
+    crate::race::start_place::place_car_on_line(course)?;
     crate::race::car_starts::reset_car_motion()?;
     CAR.local_velocity[0].set_bits(0);
     CAR.local_velocity[1].set_bits(0);

@@ -19,7 +19,7 @@
 //! `race::measure_frame_rate` (0x42009E).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::view_store::RACE_VIEW;
 use crate::race::work_store::RACE_WORK;
 
@@ -30,9 +30,9 @@ pub struct Shown {
 }
 
 /// The Rust version (see the header).
-pub fn show_frame() -> Result<Shown, Refused> {
-    let course = &race().course;
-    let frame = &race().frame;
+pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
+    let course = &race.course;
+    let frame = &race.frame;
     let (locked, kept) = crate::scene::lock_frame::lock_frame();
     if locked < 1 {
         return Ok(Shown {
@@ -41,7 +41,7 @@ pub fn show_frame() -> Result<Shown, Refused> {
         });
     }
     // The sound tick with eax 0x13 (it reads no register).
-    crate::sound::race_sound_tick::race_sound_tick()?;
+    crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
     if RACE_WORK.in_credits.get() != 0 {
         crate::race::frame_text::roll_credits(
             frame,
@@ -57,7 +57,7 @@ pub fn show_frame() -> Result<Shown, Refused> {
         return Ok(Shown { lost: true, eax: 0 });
     }
     // The sound tick with eax 0x14.
-    crate::sound::race_sound_tick::race_sound_tick()?;
+    crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
     let clock = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     let time = clock.wrapping_sub(RACE_VIEW.clock_base.bits());
     RACE_VIEW.frame_time.set_bits(time);

@@ -16,6 +16,7 @@ pub mod gpu;
 pub mod software;
 
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use std::collections::HashSet;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
@@ -113,11 +114,14 @@ fn give_frame_back(target: &Target) {
 /// The frame's end, before it is shown. The GPU's colour target when that is what to show, the
 /// canvas's written pixels over it, with the number of its set of targets (`Gpu::colour_texture`).
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-pub fn finish_frame(target: &Target) -> Option<(*mut sdl3_sys::everything::SDL_GPUTexture, u64)> {
+pub fn finish_frame(
+    course: &Course,
+    target: &Target,
+) -> Option<(*mut sdl3_sys::everything::SDL_GPUTexture, u64)> {
     if !GPU_HOLDS_FRAME.load(Relaxed) {
         return None;
     }
-    if race().course.numbers.in_race.get() == 0 {
+    if course.numbers.in_race.get() == 0 {
         give_frame_back(target);
         return None;
     }
@@ -133,9 +137,15 @@ pub fn finish_frame(target: &Target) -> Option<(*mut sdl3_sys::everything::SDL_G
 /// The frame on the panel, by the GPU when it is running: the target during a race, else
 /// `frame`, the canvas's picture. False: it is not running.
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-pub fn show_on_panel(target: &Target, frame: &[u8], width: usize, height: usize) -> bool {
+pub fn show_on_panel(
+    course: &Course,
+    target: &Target,
+    frame: &[u8],
+    width: usize,
+    height: usize,
+) -> bool {
     gpu::start_if_wanted();
-    if GPU_HOLDS_FRAME.load(Relaxed) && race().course.numbers.in_race.get() == 0 {
+    if GPU_HOLDS_FRAME.load(Relaxed) && course.numbers.in_race.get() == 0 {
         give_frame_back(target);
     }
     let mut gpu = gpu::GPU.lock().unwrap();

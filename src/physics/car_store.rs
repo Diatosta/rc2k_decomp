@@ -5,6 +5,7 @@
 //! places no ported code names. `#[repr(C)]` with the image's layout, over the race
 //! block's bytes (`CAR`) until the code reaching the car by RVA is typed.
 
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
@@ -570,12 +571,13 @@ impl Car {
     /// arithmetic on their game addresses (statics: found once); none for any other
     /// address, which the callers then look up among the regions.
     pub fn known(address: u32) -> Option<&'static Car> {
+        let replay = &race().replay;
         use crate::race::blocks_store::{BLOCK_COUNT, BLOCK_LEN, CAR_BLOCKS, blocks_addr};
         static HOMES: std::sync::OnceLock<(u32, u32)> = std::sync::OnceLock::new();
         let &(car, blocks) = HOMES.get_or_init(|| {
             (
                 crate::pointers::game_address(core::ptr::from_ref(&CAR)),
-                blocks_addr(),
+                blocks_addr(replay),
             )
         });
         if address == car {

@@ -26,7 +26,7 @@ pub fn draw_view_overlays(race: &Race) -> Result<(), Refused> {
     crate::scene::set_render_state::set_render_state(3, 3);
     crate::race::frame_views::run_view_marks(race)?;
     overlay_states();
-    crate::sound::race_sound_tick::race_sound_tick()?;
+    crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
     draw_flat_triangle();
     crate::scene::depth_buffer_on::depth_buffer(true);
     set_filters();

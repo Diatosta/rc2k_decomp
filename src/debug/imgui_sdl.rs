@@ -6,6 +6,8 @@
 
 #![allow(unsafe_code)]
 
+use crate::race::owner::Race;
+use crate::race::owner_frame::Frame;
 use dear_imgui_rs::render::{DrawCmd, PendingFrame, SnapshotTextureId, TextureOp};
 use dear_imgui_rs::texture::TextureFormat;
 use dear_imgui_rs::{BackendFlags, ConfigFlags, Context, Key, MouseButton, TextureId};
@@ -32,9 +34,9 @@ pub fn toggle() -> bool {
 }
 
 /// The first view's scene has been drawn.
-pub fn view_drawn() {
+pub fn view_drawn(frame: &Frame) {
     if OPEN.load(Ordering::Relaxed) {
-        crate::debug::ui::note_view();
+        crate::debug::ui::note_view(frame);
     }
 }
 
@@ -179,7 +181,7 @@ pub fn event(event: &SDL_Event) -> bool {
 }
 
 /// The debug UI drawn on `renderer` (after the game's frame, before the present).
-pub fn draw(renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
+pub fn draw(race: &Race, renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
     let open = OPEN.load(Ordering::Relaxed);
     // ImGui's text fields need SDL's text input, started while the UI is shown.
     if open != TEXT_INPUT.swap(open, Ordering::Relaxed) {
@@ -221,7 +223,7 @@ pub fn draw(renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
         io.set_display_framebuffer_scale([pw as f32 / w as f32, ph as f32 / h as f32]);
         io.set_delta_time(delta);
         let frame = gui.context.begin_frame();
-        crate::debug::ui::build(frame.ui());
+        crate::debug::ui::build(race, frame.ui());
         let pending = frame.render(&gui.consumer);
         if let Err(why) = render(&mut gui.textures, renderer, pending) {
             crate::framework::log(&format!("debug: the UI not drawn: {why}"));

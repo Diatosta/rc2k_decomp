@@ -5,6 +5,8 @@
 //! the point and coordinate tables follow at +0x1000 each). #[repr(C)] with the image's layout, over the race
 //! block's bytes. Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
@@ -133,9 +135,7 @@ const _: () = assert!(END - START == core::mem::size_of::<GroundWork>());
 /// Where IDA 0x63967C is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(
-        &crate::race::owner::race().physics.ground,
-    ))
+    crate::pointers::game_address(std::ptr::from_ref(&race().physics.ground))
 }
 
 #[cfg(test)]

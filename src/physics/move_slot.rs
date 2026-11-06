@@ -61,13 +61,13 @@ pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
         // From the spin's length on: two dwords past the slot, as the original has it (the
         // next slot's first, or what follows the table), so by address.
         let past = crate::pointers::GamePtr::to(&s.spin_length).unbounded();
-        unit_vector(&past, &race.course.lists.spin_axis);
+        unit_vector(&race.course, &past, &race.course.lists.spin_axis);
         race.course
             .lists
             .spin_angle
             .set_bits(x87::mul(s.spin_length.bits(), dt));
         axis_turn_matrix(&race.course, &race.course.lists.turn_matrix);
-        square_matrix(&race.course.lists.turn_matrix);
+        square_matrix(&race.course, &race.course.lists.turn_matrix);
         multiply_matrices(
             &s.matrix,
             &race.course.lists.turn_matrix,
@@ -89,7 +89,7 @@ pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
     race.physics.ground.ground_z.set(s.place[2].get());
     race.course.course.ground_face_last.set(s.car_word.get());
     race.physics.ground_probe.settle_mark.set(0x80);
-    crate::physics::find_ground::find_ground()?;
+    crate::physics::find_ground::find_ground(race)?;
     let face: u32 = race.course.course.ground_slot.get();
     if face == u32::MAX {
         copy(&RACE_WORK.slot_place, &s.place);

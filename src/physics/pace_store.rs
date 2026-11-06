@@ -3,6 +3,8 @@
 //! codes. `#[repr(C)]` with the image's layout, over the race block's bytes (`PACE`). Names
 //! are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword};
 
 #[repr(C)]
@@ -53,9 +55,7 @@ const _: () = assert!(END - START == core::mem::size_of::<PaceNotes>());
 /// Where IDA 0x614D38 is now.
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race().physics.pace,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.pace))
 }
 
 #[cfg(test)]

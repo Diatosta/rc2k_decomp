@@ -74,7 +74,7 @@ pub fn reflection_coordinates(race: &crate::race::owner::Race) -> Result<(), Bad
     )?;
     crate::session::write_bits(&race.frame.matrices.reflect_vector, normal);
     crate::session::write_first(&race.frame.scratch.work_vector, &point.map(negated));
-    normalise_vector()?;
+    normalise_vector(race)?;
     let to_eye: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
     crate::session::write_bits(&race.frame.matrices.reflect_normal, to_eye);
     reflect_vector(&race.frame);
@@ -87,7 +87,7 @@ pub fn reflection_coordinates(race: &crate::race::owner::Race) -> Result<(), Bad
             x87::loaded(mirrored[2]),
         ],
     );
-    normalise_vector()?;
+    normalise_vector(race)?;
     let looks: [u32; 3] = crate::session::read_first(&race.frame.scratch.work_vector);
     let half: u32 = race.course.numbers.half.bits();
     let scales = [

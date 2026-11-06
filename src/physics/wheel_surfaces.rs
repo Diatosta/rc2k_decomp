@@ -204,8 +204,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
 }
 
 /// The Rust version: what was written is put back on a refusal.
-pub fn wheel_surfaces() -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+pub fn wheel_surfaces(race: &Race) -> Result<(), Refused> {
     steps(race)
 }
 

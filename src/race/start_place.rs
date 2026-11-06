@@ -10,7 +10,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::draw_store::DRAW;
@@ -44,8 +44,7 @@ fn get(n: u32, k: u32) -> Result<u32, BadInput> {
 /// heading; the first face's number in `dword_5CCD28`. The registers it leaves are read
 /// by none of its callers (conversion phase 3, 2026-10-24). Refuses no checkpoints (the
 /// original reads entry -1) or more than the lists.
-pub fn place_car_on_line() -> Result<(), Refused> {
-    let course = &race().course;
+pub fn place_car_on_line(course: &Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count()?;
@@ -107,8 +106,7 @@ pub struct Nearest {
 /// least, `jb`) measured by `distance_to_checkpoint`; the nearest (unsigned, the later of
 /// equals) and its distance (-1 and 0 for none). Refuses more than 0x1418 measures or
 /// checkpoints, before anything.
-pub fn nearest_checkpoint_in(from: u32, to: u32) -> Result<Nearest, Refused> {
-    let race = race();
+pub fn nearest_checkpoint_in(race: &Race, from: u32, to: u32) -> Result<Nearest, Refused> {
     let physics = &race.physics;
     count()?;
     let steps = if from < to { to - from } else { 1 };
@@ -241,8 +239,7 @@ fn measure_held(
 /// count), its distance in `dword_62400C` and / 65536 in `flt_614C68`; else 0. The other
 /// registers it leaves are read by none of its callers. Refuses more checkpoints than the
 /// lists, before anything.
-pub fn nearest_checkpoint() -> Result<u32, Refused> {
-    let race = race();
+pub fn nearest_checkpoint(race: &Race) -> Result<u32, Refused> {
     let count = count()?;
     {
         race.physics
@@ -253,7 +250,7 @@ pub fn nearest_checkpoint() -> Result<u32, Refused> {
         if count == 0 {
             return Ok(0);
         }
-        let near = nearest_checkpoint_in(0, count)?;
+        let near = nearest_checkpoint_in(race, 0, count)?;
         DRAW.scratch.set_bits(near.distance);
         // Converted: `rc2k_core::race::checkpoints::distance_units`.
         let units = rc2k_core::race::checkpoints::distance_units(

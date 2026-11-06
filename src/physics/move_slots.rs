@@ -14,11 +14,11 @@
 
 use crate::errors::Refused;
 use crate::physics::move_slot::move_slot;
+use crate::race::owner::Race;
 use crate::race::work_store::RACE_WORK;
 
 /// The Rust version: the eight slots, those in use moved, `slot_count` the number done so far.
-pub fn move_slots() -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+pub fn move_slots(race: &Race) -> Result<(), Refused> {
     let slots = &RACE_WORK.race_slots;
     let mut n = 0u32;
     for slot in slots {

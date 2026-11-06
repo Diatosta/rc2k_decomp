@@ -17,6 +17,7 @@ use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::flow::c0;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
@@ -36,6 +37,7 @@ fn clear_notice() {
 /// The Rust version, then `physics::reset_car`.
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
 pub fn reset_request() -> Result<(), Refused> {
+    let race = race();
     if !reset_counts(CAR.run_ticks.get()) {
         return Ok(());
     }
@@ -64,6 +66,6 @@ pub fn reset_request() -> Result<(), Refused> {
             .wrapping_add(reset_penalty(CAR.stuck_count.get())),
     );
     clear_notice();
-    { crate::physics::reset_car::reset_car() }?;
+    { crate::physics::reset_car::reset_car(race) }?;
     Ok(())
 }

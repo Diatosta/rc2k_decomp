@@ -16,6 +16,7 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::race;
 use crate::race::owner_frame::Frame;
 use crate::scene::draw_store::DRAW;
 use crate::session::SCREEN;
@@ -43,6 +44,7 @@ fn sizes(v: [u32; 4]) {
 /// One flat quad: its inputs from `left`, `width`, `rows` (the texture's rows) and the
 /// sizes (`strips::quad_inputs`), the texture when given, then the device's settings.
 fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Refused> {
+    let course = &race().course;
     let sizes: [u32; 4] = std::array::from_fn(|n| crate::gfx::owner::gfx().strips.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
         quad_input(o).set_bits(v);
@@ -54,7 +56,7 @@ fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Re
     quad_input(0).set_bits(0xFFFF_FFFF);
     DRAW.polygon_sides[0].set_bits(1);
     DRAW.polygon_sides[1].set_bits(0);
-    crate::scene::draw_flat_quad::draw_flat_quad()
+    crate::scene::draw_flat_quad::draw_flat_quad(course)
 }
 
 /// The shared tail (0x45B9AA, see the header).

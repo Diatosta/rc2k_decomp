@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::physics::tables_store::PHYSICS;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 
 // g_sceneClock, dword_5CC3B0 the last tick, dword_5CC3B8 the ticks counted.
 
@@ -21,24 +21,22 @@ use crate::race::owner::race;
 
 /// No caller reads what the original leaves in eax and ebx (every call site's live
 /// registers, 2026-10-23): the Rust version leaves nothing.
-pub fn race_sound_tick() -> Result<(), Refused> {
+pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
     // Converted: `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(
         PHYSICS.scene_clock.get(),
-        race().frame.clock_ticks.sound_tick_last.get(),
+        frame.clock_ticks.sound_tick_last.get(),
     ) {
         return Ok(());
     }
-    race()
-        .frame
+    frame
         .clock_ticks
         .sound_tick_last
         .set(PHYSICS.scene_clock.get());
     crate::sound::race_turn_if::race_turn_if()?;
-    race()
-        .frame
+    frame
         .clock_ticks
         .sound_ticks
-        .set(race().frame.clock_ticks.sound_ticks.get().wrapping_add(1));
+        .set(frame.clock_ticks.sound_ticks.get().wrapping_add(1));
     Ok(())
 }

@@ -10,12 +10,12 @@
 //! Caller: `race::draw_race_scene` (one view). Platform: the original always runs. In the
 //! standalone program the screen is copied into the texture's memory of ours
 //! (`platform_3d::copy_screen_to_system_texture`).
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::scene::draw_store::DRAW;
 
 /// The Rust version (see the header).
-pub fn copy_screen_to_texture() {
-    if race().frame.frame_work.mirror_wanted.bits() != 0 {
+pub fn copy_screen_to_texture(frame: &Frame) {
+    if frame.frame_work.mirror_wanted.bits() != 0 {
         crate::platform_3d::copy_screen_to_system_texture(DRAW.mirror_picture.bits());
     }
 }

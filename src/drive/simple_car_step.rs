@@ -52,7 +52,7 @@ pub fn simple_car_step(race: &Race) -> Result<(), Refused> {
             .bits()
             .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.bits())),
     );
-    { crate::physics::wheel_surfaces::wheel_surfaces() }?;
+    { crate::physics::wheel_surfaces::wheel_surfaces(race) }?;
     race.physics
         .ground
         .ground_x
@@ -61,7 +61,7 @@ pub fn simple_car_step(race: &Race) -> Result<(), Refused> {
         .ground
         .ground_z
         .set(race.course.course.place_z.get());
-    { crate::physics::find_ground::find_ground() }?;
+    { crate::physics::find_ground::find_ground(race) }?;
     if race.course.course.ground_slot.get() != u32::MAX {
         let y = race
             .physics

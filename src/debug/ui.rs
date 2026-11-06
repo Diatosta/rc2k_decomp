@@ -17,7 +17,10 @@
 
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::{SURFACES, value_at};
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
+use crate::race::owner_frame::Frame;
+use crate::race::owner_physics::Physics;
 use dear_imgui_rs::{Condition, TableColumnFlags, TableColumnWidth, TableFlags, TreeNodeFlags, Ui};
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering::Relaxed};
@@ -96,10 +99,10 @@ type NotedView = ([f32; 16], f32, [f32; 2]);
 static VIEW: std::sync::Mutex<Option<NotedView>> = std::sync::Mutex::new(None);
 
 /// The first view's scene has been drawn.
-pub fn note_view() {
+pub fn note_view(frame: &Frame) {
     use crate::scene::draw_store::DRAW;
     let view = (
-        std::array::from_fn(|n| race().frame.matrices.view_matrix[n].get()),
+        std::array::from_fn(|n| frame.matrices.view_matrix[n].get()),
         DRAW.view_scale.get(),
         [
             f32::from_bits(DRAW.view_centre[0].bits()),
@@ -117,9 +120,9 @@ pub fn note_view() {
 /// noted, each with a line down to the ground found under it. Green the first four (the
 /// wheels, a reading), red a point at or under the ground, white the rest; yellow the
 /// ground. Above the window, and behind the eye skipped.
-fn draw_probes(ui: &Ui) {
+fn draw_probes(physics: &Physics, ui: &Ui) {
     use crate::physics::car_store::CAR;
-    let wk = &race().physics.contact;
+    let wk = &physics.contact;
     let Some((m, scale, centre)) = *VIEW
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -193,11 +196,11 @@ fn body(ui: &Ui, f: impl FnOnce()) {
 }
 
 /// The UI's frame.
-pub fn build(ui: &Ui) {
+pub fn build(race: &Race, ui: &Ui) {
     if PROBES.load(Relaxed) {
-        draw_probes(ui);
+        draw_probes(&race.physics, ui);
     }
-    crate::debug::kstar::over_picture(ui);
+    crate::debug::kstar::over_picture(&race.frame, ui);
     // The window keeps its share of the screen when the mode changes (the menus' 640 x 480,
     // the race's own; owner, 2026-10-30).
     let screen = ui.io().display_size();
@@ -258,22 +261,22 @@ pub fn build(ui: &Ui) {
                     body(ui, || dumps(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Profiler") {
-                    body(ui, || profiler(ui));
+                    body(ui, || profiler(&race.course, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Kstar modes") {
-                    body(ui, || crate::debug::kstar::tab(ui));
+                    body(ui, || crate::debug::kstar::tab(&race.frame, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Switches") {
                     body(ui, || crate::debug::switches::tab(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
-                    body(ui, || rivals(ui));
+                    body(ui, || rivals(&race.physics, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Effects") {
                     body(ui, || crate::debug::effects_page::tab(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Dyno") {
-                    body(ui, || crate::debug::dyno::tab(ui));
+                    body(ui, || crate::debug::dyno::tab(&race.course, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Players") {
                     body(ui, || crate::debug::players::tab(ui));
@@ -556,7 +559,7 @@ fn take_readings(t: &mut Timings) {
 }
 
 /// The "Profiler" tab.
-fn profiler(ui: &Ui) {
+fn profiler(course: &Course, ui: &Ui) {
     use crate::audio::store::AUDIO;
     use crate::debug::timing::Stage;
     use crate::race::switches_store::FRAME_SWITCHES;
@@ -699,7 +702,7 @@ fn profiler(ui: &Ui) {
         &[
             (
                 "Course memory",
-                format!("{} KiB", race().course.lists.course_bytes_total.get() >> 10),
+                format!("{} KiB", course.lists.course_bytes_total.get() >> 10),
             ),
             (
                 "Processor has",
@@ -836,8 +839,7 @@ fn time(t: u32) -> String {
 }
 
 /// The "Rivals" tab.
-fn rivals(ui: &Ui) {
-    let physics = &race().physics;
+fn rivals(physics: &Physics, ui: &Ui) {
     let flags = TableFlags::BORDERS | TableFlags::ROW_BG | TableFlags::SCROLL_Y;
     let Some(_table) = ui.begin_table_with_flags("rivals", 4, flags) else {
         return;

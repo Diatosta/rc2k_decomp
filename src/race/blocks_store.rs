@@ -8,6 +8,7 @@
 
 use crate::physics::car_store::Car;
 use crate::race::owner::race;
+use crate::race::owner_replay::Replay;
 use crate::session::Dword;
 
 #[repr(C)]
@@ -44,10 +45,8 @@ pub const BLOCK_LEN: usize = core::mem::size_of::<Car>();
 const _: () = assert!(END - START == core::mem::size_of::<CarBlocks>());
 
 /// Where IDA 0x70F3EC is now (its group's static).
-pub fn blocks_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &race().replay.cars_and_replay.car_blocks,
-    ))
+pub fn blocks_addr(replay: &Replay) -> u32 {
+    crate::pointers::game_address(core::ptr::from_ref(&replay.cars_and_replay.car_blocks))
 }
 
 /// A car block by handle (phase 13): what `g_carBlocks` and `g_viewBlocks` hold where the
@@ -107,10 +106,11 @@ pub fn block_of(handle: u32) -> u32 {
 /// The handle of the block at `addr` (0 for 0); an address that is no block's start ends
 /// the program.
 pub fn handle_of(addr: u32) -> u32 {
+    let replay = &race().replay;
     if addr == 0 {
         return 0;
     }
-    let off = addr.wrapping_sub(blocks_addr()) as usize;
+    let off = addr.wrapping_sub(blocks_addr(replay)) as usize;
     if !off.is_multiple_of(BLOCK_LEN) || off / BLOCK_LEN >= BLOCK_COUNT {
         crate::fatal::raise::end(
             "race::blocks_store::handle_of",
@@ -163,8 +163,8 @@ const _: () = assert!(
 
 /// The replay's starting state: 0xA04 dwords from car block 8, running past the car blocks
 /// into the replay work (their group holds both), as a pointer bounded by that length.
-pub fn replay_state() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&race().replay.cars_and_replay)
+pub fn replay_state(replay: &Replay) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&replay.cars_and_replay)
         .offset((8 * BLOCK_LEN) as u32)
         .limited((4 * REPLAY_STATE_DWORDS) as u32)
 }
@@ -177,7 +177,8 @@ pub fn own_car() -> &'static Car {
 /// Where block `n` is now; `n` unchecked, as the game's `0x70F3EC + 0xFE0 n` (an address
 /// only: reading it is the caller's business).
 pub fn block_addr(n: usize) -> u32 {
-    blocks_addr() + (BLOCK_LEN * n) as u32
+    let replay = &race().replay;
+    blocks_addr(replay) + (BLOCK_LEN * n) as u32
 }
 
 #[cfg(test)]
@@ -188,15 +189,16 @@ mod tests {
 
     #[test]
     fn blocks_start_as_the_games() {
+        let replay = &race().replay;
         assert_eq!(offset_of!(CarBlocks, unknown_tail), 0x9EC0);
-        assert_eq!(blocks_addr() % 4, 0);
+        assert_eq!(blocks_addr(replay) % 4, 0);
         assert_eq!(
-            blocks_addr(),
+            blocks_addr(replay),
             crate::framework::game_addr(crate::framework::rva(START))
         );
         assert_eq!(
             crate::pointers::game_address(&raw const CAR_BLOCKS.cars[1].gear),
-            blocks_addr() + 0xFE0 + 0x1D4
+            blocks_addr(replay) + 0xFE0 + 0x1D4
         );
         assert_eq!(
             block_addr(8),
@@ -204,7 +206,7 @@ mod tests {
         );
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host(blocks_addr()).cast_const(),
+                crate::pointers::host(blocks_addr(replay)).cast_const(),
                 END - START,
             )
         };

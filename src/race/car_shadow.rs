@@ -441,8 +441,8 @@ fn raise_onto_face(race: &Race, index: u32) -> Result<(), Refused> {
     let (x, z) = point_xz(p)?;
     race.physics.ground.ground_x.set(x);
     race.physics.ground.ground_z.set(z);
-    face_shares_at()?;
-    crate::physics::plane_height::plane_height();
+    face_shares_at(race)?;
+    crate::physics::plane_height::plane_height(&race.physics);
     put_point_word(
         &race.course,
         p,
@@ -661,7 +661,7 @@ pub fn shadow_points(race: &Race) -> Result<(), Refused> {
     inputs[0].set_bits(CAR.position[0].bits());
     inputs[1].set_bits(CAR.position[2].bits());
     inputs[2].set_bits(CAR.probe_point_face[4].bits());
-    if let Err(e) = crate::physics::find_ground::find_ground() {
+    if let Err(e) = crate::physics::find_ground::find_ground(race) {
         // Its inputs put back: a refusal has written nothing.
         for (d, &v) in inputs.iter().zip(&was) {
             d.set_bits(v);

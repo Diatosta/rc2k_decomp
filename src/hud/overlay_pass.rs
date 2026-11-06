@@ -16,7 +16,7 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 
@@ -36,8 +36,7 @@ pub fn shown_layout() -> u32 {
 
 /// The Rust version (see the header). What the original leaves in the registers is read
 /// by none of its callers (register liveness, 2026-10-23).
-pub fn overlay_pass(hud: &Hud) -> Result<(), Refused> {
-    let race = race();
+pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
     use crate::scene::depth_buffer_on::depth_buffer;
     race.frame
         .panel_and_overlay

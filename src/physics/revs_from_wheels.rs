@@ -12,10 +12,11 @@
 
 use crate::errors::Refused;
 use crate::physics::gearing::*;
+use crate::race::owner::race;
 
 /// The Rust version (the exact one, for the gearbox's Rust callers), on the game's
 /// variables.
 pub fn revs_from_wheels() -> Result<(), Refused> {
-    let course = &crate::race::owner::race().course;
+    let course = &race().course;
     revs_from_wheels_at(course, &GearPlaces::game())
 }

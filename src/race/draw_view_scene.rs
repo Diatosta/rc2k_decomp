@@ -53,7 +53,7 @@ pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
     for cell in &OBJECT_WORK.view_cleared {
         cell.set(0);
     }
-    race_sound_tick()?; // 0x14
+    race_sound_tick(&race.frame)?; // 0x14
     car_light_modes()?;
     clear_point_records()?;
     set_up_fog()?;
@@ -61,7 +61,7 @@ pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
     draw_sky()?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     view_light()?;
-    race_sound_tick()?; // 0x15
+    race_sound_tick(&race.frame)?; // 0x15
     reset_lamps()?;
     RACE_VIEW.view_lamps.set_bits(0u32);
     prepare_course_view()?;
@@ -69,7 +69,7 @@ pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
     eax_environment()?;
     gather_lamps()?;
     lamps_wanted()?;
-    race_sound_tick()?; // 0x16
+    race_sound_tick(&race.frame)?; // 0x16
     sort_entries(&RACE_VIEW.sort_entry_count, &FACES.sort_entries)?;
     draw_entries(
         &RACE_VIEW.sort_entry_count,
@@ -77,19 +77,19 @@ pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
         sort_list(),
     )?;
     draw_race_slots()?;
-    race_sound_tick()?; // 0x17
+    race_sound_tick(&race.frame)?; // 0x17
     crate::race::car_shadow::cast_car_shadows(race)?;
     crate::race::skidmarks::draw_skidmarks_if_on(race)?;
     car_lights()?;
-    race_sound_tick()?; // 0x18
+    race_sound_tick(&race.frame)?; // 0x18
     sort_entries(&RACE_VIEW.depth_entry_count, &FACES.depth_entries)?;
-    race_sound_tick()?; // 0x19
+    race_sound_tick(&race.frame)?; // 0x19
     draw_entries(
         &RACE_VIEW.depth_entry_count,
         &FACES.depth_entries,
         depth_list(),
     )?;
-    race_sound_tick()?; // 0x1A
+    race_sound_tick(&race.frame)?; // 0x1A
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     store_view_value()
 }

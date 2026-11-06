@@ -139,13 +139,17 @@ fn shadow_refuses(sh: &crate::effects::draw_shadow::Shadow<'_>) -> Result<(), Re
 
 /// `race::draw_marks_overlays` (0x45632B): `effects::draw_overlays`, then
 /// `effects::draw_shadow`. Refuses (before anything) the second shadow's refusals.
-pub fn draw_marks_overlays() -> Result<(), Refused> {
+pub fn draw_marks_overlays(race: &Race) -> Result<(), Refused> {
     shadow_refuses(&crate::effects::draw_shadow::FIRST)?;
     // Neither reads a register, and the race reads none they leave (only DF, ST).
     {
         let effects = crate::effects::owner::effects();
-        crate::effects::draw_overlays::draw_overlays(&effects.masks, &effects.windscreen_drops)?;
-        crate::effects::draw_shadow::draw_shadow(&effects.masks)?;
+        crate::effects::draw_overlays::draw_overlays(
+            race,
+            &effects.masks,
+            &effects.windscreen_drops,
+        )?;
+        crate::effects::draw_shadow::draw_shadow(race, &effects.masks)?;
     }
     Ok(())
 }
@@ -446,7 +450,7 @@ pub fn draw_own_car(race: &Race) -> Result<(), Refused> {
     crate::scene::set_texture::set_texture(KIND_TEXTURES.kind_first_slots[202].get());
     crate::scene::set_render_state::set_render_state(2, 0x14);
     DRAW.polygon_vertex_count.set(4);
-    draw_marks_overlays()
+    draw_marks_overlays(race)
 }
 
 /// `fild i; fdiv a; fmul b; fstp`.

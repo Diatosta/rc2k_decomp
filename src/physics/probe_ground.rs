@@ -40,6 +40,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::ground::*;
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::rotate_point::rotate_point;
@@ -184,6 +185,6 @@ fn probe_points(race: &Race, n: u32) -> Result<(), Refused> {
 
 /// The Rust version.
 pub fn probe_ground() -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+    let race = race();
     probe_ground_at(race)
 }

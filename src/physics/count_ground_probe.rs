@@ -29,7 +29,7 @@ pub fn count_ground_probe(race: &Race) -> Result<(), Refused> {
     race.physics.ground_probe.settle_mark.set(0x40);
     counts.tried();
     race.physics.camera.ground_probes.set(counts.tries);
-    { crate::physics::find_ground::find_ground() }?;
+    { crate::physics::find_ground::find_ground(race) }?;
     if race.physics.ground.ground_found.get() != 0 {
         counts.searched(
             true,

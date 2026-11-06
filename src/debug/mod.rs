@@ -21,7 +21,7 @@ pub mod imgui_sdl {
     }
 
     /// Nothing to note.
-    pub fn view_drawn() {}
+    pub fn view_drawn(_frame: &crate::race::owner_frame::Frame) {}
 
     /// Never open.
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld has neither
@@ -32,6 +32,7 @@ pub mod imgui_sdl {
     /// Nothing drawn.
     #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))] // the handheld has neither
     pub fn draw(
+        _race: &crate::race::owner::Race,
         _renderer: *mut sdl3_sys::everything::SDL_Renderer,
         _window: *mut sdl3_sys::everything::SDL_Window,
     ) {

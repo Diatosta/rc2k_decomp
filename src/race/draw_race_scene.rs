@@ -66,15 +66,15 @@ fn draw_view(race: &Race, car: usize, flags: usize, blit: bool) -> Result<(), Re
     crate::race::draw_view_scene::draw_view_scene(race)?;
     // Not the original's: the debug UI's probe points need this view.
     if car == 0 {
-        crate::debug::imgui_sdl::view_drawn();
+        crate::debug::imgui_sdl::view_drawn(&race.frame);
     }
-    race_sound_tick()?; // 0xD
+    race_sound_tick(&race.frame)?; // 0xD
     if blit {
-        crate::d3d::copy_screen_to_texture::copy_screen_to_texture();
-        race_sound_tick()?; // 0xE
+        crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&race.frame);
+        race_sound_tick(&race.frame)?; // 0xE
     }
     crate::race::draw_view_overlays::draw_view_overlays(race)?;
-    race_sound_tick()?; // 0xF
+    race_sound_tick(&race.frame)?; // 0xF
     if race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0 {
         load_view_car(car)?;
         crate::race::draw_mirror_view::draw_mirror_view(race)?;
@@ -161,7 +161,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
         );
     }
     OBJECT_TABLES.has_3d.set(1);
-    race_sound_tick()?; // 0xA
+    race_sound_tick(frame)?; // 0xA
     race.course
         .course
         .shine
@@ -171,7 +171,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     for (value, state) in [(4, 0x15), (1, 0x1C), (5, 0x13), (6, 0x14), (1, 0x1B)] {
         set_render_state(value, state);
     }
-    race_sound_tick()?; // 0xB
+    race_sound_tick(frame)?; // 0xB
     race.physics
         .ground
         .frames_drawn
@@ -207,7 +207,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     }
     crate::scene::map_texture_places::map_texture_places();
     crate::scene::load_slot_textures::load_slot_textures_in_game()?;
-    race_sound_tick()?; // 0xC
+    race_sound_tick(frame)?; // 0xC
     if race.replay.finish.no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel()?;
     }
@@ -232,7 +232,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
                 DRAW.view_offset[1].set_bits(if view == 0 { 0 } else { h >> 1 });
             }
             DRAW.view_zoom.set_bits(0x100);
-            crate::scene::set_view_window::set_view_window_plain();
+            crate::scene::set_view_window::set_view_window_plain(race);
             draw_view(race, view as usize, view as usize, false)?;
         }
     }
@@ -243,14 +243,14 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     crate::race::sound_spots::find_sound_spots(race)?;
     crate::race::frame_draw::share_sound_spots()?;
     crate::race::frame_draw::wake_part_sounds()?;
-    race_sound_tick()?; // 0x10
+    race_sound_tick(frame)?; // 0x10
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
     if RACE_WORK.in_credits.bits() == 0 && race.replay.finish.no_place.get() == 0 {
-        crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud())?;
+        crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud(), race)?;
     }
-    race_sound_tick()?; // 0x11
+    race_sound_tick(frame)?; // 0x11
     crate::race::skid_laying::lay_skidmarks_if_on(frame)?;
     crate::race::name_plates::update_name_plates(frame)?;
     if race.course.numbers.replay_mode.bits() != 2 {

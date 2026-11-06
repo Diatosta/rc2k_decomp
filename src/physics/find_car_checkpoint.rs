@@ -41,7 +41,7 @@ pub fn find_car_checkpoint(race: &Race) -> Result<u32, Refused> {
         return Ok(0);
     }
     let (from, to) = progress::near_window(CAR.checkpoint.get());
-    let near = crate::race::start_place::nearest_checkpoint_in(from, to)?;
+    let near = crate::race::start_place::nearest_checkpoint_in(race, from, to)?;
     DRAW.scratch.set(near.distance);
     // g_nearestCheckpointDistance
     PHYSICS.nearest_checkpoint_distance.set_bits(ext_div2(
@@ -50,7 +50,7 @@ pub fn find_car_checkpoint(race: &Race) -> Result<u32, Refused> {
         0x3F80_0000,
     ));
     if progress::search_all(near.distance) {
-        return crate::race::start_place::nearest_checkpoint();
+        return crate::race::start_place::nearest_checkpoint(race);
     }
     Ok(near.checkpoint)
 }

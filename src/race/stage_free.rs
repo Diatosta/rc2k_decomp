@@ -23,14 +23,12 @@ pub struct Freeing {
 /// `race::free_course_memory` (0x41F924).
 pub const COURSE: Freeing = Freeing {
     // g_courseMemoryList
-    list: || {
-        crate::pointers::GamePtr::to(&crate::race::owner::race().course.lists.course_memory_list)
-    },
+    list: || crate::pointers::GamePtr::to(&race().course.lists.course_memory_list),
     counted: true,
     // g_courseMemory, g_courseInfo
     cleared: &[
-        || crate::race::owner::race().course.lists.course_memory.set(0),
-        || crate::race::owner::race().course.lists.course_info.set(0),
+        || race().course.lists.course_memory.set(0),
+        || race().course.lists.course_info.set(0),
     ],
     given_back: || {
         crate::race::scene_points::give_back();
@@ -49,23 +47,15 @@ pub const COURSE: Freeing = Freeing {
 /// `race::free_course_list_2` (0x41F94D).
 pub const COURSE_2: Freeing = Freeing {
     // stru_5C6D90
-    list: || crate::pointers::GamePtr::to(&crate::race::owner::race().course.lists.course_list_2),
+    list: || crate::pointers::GamePtr::to(&race().course.lists.course_list_2),
     counted: true,
     // dword_5C6F98, dword_5C6F9C
     cleared: &[
         || {
-            crate::race::owner::race()
-                .course
-                .lists
-                .course_list_2_a
-                .set(0);
+            race().course.lists.course_list_2_a.set(0);
         },
         || {
-            crate::race::owner::race()
-                .course
-                .lists
-                .course_list_2_b
-                .set(0);
+            race().course.lists.course_list_2_b.set(0);
         },
     ],
     given_back: || {},
@@ -73,25 +63,21 @@ pub const COURSE_2: Freeing = Freeing {
 /// `race::free_point_records` (0x41F992).
 pub const POINT_RECORDS: Freeing = Freeing {
     // stru_5C6E50
-    list: || {
-        crate::pointers::GamePtr::to(&crate::race::owner::race().course.lists.point_records_list)
-    },
+    list: || crate::pointers::GamePtr::to(&race().course.lists.point_records_list),
     counted: true,
     // g_pointRecords
-    cleared: &[|| crate::race::owner::race().course.lists.point_records.set(0)],
+    cleared: &[|| race().course.lists.point_records.set(0)],
     given_back: crate::scene::point_records::give_back,
 };
 /// `race::free_object_points` (0x41F89B).
 pub const OBJECT_POINTS: Freeing = Freeing {
     // stru_5C6DD0
-    list: || {
-        crate::pointers::GamePtr::to(&crate::race::owner::race().course.lists.object_points_list)
-    },
+    list: || crate::pointers::GamePtr::to(&race().course.lists.object_points_list),
     counted: true,
     // g_objectPoints, g_faceMemory
     cleared: &[
-        || crate::race::owner::race().course.lists.object_points.set(0),
-        || crate::race::owner::race().course.lists.face_memory.set(0),
+        || race().course.lists.object_points.set(0),
+        || race().course.lists.face_memory.set(0),
     ],
     given_back: || {
         crate::scene::object_points::give_back();
@@ -101,7 +87,7 @@ pub const OBJECT_POINTS: Freeing = Freeing {
 /// `race::free_mud` (0x449ECA).
 pub const MUD: Freeing = Freeing {
     // stru_5C6F50
-    list: || crate::pointers::GamePtr::to(&crate::race::owner::race().course.lists.mud_list),
+    list: || crate::pointers::GamePtr::to(&race().course.lists.mud_list),
     counted: true,
     // g_mud
     cleared: &[|| RACE_VARS.mud.set(0)],

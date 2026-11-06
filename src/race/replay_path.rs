@@ -12,6 +12,7 @@
 
 use crate::errors::Refused;
 #[cfg(test)]
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 

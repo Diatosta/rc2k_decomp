@@ -1,6 +1,8 @@
 //! The camera's work and the car parts' axle figures (IDA 0x608B08 .. 0x608CB4): the lights file's path text, the two views' figures (heading, roll, pitch, turns, offsets, points, shares) and the blended camera offset and turn, the pitch ease limits, the ground probe counts, the axle figures, the listener's points, and the car draw flags. `#[repr(C)]` with the image's layout, over the race block's bytes. The stage prefs buffer `g_stagePrefs` (0x608CB4 ..) is a separate piece.
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
@@ -147,9 +149,7 @@ const _: () = assert!(END - START == core::mem::size_of::<CameraWork>());
 /// Where IDA 0x608B08 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race().physics.camera,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.camera))
 }
 
 #[cfg(test)]

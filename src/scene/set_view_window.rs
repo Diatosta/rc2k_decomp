@@ -26,6 +26,7 @@
 //! `dword_62400C` is left holding the low half. Twelve callers.
 
 use crate::math::x87;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
@@ -99,8 +100,7 @@ pub fn set_view_window() {
 /// stays for its Rust callers in modules not converted (race, `choose_view_window`,
 /// `prepare_menu_scene`).
 // Converted: `rc2k_core::scene::view_window::window_settings`
-pub fn set_view_window_plain() {
-    let race = race();
+pub fn set_view_window_plain(race: &Race) {
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let i = WindowInputs {
         reach: race.course.stage_prefs.grid_reach.bits(),

@@ -16,6 +16,7 @@ use crate::errors::BadInput;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
 use crate::pointers::GamePtr;
 #[cfg(test)]
+#[cfg(test)]
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 

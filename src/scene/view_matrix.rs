@@ -8,6 +8,7 @@ use crate::math::cells::{Cells, Off};
 use crate::math::x87;
 use crate::math::x87_float as bh;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use crate::scene::matrix;
 use crate::session::Float;
@@ -59,7 +60,7 @@ pub fn set_fine_turn(axis: Axis, angle: u32) {
 /// `scene::unit_vector` (0x420EF8): three floats made one long, into `out`; all 0 when
 /// their length compares equal to `flt_5C5D90` (0, or no number). Minus zero made zero.
 /// The length is left in `dword_62400C`.
-pub fn unit_vector(from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
+pub fn unit_vector(course: &Course, from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
     // `x87::length`: sqrt(x x + (y y + z z)).
     let (x, y, z) = (
         bh::ld(from.bits(0)),
@@ -68,7 +69,7 @@ pub fn unit_vector(from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
     );
     let length = bh::st((x * x + (y * y + z * z)).sqrt());
     DRAW.scratch.set_bits(length);
-    if x87::equal_or_unordered(length, race().course.numbers.zero.bits()) {
+    if x87::equal_or_unordered(length, course.numbers.zero.bits()) {
         for n in 0..3 {
             out.set_bits(n, 0);
         }
@@ -122,11 +123,11 @@ impl Cells for Squared {
 
 /// `scene::square_matrix` (0x420E94): a turning's three rows made one long and at right
 /// angles again, from its third row and its second.
-pub fn square_matrix(at: &(impl Cells + ?Sized)) {
+pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) {
     let (first, second, third) = (Off(&Squared, 0), Off(&Squared, 4), Off(&Squared, 8));
-    unit_vector(&Off(at, 8), &third);
+    unit_vector(course, &Off(at, 8), &third);
     cross_product(&Off(at, 4), &third, &first);
-    unit_vector(&first, &first);
+    unit_vector(course, &first, &first);
     cross_product(&third, &first, &second);
     for n in 0..0x10 {
         at.set_bits(n, Squared.bits(n));
@@ -160,7 +161,7 @@ pub fn invert_turn(from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
     for (n, value) in made.into_iter().enumerate() {
         out.set_bits((n / 3) * 4 + n % 3, x87::loaded(value));
     }
-    square_matrix(out);
+    square_matrix(course, out);
 }
 
 /// `scene::set_view_matrices` (0x438FBF).

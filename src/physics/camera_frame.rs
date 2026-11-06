@@ -22,6 +22,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use crate::scene::light_store::LIGHT_STATE;
@@ -51,7 +52,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
 /// The Rust version. The registers the original leaves are read by none of its callers
 /// (`physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`).
 pub fn camera_frame() -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+    let race = race();
     steps(race)
 }
 

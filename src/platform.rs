@@ -31,6 +31,8 @@ use crate::gfx::describe_format::describe_format;
 use crate::gfx::front::SURFACES;
 use crate::gfx::screen_state::DRAW_SURFACE;
 use crate::gfx::set_clip::set_clip;
+use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::session::FLAGS;
 use crate::session::SCREEN as GAME_SCREEN;
 use crate::system::find_entry::find_entry;
@@ -422,7 +424,7 @@ fn view_of(
     std::ptr::with_exposed_provenance_mut(view.1)
 }
 
-fn show_frame(screen: &Screen) -> Result<(), &'static str> {
+fn show_frame(race: &Race, screen: &Screen) -> Result<(), &'static str> {
     // The frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
     let bytes = (screen.bits / 8) as usize;
     let converted;
@@ -455,7 +457,13 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
         // The framebuffer's mode first, its memory then the GPU's or ours.
         crate::handheld::open_screen()?;
         if let Some(target) = crate::platform_3d::screen()
-            && crate::render::show_on_panel(&target, frame, screen.width, screen.height)
+            && crate::render::show_on_panel(
+                &race.course,
+                &target,
+                frame,
+                screen.width,
+                screen.height,
+            )
         {
             return Ok(());
         }
@@ -468,7 +476,7 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
         let texture = std::ptr::with_exposed_provenance_mut::<SDL_Texture>(screen.texture);
         // A race on the GPU: its picture, the canvas's written pixels over it.
         let gpu_view = crate::platform_3d::screen()
-            .and_then(|target| crate::render::finish_frame(&target))
+            .and_then(|target| crate::render::finish_frame(&race.course, &target))
             .map(|colour| view_of(renderer, colour, screen.width, screen.height));
         // SAFETY: the window's renderer and the frame's texture (`set_screen_mode`), alive while
         // `SCREEN` holds them; `frame` holds the screen's rows of `width` XRGB8888 pixels.
@@ -492,7 +500,7 @@ fn show_frame(screen: &Screen) -> Result<(), &'static str> {
             SDL_RenderTexture(renderer, shown, std::ptr::null(), std::ptr::null());
         }
         // Not the original's: the debug UI over the frame.
-        crate::debug::imgui_sdl::draw(renderer, window);
+        crate::debug::imgui_sdl::draw(race, renderer, window);
         // SAFETY: as above.
         unsafe { SDL_RenderPresent(renderer) };
         Ok(())
@@ -528,6 +536,7 @@ pub fn screen_pixels() -> u64 {
 /// `gfx::show_frame`: the frame drawn shown (at most some sixty a second); false while
 /// quitting (nothing shown).
 pub fn show_frame_now() -> bool {
+    let race = race();
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
     {
@@ -547,7 +556,7 @@ pub fn show_frame_now() -> bool {
             #[cfg(feature = "remote")]
             let shot = crate::remote::shot_wanted().then(|| screen.pixels.to_vec());
             let showing = std::time::Instant::now();
-            let shown_ok = show_frame(screen);
+            let shown_ok = show_frame(race, screen);
             crate::platform_timing::SHOW_MICROS.fetch_add(
                 showing.elapsed().as_micros() as u64,
                 std::sync::atomic::Ordering::Relaxed,

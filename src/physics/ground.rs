@@ -32,8 +32,8 @@ fn record_faces(record: u32) -> Result<(u32, u32), BadInput> {
 /// shares by the x87 (`math::x87_run::face_shares`; the `rcpss` way with the SSE switch).
 /// The registers it leaves (eax the last difference, ebx, ecx the third corner's y, z)
 /// are read by none of its callers.
-pub fn face_shares_at() -> Result<(), Refused> {
-    let race_owner = race();
+pub fn face_shares_at(race: &Race) -> Result<(), Refused> {
+    let race_owner = race;
     let mut corner = [[0u32; 3]; 3];
     for (k, c) in corner.iter_mut().enumerate() {
         *c = crate::race::scene_points::point_number(
@@ -123,7 +123,9 @@ pub fn face_refusal(course: &Course, face: u32) -> Option<&'static str> {
 /// by none of its callers (`search_record_faces`, `try_last_face`).
 // Converted: `rc2k_core::physics::ground_search::face_under_point`.
 pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
-    let race_owner = race();
+    let race = race();
+    let physics = &race.physics;
+    let race_owner = race;
     if let Some(why) = face_refusal(&race_owner.course, number) {
         return Err(BadInput(why).into());
     }
@@ -167,9 +169,9 @@ pub fn face_under_point_at(number: u32) -> Result<bool, Refused> {
         race_owner.physics.ground.face_corner_numbers[k].set(corner);
         race_owner.course.course.ground_corners[k].set(corner);
     }
-    face_shares_at()?;
+    face_shares_at(race)?;
     race_owner.physics.ground.face_under_point_done.set(1);
-    plane_height();
+    plane_height(physics);
     Ok(true)
 }
 
@@ -208,7 +210,7 @@ pub fn search_record_faces_at(course: &Course, record: u32) -> Result<bool, Refu
 /// found.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
 pub fn search_cell_at(x: u32, z: u32) -> Result<bool, Refused> {
-    let course = &crate::race::owner::race().course;
+    let course = &race().course;
     let (key, _) = ground_search::cell_key(x, z);
     let Some(record) = find_course_record(course, key)? else {
         return Ok(false);

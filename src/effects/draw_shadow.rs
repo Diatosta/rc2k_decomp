@@ -82,8 +82,7 @@ fn angle(sh: &Shadow) -> Result<[u8; 10], Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn draw_shadow(masks: &Masks) -> Result<(), Refused> {
-    let race = race();
+pub fn draw_shadow(race: &Race, masks: &Masks) -> Result<(), Refused> {
     draw_shadow_with(race, masks, &FIRST, true)
 }
 
@@ -199,7 +198,6 @@ pub fn draw_shadow_with(
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
 use crate::race::marks_settings_store::MarksSettings;
-use crate::race::owner::race;
 use crate::scene::draw_store::DRAW;
 
 /// `light_turned`'s x87 block as plain Rust on the x87 model (33 instructions), same order and memory places, on either shadow's variables.

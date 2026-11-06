@@ -47,6 +47,7 @@ use crate::physics::car_store::CAR;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::physics::tables_store::PHYSICS;
 use crate::race::owner::Race;
+use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::work_store::RACE_WORK;
 use crate::scene::matrix3::rounded;
@@ -106,7 +107,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::probe_and_keep::probe_and_keep(race)?;
     ph::ease_car_value::ease_car_value();
     ph::count_down_timers::count_down_timers();
-    ph::wheel_surfaces::wheel_surfaces()?;
+    ph::wheel_surfaces::wheel_surfaces(race)?;
     ph::surface_noise::surface_noise(&race.course)?;
     ph::save_car_state::save_car_state(&race.physics)?;
     ph::clear_forces::clear_forces()?;
@@ -181,7 +182,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         ph::limit_motion::limit_motion();
     }
     ph::feel_ground::feel_ground(race)?;
-    ph::reset_when_stuck::reset_when_stuck()?;
+    ph::reset_when_stuck::reset_when_stuck(race)?;
     ph::engine_sound::engine_sound(race)?;
     ph::spin_wheels::spin_wheels(&race.course);
     ph::track_checkpoints::track_checkpoints(race)?;
@@ -221,7 +222,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
 
 /// The Rust version.
 pub fn car_physics_step() -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+    let race = race();
     if RACE_WORK.current_car.get() > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }

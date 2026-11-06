@@ -211,8 +211,7 @@ pub fn block_place(k: usize) -> Result<u32, BadInput> {
 /// length on; the block count on. A failed write or the index full (0x708 blocks) closes
 /// the replay (`race::close_replay`; the carry it sets is read by no caller). Every
 /// register kept.
-pub fn write_replay_block() -> Result<(), Refused> {
-    let replay = &race().replay;
+pub fn write_replay_block(replay: &Replay) -> Result<(), Refused> {
     let n = REPLAY_FILE.index_block_count.get();
     if n >= MOST_BLOCKS {
         return Err(BadInput("the replay's index is full already").into());
@@ -267,7 +266,7 @@ pub fn add_replay_frame(replay: &Replay, frame: &[Dword]) -> Result<(), Refused>
     }
     VIEWER_BUFFERS.block_used.set(used + bytes);
     if full {
-        write_replay_block()?;
+        write_replay_block(replay)?;
         VIEWER_BUFFERS.block_used.set(0);
         replay.replay_view.frames_in_block.set(0);
     }

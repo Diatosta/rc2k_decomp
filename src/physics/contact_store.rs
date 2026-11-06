@@ -3,6 +3,8 @@
 //! Stops before the draw batch's vertex buffer (`unk_6D3CF4`, 0x4000 bytes to 0x6D7CF4).
 //! Names are readings unless IDA's.
 
+#[cfg(test)]
+use crate::race::owner::race;
 use crate::session::{Bytes, Dword, Float};
 
 #[repr(C)]
@@ -293,9 +295,7 @@ const _: () = assert!(END - START == core::mem::size_of::<ContactWork>());
 /// Where IDA 0x6D1DD8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::race().physics.contact,
-    ))
+    crate::pointers::game_address(core::ptr::from_ref(&race().physics.contact))
 }
 
 #[cfg(test)]

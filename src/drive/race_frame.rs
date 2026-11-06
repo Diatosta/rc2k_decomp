@@ -16,6 +16,7 @@
 //! versions; the window, the scene's begin and end and the restore through the game.
 
 use crate::errors::Refused;
+use crate::race::owner::race;
 use crate::session::FLAGS;
 
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
@@ -26,6 +27,8 @@ const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platf
 /// `input::yes_no_key`, liveness: 0x44520A); its flags and other registers are read by
 /// no caller (only DF live after the other four calls).
 pub fn race_frame(eax: u32) -> Result<u32, Refused> {
+    let race = race();
+    let frame = &race.frame;
     // The calls below read no register at entry (liveness: `pump_messages`,
     // `race_sound_tick`, `replay_screenshot`, `show_frame`, `sub_405B10`): only eax runs
     // from call to call, and only `show_frame`'s carry is read.
@@ -46,12 +49,12 @@ pub fn race_frame(eax: u32) -> Result<u32, Refused> {
         stop(Stage::Scene, begun);
         // eax 0x12 here in the original; read by nothing.
         let begun = start();
-        crate::sound::race_sound_tick::race_sound_tick()?;
+        crate::sound::race_sound_tick::race_sound_tick(frame)?;
         stop(Stage::SoundTick, begun);
         { crate::race::replay_screenshot::replay_screenshot() }?;
         #[cfg(feature = "remote")]
         crate::remote::shot_frame_drawn();
-        let shown = { crate::race::show_frame::show_frame() }?;
+        let shown = { crate::race::show_frame::show_frame(race) }?;
         eax = shown.eax;
         if !shown.lost {
             return Ok(eax);

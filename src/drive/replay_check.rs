@@ -18,6 +18,7 @@
 use crate::errors::BadInput;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner_course::Course;
+use crate::race::owner_replay::Replay;
 use crate::race::view_store::RACE_VIEW;
 use rc2k_core::drive::replay_frames::{CAR_DWORDS, PLAYING, RECORDING};
 use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
@@ -97,8 +98,8 @@ fn piece_name(piece: StartPiece) -> String {
 }
 
 /// At a whole frame of a replay played, before its recorded state is loaded.
-pub fn compare_frame() -> Result<(), BadInput> {
-    let saved = crate::race::blocks_store::replay_state();
+pub fn compare_frame(replay: &Replay) -> Result<(), BadInput> {
+    let saved = crate::race::blocks_store::replay_state(replay);
     let clock = CAR_BLOCKS.cars[0].step_clock.bits();
     if saved.offset(8).read::<u32>("the replay check's blocks")? != clock {
         SKIPPED.fetch_add(1, Relaxed);

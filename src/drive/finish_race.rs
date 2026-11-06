@@ -53,7 +53,7 @@ fn var(v: Var) -> Place {
         Var::D621890 => var!(FRAME_SWITCHES.view_marks_on),
         Var::D6238CC => var!(RACE_VARS.race_level),
         Var::D6238D0 => var!(RACE_VARS.race_stage),
-        Var::D64BB18 => Place::Var(|| &crate::race::owner::race().replay.finish.no_place),
+        Var::D64BB18 => Place::Var(|| &race().replay.finish.no_place),
         Var::D5C2F88 => var!(MARKS_SETTINGS.race_done),
         // View record 6's first two angles (the finish camera's).
         Var::D606744 => Place::Var(|| &ViewVars::record(6).angles[0]),

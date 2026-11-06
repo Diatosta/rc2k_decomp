@@ -13,11 +13,12 @@
 
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
+use crate::race::owner::Race;
 use rc2k_core::physics::start::stuck_tick;
 
 /// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::start::stuck_tick`.
-pub fn reset_when_stuck() -> Result<(), Refused> {
+pub fn reset_when_stuck(race: &Race) -> Result<(), Refused> {
     let mode: u32 = CAR.driver_kind.bits();
     let mut stuck = if mode == 2 || mode == 0 {
         0
@@ -27,7 +28,7 @@ pub fn reset_when_stuck() -> Result<(), Refused> {
     let reset = stuck_tick(mode, &mut stuck);
     CAR.stuck_count.set(stuck);
     if reset {
-        crate::physics::reset_car::reset_car()?;
+        crate::physics::reset_car::reset_car(race)?;
     }
     Ok(())
 }

@@ -30,16 +30,16 @@ pub fn spin_matrix(race: &Race) {
         let lists = &race.course.lists;
         let turn = &lists.turn_matrix;
         let turned = &race.frame.matrices.turned_matrix;
-        unit_vector(&CAR.spin, &lists.spin_axis);
+        unit_vector(&race.course, &CAR.spin, &lists.spin_axis);
         lists
             .spin_angle
             .set_bits(x87::mul(CAR.spin_length.bits(), PHYSICS.step_time.bits()));
         axis_turn_matrix(&race.course, turn);
-        square_matrix(turn);
+        square_matrix(&race.course, turn);
         multiply_matrices(&CAR.crash_matrix, turn, turned);
         for k in 0..16 {
             CAR.crash_matrix[k].set_bits(race.frame.matrices.turned_matrix[k].bits());
         }
     }
-    square_matrix(&CAR.crash_matrix);
+    square_matrix(&race.course, &CAR.crash_matrix);
 }

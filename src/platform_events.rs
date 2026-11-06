@@ -6,6 +6,7 @@
 use crate::framework::log;
 use crate::input::store::DEVICES;
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::session::FLAGS;
 use sdl3_sys::everything::*;
 
@@ -162,9 +163,10 @@ fn end_if_not_left() {
 
 /// SDL's events: the window's closing, and the keys the menus take.
 pub fn pump() {
+    let course = &race().course;
     restore_if_asked();
     #[cfg(feature = "remote")]
-    crate::remote::poll();
+    crate::remote::poll(course);
     while let Some(event) = next_event() {
         match event {
             Event::Quit if HOLD_QUIT.load(std::sync::atomic::Ordering::Relaxed) => {
@@ -195,7 +197,7 @@ pub fn pump() {
                     DEVICES.set_key_state(key, 0);
                 }
             }
-            Event::Pad { button, down } => pad_button(button, down),
+            Event::Pad { button, down } => pad_button(course, button, down),
             Event::Other => {}
         }
     }
@@ -215,7 +217,7 @@ fn lock_menu_pad() -> std::sync::MutexGuard<'static, crate::input::menu_pad::Men
 }
 
 /// A gamepad's button, for the menus.
-fn pad_button(button: SDL_GamepadButton, down: bool) {
+fn pad_button(course: &Course, button: SDL_GamepadButton, down: bool) {
     use crate::input::menu_pad::PadButton as B;
     // The handheld's way out: it has no window to close.
     #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
@@ -242,7 +244,7 @@ fn pad_button(button: SDL_GamepadButton, down: bool) {
         SDL_GAMEPAD_BUTTON_START => B::Start,
         _ => return,
     };
-    let in_race = race().course.numbers.in_race.get() != 0;
+    let in_race = course.numbers.in_race.get() != 0;
     let now = u64::from(crate::os::ticks());
     if let Some(action) = lock_menu_pad().button(button, down, in_race, now) {
         menu_action(action);

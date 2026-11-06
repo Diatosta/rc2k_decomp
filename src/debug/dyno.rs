@@ -16,7 +16,9 @@ use crate::physics::engine_torque::engine_torque;
 use crate::physics::gear_store::GEAR;
 use crate::physics::revs_from_wheels::revs_from_wheels;
 use crate::physics::tables_store::PHYSICS;
+#[cfg(test)]
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::draw_store::DRAW;
 use crate::session::Cell32;
 use dear_imgui_rs::Ui;
@@ -110,8 +112,7 @@ fn kept<T>(f: impl FnOnce() -> T) -> T {
 }
 
 /// `sub_43CAAB`: the drive at the engine's speed and the car's throttle.
-fn torque() {
-    let course = &race().course;
+fn torque(course: &Course) {
     engine_torque();
     PHYSICS.drive_ratio.set_bits(sum_times_int_over_minus(
         PHYSICS.engine_force.bits(),
@@ -134,7 +135,7 @@ fn torque() {
 
 /// The drive at `speed`, full throttle: None at or above the limit, or where the engine's
 /// speed is no number (a ratio of 0).
-fn drive_at(speed: f32) -> Option<(f32, f32)> {
+fn drive_at(course: &Course, speed: f32) -> Option<(f32, f32)> {
     CAR.drive_speed_a.set_bits(speed.to_bits());
     CAR.drive_speed_b.set_bits(speed.to_bits());
     CAR.local_velocity[2].set_bits(speed.to_bits());
@@ -145,12 +146,12 @@ fn drive_at(speed: f32) -> Option<(f32, f32)> {
         return None;
     }
     CAR.throttle.set(0x100);
-    torque();
+    torque(course);
     Some((f32::from_bits(PHYSICS.drive_torque.bits()), revs / limit))
 }
 
 /// `sub_428F42`, without its drawing.
-fn measure() -> Option<Measured> {
+fn measure(course: &Course) -> Option<Measured> {
     let limit = f32::from_bits(CAR.engine_speed_limit.bits());
     let count = PHYSICS.gear_count.get().min(7) as usize;
     if limit.is_nan() || limit <= 0.0 || count == 0 {
@@ -162,7 +163,7 @@ fn measure() -> Option<Measured> {
     let down = figure(&GEAR.shift_down_point);
     let air = figure(&PHYSICS.air_drag);
     let rolling = figure(&PHYSICS.rolling_drag);
-    let k = f32::from_bits(race().course.numbers.k10000.bits());
+    let k = f32::from_bits(course.numbers.k10000.bits());
     Some(kept(|| {
         let mut gears = Vec::new();
         let mut best = [f32::MIN; POINTS];
@@ -171,7 +172,7 @@ fn measure() -> Option<Measured> {
             let mut curve = Vec::new();
             for (n, best) in best.iter_mut().enumerate() {
                 let speed = n as f32 / POINTS as f32 * TOP_SPEED;
-                let Some((drive, part)) = drive_at(speed) else {
+                let Some((drive, part)) = drive_at(course, speed) else {
                     continue;
                 };
                 *best = best.max(drive);
@@ -210,7 +211,7 @@ fn measure() -> Option<Measured> {
 
 /// The car's speed and its drive right now, full throttle (`sub_4291C9`), in a forward gear
 /// below the limit.
-fn cursor() -> Option<(f32, f32, f32, i32)> {
+fn cursor(course: &Course) -> Option<(f32, f32, f32, i32)> {
     let gear = CAR.gear.get() as i32;
     let speed = f32::from_bits(CAR.drive_speed_a.bits());
     if !(1..=7).contains(&gear)
@@ -220,17 +221,17 @@ fn cursor() -> Option<(f32, f32, f32, i32)> {
     {
         return None;
     }
-    let (drive, part) = kept(|| drive_at(speed))?;
+    let (drive, part) = kept(|| drive_at(course, speed))?;
     Some((speed, drive, part, gear))
 }
 
 /// The tab.
-pub fn tab(ui: &Ui) {
+pub fn tab(course: &Course, ui: &Ui) {
     let mut measured = MEASURED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if ui.button("Measure the car") || measured.is_none() {
-        *measured = measure();
+        *measured = measure(course);
     }
     ui.same_line();
     ui.text_disabled("the last car simulated, full throttle; measure again after a change of car");
@@ -258,7 +259,7 @@ pub fn tab(ui: &Ui) {
     ui.text_colored(DRAG, "drag");
     ui.same_line();
     ui.text_colored(NET, "best drive less drag");
-    let live = cursor();
+    let live = cursor(course);
     let high = m
         .gears
         .iter()
@@ -332,6 +333,7 @@ mod tests {
 
     #[test]
     fn measuring_puts_back_all_it_writes() {
+        let course = &race().course;
         let _lock = crate::store::test_lock();
         let was_limit = CAR.engine_speed_limit.bits();
         let was_count = PHYSICS.gear_count.get();
@@ -340,7 +342,7 @@ mod tests {
         PHYSICS.gear_count.set(1);
         PHYSICS.gear_ratios[2].set_bits(0.01_f32.to_bits());
         let before = places().map(crate::session::Cell32::bits);
-        let m = measure().expect("a car");
+        let m = measure(course).expect("a car");
         assert_eq!(places().map(crate::session::Cell32::bits), before);
         assert_eq!(m.gears.len(), 1);
         assert!(!m.gears[0].is_empty());
@@ -351,10 +353,11 @@ mod tests {
 
     #[test]
     fn no_limit_no_measuring() {
+        let course = &race().course;
         let _lock = crate::store::test_lock();
         let was = CAR.engine_speed_limit.bits();
         CAR.engine_speed_limit.set_bits(0);
-        assert!(measure().is_none());
+        assert!(measure(course).is_none());
         CAR.engine_speed_limit.set_bits(was);
     }
 }

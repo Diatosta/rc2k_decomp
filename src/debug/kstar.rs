@@ -16,7 +16,7 @@
 //! the stage reloads, as the developers' keys did.
 
 use crate::debug::wear_page::value_at;
-use crate::race::owner::race;
+use crate::race::owner_frame::Frame;
 use crate::race::switches_store::FRAME_SWITCHES;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
@@ -110,7 +110,7 @@ fn section(ui: &Ui, name: &str) -> bool {
 }
 
 /// The tab.
-pub fn tab(ui: &Ui) {
+pub fn tab(frame: &Frame, ui: &Ui) {
     mode_choice(ui);
     if section(ui, "Car's faces by group (mode 5)") {
         groups(ui);
@@ -122,7 +122,7 @@ pub fn tab(ui: &Ui) {
         kept_places(ui);
     }
     if section(ui, "Car's lights (mode 8)") {
-        lights(ui);
+        lights(frame, ui);
     }
     if section(ui, "Road's height ahead and behind (mode 0xC)") {
         heights(ui);
@@ -137,9 +137,9 @@ pub fn tab(ui: &Ui) {
         }
         ui.text(format!(
             "On the screen: {}; at ({}, {})",
-            race().frame.frame_work.sun_on_screen.get(),
-            race().frame.frame_work.sun_hit[0].get() as i32,
-            race().frame.frame_work.sun_hit[1].get() as i32
+            frame.frame_work.sun_on_screen.get(),
+            frame.frame_work.sun_hit[0].get() as i32,
+            frame.frame_work.sun_hit[1].get() as i32
         ));
     }
 }
@@ -265,7 +265,7 @@ fn kept_places(ui: &Ui) {
 }
 
 /// Mode 8: the car model's lights: 12 places of 3 dwords, 12 x 12 a model.
-fn lights(ui: &Ui) {
+fn lights(frame: &Frame, ui: &Ui) {
     let kind = dword(CAR_KIND) as usize;
     let mut light = LIGHT.load(Relaxed) as usize % LIGHT_NAMES.len();
     ui.text(format!("Car model {kind}"));
@@ -291,7 +291,7 @@ fn lights(ui: &Ui) {
             write_at(at, v as u32);
         }
         // The original's key loop leaves the place where `car_light_flares` reads it.
-        race().frame.frame_work.part_place[k].set(dword(at));
+        frame.frame_work.part_place[k].set(dword(at));
     }
 }
 
@@ -372,15 +372,15 @@ fn course_map(ui: &Ui) {
 }
 
 /// What goes over the picture (once a UI frame).
-pub fn over_picture(ui: &Ui) {
-    if !SUN.load(Relaxed) || race().frame.frame_work.sun_on_screen.get() == 0 {
+pub fn over_picture(frame: &Frame, ui: &Ui) {
+    if !SUN.load(Relaxed) || frame.frame_work.sun_on_screen.get() == 0 {
         return;
     }
     let [w, h] = ui.io().display_size();
     let (width, height) = crate::platform::screen_size();
     let at = [
-        race().frame.frame_work.sun_hit[0].get() as i32 as f32 * w / width.max(1) as f32,
-        race().frame.frame_work.sun_hit[1].get() as i32 as f32 * h / height.max(1) as f32,
+        frame.frame_work.sun_hit[0].get() as i32 as f32 * w / width.max(1) as f32,
+        frame.frame_work.sun_hit[1].get() as i32 as f32 * h / height.max(1) as f32,
     ];
     let size = ui.current_font_size() / 2.0;
     ui.get_foreground_draw_list()

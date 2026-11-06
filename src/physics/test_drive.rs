@@ -15,11 +15,12 @@ use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::gear_store::GEAR;
 use crate::physics::test_drive_run;
+use crate::race::owner::race;
 
 /// The Rust version.
 pub fn test_drive() -> Result<(), Refused> {
-    let course = &crate::race::owner::race().course;
-    let race = crate::race::owner::race();
+    let course = &race().course;
+    let race = race();
     crate::physics::load_car_specs::load_car_specs(race)?;
     crate::physics::make_gear_ratios::make_gear_ratios(course)?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the

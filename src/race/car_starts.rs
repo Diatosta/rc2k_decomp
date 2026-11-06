@@ -171,8 +171,9 @@ fn move_turned(course: &Course, x: u32, z: u32) {
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. The registers it
 /// leaves are read by no caller. Refuses a nearest checkpoint past the lists (when met).
 pub fn start_car() -> Result<(), Refused> {
-    let course = &race().course;
-    let replay = &race().replay;
+    let race = race();
+    let course = &race.course;
+    let replay = &race.replay;
     CAR.notice_count.set(0);
     CAR.camera_switch_active.set(0);
     CAR.map_corner[0].set(0x8000_0000);
@@ -204,7 +205,7 @@ pub fn start_car() -> Result<(), Refused> {
             LIGHT_STATE.line_place.set(0);
             LIGHT_STATE.line_fraction.set(0);
         }
-        crate::race::start_place::place_car_on_line()?;
+        crate::race::start_place::place_car_on_line(course)?;
         if replay.finish.no_place.get() == 0 {
             move_turned(course, 0, 0xFFFE_0000);
             let side = starts_aside(
@@ -221,7 +222,7 @@ pub fn start_car() -> Result<(), Refused> {
             }
         }
     }
-    let nearest = crate::race::start_place::nearest_checkpoint()?;
+    let nearest = crate::race::start_place::nearest_checkpoint(race)?;
     CAR.checkpoint.set(nearest);
     CAR.reset_checkpoint.set(nearest);
     CAR.last_pace_call.set(nearest);

@@ -17,6 +17,6 @@ use crate::race::owner::Race;
 /// `drive::replay_step`'s call has no read point).
 pub fn animate_stage(race: &Race) -> Result<(), Refused> {
     animate_lit_faces(race)?;
-    move_slots()?;
+    move_slots(race)?;
     Ok(())
 }

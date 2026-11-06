@@ -70,7 +70,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         Ok::<_, Refused>(PHYSICS.clear_place_count.get() == 0)
     })?;
     let Some(n) = found else {
-        return crate::physics::reset_car::reset_car();
+        return crate::physics::reset_car::reset_car(race);
     };
     { crate::physics::lowest_body_point::lowest_body_point(race) }?;
     let depth = physics_store.contact.lowest_depth.get();

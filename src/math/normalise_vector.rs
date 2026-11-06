@@ -25,7 +25,7 @@
 
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::draw_store::DRAW;
 
 // ---- game data ----
@@ -62,8 +62,11 @@ pub(crate) fn scaled_by_inverse(v: [u32; 3], root: u32, exponent_root: u32) -> (
 }
 
 /// Returns what the function leaves in eax, if it changes it.
-pub fn normalise_vector() -> Result<Option<u32>, BadInput> {
-    normalise(crate::scene::owner::scene().draw_switches.use_sse.bits() != 0)
+pub fn normalise_vector(race: &Race) -> Result<Option<u32>, BadInput> {
+    normalise(
+        race,
+        crate::scene::owner::scene().draw_switches.use_sse.bits() != 0,
+    )
 }
 
 /// The original's SSE path: each component times the approximate reciprocal root of the
@@ -77,8 +80,7 @@ fn sse_normalise(v: [u32; 4]) -> [u32; 4] {
 
 /// Exactly as the original (the x87 at its precision, the SSE instructions): what the
 /// Rust callers in modules not yet converted use.
-pub fn normalise(sse: bool) -> Result<Option<u32>, BadInput> {
-    let race = race();
+pub fn normalise(race: &Race, sse: bool) -> Result<Option<u32>, BadInput> {
     let v: [u32; 4] = crate::session::read_bits(&race.frame.scratch.work_vector);
     if sse {
         crate::session::write_bits(&race.frame.scratch.work_vector, sse_normalise(v));

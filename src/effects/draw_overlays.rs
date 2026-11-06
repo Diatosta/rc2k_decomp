@@ -15,7 +15,7 @@ use crate::effects::draw_shadow::{SECOND, draw_shadow_with};
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (1, 0x1C), (1, 0x1B)];
 
@@ -35,8 +35,7 @@ fn shadow_refuses() -> Option<Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn draw_overlays(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
-    let race = race();
+pub fn draw_overlays(race: &Race, masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     if let Some(e) = shadow_refuses() {
         return Err(e);

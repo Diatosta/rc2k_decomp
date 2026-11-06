@@ -16,7 +16,6 @@
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::car_store::CAR;
-use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 use crate::scene::light_store::LIGHT_STATE;
@@ -26,7 +25,7 @@ use crate::session::Cell32;
 /// (esi). The eax and ebx it leaves are read by none of its callers.
 pub fn take_view_b(physics: &Physics, s: &ViewRecord) {
     x87_1(physics, s.offset_bits());
-    for (x, v) in copies().iter().zip(s.taken()) {
+    for (x, v) in copies(physics).iter().zip(s.taken()) {
         x.set_bits(v);
     }
     physics.camera.view_b_heading.set(CAR.car_heading.get());
@@ -40,8 +39,8 @@ pub fn take_view_b(physics: &Physics, s: &ViewRecord) {
 }
 
 /// Where the record's +0x10 .. +0x38 go.
-fn copies() -> [&'static dyn Cell32; 11] {
-    let w = &race().physics.camera;
+fn copies(physics: &Physics) -> [&'_ dyn Cell32; 11] {
+    let w = &physics.camera;
     [
         &w.view_b_turn[0],
         &w.view_b_turn[1],

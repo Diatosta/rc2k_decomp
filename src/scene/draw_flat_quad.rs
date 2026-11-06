@@ -19,7 +19,7 @@
 
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::race::vars_store::RACE_VARS;
 use crate::race::view_store::RACE_VIEW;
 use crate::scene::draw_store::DRAW;
@@ -27,7 +27,7 @@ use crate::session::Dword;
 
 /// The Rust version (see the header). It reads no register, and what it leaves is read by
 /// none of its callers (register liveness, 2026-10-23).
-pub fn draw_flat_quad() -> Result<(), Refused> {
+pub fn draw_flat_quad(course: &Course) -> Result<(), Refused> {
     DRAW.polygon_drawn.set_bits(0);
     for n in 0..4 {
         let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
@@ -58,7 +58,7 @@ pub fn draw_flat_quad() -> Result<(), Refused> {
         v(n, 0xC, x);
         v(n, 0x1C, y);
     }
-    let depth: u32 = race().course.numbers.k4096_b.bits();
+    let depth: u32 = course.numbers.k4096_b.bits();
     for n in 0..4 {
         v(n, 0x18, depth);
     }

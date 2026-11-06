@@ -19,6 +19,7 @@
 use crate::errors::Refused;
 use crate::physics::car_store::CAR;
 use crate::physics::tables_store::PHYSICS;
+use crate::race::owner::Race;
 use crate::race::vars_store::RACE_VARS;
 use crate::scene::light_store::LIGHT_STATE;
 use rc2k_core::physics::line_places::{RESET_TRIES, reset_offsets};
@@ -43,7 +44,7 @@ fn blocked() -> bool {
 
 /// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
-pub fn reset_car() -> Result<(), Refused> {
+pub fn reset_car(race: &Race) -> Result<(), Refused> {
     LIGHT_STATE.line_place.set(CAR.reset_checkpoint.get());
     LIGHT_STATE.line_fraction.set(0);
     if RACE_VARS.run_kind.get() == 2 {
@@ -64,8 +65,8 @@ pub fn reset_car() -> Result<(), Refused> {
         }
         LIGHT_STATE.line_place.set(PHYSICS.reset_candidate.get());
     }
-    crate::race::start_place::place_car_on_line()?;
-    crate::physics::reset_car_on_line::reset_car_on_line()?;
+    crate::race::start_place::place_car_on_line(&race.course)?;
+    crate::physics::reset_car_on_line::reset_car_on_line(race)?;
     CAR.reset_marker.set(10);
     Ok(())
 }

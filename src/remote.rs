@@ -20,6 +20,7 @@
 #![allow(unsafe_code)]
 
 use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use sdl3_sys::everything::*;
 use std::ffi::CString;
 use std::io::Write;
@@ -124,20 +125,20 @@ pub fn note_open(path: &[u8]) {
 
 /// The car `state` reports: the viewed car's block in a race. With several cars the work car
 /// holds whichever was stepped last between frames.
-fn driven_car() -> &'static crate::physics::car_store::Car {
+fn driven_car(course: &Course) -> &'_ crate::physics::car_store::Car {
     let viewed =
         crate::race::blocks_store::car_of(crate::race::view_store::RACE_VIEW.view_blocks[0].get());
     match viewed {
-        Some(car) if race().course.numbers.in_race.get() != 0 => car,
+        Some(car) if course.numbers.in_race.get() != 0 => car,
         _ => &crate::physics::car_store::CAR,
     }
 }
 
-fn state() -> String {
+fn state(course: &Course) -> String {
     use crate::menu::loop_store::LOOP_FLAGS;
     use crate::race::checkpoints_store::{CHECKPOINTS, cell_in};
     #[allow(non_snake_case)]
-    let CAR = driven_car();
+    let CAR = driven_car(course);
     let at = CAR.checkpoint.get() as usize;
     // The stage line ahead, for `tools/remote.py pilot`.
     let ahead = (at + LOOK_AHEAD).min(CHECKPOINTS.map_x.len() - 1);
@@ -146,7 +147,7 @@ fn state() -> String {
         "frames={} screen_frames={} race={} menu={:?} item={} focused={} speed={:.0} time={} splits={} finished={} stuck={} checkpoints={} checkpoint={} map={},{} target={},{} near={},{} channels={} mix={} heading={} gear={} box={} driver={} controls={},{},{},{},{},{} matrix={} cars={} shown={}",
         crate::gfx::screen_state::DRAW_SURFACE.frames.get(),
         screen_frames(),
-        race().course.numbers.in_race.get(),
+        course.numbers.in_race.get(),
         LOOP_FLAGS.menu.get().ok(),
         LOOP_FLAGS.item.get(),
         crate::session::FLAGS.window_focused.get(),
@@ -250,6 +251,7 @@ const LOOK_AHEAD: usize = 12;
 const LOOK_NEAR: usize = 4;
 
 fn run(line: &str) {
+    let course = &race().course;
     let words: Vec<&str> = line.split_whitespace().collect();
     let [id, command, rest @ ..] = &words[..] else {
         return;
@@ -259,7 +261,7 @@ fn run(line: &str) {
     let answer = match (*command, rest) {
         // The arcade's countdown, so a test can reach a level's end whatever the pilot's pace.
         ("time", [n]) => n.parse().ok().map(|n: u32| {
-            driven_car().time_left.set(n);
+            driven_car(course).time_left.set(n);
             "ok".to_string()
         }),
         ("key", [name, tail @ ..]) => scancode(name).map(|code| {
@@ -284,7 +286,7 @@ fn run(line: &str) {
             pending().shot = Some(((*id).to_string(), (*name).to_string()));
             return;
         }
-        ("state", []) => Some(state()),
+        ("state", []) => Some(state(course)),
         // The game's own computer driver at the player's car's wheel (`tools/remote.py pilot`).
         ("drive", [switch @ ("on" | "off")]) => {
             AUTODRIVE.store(*switch == "on", std::sync::atomic::Ordering::Relaxed);
@@ -314,14 +316,14 @@ static SCREEN: std::sync::Mutex<(Option<crate::menu::menus_store::MenuId>, u32, 
     std::sync::Mutex::new((None, 0, 0));
 
 /// The screen's identity: its menu (none outside the menus) and the race flag.
-fn screen_now() -> (Option<crate::menu::menus_store::MenuId>, u32) {
+fn screen_now(course: &Course) -> (Option<crate::menu::menus_store::MenuId>, u32) {
     let menu = crate::menu::loop_store::LOOP_FLAGS.menu.get().ok();
-    (menu, race().course.numbers.in_race.get())
+    (menu, course.numbers.in_race.get())
 }
 
 /// A change of screen noted at its first frame.
-fn note_screen() {
-    let (menu, race) = screen_now();
+fn note_screen(course: &Course) {
+    let (menu, race) = screen_now(course);
     let frames = crate::gfx::screen_state::DRAW_SURFACE.frames.get();
     let mut s = SCREEN
         .lock()
@@ -344,9 +346,9 @@ fn screen_frames() -> u32 {
 }
 
 /// At each pump: the releases due, then the commands waiting.
-pub fn poll() {
+pub fn poll(course: &Course) {
     let Some(folder) = folder() else { return };
-    note_screen();
+    note_screen(course);
     let now = Instant::now();
     pending().releases.retain(|(when, release)| {
         if *when > now {

@@ -14,9 +14,9 @@
 
 use crate::errors::Refused;
 use crate::physics::ground_search::ground_search;
+use crate::race::owner::Race;
 
 /// The Rust version: the carry (the registers are kept).
-pub fn find_ground() -> Result<bool, Refused> {
-    let race = crate::race::owner::race();
+pub fn find_ground(race: &Race) -> Result<bool, Refused> {
     ground_search(race)
 }

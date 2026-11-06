@@ -14,6 +14,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::physics::car_store::CAR;
 use crate::physics::fill_race_slot::fill_race_slot;
+use crate::race::owner::race;
 use crate::race::work_store::RACE_WORK;
 use rc2k_core::physics::parts::{part_number, take_bit};
 
@@ -21,7 +22,7 @@ use rc2k_core::physics::parts::{part_number, take_bit};
 /// slot. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::{take_bit, part_number}`.
 pub fn fill_slot_on_bit(bit: u32) -> Result<(), Refused> {
-    let course = &crate::race::owner::race().course;
+    let course = &race().course;
     let (_, cleared) = take_bit(CAR.parts_present.get(), bit);
     let Some(cleared) = cleared else {
         return Ok(());
