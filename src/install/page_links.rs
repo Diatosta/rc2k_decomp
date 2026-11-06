@@ -26,8 +26,10 @@ const FONT: u32 = 2;
 const BLENDED_PALETTE: u32 = 3;
 const TYPED_PATH: u32 = 4;
 
-/// IDA's address of the folder item's text, in `InstallerPaths::typed`.
-const TYPED_TEXT_IDA: u32 = 0x95EBFA;
+/// IDA's address of `InstallerPaths::typed` (`byte_95EBF8`): the folder typed on the page. The
+/// folder item's text starts two bytes in (0x95EBFA, past the drive's `c:`), or at its start
+/// on Unix (no drive).
+const TYPED_IDA: u32 = 0x95EBF8;
 /// IDA's address of the blended palette the install bar's glyphs name.
 const PALETTE_IDA: u32 = 0x4F3B74;
 /// The bytes `InstallerPages` holds before IDA's first (`vars::InstallerPages::home`).
@@ -53,8 +55,8 @@ impl PageLink {
         if ida == PALETTE_IDA {
             return Self(BLENDED_PALETTE << KIND_SHIFT);
         }
-        if ida == TYPED_TEXT_IDA {
-            return Self((TYPED_PATH << KIND_SHIFT) | (ida - InstallerPaths::START as u32 - 0x500));
+        if ida >= TYPED_IDA && ida < TYPED_IDA + 0x100 {
+            return Self((TYPED_PATH << KIND_SHIFT) | (ida - TYPED_IDA));
         }
         panic!("a page link that names nothing known");
     }
@@ -145,7 +147,7 @@ mod tests {
             Some(GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE).addr() as usize),
             crate::moved::home_of_rva(PALETTE_IDA as usize - crate::framework::IMAGE_BASE)
         );
-        let typed = PageLink::of_ida(TYPED_TEXT_IDA).place().unwrap();
+        let typed = PageLink::of_ida(TYPED_IDA + 2).place().unwrap();
         assert_eq!(
             typed.addr(),
             GamePtr::to(&crate::install::owner::install().paths.typed)

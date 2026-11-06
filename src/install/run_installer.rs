@@ -38,8 +38,8 @@ pub fn run_installer(g: &'static crate::install::owner::Install) -> Result<(), R
     crate::install::installer::wd(
         // 0x51DBD0.
         crate::place::Place::from(&g.pages.folder_page).add(0x30),
-        // A link: `INSTALLER_PATHS.typed`'s IDA address (`InstallerPages::resolved`).
-        0x95EBF8,
+        // A link to `InstallerPaths::typed` from its first byte (`byte_95EBF8`).
+        crate::install::page_links::PageLink::of_ida(0x95EBF8).raw(),
     );
     crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
     i::read_languages::read_languages(g, crate::pointers::GamePtr::to(&g.names.lang_cfg))?;
