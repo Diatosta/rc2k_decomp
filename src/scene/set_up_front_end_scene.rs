@@ -101,16 +101,16 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();
     crate::session::write_bits(&shared.vars.bar_span, [0u32, 100]);
     crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
-    reset_texture_tables();
+    reset_texture_tables(scene);
     for (count, first, levels, tag) in NEEDS {
         for texture in first..first + count {
             levels()[texture].set(0);
             scene.objects.tables.texture_tags[texture].set(tag);
         }
     }
-    crate::scene::set_up_textures::set_up_textures(shared)?;
+    crate::scene::set_up_textures::set_up_textures(shared, scene)?;
     set_up_object_memory(course, scene)?;
-    clear_slot_kinds();
+    clear_slot_kinds(scene);
     colours(course, 0);
     // The scene's settings stored before the fog is cleared, after the two colours.
     course.stage_prefs.scene_size_a.set_bits(0x100u32);
@@ -123,7 +123,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     course.stage_prefs.fog_near.set_bits(0u32);
     course.stage_prefs.fog_start.set_bits(0u32);
     course.stage_prefs.fog_end.set_bits(0u32);
-    clear_fog();
+    clear_fog(scene);
     shared.switches.other_way.set_bits(1u32);
     fill_light_tables(scene, race)?;
 
@@ -138,7 +138,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
         scene.objects.tables.slot_kinds[0x2D + place].set(known_kind(place as u32));
     }
     crate::scene::load_front_end_objects_logged::load_front_end_objects_logged(race, scene)?;
-    reset_texture_places();
+    reset_texture_places(scene);
 
     scene.textures.places.kind_pictures[0x87].set(0x82A);
     for (k, &picture) in MENU_PICTURES.iter().enumerate() {
@@ -157,7 +157,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     colours(course, 0);
     fill_scene_light_tables(race, scene)?;
     set_view_matrices(&race.course, frame);
-    reload_slot_textures(frame)?;
+    reload_slot_textures(frame, scene)?;
     colours(course, 0x7F);
     shared.switches.other_way.set_bits(1u32);
     fill_light_tables(scene, race)?;

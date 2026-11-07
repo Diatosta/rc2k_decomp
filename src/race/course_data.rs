@@ -191,11 +191,14 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
 /// `race::locate_current_course` (0x4394CB, "locacurrcourse"): `dword_609380` 0,
 /// `load_level`, `lay_out_course` (its test of `dword_621514` jumps to the next
 /// instruction either way: section 16), `group_records_by_kind`, `build_best_line`.
-pub fn locate_current_course(race: &Race) -> Result<(), Refused> {
+pub fn locate_current_course(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let course = &race.course;
     course.stage_prefs.cdat_number.set_bits(0u32);
     load_level(race)?;
     crate::race::norms::lay_out_course(course);
     group_records_by_kind(course)?;
-    crate::race::best_line::build_best_line(race)
+    crate::race::best_line::build_best_line(race, scene)
 }

@@ -14,13 +14,17 @@ use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::items::FolderKey;
 
 /// `key` as eax (al the key, ah its bits); whether it was taken (the original's zero).
-pub fn folder_key(g: &'static crate::install::owner::Install, key: u32, list: ListMenu) -> bool {
+pub fn folder_key(
+    install: &'static crate::install::owner::Install,
+    key: u32,
+    list: ListMenu,
+) -> bool {
     // Converted: `rc2k_core::install::items::FolderKey`.
     let way = FolderKey::of(key);
     let answer = way.answer(|| list.flags());
     if let Some(answer) = answer {
-        g.pages.list_answer.set(answer);
-        g.pages.list_leave.set(1);
+        install.pages.list_answer.set(answer);
+        install.pages.list_leave.set(1);
     }
     match way {
         // test eax, eax

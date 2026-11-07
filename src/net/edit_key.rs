@@ -22,6 +22,7 @@ use rc2k_core::net::editing::{self, EditKey};
 
 /// The Rust version.
 pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
+    let install = crate::install::owner::install();
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
     if net.vars.edited.get() != editing::NOT_EDITING {
@@ -30,7 +31,7 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
         match EditKey::of(key) {
             EditKey::Escape => {
                 copy_between(
-                    &crate::install::owner::install().paths.script_path,
+                    &install.paths.script_path,
                     0,
                     text,
                     0,

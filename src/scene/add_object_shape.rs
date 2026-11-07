@@ -217,8 +217,10 @@ fn room(course: &crate::race::owner_course::Course, shape: &Shape) -> Result<Roo
     Ok(room)
 }
 
-pub fn add_object_shape(race: &crate::race::owner::Race) -> Result<(), BadInput> {
-    let scene = scene();
+pub fn add_object_shape(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     let course = &race.course;
     let shape = match shape()? {
         Ok(shape) => shape,

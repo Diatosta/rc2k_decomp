@@ -15,8 +15,6 @@
 //! by `fatal::report` and ends it as the original's. Stand-ins, each to be replaced by a
 //! piece of the platform: see `stand_in`.
 
-#![allow(unsafe_code)]
-
 use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::framework::{LOG_PATH, Regs, log};
@@ -26,12 +24,6 @@ use crate::saves::owner::saves;
 use crate::system::owner::system;
 use std::path::Path;
 use std::sync::atomic::Ordering;
-#[cfg(windows)]
-use windows_sys::Win32::Foundation::EXCEPTION_ACCESS_VIOLATION;
-#[cfg(windows)]
-use windows_sys::Win32::System::Diagnostics::Debug::{
-    EXCEPTION_POINTERS, SetUnhandledExceptionFilter,
-};
 
 // ---- the hooks, and no execution of anything else ----
 
@@ -57,8 +49,9 @@ const LONE_RETN: [usize; 119] = [
 // ---- what the faults catch ----
 
 #[cfg(windows)]
-/// The event that starts the fault reporter's time limit (`arm_time_limit`), a handle.
-static TIME_LIMIT_EVENT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+/// The event that starts the fault reporter's time limit (`arm_time_limit`); set once the
+/// watchdog thread runs.
+static TIME_LIMIT_EVENT: std::sync::OnceLock<crate::ffi::win32::Event> = std::sync::OnceLock::new();
 
 /// How long a fault's report may take before the process is ended without it (a fault
 /// inside the allocator or the loader leaves their locks held, and the report needs both).
@@ -68,23 +61,15 @@ const REPORT_TIME_LIMIT_SECONDS: u32 = 2;
 /// The fault reporter's time limit started: SIGALRM, whose default action ends the
 /// process, comes after `REPORT_TIME_LIMIT_SECONDS`.
 fn arm_time_limit() {
-    // SAFETY: `alarm` is async-signal-safe and touches no memory of ours.
-    unsafe {
-        libc::alarm(REPORT_TIME_LIMIT_SECONDS);
-    }
+    crate::ffi::unix::alarm(REPORT_TIME_LIMIT_SECONDS);
 }
 
 #[cfg(windows)]
 /// The fault reporter's time limit started: the watchdog thread (`start_watchdog`) ends
 /// the process after `REPORT_TIME_LIMIT_SECONDS`.
 fn arm_time_limit() {
-    use windows_sys::Win32::System::Threading::SetEvent;
-    let event = TIME_LIMIT_EVENT.load(Ordering::SeqCst);
-    if event != 0 {
-        // SAFETY: the event made by `start_watchdog`, open for the program's life.
-        unsafe {
-            SetEvent(std::ptr::with_exposed_provenance_mut(event));
-        }
+    if let Some(event) = TIME_LIMIT_EVENT.get() {
+        event.set();
     }
 }
 
@@ -92,31 +77,23 @@ fn arm_time_limit() {
 /// The watchdog of the fault reporter's time limit, started before any fault: a thread made
 /// inside the handler could wait for the loader lock the faulting thread holds.
 fn start_watchdog() {
-    use windows_sys::Win32::System::Threading::{CreateEventW, INFINITE, WaitForSingleObject};
-    // SAFETY: an unnamed manual-reset event with default security, kept for the
-    // program's life.
-    let event = unsafe { CreateEventW(std::ptr::null(), 1, 0, std::ptr::null()) };
-    if event.is_null() {
+    let Some(event) = crate::ffi::win32::create_event() else {
         log("standalone: the fault reporter has no time limit (no event)");
         return;
-    }
-    let address = event.expose_provenance();
-    TIME_LIMIT_EVENT.store(address, Ordering::SeqCst);
+    };
     let started = std::thread::Builder::new()
         .name("fault watchdog".into())
         .spawn(move || {
-            // SAFETY: the event above, never closed.
-            unsafe {
-                WaitForSingleObject(std::ptr::with_exposed_provenance_mut(address), INFINITE);
-            }
+            event.wait_forever();
             std::thread::sleep(std::time::Duration::from_secs(u64::from(
                 REPORT_TIME_LIMIT_SECONDS,
             )));
             crate::os::terminate(1)
         });
     if started.is_err() {
-        TIME_LIMIT_EVENT.store(0, Ordering::SeqCst);
         log("standalone: the fault reporter has no time limit (no thread)");
+    } else {
+        let _ = TIME_LIMIT_EVENT.set(event);
     }
 }
 
@@ -124,54 +101,27 @@ fn start_watchdog() {
 /// The module a host address is in, and the address relative to its base
 /// ("rc2k.exe+0x1234").
 fn in_module(address: usize) -> Option<String> {
-    use windows_sys::Win32::System::LibraryLoader::{
-        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        GetModuleFileNameW, GetModuleHandleExW,
-    };
-    // SAFETY: `address` is only looked up (UNCHANGED_REFCOUNT: nothing held); the module
-    // handle is live while the program runs; `name` is the length said.
-    unsafe {
-        let mut module = std::ptr::null_mut();
-        let flags =
-            GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT;
-        if GetModuleHandleExW(
-            flags,
-            std::ptr::with_exposed_provenance::<u16>(address),
-            &raw mut module,
-        ) == 0
-        {
-            return None;
-        }
-        let mut name = [0u16; 260];
-        let n = GetModuleFileNameW(module, name.as_mut_ptr(), name.len() as u32) as usize;
-        let path = String::from_utf16_lossy(&name[..n]);
-        let file = path.rsplit(['\\', '/']).next().unwrap_or(&path).to_string();
-        Some(format!(
-            "{file}+{:#x}",
-            address - module.expose_provenance()
-        ))
-    }
+    let (path, base) = crate::ffi::win32::module_of_address_wide(address)?;
+    let file = path.rsplit(['\\', '/']).next().unwrap_or(&path).to_string();
+    Some(format!("{file}+{:#x}", address - base))
 }
 
 #[cfg(unix)]
 /// The module a host address is in, and the address relative to its base ("rc2k+0x1234").
 fn in_module(address: usize) -> Option<String> {
-    // SAFETY: `address` is only looked up; the record's name is the loader's, live while
-    // the module is loaded.
-    unsafe {
-        let mut found: libc::Dl_info = std::mem::zeroed();
-        if libc::dladdr(std::ptr::with_exposed_provenance(address), &raw mut found) == 0
-            || found.dli_fname.is_null()
-        {
-            return None;
-        }
-        let path = std::ffi::CStr::from_ptr(found.dli_fname).to_string_lossy();
-        let file = path.rsplit('/').next().unwrap_or(&path).to_string();
-        Some(format!(
-            "{file}+{:#x}",
-            address - found.dli_fbase.expose_provenance()
-        ))
-    }
+    let (path, base) = crate::ffi::unix::module_of_address(address)?;
+    let file = path.rsplit('/').next().unwrap_or(&path).to_string();
+    Some(format!("{file}+{:#x}", address - base))
+}
+
+/// The word at `at` on the faulting thread's stack.
+// An unchecked read of a host address, as the fault report needs (it cannot ask the stack's
+// bounds in a handler); the one `unsafe` left in this file.
+#[allow(unsafe_code)]
+fn stack_word(at: usize) -> usize {
+    // SAFETY: the faulting thread's stack, 2 KB from its stack pointer: committed (the
+    // game's code runs well inside it), and that thread is stopped in the handler.
+    unsafe { std::ptr::with_exposed_provenance::<usize>(at).read_unaligned() }
 }
 
 /// The return addresses into this program found on the stack from `esp` (at most 24), for
@@ -184,9 +134,7 @@ fn stack_returns(esp: usize) -> String {
     const WORD: usize = size_of::<usize>();
     for k in 0..2048 / WORD {
         let at = esp + WORD * k;
-        // SAFETY: the faulting thread's stack, 2 KB from its stack pointer: committed (the
-        // game's code runs well inside it), and that thread is stopped in the handler.
-        let value = unsafe { std::ptr::with_exposed_provenance::<usize>(at).read_unaligned() };
+        let value = stack_word(at);
         if let (Some(m), Some(own)) = (in_module(value), own.as_ref())
             && m.starts_with(own.as_str())
         {
@@ -232,15 +180,7 @@ pub fn finish(why: &str, code: u32) -> ! {
     log(&format!("standalone: ending: {why}"));
     #[cfg(rc2k_pgo)]
     {
-        unsafe extern "C" {
-            fn __llvm_profile_write_file() -> i32;
-        }
-        // SAFETY: the profiler runtime's own call (linked in by `-C profile-generate`); it
-        // writes its counters' file and touches nothing of ours. `terminate` skips the
-        // `atexit` that would call it.
-        unsafe {
-            __llvm_profile_write_file();
-        }
+        crate::ffi::pgo::write_profile();
     }
     // Not `std::process::exit`: this may be an exception's handler, where the libraries'
     // leave-taking can hang.
@@ -267,7 +207,7 @@ pub fn answers(at: usize) -> bool {
 /// A fault reported and the program ended: `host` the faulting instruction, `data` the
 /// address it read or wrote (`write`), `sp` the thread's stack pointer (host addresses).
 /// Shared by the systems' handlers.
-fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> ! {
+pub(crate) fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> ! {
     arm_time_limit();
     let verb = if write { "writing" } else { "reading" };
     log(&format!(
@@ -279,81 +219,6 @@ fn report_fault(host: usize, data: usize, write: bool, sp: usize) -> ! {
         &format!("access violation at {host:#x}, {verb} address {data:#x}"),
         1,
     );
-}
-
-#[cfg(windows)]
-/// # Safety
-/// The system's unhandled-exception filter (it runs only for exceptions no handler took,
-/// so system code that catches its own faults is left alone): `info` and the records it
-/// points at are the system's, live during the call.
-unsafe extern "system" fn on_exception(info: *const EXCEPTION_POINTERS) -> i32 {
-    const CONTINUE_SEARCH: i32 = 0;
-    // SAFETY: `info`'s records as the system hands them (the function's contract).
-    unsafe {
-        let record = &*(*info).ExceptionRecord;
-        let context = &*(*info).ContextRecord;
-        if record.ExceptionCode != EXCEPTION_ACCESS_VIOLATION {
-            return CONTINUE_SEARCH;
-        }
-        report_fault(
-            record.ExceptionAddress.expose_provenance(),
-            record.ExceptionInformation[1],
-            record.ExceptionInformation[0] != 0,
-            crate::arch::sp(context),
-        )
-    }
-}
-
-/// # Safety
-/// The system's signal handler (SA_SIGINFO): `info` and `context` are the system's, live
-/// during the call.
-#[cfg(unix)]
-unsafe extern "C" fn on_signal(
-    _signal: libc::c_int,
-    info: *mut libc::siginfo_t,
-    context: *mut libc::c_void,
-) {
-    // SAFETY: the records as the system hands them (the function's contract).
-    unsafe {
-        let data = (*info).si_addr().expose_provenance();
-        #[cfg(target_arch = "aarch64")]
-        {
-            let c = &(*context.cast::<libc::ucontext_t>()).uc_mcontext;
-            report_fault(c.pc as usize, data, false, c.sp as usize)
-        }
-        #[cfg(not(target_arch = "aarch64"))]
-        let regs = &(*context.cast::<libc::ucontext_t>()).uc_mcontext.gregs;
-        #[cfg(target_arch = "x86_64")]
-        let (ip, sp) = (libc::REG_RIP, libc::REG_RSP);
-        #[cfg(target_arch = "x86")]
-        let (ip, sp) = (libc::REG_EIP, libc::REG_ESP);
-        // The page fault's error code: bit 1 for a write.
-        #[cfg(not(target_arch = "aarch64"))]
-        let write = regs[libc::REG_ERR as usize] & 2 != 0;
-        #[cfg(not(target_arch = "aarch64"))]
-        report_fault(
-            regs[ip as usize] as usize,
-            data,
-            write,
-            regs[sp as usize] as usize,
-        )
-    }
-}
-
-/// The fault reporter installed for SIGSEGV and SIGBUS (on the thread's alternate stack,
-/// which std gives its threads, so a stack overflow is reported too).
-#[cfg(unix)]
-fn install_fault_reporter() {
-    // SAFETY: a handler of the system's signature, for the program's life.
-    unsafe {
-        let mut action: libc::sigaction = std::mem::zeroed();
-        action.sa_sigaction = on_signal as *const () as usize;
-        action.sa_flags = libc::SA_SIGINFO | libc::SA_ONSTACK;
-        libc::sigemptyset(&raw mut action.sa_mask);
-        for signal in [libc::SIGSEGV, libc::SIGBUS] {
-            libc::sigaction(signal, &raw const action, std::ptr::null_mut());
-        }
-    }
 }
 
 // ---- `start` (0x401000) ----
@@ -621,15 +486,11 @@ pub fn run(log_file: &Path, frames: u32) -> ! {
         log(&format!("standalone: panic: {info}"));
     }));
     #[cfg(unix)]
-    install_fault_reporter();
+    crate::ffi::unix::install_fault_reporter();
     #[cfg(windows)]
     {
         start_watchdog();
-        // SAFETY: `on_exception` is a filter of the system's signature, for the program's
-        // life.
-        unsafe {
-            SetUnhandledExceptionFilter(Some(on_exception));
-        }
+        crate::ffi::win32::install_fault_reporter();
     }
     // The audio thread runs (its Rust version), on DirectSound over SDL
     // (`platform_sound`).

@@ -21,17 +21,15 @@ use crate::net::owner::net;
 use crate::strings::owner::strings;
 
 pub fn register_lobby(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     registry: &mut dyn Registry,
 ) -> Result<(), Refused> {
     let strings = strings();
     use crate::install::set_lobby_value::set_lobby_value;
-    let Ok(key) = registry.create(text_of(
-        &crate::install::owner::install().lobby_keys.registry_key,
-    )) else {
+    let Ok(key) = registry.create(text_of(&install.lobby_keys.registry_key)) else {
         return Ok(());
     };
-    g.run.reg_key.set(key);
+    install.run.reg_key.set(key);
     // Converted: `rc2k_core::install::lobby::guid_text`.
     let guid = rc2k_core::install::lobby::guid_text(&net().vars.app_guid.read());
     let mut text = guid.to_vec();
@@ -42,45 +40,37 @@ pub fn register_lobby(
         .text
         .write_at(0, &text, "the text buffer")?;
     set_lobby_value(
-        g,
-        text_of(&crate::install::owner::install().lobby_keys.name_guid),
+        install,
+        text_of(&install.lobby_keys.name_guid),
         &guid,
         registry,
     )?;
     set_lobby_value(
-        g,
-        text_of(&crate::install::owner::install().lobby_keys.name_file),
-        &g.names.ral_exe.text(),
+        install,
+        text_of(&install.lobby_keys.name_file),
+        &install.names.ral_exe.text(),
         registry,
     )?;
     strings.text.buffer.text.set(0, 0);
     set_lobby_value(
-        g,
-        text_of(
-            &crate::install::owner::install()
-                .lobby_keys
-                .name_command_line,
-        ),
+        install,
+        text_of(&install.lobby_keys.name_command_line),
         b"",
         registry,
     )?;
-    let installed = g.paths.installed.text();
+    let installed = install.paths.installed.text();
     set_lobby_value(
-        g,
-        text_of(&crate::install::owner::install().lobby_keys.name_path),
+        install,
+        text_of(&install.lobby_keys.name_path),
         &installed,
         registry,
     )?;
     set_lobby_value(
-        g,
-        text_of(
-            &crate::install::owner::install()
-                .lobby_keys
-                .name_current_directory,
-        ),
+        install,
+        text_of(&install.lobby_keys.name_current_directory),
         &installed,
         registry,
     )?;
-    registry.close(g.run.reg_key.get());
+    registry.close(install.run.reg_key.get());
     Ok(())
 }

@@ -16,7 +16,6 @@
 //! caller, `sub_45045D`. Refuses a face's number past the table and a face that is not there.
 
 use crate::errors::{BadInput, Refused};
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -26,8 +25,8 @@ const FACES: u32 = 0xC000;
 // ---- Rust version ----
 
 /// Dword `n` of the list of faces (the original reads on past its end).
-fn listed_dword(n: usize) -> Result<u32, BadInput> {
-    let objects = &scene().objects;
+fn listed_dword(n: usize, scene: &crate::scene::owner::Scene) -> Result<u32, BadInput> {
+    let objects = &scene.objects;
     crate::session::read_on_in(
         &objects.slots,
         &objects.slots.listed_faces,
@@ -39,8 +38,8 @@ fn listed_dword(n: usize) -> Result<u32, BadInput> {
 pub fn draw_object_faces(
     race: &crate::race::owner::Race,
     draw: &mut dyn FnMut(usize) -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let scene = scene();
     let listed: u32 = scene.lights.work.listed_face_count.bits();
     if listed == 0 {
         return Ok(());
@@ -49,7 +48,7 @@ pub fn draw_object_faces(
     // A face not there ends the game (a refusal), as the original went wrong on it.
     for n in 0..listed as usize {
         let entry = n * LIST_ENTRY_LEN / 4;
-        let number = listed_dword(entry)?.wrapping_add(first);
+        let number = listed_dword(entry, scene)?.wrapping_add(first);
         if number >= FACES {
             return Err(BadInput("a face's number past the table").into());
         }
@@ -60,8 +59,11 @@ pub fn draw_object_faces(
         race.physics
             .ground
             .object_see_through
-            .set_bits(listed_dword(entry + 3)?);
-        race.shared.vars.face_number.set_bits(listed_dword(entry)?);
+            .set_bits(listed_dword(entry + 3, scene)?);
+        race.shared
+            .vars
+            .face_number
+            .set_bits(listed_dword(entry, scene)?);
         let head: [u8; 0xC] = crate::scene::object_faces::array(face as u32)?;
         let texture = u16::from_le_bytes([head[4], head[5]]) as u32;
         scene.drawing.scene.polygon_textures[0].set_bits(

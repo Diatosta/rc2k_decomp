@@ -19,7 +19,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::system::owner::system;
 use rc2k_core::hud::strips;
 
@@ -55,8 +54,9 @@ fn quad(
     rows: u32,
     texture: Option<u32>,
 ) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let shared = &race.shared;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     let course = &race.course;
     let sizes: [u32; 4] = std::array::from_fn(|n| gfx().strips.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
@@ -69,7 +69,7 @@ fn quad(
     quad_input(shared, 0).set_bits(0xFFFF_FFFF);
     drawing.scene.polygon_sides[0].set_bits(1);
     drawing.scene.polygon_sides[1].set_bits(0);
-    crate::scene::draw_flat_quad::draw_flat_quad(race, course)
+    crate::scene::draw_flat_quad::draw_flat_quad(race, course, scene)
 }
 
 /// The shared tail (0x45B9AA, see the header).

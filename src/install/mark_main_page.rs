@@ -14,13 +14,13 @@
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
-pub fn mark_main_page(g: &'static crate::install::owner::Install, list: ListMenu) {
+pub fn mark_main_page(install: &'static crate::install::owner::Install, list: ListMenu) {
     let title = list.item(1).text_id();
     // Converted: `rc2k_core::install::pages::main_page_marks`.
     let marks = pages::main_page_marks(
-        g.run.same_version.get() == 1,
-        g.names.status.get() != 0,
-        g.run.offer_registration.get() == 1,
+        install.run.same_version.get() == 1,
+        install.names.status.get() != 0,
+        install.run.offer_registration.get() == 1,
         title,
     );
     for (offset, or, and) in marks {

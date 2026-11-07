@@ -5,7 +5,6 @@
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::{Dword, Float};
 
 /// A car's grade: the block's value (a float), where its grade goes, the thresholds, in the
@@ -110,14 +109,14 @@ pub const GRADES: [Grade; 34] = [
 /// offset) the number of its thresholds, taken in order, that lie below the block's value
 /// (+the first; a NaN passes them all); each threshold tried goes through `dword_62400C`.
 /// The original leaves eax the last grade; its one caller reads nothing of it.
-pub fn grade_car_values(block: u32) -> Result<(), BadInput> {
+pub fn grade_car_values(block: u32, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::grade`; `dword_62400C` gets the last threshold
     // tried (the ones before it are written over at once).
     let car = crate::race::trap::car_at(block)?;
     for &(from, to, thresholds) in &GRADES {
         let x = f32::from_bits(from(car).bits());
         let (grade, tried) = rc2k_core::race::cars::grade(x, thresholds);
-        scene().drawing.scene.scratch.set_bits(tried);
+        scene.drawing.scene.scratch.set_bits(tried);
         to(car).set_bits(grade);
     }
     Ok(())
@@ -126,9 +125,9 @@ pub fn grade_car_values(block: u32) -> Result<(), BadInput> {
 /// `race::grade_all_cars` (0x43FDFE): `grade_car_values` of the eight blocks
 /// (`g_carBlocks`). The registers it leaves (ebx 8, esi the last block, eax its last
 /// grade) are read by no caller (race init's one call).
-pub fn grade_all_cars(shared: &Shared) -> Result<(), BadInput> {
+pub fn grade_all_cars(shared: &Shared, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     for n in 0..8usize {
-        grade_car_values(shared.work.car_block(n))?;
+        grade_car_values(shared.work.car_block(n), scene)?;
     }
     Ok(())
 }

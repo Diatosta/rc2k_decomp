@@ -28,7 +28,7 @@ pub fn load_front_end_objects(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let course = &race.course;
-    reset_objects(course)?;
+    reset_objects(course, scene)?;
     scene.objects.slots.texture_count.set(0);
     scene.objects.slots.no_normals.set(0);
     for slot in 0..SLOTS {

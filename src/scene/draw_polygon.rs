@@ -211,8 +211,12 @@ fn entries(count: u32) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
 }
 
 /// `sub_450147` with `sub_4501B6`: the hit test.
-fn hit_test(frame: &crate::race::owner_frame::Frame, entries: &[Listed]) {
-    let lights = &scene().lights;
+fn hit_test(
+    frame: &crate::race::owner_frame::Frame,
+    entries: &[Listed],
+    scene: &crate::scene::owner::Scene,
+) {
+    let lights = &scene.lights;
     if frame.frame_work.sun_on_screen.bits() == 0 {
         return;
     }
@@ -299,8 +303,11 @@ fn copy_set(entries: &[Listed], set: Set) {
 
 /// `sub_44CC8D` with `sub_44E668`: the texture filter's state, and the polygon's
 /// texture from the number in `dword_6240C4`.
-fn choose_texture(course: &crate::race::owner_course::Course, outside: &mut dyn Outside) {
-    let scene = scene();
+fn choose_texture(
+    course: &crate::race::owner_course::Course,
+    outside: &mut dyn Outside,
+    scene: &crate::scene::owner::Scene,
+) {
     let smooth = course.level_grid.smooth.bits() == 1;
     outside.state(3, if smooth { 3 } else { 1 });
     let number: u32 = scene.drawing.scene.texture_page.bits();
@@ -325,8 +332,9 @@ fn choose_texture(course: &crate::race::owner_course::Course, outside: &mut dyn 
 fn clear_a_switch(
     shared: &crate::race::owner_shared::Shared,
     entries: &[Listed],
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     if drawing.scene.polygon_sides[0].bits() == 0 || drawing.scene.polygon_sides[1].bits() == 0 {
         return Ok(());
     }
@@ -386,8 +394,8 @@ fn shade(entries: &[Listed], how: Shade) {
 pub fn draw_polygon(
     race: &crate::race::owner::Race,
     outside: &mut dyn Outside,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let scene = scene();
     let count: u32 = scene.drawing.scene.polygon_vertex_count.bits();
     if count == 0 || count > MOST {
         return Err(BadInput("a polygon of no vertices, or of too many"));
@@ -400,7 +408,7 @@ pub fn draw_polygon(
     }
     let mut entries = entries(count)?;
     // Nothing has been written up to here.
-    hit_test(&race.frame, &entries);
+    hit_test(&race.frame, &entries, scene);
     let kept: [u32; 3] = [
         scene.drawing.scene.polygon_sides[0].bits(),
         scene.drawing.scene.polygon_sides[1].bits(),
@@ -439,7 +447,7 @@ pub fn draw_polygon(
         }
         scene.drawing.scene.texture_page.set_bits(FADE_TEXTURE);
         race.shared.view.polygon_mode.set_bits(7u32);
-        choose_texture(&race.course, outside);
+        choose_texture(&race.course, outside, scene);
         for (state, value) in [(0x15, 4), (0x13, 5), (0x14, 6), (0x1B, 1), (0x1C, 0)] {
             outside.state(state, value);
         }
@@ -451,7 +459,7 @@ pub fn draw_polygon(
     // The mode, with its fallbacks.
     let mut mode: u32 = race.shared.view.polygon_mode.bits();
     if mode == 3 && scene.draw_switches.clears_switch.bits() != 0 {
-        clear_a_switch(&race.shared, &entries)?;
+        clear_a_switch(&race.shared, &entries, scene)?;
     }
     if matches!(mode, 3..=5) {
         let fallback = if scene.drawing.scene.polygon_sides[1].bits() == 0 {
@@ -488,7 +496,7 @@ pub fn draw_polygon(
             if pass.no_depth {
                 outside.state(0x0E, 0);
             }
-            choose_texture(&race.course, outside);
+            choose_texture(&race.course, outside, scene);
             for &(state, value) in pass.states {
                 outside.state(state, value);
             }
@@ -537,6 +545,9 @@ impl Outside for Game {
 
 /// `draw_polygon` with the game's Direct3D layer (`scene::submit_polygon`'s), for Rust
 /// callers.
-pub fn draw_polygon_in_game(race: &Race) -> Result<(), BadInput> {
-    draw_polygon(race, &mut Game)
+pub fn draw_polygon_in_game(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    draw_polygon(race, &mut Game, scene)
 }

@@ -28,7 +28,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::scene::matrix3::extended;
-use crate::scene::owner::scene;
 use crate::session::{Cell32, Float};
 
 /// |a| below |b|, or one of them not a number (`fld b; fabs; fld a; fabs; fcompp`, C0).
@@ -82,7 +81,8 @@ fn status_above(status: u16) -> bool {
 
 /// The steps.
 fn steps(race: &Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let scene = crate::scene::owner::scene();
+    let drawing = &scene.drawing;
     let gear = race.shared.car.gear.get();
     one_less_abs(
         &race.course,
@@ -136,7 +136,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
             .scene
             .scratch
             .set(race.shared.car.throttle.get().wrapping_add(0x100));
-        throttle_drive_limit(race);
+        throttle_drive_limit(race, scene);
         hold_high(
             &race.shared.physics_tables.drive_limits[1],
             &drawing.scene.scratch,
@@ -241,7 +241,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
             &drawing.scene.scratch,
             &race.shared.physics_tables.drive_limits[2],
         );
-        side_slip_forces(race);
+        side_slip_forces(race, scene);
         store_loaded(
             &race.shared.physics_tables.slip_limit,
             &race.shared.physics_tables.drive_limits[0],
@@ -261,9 +261,9 @@ fn steps(race: &Race) -> Result<(), Refused> {
         race.shared.physics_tables.forces[10].force[0].set_bits(0);
         race.shared.physics_tables.forces[10].force[2].set_bits(0);
         // 0x43E855: the rolling drag against the motion.
-        let status = speed_over_ground(&race.shared);
+        let status = speed_over_ground(&race.shared, scene);
         if status_above(status) {
-            rolling_drag_forces(&race.shared);
+            rolling_drag_forces(&race.shared, scene);
         }
         if race.shared.vars.run_kind.get() != 1
             && (race.shared.car.run_ticks.get().wrapping_sub(0x320) as i32) < 0
@@ -276,11 +276,11 @@ fn steps(race: &Race) -> Result<(), Refused> {
         race.shared.physics_tables.forces[20].force[0].set_bits(0);
     }
     // 0x43E957: the wheels' slip figures.
-    slip_figure_a(&race.shared);
+    slip_figure_a(&race.shared, scene);
     hold_low(&drawing.scene.work_float_a, &race.course.numbers.zero);
-    slip_figure_b(&race.shared);
+    slip_figure_b(&race.shared, scene);
     hold_low(&drawing.scene.work_float_b, &race.course.numbers.zero);
-    slip_lengths(&race.shared);
+    slip_lengths(&race.shared, scene);
     Ok(())
 }
 
@@ -446,8 +446,8 @@ fn drive_forces_from_grips(shared: &Shared, grips: &[Float; 5]) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x214240] = ((int [rc + 0x22400C] / [rc + 0x1C5E2C]) * |([rc + 0x31A17C] * [rc + 0x214268])|) * [rc + 0x214170]`
 /// `[rc + 0x22400C] = [rc + 0x21423C] * [rc + 0x213EC4]`
-fn throttle_drive_limit(race: &Race) {
-    let drawing = &scene().drawing;
+fn throttle_drive_limit(race: &Race, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let t0 = int(drawing.scene.scratch.bits() as i32);
     let t1 = ld(race.course.numbers.k256.bits());
     let t2 = t0 / t1;
@@ -631,8 +631,8 @@ fn scale_axle_forces(shared: &Shared) {
 /// `[rc + 0x2148F0] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
 /// `[rc + 0x214910] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
 /// `[rc + 0x214930] = (([rc + 0x22400C] - [rc + 0x31A17C]) / [rc + 0x21388C]) * [rc + 0x1C5DA4]`
-fn side_slip_forces(race: &Race) {
-    let t0 = ld(scene().drawing.scene.scratch.bits());
+fn side_slip_forces(race: &Race, scene: &crate::scene::owner::Scene) {
+    let t0 = ld(scene.drawing.scene.scratch.bits());
     let t1 = ld(race.shared.car.local_velocity[0].bits());
     let t2 = t0 - t1;
     race.shared.physics_tables.drive_slip[0].set_bits(st(t2));
@@ -683,14 +683,14 @@ fn spin_push_b(shared: &Shared) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = sqrt((([rc + 0x31A17C] * [rc + 0x31A17C]) + ([rc + 0x31A184] * [rc + 0x31A184])))`
 /// `status [s + 0] = status`
-fn speed_over_ground(shared: &Shared) -> u16 {
+fn speed_over_ground(shared: &Shared, scene: &crate::scene::owner::Scene) -> u16 {
     let t0 = ld(shared.car.local_velocity[0].bits());
     let t1 = t0 * t0;
     let t2 = ld(shared.car.local_velocity[2].bits());
     let t3 = t2 * t2;
     let t4 = t1 + t3;
     let t5 = t4.sqrt();
-    scene().drawing.scene.scratch.set_bits(st(t5));
+    scene.drawing.scene.scratch.set_bits(st(t5));
     let t6 = ld(shared.physics_tables.wheel_drag[1].bits());
     compare(t5, t6)
 }
@@ -699,8 +699,8 @@ fn speed_over_ground(shared: &Shared) -> u16 {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x2148B0] = -(([rc + 0x214760] / [rc + 0x22400C]) * [rc + 0x31A17C])`
 /// `[rc + 0x2148B8] = -(([rc + 0x214760] / [rc + 0x22400C]) * [rc + 0x31A184])`
-fn rolling_drag_forces(shared: &Shared) {
-    let drawing = &scene().drawing;
+fn rolling_drag_forces(shared: &Shared, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let t0 = ld(shared.physics_tables.wheel_drag[0].bits());
     let t1 = ld(drawing.scene.scratch.bits());
     let t2 = t0 / t1;
@@ -754,7 +754,7 @@ fn share_wheel_forces(race: &Race) {
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x31A158] = [rc + 0x31A190] - [rc + 0x31A184]`
 /// `[rc + 0x22401C] = |([rc + 0x31A190] - [rc + 0x31A184])| - [rc + 0x213EDC]`
-fn slip_figure_a(shared: &Shared) {
+fn slip_figure_a(shared: &Shared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.car.drive_speed_a.bits());
     let t1 = ld(shared.car.local_velocity[2].bits());
     let t2 = t0 - t1;
@@ -762,18 +762,18 @@ fn slip_figure_a(shared: &Shared) {
     let t3 = t2.abs();
     let t4 = ld(shared.physics_tables.wheel_speed_gap.bits());
     let t5 = t3 - t4;
-    scene().drawing.scene.work_float_a.set_bits(st(t5));
+    scene.drawing.scene.work_float_a.set_bits(st(t5));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x224020] = |[rc + 0x31A17C]| - [rc + 0x213ED8]`
-fn slip_figure_b(shared: &Shared) {
+fn slip_figure_b(shared: &Shared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.car.local_velocity[0].bits());
     let t1 = t0.abs();
     let t2 = ld(shared.physics_tables.wheel_speed_margin.bits());
     let t3 = t1 - t2;
-    scene().drawing.scene.work_float_b.set_bits(st(t3));
+    scene.drawing.scene.work_float_b.set_bits(st(t3));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
@@ -784,8 +784,8 @@ fn slip_figure_b(shared: &Shared) {
 /// `[rc + 0x31AF18] = sqrt((([rc + 0x22401C] * [rc + 0x22401C]) + ([rc + 0x224020] * [rc + 0x224020])))`
 /// `[rc + 0x22401C] = |([rc + 0x31A194] - [rc + 0x31A184])|`
 /// `[rc + 0x31AF1C] = sqrt((([rc + 0x22401C] * [rc + 0x22401C]) + ([rc + 0x224020] * [rc + 0x224020])))`
-fn slip_lengths(shared: &Shared) {
-    let drawing = &scene().drawing;
+fn slip_lengths(shared: &Shared, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let t0 = ld(drawing.scene.work_float_a.bits());
     let t1 = t0 * t0;
     let t2 = ld(drawing.scene.work_float_b.bits());
@@ -1098,7 +1098,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_7(a[0]) },
-                plain: |_| throttle_drive_limit(race()),
+                plain: |_| throttle_drive_limit(race(), crate::scene::owner::scene()),
             },
             Block {
                 name: "drive_wheels_step line 203",
@@ -1246,7 +1246,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_16(a[0]) },
-                plain: |_| side_slip_forces(race()),
+                plain: |_| side_slip_forces(race(), crate::scene::owner::scene()),
             },
             Block {
                 name: "drive_wheels_step line 347",
@@ -1288,7 +1288,12 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_19(a[0], a[1]) },
-                plain: |a| a[1].set_word(0, speed_over_ground(&race().shared)),
+                plain: |a| {
+                    a[1].set_word(
+                        0,
+                        speed_over_ground(&race().shared, crate::scene::owner::scene()),
+                    );
+                },
             },
             Block {
                 name: "drive_wheels_step line 385",
@@ -1303,7 +1308,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_20(a[0]) },
-                plain: |_| rolling_drag_forces(&race().shared),
+                plain: |_| rolling_drag_forces(&race().shared, crate::scene::owner::scene()),
             },
             Block {
                 name: "drive_wheels_step line 403",
@@ -1336,7 +1341,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_22(a[0]) },
-                plain: |_| slip_figure_a(&race().shared),
+                plain: |_| slip_figure_a(&race().shared, crate::scene::owner::scene()),
             },
             Block {
                 name: "drive_wheels_step line 436",
@@ -1346,7 +1351,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_23(a[0]) },
-                plain: |_| slip_figure_b(&race().shared),
+                plain: |_| slip_figure_b(&race().shared, crate::scene::owner::scene()),
             },
             Block {
                 name: "drive_wheels_step line 444",
@@ -1369,7 +1374,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_24(a[0]) },
-                plain: |_| slip_lengths(&race().shared),
+                plain: |_| slip_lengths(&race().shared, crate::scene::owner::scene()),
             },
         ]
     }

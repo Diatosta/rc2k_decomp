@@ -13,7 +13,6 @@
 use crate::errors::Refused;
 use crate::race::owner_shared::Shared;
 use crate::scene::build_texture_catalogue::build_texture_catalogue_in_game;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -26,9 +25,9 @@ use crate::scene::owner::scene;
 /// leaves the carry clear and eax, ebx as the allocation leaves them; no caller reads
 /// those registers (register liveness, 2026-10-23: `race::textures_alloc` and
 /// `race::loadlevel_init` after it), the carry the register-threaded callers set.
-pub fn set_up_textures(shared: &Shared) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
-    build_texture_catalogue_in_game(shared)?;
+pub fn set_up_textures(shared: &Shared, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
+    build_texture_catalogue_in_game(shared, scene)?;
     drawing.scene.mirror_picture.set_bits(0u32);
     let (_, system) = crate::platform_3d::allocate_textures_for(0, 1, 3, 4, 0);
     drawing.scene.mirror_picture.set_bits(system);

@@ -63,7 +63,7 @@ pub struct EditOutcome {
 
 /// `key`: the key and its bits (see above).
 pub fn edit_key(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     key: u32,
     item: ListItem,
 ) -> Result<EditOutcome, Refused> {
@@ -90,7 +90,7 @@ pub fn edit_key(
         match EditKey::of(key as u8) {
             EditKey::Escape => {
                 record.set_flags(record.flags() & !EDITING);
-                let backup = &g.paths.script_path;
+                let backup = &install.paths.script_path;
                 for n in 0..most + 2 {
                     wb(text.add(n), rb(Place::from(backup).add(n)));
                 }
@@ -105,8 +105,8 @@ pub fn edit_key(
                     // The folder's default by the system's rules (`install::folders`).
                     use crate::install::folders::{Folders, Native};
                     match <Native as Folders>::first_folder() {
-                        Some(first) if crate::install::folders::is_folder_field(text) => {
-                            crate::install::run_installer::put_typed(&first);
+                        Some(first) if crate::install::folders::is_folder_field(install, text) => {
+                            crate::install::run_installer::put_typed(install, &first);
                         }
                         _ => {
                             let mut default = Vec::new();

@@ -15,13 +15,13 @@ use crate::menu::list_handle::ListItem;
 /// Enter on an action item; the original's zero after it (the action's, else that of
 /// `cmp [esi+8], 1`).
 pub fn item_action(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let action = item.target();
     // Converted: `rc2k_core::install::items::has_action`.
     if rc2k_core::install::items::has_action(action) {
-        return item_action_at(g, action);
+        return item_action_at(install, action);
     }
     Ok(action == 1)
 }

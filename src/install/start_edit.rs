@@ -11,7 +11,7 @@
 
 use crate::menu::list_handle::ListItem;
 
-pub fn start_edit(g: &'static crate::install::owner::Install, item: ListItem) {
+pub fn start_edit(install: &'static crate::install::owner::Install, item: ListItem) {
     let record = item.edit_field();
     let text = item.text();
     let most = crate::install::folders::field_most(text, record.most());
@@ -24,7 +24,7 @@ pub fn start_edit(g: &'static crate::install::owner::Install, item: ListItem) {
     at.write_bytes(&words, "an edited text")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
     record.set_flags(flags);
-    crate::place::Place::from(&g.paths.script_path)
+    crate::place::Place::from(&install.paths.script_path)
         .write(&words, "the edit's backup")
         .unwrap_or_else(|e| crate::install::installer::refuse(e));
 }

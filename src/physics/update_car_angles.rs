@@ -14,12 +14,12 @@ use rc2k_core::physics::motion::angles_wanted as wanted;
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::motion::angles_wanted`.
-pub fn update_car_angles(race: &Race) {
+pub fn update_car_angles(race: &Race, scene: &crate::scene::owner::Scene) {
     let (force, hold) = (
         race.shared.car.camera_mode_is_2_or_3.get(),
         race.shared.car.all_wheels_off.get(),
     );
     if wanted(force, hold) {
-        car_angles(race);
+        car_angles(race, scene);
     }
 }

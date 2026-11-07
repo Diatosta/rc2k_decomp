@@ -39,7 +39,6 @@ use crate::physics::higher_free_gear::higher_free_gear;
 use crate::physics::lower_free_gear::lower_free_gear;
 use crate::physics::pick_start_gear::pick_start_gear;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C340).
@@ -107,8 +106,8 @@ pub fn reverse(race: &Race, quarter: bool) -> Result<(), Refused> {
 }
 
 /// The start-line rules (0x43C48F).
-fn start_line(race: &Race) -> Result<Shift, Refused> {
-    let drawing = &scene().drawing;
+fn start_line(race: &Race, scene: &crate::scene::owner::Scene) -> Result<Shift, Refused> {
+    let drawing = &scene.drawing;
     let gear = race.shared.car.gear.get();
     if let Some(shift) = shifts::start_line_keys(
         gear,
@@ -160,11 +159,11 @@ fn start_line(race: &Race) -> Result<Shift, Refused> {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn manual_gearbox(race: &Race) -> Result<(), Refused> {
+pub fn manual_gearbox(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.shared.car.gear_changed.set(0);
     let mut to = 'first: {
         if race.shared.car.driver_kind.get() == 2 {
-            break 'first start_line(race)?;
+            break 'first start_line(race, scene)?;
         }
         let gear = race.shared.car.gear.get();
         if bit(&race.shared, gear)? || race.shared.car.forced_neutral.get() != 0 {
@@ -181,7 +180,7 @@ pub fn manual_gearbox(race: &Race) -> Result<(), Refused> {
             return Ok(());
         }
         if race.shared.car.gearbox_kind.get() != 0 {
-            break 'first start_line(race)?;
+            break 'first start_line(race, scene)?;
         }
         shifts::manual_keys(race.shared.physics_tables.input_gear_up.get() != 0, || {
             race.shared.physics_tables.input_gear_down.get() != 0

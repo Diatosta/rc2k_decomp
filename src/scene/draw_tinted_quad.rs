@@ -17,14 +17,13 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The Rust version (see the header). It reads no register, and what it leaves is read by
 /// none of its 856 call sites (register liveness, 2026-10-23).
-pub fn draw_tinted_quad(race: &Race) -> Result<(), Refused> {
+pub fn draw_tinted_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     drawing.scene.polygon_drawn.set_bits(0);
     for n in 0..4 {
         let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
@@ -84,7 +83,7 @@ pub fn draw_tinted_quad(race: &Race) -> Result<(), Refused> {
     }
     crate::scene::polygon::list_cell(4).set(0);
     drawing.scene.polygon_next_entry.set_bits(4);
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
     if drawing.scene.polygon_vertex_count.bits() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
         shared.view.polygon_mode.set_bits(3);
@@ -92,7 +91,7 @@ pub fn draw_tinted_quad(race: &Race) -> Result<(), Refused> {
         drawing.scene.polygon_textures[1].set_bits(0xFFFF_FFFF);
         drawing.scene.polygon_sides[0].set_bits(0);
         drawing.scene.polygon_sides[1].set_bits(1);
-        crate::scene::draw_polygon::draw_polygon_in_game(race)?;
+        crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
         shared.view.polygon_mode.set_bits(0);
         drawing.scene.polygon_drawn.set_bits(1);
         crate::scene::depth_buffer_on::depth_buffer(true);

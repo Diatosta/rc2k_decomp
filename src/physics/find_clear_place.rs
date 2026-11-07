@@ -24,7 +24,6 @@
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::owner::scene;
 use rc2k_core::physics::clear_place;
 
 // g_logEnabled
@@ -44,6 +43,7 @@ fn try_place(race: &Race) -> Result<(), Refused> {
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::clear_place`.
 pub fn steps(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let physics_store = &race.physics;
     race.shared
         .physics_tables
@@ -51,7 +51,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         .set(clear_place::TRY_MARK);
     let factor = extended(race.shared.physics_tables.clear_place_share.bits());
     crate::physics::scale_vector::scale_vector(&race.shared.car.velocity, factor);
-    scene().drawing.scene.scratch.set(rounded(factor));
+    scene.drawing.scene.scratch.set(rounded(factor));
     { crate::physics::restore_saved_car::restore_saved_car(race) }?;
     { crate::physics::lowest_body_point::lowest_body_point(race) }?;
     race.shared
@@ -99,7 +99,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
             .get()
             .wrapping_add(1),
     );
-    crate::physics::limit_motion::limit_motion(race);
+    crate::physics::limit_motion::limit_motion(race, scene);
     Ok(())
 }
 

@@ -23,24 +23,27 @@ const READ_TARGET: usize = 0x100; // into the scratch
 const TAIL: usize = 0xFF00;
 const SCAN_LEN: u32 = version::CHUNK;
 
-pub fn check_installed_version(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn check_installed_version(
+    install: &'static crate::install::owner::Install,
+) -> Result<(), Refused> {
     let system = system();
-    g.run.same_version.set(0);
-    if g.names.status.get() != 1 || g.names.source.get(0) == 0 {
+    install.run.same_version.set(0);
+    if install.names.status.get() != 1 || install.names.source.get(0) == 0 {
         return Ok(());
     }
     // normalise the source into byte_95E7F8, cd there
-    let normalised =
-        crate::install::normalise_path::normalised_bytes(&g.names.source.text(), &mut || {
-            crate::install::normalise_path::current_directory()
-        })?;
+    let normalised = crate::install::normalise_path::normalised_bytes(
+        &install.names.source.text(),
+        &mut || crate::install::normalise_path::current_directory(),
+    )?;
     let Some(installed) = normalised else {
         return Ok(());
     };
-    g.paths
+    install
+        .paths
         .installed
         .write_at(0, &installed, "the installed folder")?;
-    if !set_cd(&g.paths.installed) {
+    if !set_cd(&install.paths.installed) {
         return Ok(());
     }
     system
@@ -71,13 +74,13 @@ pub fn check_installed_version(g: &'static crate::install::owner::Install) -> Re
             let copyright = system.start.texts.copyright.read();
             if let Scan::Stopped { same, .. } = version::scan(&scanned[..], &copyright[..])? {
                 if same {
-                    g.run.same_version.set(1);
+                    install.run.same_version.set(1);
                 }
                 break;
             }
         }
         crate::files::handle::close(file);
     }
-    set_cd(&g.paths.game_dir);
+    set_cd(&install.paths.game_dir);
     Ok(())
 }

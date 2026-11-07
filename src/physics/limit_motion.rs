@@ -24,7 +24,6 @@ use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
@@ -45,8 +44,8 @@ fn hold(v: &impl Cell32, l: &impl Cell32) {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::find_clear_place`).
-pub fn limit_motion(race: &Race) {
-    let drawing = &scene().drawing;
+pub fn limit_motion(race: &Race, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let mut bad = false;
     for k in 0..3usize {
         let ecx = race.shared.car.velocity[k].bits() & 0x7F80_0000;

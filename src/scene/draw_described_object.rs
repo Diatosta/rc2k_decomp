@@ -163,7 +163,7 @@ fn draw_description(
         }
     }
     scene.lights.state.view_kind.set(2u32);
-    crate::race::frame_draw::place_object_matrix(race)?;
+    crate::race::frame_draw::place_object_matrix(race, scene)?;
     scene.lights.work.light_kind.set(2u32);
     let object: u32 = shared.switches.object_number.bits();
     let kind: u32 = scene.objects.tables.object_kind(object);
@@ -171,7 +171,7 @@ fn draw_description(
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {
         scene.lights.work.light_kind.set(1u32);
     }
-    crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(record))?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(record), scene)?;
     end();
     Ok(())
 }

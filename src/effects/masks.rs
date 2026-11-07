@@ -174,7 +174,12 @@ pub fn work_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 /// (`draw_mask`) and pixels (`map_shapes`); the list freed (`memory::free_list`). Refuses
 /// as its steps do, mid-way (the work block is on the list, which the original's run
 /// frees with its own).
-pub fn make_masks(course: &Course, masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn make_masks(
+    course: &Course,
+    masks: &Masks,
+    drops: &WindscreenDrops,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     // The two shapes' ring-angle tables (each shape's mask, pixel and corner tables are
     // found by its number).
     let ring_angles = [&masks.vars.ring_angles_a, &masks.vars.ring_angles_b];
@@ -182,7 +187,7 @@ pub fn make_masks(course: &Course, masks: &Masks, drops: &WindscreenDrops) -> Re
     masks
         .work
         .take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
-    crate::effects::shape_points::make_shape_sets(course, drops)?;
+    crate::effects::shape_points::make_shape_sets(course, drops, scene)?;
     crate::effects::corners::make_corners(masks, drops)?;
     reset_mask_cursor(masks);
     for (n, (shape, angles)) in masks.vars.shapes.iter().zip(ring_angles).enumerate() {

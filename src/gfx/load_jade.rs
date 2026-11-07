@@ -13,7 +13,7 @@
 //! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::files::read_file::read_file;
+use crate::files::read_file::read_file_to_store;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::surface_format;
@@ -28,12 +28,7 @@ pub fn load_jade(path: &[u8]) -> Result<(), Refused> {
     let fonts = &gfx().fonts;
     // Converted: `rc2k_core::gfx::screenshot::jade_read`.
     use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
-    let read = read_file(
-        path,
-        crate::pointers::GamePtr::to(&fonts.jade.glyphs),
-        ROOM,
-        0,
-    )?;
+    let read = read_file_to_store(path, &fonts.jade.glyphs, ROOM, 0)?;
     jade_read(read.ok, read.bytes_read).map_err(|code| FatalError { code, message: "" })?;
     fonts
         .jade

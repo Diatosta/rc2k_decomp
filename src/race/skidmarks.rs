@@ -9,7 +9,6 @@ use crate::race::owner::Race;
 #[cfg(all(test, target_arch = "x86"))]
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
-use crate::scene::owner::scene;
 
 /// `fild i; fadd f; fstp tbyte`: a whole number plus a float in the x87's 80 bits.
 #[cfg(all(test, target_arch = "x86"))]
@@ -34,8 +33,12 @@ fn float_of_80(t: [u8; 10]) -> u32 {
 /// depth (the original's `fdivrp st(1), st` is `dword_624088` over that). x is
 /// x times that scale plus `dword_62409C`, y is `dword_6240A0` less y times it. When flat,
 /// the depth is also stored at `dword_62400C`.
-pub(crate) fn project_record(course: &Course, v: &mut crate::scene::point_records::Record) {
-    let drawing = &scene().drawing;
+pub(crate) fn project_record(
+    course: &Course,
+    v: &mut crate::scene::point_records::Record,
+    scene: &crate::scene::owner::Scene,
+) {
+    let drawing = &scene.drawing;
     use crate::math::x87_float::{ONE, int, ld, st};
     let (x, y, z) = (ld(v[4]), ld(v[5]), ld(v[6]));
     let reach = ld(drawing.scene.view_scale.bits());
@@ -60,16 +63,22 @@ struct Turned {
 /// One skidmark point (`unk_645B18` + 0xC x n) into the vertex record `v`: raised by
 /// `flt_643AD4`, turned by `g_viewMatrix` (`scene::rotate_point`), +0xC / +0x1C 0, and
 /// projected when its depth is not below 4096.0.
-fn skid_vertex(race: &Race, matrix: &[u32; 15], n: u32, v: u32) -> Result<Turned, BadInput> {
-    let turned = turn_skid_point(race, matrix, n)?;
-    put_turned(v, turned)?;
+fn skid_vertex(
+    race: &Race,
+    matrix: &[u32; 15],
+    n: u32,
+    v: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<Turned, BadInput> {
+    let turned = turn_skid_point(race, matrix, n, scene)?;
+    put_turned(v, turned, scene)?;
     Ok(turned)
 }
 
 /// A point as `skid_vertex` turns it, put into the vertex record `v` again.
-fn put_turned(v: u32, turned: Turned) -> Result<(), BadInput> {
+fn put_turned(v: u32, turned: Turned, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     if let Some(z) = turned.scratch {
-        scene().drawing.scene.scratch.set_bits(z);
+        scene.drawing.scene.scratch.set_bits(z);
     }
     let mut made = crate::scene::point_records::get(v)?;
     made[3..8].copy_from_slice(&turned.words);
@@ -77,7 +86,12 @@ fn put_turned(v: u32, turned: Turned) -> Result<(), BadInput> {
 }
 
 /// Skidmark point `n` turned and projected, as `skid_vertex` does it.
-fn turn_skid_point(race: &Race, matrix: &[u32; 15], n: u32) -> Result<Turned, BadInput> {
+fn turn_skid_point(
+    race: &Race,
+    matrix: &[u32; 15],
+    n: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<Turned, BadInput> {
     {
         let points = &race.frame.shadow_skids.skid_points;
         let at = n as usize * 0xC;
@@ -97,9 +111,9 @@ fn turn_skid_point(race: &Race, matrix: &[u32; 15], n: u32) -> Result<Turned, Ba
         made[4..7].copy_from_slice(&t.map(st));
         let mut scratch = None;
         if !crate::math::x87_load::below_or_unordered(made[6], race.course.numbers.k4096_a.bits()) {
-            project_record(&race.course, &mut made);
+            project_record(&race.course, &mut made, scene);
             if race.course.stage_prefs.flat_depth.get() != 0 {
-                scratch = Some(scene().drawing.scene.scratch.bits());
+                scratch = Some(scene.drawing.scene.scratch.bits());
             }
         }
         Ok(Turned {
@@ -116,8 +130,8 @@ fn turn_skid_point(race: &Race, matrix: &[u32; 15], n: u32) -> Result<Turned, Ba
 /// and the two before as a quad (vertices 3, 2, 0, 1), `scene::fog_polygon`, cut by depth
 /// and to the screen and drawn in black in mode 3 without the depth test. Refuses what the scene's functions refuse (mid-way; not
 /// met with four vertices).
-pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+pub fn draw_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
     let frame = &race.frame;
     let mut views = u32::MAX;
     let mode: u32 = race.shared.vars.run_kind.get();
@@ -171,20 +185,21 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
             continue;
         }
         use crate::scene::point_records::of_quad;
-        let first = skid_vertex(race, &matrix, 2 * n, of_quad(3))?;
-        let second = skid_vertex(race, &matrix, 2 * n + 1, of_quad(2))?;
+        let first = skid_vertex(race, &matrix, 2 * n, of_quad(3), scene)?;
+        let second = skid_vertex(race, &matrix, 2 * n + 1, of_quad(2), scene)?;
         match last {
             Some((m, a, b)) if m == before => {
-                put_turned(of_quad(0), a)?;
-                put_turned(of_quad(1), b)?;
+                put_turned(of_quad(0), a, scene)?;
+                put_turned(of_quad(1), b, scene)?;
             }
             _ => {
-                skid_vertex(race, &matrix, before.wrapping_mul(2), of_quad(0))?;
+                skid_vertex(race, &matrix, before.wrapping_mul(2), of_quad(0), scene)?;
                 skid_vertex(
                     race,
                     &matrix,
                     before.wrapping_mul(2).wrapping_add(1),
                     of_quad(1),
+                    scene,
                 )?;
             }
         }
@@ -200,21 +215,21 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
         }
         list[4].set(0);
         drawing.scene.polygon_next_entry.set(4u32);
-        crate::scene::fog_polygon::fog_polygon()?;
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race)?;
+        crate::scene::fog_polygon::fog_polygon(scene)?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race, scene)?;
         // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
         // and the polygon's drawing read no register.
         if drawing.scene.polygon_vertex_count.get() < 3 {
             continue;
         }
-        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race)?;
+        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
         if drawing.scene.polygon_vertex_count.get() >= 3 {
             drawing.scene.polygon_colour.set(0u32);
             crate::scene::depth_test_off::depth_test_off();
             race.shared.view.polygon_mode.set(3u32);
             drawing.scene.polygon_sides[0].set(0u32);
             drawing.scene.polygon_sides[1].set(1u32);
-            crate::scene::draw_polygon::draw_polygon_in_game(race)?;
+            crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
             race.shared.view.polygon_mode.set(0u32);
             drawing.scene.polygon_drawn.set(1u32);
             crate::scene::depth_test_on::depth_test_on();
@@ -226,11 +241,14 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
 
 /// `race::draw_skidmarks_if_on` (0x4585E3): `draw_skidmarks` unless `dword_6416B8` is set.
 /// Its one caller, `race::draw_view_scene`, reads no register it leaves.
-pub fn draw_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
+pub fn draw_skidmarks_if_on(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     if race.frame.frame_work.drawing.get() != 0 {
         return Ok(());
     }
-    draw_skidmarks(race)
+    draw_skidmarks(race, scene)
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -238,6 +256,7 @@ mod asm_reference {
     use super::*;
     use crate::math::x87_float::{X, f80};
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock};
+    use crate::scene::owner::scene;
 
     /// The original blocks, verbatim.
     fn int_plus_float_80_asm(i: u32, f: u32) -> [u8; 10] {
@@ -385,7 +404,7 @@ mod asm_reference {
                 unsafe { project_vertex_asm(crate::pointers::game_address(a.as_mut_ptr()), flat) };
                 let kept = drawing.scene.scratch.get();
                 drawing.scene.scratch.set_bits(0xAAAA_AAAAu32);
-                project_record(course, &mut b);
+                project_record(course, &mut b, crate::scene::owner::scene());
                 let now = drawing.scene.scratch.get();
                 for k in 0..8 {
                     assert!(

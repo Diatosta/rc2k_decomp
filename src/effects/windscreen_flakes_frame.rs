@@ -55,6 +55,7 @@ pub fn windscreen_flakes_frame(
     drops: &WindscreenDrops,
     pong: &crate::effects::pong::Pong,
     fl: &WindscreenFlakes,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
     frame_axes(fl, m);
@@ -72,7 +73,7 @@ pub fn windscreen_flakes_frame(
     if drops.state.facing.bits() & 0x8000_0000 == 0 {
         return Ok(());
     }
-    crate::effects::run_pong::run_pong(frame, pong, fl)?;
+    crate::effects::run_pong::run_pong(frame, pong, fl, scene)?;
     if x87::mul_to_int(fl.timing.rate.bits(), fl.state.share.bits()) == 0 {
         return Ok(());
     }

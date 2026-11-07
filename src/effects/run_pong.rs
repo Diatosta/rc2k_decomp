@@ -26,7 +26,12 @@ fn box_values(place: &[Float; 2], size: &[Float; 2]) -> [[u8; 10]; 4] {
 }
 
 /// The Rust version (see the header).
-pub fn run_pong(frame: &Frame, pong: &Pong, fl: &WindscreenFlakes) -> Result<(), Refused> {
+pub fn run_pong(
+    frame: &Frame,
+    pong: &Pong,
+    fl: &WindscreenFlakes,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use crate::effects::draw_pong_box::draw_pong_box;
     let p = &pong.state;
     {
@@ -35,7 +40,7 @@ pub fn run_pong(frame: &Frame, pong: &Pong, fl: &WindscreenFlakes) -> Result<(),
         {
             return Ok(());
         }
-        crate::effects::pong_setup::pong_setup(pong, fl);
+        crate::effects::pong_setup::pong_setup(pong, fl, scene);
         move_pong_bat(pong);
         let steps = p.steps.get() as i32;
         for _ in 0..steps.max(0) {

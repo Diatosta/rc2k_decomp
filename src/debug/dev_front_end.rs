@@ -259,13 +259,14 @@ mod tab {
 
     /// The tab.
     pub fn tab(race: &Race, ui: &Ui) {
+        let scene = crate::scene::owner::scene();
         let s = &SETTINGS;
         number(ui, "Course", &s.course, 99);
         let course = s.course.load(Relaxed) as usize;
         let present = race.shared.switches.course_present[course].get() != 0;
         ui.same_line();
         if ui.button("Find the courses")
-            && let Err(e) = crate::race::find_present_courses::find_present_courses(race)
+            && let Err(e) = crate::race::find_present_courses::find_present_courses(race, scene)
         {
             crate::framework::log(&format!("debug: find the courses: {e:?}"));
         }

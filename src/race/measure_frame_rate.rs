@@ -12,7 +12,6 @@
 //! `wiki/Fixed-bugs.md`): the cycles from the whole counter, not its signed low halves.
 
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::system::owner::system;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
@@ -35,7 +34,7 @@ fn frame_rate_plain(race: &Race, cycles: u64) {
 /// The Rust version: the eax the original leaves when it changes it (on the 16th call, the
 /// time-stamp counter's low half, `dword_6214E8`); its edx and ebx (the counter's high
 /// half, the cycles) are read by no caller.
-pub fn measure_frame_rate(race: &Race) -> Option<u32> {
+pub fn measure_frame_rate(race: &Race, scene: &crate::scene::owner::Scene) -> Option<u32> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
@@ -48,7 +47,7 @@ pub fn measure_frame_rate(race: &Race) -> Option<u32> {
     let now = whole as u32;
     shared.switches.frame_now.set_bits(now);
     if let Some(cycles) = cycles_since(whole, LAST.swap(whole, Relaxed)) {
-        scene().drawing.scene.scratch.set_bits(cycles as u32);
+        scene.drawing.scene.scratch.set_bits(cycles as u32);
         frame_rate_plain(race, cycles);
     }
     shared.switches.frame_last.set_bits(now);

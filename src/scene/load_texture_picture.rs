@@ -45,7 +45,6 @@ fn folders(course: &'static crate::race::owner_course::Course) -> [(Place, Place
         ((&p.picture_extra).into(), (&p.second_extra).into(), 0x0F), // files\s\extr
     ]
 }
-use crate::scene::owner::scene;
 use rc2k_core::scene::pictures::{GRAVEL, folder, names, picture_car, takes_gravel};
 // gfx::load_picture_to_texture
 
@@ -66,8 +65,9 @@ fn write_names(
     course: &'static crate::race::owner_course::Course,
     number: u32,
     texture: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let file_numbers = &scene().file_numbers;
+    let file_numbers = &scene.file_numbers;
     {
         file_numbers.picture_number.set(number);
         file_numbers.picture_texture.set(texture);
@@ -91,15 +91,16 @@ pub fn load_texture_picture(
     number: u32,
     texture: u32,
     call: &mut dyn FnMut(Call) -> bool,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let (course, shared) = (&race.course, &race.shared);
     {
-        write_names(course, number, texture)?;
+        write_names(course, number, texture, scene)?;
         let mut gravel_chosen = false;
         let car = picture_car(
             number,
             texture,
-            || scene().textures.kinds.kind_first_textures[0x100].get(), // dword_5D0EE8,
+            || scene.textures.kinds.kind_first_textures[0x100].get(), // dword_5D0EE8,
             || shared.view.race_cars.bits(),
         );
         if let Some(car) = car {
@@ -134,34 +135,41 @@ pub fn load_texture_picture_in_game(
     race: &'static crate::race::owner::Race,
     number: u32,
     texture: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let mut refused = None;
-    load_texture_picture(race, number, texture, &mut |call| {
-        match call {
-            Call::Text(text) => crate::logfile::log_write::log_nul(&text[..], false, 1),
-            Call::Number(number) => log_int(number as i32, false, 1),
-            Call::Exists(path) => {
-                match path
-                    .text("a texture folder")
-                    .and_then(|p| crate::files::file_exists::file_exists(&p))
-                {
-                    Ok(exists) => return exists,
-                    Err(e) => {
-                        refused.get_or_insert(e.into());
+    load_texture_picture(
+        race,
+        number,
+        texture,
+        &mut |call| {
+            match call {
+                Call::Text(text) => crate::logfile::log_write::log_nul(&text[..], false, 1),
+                Call::Number(number) => log_int(number as i32, false, 1),
+                Call::Exists(path) => {
+                    match path
+                        .text("a texture folder")
+                        .and_then(|p| crate::files::file_exists::file_exists(&p))
+                    {
+                        Ok(exists) => return exists,
+                        Err(e) => {
+                            refused.get_or_insert(e.into());
+                        }
+                    }
+                }
+                Call::Load(name, second, texture) => {
+                    if let Err(e) = load_picture_to_texture_in_game(
+                        name.game_ptr(),
+                        Some(second.game_ptr()),
+                        texture,
+                    ) {
+                        refused.get_or_insert(e);
                     }
                 }
             }
-            Call::Load(name, second, texture) => {
-                if let Err(e) = load_picture_to_texture_in_game(
-                    name.game_ptr(),
-                    Some(second.game_ptr()),
-                    texture,
-                ) {
-                    refused.get_or_insert(e);
-                }
-            }
-        }
-        false
-    })?;
+            false
+        },
+        scene,
+    )?;
     refused.map_or(Ok(()), Err)
 }

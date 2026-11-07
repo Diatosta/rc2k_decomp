@@ -7,7 +7,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::scene::owner::scene;
 
 /// The grid and what lies past it that the original may read (as `race::course_grid`).
 const GRID_DWORDS: u32 = 0x1084 / 4;
@@ -65,7 +64,11 @@ fn scaled(t: [u8; 10], k: u32) -> u32 {
 /// object 0x3F, its sound (+8) 1 .. 0x15 and there is room (fewer than 0x24): its point and
 /// place (point + offset +0x30 .. into `dword_63501C` ..) turned by `g_viewMatrix` and
 /// scaled. (Its test for sound 0x1B2 needing lamps can never hold: a byte.)
-pub fn face_sound_spot(race: &Race, face_number: u32) -> Result<(), BadInput> {
+pub fn face_sound_spot(
+    race: &Race,
+    face_number: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     use crate::race::skidmarks::int_80;
     {
         // Converted: `rc2k_core::race::view::{sound_object, takes_spot, spot_place}`
@@ -101,7 +104,7 @@ pub fn face_sound_spot(race: &Race, face_number: u32) -> Result<(), BadInput> {
             crate::race::scene_points::point_number(point)?,
             [f.dword_at(0x30), f.dword_at(0x34), f.dword_at(0x38)],
         );
-        crate::session::write_bits(&scene().drawing.object_work.place, place);
+        crate::session::write_bits(&scene.drawing.object_work.place, place);
         let t = {
             crate::scene::rotate_point::rotate_point(
                 &race.frame.matrices.view_matrix,
@@ -120,7 +123,11 @@ pub fn face_sound_spot(race: &Race, face_number: u32) -> Result<(), BadInput> {
 /// `race::cell_sound_spots` (0x45C6B8): each face of cell `cell`'s (ecx) record (`g_courseGrid[c]`,
 /// none from 0x0FFFFFFF; the record's +8 .. +0xC, none for -1 or a first past the last) by
 /// `face_sound_spot` (inside `pusha` .. `popa`).
-pub fn cell_sound_spots(race: &Race, cell: u32) -> Result<(), BadInput> {
+pub fn cell_sound_spots(
+    race: &Race,
+    cell: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     {
         // Converted: `rc2k_core::race::view::record_faces`.
         let record: u32 = grid_cell(&race.course, cell)?;
@@ -132,7 +139,7 @@ pub fn cell_sound_spots(race: &Race, cell: u32) -> Result<(), BadInput> {
             return Ok(());
         }
         loop {
-            face_sound_spot(race, face)?;
+            face_sound_spot(race, face, scene)?;
             face = face.wrapping_add(1);
             if face > record_field(record, 0xC)? {
                 break;
@@ -146,12 +153,12 @@ pub fn cell_sound_spots(race: &Race, cell: u32) -> Result<(), BadInput> {
 /// (`g_gridReach` - 2) x 0x21 (rows 0x20 apart) by `cell_sound_spots`. Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a cell past the grid, or no
 /// records, faces or points when a cell has a record.
-pub fn find_sound_spots(race: &Race) -> Result<(), Refused> {
+pub fn find_sound_spots(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     {
         check(&race.course)?;
         race.frame.sound_spots.sound_spot_count.set_bits(0u32);
         for c in cells(&race.course) {
-            cell_sound_spots(race, c)?;
+            cell_sound_spots(race, c, scene)?;
         }
         Ok(())
     }

@@ -14,7 +14,6 @@
 
 use crate::errors::BadInput;
 use crate::scene::objects::SLOTS;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -26,8 +25,9 @@ const MOST: u32 = 0x10_0000;
 fn points_of(
     course: &crate::race::owner_course::Course,
     slot: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(usize, u32), BadInput> {
-    let objects = &scene().objects;
+    let objects = &scene.objects;
     if slot >= SLOTS {
         return Err(BadInput("an object's slot past the tables"));
     }
@@ -41,12 +41,14 @@ fn points_of(
 }
 
 // Converted: `rc2k_core::scene::objects::measure`
-pub fn measure_object(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
-    let scene = scene();
+pub fn measure_object(
+    course: &crate::race::owner_course::Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{HIGHEST_START, LOWEST_START, measure};
     {
         let slot: u32 = scene.drawing.object_work.loading_slot.bits();
-        let (at, count) = points_of(course, slot)?;
+        let (at, count) = points_of(course, slot, scene)?;
         let mut points: Vec<[u32; 3]> = if count == 0 {
             Vec::new()
         } else {

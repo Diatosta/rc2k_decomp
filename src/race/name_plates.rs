@@ -9,7 +9,6 @@ use crate::gfx::owner::gfx;
 use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::scene::owner::scene;
 use crate::strings::owner::strings;
 
 /// `race::draw_name_plate` (0x45B695): slot `slot`'s (eax) surface, locked and unlocked
@@ -94,10 +93,10 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
 /// (`race::draw_plate_by_id`) or as a text pointer (`race::draw_name_plate`), into +0x724,
 /// +0x71C 0, +0x720 and +0x728 1. Its one caller, `race::draw_race_scene`, reads no
 /// register it leaves. Refuses (before anything) a null view block.
-pub fn update_name_plates(race: &Race) -> Result<(), Refused> {
+pub fn update_name_plates(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;
-    let textures = &scene().textures;
+    let textures = &scene.textures;
     let (Some(a), Some(b)) = (shared.view.view_car(0), shared.view.view_car(1)) else {
         return Err(crate::errors::BadInput("a view without its car block").into());
     };

@@ -119,8 +119,9 @@ fn run(
 
 pub fn build_texture_catalogue(
     call: &mut dyn FnMut(Call) -> Result<bool, Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let textures = &scene().textures;
+    let textures = &scene.textures;
     // The original does this after the first two log lines and the count, which
     // touch neither.
     for counter in &textures.places.counters {
@@ -140,20 +141,24 @@ pub fn build_texture_catalogue(
 /// With the game's log, and the Rust versions of what it calls.
 pub fn build_texture_catalogue_in_game(
     shared: &crate::race::owner_shared::Shared,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    build_texture_catalogue(&mut |call| {
-        match call {
-            Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
-            Call::Number(number, newline) => log_int(number as i32, newline, 1),
-            Call::Raise { level, tag } => {
-                raise_texture_needs(level, tag);
+    build_texture_catalogue(
+        &mut |call| {
+            match call {
+                Call::Text(text, newline) => crate::logfile::log_write::log_nul(&text, newline, 1),
+                Call::Number(number, newline) => log_int(number as i32, newline, 1),
+                Call::Raise { level, tag } => {
+                    raise_texture_needs(level, tag, scene);
+                }
+                Call::Try => return Ok(try_allocate_textures_in_game(shared)?),
+                Call::Release => crate::platform_3d::release_textures(),
+                Call::CountNeeds => {
+                    count_texture_needs_in_game(scene)?;
+                }
             }
-            Call::Try => return Ok(try_allocate_textures_in_game(shared)?),
-            Call::Release => crate::platform_3d::release_textures(),
-            Call::CountNeeds => {
-                count_texture_needs_in_game()?;
-            }
-        }
-        Ok(false)
-    })
+            Ok(false)
+        },
+        scene,
+    )
 }

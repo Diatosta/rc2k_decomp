@@ -23,7 +23,7 @@ use crate::math::x87;
 const PARTS: u32 = 0x11;
 
 /// The Rust version (see the header).
-pub fn draw_lens_flare(paths: &Paths) -> Result<(), Refused> {
+pub fn draw_lens_flare(paths: &Paths, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let effects = effects();
     let settings: u32 = effects.setup.settings.is_set.get();
     if settings == 0 {
@@ -40,8 +40,8 @@ pub fn draw_lens_flare(paths: &Paths) -> Result<(), Refused> {
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
     let [cx, cy] = [
-        crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
-        crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        scene.drawing.scene.view_centre[0].bits(),
+        scene.drawing.scene.view_centre[1].bits(),
     ];
     let dx = x87::sub(marks.listener_figures[1].get(), cx);
     let dy = x87::sub(marks.listener_figures[2].get(), cy) ^ 0x8000_0000;
@@ -73,6 +73,7 @@ pub fn draw_lens_flare(paths: &Paths) -> Result<(), Refused> {
             x87::int_times_to_int(effects.frame.flare_parts.size[k].get() as i32, size_k) as u32,
             0xFF_FFFF,
             [x, y],
+            scene,
         )?;
     }
     Ok(())

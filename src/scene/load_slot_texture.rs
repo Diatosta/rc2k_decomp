@@ -11,7 +11,6 @@
 //! table.
 
 use crate::errors::BadInput;
-use crate::scene::owner::scene;
 
 // ---- Rust version ----
 
@@ -21,8 +20,9 @@ pub fn load_slot_texture(
     frame: &crate::race::owner_frame::Frame,
     slot: u32,
     load: &mut dyn FnMut(u32, u32),
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let textures = &scene().textures;
+    let textures = &scene.textures;
     let Some(wanted) = rc2k_core::scene::textures::slot_load(
         slot,
         || textures.places.slot_wanted[slot as usize].get(),
@@ -44,6 +44,7 @@ pub fn load_slot_texture(
 pub fn load_slot_texture_in_game(
     frame: &crate::race::owner_frame::Frame,
     slot: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    load_slot_texture(frame, slot, &mut crate::platform_3d::load_texture)
+    load_slot_texture(frame, slot, &mut crate::platform_3d::load_texture, scene)
 }

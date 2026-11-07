@@ -19,12 +19,11 @@
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 
 const ONE: u32 = 0x3F80_0000;
 
 /// `race::init_overlay` (see the header).
-pub fn init_overlay(race: &Race) -> Result<(), Refused> {
+pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     {
         // Converted: `rc2k_core::race::panel::{overlay_parts, half_length, OVERLAY_SIZES,
         // OVERLAY_CLEARED}`; the miles the x87's.
@@ -68,7 +67,7 @@ pub fn init_overlay(race: &Race) -> Result<(), Refused> {
                         "an overlay variable",
                     )?)?;
                     let half = half_length(end, start);
-                    scene().drawing.scene.scratch.set(half);
+                    scene.drawing.scene.scratch.set(half);
                     let miles = x87::int_div_div_doubled(half as i32, scale, mile);
                     race.frame.panel_and_overlay.overlay.overlay_part_miles[n as usize]
                         .set_bits(miles); // g_overlayPartMiles

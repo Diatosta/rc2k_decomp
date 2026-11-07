@@ -16,7 +16,6 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::scene::faces_store::FACES;
-use crate::scene::owner::scene;
 
 /// A list of the faces store at byte `off` of it, bounded by the whole buffers block: a
 /// flare's entry is read as a description of 0x3C bytes, past its own 8
@@ -42,14 +41,14 @@ fn depth_list(shared: &Shared) -> crate::pointers::GamePtr {
 }
 
 /// The Rust version (see the header).
-pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
+pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use crate::race::frame_draw::*;
     use crate::sound::race_sound_tick::race_sound_tick;
     if race.shared.car.view_covered.get() != 0 {
         return draw_view_tint(race);
     }
     // dword_635014, dword_635018.
-    for cell in &scene().drawing.object_work.view_cleared {
+    for cell in &scene.drawing.object_work.view_cleared {
         cell.set(0);
     }
     race_sound_tick(&race.frame)?; // 0x14
@@ -78,8 +77,8 @@ pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
     )?;
     draw_race_slots(race)?;
     race_sound_tick(&race.frame)?; // 0x17
-    crate::race::car_shadow::cast_car_shadows(race)?;
-    crate::race::skidmarks::draw_skidmarks_if_on(race)?;
+    crate::race::car_shadow::cast_car_shadows(race, scene)?;
+    crate::race::skidmarks::draw_skidmarks_if_on(race, scene)?;
     car_lights(race)?;
     race_sound_tick(&race.frame)?; // 0x18
     sort_entries(&race.shared.view.depth_entry_count, &FACES.depth_entries)?;

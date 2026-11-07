@@ -14,11 +14,14 @@ const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::C
 /// The Rust version. The registers the original leaves (eax the item, ebx the input, ecx
 /// 0x30C, edx the font) are read by no caller (`lobby_loop` only; liveness: ebp, edi, edx,
 /// esi live after, edx the caller's own).
-pub fn begin_chat(vars: &NetVars) -> Result<(), crate::errors::Refused> {
+pub fn begin_chat(
+    install: &'static crate::install::owner::Install,
+    vars: &NetVars,
+) -> Result<(), crate::errors::Refused> {
     vars.chat_input.set(0, 0);
     crate::net::begin_edit::begin_edit(
         vars,
-        crate::install::owner::install().pages.choice.get(),
+        install.pages.choice.get(),
         crate::net::begin_edit::EditedText::ChatInput,
         0x30C,
         CHAT_FONT,

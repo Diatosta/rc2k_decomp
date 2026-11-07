@@ -105,11 +105,15 @@ pub(super) fn depth_entry(n: u32) -> Result<&'static [Dword], BadInput> {
 /// there, z rounded into `g_faceDepthKey`, + 0x2000000 and shifted right 10), and a depth
 /// entry of that key with `g_lampCount` + 0x3000000; `race().frame.frame_work.lamp_entry_count` + 1. The caller checks
 /// the room.
-pub(super) fn add_lamp_entry(race: &Race, lamp: u32) -> Result<(), BadInput> {
+pub(super) fn add_lamp_entry(
+    race: &Race,
+    lamp: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     let frame = &race.frame;
     let point = self::lamp(&race.course, lamp)?[0].get();
     let place = crate::race::scene_points::point_number(point)?;
-    let turned = &scene().drawing.object_work.place;
+    let turned = &scene.drawing.object_work.place;
     for (cell, &v) in turned.iter().zip(&place) {
         cell.set(v);
     }
@@ -141,6 +145,7 @@ pub(super) fn add_lamp_entry(race: &Race, lamp: u32) -> Result<(), BadInput> {
 /// entry (`add_lamp_entry`. Refuses (before anything) more than 0x100 lit faces, or a depth
 /// list without room for 16.
 pub fn gather_lamps(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let course = &race.course;
     let physics = &race.physics;
     let count: u32 = physics.contact.lit_face_count.bits();
@@ -166,7 +171,7 @@ pub fn gather_lamps(race: &Race) -> Result<(), Refused> {
         at[0].set(face_field(face, 4)?);
         at[1].set(crate::race::course_places::face_number(face, "a lamp's face")?.mark() as u32);
         at[2].set(rc2k_core::race::faces::LAMP_COLOUR);
-        add_lamp_entry(race, lamp)?;
+        add_lamp_entry(race, lamp, scene)?;
         race.shared.view.lamp_count.set_bits(lamp + 1);
     }
     Ok(())
@@ -188,8 +193,8 @@ pub fn add_colours(a: u32, b: u32) -> u32 {
 pub(super) fn car_light_on_point(
     course: &Course,
     car: &crate::physics::car_store::Car,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
-    let scene = scene();
     use crate::math::x87_load::{int_square_sum_scaled_to_int, rotate_rounding};
     use rc2k_core::race::lights::headlight_index;
     if car.lights_on.bits() == 0 {
@@ -229,7 +234,10 @@ pub(super) fn car_light_on_point(
 /// `sub_44F601`: the cars' headlights on the lit place: with `crate::net::owner::net().vars.session` the chosen car
 /// (`crate::net::owner::net().vars.player`) or all with `crate::race::owner::race().shared.vars.settings_words[4]` 1; else the players' cars (all with
 /// `crate::race::owner::race().shared.vars.settings_words[4]` 1), only the drawn view's car outside one player and modes 0 and 2.
-pub(super) fn car_lights_on_point(race: &Race) -> Result<(), BadInput> {
+pub(super) fn car_lights_on_point(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     let course = &race.course;
     let vars = &net().vars;
     let shared = &race.shared;
@@ -256,7 +264,7 @@ pub(super) fn car_lights_on_point(race: &Race) -> Result<(), BadInput> {
         );
         trap.finish()?;
         if lit {
-            car_light_on_point(course, shared.work.car(n as usize)?)?;
+            car_light_on_point(course, shared.work.car(n as usize)?, scene)?;
         }
     }
     Ok(())
@@ -266,8 +274,10 @@ pub(super) fn car_lights_on_point(race: &Race) -> Result<(), BadInput> {
 /// `GROUND_WORK.point_light_strength`) gives ((0x200000 - its approximate distance) x strength) >> 17 (held to
 /// 0 .. 0xFF) as a grey, times its colour (+8, `LIGHT_WORK.lamp_tint`) byte by byte, added to
 /// `g_lightColour`.
-pub(super) fn lamp_lights_on_point(race: &Race) -> Result<(), BadInput> {
-    let scene = scene();
+pub(super) fn lamp_lights_on_point(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     let physics = &race.physics;
     {
         let count: u32 = race.shared.view.lamp_count.bits();
@@ -318,14 +328,14 @@ pub fn check_light_colour(shared: &Shared) -> Result<(), Refused> {
 /// (`sub_44F601`) and the lamps (`sub_44F863`) on the lit place (`g_litPlace`,
 /// `LIGHT_STATE.lit_place[1]`, `LIGHT_STATE.lit_place[2]`), added up. Refuses as
 /// `check_light_colour`.
-pub fn light_colour_at(race: &Race) -> Result<(), Refused> {
+pub fn light_colour_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::{check_light_colour, headlights_light,
     // headlight_index, lamp_grey, add_colours, multiply_colours}` (the turned place, the
     // spreads and the lamps' distances the x87's and the scene's).
     check_light_colour(&race.shared)?;
-    scene().lights.work.light_colour.set_bits(0u32);
-    car_lights_on_point(race)?;
-    lamp_lights_on_point(race)?;
+    scene.lights.work.light_colour.set_bits(0u32);
+    car_lights_on_point(race, scene)?;
+    lamp_lights_on_point(race, scene)?;
     Ok(())
 }
 
@@ -340,7 +350,7 @@ pub fn view_light(race: &Race) -> Result<(), Refused> {
         &scene.lights.state.lit_place,
         crate::session::read_bits(&race.shared.car.position),
     );
-    light_colour_at(race)?;
+    light_colour_at(race, scene)?;
     let light: u32 = scene.lights.work.light_colour.bits();
     scene.drawing.scene.scratch.set_bits(light);
     race.frame

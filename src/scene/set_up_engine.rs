@@ -15,7 +15,8 @@ use crate::scene::fill_engine_tables::fill_engine_tables;
 /// The Rust version: the tables, then the cars' figures (`physics::test_drive`). The
 /// registers the original leaves nothing reads (see `physics::test_drive`).
 pub fn set_up_engine() -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let race = race();
     fill_engine_tables(race);
-    crate::physics::test_drive::test_drive(race)
+    crate::physics::test_drive::test_drive(race, scene)
 }

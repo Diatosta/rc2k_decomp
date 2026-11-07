@@ -98,7 +98,10 @@ fn point(race: &Race) -> Result<(u32, u32), Refused> {
 /// The Rust version: whether the car has passed the split's point (CF).
 // Converted: `rc2k_core::physics::progress::{check_split_point, face_known, passed_point}`
 // (the distance and the angle stay x87).
-pub fn passed_split_point(race: &Race) -> Result<bool, Refused> {
+pub fn passed_split_point(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
     let race_owner = race;
     if race_owner.replay.finish.no_place.get() != 0 {
         return Ok(false);
@@ -127,7 +130,7 @@ pub fn passed_split_point(race: &Race) -> Result<bool, Refused> {
         return Ok(false);
     }
     angle(race, pt);
-    let car_angle = scene().drawing.scene.scratch.get() << 16;
+    let car_angle = scene.drawing.scene.scratch.get() << 16;
     race.shared.physics_tables.split_word.set(car_angle);
     let heading = crate::race::checkpoints_store::angle(cp as usize).get();
     race.shared.physics_tables.split_heading.set(heading);

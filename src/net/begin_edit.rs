@@ -24,11 +24,12 @@ pub enum EditedText {
 impl EditedText {
     /// The text's buffer.
     pub fn text(self) -> &'static dyn crate::pointers::Store {
+        let install = crate::install::owner::install();
         let vars = &net().vars;
         match self {
             EditedText::MachineName => &vars.machine_name,
             EditedText::HostAddress => &vars.host_address,
-            EditedText::MostPlayers => &crate::install::owner::install().paths.path_a,
+            EditedText::MostPlayers => &install.paths.path_a,
             EditedText::ChatInput => &vars.chat_input,
         }
     }
@@ -53,6 +54,7 @@ pub fn begin_edit(
     width: u32,
     font: crate::gfx::typefaces::FontId,
 ) -> Result<(), crate::errors::Refused> {
+    let install = crate::install::owner::install();
     vars.edited.set(item);
     vars.edit_text.set(text as u32);
     vars.edit_width.set(width);
@@ -60,7 +62,7 @@ pub fn begin_edit(
     Ok(crate::pointers::copy_between(
         text.text(),
         0,
-        &crate::install::owner::install().paths.script_path,
+        &install.paths.script_path,
         0,
         0x40,
         "an edited text",

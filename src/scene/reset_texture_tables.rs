@@ -7,14 +7,11 @@
 //! `dword_5CEAE0`) and their first slots and first textures (`g_kindFirstSlots`,
 //! `g_kindFirstTextures`), 0x400 dwords each. Four callers.
 
-use crate::scene::owner::scene;
-
 // ---- game data ----
 
 // ---- Rust version ----
 
-pub fn reset_texture_tables() {
-    let scene = scene();
+pub fn reset_texture_tables(scene: &crate::scene::owner::Scene) {
     scene.textures.places.kind_slot_bytes.set(0); // dword_5DC978, cleared first
     // dword_5CFAE0, dword_5CEAE0, g_kindFirstSlots, g_kindFirstTextures: 0x1000 bytes each.
     for table in [

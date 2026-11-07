@@ -28,7 +28,7 @@ use crate::system::owner::system;
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
-pub fn run_installer(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn run_installer(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     use crate::install as i;
     crate::platform_events::keep_running_after_close();
     // The folder page's edit item (0x51DBC8) shows the folder from its third byte
@@ -37,90 +37,93 @@ pub fn run_installer(g: &'static crate::install::owner::Install) -> Result<(), R
     #[cfg(unix)]
     crate::install::installer::wd(
         // 0x51DBD0.
-        crate::place::Place::from(&g.pages.folder_page).add(0x30),
+        crate::place::Place::from(&install.pages.folder_page).add(0x30),
         // A link to `InstallerPaths::typed` from its first byte (`byte_95EBF8`).
         crate::install::page_links::PageLink::of_ida(0x95EBF8).raw(),
     );
     crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
-    i::read_languages::read_languages(g, &g.names.lang_cfg.text()[..])?;
+    i::read_languages::read_languages(install, &install.names.lang_cfg.text()[..])?;
     { crate::gfx::build_fonts::build_fonts() }?;
-    i::open_installer::open_installer(g)?;
+    i::open_installer::open_installer(install)?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
-    let from_command = g.run.from_command.get() == 1;
+    let from_command = install.run.from_command.get() == 1;
     if from_command {
-        i::install_from_command::install_from_command(g)?;
+        i::install_from_command::install_from_command(install)?;
     } else {
-        if !normalise(&g.texts.base_b, &g.paths.game_dir)? {
+        if !normalise(&install.texts.base_b, &install.paths.game_dir)? {
             return Err(fatal(0x80AF_8101));
         }
-        i::list_drives::list_drives(g);
+        i::list_drives::list_drives(install);
         let mut typed = Vec::new();
         push_string_by_id(&mut typed, 0x9F);
         push_string_by_id(&mut typed, 0xA0);
         typed.push(0);
-        store_text(&g.paths.typed, &typed);
+        store_text(&install.paths.typed, &typed);
         if system().session.machine.keyboard_type.get() == 2 {
-            g.paths.typed.set(0, g.run.first_drive.get() as u8);
+            install
+                .paths
+                .typed
+                .set(0, install.run.first_drive.get() as u8);
         }
-        i::read_registry::read_registry_here(g);
-        if g.names.source.get(0) != 0 {
-            let n = g.names.source_size.get();
+        i::read_registry::read_registry_here(install);
+        if install.names.source.get(0) != 0 {
+            let n = install.names.source_size.get();
             for k in 0..n {
                 wb(
-                    Place::from(&g.paths.typed).add(k),
-                    rb(Place::from(&g.names.source).add(k)),
+                    Place::from(&install.paths.typed).add(k),
+                    rb(Place::from(&install.names.source).add(k)),
                 );
             }
         }
-        show_folder(g);
-        i::check_installed_version::check_installed_version(g)?;
+        show_folder(install);
+        i::check_installed_version::check_installed_version(install)?;
         // The version-match branch changes into the installed folder.
-        if g.run.same_version.get() == 1 {
-            g.pages.record_flag.set(1);
-            set_cd(&g.paths.installed);
-            i::read_record::read_record(&g.texts.record_path.text()[..])?;
+        if install.run.same_version.get() == 1 {
+            install.pages.record_flag.set(1);
+            set_cd(&install.paths.installed);
+            i::read_record::read_record(&install.texts.record_path.text()[..])?;
             crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
-            set_cd(&g.paths.game_dir);
+            set_cd(&install.paths.game_dir);
             load_language()?;
         }
-        let pages = if g.run.updating.get() == 1 {
-            crate::install::page_records::PageEntry::of(&g.pages.update_pages)
+        let pages = if install.run.updating.get() == 1 {
+            crate::install::page_records::PageEntry::of(&install.pages.update_pages)
         } else {
-            crate::install::page_records::PageEntry::of(&g.pages.normal_pages)
+            crate::install::page_records::PageEntry::of(&install.pages.normal_pages)
         };
-        i::run_pages::run_pages(g, pages)?;
+        i::run_pages::run_pages(install, pages)?;
     }
-    if g.run.installing.get() == 1 && g.vars.running_from_cd.get() == 1 && lock() {
+    if install.run.installing.get() == 1 && install.vars.running_from_cd.get() == 1 && lock() {
         copy_picture()?;
         draw_string(0xBE, FONT_BE, 0x1A9, 0x113)?;
         unlock();
         show();
         sleep(2000);
     }
-    i::close_installer::close_installer(g)?;
+    i::close_installer::close_installer(install)?;
     crate::gfx::free_fonts::free_fonts_in_game()?;
     Ok(())
 }
 
 /// The folder page's text by the system's rules (`install::folders`): a recorded folder as
 /// shown, else the system's first folder (on Windows both the original's, unchanged).
-fn show_folder(g: &'static crate::install::owner::Install) {
+fn show_folder(install: &'static crate::install::owner::Install) {
     use crate::install::folders::{Folders, Native};
-    let typed = &g.paths.typed;
+    let typed = &install.paths.typed;
     let len = (0..256).position(|k| typed.get(k) == 0).unwrap_or(0);
     let now: Vec<u8> = (0..len).map(|k| typed.get(k)).collect();
-    let recorded = g.names.source.get(0) != 0;
+    let recorded = install.names.source.get(0) != 0;
     let text = match (recorded, <Native as Folders>::first_folder()) {
         (true, _) => <Native as Folders>::shown(&now),
         (false, Some(first)) => first,
         (false, None) => return,
     };
-    put_typed(&text);
+    put_typed(install, &text);
 }
 
 /// `text` as the folder page's text (cut to its place, NUL-ended).
-pub fn put_typed(text: &[u8]) {
-    let typed = &crate::install::owner::install().paths.typed;
+pub fn put_typed(install: &'static crate::install::owner::Install, text: &[u8]) {
+    let typed = &install.paths.typed;
     let n = text.len().min(255);
     for (k, &b) in text[..n].iter().enumerate() {
         typed.set(k, b);

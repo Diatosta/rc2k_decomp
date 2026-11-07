@@ -48,14 +48,15 @@ impl ListSource for GameList {
         self.0.item(k).choices().word(c)
     }
     fn text_font(&self, font: u8) -> u8 {
-        crate::install::owner::install()
-            .pages
-            .kind_fonts
-            .get(4 + 8 * font as usize)
+        let install = crate::install::owner::install();
+        install.pages.kind_fonts.get(4 + 8 * font as usize)
     }
 }
 
-pub fn lay_out_pieces(list: ListMenu) -> Result<(), Refused> {
+pub fn lay_out_pieces(
+    install: &'static crate::install::owner::Install,
+    list: ListMenu,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::install::pieces::lay_out`; the pieces written here.
     let made = match pieces::lay_out(&GameList(list)) {
         Ok(made) => made,
@@ -80,6 +81,6 @@ pub fn lay_out_pieces(list: ListMenu) -> Result<(), Refused> {
         piece.set_width(0);
         piece.set_height(0);
     }
-    set_piece_count(made.len() as u32);
+    set_piece_count(install, made.len() as u32);
     Ok(())
 }

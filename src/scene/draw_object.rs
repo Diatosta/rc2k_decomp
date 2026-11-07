@@ -20,7 +20,6 @@ use crate::scene::draw_object_face::draw_object_face_in_game;
 use crate::scene::draw_object_faces::draw_object_faces;
 use crate::scene::list_object_face::list_object_face;
 use crate::scene::list_object_faces::list_object_faces;
-use crate::scene::owner::scene;
 use crate::scene::place_object_points::place_object_points;
 use crate::scene::set_object_fade::set_object_fade;
 use crate::scene::set_object_light::set_object_light_in_game;
@@ -62,32 +61,46 @@ pub fn draw_object(step: &mut dyn FnMut(Step) -> Result<(), Refused>) -> Result<
 
 /// `scene::place_object_points_any` (0x45BDE1). The 3DNow way (`sub_45BF89`) is not ported:
 /// a refusal ends the program.
-fn place_object_points_any(race: &crate::race::owner::Race) -> Result<(), Refused> {
-    let draw_switches = &scene().draw_switches;
+fn place_object_points_any(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let draw_switches = &scene.draw_switches;
     if draw_switches.use_3dnow.bits() != 0 {
         return Err(BadInput("the 3DNow way of placing points is not ported").into());
     }
     if draw_switches.use_sse.bits() != 0 {
-        return crate::scene::place_object_points::place_object_points_sse(race);
+        return crate::scene::place_object_points::place_object_points_sse(race, scene);
     }
-    place_object_points(race)?;
+    place_object_points(race, scene)?;
     Ok(())
 }
 
 /// With the steps' Rust versions.
-pub fn draw_object_in_game(race: &crate::race::owner::Race) -> Result<(), Refused> {
+pub fn draw_object_in_game(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     draw_object(&mut |step| {
         match step {
-            Step::Light => set_object_light_in_game(race)?,
-            Step::Material => set_object_material(race)?,
-            Step::Fade => set_object_fade(race)?,
-            Step::Points => place_object_points_any(race)?,
+            Step::Light => set_object_light_in_game(race, scene)?,
+            Step::Material => set_object_material(race, scene)?,
+            Step::Fade => set_object_fade(race, scene)?,
+            Step::Points => place_object_points_any(race, scene)?,
             Step::List => {
-                list_object_faces(&race.shared, &mut |face| list_object_face(race, face))?;
+                list_object_faces(
+                    &race.shared,
+                    &mut |face| list_object_face(race, face, scene),
+                    scene,
+                )?;
             }
-            Step::Sort => sort_listed_faces()?,
+            Step::Sort => sort_listed_faces(scene)?,
             Step::Faces => {
-                draw_object_faces(race, &mut |face| draw_object_face_in_game(race, face))?;
+                draw_object_faces(
+                    race,
+                    &mut |face| draw_object_face_in_game(race, face, scene),
+                    scene,
+                )?;
             }
         }
         Ok(())

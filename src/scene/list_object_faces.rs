@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -23,8 +22,8 @@ use crate::scene::owner::scene;
 pub fn list_object_faces(
     shared: &Shared,
     list: &mut dyn FnMut(usize) -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let scene = scene();
     {
         let (first, count): (u32, u32) = (
             scene.drawing.object_work.object_first_face.bits(),

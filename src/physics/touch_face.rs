@@ -39,6 +39,7 @@ fn mark(physics: &Physics, face: u32, mark: u32, clear_9: bool) -> Result<(), Ba
 /// The Rust version.
 // Converted: `rc2k_core::drive::lit_faces::{touch, fall_mark, lucky}`.
 pub fn touch_face(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let race_owner = race;
     let number = race_owner.physics.contact.face_number.get();
     let face = number;
@@ -87,7 +88,7 @@ pub fn touch_face(race: &Race) -> Result<(), Refused> {
             }
             Touch::Sound => {}
         }
-        { place_sound_object(race) }?;
+        { place_sound_object(race, scene) }?;
         race_owner.physics.contact.lit_face_count.set(count + 1);
         Ok(())
     })()

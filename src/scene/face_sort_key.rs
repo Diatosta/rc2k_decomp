@@ -14,7 +14,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -26,8 +25,9 @@ pub fn face_sort_key(
     course: &crate::race::owner_course::Course,
     face: usize,
     count: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     let vertices: u32 = drawing.scene.polygon_vertex_count.bits();
     if face == 0
         || !crate::scene::point_records::held()

@@ -10,7 +10,6 @@
 
 use crate::errors::BadInput;
 use crate::menu::owner::Tables;
-use crate::scene::owner::scene;
 use crate::session::read_all;
 
 // ---- game data ----
@@ -18,8 +17,11 @@ const KIND: usize = 0x258;
 
 // ---- Rust version ----
 
-pub fn assign_menu_textures(tables: &Tables) -> Result<(), BadInput> {
-    let textures = &scene().textures;
+pub fn assign_menu_textures(
+    tables: &Tables,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    let textures = &scene.textures;
     // Converted: `rc2k_core::scene::textures::menu_textures`.
     let wanted = rc2k_core::scene::textures::menu_textures(
         read_all(&tables.lists.carousel_textures),

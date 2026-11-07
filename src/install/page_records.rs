@@ -57,15 +57,12 @@ impl PageEntry {
 }
 
 /// The pieces' number (the layout's first dword).
-pub fn piece_count() -> u32 {
-    crate::install::owner::install().pages.layout.get_u32(0)
+pub fn piece_count(install: &'static crate::install::owner::Install) -> u32 {
+    install.pages.layout.get_u32(0)
 }
 
-pub fn set_piece_count(count: u32) {
-    wd(
-        Place::from(&crate::install::owner::install().pages.layout),
-        count,
-    );
+pub fn set_piece_count(install: &'static crate::install::owner::Install, count: u32) {
+    wd(Place::from(&install.pages.layout), count);
 }
 
 /// A piece of the layout.
@@ -79,10 +76,8 @@ impl Piece {
     /// Piece `n` (wrapping as the original's sum); a piece outside the layout is refused
     /// when it is read or written.
     pub fn nth(n: u32) -> Self {
-        Self(
-            Place::from(&crate::install::owner::install().pages.layout)
-                .add(4 + PIECE.wrapping_mul(n)),
-        )
+        let install = crate::install::owner::install();
+        Self(Place::from(&install.pages.layout).add(4 + PIECE.wrapping_mul(n)))
     }
 
     /// +0: the item's kind and marks.
@@ -165,10 +160,9 @@ pub struct BoxRecord(Place);
 impl BoxRecord {
     /// The box a link names; none is the title's box.
     pub fn linked(link: PageLink) -> Self {
+        let install = crate::install::owner::install();
         if link.is_none() {
-            return Self(Place::from(
-                &crate::install::owner::install().pages.title_box,
-            ));
+            return Self(Place::from(&install.pages.title_box));
         }
         Self(Place::from(link.in_pages().unwrap_or_else(|e| refuse(e))))
     }

@@ -23,7 +23,6 @@
 //! Takes the car's block as a typed reference.
 
 use crate::physics::car_store::Car;
-use crate::scene::owner::scene;
 use crate::scene::vertex_light::plus;
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};
 use crate::system::owner::system;
@@ -124,8 +123,11 @@ fn held(value: i32) -> u32 {
     }
 }
 
-pub fn add_car_light(course: &crate::race::owner_course::Course, car: &Car) {
-    let scene = scene();
+pub fn add_car_light(
+    course: &crate::race::owner_course::Course,
+    car: &Car,
+    scene: &crate::scene::owner::Scene,
+) {
     if car.lights_on.get() == 0 {
         return;
     }

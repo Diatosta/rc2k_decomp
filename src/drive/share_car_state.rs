@@ -38,7 +38,6 @@ use crate::sound::store::SoundObject;
 use rc2k_core::drive::sharing;
 
 use crate::race::light_records_store::LightRecord;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// A field of a car block, picked out of the block.
@@ -252,13 +251,14 @@ pub fn share_car_state(
     block: &'static Car,
     record: &MarkCar,
     sound: &SoundObject,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     share_car_state_at(
         race,
         block,
         record,
         sound,
-        &scene().drawing.scene.scratch, /* dword_62400C */
+        &scene.drawing.scene.scratch, /* dword_62400C */
     )
 }
 

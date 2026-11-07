@@ -12,7 +12,7 @@ use crate::menu::list_handle::{ListItem, ListMenu};
 use rc2k_core::install::items::{self, MARKS};
 use rc2k_core::install::pages::UNUSABLE;
 
-pub fn mark_page(g: &'static crate::install::owner::Install, list: ListMenu) {
+pub fn mark_page(install: &'static crate::install::owner::Install, list: ListMenu) {
     // Converted: `rc2k_core::install::items` (`walked`, `mark_choices`, `lone_choice`,
     // `lit`).
     let table = |item: ListItem| {
@@ -43,20 +43,21 @@ pub fn mark_page(g: &'static crate::install::owner::Install, list: ListMenu) {
             }
         }
         let byte = item.first();
-        if byte & MARKS == 0 && index == g.pages.choice.get() {
+        if byte & MARKS == 0 && index == install.pages.choice.get() {
             let mut editing = None;
             if byte & 0xF == 4 {
                 let record = item.edit_field();
                 if record.flags() & 4 != 0 {
-                    crate::install::next_edit::next_edit(g, 0, list);
+                    crate::install::next_edit::next_edit(install, 0, list);
                 }
                 editing = Some(record.flags() & 1 != 0);
             }
             let clock = || {
-                g.pages
+                install
+                    .pages
                     .frame_clock
                     .get()
-                    .wrapping_sub(g.pages.move_clock.get())
+                    .wrapping_sub(install.pages.move_clock.get())
             };
             if editing == Some(true) || items::lit(editing, clock()) {
                 item.set_first(item.first() | MARKS);

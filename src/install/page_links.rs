@@ -92,22 +92,22 @@ impl PageLink {
     /// The place in the installer pages the link names, bounded by the pages (the table or
     /// text may run on inside them as the original's does).
     pub fn in_pages(self) -> Result<GamePtr, BadInput> {
+        let install = crate::install::owner::install();
         if self.kind() != PAGES || self.number() as usize >= size_of::<InstallerPages>() {
             return Err(BadInput(
                 "a page link that is no place in the installer's pages",
             ));
         }
-        Ok(GamePtr::to(&crate::install::owner::install().pages).offset(self.number()))
+        Ok(GamePtr::to(&install.pages).offset(self.number()))
     }
 
     /// The place a text or a byte link names: in the pages, or the folder typed (bounded by
     /// the installer's path buffers).
     pub fn place(self) -> Result<GamePtr, BadInput> {
+        let install = crate::install::owner::install();
         if self.kind() == TYPED_PATH && self.number() < 0x100 {
             let typed = core::mem::offset_of!(InstallerPaths, typed) as u32;
-            return Ok(
-                GamePtr::to(&crate::install::owner::install().paths).offset(typed + self.number())
-            );
+            return Ok(GamePtr::to(&install.paths).offset(typed + self.number()));
         }
         self.in_pages()
     }

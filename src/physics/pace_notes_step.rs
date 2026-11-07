@@ -22,7 +22,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::physics::pace_calls::{call_target, calling, calls};
 
 /// The gates' variables (each must be 0; the last is "1000 or more").
@@ -41,7 +40,7 @@ const ONE_F32: u32 = 0x3F80_0000;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
-pub fn pace_notes_step(race: &Race) -> Result<(), Refused> {
+pub fn pace_notes_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if !calling(
         gates(race),
         race.shared.car.driver_kind.get(),
@@ -56,7 +55,7 @@ pub fn pace_notes_step(race: &Race) -> Result<(), Refused> {
         race.course.numbers.eight.bits(),
         ONE_F32,
     );
-    scene().drawing.scene.scratch.set(ahead as u32);
+    scene.drawing.scene.scratch.set(ahead as u32);
     let target = call_target(
         race.shared.car.reset_checkpoint.get(),
         ahead,

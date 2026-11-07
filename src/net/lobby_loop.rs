@@ -91,16 +91,13 @@ pub fn sync(net: &Net, kind: u8) -> Result<bool, Refused> {
 }
 
 /// An item move: from the highlight by `step` while it lands on an item that is off.
-fn step_item(vars: &NetVars, step: u32) {
+fn step_item(install: &'static crate::install::owner::Install, vars: &NetVars, step: u32) {
     loop {
-        crate::install::owner::install().pages.choice.set(
-            crate::install::owner::install()
-                .pages
-                .choice
-                .get()
-                .wrapping_add(step),
-        );
-        let c = crate::install::owner::install().pages.choice.get();
+        install
+            .pages
+            .choice
+            .set(install.pages.choice.get().wrapping_add(step));
+        let c = install.pages.choice.get();
         if c == 1 && vars.car_item.get() != 1 {
             continue;
         }
@@ -112,16 +109,20 @@ fn step_item(vars: &NetVars, step: u32) {
 }
 
 /// The Rust version: 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
-pub fn lobby_loop(race: &Race, net: &Net) -> Result<u32, Refused> {
+pub fn lobby_loop(
+    install: &'static crate::install::owner::Install,
+    race: &Race,
+    net: &Net,
+) -> Result<u32, Refused> {
     let system = system();
     net.vars.players.set(0);
     net.vars.racing.set(0);
     crate::net::show_background::show_background(&net.vars)?;
     let now = system.session.clocks.key_ticks.get();
-    crate::install::owner::install().pages.move_clock.set(now);
-    crate::install::owner::install().pages.key_clock.set(now);
+    install.pages.move_clock.set(now);
+    install.pages.key_clock.set(now);
     net.vars.edited.set(u32::MAX);
-    crate::install::owner::install().pages.choice.set(3);
+    install.pages.choice.set(3);
     let tick = crate::system::tick_count::tick_count();
     net.vars.clock_a.set(tick);
     net.vars.sync_clock.set(tick);
@@ -141,7 +142,7 @@ pub fn lobby_loop(race: &Race, net: &Net) -> Result<u32, Refused> {
             // the carry, section 16).
             crate::net::list_players::list_players_regs(&net.vars)?;
         }
-        crate::install::owner::install()
+        install
             .pages
             .frame_clock
             .set(system.session.clocks.key_ticks.get());
@@ -152,34 +153,32 @@ pub fn lobby_loop(race: &Race, net: &Net) -> Result<u32, Refused> {
         } else {
             let ready = net.vars.own.state() & 1 != 0;
             if !ready && key == 0x69 {
-                step_item(&net.vars, u32::MAX);
-                if net.vars.after_race.get() == 1
-                    && (crate::install::owner::install().pages.choice.get() as i32) < 1
-                {
-                    crate::install::owner::install().pages.choice.set(1);
+                step_item(install, &net.vars, u32::MAX);
+                if net.vars.after_race.get() == 1 && (install.pages.choice.get() as i32) < 1 {
+                    install.pages.choice.set(1);
                 }
-                if (crate::install::owner::install().pages.choice.get() as i32) < 0 {
-                    crate::install::owner::install().pages.choice.set(0);
+                if (install.pages.choice.get() as i32) < 0 {
+                    install.pages.choice.set(0);
                 }
                 moved = true;
             } else if !ready && key == 0x68 {
-                step_item(&net.vars, 1);
-                if (crate::install::owner::install().pages.choice.get() as i32) > 3 {
-                    crate::install::owner::install().pages.choice.set(3);
+                step_item(install, &net.vars, 1);
+                if (install.pages.choice.get() as i32) > 3 {
+                    install.pages.choice.set(3);
                 }
                 moved = true;
             } else if key == 0x1C {
-                match crate::install::owner::install().pages.choice.get() {
+                match install.pages.choice.get() {
                     0 => {
                         net.vars
                             .own
                             .head
                             .set(PlayerRecord::STATE, net.vars.own.state() & 0xF9 | 1);
-                        crate::install::owner::install().pages.choice.set(3);
+                        install.pages.choice.set(3);
                         moved = true;
                     }
                     1 | 2 => {
-                        if crate::install::owner::install().pages.choice.get() == 1 {
+                        if install.pages.choice.get() == 1 {
                             crate::net::choose_car::choose_car(&net.vars)?;
                         } else {
                             crate::net::choose_stage::choose_stage(race, &net.vars)?;
@@ -188,7 +187,7 @@ pub fn lobby_loop(race: &Race, net: &Net) -> Result<u32, Refused> {
                         moved = true;
                     }
                     3 => {
-                        crate::net::begin_chat::begin_chat(&net.vars)?;
+                        crate::net::begin_chat::begin_chat(install, &net.vars)?;
                         moved = true;
                     }
                     _ => {}
@@ -197,17 +196,17 @@ pub fn lobby_loop(race: &Race, net: &Net) -> Result<u32, Refused> {
                 net.vars.show_gaps.set(net.vars.show_gaps.get() ^ 1);
                 moved = true;
             } else if key == 1 {
-                crate::install::owner::install().pages.choice.set(u32::MAX);
-                return Ok(crate::install::owner::install().pages.choice.get());
+                install.pages.choice.set(u32::MAX);
+                return Ok(install.pages.choice.get());
             } else {
                 other_key(key)?;
             }
         }
         if moved {
-            crate::install::owner::install()
+            install
                 .pages
                 .move_clock
-                .set(crate::install::owner::install().pages.frame_clock.get());
+                .set(install.pages.frame_clock.get());
         }
         if net.vars.own.state() & 0x10 != 0
             && net.vars.players.get() >= 2
@@ -217,8 +216,8 @@ pub fn lobby_loop(race: &Race, net: &Net) -> Result<u32, Refused> {
             net.vars.all_raced.set(1);
         }
         if net.vars.all_raced.get() == 1 {
-            crate::install::owner::install().pages.choice.set(1);
-            return Ok(crate::install::owner::install().pages.choice.get());
+            install.pages.choice.set(1);
+            return Ok(install.pages.choice.get());
         }
         if net.vars.players.get() >= 1 && all_states(&net.vars, 4, net.vars.players.get()) == 4 {
             net.vars.after_race.set(0);
@@ -227,6 +226,6 @@ pub fn lobby_loop(race: &Race, net: &Net) -> Result<u32, Refused> {
             break;
         }
     }
-    crate::install::owner::install().pages.choice.set(u32::MAX);
-    Ok(crate::install::owner::install().pages.choice.get())
+    install.pages.choice.set(u32::MAX);
+    Ok(install.pages.choice.get())
 }

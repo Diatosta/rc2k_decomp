@@ -24,7 +24,7 @@ fn find_name() -> Vec<u8> {
 
 /// The files of `pattern` (eax) added to the files' table.
 pub fn list_files(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     pattern: impl Into<crate::place::Place>,
 ) -> Result<(), Refused> {
     let pattern = resolve_path(pattern)?;
@@ -33,8 +33,11 @@ pub fn list_files(
             // append_directory (edx the pattern's path, ebx the cursor)
             let name = found_name(&pattern, &find_name())?;
             let used = FILES.with(|t| t.push(name))?;
-            g.run.file_cursor.set(used);
-            g.run.file_count.set(g.run.file_count.get().wrapping_add(1));
+            install.run.file_cursor.set(used);
+            install
+                .run
+                .file_count
+                .set(install.run.file_count.get().wrapping_add(1));
             // Converted: `rc2k_core::install::script::room_left` (`sub ebx, [table]`).
             script::room_left(used, script::FILES_ROOM, script::FILES_FULL).map_err(fatal)?;
             if !find_next() {

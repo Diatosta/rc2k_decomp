@@ -1,8 +1,6 @@
 //! Where the time goes: the frames' counts and timings in the log, and on Windows the main
 //! thread and the rasteriser's sampled (with `RC2K_PROFILE` set).
 
-#![allow(unsafe_code)]
-
 use crate::framework::log;
 use crate::platform::SHOWN;
 use crate::system::owner::system;
@@ -31,8 +29,7 @@ pub fn start_threads() {
             SAMPLED
                 .lock()
                 .unwrap()
-                // SAFETY: no arguments; the calling thread's id.
-                .push(unsafe { windows_sys::Win32::System::Threading::GetCurrentThreadId() });
+                .push(crate::ffi::win32::current_thread_id());
         })
         .build_global();
 }
@@ -52,12 +49,8 @@ fn hot_places() -> String {
 /// go on. `rc2k_profile.txt` is emptied as it starts.
 #[cfg(windows)]
 pub fn start_sampler() {
+    use crate::ffi::win32::SampledThread;
     use std::sync::Once;
-    use windows_sys::Win32::System::Diagnostics::Debug::{CONTEXT, GetThreadContext};
-    use windows_sys::Win32::System::Threading::{
-        GetCurrentThreadId, OpenThread, ResumeThread, SuspendThread, THREAD_GET_CONTEXT,
-        THREAD_SUSPEND_RESUME,
-    };
     static STARTED: Once = Once::new();
     STARTED.call_once(|| {
         if std::env::var_os("RC2K_PROFILE").is_none() {
@@ -69,45 +62,27 @@ pub fn start_sampler() {
         SAMPLED
             .lock()
             .unwrap()
-            // SAFETY: no arguments.
-            .insert(0, unsafe { GetCurrentThreadId() });
+            .insert(0, crate::ffi::win32::current_thread_id());
         *SAMPLES.lock().unwrap() = Some(Default::default());
         std::thread::spawn(move || {
-            let mut handles: Vec<(u32, usize)> = Vec::new();
+            let mut threads: Vec<(u32, SampledThread)> = Vec::new();
             loop {
                 std::thread::sleep(std::time::Duration::from_millis(1));
                 for &id in SAMPLED.lock().unwrap().iter() {
-                    if !handles.iter().any(|h| h.0 == id) {
-                        // SAFETY: a thread id; a null handle on failure, checked.
-                        let h = unsafe {
-                            OpenThread(THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT, 0, id)
-                        };
-                        if !h.is_null() {
-                            handles.push((id, h.expose_provenance()));
-                        }
+                    if !threads.iter().any(|t| t.0 == id)
+                        && let Some(thread) = SampledThread::open(id)
+                    {
+                        threads.push((id, thread));
                     }
                 }
-                for &(_, h) in &handles {
-                    let thread: windows_sys::Win32::Foundation::HANDLE =
-                        std::ptr::with_exposed_provenance_mut(h);
-                    // SAFETY: a handle opened above with suspend and context rights, kept
-                    // open for the program's life; the thread is resumed before `SAMPLES`
-                    // is locked (it may have been stopped holding that lock); `CONTEXT` is
-                    // plain data, zeroed as the API expects.
-                    unsafe {
-                        if SuspendThread(thread) == u32::MAX {
-                            continue;
-                        }
-                        let mut context: CONTEXT = std::mem::zeroed();
-                        context.ContextFlags = crate::arch::CONTEXT_CONTROL;
-                        let got = GetThreadContext(thread, &raw mut context) != 0;
-                        ResumeThread(thread);
-                        if got
-                            && let Ok(mut samples) = SAMPLES.lock()
-                            && let Some(samples) = samples.as_mut()
-                        {
-                            *samples.entry(crate::arch::ip(&context)).or_insert(0) += 1;
-                        }
+                for (_, thread) in &threads {
+                    // The thread is resumed before `SAMPLES` is locked (it may have been
+                    // stopped holding that lock).
+                    if let Some(ip) = thread.instruction_pointer()
+                        && let Ok(mut samples) = SAMPLES.lock()
+                        && let Some(samples) = samples.as_mut()
+                    {
+                        *samples.entry(ip).or_insert(0) += 1;
                     }
                 }
             }
@@ -119,10 +94,6 @@ pub fn start_sampler() {
 /// (`rc2k+offset`, for `llvm-symbolizer`) or a DLL's.
 #[cfg(windows)]
 fn hot_places() -> String {
-    use windows_sys::Win32::System::LibraryLoader::{
-        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS, GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-        GetModuleFileNameA, GetModuleHandleA, GetModuleHandleExA,
-    };
     let Some(samples) = SAMPLES
         .lock()
         .ok()
@@ -135,35 +106,19 @@ fn hot_places() -> String {
         return String::new();
     }
     // Host addresses throughout (sampled instruction pointers, modules).
-    // SAFETY: a null name asks for the program's own module.
-    let program = unsafe { GetModuleHandleA(std::ptr::null()) }.expose_provenance();
+    let program = crate::ffi::win32::program_base();
     // by function-sized buckets would need symbols: by address, the top 24
     let mut places: Vec<(usize, u32)> = samples.into_iter().collect();
     places.sort_by_key(|p| std::cmp::Reverse(p.1));
     let name = |at: usize| -> String {
-        // SAFETY: `at` is only looked up (UNCHANGED_REFCOUNT: nothing held); the module
-        // handle is live while the program runs; `file` is the 260 bytes said.
-        unsafe {
-            let mut module = std::ptr::null_mut();
-            if GetModuleHandleExA(
-                GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS
-                    | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-                std::ptr::with_exposed_provenance::<u8>(at),
-                &raw mut module,
-            ) == 0
-            {
-                return format!("{at:#x}");
-            }
-            let base = module.expose_provenance();
-            if base == program {
-                return format!("rc2k+{:#x}", at - base);
-            }
-            let mut file = [0u8; 260];
-            let n = GetModuleFileNameA(module, file.as_mut_ptr(), 260) as usize;
-            let file = String::from_utf8_lossy(&file[..n]);
-            let file = file.rsplit(['\\', '/']).next().unwrap_or("?").to_string();
-            format!("{file}+{:#x}", at - base)
+        let Some((path, base)) = crate::ffi::win32::module_of_address_ansi(at) else {
+            return format!("{at:#x}");
+        };
+        if base == program {
+            return format!("rc2k+{:#x}", at - base);
         }
+        let file = path.rsplit(['\\', '/']).next().unwrap_or("?");
+        format!("{file}+{:#x}", at - base)
     };
     // Every place, for adding up by function offline (`llvm-symbolizer` on rc2k.exe).
     let all: String = places

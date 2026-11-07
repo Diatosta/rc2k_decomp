@@ -45,8 +45,8 @@ fn run(command: &[u8]) {
 }
 
 /// The Rust version (see the header).
-pub fn run_after_exit(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
-    let run_vars = &g.run;
+pub fn run_after_exit(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+    let run_vars = &install.run;
     // `g_addStartItems` .. `g_runRegistration`.
     let switch = |n: u32| {
         [
@@ -63,14 +63,14 @@ pub fn run_after_exit(g: &'static crate::install::owner::Install) -> Result<(), 
         return Ok(());
     }
     // The refusals, before anything.
-    let game_dir = g.paths.game_dir.text();
+    let game_dir = install.paths.game_dir.text();
     let game_dir_len = game_dir.len() as u32;
     if switch(2) != 1 && switch(5) == 1 && game_dir_len + 5 + 1 > ROOM {
         return Err(
             BadInput("the game's folder too long for \"ereg\\\" in its 0x100 bytes").into(),
         );
     }
-    let from_cd = g.vars.running_from_cd.get();
+    let from_cd = install.vars.running_from_cd.get();
     if switch(2) != 1
         && switch(5) != 1
         && switch(3) == 1
@@ -83,35 +83,36 @@ pub fn run_after_exit(g: &'static crate::install::owner::Install) -> Result<(), 
     // original): the standalone's shell shortcuts.
     if switch(0) == 1 {
         crate::install::shortcuts::add_start_menu_items(&crate::files::host_path(
-            &g.paths.installed.text(),
+            &install.paths.installed.text(),
         ));
     }
     if switch(1) == 1 {
         crate::install::shortcuts::remove_start_menu_items();
     }
     if switch(2) == 1 {
-        let other_dir = g.texts.other_dir.text();
+        let other_dir = install.texts.other_dir.text();
         for dir in [&game_dir, &other_dir] {
             if !set_cd(dir) {
                 return Ok(());
             }
         }
-        run(&g.names.dxsetup.text());
+        run(&install.names.dxsetup.text());
         return Ok(());
     }
     if switch(5) == 1 {
         // "ereg\eregip.exe" (the script's text after its count): its folder after the
         // game's, its name into the program's buffer (`byte_94E8B0`).
-        let ereg = g.run.ereg.read();
+        let ereg = install.run.ereg.read();
         let ereg = &ereg[2..];
         let ereg = &ereg[..ereg.iter().position(|&c| c == 0).unwrap_or(ereg.len())];
         let folder = paths::directory(ereg).unwrap_or(&[]);
         let at = game_dir_len as usize;
-        g.paths
+        install
+            .paths
             .game_dir
             .write_at(at, &[folder, &[0]].concat(), "the installer's path")?;
         scratch_put(0, &[paths::file_name(ereg), &[0]].concat())?;
-        if !set_cd(&g.paths.game_dir.text()) {
+        if !set_cd(&install.paths.game_dir.text()) {
             return Ok(());
         }
         run(&scratch_text()?);
@@ -120,17 +121,18 @@ pub fn run_after_exit(g: &'static crate::install::owner::Install) -> Result<(), 
     if switch(3) != 1 {
         return Ok(());
     }
-    let normalised =
-        crate::install::normalise_path::normalised_bytes(&g.names.source.text(), &mut || {
-            crate::install::normalise_path::current_directory()
-        })?;
+    let normalised = crate::install::normalise_path::normalised_bytes(
+        &install.names.source.text(),
+        &mut || crate::install::normalise_path::current_directory(),
+    )?;
     let Some(installed) = normalised else {
         return Ok(());
     };
-    g.paths
+    install
+        .paths
         .installed
         .write_at(0, &installed, "the installed folder")?;
-    if !set_cd(&g.paths.installed.text()) {
+    if !set_cd(&install.paths.installed.text()) {
         return Ok(());
     }
     // The program and its DLLs from its own folder (not a CD's copy of `ral.exe`).

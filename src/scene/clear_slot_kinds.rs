@@ -5,12 +5,10 @@
 //!
 //! The 0x100 dwords of `g_slotKinds` = 0. Two callers.
 
-use crate::scene::owner::scene;
-
 // ---- Rust version ----
 
-pub fn clear_slot_kinds() {
-    for kind in &scene().objects.tables.slot_kinds {
+pub fn clear_slot_kinds(scene: &crate::scene::owner::Scene) {
+    for kind in &scene.objects.tables.slot_kinds {
         kind.set(0);
     }
 }

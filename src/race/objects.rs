@@ -8,7 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
 use crate::race::trap::car_at;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 const LIFT: u32 = 0x5_0000;
@@ -77,8 +76,12 @@ fn log_number(value: u32, newline: bool) {
     crate::logfile::log_int::log_int(value as i32, newline, 1);
 }
 
-pub fn set_up_car_points(race: &Race, slot: u32, block: u32) -> Result<(), Refused> {
-    let scene = scene();
+pub fn set_up_car_points(
+    race: &Race,
+    slot: u32,
+    block: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let slot = 11 + slot as usize;
     {
         let count = scene.objects.slots.point_counts[slot].get();
@@ -158,8 +161,7 @@ pub fn set_up_car_points(race: &Race, slot: u32, block: u32) -> Result<(), Refus
 /// `dword_621844`; with cars, each car's three kinds (its `known_kind`, `car_kind_11`,
 /// `car_kind_10` of its block's +0x24) at slots 0x50 + 0x14 * n, +11, +10; the objects
 /// loaded; each car's points set up. Refuses more than the eight cars' blocks.
-pub fn set_object_kinds(race: &Race) -> Result<(), Refused> {
-    let scene = scene();
+pub fn set_object_kinds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     // Converted: `rc2k_core::race::stage_objects::{FIXED_KINDS, DEFAULT_SLOTS, CAR_KINDS,
     // car_slot, check_object_cars}` (each car's slots one step on from the first's, as the
@@ -168,7 +170,7 @@ pub fn set_object_kinds(race: &Race) -> Result<(), Refused> {
         CAR_KINDS, CAR_SLOT_STEP, CarKind, DEFAULT_SLOTS, FIRST_CAR_SLOT, FIXED_KINDS, car_slot,
         check_object_cars,
     };
-    crate::scene::clear_slot_kinds::clear_slot_kinds();
+    crate::scene::clear_slot_kinds::clear_slot_kinds(scene);
     crate::session::write_bits(&course.stage_prefs.fixed_kinds, FIXED_KINDS);
     for n in DEFAULT_SLOTS {
         // Slots 56 .. 62 take `fixed_kinds`, just set above: the original's table runs on
@@ -205,7 +207,7 @@ pub fn set_object_kinds(race: &Race) -> Result<(), Refused> {
     let mut slot = FIRST_CAR_SLOT;
     for n in 0..cars {
         let block: u32 = race.shared.work.car_block(n as usize);
-        set_up_car_points(race, slot, block)?;
+        set_up_car_points(race, slot, block, scene)?;
         slot += CAR_SLOT_STEP;
     }
     Ok(())
@@ -214,11 +216,10 @@ pub fn set_object_kinds(race: &Race) -> Result<(), Refused> {
 /// `race::reload_objects` (0x425B2F): "LOAD OBJECTS - START" between two lines of dashes,
 /// `set_object_kinds`, then "total points", "total polys" and "facemem used" with their
 /// numbers, "LOAD OBJECTS - FINIS" and the dashes.
-pub fn reload_objects(race: &Race) -> Result<(), Refused> {
-    let scene = scene();
+pub fn reload_objects(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     log(c"-------------------------------------", true);
     log(c"LOAD OBJECTS - START", true);
-    set_object_kinds(race)?;
+    set_object_kinds(race, scene)?;
     log(c"total points", false);
     log_number(scene.objects.tables.point_count.get(), false);
     log(c"total polys", false);

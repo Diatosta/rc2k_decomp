@@ -22,7 +22,6 @@ use crate::math::x87_run::{ext_to_int, int_80};
 use crate::physics::object_turn_matrix::object_turn_matrix;
 use crate::physics::point_hits_car::point_hits_car;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::contacts;
 
@@ -32,12 +31,17 @@ use rc2k_core::physics::contacts;
 /// address) are read by none of its callers.
 // Converted: `rc2k_core::physics::contacts::{check_object, walk_points}` (the turns stay
 // x87).
-pub fn object_hits_car(race: &Race, point: u32, face: u32) -> Result<bool, Refused> {
-    let objects = &scene().objects;
+pub fn object_hits_car(
+    race: &Race,
+    point: u32,
+    face: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
+    let objects = &scene.objects;
     let race_owner = race;
     let number = race_owner.physics.contact.face_object.get();
     contacts::check_object(number)?;
-    { object_turn_matrix(race) }?;
+    { object_turn_matrix(race, scene) }?;
     race.shared
         .physics_tables
         .object_hits

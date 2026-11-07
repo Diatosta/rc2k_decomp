@@ -17,8 +17,8 @@ use crate::physics::test_drive_run;
 use crate::race::owner::Race;
 
 /// The Rust version.
-pub fn test_drive(race: &Race) -> Result<(), Refused> {
-    crate::physics::load_car_specs::load_car_specs(race)?;
+pub fn test_drive(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    crate::physics::load_car_specs::load_car_specs(race, scene)?;
     crate::physics::make_gear_ratios::make_gear_ratios(race)?;
     // The figures kept round the run: the drive speeds, the car's speed, the gear, the
     // engine, the gearbox kind.

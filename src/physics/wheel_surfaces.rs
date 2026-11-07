@@ -54,9 +54,9 @@ fn info_byte(n: u32, offset: u32) -> Result<u32, Refused> {
 }
 
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` one of the probe shares).
-fn share_bit(course: &Course, v: &[Dword; 64], c: u32) -> u32 {
+fn share_bit(course: &Course, v: &[Dword; 64], c: u32, scene: &crate::scene::owner::Scene) -> u32 {
     x87_1(course, v, c as usize);
-    scene().drawing.scene.scratch.get()
+    scene.drawing.scene.scratch.get()
 }
 
 /// Everything the function reads that the checks need, refused as said.
@@ -74,7 +74,8 @@ fn check(race: &Race) -> Result<(), Refused> {
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
 fn steps(race: &Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let scene = crate::scene::owner::scene();
+    let drawing = &scene.drawing;
     let physics = &race.physics;
     check(race)?;
     for c in 0..5u32 {
@@ -88,8 +89,8 @@ fn steps(race: &Race) -> Result<(), Refused> {
             )?))
         };
         let t1 = face_byte(1)?;
-        let mut edx = share_bit(&race.course, &physics.contact.probe_share_v, c);
-        let mut ebx = share_bit(&race.course, &physics.contact.probe_share_u, c);
+        let mut edx = share_bit(&race.course, &physics.contact.probe_share_v, c, scene);
+        let mut ebx = share_bit(&race.course, &physics.contact.probe_share_u, c, scene);
         edx = (edx >> 15) & 1;
         ebx = (ebx >> 15) & 1;
         if physics.contact.probe_face_flip[cc].get() == 1 {

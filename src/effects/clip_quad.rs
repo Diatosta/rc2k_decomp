@@ -58,7 +58,7 @@ fn copy_vertex(from: &Vertex, to: &Vertex) {
 /// The quad is the polygon vertices' first four (`g_polygonVertices`, every caller's);
 /// the original stepped its vertex offsets by 0x20 and masked them with 0x7F, here the
 /// vertex numbers wrap at 4.
-pub fn clip_quad() -> Result<bool, Refused> {
+pub fn clip_quad(scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
     let effects = effects();
     {
         let settings: u32 = effects.setup.settings.is_set.get();
@@ -149,11 +149,7 @@ pub fn clip_quad() -> Result<bool, Refused> {
             copy_vertex(from, to);
         }
         let count = built as u32;
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .set_bits(count);
+        scene.drawing.scene.polygon_vertex_count.set_bits(count);
         effects.clipping.glow.clip_count.set(count);
     }
     Ok(false)

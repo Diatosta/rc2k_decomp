@@ -13,7 +13,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::scene::load_texture_picture::load_texture_picture_in_game;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -27,8 +26,9 @@ pub const TEXTURES: u32 = 0x400;
 pub fn load_changed_texture_picture(
     texture: u32,
     load: &mut dyn FnMut(u32, u32) -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let textures = &scene().textures;
+    let textures = &scene.textures;
     if texture >= TEXTURES {
         return Err(BadInput("a texture past the pictures' tables").into());
     }
@@ -47,8 +47,11 @@ pub fn load_changed_texture_picture(
 pub fn load_changed_texture_picture_in_game(
     race: &'static crate::race::owner::Race,
     texture: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    load_changed_texture_picture(texture, &mut |picture, texture| {
-        load_texture_picture_in_game(race, picture, texture)
-    })
+    load_changed_texture_picture(
+        texture,
+        &mut |picture, texture| load_texture_picture_in_game(race, picture, texture, scene),
+        scene,
+    )
 }

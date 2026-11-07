@@ -19,7 +19,7 @@ use crate::race::owner::Race;
 pub use rc2k_core::race::mud::LAST_THROWN;
 
 /// The Rust version (see the header).
-pub fn throw_mud_texel(race: &Race) -> Result<(), Refused> {
+pub fn throw_mud_texel(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::mud::{LAST_THROWN, extra_throw}`.
     let n = texture_and_mud(&race.shared)?;
@@ -30,11 +30,11 @@ pub fn throw_mud_texel(race: &Race) -> Result<(), Refused> {
         return Ok(());
     }
     count_cell.set(count + 1);
-    muddy_texel(race, count)?;
+    muddy_texel(race, count, scene)?;
     let (sum, carried) = rc2k_core::race::mud::extra_throw(shared.vars.mud_extra_sum.bits());
     shared.vars.mud_extra_sum.set_bits(sum);
     if !carried {
         return Ok(());
     }
-    muddy_texel(race, next_random())
+    muddy_texel(race, next_random(), scene)
 }

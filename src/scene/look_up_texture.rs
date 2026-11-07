@@ -9,9 +9,7 @@
 //! Callers: 0x44CCB8, `race::flush_texture_batch`.
 
 /// The Rust version: what it leaves in eax.
-use crate::scene::owner::scene;
-pub fn look_up_texture() -> u32 {
-    let scene = scene();
+pub fn look_up_texture(scene: &crate::scene::owner::Scene) -> u32 {
     // Converted: `rc2k_core::scene::textures::look_up`.
     let found = rc2k_core::scene::textures::look_up(
         scene.drawing.scene.texture_page.bits(),

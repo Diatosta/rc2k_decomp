@@ -24,7 +24,7 @@ use rc2k_core::install::config;
 // ---- Rust version ----
 
 pub fn read_languages(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     path: &[u8],
 ) -> Result<(), BadInput> {
     {
@@ -34,7 +34,7 @@ pub fn read_languages(
         // Converted: `rc2k_core::install::config` (`find_languages`, its keys as constants;
         // `keep_languages`). Found first, stored after (`sub_4139AB`).
         let found = config::find_languages(&text.bytes("the languages' text")?, &case_table())?;
-        let all = &g.names.languages;
+        let all = &install.names.languages;
         let mut slots = all.read_at(0, LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;
         for (slot, value) in found {
             let at = slot * LANGUAGE_SLOT;
@@ -43,7 +43,7 @@ pub fn read_languages(
         }
         all.write_at(0, &slots, "the languages' slots")?;
         let kept = config::keep_languages(&mut slots);
-        g.names.language_count.set(kept);
-        choose_language(g, 1)
+        install.names.language_count.set(kept);
+        choose_language(install, 1)
     }
 }

@@ -266,6 +266,7 @@ pub fn gather_spline_points(
     s: Spline,
     object: u32,
     kind: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     use crate::scene::objects::FACES;
     {
@@ -273,8 +274,8 @@ pub fn gather_spline_points(
         if object >= 0x100 {
             return Err(BadInput("an object past 0xFF").into());
         }
-        let first: u32 = crate::scene::owner::scene().objects.slots.first_face[object].get();
-        let faces: u32 = crate::scene::owner::scene().objects.slots.face_counts[object].get();
+        let first: u32 = scene.objects.slots.first_face[object].get();
+        let faces: u32 = scene.objects.slots.face_counts[object].get();
         if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
             return Err(BadInput("an object's faces past g_faces").into());
         }
@@ -537,13 +538,17 @@ pub fn bound_spline_points(paths: &Paths, s: Spline) -> Result<(), Refused> {
 
 /// What `make_spline` refuses for an object: past 0xFF, a negative face count or faces past
 /// `g_faces`, an angle of its tables `fsincos` cannot take.
-fn spline_checks(paths: &Paths, object: u32) -> Result<(), Refused> {
+fn spline_checks(
+    paths: &Paths,
+    object: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use crate::scene::objects::FACES;
     if object >= 0x100 {
         return Err(BadInput("an object past 0xFF").into());
     }
-    let first: u32 = crate::scene::owner::scene().objects.slots.first_face[object as usize].get();
-    let faces: u32 = crate::scene::owner::scene().objects.slots.face_counts[object as usize].get();
+    let first: u32 = scene.objects.slots.first_face[object as usize].get();
+    let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
     if (faces as i32) < 0 || first.checked_add(faces).is_none_or(|end| end > FACES) {
         return Err(BadInput("an object's faces past g_faces").into());
     }
@@ -561,7 +566,12 @@ fn spline_checks(paths: &Paths, object: u32) -> Result<(), Refused> {
 /// and their ends found; the third's +0x44 .. the highest point plus `g_marksSplineShift`.
 /// Then the place counted. Refuses a negative place, an object past 0xFF or faces past
 /// `g_faces`, an angle `fsincos` cannot take, before writing anything else.
-pub fn make_spline(course: &Course, paths: &Paths, object: u32) -> Result<(), Refused> {
+pub fn make_spline(
+    course: &Course,
+    paths: &Paths,
+    object: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     {
         paths.spline_work.object.set_bits(object);
         let place = paths.spline_work.place.bits() as i32;
@@ -571,7 +581,7 @@ pub fn make_spline(course: &Course, paths: &Paths, object: u32) -> Result<(), Re
         if place < 0 {
             return Err(BadInput("a negative spline place").into());
         }
-        spline_checks(paths, object)?;
+        spline_checks(paths, object, scene)?;
         let offset = place as u32 * SPLINE_LEN;
         paths.spline_work.offset.set_bits(offset);
         for t in 0..4 {
@@ -582,6 +592,7 @@ pub fn make_spline(course: &Course, paths: &Paths, object: u32) -> Result<(), Re
                 record,
                 object,
                 paths.spline_kinds.chosen[1 + t].bits(),
+                scene,
             )?;
             bound_spline_points(paths, record)?;
             if t == 1 || t == 2 {
@@ -631,7 +642,12 @@ const MOST_OBJECTS: u32 = (0x2708 - 0x26BC) / 4;
 /// first); `dword_7695CE` 0. Refuses a mark neither 0 nor `resume`, a kind of 0x22 or
 /// more, more than 19 objects, and what `make_spline` would refuse for any of them, before
 /// writing anything.
-pub fn load_splines(course: &Course, paths: &Paths, resume: u32) -> Result<(), Refused> {
+pub fn load_splines(
+    course: &Course,
+    paths: &Paths,
+    resume: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let loaded: u32 = paths.spline_kinds.loaded.bits();
     if loaded != 0 && loaded != resume {
         return Err(BadInput("the splines' mark is neither 0 nor loc_4B9706").into());
@@ -655,7 +671,7 @@ pub fn load_splines(course: &Course, paths: &Paths, resume: u32) -> Result<(), R
         .collect::<Result<_, _>>()?;
     // The place starts at 0: the first eight are made, the rest only noted.
     for &o in objects.iter().take(8) {
-        spline_checks(paths, o)?;
+        spline_checks(paths, o, scene)?;
     }
     if loaded == 0 {
         crate::files::read_whole_file::read_whole_file_bytes(
@@ -670,7 +686,7 @@ pub fn load_splines(course: &Course, paths: &Paths, resume: u32) -> Result<(), R
     }
     paths.spline_work.place.set_bits(0u32);
     for o in objects {
-        make_spline(course, paths, o)?;
+        make_spline(course, paths, o, scene)?;
     }
     paths.spline_head.made.set_bits(0u32);
     Ok(())

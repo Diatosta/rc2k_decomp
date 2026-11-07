@@ -9,7 +9,6 @@
 //! and height, and `d3d::clear_viewport` (0x44E9D9: the viewport's Clear with that one
 //! rectangle and flag 2, the depth buffer; Direct3D, not ported). Three callers.
 
-use crate::scene::owner::scene;
 use crate::system::owner::system;
 
 // ---- game data ----
@@ -19,9 +18,8 @@ use crate::system::owner::system;
 /// The depth buffer cleared over the whole screen (`d3d::clear_viewport`), unless there
 /// is no 3D. What the original leaves (eax 0, ebx the height) its three callers overwrite
 /// before reading (each next calls `scene::assign_kind_textures`, which sets both).
-pub fn clear_depth_buffer() {
+pub fn clear_depth_buffer(scene: &crate::scene::owner::Scene) {
     let session = &system().session;
-    let scene = scene();
     if scene.objects.tables.has_3d.get() == 0 {
         return;
     }

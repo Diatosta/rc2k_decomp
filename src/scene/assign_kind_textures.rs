@@ -11,15 +11,14 @@
 //! a first slot past the table.
 
 use crate::errors::BadInput;
-use crate::scene::owner::scene;
 use crate::scene::textures::with_cells;
 
 // ---- Rust version ----
 
 /// What the original leaves in eax, ebx, ecx and edi no caller reads (register liveness,
 /// 2026-10-23: its five call sites).
-pub fn assign_kind_textures() -> Result<(), BadInput> {
-    let scene_textures = &scene().textures;
+pub fn assign_kind_textures(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+    let scene_textures = &scene.textures;
     // Converted: `rc2k_core::scene::textures::assign_kind_textures`.
     with_cells(
         [

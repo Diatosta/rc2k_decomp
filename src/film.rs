@@ -458,14 +458,14 @@ fn decoded_sound(audio: &[u8], channels: usize) -> Result<Vec<i16>, String> {
 
 /// The Rust version (see the header) for the path at `path`: the zero flag it leaves
 /// (true: the film's end, false for a key or a film that does not play).
-pub fn play_film(path: crate::pointers::GamePtr) -> bool {
+pub fn play_film(path: &dyn crate::session::TextPlace) -> bool {
     let gfx_reports = &gfx().reports;
     let reports: u32 = gfx_reports.on.get();
     gfx_reports.on.set(0);
     // A key pending before the film is dropped (`input::take_key`).
     crate::input::take_key::take_key();
     // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
-    let found = crate::files::cstring_at(path, "a film's path").and_then(|given| {
+    let found = path.text("a film's path").and_then(|given| {
         let resolved = crate::files::resolve_path::resolve(&given)?;
         let there = crate::files::file_exists::file_exists(&resolved)?;
         Ok((resolved, there))
@@ -487,7 +487,7 @@ pub fn play_film(path: crate::pointers::GamePtr) -> bool {
     };
     // The original's eax is the path (the zero flag clear when it does not open), else
     // the key that ended the film (0 at its end): whether it is 0.
-    let mut ended = path.is_null();
+    let mut ended = false; // (the path is a field, never null)
     if let Some(name) = name {
         match open(&name) {
             Err(why) => log(&format!("gfx::play_film: {name} not played: {why}")),
@@ -577,7 +577,7 @@ fn run(film: &mut Film) -> u8 {
 
 /// `gfx::play_film` for its callers (the films' loop): nothing with the setting `nofmv`
 /// (the zero flag clear); else the film at `path`, true at its end.
-pub fn play_film_now(path: crate::pointers::GamePtr) -> bool {
+pub fn play_film_now(path: &dyn crate::session::TextPlace) -> bool {
     if NO_FMV.get() != 0 {
         return false;
     }

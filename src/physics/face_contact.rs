@@ -71,7 +71,7 @@ pub fn steps(race: &Race, number: u32) -> Result<(), Refused> {
             "a face's dword",
         )?)
     };
-    if crate::scene::kind_hidden_at::kind_hidden_at(race, face)? {
+    if crate::scene::kind_hidden_at::kind_hidden_at(race, face, scene)? {
         return Ok(());
     }
     let mut refused = None;
@@ -149,7 +149,7 @@ pub fn steps(race: &Race, number: u32) -> Result<(), Refused> {
             return Ok(());
         }
         // esi the scene point, ebp the face.
-        if !{ crate::physics::object_hits_car::object_hits_car(race, point, face) }? {
+        if !{ crate::physics::object_hits_car::object_hits_car(race, point, face, scene) }? {
             return Ok(());
         }
     }

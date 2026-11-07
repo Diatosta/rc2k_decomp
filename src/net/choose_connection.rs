@@ -19,50 +19,50 @@ use rc2k_core::net::screens::{self, ListKey};
 
 /// A list's up (0x66) or down (0x6B) on a list of `count` items: the highlight and the top
 /// moved; false for another key.
-pub fn list_move(key: u8, count: u32) -> bool {
+pub fn list_move(install: &'static crate::install::owner::Install, key: u8, count: u32) -> bool {
     // Converted: `rc2k_core::net::screens` (`ListKey`, `up`, `down`).
     let (choice, top) = match ListKey::of(key) {
         ListKey::Up => screens::up(
-            crate::install::owner::install().pages.choice.get(),
-            crate::install::owner::install().pages.choice_before.get(),
+            install.pages.choice.get(),
+            install.pages.choice_before.get(),
         ),
         ListKey::Down => screens::down(
-            crate::install::owner::install().pages.choice.get(),
-            crate::install::owner::install().pages.choice_before.get(),
+            install.pages.choice.get(),
+            install.pages.choice_before.get(),
             count,
         ),
         _ => return false,
     };
-    crate::install::owner::install().pages.choice.set(choice);
-    crate::install::owner::install()
-        .pages
-        .choice_before
-        .set(top);
+    install.pages.choice.set(choice);
+    install.pages.choice_before.set(top);
     true
 }
 
 /// The Rust version.
-pub fn choose_connection(vars: &NetVars) -> Result<u32, Refused> {
+pub fn choose_connection(
+    install: &'static crate::install::owner::Install,
+    vars: &NetVars,
+) -> Result<u32, Refused> {
     let system = system();
     let now = system.session.clocks.key_ticks.get();
-    crate::install::owner::install().pages.move_clock.set(now);
-    crate::install::owner::install().pages.key_clock.set(now);
-    crate::install::owner::install().pages.choice_before.set(0);
-    crate::install::owner::install().pages.choice.set(0);
+    install.pages.move_clock.set(now);
+    install.pages.key_clock.set(now);
+    install.pages.choice_before.set(0);
+    install.pages.choice.set(0);
     loop {
         run_frame(crate::net::connections_frame::connections_frame)?;
-        crate::install::owner::install()
+        install
             .pages
             .frame_clock
             .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
-        if list_move(key, vars.connections.get()) {
-            crate::install::owner::install()
+        if list_move(install, key, vars.connections.get()) {
+            install
                 .pages
                 .move_clock
-                .set(crate::install::owner::install().pages.frame_clock.get());
+                .set(install.pages.frame_clock.get());
         } else if ListKey::of(key) == ListKey::Enter {
-            return Ok(crate::install::owner::install().pages.choice.get());
+            return Ok(install.pages.choice.get());
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
@@ -72,6 +72,6 @@ pub fn choose_connection(vars: &NetVars) -> Result<u32, Refused> {
             break;
         }
     }
-    crate::install::owner::install().pages.choice.set(u32::MAX);
-    Ok(crate::install::owner::install().pages.choice.get())
+    install.pages.choice.set(u32::MAX);
+    Ok(install.pages.choice.get())
 }

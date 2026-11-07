@@ -17,14 +17,17 @@ use rc2k_core::install::script;
 
 /// The folder `path` (eax) added to the folders' table.
 pub fn list_folder(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     path: impl Into<crate::place::Place>,
 ) -> Result<(), Refused> {
     let path = resolve_path(path)?;
     let (used, scan) = FOLDERS.with(|t| (t.push(path), t.names.len() as u32))?;
-    g.run.dir_cursor.set(used);
-    g.run.dir_scan.set(scan);
-    g.run.dir_count.set(g.run.dir_count.get().wrapping_add(1));
+    install.run.dir_cursor.set(used);
+    install.run.dir_scan.set(scan);
+    install
+        .run
+        .dir_count
+        .set(install.run.dir_count.get().wrapping_add(1));
     // Converted: `rc2k_core::install::script::room_left`.
     script::room_left(used, script::FOLDERS_ROOM, script::FOLDERS_FULL).map_err(fatal)?;
     Ok(())

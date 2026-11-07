@@ -19,12 +19,15 @@ use crate::race::owner::Race;
 use crate::scene::owner::scene;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn ease_view_angles(race: &Race) -> Result<(), crate::errors::BadInput> {
+pub fn ease_view_angles(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
     let esi = record(&race.shared)?;
     if esi.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(&race.shared, esi);
+    share_done(&race.shared, esi, scene);
     for (to, rate) in race
         .shared
         .car
@@ -35,7 +38,7 @@ pub fn ease_view_angles(race: &Race) -> Result<(), crate::errors::BadInput> {
         x87_1(race, rate.get());
         to.set(
             to.get()
-                .wrapping_add(scene().drawing.scene.scratch.get() << 16),
+                .wrapping_add(scene.drawing.scene.scratch.get() << 16),
         );
     }
     Ok(())

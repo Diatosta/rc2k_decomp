@@ -26,27 +26,21 @@ const STATES: [(u32, u32); 7] = [
 ];
 
 /// The Rust version (see the header).
-pub fn windscreen_flakes_setup(fl: &WindscreenFlakes) {
-    setup_with(fl, read_bits(&fl.state.setup_places));
+pub fn windscreen_flakes_setup(fl: &WindscreenFlakes, scene: &crate::scene::owner::Scene) {
+    setup_with(fl, read_bits(&fl.state.setup_places), scene);
 }
 
 /// The set-up with the texture places `places` (`effects::pong_setup` has its own).
-pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4]) {
+pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4], scene: &crate::scene::owner::Scene) {
     use crate::scene::set_render_state::set_render_state;
     {
         crate::scene::depth_buffer_on::depth_buffer(true);
-        crate::scene::set_texture::set_texture(
-            crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
-        );
+        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
         for (value, state) in STATES {
             set_render_state(value, state);
         }
         for n in 0..4 {
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .set_bits(0x100u32);
+            scene.drawing.scene.scratch.set_bits(0x100u32);
             VERTICES.vertices[n].rhw.set_bits(x87::int_to_float(0x100));
         }
         for n in 0..4 {
@@ -58,13 +52,9 @@ pub fn setup_with(fl: &WindscreenFlakes, places: [u32; 4]) {
             VERTICES.vertices[n].u.set_bits(u);
             VERTICES.vertices[n].v.set_bits(v);
         }
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .set_bits(4u32);
-        fl.tables.inverse.set_bits(x87::reciprocal(
-            crate::scene::owner::scene().drawing.scene.farthest.bits(),
-        ));
+        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
+        fl.tables
+            .inverse
+            .set_bits(x87::reciprocal(scene.drawing.scene.farthest.bits()));
     }
 }

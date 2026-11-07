@@ -15,8 +15,8 @@ use crate::race::owner::Race;
 
 /// The Rust version: `matrix_angles` of the crash matrix, each angle scaled to the car's
 /// whole-number angle (pitch, heading, roll).
-pub fn car_angles(race: &Race) {
-    matrix_angles(&race.course, &race.shared.car.crash_matrix);
+pub fn car_angles(race: &Race, scene: &crate::scene::owner::Scene) {
+    matrix_angles(&race.course, &race.shared.car.crash_matrix, scene);
     let scale = |a: u32| {
         mul3_to_int(
             a,

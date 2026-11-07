@@ -26,7 +26,6 @@ use crate::physics::car_sound_state::car_sound_state;
 use crate::physics::gear_change_sound::gear_change_sound;
 use crate::race::owner::Race;
 use crate::scene::matrix3::extended;
-use crate::scene::owner::scene;
 use rc2k_core::physics::engine::ease_revs;
 use rc2k_core::physics::x87::hold_low;
 
@@ -70,8 +69,8 @@ fn run_at(race: &Race) {
 /// The Rust version.
 // Converted: `rc2k_core::physics::engine::ease_revs` and `x87::hold_low` (the speed figures
 // and the rounding stay x87).
-pub fn engine_sound(race: &Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+pub fn engine_sound(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
     if race.shared.view.players.get() == 1 && race.shared.view.view_block(0) == 0 {
         return Err(crate::errors::BadInput("a null view block").into());
     }

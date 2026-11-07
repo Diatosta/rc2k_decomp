@@ -38,6 +38,7 @@ pub fn load_edges(
     masks: &Masks,
     drops: &WindscreenDrops,
     resume: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let effects = effects();
     let done: u32 = masks.edge_settings.done.get();
@@ -122,7 +123,7 @@ pub fn load_edges(
         .tilt
         .tilt
         .set_bits(x87::mul(float, masks.edge_settings.tilt_scale.get()));
-    crate::effects::masks::make_masks(course, masks, drops)?;
+    crate::effects::masks::make_masks(course, masks, drops, scene)?;
     crate::effects::shapes::set_up_windscreen_drops(
         drops,
         crate::effects::shapes::WINDSCREEN_DROPS_RESUME,
@@ -138,17 +139,22 @@ pub fn load_edges(
 /// `effects::load_kind_data` (0x4C1235), `init_marks`' step 1: `g_marksKind` the settings'
 /// +0x26A8; `nullsub_1` (twice, between them), `load_edges`, `load_splines`. Refuses as
 /// its steps do.
-pub fn load_kind_data(course: &Course, effects: &Effects) -> Result<(), Refused> {
+pub fn load_kind_data(
+    course: &Course,
+    effects: &Effects,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let (masks, drops) = (&effects.masks, &effects.windscreen_drops);
     {
         let marks = crate::effects::setup::marks()?;
         let kind = marks.mark_car_file_number.get();
         effects.kinds.marks_kind.kind.set_bits(kind);
-        load_edges(course, masks, drops, RESUME)?;
+        load_edges(course, masks, drops, RESUME, scene)?;
         crate::effects::splines::load_splines(
             course,
             &effects.paths,
             crate::effects::splines::RESUME,
+            scene,
         )?;
     }
     Ok(())

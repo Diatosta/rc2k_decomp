@@ -23,12 +23,10 @@ use rc2k_core::net::screens::{self, ListKey};
 
 /// The sessions listed again (not posted), the highlight kept on the same one; false for
 /// a failed listing.
-fn refresh(net: &Net) -> Result<bool, Refused> {
+fn refresh(install: &'static crate::install::owner::Install, net: &Net) -> Result<bool, Refused> {
     let listed = net.vars.sessions.get();
     if listed != 0 {
-        let instance = with_session(crate::install::owner::install().pages.choice.get(), |s| {
-            s.instance
-        })?;
+        let instance = with_session(install.pages.choice.get(), |s| s.instance)?;
         net.vars
             .joined
             .write_at(0, &instance, "the joined session")?;
@@ -52,8 +50,8 @@ fn refresh(net: &Net) -> Result<bool, Refused> {
                 top = if screens::keeps_top(net.vars.sessions.get()) {
                     screens::moved_top(
                         n,
-                        crate::install::owner::install().pages.choice_before.get(),
-                        crate::install::owner::install().pages.choice.get(),
+                        install.pages.choice_before.get(),
+                        install.pages.choice.get(),
                     )
                 } else {
                     0
@@ -66,22 +64,22 @@ fn refresh(net: &Net) -> Result<bool, Refused> {
             }
         }
     }
-    crate::install::owner::install().pages.choice.set(choice);
-    crate::install::owner::install()
-        .pages
-        .choice_before
-        .set(top);
+    install.pages.choice.set(choice);
+    install.pages.choice_before.set(top);
     Ok(true)
 }
 
 /// The Rust version.
-pub fn choose_session(net: &Net) -> Result<u32, Refused> {
+pub fn choose_session(
+    install: &'static crate::install::owner::Install,
+    net: &Net,
+) -> Result<u32, Refused> {
     let system = system();
     let now = system.session.clocks.key_ticks.get();
-    crate::install::owner::install().pages.move_clock.set(now);
-    crate::install::owner::install().pages.key_clock.set(now);
-    crate::install::owner::install().pages.choice.set(0);
-    crate::install::owner::install().pages.choice_before.set(0);
+    install.pages.move_clock.set(now);
+    install.pages.key_clock.set(now);
+    install.pages.choice.set(0);
+    install.pages.choice_before.set(0);
     net.vars
         .clock_a
         .set(crate::system::tick_count::tick_count());
@@ -90,27 +88,24 @@ pub fn choose_session(net: &Net) -> Result<u32, Refused> {
         let tick = crate::system::tick_count::tick_count();
         if (tick.wrapping_sub(net.vars.clock_a.get()).wrapping_sub(1000) as i32) >= 0 {
             net.vars.clock_a.set(tick);
-            if !refresh(net)? {
-                crate::install::owner::install()
-                    .pages
-                    .choice
-                    .set(0xFFFF_FFFE);
-                return Ok(crate::install::owner::install().pages.choice.get());
+            if !refresh(install, net)? {
+                install.pages.choice.set(0xFFFF_FFFE);
+                return Ok(install.pages.choice.get());
             }
         }
-        crate::install::owner::install()
+        install
             .pages
             .frame_clock
             .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
         let any = net.vars.sessions.get() != 0;
-        if any && list_move(key, net.vars.sessions.get()) {
-            crate::install::owner::install()
+        if any && list_move(install, key, net.vars.sessions.get()) {
+            install
                 .pages
                 .move_clock
-                .set(crate::install::owner::install().pages.frame_clock.get());
+                .set(install.pages.frame_clock.get());
         } else if any && ListKey::of(key) == ListKey::Enter {
-            return Ok(crate::install::owner::install().pages.choice.get());
+            return Ok(install.pages.choice.get());
         } else if ListKey::of(key) == ListKey::Escape {
             break;
         } else {
@@ -120,6 +115,6 @@ pub fn choose_session(net: &Net) -> Result<u32, Refused> {
             break;
         }
     }
-    crate::install::owner::install().pages.choice.set(u32::MAX);
-    Ok(crate::install::owner::install().pages.choice.get())
+    install.pages.choice.set(u32::MAX);
+    Ok(install.pages.choice.get())
 }

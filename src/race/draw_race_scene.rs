@@ -51,12 +51,18 @@ fn view_blocks(shared: &Shared) -> Result<[u32; 2], Refused> {
 /// One view drawn: `car` (0 or 1: `race::load_car_a` / `_b`), its value fetched, its scene,
 /// the sound tick (0xD), the platform's blit (the full view only), the tick (0xE, the full
 /// view only), the overlays, the tick (0xF), and with the view's flags' bit 3 its mirror.
-fn draw_view(race: &Race, car: usize, flags: usize, blit: bool) -> Result<(), Refused> {
+fn draw_view(
+    race: &Race,
+    car: usize,
+    flags: usize,
+    blit: bool,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use crate::race::frame::load_view_car;
     use crate::sound::race_sound_tick::race_sound_tick;
     load_view_car(&race.shared, car)?;
     crate::race::frame_draw::fetch_view_value(race)?;
-    crate::race::draw_view_scene::draw_view_scene(race)?;
+    crate::race::draw_view_scene::draw_view_scene(race, scene)?;
     // Not the original's: the debug UI's probe points need this view.
     if car == 0 {
         crate::debug::imgui_sdl::view_drawn(&race.frame);
@@ -66,11 +72,11 @@ fn draw_view(race: &Race, car: usize, flags: usize, blit: bool) -> Result<(), Re
         crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&race.frame);
         race_sound_tick(&race.frame)?; // 0xE
     }
-    crate::race::draw_view_overlays::draw_view_overlays(race)?;
+    crate::race::draw_view_overlays::draw_view_overlays(race, scene)?;
     race_sound_tick(&race.frame)?; // 0xF
     if race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0 {
         load_view_car(&race.shared, car)?;
-        crate::race::draw_mirror_view::draw_mirror_view(race)?;
+        crate::race::draw_mirror_view::draw_mirror_view(race, scene)?;
     }
     Ok(())
 }
@@ -182,13 +188,13 @@ pub fn draw_race_scene(race: &Race) -> Result<(), Refused> {
             crate::system::tick_count::tick_count(),
         ));
     crate::race::frame_views::full_view_window(race, true);
-    crate::race::car_parts::ready_car_parts(race)?;
-    crate::race::map_scroll::scroll_maps(race)?;
+    crate::race::car_parts::ready_car_parts(race, scene)?;
+    crate::race::map_scroll::scroll_maps(race, scene)?;
     race.frame.panel_and_overlay.panel.texture_changes.set(0);
-    crate::race::frame_views::forget_view_textures(race)?;
-    crate::race::mud_frame::mud_frame(race)?;
+    crate::race::frame_views::forget_view_textures(race, scene)?;
+    crate::race::mud_frame::mud_frame(race, scene)?;
     race.frame.frame_work.kind_textures_done.set(0);
-    crate::scene::assign_kind_textures::assign_kind_textures()?;
+    crate::scene::assign_kind_textures::assign_kind_textures(scene)?;
     for (k, extra) in race
         .frame
         .panel_and_overlay
@@ -208,15 +214,15 @@ pub fn draw_race_scene(race: &Race) -> Result<(), Refused> {
             .set(texture.wrapping_add(scene.textures.kinds.kind_first_textures[220].get()));
         }
     }
-    crate::scene::map_texture_places::map_texture_places();
-    crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame)?;
+    crate::scene::map_texture_places::map_texture_places(scene);
+    crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame, scene)?;
     race_sound_tick(frame)?; // 0xC
     if race.replay.finish.no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel(race)?;
     }
     if race.shared.view.views.get() == 1 {
         race.shared.view.drawn_view.set(0);
-        draw_view(race, 0, 0, true)?;
+        draw_view(race, 0, 0, true, scene)?;
     } else {
         let side_by_side = race.shared.vars.split.bits() == 1;
         for view in 0..2u32 {
@@ -235,15 +241,15 @@ pub fn draw_race_scene(race: &Race) -> Result<(), Refused> {
                 scene.drawing.scene.view_offset[1].set_bits(if view == 0 { 0 } else { h >> 1 });
             }
             scene.drawing.scene.view_zoom.set_bits(0x100);
-            crate::scene::set_view_window::set_view_window_plain(race);
-            draw_view(race, view as usize, view as usize, false)?;
+            crate::scene::set_view_window::set_view_window_plain(race, scene);
+            draw_view(race, view as usize, view as usize, false, scene)?;
         }
     }
     crate::race::frame_views::load_first_car(&race.shared)?;
     use crate::race::frame_flush::{flush_batch, plain, textured};
     flush_batch(&race.frame, &plain(&race.frame), false)?;
     flush_batch(&race.frame, &textured(&race.frame), true)?;
-    crate::race::sound_spots::find_sound_spots(race)?;
+    crate::race::sound_spots::find_sound_spots(race, scene)?;
     crate::race::frame_draw::share_sound_spots(race)?;
     crate::race::frame_draw::wake_part_sounds(race)?;
     race_sound_tick(frame)?; // 0x10
@@ -254,8 +260,8 @@ pub fn draw_race_scene(race: &Race) -> Result<(), Refused> {
         crate::hud::overlay_pass::overlay_pass(crate::hud::owner::hud(), race)?;
     }
     race_sound_tick(frame)?; // 0x11
-    crate::race::skid_laying::lay_skidmarks_if_on(race)?;
-    crate::race::name_plates::update_name_plates(race)?;
+    crate::race::skid_laying::lay_skidmarks_if_on(race, scene)?;
+    crate::race::name_plates::update_name_plates(race, scene)?;
     if race.course.numbers.replay_mode.bits() != 2 {
         crate::drive::tyre_change_screen::tyre_change_screen(race)?;
     }

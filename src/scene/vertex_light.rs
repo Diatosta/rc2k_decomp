@@ -60,8 +60,8 @@ fn held(value: i32, low: i32, high: i32) -> i32 {
 }
 
 /// The normal's place in the view to the light's work variables, the colour set to 0.
-fn set_normal(number: u32) -> Result<(), BadInput> {
-    let lights = &scene().lights;
+fn set_normal(number: u32, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+    let lights = &scene.lights;
     if !crate::scene::point_records::held() {
         return Err(BadInput("no records for the points"));
     }
@@ -72,8 +72,7 @@ fn set_normal(number: u32) -> Result<(), BadInput> {
 }
 
 /// The start of `sub_4511F1` and of `sub_451296`: the light on the normal as a number.
-fn light() -> i32 {
-    let scene = scene();
+fn light(scene: &crate::scene::owner::Scene) -> i32 {
     let strength = scene.drawing.object_work.light_strength.bits() as i32;
     if strength == 0 {
         return 0;
@@ -87,14 +86,14 @@ fn light() -> i32 {
         .work
         .light_dot_factor
         .set_bits(x87::from_int(strength));
-    light_dot()
+    light_dot(scene)
 }
 
 /// Where `sub_4511F1` would look in the table, checked.
-fn table_place() -> Result<usize, BadInput> {
-    let drawing = &scene().drawing;
+fn table_place(scene: &crate::scene::owner::Scene) -> Result<usize, BadInput> {
+    let drawing = &scene.drawing;
     let place = held(
-        light().wrapping_add(drawing.object_work.light_level.bits() as i32),
+        light(scene).wrapping_add(drawing.object_work.light_level.bits() as i32),
         drawing.object_work.light_lowest.bits() as i32,
         drawing.object_work.light_highest.bits() as i32,
     );
@@ -108,7 +107,7 @@ fn table_place() -> Result<usize, BadInput> {
 fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
     let scene = scene();
     // The checks first, on a copy of what they would write.
-    let place = set_normal(number).and_then(|()| table_place());
+    let place = set_normal(number, scene).and_then(|()| table_place(scene));
     let place = place?;
     let colour = plus(
         scene.light_tables.light_table[place].get(),
@@ -121,8 +120,9 @@ fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
 
 /// `sub_451296`: the colour in `dword_62DAC4` blended by the light.
 fn blend(course: &crate::race::owner_course::Course) {
-    let lights = &scene().lights;
-    let amount = held(light(), -255, 255);
+    let scene = crate::scene::owner::scene();
+    let lights = &scene.lights;
+    let amount = held(light(scene), -255, 255);
     let (amount, towards) = if amount < 0 {
         (amount.wrapping_neg(), &course.stage_prefs.dark_colour)
     } else {
@@ -140,8 +140,11 @@ fn blend(course: &crate::race::owner_course::Course) {
     lights.work.light_colour.set_bits(colour);
 }
 
-pub fn vertex_light(race: &crate::race::owner::Race, number: u32) -> Result<u32, BadInput> {
-    let scene = scene();
+pub fn vertex_light(
+    race: &crate::race::owner::Race,
+    number: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<u32, BadInput> {
     let course = &race.course;
     let kind: u32 = scene.lights.work.light_kind.bits();
     let mmx = system().session.machine.has_mmx.get() != 0;
@@ -169,7 +172,7 @@ pub fn vertex_light(race: &crate::race::owner::Race, number: u32) -> Result<u32,
             ))
         }
         3 => {
-            set_normal(number)?;
+            set_normal(number, scene)?;
             // The colour was just set to 0.
             let colour = plus(
                 plus(scene.lights.work.view_light_base.bits(), 0, mmx),

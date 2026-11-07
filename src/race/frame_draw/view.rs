@@ -51,7 +51,11 @@ pub fn draw_distance_settings(course: &Course) {
 /// the four corners into `LIGHT_STATE.noise_samples` .. `LIGHT_STATE.noise_samples[3]`, blended along x into
 /// `LIGHT_STATE.noise_samples[4]` / `LIGHT_STATE.noise_samples[5]` and then along z, each step `imul` and `shrd` by 16;
 /// the result shifted left 8 is returned.
-pub fn sample_noise(shared: &Shared, map: usize) -> Result<u32, BadInput> {
+pub fn sample_noise(
+    shared: &Shared,
+    map: usize,
+    scene: &crate::scene::owner::Scene,
+) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::view::sample_noise`.
     let (px, pz) = (
         shared.car.camera_position[0].get(),
@@ -73,7 +77,7 @@ pub fn sample_noise(shared: &Shared, map: usize) -> Result<u32, BadInput> {
     if let Some(e) = refused.take() {
         return Err(e);
     }
-    let out = &scene().lights.state.noise_samples;
+    let out = &scene.lights.state.noise_samples;
     for (cell, &c) in out.iter().zip(&s.corners) {
         cell.set(c);
     }
@@ -91,15 +95,15 @@ pub fn sample_noise(shared: &Shared, map: usize) -> Result<u32, BadInput> {
 /// `RACE_VIEW.view_depth[1]` x 8 bytes of `g_fogTable`, each ((sum of steps) >> 16) + `race().course.stage_prefs.fog_start` +
 /// `LIGHT_STATE.fog_near` held to 0 ..= 0xFF; `LIGHT_STATE.fog_next` the next one's value with
 /// `race().course.stage_prefs.fog_end` (held) plus `LIGHT_STATE.fog_near` (held). Refuses (before anything) a table length of 0 or past 0x1000.
-pub fn fog_table(race: &Race) -> Result<(), Refused> {
-    let lights = &scene().lights;
+pub fn fog_table(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let lights = &scene.lights;
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
     // Converted: `rc2k_core::race::view::fog_table`.
     draw_distance_settings(&race.course);
-    let noise = sample_noise(&race.shared, 0)?;
+    let noise = sample_noise(&race.shared, 0, scene)?;
     let fog = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {
@@ -136,7 +140,8 @@ pub fn fog_table(race: &Race) -> Result<(), Refused> {
 /// register at entry, and its callers (`race::draw_view_scene`, `race::mirror_view_window`)
 /// read none it leaves. Refuses (before anything) what `fog_table` would.
 pub fn set_up_fog(race: &Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let scene = crate::scene::owner::scene();
+    let drawing = &scene.drawing;
     let course = &race.course;
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
     if length == 0 || length > 0x1000 {
@@ -153,7 +158,7 @@ pub fn set_up_fog(race: &Race) -> Result<(), Refused> {
         course.stage_prefs.fog_colour[2].bits(),
     );
     drawing.scene.fog_colour.set_bits(colour);
-    fog_table(race)?;
+    fog_table(race, scene)?;
     crate::scene::set_fog_colour::set_fog_colour(rc2k_core::race::view::device_fog_colour(
         drawing.scene.fog_colour.bits(),
     ));
@@ -220,11 +225,11 @@ pub fn place_view(race: &Race) -> Result<(), BadInput> {
 /// -(`race().course.stage_prefs.sky_turn` << 8), placed at (0, `race().course.stage_prefs.sky_height` << 8, 0) (into `OBJECT_WORK.place` ..),
 /// the copy with the place (`g_turnedMatrix`) scaled by (`DRAW.farthest_scaled` << 4) / 16
 /// (`OBJECT_WORK.size`, through `DRAW.scratch`), times `g_viewTurnMatrix`.
-pub fn sky_matrix(race: &Race) -> Result<(), BadInput> {
-    let drawing = &scene().drawing;
+pub fn sky_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+    let drawing = &scene.drawing;
     use crate::scene::matrix;
     let angle = (race.course.stage_prefs.sky_turn.get() << 8).wrapping_neg();
-    matrix::set_turn_y(&race.frame.matrices, angle);
+    matrix::set_turn_y(&race.frame.matrices, angle, scene);
     let height = race.course.stage_prefs.sky_height.get() << 8;
     drawing.object_work.place[0].set(0u32);
     drawing.object_work.place[2].set(0u32);
@@ -284,8 +289,8 @@ pub(super) fn view_place_tail(course: &Course, frame: &Frame) -> Result<(), BadI
 /// `race().frame.view_and_records.view_vars.view_angles[5]`), each step `turn y`, `turn x`, `turn z` multiplied in. Views 1 and 2
 /// then roll with the car (`g_car` +0x648 by its speed, eased into `g_car` +0x6A0, turned
 /// about z). Then the place (see `view_place_tail`).
-pub fn view_matrices(race: &Race) -> Result<(), BadInput> {
-    let drawing = &scene().drawing;
+pub fn view_matrices(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+    let drawing = &scene.drawing;
     use crate::scene::matrix::multiply_matrices;
     use crate::scene::view_matrix::{Axis, invert_turn, set_fine_turn};
     let (view_turn, turn_y, turn_x, turn_z) = (
@@ -385,6 +390,7 @@ pub fn view_matrices(race: &Race) -> Result<(), BadInput> {
 /// whole numbers and floats (also to `g_car` +0x734 ..), and `scene::set_view_window`; then
 /// `view_matrices`.
 pub fn camera_view(race: &Race) -> Result<(), BadInput> {
+    let scene = crate::scene::owner::scene();
     use crate::math::x87::from_int;
     race.frame
         .view_and_records
@@ -403,7 +409,7 @@ pub fn camera_view(race: &Race) -> Result<(), BadInput> {
         .set(race.shared.car.camera_view.get());
     if race.shared.switches.other_way.get() == 0 {
         place_view(race)?;
-        view_matrices(race)?;
+        view_matrices(race, scene)?;
         return Ok(());
     }
     let place: [u32; 3] = if race.physics.ground.view_mirrored.get() == 0 {
@@ -454,8 +460,8 @@ pub fn camera_view(race: &Race) -> Result<(), BadInput> {
     race.frame.view_and_records.view_vars.view_place_f[0].set_bits(from_int(place[0] as i32));
     race.frame.view_and_records.view_vars.view_place_f[1].set_bits(from_int(place[1] as i32));
     race.frame.view_and_records.view_vars.view_place_f[2].set_bits(from_int(place[2] as i32));
-    crate::scene::set_view_window::set_view_window(race);
-    view_matrices(race)?;
+    crate::scene::set_view_window::set_view_window(race, scene);
+    view_matrices(race, scene)?;
     Ok(())
 }
 
@@ -478,7 +484,7 @@ pub fn draw_sky(race: &Race) -> Result<(), Refused> {
     if mode == 1 || mode == 2 {
         return Ok(());
     }
-    sky_matrix(race)?;
+    sky_matrix(race, scene)?;
     crate::math::cells::copy_cells(
         &race.frame.matrices.made_object_matrix,
         &race.frame.matrices.object_matrix_slots,
@@ -501,20 +507,21 @@ pub fn draw_sky(race: &Race) -> Result<(), Refused> {
             frame,
             core::mem::offset_of!(SceneMatrices, made_object_matrix) + 0x40,
         )),
+        scene,
     )?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     crate::scene::depth_buffer_on::depth_buffer(true);
     scene.lights.state.view_kind.set_bits(0);
     race.shared.switches.no_far_clip.set_bits(0);
-    place_sun(race)
+    place_sun(race, scene)
 }
 
 /// The sun: its direction from the stage's sun angles, turned by the sky's matrix, and when it is
 /// in front its place on the screen and its size. Cleared first, and left cleared when both sun settings are 0 or
 /// the sun is behind the view.
-fn place_sun(race: &Race) -> Result<(), Refused> {
+fn place_sun(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let session = &system().session;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     use crate::math::x87_load::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};
     race.frame.frame_work.sun_on_screen.set_bits(0);
     race.frame.frame_work.sun_size.set_bits(0);

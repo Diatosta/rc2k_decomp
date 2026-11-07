@@ -16,7 +16,8 @@ use crate::race::owner::Race;
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx after
 /// `drive::replay_step`'s call has no read point).
 pub fn animate_stage(race: &Race) -> Result<(), Refused> {
-    animate_lit_faces(race)?;
-    move_slots(race)?;
+    let scene = crate::scene::owner::scene();
+    animate_lit_faces(race, scene)?;
+    move_slots(race, scene)?;
     Ok(())
 }

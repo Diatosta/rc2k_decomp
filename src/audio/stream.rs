@@ -87,12 +87,12 @@ pub fn set_stream_volume(state: &AudioState, s: &AudioStream) -> Result<(), Refu
     Ok(())
 }
 
-/// `audio::start_stream`: the file at `path` opened and played. False for the carry (the
+/// `audio::start_stream`: the file whose name `path` reads (when it gets there) opened and played. False for the carry (the
 /// player stopped).
 pub fn start_stream(
     state: &AudioState,
     s: &mut AudioStream,
-    path: crate::pointers::GamePtr,
+    path: impl FnOnce() -> Result<Vec<u8>, crate::errors::BadInput>,
 ) -> Result<bool, Refused> {
     use crate::audio::describe_wave_format::describe_wave_format;
     use crate::audio::make_buffer::BufferDescription;
@@ -113,7 +113,7 @@ pub fn start_stream(
         state.stream_header.set(1);
     }
     data::with_buffer(Buffer::Header, |b| b[..HEADER_LEN as usize].fill(0));
-    let path_text = crate::files::cstring_at(path, "a stream's path")?;
+    let path_text = path()?;
     if !crate::audio::samples::read_sample(
         state,
         &path_text,

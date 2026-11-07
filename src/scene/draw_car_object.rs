@@ -32,7 +32,6 @@ use crate::scene::draw_carousel_entry::{ENTRIES, find_object_of_kind};
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
-use crate::scene::owner::scene;
 use crate::session::write_all;
 
 // ---- game data ----
@@ -73,8 +72,9 @@ pub fn draw_shown_car(
     shared: &Shared,
     screens: &Screens,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     let car: u32 = screens.event.shown_car.get();
     if car >= ENTRIES {
         return Err(BadInput("a car shown past the carousel's kinds").into());
@@ -84,7 +84,7 @@ pub fn draw_shown_car(
     drawing.object_work.place[2].set(screens.state.carousel.z.get());
     let kind = screens.state.carousel.kinds[car as usize].get();
     screens.state.carousel.kind.set(kind);
-    let object = find_object_of_kind(kind);
+    let object = find_object_of_kind(kind, scene);
     shared.switches.object_number.set_bits(object);
     draw()
 }
@@ -94,18 +94,22 @@ pub fn draw_shown_car(
 /// 2026-10-23), and the drawing reads none of what the calls before it leave (the eax and
 /// ebx `sub_49040D` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
+    let scene = crate::scene::owner::scene();
     let race = race();
     let menus = menus();
     if menus.screens.event.car_page.get() != 0 {
         return Ok(());
     }
-    clear_depth_buffer();
-    assign_kind_textures()?;
+    clear_depth_buffer(scene);
+    assign_kind_textures(scene)?;
     pick_pictures(menus)?;
-    map_texture_places();
-    load_slot_textures_in_game(&race.frame)?;
-    scene().lights.state.draw_mode.set_bits(0u32);
-    draw_shown_car(&race.shared, &menus.screens, &mut || {
-        draw_menu_object_in_game(race)
-    })
+    map_texture_places(scene);
+    load_slot_textures_in_game(&race.frame, scene)?;
+    scene.lights.state.draw_mode.set_bits(0u32);
+    draw_shown_car(
+        &race.shared,
+        &menus.screens,
+        &mut || draw_menu_object_in_game(race, scene),
+        scene,
+    )
 }

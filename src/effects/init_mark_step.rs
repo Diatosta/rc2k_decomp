@@ -23,7 +23,11 @@ use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::Race;
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
-pub fn init_mark_step(race: &Race, effects: &Effects) -> Result<(), Refused> {
+pub fn init_mark_step(
+    race: &Race,
+    effects: &Effects,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use rc2k_core::effects::race;
     {
         // In a network race `g_players` is 1 but this machine's car may be any: every car's
@@ -68,7 +72,7 @@ pub fn init_mark_step(race: &Race, effects: &Effects) -> Result<(), Refused> {
             }
         }
         // The file number is left in eax: `init_marks`' seed.
-        crate::effects::init_marks::init_marks(race, effects, file)?;
+        crate::effects::init_marks::init_marks(race, effects, file, scene)?;
     }
     Ok(())
 }

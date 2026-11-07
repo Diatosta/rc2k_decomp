@@ -7,7 +7,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The edges' offset for an angle (`math::turn_point_xz` of (0x1555, y, 0) by angle << 16).
@@ -134,10 +133,10 @@ fn cars_refuse(shared: &Shared) -> Result<(), Refused> {
 /// the car's matrix (+0xB4; `scene::rotate_point`, rounded, the last in `dword_62400C`)
 /// gets a point (`race::add_skid_point`, esi the slot); else the slot -1. Refuses (before anything) a car without its
 /// block.
-pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
+pub fn lay_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     use crate::race::skidmarks::int_80;
     cars_refuse(&race.shared)?;
     let count = shared.view.race_cars.get();
@@ -194,10 +193,10 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
 /// `race::lay_skidmarks_if_on` (0x4585F3): `lay_skidmarks` unless `dword_6235E8` or
 /// `dword_6416BC` is set. Its one caller, `race::draw_race_scene`, reads no register it
 /// leaves.
-pub fn lay_skidmarks_if_on(race: &Race) -> Result<(), Refused> {
+pub fn lay_skidmarks_if_on(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let frame = &race.frame;
     if race.shared.vars.scene_switch.get() != 0 || frame.frame_work.still_2.get() != 0 {
         return Ok(());
     }
-    lay_skidmarks(race)
+    lay_skidmarks(race, scene)
 }

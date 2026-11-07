@@ -21,6 +21,7 @@ use crate::system::owner::system;
 
 /// The Rust version.
 pub fn settings_loop() -> Result<(), Refused> {
+    let install = crate::install::owner::install();
     let net = net();
     let vars = &net.vars;
     let system = system();
@@ -28,55 +29,41 @@ pub fn settings_loop() -> Result<(), Refused> {
     crate::net::show_background::show_background(&net.vars)?;
     crate::net::settings_done::settings_done(&net.vars)?;
     let now = system.session.clocks.key_ticks.get();
-    crate::install::owner::install().pages.move_clock.set(now);
-    crate::install::owner::install().pages.key_clock.set(now);
+    install.pages.move_clock.set(now);
+    install.pages.key_clock.set(now);
     vars.edited.set(u32::MAX);
-    crate::install::owner::install().pages.choice.set(0);
+    install.pages.choice.set(0);
     loop {
         run_frame(crate::net::settings_frame::settings_frame)?;
-        crate::install::owner::install()
+        install
             .pages
             .frame_clock
             .set(system.session.clocks.key_ticks.get());
         let key = list_key()?;
         let mut moved = false;
         if vars.edited.get() != u32::MAX {
-            crate::net::setting_key::setting_key(net, key)?;
+            crate::net::setting_key::setting_key(install, net, key)?;
         } else {
             match key {
                 0x66 => {
-                    let c = crate::install::owner::install()
-                        .pages
-                        .choice
-                        .get()
-                        .wrapping_sub(1);
-                    crate::install::owner::install()
-                        .pages
-                        .choice
-                        .set(if (c as i32) < 0 { 0 } else { c });
+                    let c = install.pages.choice.get().wrapping_sub(1);
+                    install.pages.choice.set(if (c as i32) < 0 { 0 } else { c });
                     moved = true;
                 }
                 0x6B => {
-                    let c = crate::install::owner::install()
-                        .pages
-                        .choice
-                        .get()
-                        .wrapping_add(1);
-                    crate::install::owner::install()
-                        .pages
-                        .choice
-                        .set(if (c as i32) > 4 { 4 } else { c });
+                    let c = install.pages.choice.get().wrapping_add(1);
+                    install.pages.choice.set(if (c as i32) > 4 { 4 } else { c });
                     moved = true;
                 }
                 0x1C => {
-                    if crate::install::owner::install().pages.choice.get() == 4 {
+                    if install.pages.choice.get() == 4 {
                         break;
                     }
-                    if crate::install::owner::install().pages.choice.get() == 0 {
-                        crate::net::settings_link::settings_link(&net.vars)?;
-                        crate::install::owner::install().pages.choice.set(0);
+                    if install.pages.choice.get() == 0 {
+                        crate::net::settings_link::settings_link(install, &net.vars)?;
+                        install.pages.choice.set(0);
                     } else {
-                        crate::net::begin_setting_edit::begin_setting_edit(&net.vars)?;
+                        crate::net::begin_setting_edit::begin_setting_edit(install, &net.vars)?;
                     }
                     moved = true;
                 }
@@ -85,15 +72,15 @@ pub fn settings_loop() -> Result<(), Refused> {
             }
         }
         if moved {
-            crate::install::owner::install()
+            install
                 .pages
                 .move_clock
-                .set(crate::install::owner::install().pages.frame_clock.get());
+                .set(install.pages.frame_clock.get());
         }
         if system.session.flags.quitting.get() == 1 {
             break;
         }
     }
-    crate::install::owner::install().pages.choice.set(u32::MAX);
+    install.pages.choice.set(u32::MAX);
     Ok(())
 }

@@ -62,13 +62,13 @@ fn refusal(shared: &Shared) -> Result<Option<&'static str>, BadInput> {
 /// The Rust version. The registers it leaves are read by no caller (liveness: no read
 /// point after `drive::race_init`'s or `race::run_view_marks`' call).
 // Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
-pub fn share_all_cars(race: &Race) -> Result<(), Refused> {
+pub fn share_all_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if let Some(why) = refusal(&race.shared)? {
         return Err(BadInput(why).into());
     }
     // `set_listener` refuses before writing; nothing is written before it but the
     // lead car's values, which are kept again by the original.
-    set_listener(race)?;
+    set_listener(race, scene)?;
     keep_lead_car_values(&race.frame);
     for (n, (block, record, sound)) in cars(&race.shared)?.into_iter().enumerate() {
         race.shared.work.current_car.set(n as u32);
@@ -77,6 +77,7 @@ pub fn share_all_cars(race: &Race) -> Result<(), Refused> {
             crate::physics::car_store::Car::at(block),
             record,
             sound,
+            scene,
         )?;
     }
     let first_record = race

@@ -28,13 +28,14 @@ use crate::scene::map_texture_places::map_texture_places;
 /// registers one value is read: the carousel's ecx, the slots-in-use count the textures'
 /// loading leaves (the row place of a lone entry).
 pub fn run() -> Result<(), crate::errors::Refused> {
+    let scene = crate::scene::owner::scene();
     let race = race();
     let menus = menus();
-    clear_depth_buffer();
-    assign_kind_textures()?;
+    clear_depth_buffer(scene);
+    assign_kind_textures(scene)?;
     choose_carousel_pictures(menus)?;
-    assign_menu_textures(&menus.tables)?;
-    map_texture_places();
-    let count = load_slot_textures_in_game(&race.frame)?;
-    draw_main_menu_carousel(menus, race, count)
+    assign_menu_textures(&menus.tables, scene)?;
+    map_texture_places(scene);
+    let count = load_slot_textures_in_game(&race.frame, scene)?;
+    draw_main_menu_carousel(menus, race, count, scene)
 }

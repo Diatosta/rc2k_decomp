@@ -63,8 +63,10 @@ fn words(shared: &crate::race::owner_shared::Shared) -> Result<Option<(u32, u32,
     }
 }
 
-pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> {
-    let scene = scene();
+pub fn set_object_fade(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     let Some((other_kind, distance, needs_record)) = words(&race.shared)? else {
         return Err(BadInput("an object's number past the tables"));
     };
@@ -89,7 +91,7 @@ pub fn set_object_fade(race: &crate::race::owner::Race) -> Result<(), BadInput> 
         return Ok(());
     }
     if field(record, 0)? != place {
-        make_scene_record(race, place, record)?;
+        make_scene_record(race, place, record, scene)?;
     }
     scene.drawing.object_work.object_position[0].set_bits(x87::to_int(field(record, 0x10)?) as u32);
     let depth = x87::to_int(field(record, 0x18)?);

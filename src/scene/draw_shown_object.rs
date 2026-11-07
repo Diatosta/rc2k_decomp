@@ -71,8 +71,8 @@ impl rc2k_core::scene::shown::RaceObject for Game<'_> {
 pub fn draw_shown_object(
     race: &Race,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
-    let scene = scene();
     let in_race = race.course.numbers.in_race.bits() != 0;
     if in_race && race.shared.switches.object_number.bits() >= OBJECTS {
         return Err(BadInput("an object's number past the tables").into());

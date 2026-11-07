@@ -19,7 +19,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::system::owner::system;
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
@@ -66,6 +65,7 @@ pub fn loading_bar_frame(race: &Race) -> Result<(), Refused> {
 }
 
 fn frame(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let session = &system().session;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
@@ -76,7 +76,7 @@ fn frame(race: &Race) -> Result<(), Refused> {
     {
         return Ok(());
     }
-    scene().lights.state.scene_state.set_bits(FRAME_MARK);
+    scene.lights.state.scene_state.set_bits(FRAME_MARK);
     if session.flags.quitting.get() == 1 {
         return Ok(());
     }
@@ -89,9 +89,9 @@ fn frame(race: &Race) -> Result<(), Refused> {
         begin_scene::begin_scene();
         let framed: u32 = shared.switches.editor_mode.bits();
         shared.switches.editor_mode.set_bits(0u32);
-        choose_view_window::choose_view_window(race);
+        choose_view_window::choose_view_window(race, scene);
         shared.switches.editor_mode.set_bits(framed);
-        crate::race::loading_bar_quad::loading_bar_quad(race)?;
+        crate::race::loading_bar_quad::loading_bar_quad(race, scene)?;
         end_scene::end_scene();
         if lock_frame::lock_frame(race).0 < 1 {
             break 'frame false;

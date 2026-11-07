@@ -18,7 +18,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::pointers::GamePtr;
-use crate::scene::owner::scene;
 use crate::scene::polygon::{Listed, listed};
 
 // ---- game data ----
@@ -26,13 +25,12 @@ const TABLE_LEN: u32 = 0x1000;
 
 // ---- Rust version ----
 
-pub fn fog_polygon() -> Result<(), Refused> {
-    fog_entries(&listed()?)
+pub fn fog_polygon(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    fog_entries(&listed()?, scene)
 }
 
 /// `fog_polygon` on the polygon's entries as listed.
-pub fn fog_entries(entries: &Listed) -> Result<(), Refused> {
-    let scene = scene();
+pub fn fog_entries(entries: &Listed, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
     }

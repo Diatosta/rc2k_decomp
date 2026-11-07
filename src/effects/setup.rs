@@ -202,7 +202,10 @@ pub const CURVE_RECORDS: u32 = 0x20;
 ///
 /// Refuses a divisor that is 0 or 1 or -1 (the original's `idiv` traps).
 // Converted: `rc2k_core::effects::noise::{walk, smooth, random_tables, record_values}`
-pub fn make_noise_curve(weather: &Weather) -> Result<(), Refused> {
+pub fn make_noise_curve(
+    weather: &Weather,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use rc2k_core::effects::noise as core;
     let divisors = weather
         .snow_light
@@ -307,7 +310,7 @@ pub fn make_noise_curve(weather: &Weather) -> Result<(), Refused> {
         cell.set_bits(first);
     }
     // The view's centre (`dword_62409C`, `dword_6240A0`).
-    let centre = &crate::scene::owner::scene().drawing.scene.view_centre;
+    let centre = &scene.drawing.scene.view_centre;
     for (quad, from) in [
         (&weather.snow.quad_b, &centre[0]),
         (&weather.snow.quad_c, &centre[1]),

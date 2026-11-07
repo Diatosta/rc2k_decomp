@@ -33,12 +33,12 @@ use crate::physics::camera_view::record;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 use rc2k_core::physics::camera_ground;
 
 fn place(race: &Race) {
-    crate::physics::place_camera::place_camera(race);
+    let scene = crate::scene::owner::scene();
+    crate::physics::place_camera::place_camera(race, scene);
 }
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
@@ -67,8 +67,8 @@ fn ground_faces(shared: &Shared) -> [&Dword; 5] {
 }
 
 /// The turn back toward the kept heading (0x43919D ..).
-fn turn_back(race: &Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+fn turn_back(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
     race.shared
         .tables
         .camera_turn_step
@@ -118,9 +118,10 @@ fn turn_back(race: &Race) -> Result<(), Refused> {
 // Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
 pub fn steps(race: &Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let scene = crate::scene::owner::scene();
+    let drawing = &scene.drawing;
     let physics_store = &race.physics;
-    crate::physics::ease_view_turn::ease_view_turn(race);
+    crate::physics::ease_view_turn::ease_view_turn(race, scene);
     race.shared.tables.camera_ground_flag.set(0);
     race.shared.tables.camera_turn_step.set(u32::MAX);
     drawing
@@ -144,7 +145,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
             }
         }
         if found {
-            turn_back(race)?;
+            turn_back(race, scene)?;
         } else {
             race.shared
                 .car

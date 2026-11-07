@@ -90,8 +90,10 @@ const PT: &std::ffi::CStr = c"pt"; // "pt"
 
 /// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices` (at most 64,
 /// held to the vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
-pub fn log_bad_polygon(vertices: &dyn Store) -> Result<(), BadInput> {
-    let scene = scene();
+pub fn log_bad_polygon(
+    vertices: &dyn Store,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     let count: u32 = scene.drawing.scene.polygon_vertex_count.bits();
     if count > MOST {
         return Err(BadInput("more than 64 vertices"));

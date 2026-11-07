@@ -26,7 +26,6 @@ use crate::math::x87_float::to_int;
 use crate::physics::gear_store::GEAR;
 use crate::race::car_specs_store::CarSpec;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::session::{Cell32, Dword};
 use rc2k_core::physics::car_specs::{OWN_FIGURES_FROM, check_drive, gear_count, record_of};
 use std::cmp::Ordering;
@@ -88,7 +87,7 @@ fn words(race: &Race, spec: &CarSpec) {
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`).
-pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
+pub fn load_car_specs(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     let kind = race.shared.car.car_kind.get();
     let spec = record(race);
@@ -131,7 +130,7 @@ pub fn load_car_specs(race: &Race) -> Result<(), Refused> {
         .set_bits(race.shared.physics_tables.spec_default_ba8.get());
     // 0x421794 .. 0x4217B2
     scale_record_grips(race, spec);
-    scene().drawing.scene.scratch.set(spec.scratch_value.get());
+    scene.drawing.scene.scratch.set(spec.scratch_value.get());
     race.shared
         .physics_tables
         .downforce_spec

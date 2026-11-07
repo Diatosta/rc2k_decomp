@@ -21,7 +21,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::race::owner::Race;
 use crate::scene::draw_object::draw_object_in_game;
 use crate::scene::draw_shown_object::draw_shown_object;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 // scene::draw_described_object
@@ -38,7 +37,10 @@ pub use rc2k_core::scene::shown::Way;
 
 /// The texture set for `g_objectNumber`; the object's number.
 // Converted: `rc2k_core::scene::shown::texture_set`
-fn texture_set(race: &crate::race::owner::Race) -> Result<(u32, u32), Refused> {
+fn texture_set(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(u32, u32), Refused> {
     let shared = &race.shared;
     use rc2k_core::scene::shown::SetError;
     {
@@ -46,7 +48,7 @@ fn texture_set(race: &crate::race::owner::Race) -> Result<(u32, u32), Refused> {
         let t = rc2k_core::scene::shown::texture_set(
             object,
             race.course.numbers.in_race.bits() != 0,
-            |object| scene().objects.tables.object_kind(object),
+            |object| scene.objects.tables.object_kind(object),
             |car| {
                 let block: u32 = shared.work.car_block(car as usize);
                 (block != 0).then(|| crate::physics::car_store::Car::at(block).car_kind.bits())
@@ -69,9 +71,9 @@ fn texture_set(race: &crate::race::owner::Race) -> Result<(u32, u32), Refused> {
 pub fn draw_scene_object(
     race: &crate::race::owner::Race,
     draw: &mut dyn FnMut(Way) -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let scene = scene();
-    let (set, object) = texture_set(race)?;
+    let (set, object) = texture_set(race, scene)?;
     race.physics.ground.object_texture_set.set_bits(set);
     let faces: u32 = scene.objects.slots.face_counts[object as usize].get();
     match rc2k_core::scene::shown::way(faces, scene.lights.state.draw_mode.bits()) {
@@ -87,11 +89,18 @@ pub fn draw_scene_object(
 pub fn draw_scene_object_in_game(
     race: &Race,
     description: Option<crate::pointers::GamePtr>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    draw_scene_object(race, &mut |way| match way {
-        Way::Shown => draw_shown_object(race, &mut || draw_object_in_game(race)).map(|_| ()),
-        Way::Described => {
-            crate::scene::draw_described_object::draw_described_object(race, description)
-        }
-    })
+    draw_scene_object(
+        race,
+        &mut |way| match way {
+            Way::Shown => {
+                draw_shown_object(race, &mut || draw_object_in_game(race, scene), scene).map(|_| ())
+            }
+            Way::Described => {
+                crate::scene::draw_described_object::draw_described_object(race, description)
+            }
+        },
+        scene,
+    )
 }

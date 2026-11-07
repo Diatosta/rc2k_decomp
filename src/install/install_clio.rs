@@ -43,67 +43,60 @@ enum Stop {
     Straight,
 }
 
-fn work() -> Result<Stop, Refused> {
+fn work(install: &'static crate::install::owner::Install) -> Result<Stop, Refused> {
     use crate::install as i;
-    if !normalise(
-        &crate::install::owner::install().paths.path_a,
-        &crate::install::owner::install().paths.game_dir,
-    )? || !normalise(
-        &crate::install::owner::install().paths.path_b,
-        &crate::install::owner::install().paths.installed,
-    )? || !set_cd(&crate::install::owner::install().paths.game_dir)
+    if !normalise(&install.paths.path_a, &install.paths.game_dir)?
+        || !normalise(&install.paths.path_b, &install.paths.installed)?
+        || !set_cd(&install.paths.game_dir)
     {
         return Ok(Stop::Straight);
     }
-    i::run_script::run_script(
-        crate::install::owner::install(),
-        &crate::install::owner::install().vars.clio_script,
-    )?;
-    if crate::install::owner::install().run.dir_count.get() != 0 {
+    i::run_script::run_script(install, &install.vars.clio_script)?;
+    if install.run.dir_count.get() != 0 {
         let mut n = 0;
         loop {
             append_both(
-                &crate::install::owner::install().paths.installed,
-                &crate::install::owner::install().paths.path_b,
+                &install.paths.installed,
+                &install.paths.path_b,
                 &crate::install::name_tables::FOLDERS,
                 n,
             )?;
-            if !i::make_folders::make_folders(&crate::install::owner::install().paths.path_b)? {
+            if !i::make_folders::make_folders(&install.paths.path_b)? {
                 return Ok(Stop::SetBack);
             }
             n = n.wrapping_add(1);
-            if n == crate::install::owner::install().run.dir_count.get() {
+            if n == install.run.dir_count.get() {
                 break;
             }
         }
-        set_cd(&crate::install::owner::install().paths.game_dir);
+        set_cd(&install.paths.game_dir);
     }
-    if crate::install::owner::install().run.file_count.get() != 0 {
+    if install.run.file_count.get() != 0 {
         let mut n = 0;
         loop {
             append_both(
-                &crate::install::owner::install().paths.game_dir,
-                &crate::install::owner::install().paths.path_a,
+                &install.paths.game_dir,
+                &install.paths.path_a,
                 &crate::install::name_tables::FILES,
                 n,
             )?;
             append_both(
-                &crate::install::owner::install().paths.installed,
-                &crate::install::owner::install().paths.path_b,
+                &install.paths.installed,
+                &install.paths.path_b,
                 &crate::install::name_tables::FILES,
                 n,
             )?;
             // 0x416886: a failed copy stops the install as Escape does.
             if !i::copy_counted::copy_counted(
-                crate::install::owner::install(),
-                &crate::install::owner::install().paths.path_a,
-                &crate::install::owner::install().paths.path_b,
+                install,
+                &install.paths.path_a,
+                &install.paths.path_b,
             )? || take_key() == 1
             {
                 return Ok(Stop::SetBack);
             }
             n = n.wrapping_add(1);
-            if n == crate::install::owner::install().run.file_count.get() {
+            if n == install.run.file_count.get() {
                 break;
             }
         }
@@ -111,7 +104,7 @@ fn work() -> Result<Stop, Refused> {
     Ok(Stop::SetBack)
 }
 
-pub fn install_clio(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn install_clio(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     if lock() {
         copy_picture()?;
         draw_string(0xBE, FONT_BE, 0x1A9, 0x113)?;
@@ -119,12 +112,12 @@ pub fn install_clio(g: &'static crate::install::owner::Install) -> Result<(), Re
         show();
         sleep(1000);
     }
-    if let Stop::SetBack = work()? {
-        set_cd(&g.paths.installed);
+    if let Stop::SetBack = work(install)? {
+        set_cd(&install.paths.installed);
     }
-    g.run.installing.set(0);
-    g.run.updating.set(0);
-    g.run.from_command.set(0);
+    install.run.installing.set(0);
+    install.run.updating.set(0);
+    install.run.from_command.set(0);
     sleep(1000);
     Ok(())
 }

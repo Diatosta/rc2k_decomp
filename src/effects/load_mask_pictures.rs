@@ -131,7 +131,10 @@ fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Re
 /// (`gfx::read_picture_file`) into its block and drawn (`gfx::put_surface_pixel`);
 /// unlocked, the texture slot forgotten (`scene::forget_slot_texture`), the 0x80000
 /// block's list freed, `dword_934D6E` -1.
-pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
+pub fn load_mask_pictures(
+    masks: &Masks,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let ground: i32 = masks.ground_names.ground.get() as i32;
     if ground >= NAMES {
         return Err(BadInput("a ground past the six names").into());
@@ -161,24 +164,10 @@ pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
             .take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
     }
     let mut copy = crate::memory::owned::counted(&masks.picture_copy.list, COPY_BYTES)?;
-    lock(
-        crate::scene::owner::scene()
-            .textures
-            .kinds
-            .kind_first_textures[202]
-            .bits(),
-        true,
-    )?;
+    lock(scene.textures.kinds.kind_first_textures[202].bits(), true)?;
     let width: u32 = crate::gfx::owner::gfx().drawing.draw_surface.width.get();
     if width > MOST_WIDTH {
-        lock(
-            crate::scene::owner::scene()
-                .textures
-                .kinds
-                .kind_first_textures[202]
-                .bits(),
-            false,
-        )?;
+        lock(scene.textures.kinds.kind_first_textures[202].bits(), false)?;
         return Err(BadInput("a mask surface wider than 256").into());
     }
     let kind = (effects().kinds.marks_kind.kind.bits() as i32).clamp(0, MOST_KIND) as u32;
@@ -193,16 +182,10 @@ pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
     }
     mask(masks, MASK_PATH_AT, Mask::Plain, &mut copy, width)?;
     mask(masks, BMASK_PATH_AT, Mask::Bordered, &mut copy, width)?;
-    lock(
-        crate::scene::owner::scene()
-            .textures
-            .kinds
-            .kind_first_textures[202]
-            .bits(),
-        false,
-    )?;
+    lock(scene.textures.kinds.kind_first_textures[202].bits(), false)?;
     crate::scene::forget_slot_texture::forget_slot_texture(
-        crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
+        scene.textures.kinds.kind_first_slots[202].bits(),
+        scene,
     )?;
     crate::memory::free_list::free_list(&masks.picture_copy.list)?;
     masks.blocks.seen.set(u32::MAX);

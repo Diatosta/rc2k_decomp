@@ -143,7 +143,12 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The streak step at e (see the header): whether the entry dies.
-fn streak(frame: &Frame, ring: &Ring, e: u32) -> Result<bool, Refused> {
+fn streak(
+    frame: &Frame,
+    ring: &Ring,
+    e: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
     let effects = effects();
     let t: u32 = effects.setup.clock.frame_ticks.get();
     let life = eg(ring, e, field::LIFE)?;
@@ -192,7 +197,7 @@ fn streak(frame: &Frame, ring: &Ring, e: u32) -> Result<bool, Refused> {
     );
     ring.work.whole.set(i as u32);
     let colour = colour_at(&effects.masks, ring, i as usize);
-    crate::effects::draw_ribbon::draw_ribbon(&effects.masks, 0x20, i as u32, 0x800, colour)?;
+    crate::effects::draw_ribbon::draw_ribbon(&effects.masks, 0x20, i as u32, 0x800, colour, scene)?;
     Ok(false)
 }
 
@@ -201,7 +206,11 @@ fn move_on(ring: &Ring, e: u32) {
 }
 
 /// The Rust version (see the header).
-pub fn run_ribbons(frame: &Frame, ring: &Ring) -> Result<(), Refused> {
+pub fn run_ribbons(
+    frame: &Frame,
+    ring: &Ring,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     if let Some(why) = refusal(ring)? {
         return Err(BadInput(why).into());
     }
@@ -217,7 +226,7 @@ pub fn run_ribbons(frame: &Frame, ring: &Ring) -> Result<(), Refused> {
             // The settings' +0x60: the first car record's first word.
             if crate::effects::setup::marks()?.cars[0].word(0)? != 0
                 && eg(ring, e, field::KIND)? == STREAK
-                && streak(frame, ring, e)?
+                && streak(frame, ring, e, scene)?
             {
                 ring.work.count.set(ring.work.count.get().wrapping_sub(1));
                 if e == ring.work.cursor.get() {

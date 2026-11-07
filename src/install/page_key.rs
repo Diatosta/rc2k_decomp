@@ -21,7 +21,7 @@ use rc2k_core::install::items::{self, ItemKey, PageKey};
 /// leave it (`install::edit_key` changes it) and whether the key did something (the
 /// original's zero).
 pub fn page_key(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     key: u32,
     item: ListItem,
     list: ListMenu,
@@ -36,27 +36,27 @@ pub fn page_key(
     let kind = item.kind();
     let edited = items::takes_every_key(kind, || item.edit_field().flags() & 1 != 0);
     let (key, plain_edit) = if edited {
-        let outcome = i::edit_key::edit_key(g, key, item)?;
+        let outcome = i::edit_key::edit_key(install, key, item)?;
         (outcome.key_word, outcome.plain_edit)
     } else {
         let taken = match way {
-            PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(g, item)?),
-            PageKey::Item(ItemKey::Down) => Some(i::key_down::key_down(g, item)?),
-            PageKey::Item(ItemKey::Left) => Some(i::key_left::key_left(g, item)?),
-            PageKey::Item(ItemKey::Right) => Some(i::key_right::key_right(g, item)?),
-            PageKey::Item(ItemKey::Number) => Some(i::key_number::key_number(g, key, item)?),
-            PageKey::Enter => Some(i::item_enter::item_enter(g, item)?),
+            PageKey::Item(ItemKey::Up) => Some(i::key_up::key_up(install, item)?),
+            PageKey::Item(ItemKey::Down) => Some(i::key_down::key_down(install, item)?),
+            PageKey::Item(ItemKey::Left) => Some(i::key_left::key_left(install, item)?),
+            PageKey::Item(ItemKey::Right) => Some(i::key_right::key_right(install, item)?),
+            PageKey::Item(ItemKey::Number) => Some(i::key_number::key_number(install, key, item)?),
+            PageKey::Enter => Some(i::item_enter::item_enter(install, item)?),
             _ => None,
         };
         if let Some(taken) = taken {
-            return Ok((key, took(taken)));
+            return Ok((key, took(install, taken)));
         }
         if way == PageKey::Escape {
             // test byte ptr [edi], 10h: the page left unless the list stays
             let stays = list.flags() & items::STAYS != 0;
             if !stays {
-                g.pages.list_answer.set(0);
-                g.pages.list_leave.set(1);
+                install.pages.list_answer.set(0);
+                install.pages.list_leave.set(1);
             }
             return Ok((key, !stays));
         }
@@ -66,13 +66,13 @@ pub fn page_key(
     if crate::gfx::shots::on_byte() != 0 && key as u8 == items::SCREENSHOT_KEY {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
-    Ok((key, took(plain_edit)))
+    Ok((key, took(install, plain_edit)))
 }
 
 /// `jnz` out, else the key marked as taken (zero set).
-fn took(zero: bool) -> bool {
+fn took(install: &'static crate::install::owner::Install, zero: bool) -> bool {
     if zero {
-        crate::install::owner::install().pages.key_taken.set(1);
+        install.pages.key_taken.set(1);
     }
     zero
 }

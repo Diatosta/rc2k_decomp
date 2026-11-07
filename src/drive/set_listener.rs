@@ -32,7 +32,6 @@ use crate::race::mud::car_file_number;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::scene::matrix::multiply_matrices;
-use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::listener;
 
@@ -53,8 +52,7 @@ fn figures(shared: &Shared) -> Result<[i32; 6], Refused> {
 /// The Rust version. The registers it leaves are read by no caller (liveness: eax and
 /// ebx after `share_all_cars`' call have no read point).
 // Converted: `rc2k_core::drive::listener` (the matrices, turns and x87 sums stay).
-pub fn set_listener(race: &Race) -> Result<(), Refused> {
-    let scene = scene();
+pub fn set_listener(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = &race.physics;
     let f = figures(&race.shared)?;
     let car = crate::race::blocks_store::own_car();

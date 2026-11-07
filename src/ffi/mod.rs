@@ -8,6 +8,8 @@ pub mod gl;
 pub mod imgui;
 #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
 pub mod linux_handheld;
+#[cfg(rc2k_pgo)]
+pub mod pgo;
 pub mod sdl;
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
 pub mod sdl_gpu;

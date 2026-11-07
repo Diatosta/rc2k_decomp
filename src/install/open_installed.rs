@@ -12,9 +12,11 @@
 use crate::errors::Refused;
 use crate::install::installer::{normalise, set_cd};
 
-pub fn open_installed(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
-    if normalise(&g.names.source, &g.paths.installed)? && set_cd(&g.paths.installed) {
-        g.run.installing.set(1);
+pub fn open_installed(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+    if normalise(&install.names.source, &install.paths.installed)?
+        && set_cd(&install.paths.installed)
+    {
+        install.run.installing.set(1);
     }
     Ok(())
 }

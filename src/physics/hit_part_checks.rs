@@ -20,12 +20,12 @@ use rc2k_core::physics::parts::parts_left;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::parts_left`.
-pub fn hit_part_checks(race: &Race) -> Result<(), Refused> {
+pub fn hit_part_checks(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let left = parts_left(race.shared.car.parts_present.get());
     race.shared.car.parts_state.set(left);
     if left != 0 || race.shared.car.tyre_change_state.get() != 0 {
         return Ok(());
     }
-    drop_hit_parts(race)?;
+    drop_hit_parts(race, scene)?;
     sound_hit_parts(race)
 }

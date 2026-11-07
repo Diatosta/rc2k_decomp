@@ -48,19 +48,19 @@ fn found_path(search: &[u8]) -> Result<Vec<u8>, Refused> {
     found_name(search, &find_name())
 }
 
-fn walk(folder: crate::place::Place) -> Result<(), Refused> {
+fn walk(
+    install: &'static crate::install::owner::Install,
+    folder: crate::place::Place,
+) -> Result<(), Refused> {
     let mut folder = resolve_path(folder)?;
     if !folder.is_empty() {
         let (used, scan) = FOLDERS.with(|t| (t.push(folder.clone()), t.names.len() as u32))?;
-        crate::install::owner::install().run.dir_cursor.set(used);
-        crate::install::owner::install().run.dir_scan.set(scan);
-        crate::install::owner::install().run.dir_count.set(
-            crate::install::owner::install()
-                .run
-                .dir_count
-                .get()
-                .wrapping_add(1),
-        );
+        install.run.dir_cursor.set(used);
+        install.run.dir_scan.set(scan);
+        install
+            .run
+            .dir_count
+            .set(install.run.dir_count.get().wrapping_add(1));
     }
     loop {
         // list the folder
@@ -70,7 +70,7 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
         if folder.last() != Some(&b'\\') {
             search_text.push(b'\\');
         }
-        search_text.extend(text_at(&crate::install::owner::install().texts.star));
+        search_text.extend(text_at(&install.texts.star));
         // The search path, kept in the search buffer with its NUL (the numbered paths read
         // it later).
         let mut kept = search_text.clone();
@@ -82,19 +82,16 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
                 if find_attributes() & 0x10 != 0 {
                     // "." and ".." passed over
                     let name = find_name();
-                    let real = !same_name(&crate::install::owner::install().texts.dot, &name)
-                        && !same_name(&crate::install::owner::install().texts.dotdot, &name);
+                    let real = !same_name(&install.texts.dot, &name)
+                        && !same_name(&install.texts.dotdot, &name);
                     if real {
                         let name = found_path(&search_text)?;
                         let used = FOLDERS.with(|t| t.push(name))?;
-                        crate::install::owner::install().run.dir_cursor.set(used);
-                        crate::install::owner::install().run.dir_count.set(
-                            crate::install::owner::install()
-                                .run
-                                .dir_count
-                                .get()
-                                .wrapping_add(1),
-                        );
+                        install.run.dir_cursor.set(used);
+                        install
+                            .run
+                            .dir_count
+                            .set(install.run.dir_count.get().wrapping_add(1));
                         // `sub ebx, g_dirNames`
                         if used >= DIRS_ROOM {
                             return Err(fatal(0x80AF_2201));
@@ -103,14 +100,11 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
                 } else {
                     let name = found_path(&search_text)?;
                     let used = FILES.with(|t| t.push(name))?;
-                    crate::install::owner::install().run.file_cursor.set(used);
-                    crate::install::owner::install().run.file_count.set(
-                        crate::install::owner::install()
-                            .run
-                            .file_count
-                            .get()
-                            .wrapping_add(1),
-                    );
+                    install.run.file_cursor.set(used);
+                    install
+                        .run
+                        .file_count
+                        .set(install.run.file_count.get().wrapping_add(1));
                     // `sub ebx, g_fileNames`
                     if used >= FILES_ROOM {
                         return Err(fatal(0x80AF_2202));
@@ -123,7 +117,7 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
         }
         close_search();
         // the next folder from the scan (its number in the folders' table)
-        let scan = crate::install::owner::install().run.dir_scan.get();
+        let scan = install.run.dir_scan.get();
         let Some(next) = FOLDERS.with(|t| t.names.get(scan as usize).cloned())? else {
             break;
         };
@@ -131,10 +125,7 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
             break;
         }
         folder = next;
-        crate::install::owner::install()
-            .run
-            .dir_scan
-            .set(scan.wrapping_add(1));
+        install.run.dir_scan.set(scan.wrapping_add(1));
     }
     Ok(())
 }
@@ -142,11 +133,12 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
 /// `folder` (eax) and every folder under it added to the folders' table, their files to
 /// the files'.
 pub fn list_folder_tree(folder: impl Into<crate::place::Place>) -> Result<(), Refused> {
+    let install = crate::install::owner::install();
     let folder = folder.into();
     use crate::files::state::SKIPPED_ATTRIBUTES;
     let saved_skip = SKIPPED_ATTRIBUTES.get();
     SKIPPED_ATTRIBUTES.set(0);
-    let result = walk(folder);
+    let result = walk(install, folder);
     SKIPPED_ATTRIBUTES.set(saved_skip);
     result
 }

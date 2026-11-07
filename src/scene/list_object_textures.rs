@@ -15,7 +15,6 @@
 
 use crate::errors::BadInput;
 use crate::scene::objects::FILE_ROOM;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -35,8 +34,7 @@ pub fn file_dword(offset: usize) -> Result<u32, BadInput> {
 }
 
 // Converted: `rc2k_core::scene::objects::{texture_list, texture_record}`
-pub fn list_object_textures() -> Result<(), BadInput> {
-    let scene = scene();
+pub fn list_object_textures(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     use rc2k_core::scene::objects::{texture_list, texture_record};
 
     let textures = texture_list(|offset| file_dword(offset).map_err(|e| rc2k_core::Invalid(e.0)))?;

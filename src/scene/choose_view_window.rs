@@ -9,14 +9,12 @@
 //! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust version.
 
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::system::owner::system;
 
 /// The window chosen, then `set_view_window`.
-pub fn choose_view_window(race: &Race) {
+pub fn choose_view_window(race: &Race, scene: &crate::scene::owner::Scene) {
     let session = &system().session;
     let shared = &race.shared;
-    let scene = scene();
     // Converted: `rc2k_core::scene::view_window::choose`.
     use rc2k_core::scene::view_window::{ViewSettings, choose};
     let settings = ViewSettings {
@@ -32,5 +30,5 @@ pub fn choose_view_window(race: &Race) {
     scene.drawing.scene.view_offset[0].set_bits(window.offset[0]);
     scene.drawing.scene.view_offset[1].set_bits(window.offset[1]);
     scene.drawing.scene.view_zoom.set_bits(window.scale);
-    crate::scene::set_view_window::set_view_window(race);
+    crate::scene::set_view_window::set_view_window(race, scene);
 }

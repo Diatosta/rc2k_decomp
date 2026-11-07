@@ -44,9 +44,10 @@ fn totals() -> Result<[u32; 4], BadInput> {
 /// `log`: what writes a piece of the line: a text, or a number.
 pub fn count_texture_needs(
     log: &mut dyn FnMut(Result<&'static std::ffi::CStr, u32>, bool),
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let totals = totals()?;
-    for (cell, total) in scene().textures.places.totals.iter().zip(totals) {
+    for (cell, total) in scene.textures.places.totals.iter().zip(totals) {
         cell.set(total);
     }
     log(Ok(c"VID"), false);
@@ -62,9 +63,12 @@ pub fn count_texture_needs(
 }
 
 /// Into the game's log.
-pub fn count_texture_needs_in_game() -> Result<(), BadInput> {
-    count_texture_needs(&mut |piece, newline| match piece {
-        Ok(text) => crate::logfile::log_write::log_nul(&text, newline, 1),
-        Err(number) => log_int(number as i32, newline, 1),
-    })
+pub fn count_texture_needs_in_game(scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+    count_texture_needs(
+        &mut |piece, newline| match piece {
+            Ok(text) => crate::logfile::log_write::log_nul(&text, newline, 1),
+            Err(number) => log_int(number as i32, newline, 1),
+        },
+        scene,
+    )
 }

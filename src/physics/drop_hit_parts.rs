@@ -48,7 +48,7 @@ pub fn hit_tests(
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::parts::{hit_tests, DROP_TESTS}`.
-pub fn drop_hit_parts(race: &Race) -> Result<(), Refused> {
+pub fn drop_hit_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if race.shared.car.car_kind.get() >= 0x17 {
         return Ok(());
     }
@@ -56,6 +56,6 @@ pub fn drop_hit_parts(race: &Race) -> Result<(), Refused> {
         race,
         &DROP_TESTS,
         &race.shared.car.wheel_hit_damage,
-        &mut |bit| fill_slot_on_bit(race, bit),
+        &mut |bit| fill_slot_on_bit(race, bit, scene),
     )
 }

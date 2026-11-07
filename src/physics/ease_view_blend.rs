@@ -22,12 +22,15 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn ease_view_blend(race: &Race) -> Result<(), crate::errors::BadInput> {
+pub fn ease_view_blend(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
     let esi = record(&race.shared)?;
     if esi.blend.get() == 0 || esi.change_time.get() == 0 {
         return Ok(());
     }
-    share_done(&race.shared, esi);
+    share_done(&race.shared, esi, scene);
     if (esi.blend.get() as i32) < 0 {
         x87_1(&race.shared);
     }

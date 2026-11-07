@@ -102,6 +102,7 @@ pub fn draw_plane(
     race: &Race,
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let effects = effects();
     use crate::scene::set_render_state::set_render_state;
@@ -132,9 +133,7 @@ pub fn draw_plane(
     for state in [0x11, 0x12] {
         set_render_state(2, state);
     }
-    crate::scene::set_texture::set_texture(
-        crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
-    );
+    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
     plane_corners(fl);
     let entry = &effects.blocks.corners.corners[corner as usize];
     let word = |off: u32| u32::from(entry.words[off as usize / 2].get());

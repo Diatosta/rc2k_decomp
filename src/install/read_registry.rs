@@ -49,23 +49,27 @@ pub trait Registry {
 /// A query's answers into the type and the size, and its data to `put`, as the registry
 /// writes them.
 fn take(q: &Query, put: impl FnOnce(&[u8])) {
+    let install = crate::install::owner::install();
     if let Some(kind) = q.kind {
-        crate::install::owner::install().names.reg_type.set(kind);
+        install.names.reg_type.set(kind);
     }
     if let Some(size) = q.size {
-        crate::install::owner::install().names.source_size.set(size);
+        install.names.source_size.set(size);
     }
     if let Some(bytes) = &q.data {
         put(bytes);
     }
 }
 
-pub fn read_registry(g: &'static crate::install::owner::Install, registry: &mut dyn Registry) {
-    let Ok(key) = registry.open(&g.names.key_name.text()) else {
+pub fn read_registry(
+    install: &'static crate::install::owner::Install,
+    registry: &mut dyn Registry,
+) {
+    let Ok(key) = registry.open(&install.names.key_name.text()) else {
         return;
     };
-    g.run.reg_key.set(key);
-    let names = &g.names;
+    install.run.reg_key.set(key);
+    let names = &install.names;
     'values: {
         names.source_size.set(1);
         let q = registry.query(key, &names.status_name.text(), 1);
@@ -98,6 +102,6 @@ pub fn read_registry(g: &'static crate::install::owner::Install, registry: &mut 
 }
 
 /// The registry, or in the standalone the portable record (`install::portable`).
-pub fn read_registry_here(g: &'static crate::install::owner::Install) {
-    read_registry(g, &mut crate::install::portable::Portable);
+pub fn read_registry_here(install: &'static crate::install::owner::Install) {
+    read_registry(install, &mut crate::install::portable::Portable);
 }

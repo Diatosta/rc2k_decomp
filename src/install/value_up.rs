@@ -10,12 +10,12 @@
 
 use crate::menu::list_handle::ListItem;
 
-pub fn value_up(g: &'static crate::install::owner::Install, item: ListItem) {
+pub fn value_up(install: &'static crate::install::owner::Install, item: ListItem) {
     let value_at = item.value();
     // Converted: `rc2k_core::install::items::value_up`.
     let value = rc2k_core::install::items::value_up(
         value_at.get(),
-        g.pages.repeats.get(),
+        install.pages.repeats.get(),
         item.value_most(),
     );
     value_at.set(value as u8);

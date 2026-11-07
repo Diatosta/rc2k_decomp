@@ -410,26 +410,26 @@ pub fn logged(what: &str, done: Result<(), Refused>) -> Result<(), Refused> {
 /// (flags 0x40), the install, the uninstall, the installed copy's start (or the Clio
 /// disc's install) and the registration.
 pub fn page_action(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     place: u32,
     state: u32,
     list: ListMenu,
 ) -> Result<(), Refused> {
     use crate::install as i;
     match place {
-        0x414199 => i::language_page::language_page(g, state, list)?,
-        0x4141EF => i::mark_main_page::mark_main_page(g, list),
-        0x41422B => i::mode_page::mode_page(g, state),
-        0x41425E => i::drive_page::drive_page(g, state, list),
-        0x4142C7 => i::room_page::room_page(g, state),
-        0x4142F5 => i::folder_page::folder_page(g, state, list),
-        0x41432F => i::dxsetup_page::dxsetup_page(g, state),
-        0x414347 => i::finish_page::finish_page(g, state),
-        0x4130CD => logged("install", i::install_files::install_files(g))?,
-        0x4134DF => logged("uninstall", i::uninstall::uninstall(g))?,
-        0x413629 => i::open_installed::open_installed(g)?,
-        0x413650 => i::ask_registration::ask_registration(g),
-        0x41675B => i::install_clio::install_clio(g)?,
+        0x414199 => i::language_page::language_page(install, state, list)?,
+        0x4141EF => i::mark_main_page::mark_main_page(install, list),
+        0x41422B => i::mode_page::mode_page(install, state),
+        0x41425E => i::drive_page::drive_page(install, state, list),
+        0x4142C7 => i::room_page::room_page(install, state),
+        0x4142F5 => i::folder_page::folder_page(install, state, list),
+        0x41432F => i::dxsetup_page::dxsetup_page(install, state),
+        0x414347 => i::finish_page::finish_page(install, state),
+        0x4130CD => logged("install", i::install_files::install_files(install))?,
+        0x4134DF => logged("uninstall", i::uninstall::uninstall(install))?,
+        0x413629 => i::open_installed::open_installed(install)?,
+        0x413650 => i::ask_registration::ask_registration(install),
+        0x41675B => i::install_clio::install_clio(install)?,
         _ => return Err(BadInput("a list action that is not one of the installer's").into()),
     }
     Ok(())
@@ -438,13 +438,13 @@ pub fn page_action(
 /// A list's key action (+0x14): `key` (eax: al the key, ah its bits); whether it took the
 /// key (the original's zero). The game's lists hold only the folder page's.
 pub fn key_action(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     place: u32,
     key: u32,
     list: ListMenu,
 ) -> Result<bool, Refused> {
     match place {
-        0x41534E => Ok(crate::install::folder_key::folder_key(g, key, list)),
+        0x41534E => Ok(crate::install::folder_key::folder_key(install, key, list)),
         _ => Err(BadInput("a key action that is not one of the installer's").into()),
     }
 }
@@ -452,12 +452,12 @@ pub fn key_action(
 /// A link's or an action item's action (+8); the original's zero after it. The game's items
 /// hold only the not-enough-room page's "go on anyway".
 pub fn item_action_at(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     place: u32,
 ) -> Result<bool, Refused> {
     match place {
         0x4142DA => {
-            crate::install::ignore_room::ignore_room(g);
+            crate::install::ignore_room::ignore_room(install);
             Ok(true)
         }
         _ => Err(BadInput("an item action that is not one of the installer's").into()),

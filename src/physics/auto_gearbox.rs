@@ -32,7 +32,6 @@ use crate::physics::gearbox::*;
 use crate::physics::manual_gearbox::reverse;
 use crate::physics::pick_start_gear::pick_start_gear;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::physics::gear_shifts::{self as shifts, Shift};
 
 /// Up (0x43C66D).
@@ -77,8 +76,8 @@ fn down(race: &Race) -> Result<Shift, Refused> {
 }
 
 /// The automatic's tests (0x43C798).
-fn tests(race: &Race) -> Result<Shift, Refused> {
-    let drawing = &scene().drawing;
+fn tests(race: &Race, scene: &crate::scene::owner::Scene) -> Result<Shift, Refused> {
+    let drawing = &scene.drawing;
     // `revs_from_speed` leaves ebx the gear it reads: the same.
     let gear = race.shared.car.gear.get();
     let kept = race.shared.car.engine_speed.bits();
@@ -133,7 +132,7 @@ fn tests(race: &Race) -> Result<Shift, Refused> {
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gear_shifts` (the engine's sums and compares stay x87).
-pub fn auto_gearbox(race: &Race) -> Result<(), Refused> {
+pub fn auto_gearbox(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.shared.car.gear_changed.set(0);
     let mut to = 'first: {
         if bit(&race.shared, race.shared.car.gear.get())? {
@@ -176,7 +175,7 @@ pub fn auto_gearbox(race: &Race) -> Result<(), Refused> {
         if race.shared.car.gear_change_blocked.get() != 0 {
             return Ok(());
         }
-        tests(race)?
+        tests(race, scene)?
     };
     loop {
         to = match to {

@@ -43,7 +43,7 @@ enum Way {
     End,
 }
 
-fn link(net: &Net) -> Result<Way, Refused> {
+fn link(install: &'static crate::install::owner::Install, net: &Net) -> Result<Way, Refused> {
     let vars = &net.vars;
     use crate::net::*;
     if !find_connections::find_connections(&net.vars)? {
@@ -52,7 +52,7 @@ fn link(net: &Net) -> Result<Way, Refused> {
     let connection = match find_saved_connection::find_saved_connection()? {
         Some(saved) => saved,
         None => {
-            let chosen = choose_connection::choose_connection(&net.vars)?;
+            let chosen = choose_connection::choose_connection(install, &net.vars)?;
             if (chosen as i32) < 0 {
                 return Ok(Way::End);
             }
@@ -76,7 +76,7 @@ fn link(net: &Net) -> Result<Way, Refused> {
     if !find_sessions::find_sessions(net)? {
         return Ok(Way::Message(NO_SESSION));
     }
-    let session = choose_session::choose_session(net)?;
+    let session = choose_session::choose_session(install, net)?;
     // Escape (a negative choice) sets the carry as a failure does, so it shows the
     // message too (the original's slip, `notes/bugs.md`).
     if (session as i32) < 0 {
@@ -91,6 +91,7 @@ fn link(net: &Net) -> Result<Way, Refused> {
 
 /// The Rust version: a network game in `mode` (1 host, 2 join).
 pub fn start_link(mode: u32) -> Result<(), Refused> {
+    let install = crate::install::owner::install();
     let net = net();
     let race = crate::race::owner::race();
     let vars = &net.vars;
@@ -101,7 +102,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
     let play = &menus().play;
     fill_own_player::fill_own_player(race, net, play, &play.names.player_names.read())?;
     show_background::show_background(&net.vars)?;
-    match link(net)? {
+    match link(install, net)? {
         Way::Message(n) => show_message::show_message(n)?,
         Way::End => {}
         Way::On => {
@@ -116,7 +117,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
                 vars.all_raced.set(0);
                 vars.race_over.set(0);
                 crate::sound::play_tune_4::play_tune_4();
-                if (lobby_loop::lobby_loop(race, net)? as i32) < 0 {
+                if (lobby_loop::lobby_loop(install, race, net)? as i32) < 0 {
                     break;
                 }
                 close_if_host::close_if_host(net);

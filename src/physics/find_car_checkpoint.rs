@@ -14,7 +14,6 @@
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::physics::progress;
 
 /// The Rust version: the car's checkpoint (eax): the nearest within the window about the
@@ -22,7 +21,10 @@ use rc2k_core::physics::progress;
 /// (`race::nearest_checkpoint`). The other registers it leaves are read by none of its
 /// callers.
 // Converted: `rc2k_core::physics::progress::{near_window, search_all}`.
-pub fn find_car_checkpoint(race: &Race) -> Result<u32, Refused> {
+pub fn find_car_checkpoint(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<u32, Refused> {
     let race_owner = race;
     race_owner
         .physics
@@ -38,8 +40,8 @@ pub fn find_car_checkpoint(race: &Race) -> Result<u32, Refused> {
         return Ok(0);
     }
     let (from, to) = progress::near_window(race.shared.car.checkpoint.get());
-    let near = crate::race::start_place::nearest_checkpoint_in(race, from, to)?;
-    scene().drawing.scene.scratch.set(near.distance);
+    let near = crate::race::start_place::nearest_checkpoint_in(race, from, to, scene)?;
+    scene.drawing.scene.scratch.set(near.distance);
     // g_nearestCheckpointDistance
     race.shared
         .physics_tables
@@ -50,7 +52,7 @@ pub fn find_car_checkpoint(race: &Race) -> Result<u32, Refused> {
             0x3F80_0000,
         ));
     if progress::search_all(near.distance) {
-        return crate::race::start_place::nearest_checkpoint(race);
+        return crate::race::start_place::nearest_checkpoint(race, scene);
     }
     Ok(near.checkpoint)
 }

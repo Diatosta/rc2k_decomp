@@ -39,7 +39,6 @@ use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_8
 use crate::physics::ground::*;
 use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::ground;
 
@@ -50,6 +49,7 @@ pub const MOST_POINTS: u32 = 0x40;
 // Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
 // turns and the bump's scaling stay x87).
 pub fn probe_ground_at(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let n = race.shared.car.probe_count.get();
     if n < 1 {
         return Ok(());
@@ -58,11 +58,11 @@ pub fn probe_ground_at(race: &Race) -> Result<(), Refused> {
         return Err(BadInput("more than 0x40 probe points (the lists' room)").into());
     }
 
-    probe_points(race, n)
+    probe_points(race, n, scene)
 }
 
-fn probe_points(race: &Race, n: u32) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
     let k65536 = race.course.numbers.k65536.bits();
     race.physics.contact.crossed_probe.set(u32::MAX);
     for b in 0..n {

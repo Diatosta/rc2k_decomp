@@ -27,7 +27,7 @@ fn below(share: u32, limit: u32) -> bool {
 }
 
 /// The Rust version.
-pub fn lever_pushes(race: &Race) {
+pub fn lever_pushes(race: &Race, scene: &crate::scene::owner::Scene) {
     race.shared.physics_tables.lever_pushes[0].set(0);
     race.shared.physics_tables.lever_pushes[1].set(0);
     if race.shared.switches.levers_on.get() != 1 || race.shared.car.all_wheels_off.get() != 0 {
@@ -73,12 +73,12 @@ pub fn lever_pushes(race: &Race) {
         .set_bits(x87::loaded(
             race.shared.physics_tables.lever_share_start.bits(),
         ));
-    lever_push(race);
+    lever_push(race, scene);
     race.shared.physics_tables.lever_push_vector[2]
         .set(x87::loaded(race.shared.car.probe_point_z[0].bits()));
     race.shared
         .physics_tables
         .lever_share_left
         .set_bits(one_less(race.shared.physics_tables.lever_share_left.bits()));
-    lever_push(race);
+    lever_push(race, scene);
 }

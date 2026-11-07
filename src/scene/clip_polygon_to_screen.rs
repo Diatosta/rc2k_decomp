@@ -17,7 +17,6 @@
 use crate::errors::BadInput;
 use crate::race::owner::Race;
 use crate::scene::clip::{Edge, below, clip_pass, listed_with_records, or_undone};
-use crate::scene::owner::scene;
 use crate::session::Float;
 
 // ---- game data ----
@@ -25,8 +24,10 @@ use crate::session::Float;
 // ---- Rust version ----
 
 /// The polygon's entries and the mask of the edges some vertex is past.
-fn outside_mask() -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
-    let drawing = &scene().drawing;
+fn outside_mask(
+    scene: &crate::scene::owner::Scene,
+) -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
+    let drawing = &scene.drawing;
     let entries = listed_with_records()?;
     let edge = |cell: &Float| cell.get() as f64;
     let (left, right, top, bottom) = (
@@ -54,10 +55,13 @@ fn outside_mask() -> Result<(crate::scene::polygon::Listed, u32), BadInput> {
     Ok((entries, mask))
 }
 
-pub fn clip_polygon_to_screen(race: &Race) -> Result<(), BadInput> {
-    let drawing = &scene().drawing;
+pub fn clip_polygon_to_screen(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
+    let drawing = &scene.drawing;
     let course = &race.course;
-    let (entries, mask) = outside_mask()?;
+    let (entries, mask) = outside_mask(scene)?;
     drawing.scene.screen_clipped.set_bits(1u32);
     if mask == 0 {
         return Ok(());
@@ -72,7 +76,7 @@ pub fn clip_polygon_to_screen(race: &Race) -> Result<(), BadInput> {
             (8, Edge::Y(drawing.scene.clip_screen[1].bits()), false),
         ] {
             if mask & bit != 0 {
-                listed = clip_pass(course, listed, edge, inside_past, mask)?;
+                listed = clip_pass(course, listed, edge, inside_past, mask, scene)?;
                 if drawing.scene.polygon_vertex_count.bits() < 3 {
                     break;
                 }

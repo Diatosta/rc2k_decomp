@@ -46,12 +46,15 @@ use crate::race::owner::Race;
 use crate::race::view_vars_store::ViewVars;
 use crate::scene::matrix3::rounded;
 
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 use rc2k_core::physics::camera_view;
 
 /// The fixed camera (the second chunk, 0x4380E9 ..): `second` the second tables.
-fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput> {
+fn fixed_camera(
+    race: &Race,
+    second: bool,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
     let race_owner = race;
     let (nearest, replay) = if second {
         (
@@ -78,7 +81,7 @@ fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput
                 .unwrap_or_else(|e| crate::fatal::raise::end("a scene point", e)),
         );
     }
-    crate::physics::camera_height_bias::camera_height_bias(race)?;
+    crate::physics::camera_height_bias::camera_height_bias(race, scene)?;
     let d = |k: usize| {
         race.shared.car.position[k]
             .get()
@@ -97,7 +100,7 @@ fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput
         .set((race.shared.car.camera_pitch.get() << 4).wrapping_neg());
     let w = [dx, dy, dz];
     x87_2(race, w);
-    scene().drawing.scene.scratch.set(dz);
+    scene.drawing.scene.scratch.set(dz);
     race_owner
         .frame
         .view_and_records
@@ -131,6 +134,7 @@ fn fixed_camera(race: &Race, second: bool) -> Result<(), crate::errors::BadInput
 // Converted: `rc2k_core::physics::camera_view::{fixed_camera, keeps_light_figure,
 // switch_over, mode_after_switch, check_modes}` (the x87 sums stay).
 pub fn steps(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     crate::physics::camera_low_switch::camera_low_switch(race)?;
     for k in 0..3 {
         race.frame.frame_work.camera_car[k].set(race.shared.car.position[k].get());
@@ -156,7 +160,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     if race.shared.car.camera_switch_active.get() == 0
         && let Some(second) = camera_view::fixed_camera(race.shared.car.camera_view.get())
     {
-        fixed_camera(race, second)?;
+        fixed_camera(race, second, scene)?;
         return Ok(());
     }
     // 0x437BE4: the camera at the car, the views blended.
@@ -296,8 +300,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         &race.shared.car.camera_zoom,
         &race.frame.view_and_records.view_vars.camera_zoom_hold,
     );
-    crate::physics::ease_view_angles::ease_view_angles(race)?;
-    crate::physics::ease_view_blend::ease_view_blend(race)?;
+    crate::physics::ease_view_angles::ease_view_angles(race, scene)?;
+    crate::physics::ease_view_blend::ease_view_blend(race, scene)?;
     crate::physics::camera_avoid_ground::steps(race)?;
     x87_9(race);
     race.course

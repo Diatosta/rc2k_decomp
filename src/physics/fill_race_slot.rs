@@ -21,15 +21,17 @@
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_run::{ext_to_int, int_80, int_mul_add};
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::physics::parts::{LAST_PART, choose_slot};
 
 /// The Rust version: part `part` (eax) into a race slot. The registers the original leaves
 /// are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::choose_slot` (the slot; the floats stay x87).
-pub fn fill_race_slot(race: &Race, part: u32) -> Result<(), Refused> {
-    let scene = scene();
+pub fn fill_race_slot(
+    race: &Race,
+    part: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     if part > LAST_PART {
         return Err(BadInput("a part past 0xFF").into());
     }

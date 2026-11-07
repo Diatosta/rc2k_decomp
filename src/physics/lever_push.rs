@@ -20,11 +20,10 @@ use crate::physics::turn_by_car_matrix::turn_by_car_matrix;
 use crate::physics::turn_by_inverse::turn_by_inverse;
 use crate::race::owner::Race;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::owner::scene;
 use crate::scene::view_matrix::cross_product;
 
 /// The Rust version.
-pub fn lever_push(race: &Race) {
+pub fn lever_push(race: &Race, scene: &crate::scene::owner::Scene) {
     for k in 0..3 {
         race.shared.physics_tables.lever_push_place[k].set(race.shared.car.spin[k].bits());
     }
@@ -41,7 +40,7 @@ pub fn lever_push(race: &Race) {
     ] {
         let f = extended(factor.bits());
         scale_vector(&race.shared.physics_tables.lever_push_turned, f);
-        scene().drawing.scene.scratch.set(rounded(f));
+        scene.drawing.scene.scratch.set(rounded(f));
     }
     for (from, int, place) in [
         (

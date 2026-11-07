@@ -192,8 +192,9 @@ pub fn clip_pass(
     edge: Edge,
     inside_past: bool,
     mask: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<Option<crate::scene::polygon::Listed>, BadInput> {
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     let entries = match listed {
         Some(entries) => entries,
         None => listed_with_records()?,

@@ -23,8 +23,11 @@ use crate::race::owner_frame::Frame;
 use crate::scene::owner::scene;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
-pub fn camera_height_bias(race: &Race) -> Result<(), crate::errors::BadInput> {
-    let drawing = &scene().drawing;
+pub fn camera_height_bias(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
+    let drawing = &scene.drawing;
     let esi = record(&race.shared)?;
     if esi.height_bias.get() == 0 {
         return Ok(());

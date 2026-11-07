@@ -26,7 +26,12 @@ const KIND_FLOAT_PAST: u32 = 0x468E_8000;
 /// The Rust version (see the header): `seed` the seed (eax). The original took the settings'
 /// address in esi; the race hands its one record (`race::marks_settings_store`), so none is
 /// passed. The steps (`nullsub_1` before each, `nullsub_26` for step 7: nothing).
-pub fn init_marks(race: &Race, effects: &Effects, seed: u32) -> Result<(), Refused> {
+pub fn init_marks(
+    race: &Race,
+    effects: &Effects,
+    seed: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let course = &race.course;
     let system = system();
     use crate::effects::*;
@@ -42,19 +47,19 @@ pub fn init_marks(race: &Race, effects: &Effects, seed: u32) -> Result<(), Refus
         effects.setup.settings.is_set.set(1);
         effects.setup.work.seed.set(seed);
         effects.setup.clock.started.set(0);
-        edges::load_kind_data(course, effects)?;
+        edges::load_kind_data(course, effects, scene)?;
         setup::make_wave_tables(paths)?;
         profiles::make_profiles(course, paths, profiles::RESUME)?;
         setup::seed_noise(weather);
-        setup::make_noise_curve(weather)?;
+        setup::make_noise_curve(weather, scene)?;
         blocks::allocate_places()?;
         kind_values::set_kind_values(&kind_values::FIRST)?;
         kind_values::set_kind_values(&kind_values::SECOND)?;
-        load_mask_pictures::load_mask_pictures(masks)?;
+        load_mask_pictures::load_mask_pictures(masks, scene)?;
         setup::clear_slots();
-        set_up_surface::set_up_surface(ring, masks)?;
+        set_up_surface::set_up_surface(ring, masks, scene)?;
         blocks::allocate_ring(&effects.particles, ring)?;
-        lines::set_up_blocks(course, paths)?;
+        lines::set_up_blocks(course, paths, scene)?;
         marks.unknown_67c[1].set(1);
         for r in &effects.setup.clock.settings_copies {
             r.set(1);

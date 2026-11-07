@@ -25,11 +25,14 @@ const TABLE_CELLS: usize = 0x400;
 // ---- Rust version ----
 
 // Converted: `rc2k_core::scene::reflection::{cache_place, cached}`
-pub fn cached_reflection_coordinates(race: &crate::race::owner::Race) -> Result<(), Refused> {
+pub fn cached_reflection_coordinates(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let physics = &race.physics;
     use rc2k_core::scene::reflection::{cache_place, cached};
     if race.shared.view.reflections_kept.bits() == 0 {
-        return Ok(reflection_coordinates(race)?);
+        return Ok(reflection_coordinates(race, scene)?);
     }
     let asked: [u32; 2] = [
         physics.ground.reflection_normal_number.bits(),
@@ -43,7 +46,7 @@ pub fn cached_reflection_coordinates(race: &crate::race::owner::Race) -> Result<
         crate::session::write_bits(&physics.ground.reflection_coordinates, coordinates);
         return Ok(());
     }
-    reflection_coordinates(race)?;
+    reflection_coordinates(race, scene)?;
     let coordinates: [u32; 2] = crate::session::read_bits(&physics.ground.reflection_coordinates);
     for (table, value) in [asked[0], asked[1], coordinates[0], coordinates[1]]
         .into_iter()

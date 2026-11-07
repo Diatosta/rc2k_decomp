@@ -85,7 +85,7 @@ pub fn flush_batch(frame: &Frame, b: &Batch, textured: bool) -> Result<(), Refus
     if count != 0 {
         if textured {
             // Inside `pusha`: the look-up, then its texture set.
-            crate::scene::look_up_texture::look_up_texture();
+            crate::scene::look_up_texture::look_up_texture(scene);
             set_texture(scene.drawing.scene.polygon_texture.get());
         }
         let result = (b.draw)(frame, b.word.get(), count);
@@ -120,10 +120,9 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// the glow's render states (`sub_44E44D`), texture `dword_5D1DE8` (`scene::set_texture`),
 /// the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth buffer on. Its one
 /// caller, `race::draw_mirror_view`, reads no register it leaves.
-pub fn draw_view_backdrop(race: &Race) {
+pub fn draw_view_backdrop(race: &Race, scene: &crate::scene::owner::Scene) {
     let course = &race.course;
     let shared = &race.shared;
-    let scene = scene();
     shared.vars.quad_uv[0].set(0xF8_0000);
     shared.vars.quad_uv[4].set(0x8_0000);
     let left = scene.drawing.scene.view_offset[0].get();

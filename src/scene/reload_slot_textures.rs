@@ -17,11 +17,14 @@ use crate::scene::load_wanted_textures::load_wanted_textures;
 /// Its calls in order: two log lines, the slots cleared, the wanted textures loaded, two
 /// log lines. What it leaves in the registers no caller reads (register liveness,
 /// 2026-10-23: `race::set_all_plates` and `scene::set_up_front_end_scene`).
-pub fn reload_slot_textures(frame: &Frame) -> Result<(), BadInput> {
+pub fn reload_slot_textures(
+    frame: &Frame,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     crate::logfile::log_write::log_nul(c"------------------------------------", true, 1);
     crate::logfile::log_write::log_nul(c"reload video plates - start", true, 1);
-    clear_slot_textures();
-    load_wanted_textures(frame)?;
+    clear_slot_textures(scene);
+    load_wanted_textures(frame, scene)?;
     crate::logfile::log_write::log_nul(c"reload video plates - finis", true, 1);
     crate::logfile::log_write::log_nul(c"------------------------------------", true, 1);
     Ok(())

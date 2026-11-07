@@ -20,7 +20,6 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::race::put_mud_texel::put_mud_texel;
 use crate::race::tint_to_mud_colour::tint_to_mud_colour;
-use crate::scene::owner::scene;
 
 // g_surface.format
 
@@ -55,9 +54,13 @@ pub fn strength_at(n: u32, x: u32, y: u32) -> Result<u32, BadInput> {
 
 /// The Rust version (see the header): the texel of place number `number` (its low 16
 /// bits) muddied.
-pub fn muddy_texel(race: &Race, number: u32) -> Result<(), Refused> {
+pub fn muddy_texel(
+    race: &Race,
+    number: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let course = &race.course;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     // Converted: `rc2k_core::race::mud::{shuffled_place, strength_index, muddy,
     // tint_amount}`.
     use rc2k_core::race::mud::{MUD_TOP, muddy, strength_row, tint_amount};

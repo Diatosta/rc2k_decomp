@@ -8,8 +8,8 @@
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
 //! are the original's.
 
-pub fn ignore_room(g: &'static crate::install::owner::Install) {
-    g.run.ignore_room.set(1);
-    g.pages.list_answer.set(1);
-    g.pages.list_leave.set(1);
+pub fn ignore_room(install: &'static crate::install::owner::Install) {
+    install.run.ignore_room.set(1);
+    install.pages.list_answer.set(1);
+    install.pages.list_leave.set(1);
 }

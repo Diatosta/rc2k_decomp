@@ -15,18 +15,18 @@ use rc2k_core::install::items::EnterWay;
 
 /// Enter on `item`; whether it was taken (the original's zero).
 pub fn item_enter(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let kind = item.kind();
     // Converted: `rc2k_core::install::items::EnterWay`.
     match EnterWay::of(kind) {
-        Some(EnterWay::Link) => crate::install::item_link::item_link(g, item),
+        Some(EnterWay::Link) => crate::install::item_link::item_link(install, item),
         Some(EnterWay::StartEdit) => {
-            crate::install::start_edit::start_edit(g, item);
+            crate::install::start_edit::start_edit(install, item);
             Ok(true)
         }
-        Some(EnterWay::Action) => crate::install::item_action::item_action(g, item),
+        Some(EnterWay::Action) => crate::install::item_action::item_action(install, item),
         // cmp bl, 6
         None => Ok(kind == 6),
     }

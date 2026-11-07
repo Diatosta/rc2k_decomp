@@ -11,12 +11,13 @@
 //! memory.
 
 use crate::errors::BadInput;
-use crate::scene::owner::scene;
 
 // ---- Rust version ----
 
-pub fn reset_objects(course: &crate::race::owner_course::Course) -> Result<(), BadInput> {
-    let scene = scene();
+pub fn reset_objects(
+    course: &crate::race::owner_course::Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     {
         let (memory, room): (u32, u32) = (
             course.lists.object_points.bits(),

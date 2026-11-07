@@ -15,7 +15,6 @@ use crate::math::x87_run::{neg_rounded, over_cos_80, patan};
 use crate::physics::clamped_asin::clamped_asin_at;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use crate::session::{Cell32, Float};
 
@@ -28,8 +27,12 @@ fn turn_unit(m: &(impl Cells + ?Sized), turned: &[&Float; 3], unit: [u32; 3]) {
 }
 
 /// The Rust version on the matrix `m`; the angles in `COURSE_LISTS`.
-pub fn matrix_angles(course: &Course, m: &(impl Cells + ?Sized)) {
-    let drawing = &scene().drawing;
+pub fn matrix_angles(
+    course: &Course,
+    m: &(impl Cells + ?Sized),
+    scene: &crate::scene::owner::Scene,
+) {
+    let drawing = &scene.drawing;
     const ONE: u32 = 0x3F80_0000;
     let l = &course.lists;
     let turned = [&l.turned_x, &l.turned_y, &l.turned_z];

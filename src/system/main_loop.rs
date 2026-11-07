@@ -59,6 +59,7 @@ fn quit_and_leave() -> Result<(), Refused> {
 
 /// The Rust version.
 pub fn main_loop(session: &Session) -> Result<(), Refused> {
+    let install = crate::install::owner::install();
     let menus = crate::menu::owner::menus();
     log_line(c"");
     log_line(c"Entering main loop...");
@@ -82,22 +83,22 @@ pub fn main_loop(session: &Session) -> Result<(), Refused> {
     // with `-u` (`dword_51B9CC`) it uninstalls where it is: its record is in the installed
     // folder, so the uninstall runs from there (the original's ran from the CD, through the
     // update's mark).
-    if crate::install::owner::install().pages.script_set_up.get() == INSTALLER_MARK
+    if install.pages.script_set_up.get() == INSTALLER_MARK
         || crate::install::portable::is_source_folder()
-        || crate::install::owner::install().run.updating.get() == 1
+        || install.run.updating.get() == 1
     {
-        crate::install::run_installer::run_installer(crate::install::owner::install())?;
+        crate::install::run_installer::run_installer(install)?;
         return quit_and_leave();
     }
-    if crate::install::owner::install().run.installing.get() != 1 {
+    if install.run.installing.get() != 1 {
         crate::install::runs_from_source::source_against_directory(
-            crate::install::owner::install(),
+            install,
             &mut crate::install::outside::Game,
         )?;
     }
-    crate::install::owner::install().run.installing.set(0);
-    crate::install::owner::install().run.updating.set(0);
-    crate::install::owner::install().run.from_command.set(0);
+    install.run.installing.set(0);
+    install.run.updating.set(0);
+    install.run.from_command.set(0);
     crate::sound::stop_cd_audio::stop_cd_audio();
     // Its answer is not read (this build's nine `nop`s).
     crate::files::is_cd_drive::is_cd_drive(base_drive());

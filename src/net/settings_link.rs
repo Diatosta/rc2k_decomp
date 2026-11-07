@@ -10,9 +10,12 @@ use crate::errors::Refused;
 use crate::net::store::NetVars;
 
 /// The Rust version.
-pub fn settings_link(vars: &NetVars) -> Result<(), Refused> {
+pub fn settings_link(
+    install: &'static crate::install::owner::Install,
+    vars: &NetVars,
+) -> Result<(), Refused> {
     if crate::net::find_connections::find_connections(vars)? {
-        let chosen = crate::net::choose_connection::choose_connection(vars)?;
+        let chosen = crate::net::choose_connection::choose_connection(install, vars)?;
         if (chosen as i32) >= 0 {
             crate::net::keep_connection::keep_connection(chosen)?;
         }

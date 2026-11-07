@@ -28,7 +28,6 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::splash_mud::{LAST_SPLASHED, splash_mud};
 use crate::race::throw_mud_texel::{LAST_THROWN, throw_mud_texel};
-use crate::scene::owner::scene;
 use crate::session::{Cell32, Dword, Float};
 
 /// `fld dword [f]; fistp dword [t]`.
@@ -58,13 +57,14 @@ fn take_units(at: &Float, units: &Dword) {
 }
 
 /// The Rust version (see the header).
-pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
-    let textures = &scene().textures;
+pub fn update_mud_texture(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let textures = &scene.textures;
     let frame = &race.frame;
     let n = texture_and_mud(&race.shared)?;
     let k = n as usize;
     crate::scene::forget_slot_texture::forget_slot_texture(
         textures.kinds.kind_first_slots[256].bits().wrapping_add(n),
+        scene,
     )?;
     frame.panel_and_overlay.panel.texture_changes.set(
         frame
@@ -108,7 +108,7 @@ pub fn update_mud_texture(race: &Race) -> Result<(), Refused> {
         if throws > 0 {
             let mut done = 0u32;
             loop {
-                throw_mud_texel(race)?;
+                throw_mud_texel(race, scene)?;
                 done = done.wrapping_add(1);
                 if done == race.shared.vars.mud_throws.bits() {
                     break;

@@ -10,7 +10,6 @@ use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
 use crate::scene::matrix::{multiply_matrices, set_place, set_turn_x, set_turn_y};
-use crate::scene::owner::scene;
 use crate::session::Float;
 
 /// The five axle values (`rc2k_core::race::car_parts::axles`) from the model's record
@@ -38,8 +37,11 @@ fn axles(shared: &Shared, model: u32) -> Result<Option<[u32; 5]>, BadInput> {
 /// its spin (+0x1F8 front, +0x1FC rear) and about y by the steering (front only), placed at
 /// its axle with its height (+0x910 ..), into `flt_6417E0` .. `flt_6418A0`. Refuses (before
 /// anything) axle values whose scaling would fault.
-pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
-    let scene = scene();
+pub fn car_part_matrices(
+    race: &Race,
+    car: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::car_parts::{axles, mark_switches, marks_bytes,
     // steering}` (the size's and the speed's floats the x87's).
     use crate::math::x87::loaded;
@@ -156,7 +158,7 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
                 z.get().wrapping_neg(),
             ],
         );
-        set_turn_x(&race.frame.matrices, spin.get());
+        set_turn_x(&race.frame.matrices, spin.get(), scene);
         let placed = &race.frame.matrices.placed_matrix;
         let turned = &race.frame.matrices.turned_matrix;
         let lit = &race.frame.matrices.lit_matrix;
@@ -164,6 +166,7 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
         set_turn_y(
             &race.frame.matrices,
             scene.drawing.object_work.part_values[2].get(),
+            scene,
         );
         multiply_matrices(turned, &race.frame.matrices.turn_y_matrix, lit);
         set_place(&race.frame.matrices, [x.get(), lift.get(), z.get()]);
@@ -177,7 +180,7 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
 /// (+0x740 .. +0x8BF) and the body's turn times the car's (`flt_5EA3CC`) at +0x8C0. Refuses
 /// (before anything) no race cars (the original's loop would run away), more than eight, or
 /// one without its block.
-pub fn ready_car_parts(race: &Race) -> Result<(), Refused> {
+pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::car_parts::{check_part_cars, parts_shown,
     // KEPT_MATRICES}`.
@@ -190,7 +193,7 @@ pub fn ready_car_parts(race: &Race) -> Result<(), Refused> {
         let car = race.shared.work.car_block(c as usize);
         let block = car_at(car)?;
         if parts_shown(block.driver_kind.get()) {
-            car_part_matrices(race, car)?;
+            car_part_matrices(race, car, scene)?;
             let wheels = &block.part_matrices;
             let kept: [&[Float]; KEPT_MATRICES as usize] = [
                 &wheels[..16],

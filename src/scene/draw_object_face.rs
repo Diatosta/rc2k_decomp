@@ -36,7 +36,6 @@ use crate::scene::cached_reflection_coordinates::cached_reflection_coordinates;
 use crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game;
 use crate::scene::draw_object_polygon::{self, draw_object_polygon};
 use crate::scene::draw_polygon::{Game, Outside};
-use crate::scene::owner::scene;
 use crate::scene::project_polygon::project_polygon;
 use crate::scene::vertex_light::vertex_light;
 
@@ -58,8 +57,8 @@ pub fn draw_object_face(
     race: &crate::race::owner::Race,
     face: usize,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let scene = scene();
     if scene.lights.state.draw_mode.bits() != 0 {
         return Ok(());
     }
@@ -133,7 +132,7 @@ pub fn draw_object_face(
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
-            vertex_light(race, fw(vertex + 0xC))?
+            vertex_light(race, fw(vertex + 0xC), scene)?
         } else {
             0x00FF_FFFF
         };
@@ -150,7 +149,7 @@ pub fn draw_object_face(
                 .ground
                 .reflection_point_number
                 .set_bits(fw(vertex).wrapping_neg());
-            cached_reflection_coordinates(race)?;
+            cached_reflection_coordinates(race, scene)?;
             let coordinates: [u32; 2] =
                 crate::session::read_bits(&race.physics.ground.reflection_coordinates);
             entry.u2.set(coordinates[0]);
@@ -197,19 +196,25 @@ pub fn draw_object_face(
 pub fn draw_object_face_in_game(
     race: &crate::race::owner::Race,
     face: usize,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    draw_object_face(race, face, &mut |step| match step {
-        Step::Draw => draw_object_polygon(race, &mut |step| match step {
-            draw_object_polygon::Step::Project => project_polygon(race),
-            draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(race),
-        }),
-        Step::DepthTestOff => {
-            Game.state(0xE, 0);
-            Ok(())
-        }
-        Step::DepthTestOn => {
-            Game.state(0xE, 1);
-            Ok(())
-        }
-    })
+    draw_object_face(
+        race,
+        face,
+        &mut |step| match step {
+            Step::Draw => draw_object_polygon(race, &mut |step| match step {
+                draw_object_polygon::Step::Project => project_polygon(race, scene),
+                draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(race, scene),
+            }),
+            Step::DepthTestOff => {
+                Game.state(0xE, 0);
+                Ok(())
+            }
+            Step::DepthTestOn => {
+                Game.state(0xE, 1);
+                Ok(())
+            }
+        },
+        scene,
+    )
 }

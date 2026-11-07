@@ -25,7 +25,7 @@ use crate::race::owner::Race;
 
 /// The steps on `r`.
 // Converted: `rc2k_core::physics::gearbox::gearbox_turn`.
-pub fn gearbox_step(race: &Race) -> Result<(), Refused> {
+pub fn gearbox_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use rc2k_core::physics::gearbox::{GearboxTurn, gearbox_turn};
     let turn = gearbox_turn(
         race.shared.car.finish_flag.get(),
@@ -37,12 +37,12 @@ pub fn gearbox_step(race: &Race) -> Result<(), Refused> {
     );
     match turn {
         GearboxTurn::Idle => {}
-        GearboxTurn::Manual => manual_gearbox(race)?,
+        GearboxTurn::Manual => manual_gearbox(race, scene)?,
         GearboxTurn::Asked => {
             { take_asked_gear(race) }?;
             return Ok(());
         }
-        GearboxTurn::Auto => auto_gearbox(race)?,
+        GearboxTurn::Auto => auto_gearbox(race, scene)?,
     }
     if race.shared.car.gear_changed.get() == 1 {
         race.shared.car.engine_speed.set_bits(x87::mul(

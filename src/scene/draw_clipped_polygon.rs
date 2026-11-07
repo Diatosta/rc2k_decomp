@@ -22,7 +22,6 @@ use crate::scene::clip_polygon_to_screen::clip_polygon_to_screen;
 use crate::scene::draw_marked_polygon::draw_marked_polygon;
 use crate::scene::draw_polygon::{Game, draw_polygon};
 use crate::scene::fog_polygon::{fog_entries, fog_polygon};
-use crate::scene::owner::scene;
 use crate::scene::polygon::MOST;
 use crate::scene::project_polygon::project_entries;
 use crate::scene::scale_texture_coordinates::{scale_entries, scale_texture_coordinates};
@@ -44,8 +43,9 @@ pub enum Step {
 
 pub fn draw_clipped_polygon(
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     {
         let count: u32 = drawing.scene.polygon_vertex_count.bits();
         if count == 0 || count > MOST {
@@ -87,27 +87,35 @@ pub fn draw_clipped_polygon(
 }
 
 /// The function with its parts' Rust versions, drawing for real.
-pub fn draw_clipped_polygon_in_game(race: &Race) -> Result<(), Refused> {
+pub fn draw_clipped_polygon_in_game(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     // The list stays as it is from the projection to the fog: listed once for the three.
     let mut entries = None;
-    draw_clipped_polygon(&mut |step| {
-        match step {
-            Step::Project => {
-                let listed = entries.insert(crate::scene::polygon::listed()?);
-                project_entries(race, listed)?;
+    draw_clipped_polygon(
+        &mut |step| {
+            match step {
+                Step::Project => {
+                    let listed = entries.insert(crate::scene::polygon::listed()?);
+                    project_entries(race, listed, scene)?;
+                }
+                Step::ScaleTextureCoordinates => match &entries {
+                    Some(listed) if !listed.is_empty() => scale_entries(listed, scene)?,
+                    _ => scale_texture_coordinates(scene)?,
+                },
+                Step::Fog => match entries.take() {
+                    Some(listed) => fog_entries(&listed, scene)?,
+                    None => fog_polygon(scene)?,
+                },
+                Step::ClipByDepth => clip_polygon_by_depth(race, scene)?,
+                Step::ClipToScreen => clip_polygon_to_screen(race, scene)?,
+                Step::Draw => {
+                    draw_marked_polygon(race, &mut || draw_polygon(race, &mut Game, scene))?;
+                }
             }
-            Step::ScaleTextureCoordinates => match &entries {
-                Some(listed) if !listed.is_empty() => scale_entries(listed)?,
-                _ => scale_texture_coordinates()?,
-            },
-            Step::Fog => match entries.take() {
-                Some(listed) => fog_entries(&listed)?,
-                None => fog_polygon()?,
-            },
-            Step::ClipByDepth => clip_polygon_by_depth(race)?,
-            Step::ClipToScreen => clip_polygon_to_screen(race)?,
-            Step::Draw => draw_marked_polygon(race, &mut || draw_polygon(race, &mut Game))?,
-        }
-        Ok(())
-    })
+            Ok(())
+        },
+        scene,
+    )
 }

@@ -9,13 +9,11 @@
 //! (`dword_5CEAE0`, `dword_5CFAE0`) becomes eax if eax is above it, unsigned (so -1, "not
 //! needed", is never raised). 57 callers.
 
-use crate::scene::owner::scene;
-
 // ---- Rust version ----
 
 /// Whether any entry changed.
-pub fn raise_texture_needs(level: u32, tag: u32) -> bool {
-    let objects = &scene().objects;
+pub fn raise_texture_needs(level: u32, tag: u32, scene: &crate::scene::owner::Scene) -> bool {
+    let objects = &scene.objects;
     // Converted: `rc2k_core::scene::textures::Needs::raise`.
     crate::scene::textures::with_cells(
         [

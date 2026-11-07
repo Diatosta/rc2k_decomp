@@ -7,7 +7,6 @@ use crate::errors::Refused;
 use crate::pointers::Store;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::scene::owner::scene;
 
 // The stage's localdat is the whole of `race().course.stage_prefs` (0x608CB4, 0x206C bytes).
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
@@ -141,6 +140,7 @@ pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
 /// `dword_71A9A0`, each >> 16) kept at `dword_63503C` .., the x, y and z turns made of
 /// them, Z x X into the lit matrix, that x Y into `dword_71A08C`.
 pub fn get_mat_crash(race: &Race) {
+    let scene = crate::scene::owner::scene();
     let shared = &race.shared;
     let frame = &race.frame;
     use crate::scene::matrix;
@@ -151,10 +151,10 @@ pub fn get_mat_crash(race: &Race) {
         shared.car.car_pitch.get(),
         shared.car.car_roll.get(),
     ]);
-    crate::session::write_bits(&scene().drawing.object_work.angles, turns);
-    matrix::set_turn_x(&race.frame.matrices, turns[0]);
-    matrix::set_turn_y(&race.frame.matrices, turns[1]);
-    matrix::set_turn_z_16(&race.frame.matrices, turns[2]);
+    crate::session::write_bits(&scene.drawing.object_work.angles, turns);
+    matrix::set_turn_x(&race.frame.matrices, turns[0], scene);
+    matrix::set_turn_y(&race.frame.matrices, turns[1], scene);
+    matrix::set_turn_z_16(&race.frame.matrices, turns[2], scene);
     matrix::multiply_matrices(
         &frame.matrices.turn_z_matrix,
         &frame.matrices.turn_x_matrix,

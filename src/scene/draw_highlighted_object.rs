@@ -33,7 +33,6 @@ use crate::scene::draw_carousel_entry::{ENTRIES, OWN, find_object_of_kind, own_p
 use crate::scene::draw_menu_object::draw_menu_object_in_game;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -44,8 +43,9 @@ pub fn draw_highlighted(
     menus: &Menus,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
 ) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let shared = &race().shared;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     let screens = &menus.screens;
     let item = screens.loop_flags.item.get().wrapping_sub(1);
     if item >= ENTRIES {
@@ -71,7 +71,7 @@ pub fn draw_highlighted(
         }
     }
     screens.state.carousel.kind.set(kind);
-    let object = find_object_of_kind(kind);
+    let object = find_object_of_kind(kind, scene);
     shared.switches.object_number.set_bits(object);
     draw()
 }
@@ -80,13 +80,14 @@ pub fn draw_highlighted(
 /// its caller's (register liveness, 2026-10-23), and the drawing reads none of what the
 /// calls before it leave (the eax and ebx `sub_49007F` gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
+    let scene = crate::scene::owner::scene();
     let race = race();
     let menus = menus();
-    clear_depth_buffer();
-    assign_kind_textures()?;
-    assign_menu_textures(&menus.tables)?;
-    map_texture_places();
-    load_slot_textures_in_game(&race.frame)?;
-    scene().lights.state.draw_mode.set_bits(0u32);
-    draw_highlighted(menus, &mut || draw_menu_object_in_game(race))
+    clear_depth_buffer(scene);
+    assign_kind_textures(scene)?;
+    assign_menu_textures(&menus.tables, scene)?;
+    map_texture_places(scene);
+    load_slot_textures_in_game(&race.frame, scene)?;
+    scene.lights.state.draw_mode.set_bits(0u32);
+    draw_highlighted(menus, &mut || draw_menu_object_in_game(race, scene))
 }

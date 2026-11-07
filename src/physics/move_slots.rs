@@ -17,7 +17,7 @@ use crate::physics::move_slot::move_slot;
 use crate::race::owner::Race;
 
 /// The Rust version: the eight slots, those in use moved, `slot_count` the number done so far.
-pub fn move_slots(race: &Race) -> Result<(), Refused> {
+pub fn move_slots(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     let slots = &shared.work.race_slots;
     let mut n = 0u32;
@@ -25,7 +25,7 @@ pub fn move_slots(race: &Race) -> Result<(), Refused> {
         if slot.part.get() != 0 {
             n += 1;
             shared.work.slot_count.set(n);
-            move_slot(race, slot)?;
+            move_slot(race, slot, scene)?;
         }
     }
     shared.work.slot_count.set(n);

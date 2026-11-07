@@ -22,7 +22,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::physics::lighting;
 
 /// The two-way blend of the four corners now in `dword_5CCC90` ..: into `5CCCA4`,
@@ -41,8 +40,7 @@ fn corners(race: &Race) -> u32 {
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::lighting`.
-pub fn car_lighting(race: &Race) -> Result<(), Refused> {
-    let scene = scene();
+pub fn car_lighting(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let race_owner = race;
     race_owner
         .physics

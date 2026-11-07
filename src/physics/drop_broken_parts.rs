@@ -15,14 +15,13 @@
 use crate::errors::Refused;
 use crate::physics::fill_slot_on_bit::fill_slot_on_bit;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::physics::parts::{BROKEN_BITS, breaks, broken_checked};
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::parts::{BROKEN_BITS, broken_checked, breaks}`.
-pub fn drop_broken_parts(race: &Race) -> Result<(), Refused> {
+pub fn drop_broken_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     for (k, &bit) in BROKEN_BITS.iter().enumerate() {
-        if !broken_checked(k, || scene().lights.work.marks_mask.get() != 0) {
+        if !broken_checked(k, || scene.lights.work.marks_mask.get() != 0) {
             continue;
         }
         if !breaks(race.shared.car.part_damage_limits[k].get(), || {
@@ -30,7 +29,7 @@ pub fn drop_broken_parts(race: &Race) -> Result<(), Refused> {
         }) {
             continue;
         }
-        fill_slot_on_bit(race, bit)?;
+        fill_slot_on_bit(race, bit, scene)?;
     }
     Ok(())
 }

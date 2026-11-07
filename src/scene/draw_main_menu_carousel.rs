@@ -9,7 +9,6 @@
 
 use crate::errors::Refused;
 use crate::scene::draw_carousel::draw_carousel_in_game;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -21,7 +20,8 @@ pub fn draw_main_menu_carousel(
     menus: &crate::menu::owner::Menus,
     race: &crate::race::owner::Race,
     lone_row: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    scene().lights.state.draw_mode.set_bits(0u32);
-    draw_carousel_in_game(menus, race, lone_row)
+    scene.lights.state.draw_mode.set_bits(0u32);
+    draw_carousel_in_game(menus, race, lone_row, scene)
 }

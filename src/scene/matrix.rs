@@ -25,9 +25,9 @@ fn sine_cosine(angle: u32) -> (u32, u32) {
 }
 
 /// `scene::set_turn_x` (0x426FE1).
-pub fn set_turn_x(m: &SceneMatrices, angle: u32) {
+pub fn set_turn_x(m: &SceneMatrices, angle: u32, scene: &crate::scene::owner::Scene) {
     let (sine, cosine) = sine_cosine(angle);
-    crate::session::write_bits(&scene().drawing.scene.turn_x_work, [sine, cosine]);
+    crate::session::write_bits(&scene.drawing.scene.turn_x_work, [sine, cosine]);
     m.turn_x_matrix[5].set_bits(cosine);
     m.turn_x_matrix[6].set_bits(sine);
     m.turn_x_matrix[9].set_bits(sine ^ 0x8000_0000);
@@ -35,9 +35,9 @@ pub fn set_turn_x(m: &SceneMatrices, angle: u32) {
 }
 
 /// `scene::set_turn_y` (0x42702A).
-pub fn set_turn_y(m: &SceneMatrices, angle: u32) {
+pub fn set_turn_y(m: &SceneMatrices, angle: u32, scene: &crate::scene::owner::Scene) {
     let (sine, cosine) = sine_cosine(angle);
-    crate::session::write_bits(&scene().drawing.scene.turn_y_work, [sine, cosine]);
+    crate::session::write_bits(&scene.drawing.scene.turn_y_work, [sine, cosine]);
     m.turn_y_matrix[0].set_bits(cosine);
     m.turn_y_matrix[2].set_bits(sine ^ 0x8000_0000);
     m.turn_y_matrix[8].set_bits(sine);
@@ -46,9 +46,9 @@ pub fn set_turn_y(m: &SceneMatrices, angle: u32) {
 
 /// `scene::set_turn_z_16` (0x427072): as `set_turn_x`, about the z axis (the matrix and
 /// the work of `scene::set_turn_z`, whose angle is 32 bits a turn).
-pub fn set_turn_z_16(m: &SceneMatrices, angle: u32) {
+pub fn set_turn_z_16(m: &SceneMatrices, angle: u32, scene: &crate::scene::owner::Scene) {
     let (sine, cosine) = sine_cosine(angle);
-    crate::session::write_bits(&scene().drawing.scene.turn_z_work, [sine, cosine]);
+    crate::session::write_bits(&scene.drawing.scene.turn_z_work, [sine, cosine]);
     crate::session::write_first(&m.turn_z_matrix, &[cosine, sine]);
     m.turn_z_matrix[4].set_bits(sine ^ 0x8000_0000);
     m.turn_z_matrix[5].set_bits(cosine);
@@ -101,15 +101,17 @@ pub fn copy_matrix_with_place(
 }
 
 /// `scene::set_light_direction` (0x427326).
-pub fn set_light_direction(m: &SceneMatrices) {
-    let drawing = &scene().drawing;
+pub fn set_light_direction(m: &SceneMatrices, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     set_turn_x(
         m,
         (drawing.object_work.light_turns[1].bits() << 8).wrapping_neg(),
+        scene,
     );
     set_turn_y(
         m,
         (drawing.object_work.light_turns[0].bits() << 8).wrapping_neg(),
+        scene,
     );
     multiply_matrices(&m.turn_x_matrix, &m.turn_y_matrix, &m.turned_matrix);
     multiply_matrices(&m.turned_matrix, &m.view_turn_matrix, &m.lit_matrix);
@@ -129,12 +131,23 @@ pub fn set_light_direction(m: &SceneMatrices) {
 }
 
 /// `scene::make_object_matrix` (0x427812).
-pub fn make_object_matrix(frame: &crate::race::owner_frame::Frame) {
-    let drawing = &scene().drawing;
+pub fn make_object_matrix(
+    frame: &crate::race::owner_frame::Frame,
+    scene: &crate::scene::owner::Scene,
+) {
+    let drawing = &scene.drawing;
     let m = &frame.matrices;
-    set_light_direction(m);
-    set_turn_y(m, drawing.object_work.angles[1].bits().wrapping_neg());
-    set_turn_x(m, drawing.object_work.angles[0].bits().wrapping_neg());
+    set_light_direction(m, scene);
+    set_turn_y(
+        m,
+        drawing.object_work.angles[1].bits().wrapping_neg(),
+        scene,
+    );
+    set_turn_x(
+        m,
+        drawing.object_work.angles[0].bits().wrapping_neg(),
+        scene,
+    );
     let place: [u32; 3] = crate::session::read_bits(&drawing.object_work.place);
     set_place(m, place);
     multiply_matrices(

@@ -21,7 +21,6 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 use rc2k_core::drive::start_places;
 
@@ -40,8 +39,12 @@ pub fn car_number(shared: &Shared, start: usize) -> Result<u32, BadInput> {
 /// leaves are read by no caller (`drive::start_cars_behind` sets them again).
 // Converted: `rc2k_core::drive::start_places` (the share in plain floats; the motion's
 // turn stays x87).
-pub fn start_car_on_line(race: &Race, distance: u32) -> Result<(), Refused> {
-    let lights = &scene().lights;
+pub fn start_car_on_line(
+    race: &Race,
+    distance: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let lights = &scene.lights;
     let start = race.shared.tables.start_slot.get();
     start_places::check_start(start)?;
     race.shared
@@ -69,7 +72,7 @@ pub fn start_car_on_line(race: &Race, distance: u32) -> Result<(), Refused> {
     .to_bits();
     race.shared.tables.start_share.set_bits(share);
     race.shared.car.start_share.set_bits(share);
-    crate::race::start_place::place_car_on_line(race, &race.course)?;
+    crate::race::start_place::place_car_on_line(race, &race.course, scene)?;
     crate::race::car_starts::reset_car_motion(race)?;
     race.shared.car.local_velocity[0].set_bits(0);
     race.shared.car.local_velocity[1].set_bits(0);

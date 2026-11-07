@@ -433,22 +433,21 @@ impl InstallerPages {
     /// The byte `index` of `kind_fonts` (8 bytes a font kind); an index past the table ends
     /// the program as every checked installer read does.
     pub fn kind_font(index: u32) -> u8 {
+        let install = crate::install::owner::install();
         if index >= 108 {
             crate::install::installer::refuse(crate::errors::BadInput(
                 "a font kind past the installer's table",
             ));
         }
-        crate::install::owner::install()
-            .pages
-            .kind_fonts
-            .get(index as usize)
+        install.pages.kind_fonts.get(index as usize)
     }
 
     /// Where font `index` of the page's fonts is (phase 13: the table keeps IDA's addresses
     /// as names, `moved::point_into_homes` passes them over). A slot that names no font
     /// object (the unused slot 0, an index off the table) is refused.
     pub fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
-        let cell = crate::install::owner::install()
+        let install = crate::install::owner::install();
+        let cell = install
             .pages
             .fonts
             .get(index as usize)

@@ -18,7 +18,6 @@
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::frame_draw::sample_noise;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::physics::ground::{noise_level, rough_floor};
 
 /// lo + (hi - lo) x sample >> 16, held to 0 ..= 0xFF.
@@ -32,13 +31,17 @@ fn sample(
     shared: &crate::race::owner_shared::Shared,
     x: usize,
 ) -> Result<u32, crate::errors::BadInput> {
-    sample_noise(shared, x)
+    let scene = crate::scene::owner::scene();
+    sample_noise(shared, x, scene)
 }
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::ground::{noise_level, rough_floor}` (the share / 256
 // stays x87).
-pub fn surface_noise(race: &Race) -> Result<(), crate::errors::BadInput> {
+pub fn surface_noise(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
     {
         let first = scaled(
             sample(&race.shared, 0x50)?,
@@ -54,7 +57,7 @@ pub fn surface_noise(race: &Race) -> Result<(), crate::errors::BadInput> {
         );
         race.shared.car.surface_noise_second.set(second);
         let floor = rough_floor(second, race.course.stage_prefs.surface_floor.get());
-        scene().drawing.scene.scratch.set(floor);
+        scene.drawing.scene.scratch.set(floor);
         race.shared.car.surface_blend.set_bits(ext_div2(
             int_80(floor as i32, false),
             race.course.numbers.k256.bits(),

@@ -16,12 +16,11 @@ use crate::physics::car_sounds::{cue_plain, listed, object};
 use crate::physics::sound_band_2::TWIN;
 use crate::physics::sound_bands::band_value_plain;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::physics::sound_places::{FIRST, object_sound};
 
 /// The Rust version.
 // Converted: `rc2k_core::physics::sound_places::{object_sound, place}`.
-pub fn place_sound_object(race: &Race) -> Result<(), Refused> {
+pub fn place_sound_object(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics_store = &race.physics;
     if !listed(&race.frame, race.shared.work.current_car.get())? {
         return Ok(());
@@ -29,7 +28,7 @@ pub fn place_sound_object(race: &Race) -> Result<(), Refused> {
     let trap = crate::physics::cells::Trap::new();
     let sound = object_sound(
         physics_store.contact.face_object.get(),
-        |thing| scene().objects.tables.object_kind(thing),
+        |thing| scene.objects.tables.object_kind(thing),
         |kind| {
             // The material's byte +0x24 (the low byte of its tenth word).
             trap.keep(

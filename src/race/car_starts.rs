@@ -11,7 +11,6 @@ use crate::net::owner::net;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The most cars `g_carBlocks` has.
@@ -172,7 +171,8 @@ fn move_turned(race: &Race, x: u32, z: u32) {
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. The registers it
 /// leaves are read by no caller. Refuses a nearest checkpoint past the lists (when met).
 pub fn start_car(race: &Race) -> Result<(), Refused> {
-    let lights = &scene().lights;
+    let scene = crate::scene::owner::scene();
+    let lights = &scene.lights;
     let course = &race.course;
     let replay = &race.replay;
     race.shared.car.notice_count.set(0);
@@ -206,7 +206,7 @@ pub fn start_car(race: &Race) -> Result<(), Refused> {
             lights.state.line_place.set(0);
             lights.state.line_fraction.set(0);
         }
-        crate::race::start_place::place_car_on_line(race, course)?;
+        crate::race::start_place::place_car_on_line(race, course, scene)?;
         if replay.finish.no_place.get() == 0 {
             move_turned(race, 0, 0xFFFE_0000);
             let side = starts_aside(
@@ -219,7 +219,7 @@ pub fn start_car(race: &Race) -> Result<(), Refused> {
             }
         }
     }
-    let nearest = crate::race::start_place::nearest_checkpoint(race)?;
+    let nearest = crate::race::start_place::nearest_checkpoint(race, scene)?;
     race.shared.car.checkpoint.set(nearest);
     race.shared.car.reset_checkpoint.set(nearest);
     race.shared.car.last_pace_call.set(nearest);

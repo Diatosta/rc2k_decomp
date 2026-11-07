@@ -22,7 +22,6 @@ use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// `fild dword [from]; fmul dword [by]; fistp dword [to]`.
@@ -42,8 +41,8 @@ fn sign(v: u32) -> bool {
 }
 
 /// The key step: 0xA00000 x `flt_614C0C`, through `dword_62400C`.
-fn key_step(shared: &Shared) -> u32 {
-    let drawing = &scene().drawing;
+fn key_step(shared: &Shared, scene: &crate::scene::owner::Scene) -> u32 {
+    let drawing = &scene.drawing;
     drawing.scene.scratch.set(0xA0_0000);
     scale(
         &drawing.scene.scratch,
@@ -87,8 +86,9 @@ fn steer(shared: &Shared, cell: &Dword, step: u32) {
 /// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
 /// and `race::step_replay_cars`).
 pub fn steer_inputs(race: &Race) {
+    let scene = crate::scene::owner::scene();
     let race_owner = race;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     let course = &race_owner.course;
     let mut keys = race_owner.shared.physics_tables.input_steer.get() == 0;
     if !keys && race_owner.shared.car.driver_kind.get() != 2 {
@@ -98,12 +98,12 @@ pub fn steer_inputs(race: &Race) {
         steer(
             &race_owner.shared,
             &race_owner.shared.car.steering_raw,
-            key_step(&race_owner.shared),
+            key_step(&race_owner.shared, scene),
         );
         steer(
             &race_owner.shared,
             &race_owner.shared.car.steering,
-            key_step(&race_owner.shared),
+            key_step(&race_owner.shared, scene),
         );
     } else {
         race_owner.shared.car.steering.set(0);
@@ -174,6 +174,7 @@ mod asm_reference {
     use super::*;
     use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
+    use crate::scene::owner::scene;
 
     // The original's instructions, one function per run.
     reference!(ref_key(rc)

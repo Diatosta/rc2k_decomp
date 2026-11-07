@@ -11,15 +11,14 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 
 /// The Rust version: the nearest checkpoint (`race::nearest_checkpoint`), the car placed
 /// there (`race::place_car_on_line`) and its motion reset (`race::reset_car_motion`).
 /// Those take no register (they are called with none); the registers left are read by
 /// none of the callers.
-pub fn reset_car_on_line(race: &Race) -> Result<(), Refused> {
-    let lights = &scene().lights;
-    let nearest = crate::race::start_place::nearest_checkpoint(race)?;
+pub fn reset_car_on_line(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let lights = &scene.lights;
+    let nearest = crate::race::start_place::nearest_checkpoint(race, scene)?;
     for cell in [
         &race.shared.car.checkpoint,
         &race.shared.car.reset_checkpoint,
@@ -30,7 +29,7 @@ pub fn reset_car_on_line(race: &Race) -> Result<(), Refused> {
     for cell in [&lights.state.line_place, &lights.state.line_fraction] {
         cell.set(nearest);
     }
-    crate::race::start_place::place_car_on_line(race, &race.course)?;
+    crate::race::start_place::place_car_on_line(race, &race.course, scene)?;
     crate::race::car_starts::reset_car_motion(race)?;
     race.shared.car.value_jump_steps.set(8u32);
     race.shared.car.light_hold_steps.set(8u32);

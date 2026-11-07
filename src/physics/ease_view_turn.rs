@@ -18,8 +18,8 @@ use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
-pub fn ease_view_turn(race: &Race) {
-    let drawing = &scene().drawing;
+pub fn ease_view_turn(race: &Race, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     if race.replay.replay_frames.step_first.get() != 0 {
         for share in [
             &race.physics.camera.view_share_pitch,

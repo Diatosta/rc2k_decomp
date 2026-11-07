@@ -35,66 +35,78 @@ use crate::system::owner::system;
 const NO_CHOICE: BadInput = BadInput("a page whose every item cannot be chosen");
 
 /// The list's action (+8) told where the page is.
-fn tell(list: ListMenu, state: u32) -> Result<(), Refused> {
+fn tell(
+    install: &'static crate::install::owner::Install,
+    list: ListMenu,
+    state: u32,
+) -> Result<(), Refused> {
     let action = list.action();
     if action != 0 {
-        page_action(crate::install::owner::install(), action, state, list)?;
+        page_action(install, action, state, list)?;
     }
     Ok(())
 }
 
 /// The page of `list` run until it is left; its answer.
 pub fn run_page(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     list: ListMenu,
 ) -> Result<u32, Refused> {
     let system = system();
     use crate::install as i;
-    g.pages.list_answer.set(1);
-    g.pages.list_leave.set(0);
-    g.pages
+    install.pages.list_answer.set(1);
+    install.pages.list_leave.set(0);
+    install
+        .pages
         .move_clock
         .set(system.session.clocks.key_ticks.get());
-    g.pages.key_clock.set(system.session.clocks.key_ticks.get());
-    g.pages.choice.set(list.highlight());
+    install
+        .pages
+        .key_clock
+        .set(system.session.clocks.key_ticks.get());
+    install.pages.choice.set(list.highlight());
     let count = list.count() as u32;
     let round = 2 * count as usize + 2;
     if count != 0 {
         list_clear_marks(list);
     }
-    tell(list, 0)?;
+    tell(install, list, 0)?;
     'page: {
         if list.flags() & 0xC0 != 0 {
             break 'page;
         }
-        i::mark_page::mark_page(g, list);
+        i::mark_page::mark_page(install, list);
         let mut steps = 0;
         while list_item_unusable(list) {
             steps += 1;
             if steps > round {
                 return Err(NO_CHOICE.into());
             }
-            g.pages.choice.set(g.pages.choice.get().wrapping_add(1));
-            if count == g.pages.choice.get() {
-                g.pages.choice.set(0);
+            install
+                .pages
+                .choice
+                .set(install.pages.choice.get().wrapping_add(1));
+            if count == install.pages.choice.get() {
+                install.pages.choice.set(0);
             }
         }
         i::show_backdrop::show_backdrop()?;
         loop {
-            i::lay_out_pieces::lay_out_pieces(list)?;
-            i::measure_pieces::measure_pieces()?;
-            i::place_pieces::place_pieces()?;
+            i::lay_out_pieces::lay_out_pieces(install, list)?;
+            i::measure_pieces::measure_pieces(install)?;
+            i::place_pieces::place_pieces(install)?;
             run_frame(None)?;
             if lock() {
                 copy_picture()?;
-                i::draw_pieces::draw_pieces()?;
+                i::draw_pieces::draw_pieces(install)?;
                 unlock();
                 show();
             }
-            g.pages
+            install
+                .pages
                 .frame_clock
                 .set(system.session.clocks.key_ticks.get());
-            g.pages.choice_before.set(g.pages.choice.get());
+            install.pages.choice_before.set(install.pages.choice.get());
             // eax: the key, as the callees leave it (`install::edit_key` changes it)
             let mut key = list_take_key()? as u32;
             if system.session.flags.quitting.get() == 1 {
@@ -103,27 +115,30 @@ pub fn run_page(
             if key as u8 != 0 && key & 0x80 == 0 {
                 let mut again = 0;
                 loop {
-                    let item = list.item(g.pages.choice.get());
-                    let (left, mut took) = i::page_key::page_key(g, key, item, list)?;
+                    let item = list.item(install.pages.choice.get());
+                    let (left, mut took) = i::page_key::page_key(install, key, item, list)?;
                     key = left;
                     if !took {
                         let keys = list.key_action();
                         if keys != 0 {
-                            took = key_action(g, keys, key, list)?;
+                            took = key_action(install, keys, key, list)?;
                         }
                     }
                     let moved = took || list_step(key, list.neighbours(), list)?;
                     if moved {
-                        g.pages.move_clock.set(g.pages.frame_clock.get());
+                        install
+                            .pages
+                            .move_clock
+                            .set(install.pages.frame_clock.get());
                     }
                     list_clear_marks(list);
-                    tell(list, 1)?;
-                    i::mark_page::mark_page(g, list);
+                    tell(install, list, 1)?;
+                    i::mark_page::mark_page(install, list);
                     if !list_item_unusable(list) {
                         break;
                     }
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
-                    if arrow && g.pages.choice.get() != g.pages.choice_before.get() {
+                    if arrow && install.pages.choice.get() != install.pages.choice_before.get() {
                         again += 1;
                         if again > round {
                             return Err(NO_CHOICE.into());
@@ -134,16 +149,16 @@ pub fn run_page(
                     loop {
                         let k = key as u8;
                         if k == 0x66 || k == 0x68 {
-                            let c = g.pages.choice.get().wrapping_sub(1);
-                            g.pages.choice.set(c);
+                            let c = install.pages.choice.get().wrapping_sub(1);
+                            install.pages.choice.set(c);
                             if (c as i32) < 0 {
-                                g.pages.choice.set(count.wrapping_sub(1));
+                                install.pages.choice.set(count.wrapping_sub(1));
                             }
                         } else {
-                            let c = g.pages.choice.get().wrapping_add(1);
-                            g.pages.choice.set(c);
+                            let c = install.pages.choice.get().wrapping_add(1);
+                            install.pages.choice.set(c);
                             if count == c {
-                                g.pages.choice.set(0);
+                                install.pages.choice.set(0);
                             }
                         }
                         if !list_item_unusable(list) {
@@ -158,19 +173,19 @@ pub fn run_page(
                 }
             } else {
                 list_clear_marks(list);
-                tell(list, 1)?;
-                i::mark_page::mark_page(g, list);
+                tell(install, list, 1)?;
+                i::mark_page::mark_page(install, list);
                 if list_item_unusable(list) {
                     let arrow = matches!(key as u8, 0x66 | 0x6B | 0x68 | 0x69);
-                    if arrow && g.pages.choice.get() != g.pages.choice_before.get() {
+                    if arrow && install.pages.choice.get() != install.pages.choice_before.get() {
                         return Err(BadInput("an arrow that is no key").into());
                     }
                     let mut steps = 0;
                     loop {
-                        let c = g.pages.choice.get().wrapping_add(1);
-                        g.pages.choice.set(c);
+                        let c = install.pages.choice.get().wrapping_add(1);
+                        install.pages.choice.set(c);
                         if count == c {
-                            g.pages.choice.set(0);
+                            install.pages.choice.set(0);
                         }
                         if !list_item_unusable(list) {
                             break;
@@ -182,16 +197,16 @@ pub fn run_page(
                     }
                 }
             }
-            if g.pages.list_leave.get() == 1 {
+            if install.pages.list_leave.get() == 1 {
                 break;
             }
         }
         i::show_backdrop::show_backdrop()?;
-        tell(list, u32::MAX)?;
+        tell(install, list, u32::MAX)?;
     }
     if count != 0 {
         list_clear_marks(list);
     }
-    list.set_highlight(g.pages.choice.get());
-    Ok(g.pages.list_answer.get() as u32)
+    list.set_highlight(install.pages.choice.get());
+    Ok(install.pages.list_answer.get() as u32)
 }

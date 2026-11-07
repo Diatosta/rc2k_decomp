@@ -27,6 +27,7 @@ const FONT_DIM: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BU
 /// The font of item `item`'s text: lit when it is the highlighted item and being edited
 /// or in the blink's lit half.
 pub fn item_font(
+    install: &'static crate::install::owner::Install,
     vars: &NetVars,
     item: u32,
     plain: crate::gfx::typefaces::FontId,
@@ -35,13 +36,13 @@ pub fn item_font(
     // Converted: `rc2k_core::net::screens::{item_lit, blink_lit}`.
     let blink = || {
         screens::blink_lit(
-            crate::install::owner::install().pages.frame_clock.get(),
-            crate::install::owner::install().pages.move_clock.get(),
+            install.pages.frame_clock.get(),
+            install.pages.move_clock.get(),
         )
     };
     if screens::item_lit(
         item,
-        crate::install::owner::install().pages.choice.get(),
+        install.pages.choice.get(),
         || vars.edited.get(),
         blink,
     ) {
@@ -60,6 +61,7 @@ pub fn draw_button(
     y: u32,
     item: u32,
 ) -> Result<(), Refused> {
+    let install = crate::install::owner::install();
     use crate::text::draw_text::GameCanvas;
     net.button.text.set(string);
     net.button.flags.set(flags);
@@ -101,12 +103,12 @@ pub fn draw_button(
     )?;
     let lit = screens::item_lit(
         item,
-        crate::install::owner::install().pages.choice.get(),
+        install.pages.choice.get(),
         || net.vars.edited.get(),
         || {
             screens::blink_lit(
-                crate::install::owner::install().pages.frame_clock.get(),
-                crate::install::owner::install().pages.move_clock.get(),
+                install.pages.frame_clock.get(),
+                install.pages.move_clock.get(),
             )
         },
     );

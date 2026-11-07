@@ -9,7 +9,6 @@
 //! and strength 0xB4, its direction's angles `dword_635094` = 0x6E and `dword_635098` = 0x1E;
 //! `scene::set_view_matrices`. 29 callers (the screen loops' set-up).
 use crate::race::owner::race;
-use crate::scene::owner::scene;
 use crate::scene::set_view_window::set_view_window;
 use crate::scene::view_matrix::set_view_matrices;
 
@@ -17,8 +16,8 @@ use crate::scene::view_matrix::set_view_matrices;
 
 // ---- Rust version ----
 
-pub fn prepare_menu_scene() {
-    let drawing = &scene().drawing;
+pub fn prepare_menu_scene(scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let race = race();
     let frame = &race.frame;
     crate::session::write_bits(&race.frame.view_and_records.view_vars.view_place, [0u32; 3]);
@@ -27,7 +26,7 @@ pub fn prepare_menu_scene() {
         &[0u32; 3],
     );
     crate::session::write_bits(&drawing.scene.view_size, [0x320u32, 0x258]);
-    set_view_window(race);
+    set_view_window(race, scene);
     let o = &drawing.object_work;
     o.light_lowest.set(0x50);
     o.light_highest.set(0xFF);

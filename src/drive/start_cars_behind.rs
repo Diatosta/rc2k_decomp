@@ -86,6 +86,7 @@ fn put_car(
     number: &Dword,
     dist: u32,
     speed: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     number.set(start);
     race.shared.tables.start_slot.set(start);
@@ -94,7 +95,7 @@ fn put_car(
     slot.set(car);
     crate::drive::load_car::load_car(&race.shared)?;
     race.shared.tables.start_speed.set_bits(speed);
-    crate::drive::start_car_on_line::start_car_on_line(race, dist)?;
+    crate::drive::start_car_on_line::start_car_on_line(race, dist, scene)?;
     crate::drive::store_car::store_car(&race.shared)?;
     Ok(())
 }
@@ -112,6 +113,7 @@ fn clear_car(shared: &Shared, car: u32) -> Result<(), Refused> {
 /// callers' after-sets are kept or dead).
 // Converted: `rc2k_core::drive::pace_cars` (the rules; the moves and calls stay here).
 pub fn start_cars_behind(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let course = &race.course;
     if let Some(why) = refusal(&race.shared)? {
         return Err(BadInput(why).into());
@@ -136,7 +138,15 @@ pub fn start_cars_behind(race: &Race) -> Result<(), Refused> {
                 &race.shared.tables.pace_distance_b,
             ),
         ] {
-            put_car(race, start.get(), slot, &lead.pace_starts[0], dist.get(), 0)?;
+            put_car(
+                race,
+                start.get(),
+                slot,
+                &lead.pace_starts[0],
+                dist.get(),
+                0,
+                scene,
+            )?;
         }
         lead.pace_placed.set(1);
     }
@@ -178,6 +188,7 @@ pub fn start_cars_behind(race: &Race) -> Result<(), Refused> {
                     &lead.pace_starts[1],
                     race.shared.tables.pace_back_gap.get().wrapping_neg(),
                     course.numbers.twenty.bits(),
+                    scene,
                 )?;
                 lead.mode2_behind
                     .set(lead.mode2_behind.get().wrapping_sub(1));
@@ -229,6 +240,7 @@ pub fn start_cars_behind(race: &Race) -> Result<(), Refused> {
             &lead.pace_starts[0],
             race.shared.tables.pace_back_gap.get(),
             course.numbers.twenty.bits(),
+            scene,
         )?;
         lead.mode2_behind
             .set(lead.mode2_behind.get().wrapping_add(1));

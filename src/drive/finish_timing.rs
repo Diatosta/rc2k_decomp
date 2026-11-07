@@ -62,10 +62,10 @@ fn share(replay: &Replay) {
 }
 
 /// The core from the clock's reading `now` (already in `g_sceneClock`).
-pub fn timing_from(race: &Race, now: u32) {
+pub fn timing_from(race: &Race, now: u32, scene: &crate::scene::owner::Scene) {
     let replay = &race.replay;
     let since = now.wrapping_sub(replay.finish.start_clock.get());
-    scene().drawing.scene.scratch.set(since);
+    scene.drawing.scene.scratch.set(since);
     time(race);
     if c0(replay.finish.time.bits(), replay.finish.limit_a.bits()) {
         replay
@@ -91,12 +91,12 @@ pub fn timing_from(race: &Race, now: u32) {
 }
 
 /// The Rust version (the exact one, for `drive::finish_run`).
-pub fn finish_timing(race: &Race) {
+pub fn finish_timing(race: &Race, scene: &crate::scene::owner::Scene) {
     let now = crate::scene::restart_clock::restart_clock(
         &race.shared,
         crate::system::tick_count::tick_count(),
     );
-    timing_from(race, now);
+    timing_from(race, now, scene);
 }
 
 #[cfg(all(test, target_arch = "x86"))]

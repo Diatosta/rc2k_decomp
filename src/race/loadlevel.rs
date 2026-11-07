@@ -11,7 +11,6 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::scene::file_numbers_store::texts;
-use crate::scene::owner::scene;
 const BAR: u32 = 0x4467C7; // sub_4467C7: the loading bar's 3D frame
 const BAR_DONE: u32 = 0x4467C6; // nullsub_8
 
@@ -125,8 +124,7 @@ impl Steps<'_> {
 /// pace notes, overlay; `dword_621508` the object of kind 0x7A (else 0x79);
 /// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
 /// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
-pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
-    let scene = scene();
+pub fn loadlevel_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
     let v = LoadVars::game();
@@ -167,27 +165,27 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.log();
     s.indent(3);
     level::load_texture_info(&race.course)?;
-    level::set_course_number(race.shared.vars.stage_number.bits())?;
+    level::set_course_number(race.shared.vars.stage_number.bits(), scene)?;
     s.progress(6)?;
     s.indent(-3);
     s.step(&mut || stage_prefs::load_prefs(race), Some(7))?;
     s.step(&mut || level::load_error_list(&race.frame), Some(8))?;
     s.step(
-        &mut || crate::scene::texture_levels::init_texture_levels(race),
+        &mut || crate::scene::texture_levels::init_texture_levels(race, scene),
         Some(0xA),
     )?;
     s.step(
-        &mut || crate::scene::set_up_textures::set_up_textures(&race.shared),
+        &mut || crate::scene::set_up_textures::set_up_textures(&race.shared, scene),
         Some(0xE),
     )?;
     s.step(&mut || level::build_texture_infos(&race.course), Some(0xF))?;
     s.step(
-        &mut || crate::race::course_data::locate_current_course(race),
+        &mut || crate::race::course_data::locate_current_course(race, scene),
         Some(0x13),
     )?;
     s.step(
         &mut || {
-            crate::scene::reset_texture_places::reset_texture_places();
+            crate::scene::reset_texture_places::reset_texture_places(scene);
             Ok(())
         },
         Some(0x14),
@@ -195,13 +193,13 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     // reloadobjects.
     s.log();
     s.indent(3);
-    crate::race::objects::reload_objects(race)?;
+    crate::race::objects::reload_objects(race, scene)?;
     s.progress(0x1E)?;
     race.shared.vars.bar_span[0].set(0x1E); // dword_623634
     race.shared.vars.bar_span[1].set(0x50); // dword_623638
     s.indent(-3);
     s.step(
-        &mut || crate::race::set_all_plates::set_all_plates(race),
+        &mut || crate::race::set_all_plates::set_all_plates(race, scene),
         Some(0x50),
     )?;
     // loadgamemap.
@@ -225,7 +223,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
     let effects = effects();
-    crate::effects::init_mark_step::init_mark_step(race, effects)?;
+    crate::effects::init_mark_step::init_mark_step(race, effects, scene)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.progress(0x5E)?;
     s.indent(-3);
@@ -270,7 +268,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     // initmud: mark 0x64 twice, then the callback put away.
     s.log();
     s.indent(3);
-    crate::race::mud::init_mud(race)?;
+    crate::race::mud::init_mud(race, scene)?;
     s.progress(0x64)?;
     s.progress(0x64)?;
     race.shared.vars.bar_function.set_bits(BAR_DONE);
@@ -297,15 +295,15 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
         )?;
         s.log();
         s.indent(3);
-        crate::race::init_overlay::init_overlay(race)?;
+        crate::race::init_overlay::init_overlay(race, scene)?;
     } else {
         s.word += 3;
     }
     use crate::scene::find_object_of_kind::find_object_of_kind;
-    let mut marker = find_object_of_kind(0x7A);
+    let mut marker = find_object_of_kind(0x7A, scene);
     race.shared.switches.marker_object.set_bits(marker);
     if marker == 0 {
-        marker = find_object_of_kind(0x79);
+        marker = find_object_of_kind(0x79, scene);
         race.shared.switches.marker_object.set_bits(marker);
     }
     // dword_719FD0 / D4.

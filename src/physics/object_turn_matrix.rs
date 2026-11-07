@@ -20,11 +20,10 @@ use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80};
 use crate::race::owner::Race;
 use crate::scene::matrix::{multiply_matrices, set_turn_x, set_turn_y};
-use crate::scene::owner::scene;
 
 /// The Rust version. The registers it leaves are read by none of its callers.
-pub fn object_turn_matrix(race: &Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+pub fn object_turn_matrix(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
     let object = race.physics.contact.face_object.get();
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
@@ -32,6 +31,7 @@ pub fn object_turn_matrix(race: &Race) -> Result<(), Refused> {
     set_turn_y(
         &race.frame.matrices,
         drawing.object_work.angles[0].get().wrapping_neg(),
+        scene,
     );
     let (out, turn_y, turn_x) = (
         &race.frame.matrices.object_turn_matrix,
@@ -49,14 +49,20 @@ pub fn object_turn_matrix(race: &Race) -> Result<(), Refused> {
         set_turn_y(
             &race.frame.matrices,
             drawing.object_work.angles[2].get().wrapping_neg(),
+            scene,
         );
         multiply_matrices(&out, &turn_y, &lit);
         set_turn_x(
             &race.frame.matrices,
             drawing.object_work.angles[1].get().wrapping_neg(),
+            scene,
         );
         multiply_matrices(&lit, &turn_x, &turned);
-        set_turn_y(&race.frame.matrices, drawing.object_work.angles[2].get());
+        set_turn_y(
+            &race.frame.matrices,
+            drawing.object_work.angles[2].get(),
+            scene,
+        );
         multiply_matrices(&turned, &turn_y, &out);
     }
     let figure = drawing.object_work.size.get();

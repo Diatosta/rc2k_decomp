@@ -17,7 +17,7 @@ use rc2k_core::install::items::{Helper, ItemKey};
 /// keys' helpers; the original's zero after it (the helpers' set, else that of the last
 /// compare of the kind).
 pub fn item_key(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     item: ListItem,
     key: ItemKey,
     number: u32,
@@ -29,8 +29,8 @@ pub fn item_key(
         Some(Helper::ChoiceBack) => i::choice_back::choice_back(item)?,
         Some(Helper::ChoiceOn) => i::choice_on::choice_on(item)?,
         Some(Helper::ChoiceByNumber) => i::choice_by_number::choice_by_number(item, number),
-        Some(Helper::ValueDown) => i::value_down::value_down(g, item),
-        Some(Helper::ValueUp) => i::value_up::value_up(g, item),
+        Some(Helper::ValueDown) => i::value_down::value_down(install, item),
+        Some(Helper::ValueUp) => i::value_up::value_up(install, item),
         Some(Helper::ValueByNumber) => i::value_by_number::value_by_number(item, number)?,
         None => return Ok(kind == key.last_compared()),
     }
@@ -38,6 +38,9 @@ pub fn item_key(
 }
 
 /// Whether the key was taken (the original's zero).
-pub fn key_up(g: &'static crate::install::owner::Install, item: ListItem) -> Result<bool, Refused> {
-    item_key(g, item, ItemKey::Up, 0)
+pub fn key_up(
+    install: &'static crate::install::owner::Install,
+    item: ListItem,
+) -> Result<bool, Refused> {
+    item_key(install, item, ItemKey::Up, 0)
 }

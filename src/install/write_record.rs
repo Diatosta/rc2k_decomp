@@ -18,7 +18,7 @@ use crate::strings::owner::strings;
 /// The record written; whether the write worked (the original leaves `write_file`'s carry
 /// through its `pusha` / `popa`, and `install_files` reads it). Until 2026-10-23 the port
 /// dropped it, and the install was judged by the change of folder before it.
-pub fn write_record(g: &'static crate::install::owner::Install) -> Result<bool, Refused> {
+pub fn write_record(install: &'static crate::install::owner::Install) -> Result<bool, Refused> {
     let start = crate::place::Place::from(&strings().text.buffer.text);
     // Converted: `rc2k_core::install::config::record_text` (the header and keys as its
     // constants).
@@ -27,13 +27,13 @@ pub fn write_record(g: &'static crate::install::owner::Install) -> Result<bool, 
         .then(|| crate::files::cstring_at(locale_at, "the locale directory"))
         .transpose()?;
     let text = rc2k_core::install::config::record_text(
-        &crate::place::Place::from(&g.paths.game_dir).text("the game's folder")?,
+        &crate::place::Place::from(&install.paths.game_dir).text("the game's folder")?,
         locale.as_deref(),
         media_mode(),
     );
     start.write(&text, "the install record's text")?;
     // files::write_file
     let written =
-        crate::files::write_file::write_file_from(&g.texts.record_path.text()[..], &text)?;
+        crate::files::write_file::write_file_from(&install.texts.record_path.text()[..], &text)?;
     Ok(written.ok)
 }

@@ -22,14 +22,14 @@ const REG_SZ: u32 = 1;
 const REG_BINARY: u32 = 3;
 
 pub fn write_registry(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     registry: &mut dyn Registry,
 ) -> Result<(), Refused> {
-    let names = &g.names;
+    let names = &install.names;
     let Ok(key) = registry.create(&names.key_name.text()) else {
         return Err(fatal(0x8010_8420));
     };
-    g.run.reg_key.set(key);
+    install.run.reg_key.set(key);
     if registry.set_value(
         key,
         &names.status_name.text(),

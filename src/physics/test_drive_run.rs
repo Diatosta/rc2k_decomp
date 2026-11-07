@@ -34,11 +34,12 @@ pub const STEPS: u32 = 0x1388;
 
 /// One step (0x42189D .., in `pusha` / `popa`).
 fn step(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     race.shared.car.local_velocity[2].set_bits(crate::math::x87::loaded(
         race.shared.car.drive_speed_a.bits(),
     ));
     crate::physics::count_down_timers::count_down_timers(&race.shared);
-    crate::physics::gearbox_step::gearbox_step(race)?;
+    crate::physics::gearbox_step::gearbox_step(race, scene)?;
     crate::physics::engine_torque::engine_torque(race);
     let gear = race.shared.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {

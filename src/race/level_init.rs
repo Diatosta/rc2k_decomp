@@ -17,8 +17,8 @@ use crate::scene::owner::scene;
 const FIRST_PART: u32 = 0xF0_0000;
 const INFO_PART: u32 = 0x40_0000;
 /// The path strings the course's number is written into: the tens' and the units' places.
-pub fn number_places() -> [crate::place::Place; 9] {
-    let file_numbers = &scene().file_numbers;
+pub fn number_places(scene: &crate::scene::owner::Scene) -> [crate::place::Place; 9] {
+    let file_numbers = &scene.file_numbers;
     use crate::place::Place;
     let p = &race().course.level_paths;
     [
@@ -147,10 +147,10 @@ pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
 
 /// `race::set_course_number` (0x43944F): al's two digits (tens, units, as `div 10` of the
 /// low byte) into the nine path strings (the stage's files) that hold the course's number.
-pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
+pub fn set_course_number(eax: u32, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage::two_digits`.
     let [tens, units] = rc2k_core::race::stage::two_digits(eax as u8);
-    for place in number_places() {
+    for place in number_places(scene) {
         place.write(&[tens, units], "a path's course number")?;
     }
     Ok(())

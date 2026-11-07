@@ -56,7 +56,11 @@ fn keep_y(weather: &Weather, i: usize) {
 }
 
 /// The Rust version (see the header).
-pub fn run_rain(race: &Race, weather: &Weather) -> Result<(), Refused> {
+pub fn run_rain(
+    race: &Race,
+    weather: &Weather,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let setup = &effects().setup;
     use crate::scene::set_render_state::set_render_state;
     let r = &weather.rain;
@@ -87,26 +91,18 @@ pub fn run_rain(race: &Race, weather: &Weather) -> Result<(), Refused> {
             set_render_state(value, state);
         }
         // `clear_texture`: what it returns went only to eax, which nothing here reads.
-        crate::scene::clear_texture::clear_texture();
+        crate::scene::clear_texture::clear_texture(scene);
         let rhw = weather.rain_rules.rhw;
         for (n, colour) in COLOURS.into_iter().enumerate() {
             let v = &VERTICES.vertices[n];
-            crate::scene::owner::scene()
-                .drawing
-                .scene
-                .scratch
-                .set_bits(rhw);
+            scene.drawing.scene.scratch.set_bits(rhw);
             v.rhw.set_bits(x87::int_to_float(rhw as i32));
             v.colour.set(colour);
             v.specular.set(0);
             v.u.set_bits(0);
             v.v.set_bits(0);
         }
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .set_bits(4u32);
+        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
         if setup.kind_floats.running.bits() != 0 {
             crate::effects::drift_offsets::drift_offsets(race, weather);
         }
@@ -147,7 +143,7 @@ pub fn run_rain(race: &Race, weather: &Weather) -> Result<(), Refused> {
                 x87_run::int_80(y as i32, false),
                 x87_run::int_80(x as i32, false),
             ];
-            crate::effects::draw_rain_streak::draw_rain_streak(weather, place)?;
+            crate::effects::draw_rain_streak::draw_rain_streak(weather, place, scene)?;
             let marks = crate::effects::setup::marks()?;
             if marks.other_marks_shown.get() != 0 {
                 for (n, kept) in r.kept.iter().enumerate() {

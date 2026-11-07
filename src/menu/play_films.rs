@@ -70,22 +70,23 @@ struct Game {
     failed: Option<Refused>,
 }
 
-fn film(panels: &Panels, f: Film) -> crate::pointers::GamePtr {
+fn film(panels: &Panels, f: Film) -> &dyn crate::session::TextPlace {
     match f {
-        Film::AlLogo => crate::pointers::GamePtr::to(&panels.films.allogo),
-        Film::MfLogo => crate::pointers::GamePtr::to(&panels.films.mflogo),
-        Film::Intro => crate::pointers::GamePtr::to(&panels.films.intro),
+        Film::AlLogo => &panels.films.allogo,
+        Film::MfLogo => &panels.films.mflogo,
+        Film::Intro => &panels.films.intro,
     }
 }
 
 /// The film player (`gfx::play_film`, the platform's) for the file at `path`: the zero
 /// flag it leaves (the film's end).
-fn play(path: crate::pointers::GamePtr) -> bool {
+fn play(path: &dyn crate::session::TextPlace) -> bool {
     crate::film::play_film_now(path)
 }
 
 impl Game {
     fn run(&mut self, s: Step) -> Result<Flags, Refused> {
+        let scene = crate::scene::owner::scene();
         let panels = &menus().panels;
         let mut flags = Flags::default();
         match s {
@@ -95,13 +96,16 @@ impl Game {
                 flags.zero = crate::input::take_key::take_key() == 0;
             }
             Step::SwapMissingExtension(f) => {
-                crate::files::swap_missing_extension::swap_missing_extension(&film(panels, f))?;
+                crate::files::swap_missing_extension::swap_missing_extension(film(panels, f))?;
             }
             Step::Player(f) => {
                 flags.zero = play(film(panels, f.unwrap_or(Film::AlLogo)));
             }
             Step::LitEngine => {
-                crate::scene::set_up_lit_engine::set_up_lit_engine(crate::race::owner::race())?;
+                crate::scene::set_up_lit_engine::set_up_lit_engine(
+                    crate::race::owner::race(),
+                    scene,
+                )?;
             }
             Step::Render3dTidy => {
                 crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;
@@ -111,10 +115,9 @@ impl Game {
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),
             Step::FileExists(f) => {
-                let there = crate::files::file_exists::file_exists(&crate::files::cstring_at(
-                    film(panels, f),
-                    "a film's path",
-                )?)?;
+                let there = crate::files::file_exists::file_exists(
+                    &film(panels, f).text("a film's path")?,
+                )?;
                 flags.carry = !there;
                 flags.zero = there;
             }

@@ -25,17 +25,19 @@ fn paths(course: &Course) -> [&dyn crate::pointers::Store; 2] {
     let p = &course.level_paths;
     [&p.cdat_src, &p.cdat_files]
 }
-use crate::scene::owner::scene;
 use rc2k_core::race::stage_objects::COURSES;
 
 /// The Rust version (nothing written when it refuses).
-pub fn find_present_courses(race: &Race) -> Result<(), Refused> {
+pub fn find_present_courses(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     let course = &race.course;
     // Converted: `rc2k_core::race::stage_objects::{COURSES, course_present, PROBE_BYTES}`.
     use rc2k_core::race::stage_objects::{PROBE_BYTES, course_present};
     for n in 0..COURSES {
-        set_course_number(n)?;
+        set_course_number(n, scene)?;
         set_cdat_number(course, 0);
         shared.switches.course_present[n as usize].set(0); // dword_621518, 100 flags
         let present = course_present(paths(course).len() as u32, |file| {
@@ -44,7 +46,7 @@ pub fn find_present_courses(race: &Race) -> Result<(), Refused> {
             debug_assert_eq!(PROBE_BYTES, 4);
             read_whole_file_cells(
                 &crate::files::cstring(path, "a course file's path")?,
-                std::slice::from_ref(&scene().drawing.scene.work_dword),
+                std::slice::from_ref(&scene.drawing.scene.work_dword),
             )?;
             Ok::<u32, Refused>(BYTES_READ.get())
         })?;

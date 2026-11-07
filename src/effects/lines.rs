@@ -334,15 +334,18 @@ pub fn block_point(paths: &Paths, handle: u32, n: u32) -> Result<[u32; 3], BadIn
 /// `g_objectPointCount2` of 12 bytes from `g_objectFirstPoint` in `g_objectPoints`, to the
 /// table the block's +0x8C names. Refuses an object past 0xFF.
 // Converted: `rc2k_core::effects::lines::check_object`
-pub fn copy_block_points(course: &Course, paths: &Paths, block: &MarkCar) -> Result<(), Refused> {
+pub fn copy_block_points(
+    course: &Course,
+    paths: &Paths,
+    block: &MarkCar,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     {
         let object = block.word(BLOCK)?;
         core::check_object(object)?;
         let to = block_points(paths, block.word(BLOCK + 0x8C)?)?;
-        let count =
-            crate::scene::owner::scene().objects.slots.point_counts[object as usize].get() as i32;
-        let first: u32 =
-            crate::scene::owner::scene().objects.slots.first_point[object as usize].get();
+        let count = scene.objects.slots.point_counts[object as usize].get() as i32;
+        let first: u32 = scene.objects.slots.first_point[object as usize].get();
         let mut from = first
             .wrapping_mul(12)
             .wrapping_add(course.lists.object_points.bits());
@@ -362,7 +365,11 @@ pub fn copy_block_points(course: &Course, paths: &Paths, block: &MarkCar) -> Res
 /// `copy_block_points`, and +0x90 .. +0xAC the eight floats of `g_marksBlockStart`. Refuses
 /// as `measure_starting_sums`, before anything is taken.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}`
-pub fn set_up_blocks(course: &Course, paths: &Paths) -> Result<(), Refused> {
+pub fn set_up_blocks(
+    course: &Course,
+    paths: &Paths,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     measured(true)?;
     measure_starting_sums(course, paths)?;
     let marks = crate::effects::setup::marks()?;
@@ -373,7 +380,7 @@ pub fn set_up_blocks(course: &Course, paths: &Paths) -> Result<(), Refused> {
             block.put(BLOCK + o, u32::MAX)?;
         }
         let points: u32 = ObjectTables::slot_value(
-            &crate::scene::owner::scene().objects.slots.point_counts,
+            &scene.objects.slots.point_counts,
             block.word(BLOCK)? as usize,
         );
         let bytes = points
@@ -387,7 +394,7 @@ pub fn set_up_blocks(course: &Course, paths: &Paths) -> Result<(), Refused> {
         let taken = k + 1;
         paths.morph_work.taken.set(taken);
         block.put(BLOCK + 0x8C, taken)?;
-        copy_block_points(course, paths, block)?;
+        copy_block_points(course, paths, block, scene)?;
         for n in 0..8 {
             let v = x87::loaded(paths.lines_work.block_start[n].bits());
             block.put(BLOCK + 0x90 + 4 * n as u32, v)?;

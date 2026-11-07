@@ -18,7 +18,10 @@ use rc2k_core::install::config;
 
 // ---- Rust version ----
 
-pub fn read_sku(g: &'static crate::install::owner::Install, path: &[u8]) -> Result<(), BadInput> {
+pub fn read_sku(
+    install: &'static crate::install::owner::Install,
+    path: &[u8],
+) -> Result<(), BadInput> {
     let Some((text, _)) = read_text(path)? else {
         return Ok(());
     };
@@ -27,17 +30,17 @@ pub fn read_sku(g: &'static crate::install::owner::Install, path: &[u8]) -> Resu
         return Ok(());
     };
     if sku.oem {
-        g.sku.oem.set(1u32);
+        install.sku.oem.set(1u32);
     }
     if sku.dvd {
-        g.sku.dvd.set(1u32);
+        install.sku.dvd.set(1u32);
     }
-    g.sku.number.set(sku.number);
+    install.sku.number.set(sku.number);
     if let Some(second) = sku.second {
-        g.sku.second.set(second);
+        install.sku.second.set(second);
     }
     if let Some(third) = sku.third {
-        g.sku.third.set(third);
+        install.sku.third.set(third);
     }
     Ok(())
 }

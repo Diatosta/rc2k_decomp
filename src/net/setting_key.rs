@@ -18,27 +18,24 @@ use rc2k_core::net::chat;
 /// The Rust version: the key `key` for the setting being edited. The registers the
 /// original leaves (the item or the number in eax, the copy's esi, edi and ecx) are read by
 /// no caller (`settings_loop`).
-pub fn setting_key(net: &'static Net, key: u8) -> Result<(), Refused> {
+pub fn setting_key(
+    install: &'static crate::install::owner::Install,
+    net: &'static Net,
+    key: u8,
+) -> Result<(), Refused> {
     if !crate::net::edit_key::edit_key(net, key)? {
         return Ok(());
     }
     // Converted: `rc2k_core::net::chat` (`NAME`, `MOST_PLAYERS`, `most_players`).
-    match crate::install::owner::install().pages.choice.get() {
+    match install.pages.choice.get() {
         chat::NAME => {
             if net.vars.machine_name.get(0) == 0 {
-                movsb(
-                    &net.vars.machine_name,
-                    &crate::install::owner::install().paths.script_path,
-                    0x40,
-                )?;
+                movsb(&net.vars.machine_name, &install.paths.script_path, 0x40)?;
             }
         }
         chat::MOST_PLAYERS => {
-            let number = {
-                crate::settings::parse_number::parse_number(
-                    &crate::install::owner::install().paths.path_a.read(),
-                )
-            };
+            let number =
+                { crate::settings::parse_number::parse_number(&install.paths.path_a.read()) };
             net.vars.most_players.set(chat::most_players(
                 number,
                 crate::strings::load_language::notice_kind(),

@@ -42,6 +42,7 @@ pub fn draw_flare_part(
     size: u32,
     colour: u32,
     centre: [[u8; 10]; 2],
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let effects = effects();
     if corner >= CORNERS {
@@ -106,7 +107,7 @@ pub fn draw_flare_part(
             .view_vars
             .cleared
             .set(effects.frame.view_vars.cleared.get().wrapping_add(1));
-        if clip_quad()? {
+        if clip_quad(scene)? {
             return Ok(());
         }
         draw_fan();

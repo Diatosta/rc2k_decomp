@@ -45,11 +45,11 @@ fn build_path(
 }
 
 /// The installation's folder, when "remove all" was chosen and it is one that may go whole.
-fn whole_folder(g: &'static crate::install::owner::Install) -> Option<std::path::PathBuf> {
-    if g.names.script_mark.get() == 5 {
+fn whole_folder(install: &'static crate::install::owner::Install) -> Option<std::path::PathBuf> {
+    if install.names.script_mark.get() == 5 {
         return None;
     }
-    let text = g.paths.installed.read();
+    let text = install.paths.installed.read();
     let text = &text[..text.iter().position(|&b| b == 0).unwrap_or(text.len())];
     let mut record = text.to_vec();
     if !record.ends_with(b"\\") {
@@ -92,37 +92,37 @@ fn remove_whole(folder: &std::path::Path) {
     crate::framework::log(&format!("install: \"{}\": {now}", folder.display()));
 }
 
-pub fn uninstall(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     use crate::install as i;
-    if g.names.status.get() == 0 || g.names.source.get(0) == 0 {
+    if install.names.status.get() == 0 || install.names.source.get(0) == 0 {
         return Ok(());
     }
-    g.names.status.set(0x80);
-    i::write_registry::write_registry(g, &mut crate::install::portable::Portable)?;
+    install.names.status.set(0x80);
+    i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
     // the "removing" frame
     run_frame(None)?;
     if lock() {
         copy_picture()?;
-        i::draw_string_list::draw_string_list(1, &g.pages.remove_strings, 0, 0)?;
+        i::draw_string_list::draw_string_list(1, &install.pages.remove_strings, 0, 0)?;
         unlock();
         show();
     }
-    normalise(&g.names.source, &g.paths.installed)?;
-    let whole = whole_folder(g);
-    set_cd(&g.paths.installed);
-    i::run_script::run_script(g, &g.names.script)?;
-    if g.run.file_count.get() != 0 {
+    normalise(&install.names.source, &install.paths.installed)?;
+    let whole = whole_folder(install);
+    set_cd(&install.paths.installed);
+    i::run_script::run_script(install, &install.names.script)?;
+    if install.run.file_count.get() != 0 {
         let mut n = 0;
         loop {
             delete_file(build_path(&crate::install::name_tables::FILES, n)?);
             n = n.wrapping_add(1);
-            if n == g.run.file_count.get() {
+            if n == install.run.file_count.get() {
                 break;
             }
         }
     }
-    if g.run.dir_count.get() != 0 {
-        let mut n = g.run.dir_count.get().wrapping_sub(1);
+    if install.run.dir_count.get() != 0 {
+        let mut n = install.run.dir_count.get().wrapping_sub(1);
         loop {
             remove_dir(build_path(&crate::install::name_tables::FOLDERS, n)?);
             n = n.wrapping_sub(1);
@@ -131,17 +131,17 @@ pub fn uninstall(g: &'static crate::install::owner::Install) -> Result<(), Refus
             }
         }
     }
-    set_cd(&g.texts.dotdot);
-    remove_dir(&g.paths.installed);
+    set_cd(&install.texts.dotdot);
+    remove_dir(&install.paths.installed);
     if let Some(folder) = whole {
         remove_whole(&folder);
     }
     sleep(1000);
-    g.names.status.set(0);
-    wb(&g.names.source, 0);
-    i::write_registry::write_registry(g, &mut crate::install::portable::Portable)?;
-    i::unregister_lobby::unregister_lobby(&mut crate::install::portable::Portable);
-    g.run.remove_items.set(1);
-    g.run.installing.set(0);
+    install.names.status.set(0);
+    wb(&install.names.source, 0);
+    i::write_registry::write_registry(install, &mut crate::install::portable::Portable)?;
+    i::unregister_lobby::unregister_lobby(install, &mut crate::install::portable::Portable);
+    install.run.remove_items.set(1);
+    install.run.installing.set(0);
     Ok(())
 }

@@ -21,6 +21,7 @@ const LIT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::CENTRED
 /// leaves (ebx the font, edx the y, eax .. edx as the drawing leaves them) are read by no
 /// caller (`net::settings_frame` only).
 pub fn draw_centred_item(
+    install: &'static crate::install::owner::Install,
     vars: &NetVars,
     string: u32,
     item: u32,
@@ -28,7 +29,7 @@ pub fn draw_centred_item(
     y: u32,
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::net::screens::item_lit` (in `item_font`).
-    let font = item_font(vars, item, PLAIN, LIT);
+    let font = item_font(install, vars, item, PLAIN, LIT);
     let next = y.wrapping_add(font.object().line_height.get());
     crate::text::draw_string_by_id::draw_string_by_id_at(
         string,

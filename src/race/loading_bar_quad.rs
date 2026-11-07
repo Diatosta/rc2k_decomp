@@ -10,11 +10,10 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::system::owner::system;
 
 /// The Rust version (see the header).
-pub fn loading_bar_quad(race: &Race) -> Result<(), Refused> {
+pub fn loading_bar_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     let session = &system().session;
     // Converted: `rc2k_core::race::loading::loading_bar`.
@@ -27,7 +26,7 @@ pub fn loading_bar_quad(race: &Race) -> Result<(), Refused> {
     shared.vars.quad_corners[4].set(bar.top);
     shared.vars.quad_corners[5].set(bar.bottom);
     shared.vars.quad_corners[1].set(bar.right);
-    scene().drawing.scene.texture_page.set_bits(0xFFFF_FFFFu32);
+    scene.drawing.scene.texture_page.set_bits(0xFFFF_FFFFu32);
     // `draw_screen_quad` reads no register it is given.
-    crate::race::frame_draw::draw_screen_quad(race)
+    crate::race::frame_draw::draw_screen_quad(race, crate::scene::owner::scene())
 }

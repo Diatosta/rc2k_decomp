@@ -20,7 +20,7 @@ pub fn record(shared: &Shared) -> Result<&ViewRecord, crate::errors::BadInput> {
 }
 
 /// The share done (0x438498 .. 0x4384BD): eax as left (the time held).
-pub fn share_done(shared: &Shared, record: &ViewRecord) -> u32 {
+pub fn share_done(shared: &Shared, record: &ViewRecord, scene: &crate::scene::owner::Scene) -> u32 {
     let mut eax = shared
         .car
         .step_clock
@@ -33,7 +33,7 @@ pub fn share_done(shared: &Shared, record: &ViewRecord) -> u32 {
     if eax >= change_time {
         eax = change_time;
     }
-    scene().drawing.scene.scratch.set(eax);
+    scene.drawing.scene.scratch.set(eax);
     x87_1(shared, change_time);
     eax
 }

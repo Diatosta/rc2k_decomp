@@ -10,7 +10,6 @@ use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 
 fn count(shared: &Shared) -> Result<u32, Refused> {
     let n: u32 = shared.vars.checkpoint_count.bits();
@@ -40,9 +39,13 @@ fn get(n: u32, k: u32) -> Result<u32, BadInput> {
 /// heading; the first face's number in `dword_5CCD28`. The registers it leaves are read
 /// by none of its callers (conversion phase 3, 2026-10-24). Refuses no checkpoints (the
 /// original reads entry -1) or more than the lists.
-pub fn place_car_on_line(race: &Race, course: &Course) -> Result<(), Refused> {
+pub fn place_car_on_line(
+    race: &Race,
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let shared = &race.shared;
-    let lights = &scene().lights;
+    let lights = &scene.lights;
     // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
     let count = count(shared)?;
@@ -75,9 +78,13 @@ pub fn place_car_on_line(race: &Race, course: &Course) -> Result<(), Refused> {
 /// sign tests), `dword_62400C` the distance in x and z (`x87::int_hypot`) from
 /// (`dword_639824`, `dword_63982C`) to its face's first point; else -1. Refuses a
 /// checkpoint past the list.
-pub fn distance_to_checkpoint(race: &Race, c: u32) -> Result<(), Refused> {
+pub fn distance_to_checkpoint(
+    race: &Race,
+    c: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let physics = &race.physics;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     // Converted: `rc2k_core::race::checkpoints::on_line`; the distance the x87's.
     let count: u32 = race.shared.vars.checkpoint_count.bits();
     if !rc2k_core::race::checkpoints::on_line(c, count) {
@@ -109,7 +116,12 @@ pub struct Nearest {
 /// least, `jb`) measured by `distance_to_checkpoint`; the nearest (unsigned, the later of
 /// equals) and its distance (-1 and 0 for none). Refuses more than 0x1418 measures or
 /// checkpoints, before anything.
-pub fn nearest_checkpoint_in(race: &Race, from: u32, to: u32) -> Result<Nearest, Refused> {
+pub fn nearest_checkpoint_in(
+    race: &Race,
+    from: u32,
+    to: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<Nearest, Refused> {
     count(&race.shared)?;
     let steps = if from < to { to - from } else { 1 };
     if steps > MOST_CHECKS {
@@ -121,10 +133,10 @@ pub fn nearest_checkpoint_in(race: &Race, from: u32, to: u32) -> Result<Nearest,
     loop {
         // Every checkpoint, every physics tick: read straight from the stores while nothing
         // needs looking at more closely, by `distance_to_checkpoint` otherwise.
-        let measured = measure_held(race, &mut c, to, &mut nearest);
+        let measured = measure_held(race, &mut c, to, &mut nearest, scene);
         if measured.is_err() || c < to {
-            distance_to_checkpoint(race, c)?;
-            nearest.consider(c, scene().drawing.scene.scratch.bits());
+            distance_to_checkpoint(race, c, scene)?;
+            nearest.consider(c, scene.drawing.scene.scratch.bits());
             c = c.wrapping_add(1);
         }
         if c >= to {
@@ -160,6 +172,7 @@ fn measure_held(
     c: &mut u32,
     to: u32,
     nearest: &mut rc2k_core::race::checkpoints::Nearest,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     use crate::race::course_places::{faces_base, points_base, with_faces_and_points};
     if race.course.course.course_faces.bits() != faces_base()
@@ -231,7 +244,7 @@ fn measure_held(
     });
     // The last one measured leaves its distance, as `distance_to_checkpoint` does.
     if let Some((dx, dz)) = last {
-        scene()
+        scene
             .drawing
             .scene
             .scratch
@@ -245,7 +258,7 @@ fn measure_held(
 /// count), its distance in `dword_62400C` and / 65536 in `flt_614C68`; else 0. The other
 /// registers it leaves are read by none of its callers. Refuses more checkpoints than the
 /// lists, before anything.
-pub fn nearest_checkpoint(race: &Race) -> Result<u32, Refused> {
+pub fn nearest_checkpoint(race: &Race, scene: &crate::scene::owner::Scene) -> Result<u32, Refused> {
     let count = count(&race.shared)?;
     {
         race.physics
@@ -259,8 +272,8 @@ pub fn nearest_checkpoint(race: &Race) -> Result<u32, Refused> {
         if count == 0 {
             return Ok(0);
         }
-        let near = nearest_checkpoint_in(race, 0, count)?;
-        scene().drawing.scene.scratch.set_bits(near.distance);
+        let near = nearest_checkpoint_in(race, 0, count, scene)?;
+        scene.drawing.scene.scratch.set_bits(near.distance);
         // Converted: `rc2k_core::race::checkpoints::distance_units`.
         let units = rc2k_core::race::checkpoints::distance_units(
             near.distance,

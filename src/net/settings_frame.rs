@@ -24,6 +24,7 @@ use rc2k_core::net::screens;
 /// The Rust version (the original keeps every register). Called through
 /// `screens::run_frame` by `net::settings_loop`.
 pub fn settings_frame() -> Result<(), Refused> {
+    let install = crate::install::owner::install();
     let net = net();
     let vars = &net.vars;
     if !lock_surface() {
@@ -48,7 +49,7 @@ pub fn settings_frame() -> Result<(), Refused> {
         let item = item as u32;
         y = setting_label(net, label, item, y)?;
         y = match value {
-            Value::Number(n) => draw_number_value(&net.vars, n, item, y)?,
+            Value::Number(n) => draw_number_value(install, &net.vars, n, item, y)?,
             Value::Text(text) => {
                 let text = crate::place::Place::from(text).text("a setting's text")?;
                 draw_setting_value(&net.vars, &text, item, y)?
@@ -84,7 +85,7 @@ pub fn settings_frame() -> Result<(), Refused> {
         }
     }
     piece(screens::LEFT_END, screens::END_WIDTH)?;
-    draw_centred_item(&net.vars, 0x16F, 4, text_x, 0x21D)?;
+    draw_centred_item(install, &net.vars, 0x16F, 4, text_x, 0x21D)?;
     crate::platform::unlock_surface();
     crate::platform::show_frame_now();
     Ok(())

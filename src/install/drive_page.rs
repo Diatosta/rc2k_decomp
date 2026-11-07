@@ -18,22 +18,22 @@ use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
 /// `state` the list action's (ebx), `list` the page's.
-pub fn drive_page(g: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
-    let letters = crate::place::Place::from(&g.drive_rows.drive_rows);
+pub fn drive_page(install: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
+    let letters = crate::place::Place::from(&install.drive_rows.drive_rows);
     if state == 0 {
-        let letter = crate::strings::same_text::lower(g.paths.typed.get(0)); // g_lowerCase
+        let letter = crate::strings::same_text::lower(install.paths.typed.get(0)); // g_lowerCase
         // Converted: `rc2k_core::install::pages` (`drive_highlight`, `chosen_drive`).
         let at = |n: u32| letters.add(pages::DRIVE_TEXT * n);
         let (_, highlight) = pages::drive_highlight(letter, |n| rb(at(n)), list.count());
         if let Some(highlight) = highlight {
-            g.pages.choice.set(highlight);
+            install.pages.choice.set(highlight);
         }
     }
     if (state as i32) < 0
-        && let Some(offset) = pages::chosen_drive(g.pages.choice.get())
+        && let Some(offset) = pages::chosen_drive(install.pages.choice.get())
     {
-        g.paths.typed.set(0, rb(letters.add(offset)));
-        g.paths.typed.set(1, b':');
-        g.run.path_problem.set(0);
+        install.paths.typed.set(0, rb(letters.add(offset)));
+        install.paths.typed.set(1, b':');
+        install.run.path_problem.set(0);
     }
 }

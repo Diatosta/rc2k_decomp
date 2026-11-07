@@ -363,8 +363,9 @@ pub fn run_race(race: &Race) -> Result<(), Refused> {
 /// `scene::reset_texture_tables`. Reads no register; what it leaves (ecx, edi, eax, the
 /// flags) no caller reads (taint at its ten sites).
 pub fn release_textures() {
+    let scene = crate::scene::owner::scene();
     crate::race::race_shell::release_stage_textures();
-    crate::scene::reset_texture_tables::reset_texture_tables();
+    crate::scene::reset_texture_tables::reset_texture_tables(scene);
 }
 
 /// `race::start_race` (0x4278B7): `dword_621870` 0, `race::run_race`.

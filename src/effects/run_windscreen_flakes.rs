@@ -50,10 +50,11 @@ fn run(
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
 ) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let shared = &crate::race::owner::race().shared;
     let setup = &effects().setup;
     {
-        crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl);
+        crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl, scene);
         let [a, b, c, d]: [u32; 4] = read_bits(&fl.state.run_places);
         for (n, (u, v)) in [(a, b), (c, b), (c, d), (a, d)].into_iter().enumerate() {
             VERTICES.vertices[n].u.set_bits(u);

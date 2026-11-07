@@ -27,9 +27,9 @@ fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, BadInput> {
     crate::install::vars::InstallerPages::font_of(index)
 }
 
-pub fn measure_pieces() -> Result<(), Refused> {
+pub fn measure_pieces(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     let strings = strings();
-    let count = piece_count();
+    let count = piece_count(install);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
     }

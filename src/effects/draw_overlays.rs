@@ -36,7 +36,12 @@ fn shadow_refuses() -> Option<Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn draw_overlays(race: &Race, masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn draw_overlays(
+    race: &Race,
+    masks: &Masks,
+    drops: &WindscreenDrops,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     if let Some(e) = shadow_refuses() {
         return Err(e);
@@ -49,15 +54,21 @@ pub fn draw_overlays(race: &Race, masks: &Masks, drops: &WindscreenDrops) -> Res
         }
         let effects = effects();
         let fl = &effects.windscreen_flakes;
-        crate::effects::draw_plane::draw_plane(race, drops, fl)?;
+        crate::effects::draw_plane::draw_plane(race, drops, fl, scene)?;
         crate::effects::windscreen_flakes_frame::windscreen_flakes_frame(
             &race.frame,
             masks,
             drops,
             &effects.pong,
             fl,
+            scene,
         )?;
-        crate::effects::windscreen_drops_top::windscreen_drops_top(&race.frame, masks, drops)?;
+        crate::effects::windscreen_drops_top::windscreen_drops_top(
+            &race.frame,
+            masks,
+            drops,
+            scene,
+        )?;
         draw_shadow_with(race, masks, &SECOND, false)
     }
 }

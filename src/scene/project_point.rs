@@ -31,7 +31,6 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::math::x87;
 use crate::math::x87_float::ONE;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::scene::point_records;
 use crate::scene::x87_mem::{Base, cells, fild, fld, fstp};
 
@@ -156,11 +155,12 @@ fn screen_plain(o: impl Base, v: impl Base) {
 pub fn record_offset(
     course: &crate::race::owner_course::Course,
     point: u32,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<u32, FatalError> {
     use rc2k_core::scene::projection::TooHigh;
     rc2k_core::scene::projection::record_offset(
         point,
-        scene().objects.tables.point_count.get(),
+        scene.objects.tables.point_count.get(),
         course.course.scene_point_count.bits(),
     )
     .map_err(|e| match e {
@@ -178,9 +178,12 @@ pub struct Projected {
 
 /// A scene point's record made anew (`sub_44CF4E`, and the same code in
 /// `project_point`): the point through the view's matrix and onto the screen.
-pub(crate) fn make_scene_record(race: &Race, point: u32, record: u32) -> Result<(), BadInput> {
-    let scene = scene();
-
+pub(crate) fn make_scene_record(
+    race: &Race,
+    point: u32,
+    record: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     let points: u32 = race.course.course.scene_points.bits();
     if points == 0 {
         return Err(BadInput("no points"));
@@ -219,15 +222,19 @@ pub(crate) fn make_scene_record(race: &Race, point: u32, record: u32) -> Result<
     Ok(())
 }
 
-pub fn project_point(race: &Race, point: u32) -> Result<Projected, Refused> {
+pub fn project_point(
+    race: &Race,
+    point: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<Projected, Refused> {
     let course = &race.course;
-    let offset = record_offset(course, point)?;
+    let offset = record_offset(course, point, scene)?;
     if !point_records::held() {
         return Err(BadInput("no records for the points").into());
     }
     let record = point_records::at_offset(offset);
     if (point as i32) >= 0 && point_records::field(record, 0)? != point {
-        make_scene_record(race, point, record)?;
+        make_scene_record(race, point, record, scene)?;
     }
     Ok(Projected { record })
 }

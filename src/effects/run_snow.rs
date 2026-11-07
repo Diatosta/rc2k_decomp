@@ -38,7 +38,11 @@ fn turn_light(frame: &Frame, weather: &Weather) {
 }
 
 /// The Rust version (see the header).
-pub fn run_snow(race: &Race, weather: &Weather) -> Result<(), Refused> {
+pub fn run_snow(
+    race: &Race,
+    weather: &Weather,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
     let (s, l) = (&weather.snow, &weather.snow_light);
@@ -64,9 +68,7 @@ pub fn run_snow(race: &Race, weather: &Weather) -> Result<(), Refused> {
             s.view_place[n].set(marks.listener_place[n].get());
         }
         crate::effects::place_view_2::place_view_2(weather)?;
-        crate::scene::set_texture::set_texture(
-            crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
-        );
+        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();
         for (value, state) in STATES {
@@ -84,12 +86,8 @@ pub fn run_snow(race: &Race, weather: &Weather) -> Result<(), Refused> {
             at.u.set_bits(u);
             at.v.set_bits(v);
         }
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .set_bits(4u32);
-        let inverse = x87::reciprocal(crate::scene::owner::scene().drawing.scene.farthest.bits());
+        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
+        let inverse = x87::reciprocal(scene.drawing.scene.farthest.bits());
         for r in &s.inverses {
             r.set_bits(inverse);
         }
@@ -114,11 +112,11 @@ pub fn run_snow(race: &Race, weather: &Weather) -> Result<(), Refused> {
                 s.wide_turn[n][m].set_bits(v.bits());
             }
         }
-        let focal: u32 = crate::scene::owner::scene().drawing.scene.view_scale.bits();
+        let focal: u32 = scene.drawing.scene.view_scale.bits();
         for m in 0..4 {
             s.wide_focal[m].set_bits(focal);
         }
-        crate::effects::draw_snow::draw_snow(weather)?;
+        crate::effects::draw_snow::draw_snow(weather, scene)?;
         crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())

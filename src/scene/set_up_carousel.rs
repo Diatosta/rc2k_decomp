@@ -183,7 +183,10 @@ fn cars(menus: &Menus, list: CarList, size: u32) -> Result<(), BadInput> {
 /// 0xE; the other menus' own). What the original leaves in the registers (above) is read by
 /// none of its callers.
 // Converted: `rc2k_core::scene::carousel::{check_cars, list_end}`
-pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
+pub fn set_up_carousel(
+    list: Option<CarList>,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let menus = menus();
     let given = || list.ok_or(BadInput("no list of cars"));
     {
@@ -199,7 +202,7 @@ pub fn set_up_carousel(list: Option<CarList>) -> Result<(), Refused> {
             0xC => {
                 menus.screens.state.carousel.set_up.set(1);
                 menus.screens.state.carousel.set_list(CarList::A8);
-                scene().drawing.object_work.size.set_bits(0xCu32);
+                scene.drawing.object_work.size.set_bits(0xCu32);
                 write_prefix(&menus.screens.state.carousel.kinds, &FIXED_KINDS);
                 menus.screens.state.carousel.count.set(6u32);
                 menus.cars.table.last_car.set(5u32);

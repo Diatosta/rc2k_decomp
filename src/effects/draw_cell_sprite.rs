@@ -65,6 +65,7 @@ pub fn draw_cell_sprite(
     entry: u32,
     place: [[u8; 10]; 3],
 ) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let effects = effects();
     if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
@@ -103,15 +104,11 @@ pub fn draw_cell_sprite(
         VERTICES.vertices[n].v.set_bits(v);
     }
     square(at, angle);
-    if clip_quad()? {
+    if clip_quad(scene)? {
         return Ok(());
     }
     draw_fan();
-    crate::scene::owner::scene()
-        .drawing
-        .scene
-        .polygon_vertex_count
-        .set_bits(4u32);
+    scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
     Ok(())
 }
 

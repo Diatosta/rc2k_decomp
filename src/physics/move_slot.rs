@@ -35,7 +35,6 @@ use crate::race::owner::Race;
 use crate::race::work_store::RaceSlot;
 use crate::scene::matrix::multiply_matrices;
 use crate::scene::matrix3::rounded;
-use crate::scene::owner::scene;
 use crate::scene::view_matrix::{square_matrix, unit_vector};
 use crate::session::Cell32;
 
@@ -48,8 +47,12 @@ fn copy<A: Cell32, B: Cell32>(from: &[A], to: &[B]) {
 
 /// The Rust version: the slot `s` (the registers it leaves are dropped by its caller's
 /// `popa`).
-pub fn move_slot(race: &Race, s: &RaceSlot) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+pub fn move_slot(
+    race: &Race,
+    s: &RaceSlot,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
     let dt = race.shared.physics_tables.step_time.bits();
     let k65536 = race.course.numbers.k65536.bits();
     copy(&s.place, &race.shared.work.slot_place);

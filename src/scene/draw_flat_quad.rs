@@ -21,14 +21,17 @@ use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// The Rust version (see the header). It reads no register, and what it leaves is read by
 /// none of its callers (register liveness, 2026-10-23).
-pub fn draw_flat_quad(race: &Race, course: &Course) -> Result<(), Refused> {
+pub fn draw_flat_quad(
+    race: &Race,
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let shared = &race.shared;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     drawing.scene.polygon_drawn.set_bits(0);
     for n in 0..4 {
         let rec = &crate::scene::polygon_store::POLYGON_WORK.entries[n];
@@ -89,14 +92,14 @@ pub fn draw_flat_quad(race: &Race, course: &Course) -> Result<(), Refused> {
     }
     crate::scene::polygon::list_cell(4).set(0);
     drawing.scene.polygon_next_entry.set_bits(4);
-    crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race)?;
+    crate::scene::scale_texture_coordinates::scale_texture_coordinates(scene)?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race, scene)?;
     if drawing.scene.polygon_vertex_count.bits() >= 3 {
         shared.view.polygon_mode.set_bits(6);
         drawing.scene.polygon_sides[0].set_bits(1);
         drawing.scene.polygon_sides[1].set_bits(0);
         crate::scene::depth_buffer_on::depth_buffer(false);
-        crate::scene::draw_polygon::draw_polygon_in_game(race)?;
+        crate::scene::draw_polygon::draw_polygon_in_game(race, scene)?;
         drawing.scene.polygon_drawn.set_bits(1);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }

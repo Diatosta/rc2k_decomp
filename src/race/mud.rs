@@ -10,7 +10,6 @@ use crate::gfx::owner::gfx;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 
 pub const MUD_LEN: u32 = 0x1_0000;
 
@@ -107,8 +106,11 @@ pub fn clear_mud_state(shared: &Shared) {
 /// `race::sample_mud_colours` (0x44A0D6): the surface locked (`d3d::lock_texture`), 256
 /// colours, n's at (0x89 + (n & 3) + (n >> 5) * 4, 0x68 + ((n & 0x1C) >> 2)) by
 /// `mud_pixel`, unlocked (`d3d::unlock_texture`).
-pub fn sample_mud_colours(shared: &Shared) -> Result<(), Refused> {
-    let textures = &scene().textures;
+pub fn sample_mud_colours(
+    shared: &Shared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let textures = &scene.textures;
     // dword_5D0DEC (`g_kindFirstTextures` + 0x304): the surface sampled.
     crate::d3d::lock_texture::lock_texture(textures.kinds.kind_first_textures[193].get())?;
     // Converted: `rc2k_core::race::mud::sample_place`.
@@ -126,7 +128,7 @@ pub static MUD: crate::memory::owned::Owned<Vec<u8>> = crate::memory::owned::Own
 
 /// `race::init_mud` (0x449DD6): the list's total + 0x10000, the mud taken (`MUD`, the
 /// game's `dword_623D50`), then `load_mud`, `clear_mud_state`, `sample_mud_colours`.
-pub fn init_mud(race: &Race) -> Result<(), Refused> {
+pub fn init_mud(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     course
         .lists
@@ -135,7 +137,7 @@ pub fn init_mud(race: &Race) -> Result<(), Refused> {
     MUD.take(&course.lists.mud_list, MUD_LEN, vec![0; MUD_LEN as usize])?;
     load_mud(&race.shared)?;
     clear_mud_state(&race.shared);
-    sample_mud_colours(&race.shared)
+    sample_mud_colours(&race.shared, scene)
 }
 
 #[cfg(all(test, target_arch = "x86"))]

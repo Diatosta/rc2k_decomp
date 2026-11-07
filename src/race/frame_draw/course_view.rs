@@ -8,7 +8,6 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::scene::faces_store::FACES;
-use crate::scene::owner::scene;
 use crate::scene::polygon_store::POLYGON_WORK;
 
 // FACES.sort_entries: 0x1000 of 8 bytes
@@ -63,10 +62,14 @@ pub fn checkpoint_colours(race: &Race) -> Result<(), BadInput> {
 /// A scene point's record (`sub_44CF33`, inline in the callers): the record at
 /// `g_pointRecords` + (point & 0xFFF) x 0x20, made anew (`scene::make_scene_record`) when
 /// its +0 is not the point.
-pub fn point_record(race: &Race, point: u32) -> Result<u32, Refused> {
+pub fn point_record(
+    race: &Race,
+    point: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<u32, Refused> {
     let record = crate::scene::point_records::of_scene_point(point);
     if crate::scene::point_records::field(record, 0)? != point {
-        crate::scene::project_point::make_scene_record(race, point, record)?;
+        crate::scene::project_point::make_scene_record(race, point, record, scene)?;
     }
     Ok(record)
 }
@@ -84,8 +87,12 @@ pub fn points_there(course: &Course) -> Result<(), Refused> {
 /// has a bit of `race().frame.frame_work.face_hide_mask`; else by its first point's record (+4): `OBJECT_WORK.object_position` = |x|
 /// and `OBJECT_WORK.face_depth` = depth + `LEVEL_GRID.depth_shift` as whole numbers, hidden when the depth is below
 /// |x| (the sign of the difference). Refuses (before anything) no point records or points.
-pub fn face_hidden(race: &Race, face: &rc2k_core::race::faces::Face) -> Result<bool, Refused> {
-    let drawing = &scene().drawing;
+pub fn face_hidden(
+    race: &Race,
+    face: &rc2k_core::race::faces::Face,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
+    let drawing = &scene.drawing;
     // Converted: `rc2k_core::race::faces::{hidden_by_switches, hidden_by_depth}`; the
     // depths' roundings the x87's.
     use rc2k_core::race::faces::{hidden_by_depth, hidden_by_switches};
@@ -111,7 +118,7 @@ pub fn face_hidden(race: &Race, face: &rc2k_core::race::faces::Face) -> Result<b
         return Ok(true);
     }
     points_there(&race.course)?;
-    let record = point_record(race, face.point(0))?;
+    let record = point_record(race, face.point(0), scene)?;
     let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
     drawing.object_work.object_position[0].set_bits(x as u32);
     let depth = crate::math::x87_load::add_to_int(
@@ -128,13 +135,17 @@ pub fn face_hidden(race: &Race, face: &rc2k_core::race::faces::Face) -> Result<b
 /// 1, the largest of its four points' depths (+4 .. +0x10, each `fistp`, through
 /// `DRAW.scratch`), otherwise their float sum `fistp`'d and shifted right 2. Then + 0x2000000,
 /// shifted right 10 (logical). Refuses (before anything) no point records or points.
-pub fn face_depth(race: &Race, face: u32) -> Result<(), Refused> {
+pub fn face_depth(
+    race: &Race,
+    face: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
     use crate::math::x87::{add, to_int};
     points_there(course)?;
     let depth = |k: u32| -> Result<u32, Refused> {
-        let record = point_record(race, face_field(face, 4 + 4 * k)?)?;
+        let record = point_record(race, face_field(face, 4 + 4 * k)?, scene)?;
         Ok(crate::scene::point_records::field(record, 0x18)?)
     };
     // Converted: `rc2k_core::race::faces::{depth_by, deeper, average_key, depth_key}`;
@@ -152,7 +163,7 @@ pub fn face_depth(race: &Race, face: u32) -> Result<(), Refused> {
     trap.finish()?;
     let key = match by {
         DepthBy::First => {
-            let record = point_record(race, face_field(face, 4)?)?;
+            let record = point_record(race, face_field(face, 4)?, scene)?;
             let key = to_int(crate::scene::point_records::field(record, 0x18)?) as u32;
             shared.view.face_depth_key.set_bits(key);
             shared
@@ -165,7 +176,7 @@ pub fn face_depth(race: &Race, face: u32) -> Result<(), Refused> {
             let mut key = to_int(depth(0)?) as u32;
             for k in 1..4 {
                 let d = to_int(depth(k)?) as u32;
-                scene().drawing.scene.scratch.set_bits(d);
+                scene.drawing.scene.scratch.set_bits(d);
                 key = deeper(key, d);
             }
             key
@@ -190,12 +201,16 @@ pub fn face_depth(race: &Race, face: u32) -> Result<(), Refused> {
 /// `race::add_depth_entry` (0x454D2A): `face_depth` of `face`, then entry `RACE_VIEW.depth_entry_count` of
 /// `FACES.depth_entries`: +0 the key, +4 the face; the count + 1. Refuses (before anything) an
 /// entry past the 0x1000, or what `face_depth` refuses.
-pub fn add_depth_entry(race: &Race, face: u32) -> Result<(), Refused> {
+pub fn add_depth_entry(
+    race: &Race,
+    face: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::faces::depth_entry_room`.
     let n: u32 = shared.view.depth_entry_count.bits();
     rc2k_core::race::faces::depth_entry_room(n)?;
-    face_depth(race, face)?;
+    face_depth(race, face, scene)?;
     let key: u32 = shared.view.face_depth_key.bits();
     let at = depth_entry(n)?;
     at[0].set(key);
@@ -288,7 +303,11 @@ pub(super) fn record_faces(record: u32) -> Result<Option<(u32, u32)>, BadInput> 
 /// kinds below 0x10 the object is +1, or +0x21 when +1 is 0.
 /// Refuses a last face of -1 (the loop would not end); the full tables and missing points
 /// are refused where they are met.
-pub fn gather_record_faces(race: &Race, record: u32) -> Result<(), Refused> {
+pub fn gather_record_faces(
+    race: &Race,
+    record: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let Some((first, last)) = record_faces(record)? else {
         return Ok(());
     };
@@ -304,7 +323,7 @@ pub fn gather_record_faces(race: &Race, record: u32) -> Result<(), Refused> {
         // Converted: `rc2k_core::race::faces::{gathered, face_object}`.
         use rc2k_core::race::faces::{Gathered, face_object, gathered};
         let how = gathered(kind);
-        if how != Gathered::No && !face_hidden(race, &read)? {
+        if how != Gathered::No && !face_hidden(race, &read, scene)? {
             let object = face_object(how, read.object(), || read.second_object());
             let tables = face_tables(&race.course);
             let (depth_table, kind_table) = if how == Gathered::Lit {
@@ -313,7 +332,7 @@ pub fn gather_record_faces(race: &Race, record: u32) -> Result<(), Refused> {
                 (tables[0], tables[2])
             };
             if byte_at(depth_table, object)? != 0 {
-                add_depth_entry(race, face)?;
+                add_depth_entry(race, face, scene)?;
             } else {
                 add_sort_entry(&race.shared, byte_at(kind_table, object)?, face)?;
             }
@@ -330,10 +349,11 @@ pub fn gather_record_faces(race: &Race, record: u32) -> Result<(), Refused> {
 /// `g_courseGrid` (numbers below 0x0FFFFFFF), then of the last record once more (its "already
 /// done" test sets ebp, so it is lost: `notes/bugs.md`). Refuses as `gather_record_faces`.
 pub fn gather_visible_faces(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let course = &race.course;
     let todo = visible_records(course)?;
     for &record in &todo {
-        gather_record_faces(race, record)?;
+        gather_record_faces(race, record, scene)?;
     }
     Ok(())
 }
@@ -363,8 +383,8 @@ pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
 /// `DRAW.scratch`, then its length there): not marked when the length is below 2.0; marked
 /// (bit 31) when the turned z is below 0, or when |x / 2| - 2 is not below z, or when the
 /// length is not below `LEVEL_GRID.far_cell_limit` (as a float, `DRAW.work_float_b`).
-pub fn mark_far_cells(race: &Race) -> Result<(), BadInput> {
-    let drawing = &scene().drawing;
+pub fn mark_far_cells(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+    let drawing = &scene.drawing;
     use crate::math::x87_load::{below_or_unordered, float_hypot, scaled_abs_less_below};
     let grid = &race.course.level_grid.course_grid;
     for k in 0..0x400 {
@@ -407,6 +427,7 @@ pub fn mark_far_cells(race: &Race) -> Result<(), BadInput> {
 /// with two checkpoints or more (`g_checkpointCount`), and `mark_far_cells`. Refuses
 /// (before anything) what `course_grid` would.
 pub fn prepare_course_view(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let course = &race.course;
     check_course_grid(course)?;
     // `face_hide_mask` first: its `probe_ground` may refuse, and neither reads
@@ -421,7 +442,7 @@ pub fn prepare_course_view(race: &Race) -> Result<(), Refused> {
     if race.shared.vars.checkpoint_count.get() >= 2 {
         checkpoint_colours(race)?;
     }
-    mark_far_cells(race)?;
+    mark_far_cells(race, scene)?;
     Ok(())
 }
 

@@ -19,7 +19,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 
 /// The Rust version (see the header): the render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `draw_turned_sprite`.
-pub fn draw_glow() -> Result<(), Refused> {
+pub fn draw_glow(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let clipping = &effects().clipping;
     {
         if clipping.glow.off.get() == 1 {
@@ -28,9 +28,7 @@ pub fn draw_glow() -> Result<(), Refused> {
         for (value, state) in STATES {
             crate::scene::set_render_state::set_render_state(value, state);
         }
-        crate::scene::set_texture::set_texture(
-            crate::scene::owner::scene().textures.kinds.kind_first_slots[211].bits(),
-        );
+        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[211].bits());
         let place = [
             x87::add_80(
                 clipping.glow.place[2].bits(),
@@ -47,6 +45,7 @@ pub fn draw_glow() -> Result<(), Refused> {
             0xFFFF_FFFF,
             0x1_0000,
             place,
+            scene,
         )?;
     }
     Ok(())

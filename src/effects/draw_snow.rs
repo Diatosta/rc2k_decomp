@@ -104,7 +104,7 @@ fn refusal(weather: &Weather) -> Option<&'static str> {
 }
 
 /// The Rust version (see the header).
-pub fn draw_snow(weather: &Weather) -> Result<(), Refused> {
+pub fn draw_snow(weather: &Weather, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let (snow, snow_light) = (&weather.snow, &weather.snow_light);
     let snow_vars = &weather.snow_vars;
     if let Some(why) = refusal(weather) {
@@ -147,14 +147,10 @@ pub fn draw_snow(weather: &Weather) -> Result<(), Refused> {
                         .v
                         .set_bits(if n < 2 { top } else { bottom });
                 }
-                if !clip_quad()? {
+                if !clip_quad(scene)? {
                     draw_fan();
                     snow.drawn.set(snow.drawn.get().wrapping_add(1));
-                    crate::scene::owner::scene()
-                        .drawing
-                        .scene
-                        .polygon_vertex_count
-                        .set_bits(4u32);
+                    scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
                 }
             }
         }

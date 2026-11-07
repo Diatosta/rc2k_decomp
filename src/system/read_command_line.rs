@@ -77,17 +77,15 @@ pub fn show_version_and_leave(start: &Start) -> ! {
 /// The Rust version on a command line (its text with the NUL; kept for the program's
 /// life, as the game keeps a pointer into it).
 pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> {
+    let install = crate::install::owner::install();
     let d3d = d3d();
     // Converted: `rc2k_core::system::command_line::read`, the whole line read before
     // anything is written (a refused `-i` word now leaves nothing written).
     let sw = rc2k_core::system::command_line::read(line)?;
     start.command_line.program_len.set(sw.program.1 as u32);
     for (on, cell) in [
-        (sw.u, &crate::install::owner::install().run.updating),
-        (
-            sw.installing,
-            &crate::install::owner::install().run.installing,
-        ),
+        (sw.u, &install.run.updating),
+        (sw.installing, &install.run.installing),
         (sw.no_audio, &audio().state.no_audio),
     ] {
         if on {
@@ -95,28 +93,19 @@ pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> 
         }
     }
     for i in &sw.install {
-        crate::install::owner::install().run.from_command.set(1u32);
-        crate::install::owner::install().run.ignore_room.set(1u32);
-        for (place, (start, len)) in [
-            &crate::install::owner::install().paths.game_dir,
-            &crate::install::owner::install().paths.installed,
-        ]
-        .into_iter()
-        .zip(i.words)
+        install.run.from_command.set(1u32);
+        install.run.ignore_room.set(1u32);
+        for (place, (start, len)) in [&install.paths.game_dir, &install.paths.installed]
+            .into_iter()
+            .zip(i.words)
         {
             let word = line
                 .get(start..start + len)
                 .ok_or(BadInput("a word past the command line"))?;
             place.write_at(0, word, "an installer path")?;
         }
-        crate::install::owner::install()
-            .run
-            .given_mode
-            .set(i.digits[0]);
-        crate::install::owner::install()
-            .run
-            .given_language
-            .set(i.digits[1]);
+        install.run.given_mode.set(i.digits[0]);
+        install.run.given_language.set(i.digits[1]);
     }
     if sw.ignore_secondary {
         d3d.cards.ignore_secondary.set(1u32);

@@ -17,12 +17,12 @@ const REG_SZ: u32 = 1;
 
 /// The Rust version: the text `data` (its NUL added) as the value `name` of the lobby's key.
 pub fn set_lobby_value(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     name: &[u8],
     data: &[u8],
     registry: &mut dyn Registry,
 ) -> Result<u32, Refused> {
     let mut text = data.to_vec();
     text.push(0);
-    Ok(registry.set_value(g.run.reg_key.get(), name, REG_SZ, &text))
+    Ok(registry.set_value(install.run.reg_key.get(), name, REG_SZ, &text))
 }

@@ -35,7 +35,7 @@ fn lift_car(race: &Race) {
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
 /// `drive::finish_race`'s call has no read point).
-pub fn finish_run(race: &Race) -> Result<(), Refused> {
+pub fn finish_run(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     lift_car(race);
     restart_clock(race);
     race.frame
@@ -60,7 +60,7 @@ pub fn finish_run(race: &Race) -> Result<(), Refused> {
             .revs
             .set(0);
         input_update();
-        crate::drive::finish_timing::finish_timing(race);
+        crate::drive::finish_timing::finish_timing(race, scene);
         let n = race.shared.state.results.finished.get();
         if n > 1 {
             return Err(BadInput("a finish length past the table's two").into());

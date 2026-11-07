@@ -13,19 +13,20 @@
 use crate::menu::list_handle::ListMenu;
 
 /// `state` the list action's (ebx): only the start (0) does anything.
-pub fn next_edit(g: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
+pub fn next_edit(install: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
     if state != 0 {
         return;
     }
     let count = list.count() as u32;
     // Converted: `rc2k_core::install::items::next_edit` (the highlight stored once, where
     // it ends).
-    let (n, found) =
-        rc2k_core::install::items::next_edit(g.pages.choice.get(), count, |n| list.item(n).first());
+    let (n, found) = rc2k_core::install::items::next_edit(install.pages.choice.get(), count, |n| {
+        list.item(n).first()
+    });
     if found {
-        g.pages.choice.set(n);
-        crate::install::start_edit::start_edit(g, list.item(n));
+        install.pages.choice.set(n);
+        crate::install::start_edit::start_edit(install, list.item(n));
     } else {
-        g.pages.choice.set(0);
+        install.pages.choice.set(0);
     }
 }

@@ -9,9 +9,11 @@
 //! are the original's.
 
 /// `state` the list action's (ebx).
-pub fn dxsetup_page(g: &'static crate::install::owner::Install, state: u32) {
+pub fn dxsetup_page(install: &'static crate::install::owner::Install, state: u32) {
     // Converted: `rc2k_core::install::pages::runs_dxsetup`.
-    if (state as i32) < 0 && rc2k_core::install::pages::runs_dxsetup(g.pages.list_answer.get()) {
-        g.run.run_dxsetup.set(1);
+    if (state as i32) < 0
+        && rc2k_core::install::pages::runs_dxsetup(install.pages.list_answer.get())
+    {
+        install.run.run_dxsetup.set(1);
     }
 }

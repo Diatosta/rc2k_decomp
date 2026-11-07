@@ -18,7 +18,7 @@ use rc2k_core::install::items::{self, LinkWay};
 /// Enter on a link; the original's zero after it (the action's, else that of `test bl, bl`
 /// on the next list).
 pub fn item_link(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     item: ListItem,
 ) -> Result<bool, Refused> {
     let action = item.target();
@@ -28,10 +28,10 @@ pub fn item_link(
         next = item.count();
         next
     }) {
-        LinkWay::Action => item_action_at(g, action),
+        LinkWay::Action => item_action_at(install, action),
         LinkWay::Leave(next) => {
-            g.pages.list_answer.set(next);
-            g.pages.list_leave.set(1);
+            install.pages.list_answer.set(next);
+            install.pages.list_leave.set(1);
             Ok(next == 0)
         }
         LinkWay::Stay => Ok(next == 0),

@@ -30,7 +30,6 @@ use crate::errors::BadInput;
 use crate::math::next_random::next_random;
 use crate::math::x87;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 const OBJECTS: u32 = 0xFF;
@@ -53,8 +52,11 @@ fn state(course: &crate::race::owner_course::Course) -> Option<u32> {
 const STATE: u32 = 0x30;
 
 /// `sub_45079A`, on the state of face `face`.
-fn step_shape(shared: &Shared, face: u32) -> Result<(), BadInput> {
-    let scene = scene();
+fn step_shape(
+    shared: &Shared,
+    face: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     use crate::race::course_places::{face_field, write_face_field};
     let b: [u8; 16] = face_field(face, STATE, "an object's state")?;
     let [last, mut time, mut length, mut phase]: [u32; 4] = std::array::from_fn(|k| {
@@ -86,9 +88,11 @@ fn step_shape(shared: &Shared, face: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
-pub fn set_object_material(race: &crate::race::owner::Race) -> Result<(), BadInput> {
+pub fn set_object_material(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     let shared = &race.shared;
-    let scene = scene();
     let object: u32 = shared.switches.object_number.bits();
     if object >= OBJECTS {
         return Err(BadInput("an object's number past the tables"));
@@ -113,7 +117,7 @@ pub fn set_object_material(race: &crate::race::owner::Race) -> Result<(), BadInp
             .vars
             .move_by
             .set_bits(points[1].wrapping_sub(points[0]).wrapping_mul(12));
-        step_shape(shared, state)?;
+        step_shape(shared, state, scene)?;
     }
     scene
         .drawing

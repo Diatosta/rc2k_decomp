@@ -36,7 +36,7 @@ use crate::service::owner::service;
 use crate::session::Bytes;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
-use crate::strings::copy_printable::copy_printable;
+use crate::strings::copy_printable::printable_from;
 use crate::system::owner::{Start, system};
 
 // ---- game data ----
@@ -68,10 +68,10 @@ pub enum Call {
     ApplyPatches,
     RemoveSecretCars,
     ApplyCheats,
-    /// The user's name to this place.
-    UserName(crate::pointers::GamePtr),
-    /// The computer's name to this place.
-    ComputerName(crate::pointers::GamePtr),
+    /// The user's name to the first player's name.
+    UserName,
+    /// The computer's name to the machine name.
+    ComputerName,
     /// A random number under this.
     RandomBelow(u32),
     ReadSavegameSlot(u32),
@@ -144,9 +144,10 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
             continue;
         }
         if player == 0 {
-            let place = crate::pointers::GamePtr::to(&play.names.player_names);
-            outside(Call::UserName(place))?;
-            copy_printable(place, place, USER_NAME_ROOM)?;
+            let field = &play.names.player_names;
+            outside(Call::UserName)?;
+            let bytes = printable_from(&field.read(), USER_NAME_ROOM)?;
+            field.write_at(0, &bytes, "a printable name")?;
             if play.names.player_names.get(player * NAME_LEN) != 0 {
                 continue;
             }
@@ -161,9 +162,10 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
     }
 
     if net.vars.machine_name.get(0) == 0 {
-        let place = crate::pointers::GamePtr::to(&net.vars.machine_name);
-        outside(Call::ComputerName(place))?;
-        copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
+        let field = &net.vars.machine_name;
+        outside(Call::ComputerName)?;
+        let bytes = printable_from(&field.read(), MACHINE_NAME_ROOM as u32)?;
+        field.write_at(0, &bytes, "a printable name")?;
         if net.vars.machine_name.get(0) == 0 {
             default_name(
                 &net.vars.machine_name,
@@ -243,15 +245,22 @@ fn in_game(call: Call) -> Result<u32, Refused> {
         Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(menus, &mut |line| {
             crate::logfile::log_write::log_nul(line, true, 1);
         })?,
-        Call::UserName(to) => {
+        Call::UserName => {
             if let Some(mut name) = crate::os::user_name(USER_NAME_ROOM) {
                 name.push(0);
-                to.write_bytes(&name, "the user's name")?;
+                menus
+                    .play
+                    .names
+                    .player_names
+                    .write_at(0, &name, "the user's name")?;
             }
         }
-        Call::ComputerName(to) => {
+        Call::ComputerName => {
             if let Some(name) = crate::system::check_developer_machine::computer_name() {
-                to.write_bytes(&name, "the computer's name")?;
+                net()
+                    .vars
+                    .machine_name
+                    .write_at(0, &name, "the computer's name")?;
             }
         }
         Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),

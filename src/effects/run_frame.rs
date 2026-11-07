@@ -48,34 +48,35 @@ fn share(at: usize, start: u32) {
 
 /// The Rust version (see the header).
 pub fn run_frame(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     use crate::effects::*;
     use crate::scene::set_render_state::set_render_state;
     let effects = owner::effects();
     let (weather, particles, ring) = (&effects.weather, &effects.particles, &effects.ring);
     let paths = &effects.paths;
     {
-        swap_mask::swap_mask(&effects.masks)?;
+        swap_mask::swap_mask(&effects.masks, scene)?;
         setup::tick_clock(&race.shared)?;
         let whole = rdtsc();
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        run_rain::run_rain(race, weather)?;
-        run_snow::run_snow(race, weather)?;
+        run_rain::run_rain(race, weather, scene)?;
+        run_snow::run_snow(race, weather, scene)?;
         let start = rdtsc();
         share(0, start);
         draw_frame::draw_frame(race, effects)?;
         let start = rdtsc();
-        ring_frame::ring_frame(&race.frame, &effects.masks, weather, particles, ring)?;
+        ring_frame::ring_frame(&race.frame, &effects.masks, weather, particles, ring, scene)?;
         share(1, start);
         set_render_state(2, 0x14);
-        flare_frame::flare_frame(paths)?;
+        flare_frame::flare_frame(paths, scene)?;
         set_render_state(1, 3);
-        draw_mark_slots::draw_mark_slots(race, paths)?;
+        draw_mark_slots::draw_mark_slots(race, paths, scene)?;
         run_particles::run_particles(&race.frame, particles, ring)?;
         share(2, whole);
         stage_record::stage_record(&race.frame)?;
-        draw_glow::draw_glow()?;
+        draw_glow::draw_glow(scene)?;
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_on::depth_test_on();
     }

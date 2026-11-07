@@ -17,6 +17,7 @@ pub fn set(a: &Dword, v: u32) {
 
 /// One quad: x .. x + w, y .. y + h, the colour and see-through, then `draw_tinted_quad`.
 pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     // dword_623DE8: colour, see-through; x at +0x28 / +0x2C, y at +0x38 / +0x3C (`quad_corners`)
     let q = &race().shared.vars;
     q.quad_corners[0].set(x);
@@ -25,7 +26,7 @@ pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(),
     q.quad_corners[5].set(y.wrapping_add(h));
     q.quad_colour[0].set(colour);
     q.quad_colour[1].set(see);
-    crate::scene::draw_tinted_quad::draw_tinted_quad(crate::race::owner::race())
+    crate::scene::draw_tinted_quad::draw_tinted_quad(crate::race::owner::race(), scene)
 }
 
 /// Colours of the service area's boxes (0xRRGGBB).

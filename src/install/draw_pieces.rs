@@ -31,9 +31,9 @@ fn colour(marks: u8, kind: u32) -> u32 {
     InstallerPages::kind_font(pieces::colour_at(marks, kind)) as u32
 }
 
-pub fn draw_pieces() -> Result<(), Refused> {
+pub fn draw_pieces(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     let strings = strings();
-    let count = piece_count();
+    let count = piece_count(install);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());
     }

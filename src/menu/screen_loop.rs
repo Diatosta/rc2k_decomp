@@ -249,12 +249,14 @@ pub fn quitting() -> bool {
 /// `scene::prepare_menu_scene` (0x46F7FD). (It leaves esi the view's turn matrix: a screen
 /// whose carousel is set up after it hands that no list of cars.)
 pub fn prepare_scene() {
-    crate::scene::prepare_menu_scene::prepare_menu_scene();
+    let scene = crate::scene::owner::scene();
+    crate::scene::prepare_menu_scene::prepare_menu_scene(scene);
 }
 
 /// `scene::set_up_carousel` (0x4904DD), with the list of cars menus 0xD and 0xE show.
 pub fn carousel(cars: Option<CarList>) -> Result<(), Refused> {
-    crate::scene::set_up_carousel::set_up_carousel(cars)
+    let scene = crate::scene::owner::scene();
+    crate::scene::set_up_carousel::set_up_carousel(cars, scene)
 }
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,

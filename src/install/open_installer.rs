@@ -43,37 +43,37 @@ fn read<const N: usize>(
     Ok(())
 }
 
-pub fn open_installer(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
+pub fn open_installer(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
     let gfx = gfx();
     // The names' tables are Rust's (phase 12), counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
-    let list = &g.run.buffers;
+    let list = &install.run.buffers;
     FOLDERS.take(list, 0x10100, NameTable::default())?;
-    g.run.dir_scan.set(0);
-    g.run.dir_cursor.set(0);
+    install.run.dir_scan.set(0);
+    install.run.dir_cursor.set(0);
     FILES.take(list, 0x40100, NameTable::default())?;
-    g.run.file_cursor.set(0);
-    g.run.dir_count.set(0);
-    g.run.file_count.set(0);
+    install.run.file_cursor.set(0);
+    install.run.dir_count.set(0);
+    install.run.file_count.set(0);
     // The progress glyphs: a glyph table of Rust's (`gfx::glyph_store`), counted on the
     // list as the game's block was (its fatal error 0x80AF7022 for none cannot come).
     let mut bytes = crate::memory::owned::counted(list, 0x3000)?;
     let glyphs = crate::gfx::glyph_store::new_table(list)?;
-    g.run.bar_glyphs.set(glyphs);
-    let path = g.names.installer_data.text();
+    install.run.bar_glyphs.set(glyphs);
+    let path = install.names.installer_data.text();
     if !crate::files::read_file::read_file_into(&path[..], &mut bytes[..0x3000], 0)?.ok {
         return Err(fatal(0x80AF_7444));
     }
     crate::gfx::glyph_store::write_bytes(glyphs, 0, &bytes, "the progress glyphs")?;
     read(
-        &g.names.install_pal.text(),
-        &g.palette.palette,
+        &install.names.install_pal.text(),
+        &install.palette.palette,
         0x300,
         0x80AF_7445,
     )?;
     crate::gfx::palette_to_dwords::palette_to_dwords(
-        &g.palette.palette,
+        &install.palette.palette,
         0,
         &crate::text::blend_font::BLENDED_PALETTE,
     )?;
@@ -82,7 +82,7 @@ pub fn open_installer(g: &'static crate::install::owner::Install) -> Result<(), 
         &crate::text::blend_font::BLENDED_PALETTE,
     );
     // gfx::load_picture: its carry is not read.
-    crate::gfx::load_picture::load_picture(&g.names.backdrop)?;
+    crate::gfx::load_picture::load_picture(&install.names.backdrop)?;
     crate::gfx::convert_picture::convert_picture_now()?;
     gfx.pictures
         .picture

@@ -15,9 +15,9 @@ use rc2k_core::install::items::ItemKey;
 
 /// Whether the key was taken (the original's zero).
 pub fn key_right(
-    g: &'static crate::install::owner::Install,
+    install: &'static crate::install::owner::Install,
     item: ListItem,
 ) -> Result<bool, Refused> {
     // Converted: `rc2k_core::install::items::ItemKey::helper`.
-    item_key(g, item, ItemKey::Right, 0)
+    item_key(install, item, ItemKey::Right, 0)
 }

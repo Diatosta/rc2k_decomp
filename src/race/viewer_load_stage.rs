@@ -55,6 +55,7 @@ fn settings(shared: &Shared) -> [(&Dword, &'static Dword); 5] {
 
 /// The Rust version (every register kept).
 pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     let shared = &race.shared;
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
     #[cfg(feature = "remote")]
@@ -99,7 +100,7 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
         crate::race::read_replay_header::read_replay_header(shared);
         { stage_loading::load_stage(race) }?;
         race_end::reset_race_sounds(&race_end::SoundVars::game())?;
-        crate::race::viewer_palettes::viewer_palettes(shared)?;
+        crate::race::viewer_palettes::viewer_palettes(shared, scene)?;
         shared.replay_file.viewer_stage_loaded.set(1);
     }
     crate::input::take_key::take_key();

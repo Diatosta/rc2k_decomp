@@ -33,7 +33,11 @@ fn project(weather: &Weather) {
 }
 
 /// The Rust version (see the header).
-pub fn draw_rain_streak(weather: &Weather, place: [[u8; 10]; 3]) -> Result<(), Refused> {
+pub fn draw_rain_streak(
+    weather: &Weather,
+    place: [[u8; 10]; 3],
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let rain = &weather.rain;
     {
         if effects().setup.settings.is_set.get() == 0 {
@@ -47,15 +51,11 @@ pub fn draw_rain_streak(weather: &Weather, place: [[u8; 10]; 3]) -> Result<(), R
             return Ok(());
         }
         project(weather);
-        if clip_quad()? {
+        if clip_quad(scene)? {
             return Ok(());
         }
         draw_fan();
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .set_bits(4u32);
+        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
     }
     Ok(())
 }

@@ -28,7 +28,25 @@ fn playing(player: &Shared<AudioStream>) -> bool {
 struct GamePlayer<'a> {
     state: &'a AudioState,
     player: &'a Shared<AudioStream>,
-    path: Option<crate::pointers::GamePtr>,
+    path: Option<StreamPath<'a>>,
+}
+
+/// Where the file's name is read, when the stream starts.
+#[derive(Clone, Copy)]
+enum StreamPath<'a> {
+    /// The music's path buffer.
+    Music(&'a crate::session::Bytes<24>),
+    /// A sample name in the sound set (a place in the names' table).
+    Name(GamePtr),
+}
+
+impl StreamPath<'_> {
+    fn text(self) -> Result<Vec<u8>, crate::errors::BadInput> {
+        match self {
+            StreamPath::Music(field) => crate::files::cstring(field, "a stream's path"),
+            StreamPath::Name(at) => crate::files::cstring_at(at, "a stream's path"),
+        }
+    }
 }
 
 impl GamePlayer<'_> {
@@ -55,7 +73,7 @@ impl rc2k_core::audio::streams::Player for GamePlayer<'_> {
             .path
             .ok_or(crate::errors::BadInput("a stream started without a file"))?;
         let state = self.state;
-        self.with(|s| start_stream(state, s, path))
+        self.with(|s| start_stream(state, s, || path.text()))
     }
     fn feed(&mut self) -> Result<(), Refused> {
         let state = self.state;
@@ -96,7 +114,10 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
 pub fn stream_command(audio: &Audio, name: u32, volume: i32, action: u32) -> Result<(), Refused> {
     let path = match name {
         0 => None,
-        _ => Some(crate::audio::store::name_in(&audio.sample_names, name)?),
+        _ => Some(StreamPath::Name(crate::audio::store::name_in(
+            &audio.sample_names,
+            name,
+        )?)),
     };
     let mut p = GamePlayer {
         state: &audio.state,
@@ -125,7 +146,7 @@ pub fn music_command(
     let mut p = GamePlayer {
         state,
         player: &state.music_stream,
-        path: Some(GamePtr::to(&state.music_path)),
+        path: Some(StreamPath::Music(&state.music_path)),
     };
     let done = rc2k_core::audio::streams::music_command(&mut p, &mut m, tune, next, volume, action);
     state.next_tune.set(m.next_tune);

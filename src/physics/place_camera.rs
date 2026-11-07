@@ -13,7 +13,6 @@ use crate::math::x87_float::{f80, int, ld};
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::view_vars_store::ViewVars;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 use rc2k_core::physics::camera_place::{SECOND_RECORD_MODE, add_offset};
 
@@ -25,7 +24,12 @@ type Turns = (
 );
 
 /// The steps both versions share; `second` the second offset turned with the car.
-fn place_with(race: &Race, turns: Turns, second: &dyn Fn() -> [i32; 3]) {
+fn place_with(
+    race: &Race,
+    turns: Turns,
+    second: &dyn Fn() -> [i32; 3],
+    scene: &crate::scene::owner::Scene,
+) {
     let shared = &race.shared;
     let figures = if shared.vars.split.get() == SECOND_RECORD_MODE {
         &race.course.lights_data.place_second
@@ -85,7 +89,7 @@ fn place_with(race: &Race, turns: Turns, second: &dyn Fn() -> [i32; 3]) {
     shared.car.camera_position[2].set(z);
     // 0x438F14: the second offset, turned with the car.
     let whole = second();
-    scene().drawing.scene.scratch.set(whole[2] as u32);
+    scene.drawing.scene.scratch.set(whole[2] as u32);
     let car = [
         race.frame.frame_work.camera_car[0].get(),
         race.frame.frame_work.camera_car[1].get(),
@@ -103,7 +107,7 @@ fn place_with(race: &Race, turns: Turns, second: &dyn Fn() -> [i32; 3]) {
 }
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
-pub fn place_camera(race: &Race) {
+pub fn place_camera(race: &Race, scene: &crate::scene::owner::Scene) {
     use crate::math::{turn_point_xz, turn_point_xz_ebx, turn_point_xz_ecx};
     let second = || {
         let turns = [
@@ -125,6 +129,7 @@ pub fn place_camera(race: &Race) {
             turn_point_xz::turn_point_xz,
         ),
         &second,
+        scene,
     );
 }
 

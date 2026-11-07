@@ -93,6 +93,7 @@ pub fn windscreen_drops_frame(
     frame: &Frame,
     masks: &Masks,
     drops: &WindscreenDrops,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let setup = &effects().setup;
     if let Some(why) = refusal(drops)? {
@@ -102,7 +103,7 @@ pub fn windscreen_drops_frame(
         if setup.kind_floats.running.bits() != 0 {
             crate::effects::windscreen_drops_drift::windscreen_drops_drift(frame, drops)?;
         }
-        crate::effects::windscreen_drops_setup::windscreen_drops_setup(drops);
+        crate::effects::windscreen_drops_setup::windscreen_drops_setup(drops, scene);
         drops.state.live.set_bits(0u32);
         for n in 0..ITEMS {
             let e = n * ITEM_LEN;

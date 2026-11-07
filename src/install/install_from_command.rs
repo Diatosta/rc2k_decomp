@@ -17,21 +17,28 @@
 use crate::errors::Refused;
 use crate::install::installer::{load_language, logged, normalise, set_cd, set_media_mode};
 
-pub fn install_from_command(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
-    if !set_cd(&g.paths.game_dir) || !normalise(&g.texts.base_b, &g.paths.game_dir)? {
+pub fn install_from_command(
+    install: &'static crate::install::owner::Install,
+) -> Result<(), Refused> {
+    if !set_cd(&install.paths.game_dir)
+        || !normalise(&install.texts.base_b, &install.paths.game_dir)?
+    {
         return Ok(());
     }
-    normalise(&g.paths.installed, &g.paths.typed)?;
+    normalise(&install.paths.installed, &install.paths.typed)?;
     // A given media mode (above 0) is taken, held to 3, and only then a given language
     // (above 0): a mode of 0 or less goes straight to the install.
-    let mode = g.run.given_mode.get();
+    let mode = install.run.given_mode.get();
     if (mode as i32) > 0 {
         set_media_mode((mode as i32).min(3) as u32);
-        let language = g.run.given_language.get();
+        let language = install.run.given_language.get();
         if (language as i32) > 0 {
-            crate::install::choose_language::choose_language(g, language)?;
+            crate::install::choose_language::choose_language(install, language)?;
             load_language()?;
         }
     }
-    logged("install", crate::install::install_files::install_files(g))
+    logged(
+        "install",
+        crate::install::install_files::install_files(install),
+    )
 }

@@ -33,7 +33,6 @@ use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
-use crate::scene::owner::scene;
 use rc2k_core::drive::lit_faces::{
     COUNTDOWN_OBJECT, FaceBytes, RISE_TOP, align, blink, count_down, fall_turn, pace, rise,
 };
@@ -96,7 +95,7 @@ fn refusal(race: &Race) -> Option<&'static str> {
 }
 
 /// The Rust core. The registers it leaves are read by no caller.
-pub fn animate_at(race: &Race) -> Result<(), Refused> {
+pub fn animate_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if let Some(why) = refusal(race) {
         return Err(BadInput(why).into());
     }
@@ -104,12 +103,11 @@ pub fn animate_at(race: &Race) -> Result<(), Refused> {
         return Ok(());
     }
 
-    animate_faces(race)
+    animate_faces(race, scene)
 }
 
 // Converted: `rc2k_core::drive::lit_faces` (all but kind 4's turn and ground).
-fn animate_faces(race: &Race) -> Result<(), Refused> {
-    let scene = scene();
+fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let mut k = 0;
     loop {
         let f = list(&race.physics, k).get();
@@ -208,6 +206,6 @@ fn animate_faces(race: &Race) -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn animate_lit_faces(race: &Race) -> Result<(), Refused> {
-    animate_at(race)
+pub fn animate_lit_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    animate_at(race, scene)
 }

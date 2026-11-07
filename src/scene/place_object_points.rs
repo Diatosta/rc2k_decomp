@@ -166,8 +166,11 @@ fn object(race: &crate::race::owner::Race) -> Result<Object, BadInput> {
 
 /// The object's points placed and projected, its normals turned. What the original
 /// leaves in the registers its one caller's callers never read (`draw_object`).
-pub fn place_object_points(race: &crate::race::owner::Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+pub fn place_object_points(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
     let object = object(race)?;
     if object.points <= 0 {
         return Ok(());
@@ -238,8 +241,11 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
 /// UI's Switches tab). Not as the x87 way: the matrix is always `g_madeObjectMatrix`, the
 /// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
 /// worked out (`sub_45C237`), and the table's point 0 ends as a normal in record 0x1000.
-pub fn place_object_points_sse(race: &crate::race::owner::Race) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+pub fn place_object_points_sse(
+    race: &crate::race::owner::Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    let drawing = &scene.drawing;
     let object = object(race)?;
     let m: [f32; 16] = std::array::from_fn(|n| race.frame.matrices.made_object_matrix[n].get());
     let mut number = object.first;

@@ -53,7 +53,11 @@ fn refusal() -> Option<&'static str> {
 
 /// The Rust version (see the header): `add_mark_slot`, `scene::set_texture`,
 /// `scene::draw_fan`.
-pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
+pub fn draw_mark_slots(
+    race: &Race,
+    paths: &Paths,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let effects = effects();
     if let Some(why) = refusal() {
         return Err(BadInput(why).into());
@@ -66,9 +70,7 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
             crate::effects::mark_slots::VIEW_PLACE_MATRIX,
         );
     }
-    crate::scene::set_texture::set_texture(
-        crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
-    );
+    crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
     for s in effects.blocks.slots.slots.iter().rev() {
         if (s.life.get() as i32) <= 0 {
             continue;
@@ -129,12 +131,12 @@ pub fn draw_mark_slots(race: &Race, paths: &Paths) -> Result<(), Refused> {
             continue;
         }
         let [px, py, half] = x87::slot_project(
-            crate::scene::owner::scene().drawing.scene.view_scale.bits(),
+            scene.drawing.scene.view_scale.bits(),
             x,
             z,
-            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
+            scene.drawing.scene.view_centre[0].bits(),
             y,
-            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+            scene.drawing.scene.view_centre[1].bits(),
             effects.blocks.slots.slots[0].size.bits(),
         );
         effects.blocks.slots.work[0].set(px);

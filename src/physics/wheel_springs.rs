@@ -27,7 +27,6 @@ use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, whe
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::scene::matrix3::extended;
-use crate::scene::owner::scene;
 use std::cmp::Ordering;
 
 /// `fld b; fld x; fcompp` (or `fld x; fcomp b`), C0: x below b, or unordered.
@@ -39,9 +38,9 @@ fn below(x: u32, b: u32) -> bool {
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn wheel_springs(race: &Race) {
+pub fn wheel_springs(race: &Race, scene: &crate::scene::owner::Scene) {
     let shared = &race.shared;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     let (c, ph) = (&shared.car, &shared.physics_tables);
     for k in 0..4 {
         let q = &c.wheel_squeeze[k];

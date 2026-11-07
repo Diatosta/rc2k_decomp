@@ -196,8 +196,7 @@ pub fn clear_point_records(race: &Race) -> Result<(), BadInput> {
 /// of the record's kind, out3 = 0xFF, or with faces (`OBJECT_SLOTS.face_counts`, first `OBJECT_SLOTS.first_face`
 /// in `g_faces`) the kinds' byte of the first face's +4 word. Outputs: the four face tables
 /// `LEVEL_GRID.face_table_a` ...
-pub fn object_bytes(course: &Course) -> Result<(), BadInput> {
-    let scene = scene();
+pub fn object_bytes(course: &Course, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::frame::object_bytes`.
     let kind = |n: u32| -> Result<u32, BadInput> {
         scene
@@ -239,7 +238,12 @@ pub fn object_bytes(course: &Course) -> Result<(), BadInput> {
 /// fields (the rounded engine speed, the engine sound speed, the gear, the distance, the
 /// stage time x 10, the split gaps, and for the first view also its front and back gaps and
 /// the two last ones).
-pub(super) fn panel_half(race: &Race, car: u32, first: bool) -> Result<(), BadInput> {
+pub(super) fn panel_half(
+    race: &Race,
+    car: u32,
+    first: bool,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     use rc2k_core::race::panel::{distance_shown, shown_whole, travelled};
     let panel = &race.frame.panel_and_overlay.panel;
     // The two views' records have the same fields in two types.
@@ -270,7 +274,7 @@ pub(super) fn panel_half(race: &Race, car: u32, first: bool) -> Result<(), BadIn
         |n: u32| crate::race::checkpoints_store::cell_in(&CHECKPOINTS.distances, n as usize).get();
     let from: u32 = race.physics.split_tables.checkpoints[0].get();
     let d = travelled(at(car.checkpoint.bits()), at(from));
-    scene().drawing.scene.scratch.set_bits(d);
+    scene.drawing.scene.scratch.set_bits(d);
     let (unit, miles): (u32, u32) = (
         race.course.numbers.k65536.bits(),
         race.course.numbers.metres_in_mile.bits(),
@@ -295,12 +299,12 @@ pub(super) fn panel_half(race: &Race, car: u32, first: bool) -> Result<(), BadIn
 /// exact x87 version went once its one Rust caller converted): both view blocks' values
 /// into the panel (see `panel_half`).
 // Converted: `rc2k_core::race::panel::{shown_whole, travelled, distance_shown}`.
-pub fn panel_values_plain(race: &Race) -> Result<(), BadInput> {
+pub fn panel_values_plain(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     {
         let a: u32 = race.shared.view.view_block(0);
-        panel_half(race, a, true)?;
+        panel_half(race, a, true, scene)?;
         let b: u32 = race.shared.view.view_block(1);
-        panel_half(race, b, false)?;
+        panel_half(race, b, false, scene)?;
     }
     Ok(())
 }
@@ -444,8 +448,8 @@ pub fn panel_neighbours(race: &Race) -> Result<(), Refused> {
 /// `race().frame.panel_and_overlay.panel.view_b.motion[0]`.. for the second); then `DRAW.scratch` = `g_sceneClock` - `race().frame.panel_clock.shown_since` -
 /// 800, 0 when negative.
 // Converted: `rc2k_core::race::panel::{motion, heading_turn, heading, shown_for}`.
-pub fn panel_motion_plain(race: &Race) -> Result<(), BadInput> {
-    let drawing = &scene().drawing;
+pub fn panel_motion_plain(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
+    let drawing = &scene.drawing;
     use rc2k_core::race::panel::{heading, heading_turn, motion, shown_for};
     {
         // NUMBERS.half (0.5), NUMBERS.one_over_65536, NUMBERS.k65536 (65536.0)
@@ -636,13 +640,14 @@ pub(super) fn check_panel_neighbours(shared: &Shared) -> Result<(), Refused> {
 /// `panel_motion`, `panel_marks`, `both_countdown_lights`, `both_split_colours`. Refuses
 /// (before anything) what `panel_neighbours` or `both_split_colours` would.
 pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     check_panel_neighbours(&race.shared)?;
     check_split_colours(race)?;
     // Converted: its float callees' `_plain` versions.
-    panel_values_plain(race)?;
+    panel_values_plain(race, scene)?;
     panel_neighbours(race)?;
     panel_players(race)?;
-    panel_motion_plain(race)?;
+    panel_motion_plain(race, scene)?;
     panel_marks(race)?;
     both_countdown_lights(race)?;
     both_split_colours(race)
@@ -651,13 +656,14 @@ pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
 /// `race::reset_lamps` (0x45487A): `g_lampCount`, `RACE_VIEW.depth_entry_count`, `RACE_VIEW.sort_entry_count` (the sort
 /// entries' count) and `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
 pub fn reset_lamps(race: &Race) -> Result<(), BadInput> {
+    let scene = crate::scene::owner::scene();
     let shared = &race.shared;
     let course = &race.course;
     shared.view.lamp_count.set_bits(0);
     shared.view.depth_entry_count.set_bits(0);
     shared.view.sort_entry_count.set_bits(0);
     race.frame.frame_work.flare_count.set_bits(0);
-    object_bytes(course)
+    object_bytes(course, scene)
 }
 
 /// `race::hold_to_limit` (0x4650A9): `value` held to `RACE_WORK.patch_settings` (unsigned).

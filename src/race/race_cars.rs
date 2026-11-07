@@ -9,7 +9,6 @@ use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::{Cell32, Dword};
 
 /// The eight car blocks (fixed; `g_carBlocks` lists them), 0xFE0 apart.
@@ -382,7 +381,7 @@ const TIME_WORDS: [&std::ffi::CStr; 8] = [
 /// below the table (a read of the tables before it, as the original's). Refuses, with a
 /// stage, a count of 0 or more than 0x100 (the original's `jnz` runs on / past the
 /// numbers), before anything.
-pub fn set_car_times(race: &Race) -> Result<(), Refused> {
+pub fn set_car_times(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let w = |n: usize| TIME_WORDS[n];
     {
         let stage: u32 = race.shared.vars.stage_number.bits();
@@ -415,7 +414,7 @@ pub fn set_car_times(race: &Race) -> Result<(), Refused> {
         )?;
         text(w(2), false);
         number(percentage, false);
-        scene().drawing.scene.scratch.set_bits(percentage);
+        scene.drawing.scene.scratch.set_bits(percentage);
         let total: i32 = race.physics.split_tables.stage_car_total.get() as i32;
         let extra = crate::math::x87_load::int_times_int_over_to_int(
             percentage as i32,
@@ -610,7 +609,7 @@ const PLAYER_RESETS: [(Field, u32); 6] = [
 /// numbers, the times, the arcade set-up, `dword_601C68` (0x40 dwords) 0; 1, 3, 0 (with
 /// the numbers first), 4 their set-ups; others nothing. The registers it leaves are read
 /// by no caller (conversion phase 3, 2026-10-24).
-pub fn set_up_cars(race: &Race) -> Result<(), Refused> {
+pub fn set_up_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     text(c"gamemode", false);
     number(race.shared.vars.run_kind.bits(), true);
     // Converted: `rc2k_core::race::cars::cars_steps`.
@@ -624,7 +623,7 @@ pub fn set_up_cars(race: &Race) -> Result<(), Refused> {
     for &step in cars_steps(race.shared.vars.run_kind.bits()) {
         match step {
             CarsStep::Numbers => read_stage_car_numbers(race)?,
-            CarsStep::Times => set_car_times(race)?,
+            CarsStep::Times => set_car_times(race, scene)?,
             CarsStep::SetUp(0) => set_up_mode_0_cars(race)?,
             CarsStep::SetUp(1) => set_up_mode_1_cars(race)?,
             CarsStep::SetUp(2) => set_up_mode_2_cars(race)?,

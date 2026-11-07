@@ -191,7 +191,7 @@ pub fn load_object(
         .text_ptr(name as usize + 7)
         .write(b'3', "an object's file name")?;
     if slot <= 0x40 {
-        list_object_textures()?;
+        list_object_textures(scene)?;
     }
     if slot < 0x50 {
         shape(scene, race, u32::MAX)?;
@@ -240,7 +240,7 @@ pub fn load_object(
                 let slot = first + offset;
                 scene.drawing.object_work.loading_slot.set_bits(slot);
                 shape(scene, race, mask(course, at))?;
-                measure_object(&race.course)?;
+                measure_object(&race.course, scene)?;
                 let measures: [u32; 6] = crate::session::read_first(&scene.objects.slots.measures);
                 for (table, &measure) in measures.iter().enumerate() {
                     scene.objects.slots.part_extents[table][slot as usize].set(measure);
@@ -261,7 +261,7 @@ fn shape(
     mask: u32,
 ) -> Result<(), Refused> {
     scene.draw_switches.loading_group_mask.set_bits(mask);
-    Ok({ add_object_shape(race) }?)
+    Ok({ add_object_shape(race, scene) }?)
 }
 
 /// The three fatal errors at the end, in the original's order.

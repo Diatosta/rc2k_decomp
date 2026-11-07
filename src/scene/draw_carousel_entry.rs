@@ -28,7 +28,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::{Menus, Tables};
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -67,6 +66,7 @@ pub(crate) fn own_place(tables: &Tables, own: u32) -> Result<[u32; 3], BadInput>
 
 /// Reads only.
 fn settings(shared: &Shared, menus: &Menus, entry: u32, row: u32) -> Result<Settings, BadInput> {
+    let scene = crate::scene::owner::scene();
     let screens = &menus.screens;
     if entry >= ENTRIES {
         return Err(BadInput("a carousel entry past the table"));
@@ -105,7 +105,7 @@ fn settings(shared: &Shared, menus: &Menus, entry: u32, row: u32) -> Result<Sett
         set.place[1] = y;
         set.angle_x = angle;
     }
-    set.object = find_object_of_kind(set.kind);
+    set.object = find_object_of_kind(set.kind, scene);
     Ok(set)
 }
 
@@ -117,8 +117,9 @@ pub fn draw_carousel_entry(
     entry: u32,
     row: u32,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     let set = settings(shared, menus, entry, row)?;
     crate::session::write_bits(&drawing.object_work.place, set.place);
     if let Some(size) = set.size {
