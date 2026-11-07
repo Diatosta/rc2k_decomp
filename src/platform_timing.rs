@@ -199,7 +199,7 @@ pub fn report_timing() {
                     let ms = |n: usize| (nanos[n] - was.0[n]) / 1_000_000;
                     let times = |n: usize| runs[n] - was.1[n];
                     log(&format!(
-                        "handheld: input {} ms / {}, physics {} ms / {} (ticks {}), scene {} ms / {}, sound tick {} ms / {}, audio {} ms / {}",
+                        "handheld: input {} ms / {}, physics {} ms / {} (ticks {}), scene {} ms / {} (course faces {} ms, depth entries {} ms, mirror {} ms), sound tick {} ms / {}, audio {} ms / {}",
                         ms(0),
                         times(0),
                         ms(1),
@@ -207,6 +207,9 @@ pub fn report_timing() {
                         ticks - was.2,
                         ms(2),
                         times(2),
+                        ms(5),
+                        ms(6),
+                        ms(7),
                         ms(3),
                         times(3),
                         ms(4),

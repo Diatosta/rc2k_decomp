@@ -40,6 +40,20 @@ pub fn take_from(from: u32, len: u32) -> Result<(), BadInput> {
     Ok(())
 }
 
+/// The points' bytes (`race::draw_chunks`' check); none while they are not held.
+pub fn all_bytes() -> Vec<u8> {
+    POINTS.with(|v| v.clone()).unwrap_or_default()
+}
+
+/// The points from `all_bytes`' kind of list (one of the same length).
+pub fn put_all_bytes(bytes: &[u8]) {
+    let _ = POINTS.with(|v| {
+        if v.len() == bytes.len() {
+            v.copy_from_slice(bytes);
+        }
+    });
+}
+
 /// Given back with the course memory.
 pub fn give_back() {
     POINTS.give_back();

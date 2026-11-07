@@ -2542,6 +2542,28 @@ mod tests {
 /// `RC2K_WRITE_CENSUS` set, the bytes of every moved range a stretch of code changes, unioned
 /// over 200 calls, logged as IDA address runs per label. Other threads' writes in the same
 /// time show too (the audio thread's voices and commands): read the runs with that in mind.
+/// The moved ranges by IDA address, in the order `load_moved` and `store_moved` number them
+/// (`race::draw_chunks`' check).
+pub fn moved_ranges() -> Vec<std::ops::Range<usize>> {
+    sorted().iter().map(|&(start, end, _)| start..end).collect()
+}
+
+/// Range `n`'s bytes into `to` (its length).
+pub fn load_moved(n: usize, to: &mut [u8]) {
+    let (_, _, home) = sorted()[n];
+    if let Some((store, off)) = store_of(home) {
+        let _ = store.load(off, to);
+    }
+}
+
+/// Range `n` given `bytes` (its length).
+pub fn store_moved(n: usize, bytes: &[u8]) {
+    let (_, _, home) = sorted()[n];
+    if let Some((store, off)) = store_of(home) {
+        let _ = store.store(off, bytes);
+    }
+}
+
 pub mod census {
     use std::sync::Mutex;
     /// A label, its changed bytes per moved range, its calls so far.

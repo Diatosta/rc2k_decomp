@@ -863,10 +863,16 @@ pub fn draw_entries(
     {
         return Err(BadInput("a list entry of 0x4000000 or more").into());
     }
-    for (k, entry) in entries.iter().enumerate() {
-        draw_list_entry(race, list.offset(8 * k as u32), entry[1].get(), scene)?;
+    let draw = |range: std::ops::Range<usize>| -> Result<(), Refused> {
+        for (k, entry) in entries.iter().enumerate().take(range.end).skip(range.start) {
+            draw_list_entry(race, list.offset(8 * k as u32), entry[1].get(), scene)?;
+        }
+        Ok(())
+    };
+    if crate::race::draw_chunks::chunks() > 1 {
+        return crate::race::draw_chunks::draw_in_chunks(entries.len(), draw);
     }
-    Ok(())
+    draw(0..entries.len())
 }
 
 /// The scene matrices from byte `off` on, as the esi the original leaves for a drawing

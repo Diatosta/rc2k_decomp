@@ -233,6 +233,7 @@ struct NotedLevel {
 
 /// The noted drawing's way to the backend: nothing noted is left behind.
 fn draw_noted(pending: &mut Pending) {
+    FLUSHES.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     // Room for as many as there has been: growing to them shows in a profile.
     let room = pending.noted.capacity();
     let commands = std::mem::replace(&mut pending.noted, Vec::with_capacity(room));
@@ -244,6 +245,7 @@ fn draw_noted(pending: &mut Pending) {
         return;
     }
     crate::render::dump::dump_if_asked(&commands, &target);
+    crate::render::dump::hash_if_asked(&commands);
     crate::render::draw(&target, commands);
 }
 
@@ -301,6 +303,46 @@ fn note(what: impl FnOnce(&mut Pending) -> Command) {
             pending.textures.push(t.pixels);
         }
         pending.noted.push(what);
+    });
+}
+
+/// The commands noted since the last flush (`race::draw_chunks`' mark).
+pub fn noted_len() -> usize {
+    PENDING.with_borrow(|p| p.noted.len())
+}
+
+/// The flushes so far (`race::draw_chunks`: none may come inside a chunk).
+pub fn flushes() -> u64 {
+    FLUSHES.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+static FLUSHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The commands noted from `mark` on, taken out, the states and level as the last fan had them
+/// forgotten (`race::draw_chunks`: each chunk notes as from nothing).
+pub fn take_noted_from(mark: usize) -> Vec<Command> {
+    PENDING.with_borrow_mut(|p| {
+        p.states = None;
+        p.level = None;
+        p.noted.split_off(mark.min(p.noted.len()))
+    })
+}
+
+/// `commands` noted after those so far (`race::draw_chunks`), their textures with them.
+pub fn put_noted(commands: Vec<Command>) {
+    PENDING.with_borrow_mut(|p| {
+        for c in &commands {
+            if let Command::Fan {
+                texture: Some(t), ..
+            } = c
+                && !p.textures.contains(&t.pixels)
+            {
+                p.textures.push(t.pixels);
+            }
+        }
+        p.states = None;
+        p.level = None;
+        p.noted.extend(commands);
     });
 }
 

@@ -18,10 +18,16 @@ pub enum Stage {
     SoundTick,
     /// `audio::thread`'s turn (its own thread, every 20 ms), without its sleep.
     AudioTurn,
+    /// The course's sorted faces drawn (`draw_view_scene`'s first `draw_entries`), every view's.
+    CourseEntries,
+    /// The depth-sorted entries drawn (the cars, objects and see-through faces), every view's.
+    DepthEntries,
+    /// `race::draw_mirror_view`, the whole of it.
+    Mirror,
 }
 
 /// Stages.
-pub const STAGES: usize = 5;
+pub const STAGES: usize = 8;
 
 static NANOS: [AtomicU64; STAGES] = [const { AtomicU64::new(0) }; STAGES];
 static RUNS: [AtomicU64; STAGES] = [const { AtomicU64::new(0) }; STAGES];

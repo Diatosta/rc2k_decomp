@@ -78,7 +78,9 @@ fn draw_view(
     if race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0 {
         load_view_car(&race.shared, car)?;
         let c = crate::moved::census::before();
+        let begun = crate::debug::timing::start();
         crate::race::draw_mirror_view::draw_mirror_view(race, scene, system)?;
+        crate::debug::timing::stop(crate::debug::timing::Stage::Mirror, begun);
         crate::moved::census::after("mirror", c);
     }
     Ok(())

@@ -104,3 +104,63 @@ pub fn dump_if_asked(noted: &[Command], into: &Target) {
         textures.len()
     ));
 }
+
+/// With `RC2K_FAN_HASH` in the environment: each race flush's commands hashed (every fan's
+/// vertices, states and texture, every clear) and logged with the flush's number, so that two
+/// runs of a replay can be compared flush by flush (the check of a change that should draw the
+/// same).
+pub fn hash_if_asked(noted: &[Command]) {
+    use std::hash::{Hash, Hasher};
+    use std::sync::atomic::{AtomicU32, Ordering::Relaxed};
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    static FLUSHES: AtomicU32 = AtomicU32::new(0);
+    if !*ON.get_or_init(|| std::env::var_os("RC2K_FAN_HASH").is_some())
+        || crate::race::owner::race().course.numbers.in_race.get() == 0
+    {
+        return;
+    }
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    // A texture by its pixels, not by where they are: that differs from run to run.
+    let mut seen: Vec<(u32, u64)> = Vec::new();
+    let mut texture_hash = |t: &super::TextureNote| {
+        let at = t.pixels.addr();
+        if let Some(&(_, v)) = seen.iter().find(|s| s.0 == at) {
+            return v;
+        }
+        let mut th = std::collections::hash_map::DefaultHasher::new();
+        t.pixels
+            .read_bytes(t.len, "a hashed texture")
+            .ok()
+            .hash(&mut th);
+        let v = th.finish();
+        seen.push((at, v));
+        v
+    };
+    for n in noted {
+        match n {
+            Command::Fan {
+                vertices,
+                states,
+                texture,
+                ..
+            } => {
+                1u8.hash(&mut h);
+                for v in vertices {
+                    v.hash(&mut h);
+                }
+                states.hash(&mut h);
+                texture.as_ref().map(&mut texture_hash).hash(&mut h);
+            }
+            Command::Clear(rect) => {
+                2u8.hash(&mut h);
+                rect.hash(&mut h);
+            }
+        }
+    }
+    let n = FLUSHES.fetch_add(1, Relaxed);
+    crate::framework::log(&format!(
+        "fan hash {n}: {} commands, {:016x}",
+        noted.len(),
+        h.finish()
+    ));
+}

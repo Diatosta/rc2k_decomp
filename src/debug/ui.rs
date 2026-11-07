@@ -641,6 +641,18 @@ fn profiler(race: &Race, ui: &Ui) {
                 "Scene (all its 3D work)",
                 ms(t.stages[Stage::Scene as usize]),
             ),
+            (
+                "  of which the course's faces",
+                ms(t.stages[Stage::CourseEntries as usize]),
+            ),
+            (
+                "  of which the depth-sorted entries",
+                ms(t.stages[Stage::DepthEntries as usize]),
+            ),
+            (
+                "  of which the mirror",
+                ms(t.stages[Stage::Mirror as usize]),
+            ),
             ("  of which the rasteriser", ms(t.frame[0])),
             ("  of which noting the triangles", ms(t.frame[1])),
             ("Sound commands", ms(t.stages[Stage::SoundTick as usize])),
