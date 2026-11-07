@@ -223,9 +223,22 @@ pub struct Screen {
 
 /// What a screen is entered with that its steps read: the list of cars its carousel shows
 /// (`scene::set_up_carousel` reads it for menus 0xD and 0xE).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+/// It also carries the menus' owner, which the steps read.
+#[derive(Clone, Copy)]
 pub struct Entry {
+    pub menus: &'static Menus,
     pub cars: Option<CarList>,
+}
+
+impl Entry {
+    /// Entered with nothing carried in.
+    pub fn new(menus: &'static Menus) -> Self {
+        Entry { menus, cars: None }
+    }
+    /// Entered with the list of cars the carousel shows.
+    pub fn with_cars(menus: &'static Menus, cars: Option<CarList>) -> Self {
+        Entry { menus, cars }
+    }
 }
 
 /// Whether the game is quitting (`dword_51837C`).
@@ -337,8 +350,7 @@ pub enum Callee {
 impl Callee {
     /// Runs the function: whether it failed (the original's carry flag; false for those that
     /// do not set it).
-    pub fn run(self) -> Result<bool, Refused> {
-        let menus = menus();
+    pub fn run(self, menus: &'static Menus) -> Result<bool, Refused> {
         let play = &menus.play;
         let screens = &menus.screens;
         use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
@@ -448,7 +460,7 @@ fn clear_escape(screens: &Screens) {
 
 /// A call whose failure is the fatal error `code`.
 pub fn call_or_fatal(function: Callee, code: u32) -> Result<(), Refused> {
-    if { function.run() }? {
+    if { function.run(menus()) }? {
         log(&format!(
             "a screen loop's Rust version raises fatal error {code:#x}"
         ));
@@ -460,7 +472,7 @@ pub fn call_or_fatal(function: Callee, code: u32) -> Result<(), Refused> {
 /// Runs the steps of one place. Anything but `Flow::On` comes from a `DoFlow` step, after
 /// which the rest of the place is not run.
 fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
-    let menus = menus();
+    let menus = entry.menus;
     for step in steps {
         match *step {
             Step::DoFlow(what) => match what(entry)? {
@@ -468,7 +480,7 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
                 elsewhere => return Ok(elsewhere),
             },
             Step::Call(function) => {
-                function.run()?;
+                function.run(menus)?;
             }
             Step::Write(variable, value) => variable(menus).set(value),
             Step::WriteF32(variable, value) => variable(menus).set(value),
@@ -507,7 +519,7 @@ fn run_frame(menus: &Menus, callback: FrameRoutine, menu: MenuId) -> Result<(), 
 /// `entry` is what the screen is entered with.
 /// Returns why the screen was left, for the log.
 pub fn screen_loop(screens: &Screens, screen: &Screen, entry: &Entry) -> Result<String, Refused> {
-    let menus = menus();
+    let menus = entry.menus;
     let menu = (screen.menu)(menus);
     let keys_menu = screen.keys_menu.map_or(menu, |other| other(menus));
     run(screen.before, entry)?;
@@ -744,7 +756,7 @@ impl Loop<'_> {
                     Next::Leave
                 } else if menus.screens.event.event_done.get() == 1 {
                     menus.tables.pages.yes_no_answer.set(0u32);
-                    Callee::TakeKey.run()?;
+                    Callee::TakeKey.run(menus)?;
                     Next::SetUp
                 } else if menus.screens.loop_flags.back.get() == 1 {
                     self.why = format!("after the action of item {item}: dword_755561 is 1");
@@ -849,8 +861,11 @@ pub fn confirm_leaving() -> Result<u32, Refused> {
                 menus().tables.pages.yes_no_answer.set(1u32);
                 return;
             }
-            asked = run_screen(&crate::menu::leave_question_loop::SCREEN, &Entry::default())
-                .map(|_| ());
+            asked = run_screen(
+                &crate::menu::leave_question_loop::SCREEN,
+                &Entry::new(menus()),
+            )
+            .map(|_| ());
         })
     };
     asked.map(|()| answer)
@@ -863,7 +878,7 @@ pub fn confirm_leaving() -> Result<u32, Refused> {
 pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
     let screens = &menus().screens;
     log(&format!("{name}: the Rust version runs"));
-    let why = { screen_loop(screens, screen, &Entry::default()) }?;
+    let why = { screen_loop(screens, screen, &Entry::new(menus())) }?;
     log(&format!(
         "{name}: the Rust version has left the screen ({why})"
     ));

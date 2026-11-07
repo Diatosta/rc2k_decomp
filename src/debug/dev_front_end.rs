@@ -166,15 +166,15 @@ fn test_course() -> Result<(), Refused> {
         // The player's settings, as a race from the menus; then this tab's.
         crate::race::settings_copy::copy_settings_in()?;
         set_up_race()?;
-        crate::race::race_cars::set_up_arcade_cars()?;
+        crate::race::race_cars::set_up_arcade_cars(race)?;
         race_shell::set_start_states()?;
-        stage_loading::load_stage()?;
+        stage_loading::load_stage(race)?;
         race_end::record_replay_header();
         replay::open_replay()?;
         race.shared.view.after_credits.set(0);
-        crate::drive::play_race::play_race()?;
+        crate::drive::play_race::play_race(race)?;
         replay::close_replay()?;
-        race_end::tidy_everything()
+        race_end::tidy_everything(race)
     })
 }
 
@@ -193,7 +193,7 @@ fn finish_sequence() -> Result<(), Refused> {
         results.finish_kind.set(car);
         results.finish_player.set(0x45);
         results.finished.set(car & 1);
-        let result = crate::drive::finish_race::finish_race();
+        let result = crate::drive::finish_race::finish_race(race);
         race.replay.finish.no_place.set(0);
         result
     })
@@ -201,22 +201,24 @@ fn finish_sequence() -> Result<(), Refused> {
 
 /// `sub_443104`, without its fonts (the menus' are up): the credits' race.
 fn credits() -> Result<(), Refused> {
+    let race = race();
     round_a_race(|| {
         crate::race::sound_tables::silence_race_sounds()?;
-        crate::race::credits_race::credits_race()
+        crate::race::credits_race::credits_race(race)
     })
 }
 
 /// `sub_4430C0`: the last race's replay (nothing happens without one).
 fn last_replay() -> Result<(), Refused> {
-    let shared = &race().shared;
-    let course = &race().course;
+    let race = race();
+    let shared = &race.shared;
+    let course = &race.course;
     round_a_race(|| {
         course.numbers.replay_mode.set(2);
         shared.view.player_options[0].set(u32::MAX);
         shared.view.player_options[1].set(u32::MAX);
         let result =
-            crate::race::replay_mode::replay_mode(crate::race::replay_viewer::Mode::LastRace);
+            crate::race::replay_mode::replay_mode(race, crate::race::replay_viewer::Mode::LastRace);
         course.numbers.replay_mode.set(0);
         result
     })

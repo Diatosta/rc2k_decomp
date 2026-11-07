@@ -19,7 +19,12 @@ use crate::race::owner::race;
 pub fn choose_stage(vars: &NetVars) -> Result<(), Refused> {
     let race = race();
     ESCAPED.set(0);
-    { run_screen(&crate::menu::select_stage_loop::SCREEN, &Entry::default()) }?;
+    {
+        run_screen(
+            &crate::menu::select_stage_loop::SCREEN,
+            &Entry::new(crate::menu::owner::menus()),
+        )
+    }?;
     if ESCAPED.get() != 1 {
         vars.own.head.set(
             PlayerRecord::STAGE,

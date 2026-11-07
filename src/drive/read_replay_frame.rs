@@ -39,7 +39,7 @@ pub fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
     replay.replay_view.replay_frame.set(tenth);
     race_owner.shared.replay_file.replay_at_end.set(0);
     replay.replay_view.replay_block.set(frame);
-    let place = crate::race::replay::block_place(2 * frame as usize)?; // (place, count) a frame
+    let place = crate::race::replay::block_place(race_owner, 2 * frame as usize)?; // (place, count) a frame
     if {
         crate::files::handle::seek(
             race_owner.shared.replay_file.replay_handle.get(),
@@ -51,7 +51,7 @@ pub fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
     {
         return Ok(true);
     }
-    let count = crate::race::replay::block_place(2 * frame as usize + 1)?;
+    let count = crate::race::replay::block_place(race_owner, 2 * frame as usize + 1)?;
     let (_, carry, _) = {
         crate::drive::read_packed::read_packed(
             race_owner.shared.replay_file.replay_handle.get(),

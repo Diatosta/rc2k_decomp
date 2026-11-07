@@ -144,7 +144,9 @@ impl finish::Finish for Game {
             // `nullsub_6`.
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),
-            Step::FinishRace => crate::drive::finish_race_0::finish_race_0()?,
+            Step::FinishRace => {
+                crate::drive::finish_race_0::finish_race_0(crate::race::owner::race())?;
+            }
             Step::StopMusic => crate::sound::stop_music::stop_music(),
             Step::MenuScreenMode => {
                 crate::platform::set_menu_mode_now();

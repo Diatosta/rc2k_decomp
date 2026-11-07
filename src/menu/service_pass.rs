@@ -69,7 +69,7 @@ pub fn service_pass() -> Result<(), Refused> {
             }
             run_screen(
                 &crate::service::service_area_loop::SCREEN,
-                &Entry::default(),
+                &Entry::new(menus),
             )?;
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break 'all;
@@ -80,7 +80,7 @@ pub fn service_pass() -> Result<(), Refused> {
                 crate::menu::inspection_faults::inspection_faults(menus)?;
                 run_screen(
                     &crate::menu::inspection_area_loop::SCREEN,
-                    &Entry::default(),
+                    &Entry::new(menus),
                 )?;
                 if menus.tables.pages.yes_no_answer.get() == 1 {
                     break 'all;

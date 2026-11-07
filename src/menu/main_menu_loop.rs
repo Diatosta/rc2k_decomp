@@ -24,7 +24,6 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene,
@@ -37,18 +36,18 @@ use crate::system::owner::system;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(_: &Entry) -> Result<(), Refused> {
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let menus = menus();
+    let menus = entry.menus;
     menus.screens.event.event_done.set(0u32);
     // menu::load_background (whether it failed is not looked at)
-    Callee::LoadBackground(|m| &m.tables.texts.main_menu_picture).run()?;
+    Callee::LoadBackground(|m| &m.tables.texts.main_menu_picture).run(menus)?;
     drawing.scene.view_offset[0].set(7u32);
     drawing.scene.view_offset[1].set(0xAu32);
     drawing.scene.view_zoom.set(0x100u32);
     prepare_scene(); // scene::prepare_menu_scene
     menus.screens.loop_flags.ended_a.set(0u32);
-    Callee::TakeKey.run()?; // input::take_key
+    Callee::TakeKey.run(menus)?; // input::take_key
     menus.screens.draw_work.escaped.set(0u32);
     menus.screens.option_work.menu_sound.set(0x6Fu32);
     menus.screens.flow.turning.set(1u32);
@@ -61,8 +60,8 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
 }
 
 /// The loop has just set the set-up time to the frame clock.
-fn before_first_frame(_: &Entry) -> Result<(), Refused> {
-    let play = &menus().play;
+fn before_first_frame(entry: &Entry) -> Result<(), Refused> {
+    let play = &entry.menus.play;
     play.champ_view
         .last_key_time
         .set(system().session.clocks.setup_time.get());
@@ -71,9 +70,9 @@ fn before_first_frame(_: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-fn idle(_: &Entry) -> Result<Flow, Refused> {
+fn idle(entry: &Entry) -> Result<Flow, Refused> {
     let system = system();
-    let menus = menus();
+    let menus = entry.menus;
     if menus.screens.loop_flags.idle.get() == 0 {
         return Ok(Flow::On);
     }

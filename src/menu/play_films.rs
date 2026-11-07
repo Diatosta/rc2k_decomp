@@ -120,7 +120,7 @@ impl Game {
             // the quit question, and its demonstration ended at its first frame.
             Step::Demonstration => {
                 crate::race::race_shell::clear_player_absences();
-                crate::race::credits_race::credits_race()?;
+                crate::race::credits_race::credits_race(crate::race::owner::race())?;
             }
             Step::Step409B76 => crate::sound::let_sounds_play::let_sounds_play(),
             Step::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,

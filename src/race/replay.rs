@@ -10,8 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
 use crate::net::owner::net;
 use crate::pointers::GamePtr;
-use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 use crate::race::owner_replay::Replay;
 use crate::race::owner_shared::Shared;
 use crate::race::replay_work_store::REPLAY_WORK;
@@ -213,8 +212,8 @@ pub fn write_replay_chunk(shared: &Shared, handle: u32) -> Result<(u32, bool), R
 
 /// The replay index's dword `k` (`lDistanceToMove` ..: offset and size a block). A block
 /// count past the index's 1800 (a broken file) reads on past it, as the original does.
-pub fn block_place(k: usize) -> Result<u32, BadInput> {
-    let shared = &race().shared;
+pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
+    let shared = &race.shared;
     let places = &shared.replay_file.block_places;
     crate::session::read_on_in(&shared.replay_file, places, k, "the replay index")
 }

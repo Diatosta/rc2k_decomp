@@ -44,8 +44,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics as ph;
 use crate::physics::flow::{hold_high, hold_low, negate};
-use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 use crate::scene::matrix3::rounded;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
@@ -65,7 +64,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::load_car_specs::load_car_specs(race)?;
     ph::make_gear_ratios::make_gear_ratios(race)?;
     ph::store_motion_length::store_motion_length(race);
-    ph::set_handling::set_handling()?;
+    ph::set_handling::set_handling(race)?;
     ph::race_timers::race_timers(race)?;
     for cell in [
         &race_owner.frame.sound_spots.sound_scratch_a,

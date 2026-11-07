@@ -7,16 +7,14 @@
 //! Caller: `sub_45E3BF` (0x45E3D0, `jb`).
 
 use crate::errors::BadInput;
+use crate::race::owner::Race;
 use crate::scene::kind_is_hidden::kind_is_hidden;
 
 /// The Rust version: whether the object of course face `face` (its number; the face is
 /// the original's record) is hidden by its kind.
-pub fn kind_hidden_at(face: u32) -> Result<bool, BadInput> {
+pub fn kind_hidden_at(race: &Race, face: u32) -> Result<bool, BadInput> {
     // Converted: `rc2k_core::scene::kinds::kind_is_hidden` (through `kind_is_hidden`).
     let object = crate::race::course_places::face_field::<u8>(face, 1, "a course face")? as u32;
     // A byte: never past the table.
-    Ok(
-        { kind_is_hidden(&crate::race::owner::race().shared, object) }
-            .is_ok_and(|(hidden, _)| hidden),
-    )
+    Ok({ kind_is_hidden(&race.shared, object) }.is_ok_and(|(hidden, _)| hidden))
 }

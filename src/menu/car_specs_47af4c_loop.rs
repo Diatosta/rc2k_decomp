@@ -11,7 +11,6 @@
 //! Callers: `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_48AD73`.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, quitting,
@@ -22,7 +21,7 @@ use crate::scene::owner::scene;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let menus = menus();
+    let menus = entry.menus;
     let screens = &menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xEu32);

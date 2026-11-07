@@ -3,8 +3,7 @@
 use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::race::checkpoints_store::CHECKPOINTS;
-use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
@@ -174,9 +173,9 @@ pub fn share_sound_spots() -> Result<(), Refused> {
 /// `race::clear_point_records` (0x4500FF), on its variables: `COURSE_LISTS.clear_count` 0, then the
 /// 0x1000 point records of 0x20 bytes at `g_pointRecords`: each first dword -1, or with
 /// `g_useSse` set each first 16 bytes `LIGHT_WORK.sse_fill` (`movntps`).
-pub fn clear_point_records() -> Result<(), BadInput> {
+pub fn clear_point_records(race: &Race) -> Result<(), BadInput> {
     let scene = scene();
-    race().course.lists.clear_count.set(0u32);
+    race.course.lists.clear_count.set(0u32);
     let pattern: [u32; 4] = crate::session::read_bits(&scene.lights.work.sse_fill);
     let sse = scene.draw_switches.use_sse.get() != 0;
     for record in crate::scene::point_records::first_records(0x1000)? {

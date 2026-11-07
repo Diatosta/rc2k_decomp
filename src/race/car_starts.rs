@@ -9,8 +9,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::race::best_line::MOST_CHECKS;
-use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 use crate::race::owner_physics::Physics;
 use crate::scene::owner::scene;
 use crate::session::Dword;
@@ -61,7 +60,7 @@ fn matrix_and_wheels(physics: &Physics) -> Result<[u32; 4], Refused> {
 pub fn settle_car(race: &Race) -> Result<(), Refused> {
     let physics = &race.physics;
     let shared = &race.shared;
-    crate::physics::set_handling::set_handling()?;
+    crate::physics::set_handling::set_handling(race)?;
     shared.car.car_pitch.set(0);
     shared.car.car_roll.set(0);
     shared.physics_tables.settle_steps[0].set(0x2000_0000u32);

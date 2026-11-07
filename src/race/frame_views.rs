@@ -8,8 +8,7 @@ use crate::gfx::owner::gfx;
 use crate::input::owner::input;
 use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
-use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::Shared;
@@ -519,7 +518,7 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
         &race.frame.matrices.view_place,
         16,
     );
-    crate::drive::share_all_cars::share_all_cars()?;
+    crate::drive::share_all_cars::share_all_cars(race)?;
     let first = first_word(race.shared.vars.run_kind.get());
     for b in 0..CAR_RECORDS {
         race.shared

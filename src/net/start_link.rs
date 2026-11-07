@@ -119,7 +119,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
                     break;
                 }
                 close_if_host::close_if_host(net);
-                if lets_rally::lets_rally(net)? {
+                if lets_rally::lets_rally(crate::race::owner::race(), net)? {
                     break;
                 }
             }

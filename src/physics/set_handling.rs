@@ -18,7 +18,6 @@ use crate::math::x87;
 use crate::math::x87_run::int_lerp;
 use crate::physics::grade_or_reset::grade_or_reset;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// (out, setting, hi, lo) in the original's order, but the drive kind's.
@@ -81,8 +80,7 @@ fn after(race: &Race) -> [(&Float, &Dword, &Float, &Float); 4] {
 
 /// The Rust version (the exact one, for `race::settle_car` and
 /// `physics::car_physics_step`).
-pub fn set_handling() -> Result<(), Refused> {
-    let race = race();
+pub fn set_handling(race: &Race) -> Result<(), Refused> {
     let kind = race.shared.car.drive_kind.get() as usize;
     if kind > 1 {
         return Err(BadInput("a drive kind above 1 (the pair tables hold two)").into());

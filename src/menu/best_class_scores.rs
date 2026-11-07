@@ -44,7 +44,7 @@ pub fn best_class_scores() -> Result<(), Refused> {
             menus.screens.event.class.set(class);
             run_screen(
                 &crate::menu::best_class_scores_loop::SCREEN,
-                &Entry::default(),
+                &Entry::new(menus),
             )?;
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break;

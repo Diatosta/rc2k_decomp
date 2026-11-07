@@ -24,7 +24,7 @@
 use crate::effects::owner::effects;
 use crate::errors::{FatalError, Refused};
 use crate::race::marks_settings_store::MARKS_SETTINGS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
 /// `g_logIndent` changed by `by` (wrapping, as the original's `add`).
@@ -52,9 +52,8 @@ fn indented(part: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused
 /// is reached only with two checkpoints or more (conversion phase 3, 2026-10-24).
 // Converted: `rc2k_core::drive::race_steps::{no_best_line, NO_BEST_LINE, SETTLING_STEPS,
 // LOG_INDENT}`.
-pub fn race_init() -> Result<(), Refused> {
-    let race_owner = race();
-    let race = race();
+pub fn race_init(race: &Race) -> Result<(), Refused> {
+    let race_owner = race;
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
     crate::race::best_line::build_best_line()?;
@@ -98,7 +97,7 @@ pub fn race_init() -> Result<(), Refused> {
     for _ in 0..race_steps::SETTLING_STEPS {
         { crate::drive::race_cars_step::race_cars_step(race) }?;
         MARKS_SETTINGS.other_marks_shown.set(1);
-        { crate::drive::share_all_cars::share_all_cars() }?;
+        { crate::drive::share_all_cars::share_all_cars(race) }?;
         MARKS_SETTINGS.other_marks_shown.set(0);
         crate::effects::frame_marks::frame_marks(effects())?;
         crate::effects::run_frame::run_frame()?;

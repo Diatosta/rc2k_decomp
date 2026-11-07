@@ -14,7 +14,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, quitting, screen_entry,
@@ -22,8 +21,8 @@ use crate::menu::screen_loop::{
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(_: &Entry) -> Result<(), Refused> {
-    let menus = menus();
+fn before(entry: &Entry) -> Result<(), Refused> {
+    let menus = entry.menus;
     // The player's twelve bytes at +0x1C copied to `dword_755595` (`rep movsb` between
     // `pusha` and `popa`; eax pushed and popped around the player's address: no carried
     // value changes).
@@ -44,8 +43,8 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
     Ok(Flow::On)
 }
 
-fn each_frame(_: &Entry) -> Result<Flow, Refused> {
-    let screens = &menus().screens;
+fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
+    let screens = &entry.menus.screens;
     if screens.option_work.redefining_key.get() == 0x1
         && screens.option_work.redefining_key.get() != 0x0
     {

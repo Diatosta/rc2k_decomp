@@ -29,7 +29,7 @@ pub fn show_overall_stage_results() -> Result<(), Refused> {
     crate::menu::stage_range_caption::stage_range_caption(play)?;
     run_screen(
         &crate::menu::overall_stage_results_loop::SCREEN,
-        &Entry::default(),
+        &Entry::new(menus()),
     )?;
     Ok(())
 }

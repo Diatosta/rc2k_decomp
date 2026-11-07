@@ -15,16 +15,15 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Flow, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn each_frame(_: &Entry) -> Result<Flow, Refused> {
-    let menus = menus();
+fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
+    let menus = entry.menus;
     if menus.screens.option_work.typing.get() == 0x1 {
-        let failed = Callee::EditReplayName.run()?;
+        let failed = Callee::EditReplayName.run(menus)?;
         if !failed {
             if menus.screens.option_work.typing.get() != 0x0 {
                 return Ok(Flow::NextFrame);

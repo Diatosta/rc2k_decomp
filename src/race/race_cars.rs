@@ -8,8 +8,7 @@ use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::{Cell32, Dword};
@@ -732,8 +731,8 @@ pub fn choose_arcade_opponents(shared: &Shared) -> Result<(), Refused> {
 /// logged, `choose_arcade_opponents` (the log indented round it), `g_raceCars` 4; then
 /// each block's +0x24 its kind (`g_raceCarKinds` and the seven after). The original keeps
 /// every register (liveness): the route leaves its caller's as they were.
-pub fn set_up_arcade_cars() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn set_up_arcade_cars(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     if shared.vars.run_kind.bits() == 2 {
         text(SETUP_ARCADE_WORD_RVA, true);
         let indent = crate::logfile::write_line::state::INDENT.atomic();

@@ -3,7 +3,6 @@
 //! debug UI's "Screens" tab (`debug::screens`). What it was for is not known; a reading.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene,
 };
@@ -14,17 +13,17 @@ const SLOT: usize = (0x7476E4 - 0x747660) / 4;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(_: &Entry) -> Result<(), Refused> {
-    let screens = &menus().screens;
+fn before(entry: &Entry) -> Result<(), Refused> {
+    let screens = &entry.menus.screens;
     screens.items.current[SLOT].set(screens.items.first[SLOT].get());
     Ok(())
 }
 
 // The original prepares the scene before the carousel, which left the front car white
 // (seen 2026-10-30): here as `menu::select_car_loop`, the scene last.
-fn set_up_first(_: &Entry) -> Result<(), Refused> {
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let screens = &menus().screens;
+    let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xCu32);
     carousel(None)?;

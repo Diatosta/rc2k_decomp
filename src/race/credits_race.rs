@@ -16,14 +16,13 @@
 
 use crate::errors::Refused;
 use crate::logfile::log_int::log_int;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT CREDITS - track", "car"
 
 /// The Rust version: the steps in order. (The original keeps ebp, ecx and edi and leaves
 /// esi and edx; no step reads a register of the caller or of an earlier step.)
-pub fn credits_race() -> Result<(), Refused> {
-    let race = race();
+pub fn credits_race(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
     crate::framework::log("race::credits_race: the demonstration starts");
     race.course.numbers.replay_mode.set(0);
@@ -32,7 +31,7 @@ pub fn credits_race() -> Result<(), Refused> {
     race.physics.split_tables.arcade_kind.set(2);
     race.shared.switches.editor_mode.set(0);
     crate::race::set_up_credits_race::set_up_credits_race(&race.shared)?;
-    crate::race::race_cars::set_up_arcade_cars()?;
+    crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states()?;
     race.shared.work.in_credits.set(1);
     let word = |n: usize| &WORDS[n];
@@ -40,7 +39,7 @@ pub fn credits_race() -> Result<(), Refused> {
     log_int(race.shared.vars.stage_number.get() as i32, false, 1);
     crate::logfile::log_write::log_nul(word(1), false, 1);
     log_int(race.shared.vars.race_car_kinds[0].get() as i32, true, 1);
-    crate::race::stage_loading::load_stage()?;
+    crate::race::stage_loading::load_stage(race)?;
     crate::race::frame_text::roll_credits(
         frame,
         0,
@@ -48,7 +47,7 @@ pub fn credits_race() -> Result<(), Refused> {
         &mut crate::race::frame_text::credits_tune,
     )?;
     race.shared.view.after_credits.set(0);
-    crate::drive::play_race::play_race()?;
+    crate::drive::play_race::play_race(race)?;
     race.shared.work.in_credits.set(0);
-    crate::race::race_end::tidy_everything()
+    crate::race::race_end::tidy_everything(race)
 }

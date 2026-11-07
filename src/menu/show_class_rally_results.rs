@@ -15,7 +15,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
 /// The Rust version (see the header).
-pub fn show_class_rally_results(menus: &Menus, class: u32) -> Result<(), Refused> {
+pub fn show_class_rally_results(menus: &'static Menus, class: u32) -> Result<(), Refused> {
     menus.screens.event.class.set(class);
     let found = crate::menu::first_player_a::first_player_a(class)?;
     // Converted: `rc2k_core::menu::results_pages::held_figure`.
@@ -26,7 +26,7 @@ pub fn show_class_rally_results(menus: &Menus, class: u32) -> Result<(), Refused
     crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     run_screen(
         &crate::menu::class_rally_results_loop::SCREEN,
-        &Entry::default(),
+        &Entry::new(menus),
     )?;
     Ok(())
 }

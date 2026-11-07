@@ -17,7 +17,7 @@ use crate::errors::Refused;
 use crate::net::lobby::{log_bytes, log_int_nl};
 use crate::net::store::NetVars;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::net::record;
 
 const RULE: &std::ffi::CStr = c"------------------------"; // "------------------------"
@@ -50,8 +50,7 @@ enum Count {
 }
 
 /// The Rust version.
-pub fn set_up_race(vars: &NetVars) -> Result<(), Refused> {
-    let race = race();
+pub fn set_up_race(race: &Race, vars: &NetVars) -> Result<(), Refused> {
     // Converted: `rc2k_core::net::record` (`race_players`, `seat`).
     let players = record::race_players(vars.players.get())?;
     race.shared.view.local_car.set(vars.player.get());
@@ -72,7 +71,7 @@ pub fn set_up_race(vars: &NetVars) -> Result<(), Refused> {
     race.shared.view.players.set(1);
     race.shared.switches.editor_mode.set(0);
     crate::net::reset_cars::reset_cars()?;
-    crate::race::race_cars::set_up_arcade_cars()?;
+    crate::race::race_cars::set_up_arcade_cars(race)?;
     crate::race::race_shell::set_start_states()?;
     // Each stored block's gearbox kind and start slot value, from the race's tables.
     for (car, colours) in CAR_BLOCKS.cars[..8]
@@ -99,7 +98,7 @@ pub fn set_up_race(vars: &NetVars) -> Result<(), Refused> {
         };
         log_int_nl(value, 1);
     }
-    { crate::race::stage_loading::load_stage() }?;
+    { crate::race::stage_loading::load_stage(race) }?;
     log_bytes(COMPLETE.to_bytes(), true, 1);
     log_bytes(RULE_2.to_bytes(), true, 1);
     Ok(())

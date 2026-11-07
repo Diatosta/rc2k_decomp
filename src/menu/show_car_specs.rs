@@ -15,7 +15,7 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 /// The Rust version.
-pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
+pub fn show_car_specs(menus: &'static Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::cars::specs_list`.
     use rc2k_core::menu::cars::{SpecsList, specs_list};
     let kind: u32 = menus.screens.event.event_type.get();
@@ -33,13 +33,13 @@ pub fn show_car_specs(menus: &Menus) -> Result<(), Refused> {
     };
     let screen = &crate::menu::car_specs_47af4c_loop::SCREEN;
     if !choice {
-        { run_screen(screen, &Entry { cars: Some(cars) }) }?;
+        { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
         return Ok(());
     }
     if let Some(cheat) = crate::menu::cheat_car_list::cheat_car_list() {
         cars = cheat;
     }
-    { run_screen(screen, &Entry { cars: Some(cars) }) }?;
+    { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
     if { menus.tables.captions.screen_left.get() } != 1 {
         crate::menu::take_shown_car::take_shown_car(Some(cars))?;
     }

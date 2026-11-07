@@ -30,7 +30,7 @@ pub struct Shown {
 /// The Rust version (see the header).
 pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
     let frame = &race.frame;
-    let (locked, kept) = crate::scene::lock_frame::lock_frame();
+    let (locked, kept) = crate::scene::lock_frame::lock_frame(race);
     if locked < 1 {
         return Ok(Shown {
             lost: true,

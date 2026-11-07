@@ -16,13 +16,13 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 /// The Rust version.
-pub fn arcade_level_end(menus: &Menus) -> Result<(), Refused> {
+pub fn arcade_level_end(menus: &'static Menus) -> Result<(), Refused> {
     let play = &menus.play;
     // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};
     if !won(play.results.positions[0].get()) {
         crate::sound::play_tune_7::play_tune_7();
-        run_screen(&crate::menu::screen_488f4c_loop::SCREEN, &Entry::default())?;
+        run_screen(&crate::menu::screen_488f4c_loop::SCREEN, &Entry::new(menus))?;
         play.arcade.retry.set(1u32);
         return Ok(());
     }
@@ -31,9 +31,7 @@ pub fn arcade_level_end(menus: &Menus) -> Result<(), Refused> {
     crate::menu::arcade_finale::arcade_finale(&menus.play)?;
     if first_win(play.arcade.levels_won.get(level as usize)) {
         play.arcade.levels_won.set(level as usize, 1);
-        let shown = Entry {
-            cars: Some(CarList::Shown),
-        };
+        let shown = Entry::with_cars(menus, Some(CarList::Shown));
         run_screen(&crate::menu::car_specs_47af4c_loop::SCREEN, &shown)?;
         crate::menu::arcade_steps::add_shown_car(menus)?;
         crate::menu::arcade_steps::remove_shown_car(menus, &mut || {

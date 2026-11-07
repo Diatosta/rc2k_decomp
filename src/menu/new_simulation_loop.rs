@@ -11,7 +11,6 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, screen_entry,
@@ -20,16 +19,16 @@ use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(_: &Entry) -> Result<(), Refused> {
-    let screens = &menus().screens;
+fn before(entry: &Entry) -> Result<(), Refused> {
+    let screens = &entry.menus.screens;
     screens.items.current[slot::NEW_SIMULATION]
         .set(screens.items.first[slot::NEW_SIMULATION].get());
     screens.event.event_done.set(0x0u32);
     Ok(())
 }
 
-fn set_up_first(_: &Entry) -> Result<(), Refused> {
-    let screens = &menus().screens;
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
+    let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x2u32);
     carousel(None)?;

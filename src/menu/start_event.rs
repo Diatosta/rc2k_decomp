@@ -52,7 +52,12 @@ impl starters::Event for Game {
             C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
             C::SelectCar(list) => {
                 self.cars = Some(list);
-                { run_screen(&m::select_car_loop::SCREEN, &Entry { cars: self.cars }) }?;
+                {
+                    run_screen(
+                        &m::select_car_loop::SCREEN,
+                        &Entry::with_cars(crate::menu::owner::menus(), self.cars),
+                    )
+                }?;
             }
             C::TakeShownCar => m::take_shown_car::take_shown_car(self.cars)?,
             C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,

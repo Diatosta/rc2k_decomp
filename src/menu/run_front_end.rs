@@ -41,7 +41,7 @@ pub fn run_front_end() -> Result<(), Refused> {
     // The films, with eax 0 (the game's start).
     crate::menu::play_films::play_films(false)?;
     crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
-    run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::default())?;
+    run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::new(menus()))?;
     crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
     crate::menu::store_player_names::store_player_names(play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);

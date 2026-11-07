@@ -35,7 +35,7 @@ pub fn best_overall_scores() -> Result<(), Refused> {
     if screens.event.any_time_qualified.get() == 1 {
         run_screen(
             &crate::menu::best_overall_scores_loop::SCREEN,
-            &Entry::default(),
+            &Entry::new(menus()),
         )?;
     }
     Ok(())

@@ -12,7 +12,6 @@
 //! Callers: `sub_4A0E60`, `sub_4AA4D7`.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene,
@@ -21,10 +20,10 @@ use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(_: &Entry) -> Result<(), Refused> {
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let screens = &menus().screens;
-    Callee::NoOp.run()?;
+    let screens = &entry.menus.screens;
+    Callee::NoOp.run(entry.menus)?;
     screens.loop_flags.ended_a.set(0x0u32);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xAu32);

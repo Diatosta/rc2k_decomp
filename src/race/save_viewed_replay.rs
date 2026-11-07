@@ -115,14 +115,14 @@ fn save(race: &Race, slot: u32) -> Result<bool, Refused> {
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .from_file
                 .get(),
-            crate::race::replay::block_place(2 * block as usize)? as i32,
+            crate::race::replay::block_place(race, 2 * block as usize)? as i32,
             0,
         );
         crate::drive::read_packed::read_packed(
             crate::race::viewer_buffers_store::VIEWER_BUFFERS
                 .from_file
                 .get(),
-            crate::race::replay::block_place(2 * block as usize + 1)?,
+            crate::race::replay::block_place(race, 2 * block as usize + 1)?,
         )?;
         move_cells(
             &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block,

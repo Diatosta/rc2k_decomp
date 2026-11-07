@@ -13,7 +13,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, log_line, screen_entry,
@@ -21,8 +20,8 @@ use crate::menu::screen_loop::{
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(_: &Entry) -> Result<(), Refused> {
-    let screens = &menus().screens;
+fn before(entry: &Entry) -> Result<(), Refused> {
+    let screens = &entry.menus.screens;
     screens.items.current[slot::VIEW_BEST_SCORES]
         .set(screens.items.first[slot::VIEW_BEST_SCORES].get());
     Ok(())

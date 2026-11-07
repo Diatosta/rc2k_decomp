@@ -102,7 +102,7 @@ pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
     view(race, mode)?;
     // The end (0x41D436).
     crate::race::close_viewed_replay::close_viewed_replay(&race.shared)?;
-    crate::race::viewer_tidy_stage::viewer_tidy_stage(&race.shared)?;
+    crate::race::viewer_tidy_stage::viewer_tidy_stage(race)?;
     race.shared.replay_file.viewer_stopped.set(0);
     race.shared.replay_file.hold_car_revs.set(0);
     Ok(())
@@ -146,7 +146,7 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         .last_race_viewed
         .set((slot == LAST_RACE) as u32);
     find_snapshot_number::find_snapshot_number(&race.replay)?;
-    viewer_load_stage::viewer_load_stage(&race.shared)?;
+    viewer_load_stage::viewer_load_stage(race)?;
     let list = ListMenu::of(crate::pointers::GamePtr::to(
         &replay.replay_view.viewer_list,
     ));

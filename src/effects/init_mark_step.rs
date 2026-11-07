@@ -21,10 +21,10 @@ use crate::errors::Refused;
 use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
+use crate::race::owner::Race;
 /// The Rust version (see the header).
 // Converted: `rc2k_core::effects::race::{check_cars, kind_row, car_fields}`
-pub fn init_mark_step(effects: &Effects) -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+pub fn init_mark_step(race: &Race, effects: &Effects) -> Result<(), Refused> {
     use rc2k_core::effects::race;
     {
         // In a network race `g_players` is 1 but this machine's car may be any: every car's

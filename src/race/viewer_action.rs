@@ -283,12 +283,12 @@ fn another_replay(race: &Race) -> Result<(), Refused> {
     if replay.replay_view.last_race_viewed.get() == 1 {
         return Ok(());
     }
-    crate::race::viewer_tidy_stage::viewer_tidy_stage(&race.shared)?;
+    crate::race::viewer_tidy_stage::viewer_tidy_stage(race)?;
     loop {
         let slot = crate::menu::replay_slot_loop::replay_slot_loop(false)?;
         if slot == u32::MAX {
             if shared.replay_file.replay_open.get() == 1 {
-                return crate::race::viewer_load_stage::viewer_load_stage(&race.shared);
+                return crate::race::viewer_load_stage::viewer_load_stage(race);
             }
             crate::install::owner::install().pages.list_leave.set(1);
             return Ok(());
@@ -297,7 +297,7 @@ fn another_replay(race: &Race) -> Result<(), Refused> {
         crate::race::close_viewed_replay::close_viewed_replay(&race.shared)?;
         let failed = crate::race::open_viewed_replay::open_viewed_replay(race, slot)?;
         if !failed {
-            return crate::race::viewer_load_stage::viewer_load_stage(&race.shared);
+            return crate::race::viewer_load_stage::viewer_load_stage(race);
         }
     }
 }
@@ -312,7 +312,7 @@ fn save(race: &Race, back: bool) -> Result<(), Refused> {
     let slot = if back && shared.replay_file.viewer_slot.get() < 100 {
         shared.replay_file.viewer_slot.get()
     } else {
-        let slot = crate::race::choose_save_slot::choose_save_slot(&race.shared)?;
+        let slot = crate::race::choose_save_slot::choose_save_slot(race)?;
         if slot == u32::MAX {
             return Ok(());
         }

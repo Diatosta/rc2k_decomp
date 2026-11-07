@@ -11,7 +11,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene, screen_entry,
@@ -20,9 +19,9 @@ use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(_: &Entry) -> Result<(), Refused> {
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let menus = menus();
+    let menus = entry.menus;
     crate::strings::units::set_units(menus.play.players.players[0].get().metric_units); // g_isImperialUnits
     drawing.scene.view_offset[0].set(0xFFFFFF64u32);
     drawing.scene.view_offset[1].set(0x27u32);

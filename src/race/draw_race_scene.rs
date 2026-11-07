@@ -33,8 +33,7 @@
 //! `g_slotWantedTextures`' 0x400; then what its steps refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
@@ -259,7 +258,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     crate::race::skid_laying::lay_skidmarks_if_on(race)?;
     crate::race::name_plates::update_name_plates(race)?;
     if race.course.numbers.replay_mode.bits() != 2 {
-        crate::drive::tyre_change_screen::tyre_change_screen()?;
+        crate::drive::tyre_change_screen::tyre_change_screen(race)?;
     }
     Ok(())
 }

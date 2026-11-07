@@ -6,7 +6,7 @@
 use crate::errors::Refused;
 use crate::menu::owner::menus;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// "------", "SHAUNINITEVERYTHING - START", ": loading screen / ..", ": loadlevel_init",
 /// ": doingamemusic", ": createcontrols", ": race init", "- FINIS", "------".
@@ -31,8 +31,7 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// +0xFB4 3 and +0xFB0 8, `LAST_STARTS`); "FINIS", a rule, a line break. The registers
 /// and flags it leaves (eax the clock, carry clear) are read by none of its seven callers
 /// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
-pub fn load_stage() -> Result<(), Refused> {
-    let race = race();
+pub fn load_stage(race: &Race) -> Result<(), Refused> {
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
             .atomic()
@@ -88,7 +87,7 @@ pub fn load_stage() -> Result<(), Refused> {
     indent(-3);
     log();
     indent(3);
-    crate::drive::race_init::race_init()?;
+    crate::drive::race_init::race_init(race)?;
     crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
     let clock: u32 = race.shared.physics_tables.scene_clock.bits();
     race.frame.clock_ticks.clock_b.set(clock);

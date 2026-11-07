@@ -54,7 +54,7 @@ pub fn inspection_pass() -> Result<(), Refused> {
         crate::menu::fade_in::fade_in(screens)?;
         run_screen(
             &crate::menu::inspection_area_loop::SCREEN,
-            &Entry::default(),
+            &Entry::new(menus),
         )?;
         if menus.tables.pages.yes_no_answer.get() == 1 {
             return Ok(());

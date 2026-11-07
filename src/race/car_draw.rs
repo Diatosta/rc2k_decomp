@@ -436,7 +436,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
             .wrapping_add(0x50),
     );
     car_body_matrix(&race.frame);
-    crate::race::frame_draw::start_kept_reflections(&race.physics)?;
+    crate::race::frame_draw::start_kept_reflections(race, &race.physics)?;
     crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(&race.frame)))?;
     crate::race::frame_draw::end_kept_reflections(&race.shared);
     scene.lights.work.light_kind_extra.set(1);

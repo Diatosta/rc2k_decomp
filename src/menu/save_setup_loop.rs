@@ -12,7 +12,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, prepare_scene, screen_entry,
@@ -34,10 +33,10 @@ fn prepare(_: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-fn each_frame(_: &Entry) -> Result<Flow, Refused> {
-    let screens = &menus().screens;
+fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
+    let screens = &entry.menus.screens;
     if screens.option_work.typing.get() == 0x1 {
-        Callee::EditSetupName.run()?;
+        Callee::EditSetupName.run(entry.menus)?;
         if screens.option_work.typing.get() != 0x0 {
             return Ok(Flow::NextFrame);
         }

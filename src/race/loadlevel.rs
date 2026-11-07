@@ -8,8 +8,7 @@
 use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::owner::scene;
@@ -224,7 +223,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
     let effects = effects();
-    crate::effects::init_mark_step::init_mark_step(effects)?;
+    crate::effects::init_mark_step::init_mark_step(race, effects)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.progress(0x5E)?;
     s.indent(-3);

@@ -93,7 +93,7 @@ fn frame(race: &Race) -> Result<(), Refused> {
         shared.switches.editor_mode.set_bits(framed);
         crate::race::loading_bar_quad::loading_bar_quad(race)?;
         end_scene::end_scene();
-        if lock_frame::lock_frame().0 < 1 {
+        if lock_frame::lock_frame(race).0 < 1 {
             break 'frame false;
         }
         unlock_frame::unlock_frame();

@@ -129,7 +129,7 @@ impl Game {
     /// A screen, entered with the car list handed (the only value a screen reads from its
     /// caller).
     fn screen(&self, screen: &Screen) -> Result<(), Refused> {
-        { run_screen(screen, &Entry { cars: self.cars }) }?;
+        { run_screen(screen, &Entry::with_cars(menus(), self.cars)) }?;
         Ok(())
     }
 }

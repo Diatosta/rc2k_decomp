@@ -6,7 +6,6 @@ use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_shared::Shared;
 use crate::race::replay_work_store::REPLAY_WORK;
 
@@ -294,8 +293,7 @@ pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
 /// `tidy_stage`, the sounds (then `dword_63DB74` and `dword_63DB78` 1); "finis", a rule, a
 /// line break. Reads no register; of what it leaves its callers read only esi, which it
 /// keeps (taint at all six sites: 0 reads of the rest).
-pub fn tidy_everything() -> Result<(), Refused> {
-    let race = race();
+pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let s = Tidy;
     s.newline();
@@ -344,16 +342,16 @@ pub fn run_race(race: &Race) -> Result<(), Refused> {
     race.shared.switches.editor_mode.set(0u32);
     race.course.numbers.replay_mode.set_bits(1u32);
     crate::race::settings_copy::copy_settings_in()?;
-    crate::race::race_cars::set_up_arcade_cars()?;
+    crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.settings_words[1].set(1u32);
     crate::race::race_shell::set_start_states()?;
-    crate::race::stage_loading::load_stage()?;
+    crate::race::stage_loading::load_stage(race)?;
     record_replay_header();
     crate::race::replay::open_replay()?;
     race.shared.view.after_credits.set(0u32);
-    crate::drive::play_race::play_race()?;
+    crate::drive::play_race::play_race(race)?;
     crate::race::replay::close_replay()?;
-    tidy_everything()?;
+    tidy_everything(race)?;
     crate::race::settings_copy::copy_settings_out(&race.replay)?;
     Ok(())
 }

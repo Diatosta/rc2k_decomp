@@ -11,7 +11,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, log_line, prepare_scene,
@@ -21,9 +20,9 @@ use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_up_first(_: &Entry) -> Result<(), Refused> {
+fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let screens = &menus().screens;
+    let screens = &entry.menus.screens;
     // Between `pusha` and `popa`: no register changes.
     log_line(c"InfoScr: Start");
     drawing.scene.view_offset[0].set(0xFFFFFF64u32);

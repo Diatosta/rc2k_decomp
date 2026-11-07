@@ -13,7 +13,6 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, screen_entry,
@@ -21,14 +20,14 @@ use crate::menu::screen_loop::{
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn each_frame(_: &Entry) -> Result<Flow, Refused> {
-    let screens = &menus().screens;
+fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
+    let screens = &entry.menus.screens;
     if screens.option_work.typing.get() == 0x1 {
-        Callee::EditPlayerName.run()?;
+        Callee::EditPlayerName.run(entry.menus)?;
         if screens.option_work.typing.get() != 0x0 {
             return Ok(Flow::NextFrame);
         }
-        Callee::CheckCheatName.run()?;
+        Callee::CheckCheatName.run(entry.menus)?;
     }
     Ok(Flow::On)
 }

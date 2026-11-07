@@ -14,7 +14,7 @@ pub fn replay_item_a() -> Result<(), Refused> {
     if race.shared.state.settings.no_replay.get() != 1
         && race.shared.replay_file.replay_closed.get() == 1
     {
-        return crate::race::replay_mode::replay_mode(Mode::LastRace);
+        return crate::race::replay_mode::replay_mode(race, Mode::LastRace);
     }
     crate::system::sleep::sleep(500);
     crate::sound::play_menu_sound::play_menu_sound_in_game(8);
@@ -24,12 +24,12 @@ pub fn replay_item_a() -> Result<(), Refused> {
 /// `menu::replay_item_b` (0x47052F): unless `dword_75ACDC` is 1, `race::replay_mode_3`.
 pub fn replay_item_b() -> Result<(), Refused> {
     if race().shared.state.settings.no_replay.get() != 1 {
-        crate::race::replay_mode::replay_mode(Mode::SaveLast)?;
+        crate::race::replay_mode::replay_mode(race(), Mode::SaveLast)?;
     }
     Ok(())
 }
 
 /// `menu::replay_item_c` (0x470529): the viewer's mode 2 (a 6-byte stub in the original).
 pub fn replay_item_c() -> Result<(), Refused> {
-    crate::race::replay_mode_2::replay_mode_2()
+    crate::race::replay_mode_2::replay_mode_2(race())
 }

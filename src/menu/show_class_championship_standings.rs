@@ -17,7 +17,7 @@ use rc2k_core::menu::results_pages::{Page, held_figure};
 // g_eventMode
 
 /// The Rust version (see the header).
-pub fn show_class_championship_standings(menus: &Menus, class: u32) -> Result<(), Refused> {
+pub fn show_class_championship_standings(menus: &'static Menus, class: u32) -> Result<(), Refused> {
     menus.screens.event.class.set(class);
     let found = crate::menu::first_player_b::first_player_b(class)?;
     // Converted: `rc2k_core::menu::results_pages::held_figure`.
@@ -27,7 +27,7 @@ pub fn show_class_championship_standings(menus: &Menus, class: u32) -> Result<()
     crate::menu::stage_range_caption::stage_range_caption(&menus.play)?;
     run_screen(
         &crate::menu::class_championship_standings_loop::SCREEN,
-        &Entry::default(),
+        &Entry::new(menus),
     )?;
     Ok(())
 }

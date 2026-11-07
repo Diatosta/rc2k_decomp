@@ -71,7 +71,7 @@ pub fn steps(race: &Race, number: u32) -> Result<(), Refused> {
             "a face's dword",
         )?)
     };
-    if crate::scene::kind_hidden_at::kind_hidden_at(face)? {
+    if crate::scene::kind_hidden_at::kind_hidden_at(race, face)? {
         return Ok(());
     }
     let mut refused = None;

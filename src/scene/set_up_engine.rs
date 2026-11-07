@@ -17,5 +17,5 @@ use crate::scene::fill_engine_tables::fill_engine_tables;
 pub fn set_up_engine() -> Result<(), Refused> {
     let race = race();
     fill_engine_tables(race);
-    crate::physics::test_drive::test_drive()
+    crate::physics::test_drive::test_drive(race)
 }

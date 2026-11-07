@@ -64,10 +64,13 @@ pub fn view_stage_details(screens: &Screens) -> Result<(), Refused> {
     if time_trial {
         run_screen(
             &crate::menu::time_trial_stage_details_loop::SCREEN,
-            &Entry::default(),
+            &Entry::new(crate::menu::owner::menus()),
         )?;
     } else {
-        run_screen(&crate::menu::view_stage_loop::SCREEN, &Entry::default())?;
+        run_screen(
+            &crate::menu::view_stage_loop::SCREEN,
+            &Entry::new(crate::menu::owner::menus()),
+        )?;
     }
     Ok(())
 }

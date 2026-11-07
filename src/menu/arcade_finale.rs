@@ -50,7 +50,7 @@ pub fn arcade_finale(play: &Play) -> Result<(), Refused> {
     crate::race::stage_free::objects_tidy()?;
     // `nullsub_6`.
     crate::race::race_end::release_textures();
-    crate::drive::finish_race_0::finish_race_0()?;
+    crate::drive::finish_race_0::finish_race_0(race)?;
     crate::sound::stop_music::stop_music();
     crate::platform::set_menu_mode_now();
     crate::menu::show_loading_picture::show_loading_picture()?;

@@ -16,37 +16,38 @@
 //! `set_menu_screen_mode` (attrib), whose Rust versions read none.
 
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner::Race;
 
 use crate::gfx::owner::gfx;
 
 /// The Rust version. `set_up_engine` and `set_up_front_end_scene` run on a scratch
 /// register set (they read none of the caller's: attrib finds only esi read at entry).
-pub fn viewer_tidy_stage(shared: &Shared) -> Result<(), Refused> {
+pub fn viewer_tidy_stage(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::viewer_flow::{tidies, TIDY_FIRST, frees_fonts,
     // TIDY_AFTER}` (the fonts' switch read after the first steps, as the original).
     use rc2k_core::race::viewer_flow::{TIDY_AFTER, TIDY_FIRST, TidyStep, frees_fonts, tidies};
     if tidies(shared.replay_file.viewer_stage_loaded.get()) {
         shared.replay_file.viewer_stage_loaded.set(0);
         for step in TIDY_FIRST {
-            run(step)?;
+            run(race, step)?;
         }
         if frees_fonts(shared.replay_file.viewer_fonts_built.get()) {
-            run(TidyStep::FreeFonts)?;
+            run(race, TidyStep::FreeFonts)?;
         }
         for step in TIDY_AFTER {
-            run(step)?;
+            run(race, step)?;
         }
     }
-    run(TidyStep::TakeKey)
+    run(race, TidyStep::TakeKey)
 }
 
-fn run(step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
+fn run(race: &Race, step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
     let fonts = &gfx().fonts;
     use crate::race::{race_end, sound_tables};
     use rc2k_core::race::viewer_flow::TidyStep;
     match step {
-        TidyStep::TidyEverything => race_end::tidy_everything()?,
+        TidyStep::TidyEverything => race_end::tidy_everything(race)?,
         TidyStep::MenuScreenMode => {
             crate::platform::set_menu_mode_now();
         }

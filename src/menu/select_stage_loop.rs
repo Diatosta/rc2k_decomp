@@ -14,15 +14,14 @@
 //! reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, Flow, FrameRoutine, List, Screen, Step};
 use crate::net::owner::net;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
-    let tables = &menus().tables;
+fn after_first_frame(entry: &Entry) -> Result<Flow, Refused> {
+    let tables = &entry.menus.tables;
     if tables.captions.screen_left.get() == 0x1 {
         tables.captions.screen_left.set(0x0u32);
         return Ok(Flow::SetUp);

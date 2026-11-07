@@ -21,7 +21,7 @@ use crate::drive::share_car_state::share_car_state;
 use crate::errors::{BadInput, Refused};
 use crate::race::marks_settings_store::{MARKS_SETTINGS, MarkCar};
 use crate::race::mud::car_file_number;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use rc2k_core::drive::sharing;
 
@@ -62,8 +62,7 @@ fn refusal(shared: &Shared) -> Result<Option<&'static str>, BadInput> {
 /// The Rust version. The registers it leaves are read by no caller (liveness: no read
 /// point after `drive::race_init`'s or `race::run_view_marks`' call).
 // Converted: `rc2k_core::drive::sharing::{check_light_record, cars_shown}`.
-pub fn share_all_cars() -> Result<(), Refused> {
-    let race = race();
+pub fn share_all_cars(race: &Race) -> Result<(), Refused> {
     if let Some(why) = refusal(&race.shared)? {
         return Err(BadInput(why).into());
     }

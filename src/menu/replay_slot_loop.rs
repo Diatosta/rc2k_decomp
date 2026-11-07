@@ -20,7 +20,7 @@ pub fn replay_slot_loop(saving: bool) -> Result<u32, Refused> {
     } else {
         &crate::menu::load_replay_loop::SCREEN
     };
-    let slot = { run_screen(screen, &Entry::default()) }?;
+    let slot = { run_screen(screen, &Entry::new(crate::menu::owner::menus())) }?;
     // Both screens leave the slot in eax (their `result`).
     Ok(slot.ok_or(BadInput("a replay slot screen without its result"))?)
 }

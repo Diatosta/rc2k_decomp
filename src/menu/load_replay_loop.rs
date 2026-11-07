@@ -14,14 +14,13 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn before(_: &Entry) -> Result<(), Refused> {
-    let screens = &menus().screens;
+fn before(entry: &Entry) -> Result<(), Refused> {
+    let screens = &entry.menus.screens;
     screens.items.current[slot::LOAD_REPLAY].set(screens.items.first[slot::LOAD_REPLAY].get());
     screens.draw_work.escaped.set(0x0u32);
     Ok(())

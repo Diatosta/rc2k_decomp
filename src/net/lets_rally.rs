@@ -21,14 +21,13 @@
 use crate::errors::Refused;
 use crate::net::lobby::{log, run_frame};
 use crate::net::owner::Net;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use rc2k_core::net::record;
 
 /// The Rust version: true when the original ends with the carry set (no player but the
 /// host, Escape, or the car not finished: the link ends).
-pub fn lets_rally(net: &Net) -> Result<bool, Refused> {
-    let race = race();
+pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     use crate::race::sound_tables;
     log(VIEWER_PANEL.text_ptr(texts::NET_LETS_RALLY), true, 2);
     net.vars.racing.set(1);
@@ -54,7 +53,7 @@ pub fn lets_rally(net: &Net) -> Result<bool, Refused> {
     crate::menu::show_loading_picture::show_loading_picture()?;
     sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
     crate::sound::set_up_race_sounds::set_up_race_sounds()?;
-    crate::net::set_up_race::set_up_race(&net.vars)?;
+    crate::net::set_up_race::set_up_race(race, &net.vars)?;
     let tick = crate::system::tick_count::tick_count();
     net.vars.clock_a.set(tick);
     net.vars.sync_clock.set(tick);
@@ -70,10 +69,10 @@ pub fn lets_rally(net: &Net) -> Result<bool, Refused> {
         if crate::net::race_wait::race_wait(net)? != 0 {
             crate::gfx::clear_front_surface::clear_front_surface()?;
             crate::net::copy_received::copy_received(&net.vars)?;
-            break crate::net::lets_race::lets_race(&net.vars)?;
+            break crate::net::lets_race::lets_race(race, &net.vars)?;
         }
     };
-    crate::race::race_end::tidy_everything()?;
+    crate::race::race_end::tidy_everything(race)?;
     crate::sound::stop_music::stop_music();
     crate::platform::set_menu_mode_now();
     crate::menu::show_loading_picture::show_loading_picture()?;

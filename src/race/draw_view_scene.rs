@@ -54,7 +54,7 @@ pub fn draw_view_scene(race: &Race) -> Result<(), Refused> {
     }
     race_sound_tick(&race.frame)?; // 0x14
     car_light_modes(race)?;
-    clear_point_records()?;
+    clear_point_records(race)?;
     set_up_fog(race)?;
     camera_view(race)?;
     draw_sky(race)?;

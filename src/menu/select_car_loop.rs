@@ -7,7 +7,6 @@
 //! first on leaving.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, quitting,
@@ -18,7 +17,7 @@ use crate::scene::owner::scene;
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let drawing = &scene().drawing;
-    let menus = menus();
+    let menus = entry.menus;
     let screens = &menus.screens;
     // The current player's +0x30 (its car).
     let current: u32 = screens.event.current_player.get();
@@ -50,9 +49,9 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
     Ok(Flow::On)
 }
 
-fn leaving(_: &Entry) -> Result<(), Refused> {
-    if menus().tables.captions.screen_left.get() == 0x1 {
-        Callee::GoBack.run()?;
+fn leaving(entry: &Entry) -> Result<(), Refused> {
+    if entry.menus.tables.captions.screen_left.get() == 0x1 {
+        Callee::GoBack.run(entry.menus)?;
     }
     Ok(())
 }

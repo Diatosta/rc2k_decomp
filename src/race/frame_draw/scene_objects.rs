@@ -6,8 +6,7 @@ use crate::pointers::GamePtr;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::SceneMatrices;
-use crate::race::owner::Race;
-use crate::race::owner::race;
+use crate::race::owner::{Race, race};
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::Shared;
@@ -17,12 +16,12 @@ use crate::scene::polygon_store::POLYGON_WORK;
 
 /// `race::start_kept_reflections` (0x451864): the 0x400 kept reflection normals cleared to
 /// -999 (0xFFFFFC19) and `g_reflectionsKept` 1.
-pub fn start_kept_reflections(physics: &Physics) -> Result<(), BadInput> {
+pub fn start_kept_reflections(race: &Race, physics: &Physics) -> Result<(), BadInput> {
     {
         for cell in &physics.ground.kept_reflections[..0x400] {
             cell.set(0xFFFF_FC19);
         }
-        race().shared.view.reflections_kept.set_bits(1u32);
+        race.shared.view.reflections_kept.set_bits(1u32);
     }
     Ok(())
 }
@@ -102,7 +101,7 @@ pub fn draw_slot_object(
         &race.frame.matrices.view_turn_matrix,
         &race.frame.matrices.made_object_matrix,
     );
-    start_kept_reflections(&race.physics)?;
+    start_kept_reflections(race, &race.physics)?;
     // esi `g_turnedMatrix`, as the matrices' calls leave it.
     crate::scene::draw_scene_object::draw_scene_object_in_game(Some(matrices_at(
         &race.frame,

@@ -43,7 +43,7 @@ pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
     race.physics.split_tables.still.set(1);
     race.frame.frame_work.still_2.set(1);
     load_frame(&race.replay);
-    load_replay_cars::load_replay_cars();
+    load_replay_cars::load_replay_cars(race);
     replay_cameras::replay_cameras()?;
     for step in 0..g(&race.replay.replay_view.replay_frame) {
         race.replay.replay_frames.step_frame.set(step);
@@ -58,7 +58,7 @@ pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
         crate::race::step_replay_cars::step_replay_cars(&race.shared)?;
         race.replay.replay_frames.step_first.set(0);
         load_frame(&race.replay);
-        load_replay_cars::load_replay_cars();
+        load_replay_cars::load_replay_cars(race);
     }
     race.shared.work.current_car.set(0);
     loop {

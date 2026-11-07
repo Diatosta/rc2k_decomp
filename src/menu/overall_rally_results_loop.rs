@@ -15,7 +15,6 @@
 //! Callers: `sub_4A3BA2` and the code at 0x4A9572.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
@@ -23,8 +22,8 @@ use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
-fn set_first_item(_: &Entry) -> Result<(), Refused> {
-    let menus = menus();
+fn set_first_item(entry: &Entry) -> Result<(), Refused> {
+    let menus = entry.menus;
     let title = if menus.screens.state.menus.which_title.get() == 1 {
         0x138
     } else {
