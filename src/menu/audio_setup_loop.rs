@@ -25,57 +25,57 @@ fn before(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.audio_setup.id(),
-    saved_item: || &menus().screens.items.current[slot::AUDIO_SETUP],
+    menu: |m| m.tables.menus.audio_setup.id(),
+    saved_item: |m| &m.screens.items.current[slot::AUDIO_SETUP],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.unread_list, // g_unreadList
-            table: || menus().tables.draw_lists.unread_758b72.id(),
+            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            table: |m| m.tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.draw_758c8e.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758c8e.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.overlay_7591d6.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_7591d6.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.audio_setup_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.audio_setup_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.draw_758c8e.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758c8e.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.overlay_7591d6.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_7591d6.id(),
             run: false,
         },
     ]),
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[Step::Do(before)],
-    set_up_first: &[Step::Write(|| &menus().screens.flow.quiet, 0x1)],
+    set_up_first: &[Step::Write(|m| &m.screens.flow.quiet, 0x1)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.audio_setup_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.audio_setup_picture
     }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(|| &menus().screens.flow.quiet, 0x0)],
+    after: &[Step::Write(|m| &m.screens.flow.quiet, 0x0)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

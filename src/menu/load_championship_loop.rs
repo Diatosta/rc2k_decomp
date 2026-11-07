@@ -29,44 +29,44 @@ fn before(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.load_championship.id(),
-    saved_item: || &menus().screens.items.current[slot::LOAD_CHAMPIONSHIP],
+    menu: |m| m.tables.menus.load_championship.id(),
+    saved_item: |m| &m.screens.items.current[slot::LOAD_CHAMPIONSHIP],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.unread_list, // g_unreadList
-            table: || menus().tables.draw_lists.unread_758b72.id(),
+            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            table: |m| m.tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.draw_758ba6.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758ba6.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.setup_list, // dword_755500
-            table: || menus().tables.draw_lists.load_championship_setup.id(),
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.load_championship_setup.id(),
             run: true,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.overlay_759146.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_759146.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.load_championship_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.load_championship_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.draw_758ba6.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758ba6.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.overlay_759146.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_759146.id(),
             run: false,
         },
     ]),
@@ -76,15 +76,15 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.load_championship_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.load_championship_picture
     }))],
     after_first_frame: &[],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(|| &menus().tables.captions.screen_left, 0x0)],
+    after: &[Step::Write(|m| &m.tables.captions.screen_left, 0x0)],
     escape_leaves: true,
     each_frame: &[],
     short_action_check: false,

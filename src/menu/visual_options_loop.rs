@@ -9,29 +9,28 @@
 //! A reading from the title string of its menu, not yet a visit: "OPÇÕES VISUAIS".
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.visual_options.id(),
-    saved_item: || &menus().screens.items.current[slot::VISUAL_OPTIONS],
+    menu: |m| m.tables.menus.visual_options.id(),
+    saved_item: |m| &m.screens.items.current[slot::VISUAL_OPTIONS],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.visual_options_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.visual_options_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.visual_options_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.visual_options_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.visual_options_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.visual_options_overlay.id(),
             run: false,
         },
     ],
@@ -42,8 +41,8 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.visual_options_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.visual_options_picture
     }))],
     after_first_frame: &[],
     confirm: None,

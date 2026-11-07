@@ -33,58 +33,58 @@ fn each_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.player1_details.id(),
-    saved_item: || &menus().screens.items.current[slot::PLAYER1_DETAILS],
+    menu: |m| m.tables.menus.player1_details.id(),
+    saved_item: |m| &m.screens.items.current[slot::PLAYER1_DETAILS],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.unread_list, // g_unreadList
-            table: || menus().tables.draw_lists.unread_758b72.id(),
+            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            table: |m| m.tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.draw_758cba.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758cba.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.overlay_7591ea.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_7591ea.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.player1_details_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.player1_details_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.draw_758cba.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758cba.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.overlay_7591ea.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_7591ea.id(),
             run: false,
         },
     ]),
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[
-        Step::Write(|| &menus().screens.event.event_done, 0x0),
-        Step::Write(|| &menus().screens.event.current_player, 0x0),
+        Step::Write(|m| &m.screens.event.event_done, 0x0),
+        Step::Write(|m| &m.screens.event.current_player, 0x0),
     ],
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::Write(|| &menus().screens.event.clears_escape_flag, 0x1),
-        Step::Call(Callee::LoadBackground(|| {
-            &menus().tables.texts.player1_details_picture
+        Step::Write(|m| &m.screens.event.clears_escape_flag, 0x1),
+        Step::Call(Callee::LoadBackground(|m| {
+            &m.tables.texts.player1_details_picture
         })),
     ],
-    after_first_frame: &[Step::Write(|| &menus().screens.event.current_player, 0x0)],
+    after_first_frame: &[Step::Write(|m| &m.screens.event.current_player, 0x0)],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],

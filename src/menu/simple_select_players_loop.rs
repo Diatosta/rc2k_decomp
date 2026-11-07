@@ -51,44 +51,41 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.simple_select_players.id(),
-    saved_item: || &menus().screens.items.current[slot::SIMPLE_SELECT_PLAYERS],
+    menu: |m| m.tables.menus.simple_select_players.id(),
+    saved_item: |m| &m.screens.items.current[slot::SIMPLE_SELECT_PLAYERS],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.simple_select_players_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.simple_select_players_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.simple_select_players_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.simple_select_players_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.simple_select_players_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.simple_select_players_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &menus().screens.event.event_done, 0x0)],
+    before: &[Step::Write(|m| &m.screens.event.event_done, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.simple_select_players_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.simple_select_players_picture
     }))],
     after_first_frame: &[Step::DoFlow(after_first_frame)],
     confirm: None,
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(
-        || &menus().screens.option_work.menu_sound,
-        0x6F,
-    )],
+    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

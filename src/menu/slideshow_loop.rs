@@ -8,34 +8,33 @@
 //! The name is a reading from the title string of its menu, "SLIDESHOW", not yet a visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
 //! (`menu::table_calls`); the registers above are the original's, for reference.
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step, screen_entry};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.slideshow.id(),
-    saved_item: || &menus().screens.items.current[slot::SLIDESHOW],
+    menu: |m| m.tables.menus.slideshow.id(),
+    saved_item: |m| &m.screens.items.current[slot::SLIDESHOW],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.slideshow_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.slideshow_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.slideshow_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.slideshow_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.setup_list, // dword_755500
-            table: || menus().tables.draw_lists.slideshow_setup.id(),
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.slideshow_setup.id(),
             run: true,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.slideshow_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.slideshow_overlay.id(),
             run: false,
         },
     ],

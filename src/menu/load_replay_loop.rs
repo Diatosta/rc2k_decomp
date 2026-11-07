@@ -13,6 +13,7 @@
 //! Callers: `sub_46F786`.
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, Entry, FrameRoutine, List, Screen, Step};
@@ -29,8 +30,7 @@ fn before(_: &Entry) -> Result<(), Refused> {
 /// What the loop returns in eax, written by hand from the end of the listing (after the
 /// `popa`): -1 if the highlight is on item 0x16 or `dword_758806` is 1, else the replay's
 /// number, `dword_755248` * 20 + the highlighted item - 1.
-fn result() -> u32 {
-    let menus = menus();
+fn result(menus: &Menus) -> u32 {
     let item: u32 = menus.screens.loop_flags.item.get();
     if item == 0x16 || menus.tables.captions.screen_left.get() == 1 {
         return 0xFFFF_FFFF;
@@ -46,44 +46,44 @@ fn result() -> u32 {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.load_replay.id(),
-    saved_item: || &menus().screens.items.current[slot::LOAD_REPLAY],
+    menu: |m| m.tables.menus.load_replay.id(),
+    saved_item: |m| &m.screens.items.current[slot::LOAD_REPLAY],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.unread_list, // g_unreadList
-            table: || menus().tables.draw_lists.unread_758b72.id(),
+            pointer: |m| &m.screens.flow.unread_list, // g_unreadList
+            table: |m| m.tables.draw_lists.unread_758b72.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.draw_758bd6.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758bd6.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.setup_list, // dword_755500
-            table: || menus().tables.draw_lists.load_replay_setup.id(),
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.load_replay_setup.id(),
             run: true,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.overlay_759152.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_759152.id(),
             run: false,
         },
     ],
     first_frame_lists: Some(&[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.load_replay_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.load_replay_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.draw_758bd6.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.draw_758bd6.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.overlay_759152.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.overlay_759152.id(),
             run: false,
         },
     ]),
@@ -93,8 +93,8 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.load_replay_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.load_replay_picture
     }))],
     after_first_frame: &[],
     confirm: None,

@@ -41,41 +41,41 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.review_options_48108e.id(),
-    saved_item: || &menus().screens.items.current[slot::REVIEW_OPTIONS_48108E],
+    menu: |m| m.tables.menus.review_options_48108e.id(),
+    saved_item: |m| &m.screens.items.current[slot::REVIEW_OPTIONS_48108E],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.review_options_48108e_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.review_options_48108e_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.review_options_48108e_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.review_options_48108e_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.review_options_48108e_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.review_options_48108e_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &menus().screens.draw_work.escaped, 0x0)],
+    before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0x0)],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.review_options_48108e_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.review_options_48108e_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
-    ask_also_if: Some(|| &menus().screens.loop_flags.ended_a),
+    ask_also_if: Some(|m| &m.screens.loop_flags.ended_a),
     confirmed: &[
-        Step::Write(|| &menus().screens.loop_flags.ended_a, 0x0),
-        Step::Write(|| &menus().tables.captions.screen_left, 0x0),
+        Step::Write(|m| &m.screens.loop_flags.ended_a, 0x0),
+        Step::Write(|m| &m.tables.captions.screen_left, 0x0),
     ],
     unasked_skips_save: false,
     after: &[Step::Call(Callee::NoOp)],

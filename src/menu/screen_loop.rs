@@ -84,11 +84,11 @@ const ENTER_SOUND: u32 = 0x14D;
 
 /// A variable of the game that a screen's description names, found when asked (a description
 /// is a constant, and a constant cannot hold a reference to a static).
-pub type Cell = fn() -> &'static Dword;
+pub type Cell = fn(&'static Menus) -> &'static Dword;
 
 /// A text of the game that a screen's description names (a picture's path), found when
 /// asked.
-pub type Text = fn() -> &'static dyn crate::session::TextPlace;
+pub type Text = fn(&'static Menus) -> &'static dyn crate::session::TextPlace;
 
 /// Something a screen does at one of the loop's fixed places.
 #[derive(Clone, Copy, Debug)]
@@ -97,7 +97,7 @@ pub enum Step {
     Call(Callee),
     /// Writes a game variable.
     Write(Cell, u32),
-    WriteF32(fn() -> &'static Float, f32),
+    WriteF32(fn(&'static Menus) -> &'static Float, f32),
     /// Calls the game function, and if it fails (the original's carry flag), that is the
     /// fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
@@ -122,8 +122,8 @@ pub enum Flow {
 /// One of the screen's function lists: the table, and the variable that points at it.
 #[derive(Clone, Copy, Debug)]
 pub struct List {
-    pub pointer: fn() -> &'static crate::menu::fn_list::ListCell,
-    pub table: fn() -> crate::menu::fn_list::FnList,
+    pub pointer: fn(&'static Menus) -> &'static crate::menu::fn_list::ListCell,
+    pub table: fn(&'static Menus) -> crate::menu::fn_list::FnList,
     /// Run with `menu::run_list` at set-up, before its pointer is stored. Such a list is not
     /// put in place again before each frame; the others are.
     pub run: bool,
@@ -131,7 +131,7 @@ pub struct List {
 
 pub struct Screen {
     /// off_...: the screen's menu.
-    pub menu: fn() -> MenuId,
+    pub menu: fn(&'static Menus) -> MenuId,
     /// The variable the highlight is kept in between visits.
     pub saved_item: Cell,
     pub lists: &'static [List],
@@ -181,7 +181,7 @@ pub struct Screen {
     pub action_saved_item: Option<Cell>,
     /// The menu whose item's action is run, where it is not `menu`: three loops name a
     /// neighbouring screen's menu there (the original's slip, reproduced).
-    pub action_menu: Option<fn() -> MenuId>,
+    pub action_menu: Option<fn(&'static Menus) -> MenuId>,
     /// The quit switch is not looked at; `dword_7556A4` = 0x6F is stored once a frame in
     /// that place.
     pub no_quit_check: bool,
@@ -189,19 +189,19 @@ pub struct Screen {
     pub before_asking: &'static [Step],
     /// A variable that, when it is 1, keeps the question from being put although
     /// `dword_758806` is 1.
-    pub ask_unless: Option<fn() -> u32>,
+    pub ask_unless: Option<fn(&'static Menus) -> u32>,
     /// On a screen that does not ask: what runs first on leaving, before the highlight is
     /// saved (the mode menu calls `menu::go_back` there when `dword_758806` is 1).
     pub leaving: &'static [Step],
     /// The variable the highlight is saved in on leaving, where it is not `saved_item`.
     pub leave_saved_item: Option<Cell>,
     /// The menu stored in `dword_731BBB` before `menu::handle_keys`, where it is not `menu`.
-    pub keys_menu: Option<fn() -> MenuId>,
+    pub keys_menu: Option<fn(&'static Menus) -> MenuId>,
     /// What runs last of all, with the carried values back as they were at entry.
     pub after_restored: &'static [Step],
     /// What the loop returns (in eax), where it returns something: read from the game's
     /// variables as the loop leaves them.
-    pub result: Option<fn() -> u32>,
+    pub result: Option<fn(&'static Menus) -> u32>,
     /// `dword_758806` is cleared and the highlight put in place (with the Escape check) after
     /// the first frame, not at the start of set-up, and set-up stores neither `dword_7556A4`
     /// nor `dword_755561` after the lists: the main menu.
@@ -350,7 +350,7 @@ impl Callee {
             Self::NoOp => {}
             // Its carry is never set.
             Self::LoadBackground(path) => {
-                crate::menu::load_background::load_background(path(), &mut GameCanvas)?;
+                crate::menu::load_background::load_background(path(menus), &mut GameCanvas)?;
             }
             Self::PrepareScene => prepare_scene(),
             Self::ApplyController => ci::apply_controller()?,
@@ -406,7 +406,7 @@ impl Callee {
                 crate::menu::load_car_background::load_car_background_in_game(menus)?;
             }
             Self::LoadPicture(path) => {
-                return Ok(!crate::gfx::load_picture::load_picture(path())?);
+                return Ok(!crate::gfx::load_picture::load_picture(path(menus))?);
             }
             Self::ConvertPicture => return Ok(crate::gfx::convert_picture::convert_picture_now()?),
             Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(menus)?,
@@ -460,6 +460,7 @@ pub fn call_or_fatal(function: Callee, code: u32) -> Result<(), Refused> {
 /// Runs the steps of one place. Anything but `Flow::On` comes from a `DoFlow` step, after
 /// which the rest of the place is not run.
 fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
+    let menus = menus();
     for step in steps {
         match *step {
             Step::DoFlow(what) => match what(entry)? {
@@ -469,8 +470,8 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
             Step::Call(function) => {
                 function.run()?;
             }
-            Step::Write(variable, value) => variable().set(value),
-            Step::WriteF32(variable, value) => variable().set(value),
+            Step::Write(variable, value) => variable(menus).set(value),
+            Step::WriteF32(variable, value) => variable(menus).set(value),
             Step::CallOrFatal(function, code) => call_or_fatal(function, code)?,
             Step::Do(what) => what(entry)?,
         }
@@ -481,9 +482,10 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
 /// Puts the menu and the lists in place, as the original does before a frame (the esi it
 /// leaves at the last list's table is read by no one: `cars` is set before its reader).
 fn set_lists(screens: &Screens, screen: &Screen, lists: &[List]) {
-    screens.loop_flags.menu.set((screen.menu)());
+    let menus = menus();
+    screens.loop_flags.menu.set((screen.menu)(menus));
     for list in lists.iter().filter(|list| !list.run) {
-        (list.pointer)().set((list.table)());
+        (list.pointer)(menus).set((list.table)(menus));
     }
 }
 
@@ -505,8 +507,9 @@ fn run_frame(menus: &Menus, callback: FrameRoutine, menu: MenuId) -> Result<(), 
 /// `entry` is what the screen is entered with.
 /// Returns why the screen was left, for the log.
 pub fn screen_loop(screens: &Screens, screen: &Screen, entry: &Entry) -> Result<String, Refused> {
-    let menu = (screen.menu)();
-    let keys_menu = screen.keys_menu.map_or(menu, |other| other());
+    let menus = menus();
+    let menu = (screen.menu)(menus);
+    let keys_menu = screen.keys_menu.map_or(menu, |other| other(menus));
     run(screen.before, entry)?;
     let mut state = Loop {
         screen,
@@ -515,7 +518,7 @@ pub fn screen_loop(screens: &Screens, screen: &Screen, entry: &Entry) -> Result<
         callback: screen.frame_callback,
         later_callback: screen.later_frame_callback.unwrap_or(screen.frame_callback),
         keys_menu,
-        action_menu: screen.action_menu.map_or(menu, |other| other()),
+        action_menu: screen.action_menu.map_or(menu, |other| other(menus)),
         next_frame: if screen.next_frame_repeats_first {
             Next::FrameTop
         } else {
@@ -586,18 +589,18 @@ impl Loop<'_> {
                 .screens
                 .loop_flags
                 .item
-                .set((screen.saved_item)().get());
+                .set((screen.saved_item)(menus).get());
             clear_escape(screens);
         }
         run(screen.prepare, entry)?;
 
         menus.screens.loop_flags.menu.set(menu);
         for list in screen.lists {
-            let table = (list.table)();
+            let table = (list.table)(menus);
             if list.run {
                 run_list(menus, table)?;
             }
-            (list.pointer)().set(table);
+            (list.pointer)(menus).set(table);
         }
         run(screen.after_lists, entry)?;
         if !screen.late_highlight {
@@ -626,7 +629,7 @@ impl Loop<'_> {
                 .screens
                 .loop_flags
                 .item
-                .set((screen.saved_item)().get());
+                .set((screen.saved_item)(menus).get());
             clear_escape(screens);
         }
         Ok(Next::FrameTop)
@@ -729,11 +732,11 @@ impl Loop<'_> {
             self.actions += 1;
             let item = menus.screens.loop_flags.item.get();
             let kept = screen.action_saved_item.unwrap_or(screen.saved_item);
-            kept().set(item);
+            kept(menus).set(item);
             clear_escape(screens);
             run_item_action(menus, self.action_menu)?;
             menus.tables.captions.screen_left.set(0);
-            menus.screens.loop_flags.item.set(kept().get());
+            menus.screens.loop_flags.item.set(kept(menus).get());
             clear_escape(screens);
             if screen.restart_action_check {
                 if menus.screens.loop_flags.ended_a.get() == 1 {
@@ -792,14 +795,19 @@ impl Loop<'_> {
                 self.why, self.frames, self.actions
             )
         };
-        if screen.leave_at_once.is_some_and(|flag| flag().get() == 1) {
+        if screen
+            .leave_at_once
+            .is_some_and(|flag| flag(menus).get() == 1)
+        {
             return Ok(Left::Done(done()));
         }
         if let Some(on_refusal) = screen.confirm {
             let asked = screen.always_asks
                 || (menus.tables.captions.screen_left.get() == 1
-                    && !screen.ask_unless.is_some_and(|flag| flag() == 1))
-                || screen.ask_also_if.is_some_and(|flag| flag().get() == 1);
+                    && !screen.ask_unless.is_some_and(|flag| flag(menus) == 1))
+                || screen
+                    .ask_also_if
+                    .is_some_and(|flag| flag(menus).get() == 1);
             if asked {
                 run(screen.before_asking, entry)?;
                 confirm_leaving()?;
@@ -819,7 +827,7 @@ impl Loop<'_> {
         } else {
             run(screen.leaving, entry)?;
         }
-        screen.leave_saved_item.unwrap_or(screen.saved_item)()
+        screen.leave_saved_item.unwrap_or(screen.saved_item)(menus)
             .set(menus.screens.loop_flags.item.get());
         clear_escape(screens);
         run(screen.after, entry)?;
@@ -867,7 +875,8 @@ pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
 /// `car_specs_47af4c_loop`). Returns the screen's result where it has one (the original's
 /// eax).
 pub fn run_screen(screen: &Screen, entry: &Entry) -> Result<Option<u32>, Refused> {
-    let screens = &menus().screens;
+    let menus = menus();
+    let screens = &menus.screens;
     { screen_loop(screens, screen, entry) }?;
-    Ok(screen.result.map(|result| result()))
+    Ok(screen.result.map(|result| result(menus)))
 }

@@ -36,22 +36,22 @@ fn set_first_item(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.class_stage_results.id(),
-    saved_item: || &menus().screens.items.current[slot::CLASS_STAGE_RESULTS], // dword_747780
+    menu: |m| m.tables.menus.class_stage_results.id(),
+    saved_item: |m| &m.screens.items.current[slot::CLASS_STAGE_RESULTS], // dword_747780
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // dword_755504
-            table: || menus().tables.draw_lists.class_stage_results_scene.id(), // unk_7590D2
+            pointer: |m| &m.screens.flow.scene_list, // dword_755504
+            table: |m| m.tables.draw_lists.class_stage_results_scene.id(), // unk_7590D2
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list,
-            table: || menus().tables.draw_lists.list_758e12.id(), // off_758E12
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |m| m.tables.draw_lists.list_758e12.id(), // off_758E12
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // dword_7554FC
-            table: || menus().tables.draw_lists.class_stage_results_overlay.id(), // dword_759296
+            pointer: |m| &m.screens.flow.overlay_list, // dword_7554FC
+            table: |m| m.tables.draw_lists.class_stage_results_overlay.id(), // dword_759296
             run: false,
         },
     ],
@@ -62,8 +62,8 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.class_stage_results_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.class_stage_results_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),

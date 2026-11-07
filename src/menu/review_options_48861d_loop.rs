@@ -40,22 +40,22 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.review_options_48861d.id(),
-    saved_item: || &menus().screens.items.current[slot::REVIEW_OPTIONS_48861D],
+    menu: |m| m.tables.menus.review_options_48861d.id(),
+    saved_item: |m| &m.screens.items.current[slot::REVIEW_OPTIONS_48861D],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.review_options_48861d_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.review_options_48861d_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.review_options_48861d_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.review_options_48861d_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.review_options_48861d_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.review_options_48861d_overlay.id(),
             run: false,
         },
     ],
@@ -63,25 +63,22 @@ pub const SCREEN: Screen = Screen {
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[
-        Step::Write(|| &menus().screens.loop_flags.ended_b, 0x0),
-        Step::Write(|| &menus().screens.loop_flags.went_back, 0x0),
-        Step::Write(|| &menus().screens.event.event_done, 0x0),
+        Step::Write(|m| &m.screens.loop_flags.ended_b, 0x0),
+        Step::Write(|m| &m.screens.loop_flags.went_back, 0x0),
+        Step::Write(|m| &m.screens.event.event_done, 0x0),
     ],
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.review_options_48861d_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.review_options_48861d_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
-    ask_also_if: Some(|| &menus().screens.loop_flags.ended_a),
+    ask_also_if: Some(|m| &m.screens.loop_flags.ended_a),
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(
-        || &menus().screens.option_work.menu_sound,
-        0x6F,
-    )],
+    after: &[Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F)],
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,

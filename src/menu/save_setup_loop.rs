@@ -48,22 +48,22 @@ fn each_frame(_: &Entry) -> Result<Flow, Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.save_setup.id(),
-    saved_item: || &menus().screens.items.current[slot::SAVE_SETUP],
+    menu: |m| m.tables.menus.save_setup.id(),
+    saved_item: |m| &m.screens.items.current[slot::SAVE_SETUP],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.save_setup_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.save_setup_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.save_setup_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.save_setup_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.save_setup_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.save_setup_overlay.id(),
             run: false,
         },
     ],
@@ -71,7 +71,7 @@ pub const SCREEN: Screen = Screen {
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
     before: &[],
-    set_up_first: &[Step::Write(|| &menus().screens.flow.left_service, 0x0)],
+    set_up_first: &[Step::Write(|m| &m.screens.flow.left_service, 0x0)],
     prepare: &[Step::Do(prepare)],
     after_lists: &[],
     background: &[],
@@ -80,7 +80,7 @@ pub const SCREEN: Screen = Screen {
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
-    after: &[Step::Write(|| &menus().screens.flow.left_service, 0x1)],
+    after: &[Step::Write(|m| &m.screens.flow.left_service, 0x1)],
     escape_leaves: false,
     each_frame: &[Step::DoFlow(each_frame)],
     short_action_check: false,

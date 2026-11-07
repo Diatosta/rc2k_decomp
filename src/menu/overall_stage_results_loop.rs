@@ -35,22 +35,22 @@ fn set_first_item(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.overall_stage_results.id(),
-    saved_item: || &menus().screens.items.current[slot::OVERALL_STAGE_RESULTS], // dword_747784
+    menu: |m| m.tables.menus.overall_stage_results.id(),
+    saved_item: |m| &m.screens.items.current[slot::OVERALL_STAGE_RESULTS], // dword_747784
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list,
-            table: || menus().tables.draw_lists.overall_stage_results_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list,
+            table: |m| m.tables.draw_lists.overall_stage_results_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list,
-            table: || menus().tables.draw_lists.list_758e1e.id(),
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |m| m.tables.draw_lists.list_758e1e.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list,
-            table: || menus().tables.draw_lists.overall_stage_results_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list,
+            table: |m| m.tables.draw_lists.overall_stage_results_overlay.id(),
             run: false,
         },
     ],
@@ -61,8 +61,8 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.overall_stage_results_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.overall_stage_results_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),

@@ -54,22 +54,22 @@ fn leaving(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.start_rally.id(),
-    saved_item: || &menus().screens.items.current[slot::START_RALLY],
+    menu: |m| m.tables.menus.start_rally.id(),
+    saved_item: |m| &m.screens.items.current[slot::START_RALLY],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.start_rally_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.start_rally_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.start_rally_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.start_rally_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.start_rally_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.start_rally_overlay.id(),
             run: false,
         },
     ],
@@ -81,9 +81,9 @@ pub const SCREEN: Screen = Screen {
     prepare: &[],
     after_lists: &[],
     background: &[
-        Step::Write(|| &menus().screens.event.clears_escape_flag, 0x1),
-        Step::Call(Callee::LoadBackground(|| {
-            &menus().tables.texts.start_rally_picture
+        Step::Write(|m| &m.screens.event.clears_escape_flag, 0x1),
+        Step::Call(Callee::LoadBackground(|m| {
+            &m.tables.texts.start_rally_picture
         })),
     ],
     after_first_frame: &[Step::DoFlow(after_first_frame)],

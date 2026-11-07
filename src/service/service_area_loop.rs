@@ -41,7 +41,6 @@
 //! `menu::confirm_leaving` in the shared loop.
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 use crate::scene::owner::scene;
@@ -51,27 +50,27 @@ use crate::scene::owner::scene;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.service_area.id(), // off_74D24C
-    saved_item: || &menus().screens.items.current[slot::SERVICE_AREA], // g_serviceSavedItem
+    menu: |m| m.tables.menus.service_area.id(), // off_74D24C
+    saved_item: |m| &m.screens.items.current[slot::SERVICE_AREA], // g_serviceSavedItem
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // dword_755504
-            table: || menus().tables.draw_lists.service_area_scene.id(), // off_759082: the scene
+            pointer: |m| &m.screens.flow.scene_list, // dword_755504
+            table: |m| m.tables.draw_lists.service_area_scene.id(), // off_759082: the scene
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list,
-            table: || menus().tables.draw_lists.service_area_draw.id(), // off_758D6E: `handle_edit_keys`
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |m| m.tables.draw_lists.service_area_draw.id(), // off_758D6E: `handle_edit_keys`
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.setup_list, // dword_755500
-            table: || menus().tables.draw_lists.service_area_setup.id(), // off_759436: `load_setup_values`
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.service_area_setup.id(), // off_759436: `load_setup_values`
             run: true,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // dword_7554FC
-            table: || menus().tables.draw_lists.service_area_overlay.id(), // off_75924A: `draw_service_area`
+            pointer: |m| &m.screens.flow.overlay_list, // dword_7554FC
+            table: |m| m.tables.draw_lists.service_area_overlay.id(), // off_75924A: `draw_service_area`
             run: false,
         },
     ],
@@ -86,34 +85,31 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
         Step::Call(Callee::TakeKey),
-        Step::Write(|| &menus().screens.state.menus.skip_edit_values, 0),
+        Step::Write(|m| &m.screens.state.menus.skip_edit_values, 0),
     ],
-    set_up_first: &[Step::Write(|| &menus().screens.flow.left_service, 0)],
+    set_up_first: &[Step::Write(|m| &m.screens.flow.left_service, 0)],
     prepare: &[
-        Step::Write(|| &scene().drawing.scene.view_offset[0], 0), // dword_623FB0
-        Step::Write(|| &scene().drawing.scene.view_offset[1], 0), // dword_623FB4
-        Step::Write(|| &scene().drawing.scene.view_zoom, 0x100),  // dword_624080
+        Step::Write(|_| &scene().drawing.scene.view_offset[0], 0), // dword_623FB0
+        Step::Write(|_| &scene().drawing.scene.view_offset[1], 0), // dword_623FB4
+        Step::Write(|_| &scene().drawing.scene.view_zoom, 0x100),  // dword_624080
         Step::Call(Callee::PrepareScene),
-        Step::Write(|| &scene().drawing.scene.clip_edges[2], 0), // dword_6241DC
-        Step::Write(|| &scene().drawing.scene.clip_edges[3], 800), // dword_6241E0
-        Step::WriteF32(|| &scene().drawing.scene.clip_screen[2], 0.0), // flt_6241EC
-        Step::WriteF32(|| &scene().drawing.scene.clip_screen[3], 800.0), // flt_6241F0
+        Step::Write(|_| &scene().drawing.scene.clip_edges[2], 0), // dword_6241DC
+        Step::Write(|_| &scene().drawing.scene.clip_edges[3], 800), // dword_6241E0
+        Step::WriteF32(|_| &scene().drawing.scene.clip_screen[2], 0.0), // flt_6241EC
+        Step::WriteF32(|_| &scene().drawing.scene.clip_screen[3], 800.0), // flt_6241F0
         Step::Call(Callee::PlayTune9),
     ],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadServiceBackground)],
-    after_first_frame: &[Step::Write(
-        || &menus().screens.state.menus.skip_edit_values,
-        1,
-    )],
+    after_first_frame: &[Step::Write(|m| &m.screens.state.menus.skip_edit_values, 1)],
     confirm: Some(&[Step::Call(Callee::LoadServiceBackground)]),
     ask_also_if: None,
     confirmed: &[],
     unasked_skips_save: false,
     after: &[
-        Step::Write(|| &menus().screens.flow.left_service, 1),
+        Step::Write(|m| &m.screens.flow.left_service, 1),
         Step::Call(Callee::StopMusic),
-        Step::Write(|| &menus().screens.state.menus.skip_edit_values, 0),
+        Step::Write(|m| &m.screens.state.menus.skip_edit_values, 0),
     ],
     escape_leaves: false,
     each_frame: &[],

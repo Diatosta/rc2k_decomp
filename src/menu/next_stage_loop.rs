@@ -26,22 +26,22 @@ fn before(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.next_stage.id(),
-    saved_item: || &menus().screens.items.current[slot::NEXT_STAGE],
+    menu: |m| m.tables.menus.next_stage.id(),
+    saved_item: |m| &m.screens.items.current[slot::NEXT_STAGE],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.next_stage_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.next_stage_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.next_stage_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.next_stage_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.next_stage_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.next_stage_overlay.id(),
             run: false,
         },
     ],
@@ -51,7 +51,7 @@ pub const SCREEN: Screen = Screen {
     before: &[Step::Do(before)],
     set_up_first: &[],
     prepare: &[],
-    after_lists: &[Step::Write(|| &menus().play.champ_view.stage_mode, 0x3)],
+    after_lists: &[Step::Write(|m| &m.play.champ_view.stage_mode, 0x3)],
     background: &[Step::Call(Callee::DrawStageMap)],
     after_first_frame: &[Step::Call(Callee::PlayStageSpeech)],
     confirm: Some(&[]),

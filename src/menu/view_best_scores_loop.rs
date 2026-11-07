@@ -41,27 +41,27 @@ fn after(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.view_best_scores.id(),
-    saved_item: || &menus().screens.items.current[slot::VIEW_BEST_SCORES],
+    menu: |m| m.tables.menus.view_best_scores.id(),
+    saved_item: |m| &m.screens.items.current[slot::VIEW_BEST_SCORES],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.view_best_scores_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.view_best_scores_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.view_best_scores_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.view_best_scores_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.setup_list, // dword_755500
-            table: || menus().tables.draw_lists.view_best_scores_setup.id(),
+            pointer: |m| &m.screens.flow.setup_list, // dword_755500
+            table: |m| m.tables.draw_lists.view_best_scores_setup.id(),
             run: true,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.view_best_scores_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.view_best_scores_overlay.id(),
             run: false,
         },
     ],
@@ -72,8 +72,8 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.view_best_scores_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.view_best_scores_picture
     }))],
     after_first_frame: &[],
     confirm: None,

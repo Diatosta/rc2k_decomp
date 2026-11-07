@@ -35,22 +35,22 @@ fn set_first_item(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.class_rally_results.id(),
-    saved_item: || &menus().screens.items.current[slot::CLASS_RALLY_RESULTS], // dword_747788
+    menu: |m| m.tables.menus.class_rally_results.id(),
+    saved_item: |m| &m.screens.items.current[slot::CLASS_RALLY_RESULTS], // dword_747788
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list,
-            table: || menus().tables.draw_lists.class_rally_results_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list,
+            table: |m| m.tables.draw_lists.class_rally_results_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list,
-            table: || menus().tables.draw_lists.list_758e2a.id(),
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |m| m.tables.draw_lists.list_758e2a.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list,
-            table: || menus().tables.draw_lists.class_rally_results_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list,
+            table: |m| m.tables.draw_lists.class_rally_results_overlay.id(),
             run: false,
         },
     ],
@@ -61,8 +61,8 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.class_rally_results_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.class_rally_results_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),

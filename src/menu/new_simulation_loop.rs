@@ -41,22 +41,22 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.new_simulation.id(),
-    saved_item: || &menus().screens.items.current[slot::NEW_SIMULATION],
+    menu: |m| m.tables.menus.new_simulation.id(),
+    saved_item: |m| &m.screens.items.current[slot::NEW_SIMULATION],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.new_simulation_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.new_simulation_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.new_simulation_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.new_simulation_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.new_simulation_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.new_simulation_overlay.id(),
             run: false,
         },
     ],
@@ -67,13 +67,13 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.new_simulation_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.new_simulation_picture
     }))],
     after_first_frame: &[
-        Step::Write(|| &scene().drawing.scene.view_offset[0], 0x7),
-        Step::Write(|| &scene().drawing.scene.view_offset[1], 0xA),
-        Step::Write(|| &scene().drawing.scene.view_zoom, 0x100),
+        Step::Write(|_| &scene().drawing.scene.view_offset[0], 0x7),
+        Step::Write(|_| &scene().drawing.scene.view_offset[1], 0xA),
+        Step::Write(|_| &scene().drawing.scene.view_zoom, 0x100),
         Step::Call(Callee::PrepareScene),
     ],
     confirm: None,

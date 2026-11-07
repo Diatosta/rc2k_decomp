@@ -34,22 +34,22 @@ fn set_up_first(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.network_rally.id(),
-    saved_item: || &menus().screens.items.current[slot::NETWORK_RALLY],
+    menu: |m| m.tables.menus.network_rally.id(),
+    saved_item: |m| &m.screens.items.current[slot::NETWORK_RALLY],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.network_rally_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.network_rally_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.network_rally_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.network_rally_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.network_rally_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.network_rally_overlay.id(),
             run: false,
         },
     ],
@@ -60,13 +60,13 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[Step::Do(set_up_first)],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.network_rally_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.network_rally_picture
     }))],
     after_first_frame: &[
-        Step::Write(|| &scene().drawing.scene.view_offset[0], 0x7),
-        Step::Write(|| &scene().drawing.scene.view_offset[1], 0xA),
-        Step::Write(|| &scene().drawing.scene.view_zoom, 0x100),
+        Step::Write(|_| &scene().drawing.scene.view_offset[0], 0x7),
+        Step::Write(|_| &scene().drawing.scene.view_offset[1], 0xA),
+        Step::Write(|_| &scene().drawing.scene.view_zoom, 0x100),
         Step::Call(Callee::PrepareScene),
     ],
     confirm: None,
@@ -74,11 +74,11 @@ pub const SCREEN: Screen = Screen {
     confirmed: &[],
     unasked_skips_save: false,
     after: &[
-        Step::Write(|| &menus().tables.captions.screen_left, 0x0),
-        Step::Write(|| &menus().screens.loop_flags.ended_a, 0x0),
-        Step::Write(|| &menus().screens.draw_work.escaped, 0x0),
-        Step::Write(|| &menus().screens.option_work.menu_sound, 0x6F),
-        Step::Write(|| &menus().screens.loop_flags.back, 0x0),
+        Step::Write(|m| &m.tables.captions.screen_left, 0x0),
+        Step::Write(|m| &m.screens.loop_flags.ended_a, 0x0),
+        Step::Write(|m| &m.screens.draw_work.escaped, 0x0),
+        Step::Write(|m| &m.screens.option_work.menu_sound, 0x6F),
+        Step::Write(|m| &m.screens.loop_flags.back, 0x0),
     ],
     escape_leaves: false,
     each_frame: &[],

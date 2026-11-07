@@ -2,7 +2,6 @@
 //! `_1`, 0x466E50): the ten best times of a section (`screens::draw_section_best_times`),
 //! background `results1.png`. Nothing in RAL.EXE reaches either; reached here from the debug
 //! UI's "Screens" tab (`debug::screens`), which says the section (`EVENT_STATE.section`).
-use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 /// `unk_747798`'s slot, the item kept between visits.
@@ -11,22 +10,22 @@ const SLOT: usize = (0x747798 - 0x747660) / 4;
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.menu_74fea8.id(),
-    saved_item: || &menus().screens.items.current[SLOT],
+    menu: |m| m.tables.menus.menu_74fea8.id(),
+    saved_item: |m| &m.screens.items.current[SLOT],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.list_7590ee.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.list_7590ee.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.list_758e4e.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.list_758e4e.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.list_7592ae.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.list_7592ae.id(),
             run: false,
         },
     ],
@@ -37,8 +36,8 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.results1_png_3
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.results1_png_3
     }))],
     after_first_frame: &[],
     confirm: None,

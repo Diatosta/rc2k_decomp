@@ -8,37 +8,36 @@
 //! question is put.
 //! The name is a reading from the title string of its menu, "BEM-VINDO", not yet a visit.
 //! Callers: `sub_4A0E60`, `sub_4AA4D7`.
-use crate::menu::owner::menus;
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.welcome.id(),
-    saved_item: || &menus().screens.items.current[slot::WELCOME],
+    menu: |m| m.tables.menus.welcome.id(),
+    saved_item: |m| &m.screens.items.current[slot::WELCOME],
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list, // g_sceneList
-            table: || menus().tables.draw_lists.welcome_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list, // g_sceneList
+            table: |m| m.tables.draw_lists.welcome_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list, // g_drawList
-            table: || menus().tables.draw_lists.welcome_draw.id(),
+            pointer: |m| &m.screens.flow.draw_list, // g_drawList
+            table: |m| m.tables.draw_lists.welcome_draw.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list, // g_overlayList
-            table: || menus().tables.draw_lists.welcome_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list, // g_overlayList
+            table: |m| m.tables.draw_lists.welcome_overlay.id(),
             run: false,
         },
     ],
     first_frame_lists: None,
     frame_callback: FrameRoutine::Menu,
     later_frame_callback: None,
-    before: &[Step::Write(|| &menus().screens.draw_work.escaped, 0x0)],
-    set_up_first: &[Step::Write(|| &menus().tables.pages.yes_no_answer, 0x0)],
+    before: &[Step::Write(|m| &m.screens.draw_work.escaped, 0x0)],
+    set_up_first: &[Step::Write(|m| &m.tables.pages.yes_no_answer, 0x0)],
     prepare: &[],
     after_lists: &[],
     background: &[Step::Call(Callee::LoadWelcomePicture)],

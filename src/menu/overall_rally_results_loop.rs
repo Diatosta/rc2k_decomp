@@ -38,22 +38,22 @@ fn set_first_item(_: &Entry) -> Result<(), Refused> {
 }
 
 pub const SCREEN: Screen = Screen {
-    menu: || menus().tables.menus.overall_rally_results.id(),
-    saved_item: || &menus().screens.items.current[slot::OVERALL_RALLY_RESULTS], // dword_74778C
+    menu: |m| m.tables.menus.overall_rally_results.id(),
+    saved_item: |m| &m.screens.items.current[slot::OVERALL_RALLY_RESULTS], // dword_74778C
     lists: &[
         List {
-            pointer: || &menus().screens.flow.scene_list,
-            table: || menus().tables.draw_lists.overall_rally_results_scene.id(),
+            pointer: |m| &m.screens.flow.scene_list,
+            table: |m| m.tables.draw_lists.overall_rally_results_scene.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.draw_list,
-            table: || menus().tables.draw_lists.list_758e36.id(),
+            pointer: |m| &m.screens.flow.draw_list,
+            table: |m| m.tables.draw_lists.list_758e36.id(),
             run: false,
         },
         List {
-            pointer: || &menus().screens.flow.overlay_list,
-            table: || menus().tables.draw_lists.overall_rally_results_overlay.id(),
+            pointer: |m| &m.screens.flow.overlay_list,
+            table: |m| m.tables.draw_lists.overall_rally_results_overlay.id(),
             run: false,
         },
     ],
@@ -64,8 +64,8 @@ pub const SCREEN: Screen = Screen {
     set_up_first: &[],
     prepare: &[],
     after_lists: &[],
-    background: &[Step::Call(Callee::LoadBackground(|| {
-        &menus().tables.texts.overall_rally_results_picture
+    background: &[Step::Call(Callee::LoadBackground(|m| {
+        &m.tables.texts.overall_rally_results_picture
     }))],
     after_first_frame: &[],
     confirm: Some(&[]),
@@ -76,7 +76,7 @@ pub const SCREEN: Screen = Screen {
     escape_leaves: false,
     each_frame: &[],
     short_action_check: false,
-    leave_at_once: Some(|| &menus().screens.state.menus.standings_shown), // dword_75AB34
+    leave_at_once: Some(|m| &m.screens.state.menus.standings_shown), // dword_75AB34
     next_frame_repeats_first: false,
     action_saved_item: None,
     action_menu: None,
