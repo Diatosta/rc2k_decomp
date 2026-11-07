@@ -45,7 +45,7 @@ pub fn find_present_courses() -> Result<(), Refused> {
             BYTES_READ.set(0);
             let path = paths(course)[file as usize];
             read_whole_file(
-                path,
+                &crate::files::cstring(path, "a course file's path")?,
                 crate::pointers::GamePtr::to(&scene().drawing.scene.work_dword),
                 PROBE_BYTES,
             )?;

@@ -226,7 +226,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
         Call::ReadSku => {
             crate::install::read_sku::read_sku(
                 crate::install::owner::install(),
-                crate::pointers::GamePtr::to(&crate::install::owner::install().sku.path),
+                &crate::install::owner::install().sku.path.text(),
             )?;
         }
         Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(

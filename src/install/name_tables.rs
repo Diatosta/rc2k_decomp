@@ -29,11 +29,6 @@ pub static FOLDERS: Owned<NameTable> = Owned::new("no installer folders table");
 /// The files' names (`g_fileNames`, 0x40100 bytes on the installer's list).
 pub static FILES: Owned<NameTable> = Owned::new("no installer files table");
 
-/// The text at `at` (the game's memory) up to its NUL.
-pub fn text_at(at: crate::pointers::GamePtr) -> Result<Vec<u8>, BadInput> {
-    crate::files::cstring(at, "an installer name")
-}
-
 /// Name `index` of `table` written at `cursor` (the game's memory) without a NUL, as
 /// `strings::str_append_indexed` appends it; the cursor past it. Refused past the table.
 pub fn append_name(

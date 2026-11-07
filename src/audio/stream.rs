@@ -113,16 +113,17 @@ pub fn start_stream(
         state.stream_header.set(1);
     }
     data::with_buffer(Buffer::Header, |b| b[..HEADER_LEN as usize].fill(0));
+    let path_text = crate::files::cstring(path, "a stream's path")?;
     if !crate::audio::samples::read_sample(
         state,
-        path,
+        &path_text,
         Buffer::Header,
         HEADER_LEN,
         &state.sample_file,
     )? {
         return failed(s);
     }
-    let Some(h) = crate::files::handle::open_by_mode_at(path, 0)? else {
+    let Some(h) = crate::files::handle::open_by_mode(&path_text, 0)? else {
         return failed(s);
     };
     s.file = h;

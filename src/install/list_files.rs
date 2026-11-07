@@ -30,11 +30,11 @@ pub fn list_files(
     pattern: impl Into<crate::place::Place>,
 ) -> Result<(), Refused> {
     let pattern = resolve_path(pattern)?;
-    if find_first(pattern) {
+    if find_first(&pattern) {
         loop {
             // append_directory (edx the pattern's path, ebx the cursor)
             let name = made_name(|at| {
-                let (cursor, _) = crate::files::append_directory::append_directory(pattern, at)?;
+                let (cursor, _) = crate::files::append_directory::append_directory(&pattern, at)?;
                 Ok(append_byte(str_append(find_name(), cursor), 0).game_ptr())
             })?;
             let used = FILES.with(|t| t.push(name))?;

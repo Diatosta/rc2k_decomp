@@ -169,30 +169,29 @@ pub fn append_string_by_id(id: u32, cursor: impl Into<Place>) -> Place {
 
 // ---- the game's other functions the installer calls ----
 
+/// A path place read as text (a refused read ends the installer, as every wrapper here).
+fn path_text(path: impl Into<Place>) -> Vec<u8> {
+    path.into().text("a path").unwrap_or_else(|e| refuse(e))
+}
+
 /// `files::set_current_directory` (0x403105): whether it worked.
 pub fn set_cd(path: impl Into<Place>) -> bool {
-    crate::files::directories::set_current_directory(path.into().game_ptr())
-        .unwrap_or_else(|e| refuse(e))
-        != 0
+    crate::files::directories::set_current_directory(&path_text(path))
 }
 
 /// `files::make_directory` (0x403113): whether it worked.
 pub fn make_dir(path: impl Into<Place>) -> bool {
-    crate::files::directories::make_directory(path.into().game_ptr()).unwrap_or_else(|e| refuse(e))
-        != 0
+    crate::files::directories::make_directory(&path_text(path))
 }
 
 /// `sub_403123` (remove a directory): whether it worked.
 pub fn remove_dir(path: impl Into<Place>) -> bool {
-    crate::files::directories::remove_directory(path.into().game_ptr())
-        .unwrap_or_else(|e| refuse(e))
-        != 0
+    crate::files::directories::remove_directory(&path_text(path))
 }
 
 /// `files::delete_file` (0x402E8C): whether it worked.
 pub fn delete_file(path: impl Into<Place>) -> bool {
-    crate::files::directories::delete_file(path.into().game_ptr()).unwrap_or_else(|e| refuse(e))
-        != 0
+    crate::files::directories::delete_file(&path_text(path))
 }
 
 /// `install::normalise_path` (0x4139EC): `path` written at `to`; whether it was.
@@ -211,16 +210,16 @@ pub fn copy_file(from: impl Into<Place>, to: impl Into<Place>) -> Result<bool, R
     )?)
 }
 
-/// `files::resolve_path` (0x403206): the path the game opens.
-pub fn resolve_path(path: impl Into<Place>) -> Result<crate::pointers::GamePtr, Refused> {
-    Ok(crate::files::resolve_path::resolve_path_at(
-        path.into().game_ptr(),
+/// `files::resolve_path` (0x403206): the path the game opens (without its NUL).
+pub fn resolve_path(path: impl Into<Place>) -> Result<Vec<u8>, Refused> {
+    Ok(crate::files::resolve_path::resolve(
+        &path.into().text("a path")?,
     )?)
 }
 
 /// `files::find_first` (0x402FC2): whether a file was found.
-pub fn find_first(pattern: impl Into<Place>) -> bool {
-    crate::race::find_snapshot_number::find_first(pattern.into().game_ptr())
+pub fn find_first(pattern: &[u8]) -> bool {
+    crate::race::find_snapshot_number::find_first(pattern)
 }
 
 /// `files::find_next_wanted` (0x402FF6): whether a file was found.

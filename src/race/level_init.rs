@@ -131,14 +131,13 @@ pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
     if info == 0 {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
-    let read = crate::race::course_places::read_file_into_info;
-    read(file_numbers.text_ptr(texts::TEXTURE_INFO_A), 0, 0x1F_4000)?;
-    read(file_numbers.text_ptr(texts::MARK_INFO), 0x1C_2000, 0x8000)?;
-    read(
-        file_numbers.text_ptr(texts::TEXTURE_INFO_B),
-        0x1F_4000,
-        0x1F_4000,
-    )?;
+    let read = |texts_at: usize, offset: u32, count: u32| {
+        let path = crate::files::cstring(file_numbers.text_ptr(texts_at), "a course info path")?;
+        crate::race::course_places::read_file_into_info(&path, offset, count)
+    };
+    read(texts::TEXTURE_INFO_A, 0, 0x1F_4000)?;
+    read(texts::MARK_INFO, 0x1C_2000, 0x8000)?;
+    read(texts::TEXTURE_INFO_B, 0x1F_4000, 0x1F_4000)?;
     crate::race::course_places::write_info(0x5_BD21, &[0x0A; 3], "the course info's line feeds")?;
     copy_texture_info_tail()?;
     Ok(())
@@ -159,7 +158,10 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 /// 0x637660.
 pub fn load_error_list(frame: &Frame) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        scene().file_numbers.text_ptr(texts::ERROR_LIST_PATH),
+        &crate::files::cstring(
+            scene().file_numbers.text_ptr(texts::ERROR_LIST_PATH),
+            "the error list's path",
+        )?,
         &frame.error_list.list,
     )?;
     Ok(())

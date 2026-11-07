@@ -25,7 +25,7 @@ use rc2k_core::install::config;
 
 pub fn read_languages(
     g: &'static crate::install::owner::Install,
-    path: impl crate::files::handle::GamePath,
+    path: &[u8],
 ) -> Result<(), BadInput> {
     {
         let Some((text, _)) = read_text(path)? else {

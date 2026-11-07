@@ -80,9 +80,8 @@ impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
         }
     }
     fn exists(&mut self) -> Result<bool, Refused> {
-        Ok(crate::files::file_exists::file_exists_at(GamePtr::to(
-            &self.state.music_path,
-        ))?)
+        let path = crate::files::cstring(GamePtr::to(&self.state.music_path), "a tune's path")?;
+        Ok(crate::files::file_exists::file_exists(&path)?)
     }
     fn gave_up(&mut self, tune: u32) {
         crate::framework::log(&format!(

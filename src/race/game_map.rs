@@ -220,9 +220,10 @@ pub fn free_game_map() -> Result<(), Refused> {
 /// count 0. Each read of the pixels is of 0x40 tiles at most. Every register preserved.
 /// Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels (the original
 /// counts round).
-pub fn load_packed_game_map(frame: &Frame, path: GamePtr) -> Result<(), Refused> {
+/// `path` without its NUL.
+pub fn load_packed_game_map(frame: &Frame, path: &[u8]) -> Result<(), Refused> {
     let work = &system().work;
-    use crate::files::handle::{close, open_by_mode_at};
+    use crate::files::handle::{close, open_by_mode};
     let (bytes, format) = take_format(frame)?;
     frame
         .map
@@ -232,7 +233,7 @@ pub fn load_packed_game_map(frame: &Frame, path: GamePtr) -> Result<(), Refused>
         ));
     take_tiles(frame)?;
     frame.map.tile_count.set(0u32);
-    let Some(file) = open_by_mode_at(path, 0)? else {
+    let Some(file) = open_by_mode(path, 0)? else {
         return Ok(());
     };
     let result = (|| -> Result<(), Refused> {
@@ -310,7 +311,12 @@ pub fn load_packed_game_map(frame: &Frame, path: GamePtr) -> Result<(), Refused>
 /// limits and buffer put back.
 pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Result<(), Refused> {
     let pictures = &gfx().pictures;
-    if frame.map.use_packed.get() == 1 && !crate::files::file_exists::file_exists_at(picture)? {
+    if frame.map.use_packed.get() == 1
+        && !crate::files::file_exists::file_exists(&crate::files::cstring(
+            picture,
+            "a map picture's path",
+        )?)?
+    {
         // The picture's path after 3 bytes, its last four made ".sq" and a NUL, then
         // "files\" at the start (`str_append` and the two writes of the original).
         let path = GamePtr::to(&crate::files::state::PACKED_PATH);
@@ -321,7 +327,11 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
             .offset(4u32.wrapping_neg())
             .write(0x0071_732Eu32, "the packed map's path")?;
         room.write_bytes(b"files\\", "the packed map's path")?;
-        load_packed_game_map(frame, path)?;
+        // The packed path as built in the buffer.
+        load_packed_game_map(
+            frame,
+            &crate::files::cstring(path, "the packed map's path")?,
+        )?;
         return Ok(());
     }
     frame.map.tile_count.set(0u32);

@@ -167,7 +167,7 @@ pub fn load_level(course: &Course) -> Result<(), Refused> {
     load_log(0);
     // The course memory is a region of its own (`level_init::take_course_memory`).
     let out = read_level_file::read_level_file(
-        crate::pointers::GamePtr::to(&course.level_paths.cdat_src),
+        &course.level_paths.cdat_src.text(),
         crate::race::level_init::course_memory_at(course.lists.course_memory.bits())?,
         course.lists.first_part.bits(),
     )?;

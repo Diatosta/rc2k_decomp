@@ -33,11 +33,12 @@ pub struct Outcome {
 }
 
 impl Outcome {
-    /// What `files::read_file` leaves on a read of `path`: eax the bytes read (`path` when
-    /// it did not get that far), carry a failure, zero success.
-    pub fn of_read(path: GamePtr, got: &ReadResult) -> Self {
+    /// What `files::read_file` leaves on a read: eax the bytes read (the original leaves
+    /// the path's address when it did not get that far; here 0, nobody reads it then),
+    /// carry a failure, zero success.
+    pub fn of_read(got: &ReadResult) -> Self {
         Self {
-            eax: got.bytes_read.unwrap_or(path.addr()),
+            eax: got.bytes_read.unwrap_or(0),
             carry: !got.ok,
             zero: got.ok,
         }
@@ -45,7 +46,7 @@ impl Outcome {
 }
 
 /// `files::read_file`'s call (the path, the buffer, its bytes; the offset 0).
-pub fn read(path: GamePtr, buffer: GamePtr, bytes: u32) -> Result<ReadResult, Refused> {
+pub fn read(path: &[u8], buffer: GamePtr, bytes: u32) -> Result<ReadResult, Refused> {
     Ok(crate::files::read_file::read_file(path, buffer, bytes, 0)?)
 }
 
@@ -61,8 +62,8 @@ pub fn unpack(buffer: GamePtr, room: u32, size: u32) -> Result<u32, Refused> {
 
 /// `files::read_packed_file` (see the header): the file at `path` into `buffer` of `room`
 /// bytes.
-pub fn read_packed_file(path: GamePtr, buffer: GamePtr, room: u32) -> Result<Outcome, Refused> {
-    let got = Outcome::of_read(path, &read(path, buffer, room)?);
+pub fn read_packed_file(path: &[u8], buffer: GamePtr, room: u32) -> Result<Outcome, Refused> {
+    let got = Outcome::of_read(&read(path, buffer, room)?);
     // A failed read leaves zero clear (`Outcome::of_read`), as a file not "SQSL" does.
     let failed = Outcome {
         eax: 0,

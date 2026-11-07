@@ -61,7 +61,14 @@ fn records(file: &KindFile) -> (GamePtr, usize) {
 pub fn read_kind_records(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     for file in &FILES {
         let (to, room) = records(file);
-        read_whole_file(scene.file_numbers.text_ptr(file.path), to, room as u32)?;
+        read_whole_file(
+            &crate::files::cstring(
+                scene.file_numbers.text_ptr(file.path),
+                "a kinds file's path",
+            )?,
+            to,
+            room as u32,
+        )?;
     }
     Ok(())
 }

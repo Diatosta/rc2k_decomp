@@ -12,7 +12,7 @@ pub use rc2k_core::files::io::ByteRead;
 /// The Rust version.
 pub fn read_stream_byte(stream: &mut Stream) -> Result<ByteRead, BadInput> {
     Ok(rc2k_core::files::io::read_stream_byte(
-        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        &mut crate::files::handle::GameFiles::new(),
         stream,
     )?)
 }

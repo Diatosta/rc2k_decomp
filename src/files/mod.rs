@@ -140,13 +140,6 @@ pub fn host_path(path: &[u8]) -> std::path::PathBuf {
     at
 }
 
-/// The NUL-terminated path at `at` (the game's ANSI bytes) as a `PathBuf`.
-pub fn ansi_path(
-    at: crate::pointers::GamePtr,
-) -> Result<std::path::PathBuf, crate::errors::BadInput> {
-    Ok(host_path(&cstring(at, "a path")?))
-}
-
 #[cfg(test)]
 mod ansi_tests {
     #[test]

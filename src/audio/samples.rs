@@ -16,7 +16,6 @@ use crate::audio::owner::Audio;
 use crate::audio::store::AudioState;
 use crate::audio::voices::*;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::session::{Dword, Shared};
 
 #[repr(C)]
@@ -39,7 +38,7 @@ const _: () = assert!(std::mem::size_of::<SampleFile>() == 0x20);
 /// found). The data's id goes in `out`.
 pub fn read_sample(
     state: &AudioState,
-    path: GamePtr,
+    path: &[u8],
     buffer: crate::audio::sample_data::Buffer,
     size: u32,
     out: &Shared<SampleFile>,
@@ -107,7 +106,7 @@ pub fn flags(table: &[Dword; 4]) -> rc2k_core::audio::samples::Flags {
 }
 
 /// The game's: the work buffer and `g_sampleFile`.
-pub fn read_sample_in_game(state: &AudioState, path: GamePtr) -> Result<bool, Refused> {
+pub fn read_sample_in_game(state: &AudioState, path: &[u8]) -> Result<bool, Refused> {
     read_sample(
         state,
         path,

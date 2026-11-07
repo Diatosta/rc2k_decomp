@@ -24,7 +24,7 @@ const ROOM: u32 = rc2k_core::gfx::screenshot::JADE_ROOM;
 
 // ---- Rust version ----
 
-pub fn load_jade(path: impl crate::files::handle::GamePath) -> Result<(), Refused> {
+pub fn load_jade(path: &[u8]) -> Result<(), Refused> {
     let fonts = &gfx().fonts;
     // Converted: `rc2k_core::gfx::screenshot::jade_read`.
     use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};

@@ -21,7 +21,7 @@ use crate::pointers::GamePtr;
 
 /// Reads the whole file at `path` into `buffer` (`count` bytes at most). The bytes read
 /// go to `BYTES_READ` (0 after any failure but a failed read's own count).
-pub fn read_whole_file(path: GamePtr, to: GamePtr, count: u32) -> Result<(), BadInput> {
+pub fn read_whole_file(path: &[u8], to: GamePtr, count: u32) -> Result<(), BadInput> {
     let mut into = to.read_bytes(count as usize, "a file's buffer")?;
     read_whole_file_into(path, &mut into)?;
     to.write_bytes(&into, "a file's buffer")
@@ -29,10 +29,7 @@ pub fn read_whole_file(path: GamePtr, to: GamePtr, count: u32) -> Result<(), Bad
 
 /// `read_whole_file` into `cells` (a typed store's dwords, their bytes in order: `4 *
 /// cells.len()` bytes at most; what the file does not reach is kept).
-pub fn read_whole_file_cells(
-    path: GamePtr,
-    cells: &[crate::session::Dword],
-) -> Result<(), BadInput> {
+pub fn read_whole_file_cells(path: &[u8], cells: &[crate::session::Dword]) -> Result<(), BadInput> {
     let mut into: Vec<u8> = cells.iter().flat_map(|c| c.get().to_le_bytes()).collect();
     read_whole_file_into(path, &mut into)?;
     for (c, b) in cells.iter().zip(into.as_chunks::<4>().0) {
@@ -44,7 +41,7 @@ pub fn read_whole_file_cells(
 /// `read_whole_file` into `bytes` (all of them at most; what the file does not reach is
 /// kept).
 pub fn read_whole_file_bytes<const N: usize>(
-    path: GamePtr,
+    path: &[u8],
     bytes: &crate::session::Bytes<N>,
 ) -> Result<(), BadInput> {
     let mut into = bytes.read();
@@ -54,7 +51,7 @@ pub fn read_whole_file_bytes<const N: usize>(
 }
 
 /// `read_whole_file` into Rust's memory (`into.len()` bytes at most).
-pub fn read_whole_file_into(path: GamePtr, into: &mut [u8]) -> Result<(), BadInput> {
+pub fn read_whole_file_into(path: &[u8], into: &mut [u8]) -> Result<(), BadInput> {
     // Converted: `rc2k_core::files::io::read_whole_file`.
     {
         let w = rc2k_core::files::io::read_whole_file(

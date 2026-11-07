@@ -12,7 +12,7 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{fatal, resolve_path};
-use crate::install::name_tables::{FOLDERS, text_at};
+use crate::install::name_tables::FOLDERS;
 use rc2k_core::install::script;
 
 /// The folder `path` (eax) added to the folders' table.
@@ -20,7 +20,7 @@ pub fn list_folder(
     g: &'static crate::install::owner::Install,
     path: impl Into<crate::place::Place>,
 ) -> Result<(), Refused> {
-    let path = text_at(resolve_path(path)?)?;
+    let path = resolve_path(path)?;
     let (used, scan) = FOLDERS.with(|t| (t.push(path), t.names.len() as u32))?;
     g.run.dir_cursor.set(used);
     g.run.dir_scan.set(scan);

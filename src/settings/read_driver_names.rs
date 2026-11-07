@@ -48,7 +48,7 @@ pub fn path() -> &'static [u8] {
 
 // ---- Rust version ----
 
-pub fn read_driver_names(path: impl crate::files::handle::GamePath) -> Result<(), BadInput> {
+pub fn read_driver_names(path: &[u8]) -> Result<(), BadInput> {
     let strings = strings();
     let cars = &menus().cars;
     // Converted: `rc2k_core::files::settings::driver_names`; the pool's room checked before

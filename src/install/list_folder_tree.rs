@@ -18,7 +18,7 @@ use crate::errors::Refused;
 use crate::install::installer::{
     append_byte, close_search, fatal, find_first, find_next, resolve_path, str_append,
 };
-use crate::install::name_tables::{FILES, FOLDERS, made_name, text_at};
+use crate::install::name_tables::{FILES, FOLDERS, made_name};
 
 /// FindFileData.cFileName (the search record: `files::search`).
 fn find_name() -> crate::pointers::GamePtr {
@@ -39,7 +39,7 @@ fn same_name(a1: impl Into<crate::place::Place>, a2: impl Into<crate::place::Pla
 }
 
 /// The found file's path (the searched folder's) and name.
-fn found_path(search: crate::pointers::GamePtr) -> Result<Vec<u8>, Refused> {
+fn found_path(search: &[u8]) -> Result<Vec<u8>, Refused> {
     made_name(|at| {
         let (cursor, _) = crate::files::append_directory::append_directory(search, at)?;
         Ok(append_byte(str_append(find_name(), cursor), 0).game_ptr())
@@ -47,8 +47,7 @@ fn found_path(search: crate::pointers::GamePtr) -> Result<Vec<u8>, Refused> {
 }
 
 fn walk(folder: crate::place::Place) -> Result<(), Refused> {
-    let folder = resolve_path(folder)?;
-    let mut folder = text_at(folder)?;
+    let mut folder = resolve_path(folder)?;
     if !folder.is_empty() {
         let (used, scan) = FOLDERS.with(|t| (t.push(folder.clone()), t.names.len() as u32))?;
         crate::install::owner::install().run.dir_cursor.set(used);
@@ -76,14 +75,16 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
             str_append(&crate::install::owner::install().texts.star, cursor),
             0,
         );
-        if find_first(base) {
+        // The search path just built, read back where it was written.
+        let search_text = crate::files::cstring(base, "the search path")?;
+        if find_first(&search_text) {
             loop {
                 if find_attributes() & 0x10 != 0 {
                     // "." and ".." passed over
                     let real = !same_name(&crate::install::owner::install().texts.dot, find_name())
                         && !same_name(&crate::install::owner::install().texts.dotdot, find_name());
                     if real {
-                        let name = found_path(base)?;
+                        let name = found_path(&search_text)?;
                         let used = FOLDERS.with(|t| t.push(name))?;
                         crate::install::owner::install().run.dir_cursor.set(used);
                         crate::install::owner::install().run.dir_count.set(
@@ -99,7 +100,7 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
                         }
                     }
                 } else {
-                    let name = found_path(base)?;
+                    let name = found_path(&search_text)?;
                     let used = FILES.with(|t| t.push(name))?;
                     crate::install::owner::install().run.file_cursor.set(used);
                     crate::install::owner::install().run.file_count.set(

@@ -69,7 +69,10 @@ impl rc2k_core::audio::load::Loader for GameLoader<'_> {
             &mut |p| {
                 samples::read_sample_in_game(
                     &self.audio.state,
-                    crate::audio::store::name_in(&self.audio.sample_names, p)?,
+                    &crate::files::cstring(
+                        crate::audio::store::name_in(&self.audio.sample_names, p)?,
+                        "a sample's path",
+                    )?,
                 )
             },
         )

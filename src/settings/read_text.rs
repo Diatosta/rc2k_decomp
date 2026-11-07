@@ -18,9 +18,7 @@ use crate::system::owner::system;
 
 /// The text (NUL-terminated) and its length, or None if the file was not read.
 /// Refuses what `read_file` refuses.
-pub fn read_text(
-    path: impl crate::files::handle::GamePath,
-) -> Result<Option<(GamePtr, u32)>, BadInput> {
+pub fn read_text(path: &[u8]) -> Result<Option<(GamePtr, u32)>, BadInput> {
     let system = system();
     {
         let text = GamePtr::to(&system.work.files.buffer);

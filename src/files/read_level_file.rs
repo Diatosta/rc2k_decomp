@@ -19,14 +19,16 @@ use crate::pointers::GamePtr;
 
 /// `files::read_level_file` (see the header): the file at `path` (or its packed copy) into
 /// `buffer` of `room` bytes.
-pub fn read_level_file(path: GamePtr, buffer: GamePtr, room: u32) -> Result<Outcome, Refused> {
-    if crate::files::file_exists::file_exists_at(path)? {
-        return Ok(Outcome::of_read(path, &read(path, buffer, room)?));
+/// `path` without its NUL.
+pub fn read_level_file(path: &[u8], buffer: GamePtr, room: u32) -> Result<Outcome, Refused> {
+    if crate::files::file_exists::file_exists(path)? {
+        return Ok(Outcome::of_read(&read(path, buffer, room)?));
     }
-    let given = crate::files::cstring(path, "a level file's path")?;
-    let packed = rc2k_core::files::io::packed_level_path(&given)?;
+    let packed = rc2k_core::files::io::packed_level_path(path)?;
     let at = GamePtr::to(&crate::files::state::PACKED_PATH)
         .limited(crate::files::state::PACKED_PATH_LEN as u32);
     at.write_bytes(&packed, "the packed path")?;
-    read_packed_file(at, buffer, room)
+    // The packed path as built (without its NUL).
+    let text = &packed[..packed.iter().position(|&b| b == 0).unwrap_or(packed.len())];
+    read_packed_file(text, buffer, room)
 }

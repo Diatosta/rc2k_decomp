@@ -19,7 +19,7 @@ use crate::files::stream::Stream;
 pub fn open_stream(stream: &mut Stream, path: &[u8], mode: u32) -> Result<bool, BadInput> {
     // Converted: `rc2k_core::files::io::open_stream`.
     Ok(rc2k_core::files::io::open_stream(
-        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        &mut crate::files::handle::GameFiles::new(),
         stream,
         path,
         mode,

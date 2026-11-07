@@ -18,10 +18,7 @@ use rc2k_core::install::config;
 
 // ---- Rust version ----
 
-pub fn read_sku(
-    g: &'static crate::install::owner::Install,
-    path: crate::pointers::GamePtr,
-) -> Result<(), BadInput> {
+pub fn read_sku(g: &'static crate::install::owner::Install, path: &[u8]) -> Result<(), BadInput> {
     let Some((text, _)) = read_text(path)? else {
         return Ok(());
     };

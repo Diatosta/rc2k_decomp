@@ -8,7 +8,7 @@
 //!      edx`: carry set (and zero clear) after a copy, zero set (carry clear) without one
 //!
 //! Five callers in the installer and `install::run_after_exit`. `files::append_file_name`
-//! is its other half. Refuses (before anything) a null path.
+//! is its other half.
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
@@ -16,12 +16,9 @@ use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 
 /// The Rust version: the cursor after, and whether a directory was found.
-pub fn append_directory(path: GamePtr, cursor: GamePtr) -> Result<(GamePtr, bool), BadInput> {
-    if path.is_null() {
-        return Err(BadInput("a null path"));
-    }
-    let text = crate::files::cstring(path, "a path")?;
-    let Some(directory) = rc2k_core::files::paths::directory(&text) else {
+/// `path` without its NUL.
+pub fn append_directory(path: &[u8], cursor: GamePtr) -> Result<(GamePtr, bool), BadInput> {
+    let Some(directory) = rc2k_core::files::paths::directory(path) else {
         return Ok((cursor, false));
     };
     cursor.write_bytes(directory, "a path being built")?;

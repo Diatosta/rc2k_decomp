@@ -17,7 +17,7 @@ use crate::files::stream::Stream;
 /// The Rust version.
 pub fn close_stream(stream: &mut Stream) -> Result<bool, BadInput> {
     Ok(rc2k_core::files::io::close_stream(
-        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        &mut crate::files::handle::GameFiles::new(),
         stream,
         NO_HANDLE,
     )?)

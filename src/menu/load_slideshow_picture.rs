@@ -17,8 +17,8 @@
 //! refuse.
 
 use crate::errors::Refused;
-use crate::files::file_exists::file_exists_at;
-use crate::files::numbered_path::numbered_path_in_game;
+use crate::files::file_exists::file_exists;
+use crate::files::numbered_path::numbered_path_bytes;
 use crate::gfx::convert_picture::convert_picture_now;
 use crate::gfx::load_picture::load_picture;
 use crate::gfx::load_picture_with_overlay::load_picture_with_overlay;
@@ -30,8 +30,9 @@ use crate::pointers::GamePtr;
 
 /// What it asks for.
 pub enum Step {
-    /// `gfx::load_picture_with_overlay` with the path and the title bar: the carry.
-    Overlay(GamePtr, GamePtr),
+    /// `gfx::load_picture_with_overlay` with the path (its text, without the NUL) and the
+    /// title bar: the carry.
+    Overlay(Vec<u8>, GamePtr),
     /// `gfx::load_picture` of the title bar.
     Load(GamePtr),
     Convert,
@@ -47,26 +48,32 @@ pub fn load_slideshow_picture(
     // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car()?)?;
-    let template = crate::menu::texts_store::text_at(
-        menus.tables.lists.slideshow_templates[car as usize].get(),
+    let template = crate::files::cstring(
+        crate::menu::texts_store::text_at(
+            menus.tables.lists.slideshow_templates[car as usize].get(),
+        )?,
+        "a path template",
     )?;
     let start: u32 = menus.screens.event.picture.get();
     // Set by the first try (`search` always makes one).
-    let mut path = None;
+    let mut path: Option<Vec<u8>> = None;
     slides::search(
         start,
         (way as i32) < 0,
         |number| -> Result<bool, Refused> {
-            let at = numbered_path_in_game(template, number)?;
-            path = Some(at);
-            if file_exists_at(at)? {
+            // The path is also written to `PATHS`, as the original builds it there.
+            let numbered = numbered_path_bytes(&template, number)?;
+            let there = file_exists(&numbered)?;
+            path = Some(numbered.clone());
+            if there {
                 return Ok(true);
             }
-            let length = crate::strings::text_length::nul_at(at, "a picture path")? as usize;
-            let mut text = at.read_bytes(length, "a picture path")?;
+            let mut text = numbered;
             slides::pcx(&mut text)?;
-            at.write_bytes(&text, "a picture path")?;
-            Ok(file_exists_at(at)?)
+            crate::files::numbered_path::buffer().write_bytes(&text, "a picture path")?;
+            let exists = file_exists(&text)?;
+            path = Some(text);
+            Ok(exists)
         },
         |next| menus.screens.event.picture.set(next),
     )?;
@@ -82,8 +89,41 @@ pub fn load_slideshow_picture(
 /// With the Rust versions of what it calls.
 pub fn load_slideshow_picture_in_game(menus: &Menus, way: u32) -> Result<(), Refused> {
     load_slideshow_picture(menus, way, &mut |step| match step {
-        Step::Overlay(path, over) => load_picture_with_overlay(&path, &over),
+        Step::Overlay(path, over) => load_picture_with_overlay(&MirroredPath::new(path), &over),
         Step::Load(path) => load_picture(&path).map(|_| false),
         Step::Convert => convert_picture_now().map(|_| false).map_err(Into::into),
     })
+}
+
+/// A picture's path as a value, for the loader that may swap its ending: the swap is
+/// written to the value and, as the original swapped it in place, to `PATHS` too.
+struct MirroredPath(std::cell::RefCell<Vec<u8>>);
+
+impl MirroredPath {
+    fn new(path: Vec<u8>) -> Self {
+        Self(std::cell::RefCell::new(path))
+    }
+}
+
+impl crate::session::TextPlace for MirroredPath {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        Ok(self.0.borrow().clone())
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        let mut value = self.0.borrow_mut();
+        let end = at + bytes.len();
+        if end > value.len() {
+            return Err(crate::errors::BadInput("a write past a path's end"));
+        }
+        value[at..end].copy_from_slice(bytes);
+        crate::files::numbered_path::buffer()
+            .offset(at as u32)
+            .write_bytes(bytes, what)
+    }
 }

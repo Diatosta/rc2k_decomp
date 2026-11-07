@@ -78,7 +78,10 @@ pub fn clear_prefs_qword(race: &Race) {
 pub fn load_prefs(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     for path in prefs_paths(course) {
-        crate::files::read_whole_file::read_whole_file_cells(path, course.stage_prefs.dwords())?;
+        crate::files::read_whole_file::read_whole_file_cells(
+            &crate::files::cstring(path, "a prefs path")?,
+            course.stage_prefs.dwords(),
+        )?;
     }
     swap_stage_texture(race);
     tweak_stage(race);
@@ -128,7 +131,10 @@ pub fn copy_lights_data() -> Result<(), BadInput> {
 /// the lights' data, then `copy_lights_data`.
 pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        GamePtr::to(&race.physics.camera.lights_path), // "files\s\data\ldata"
+        &crate::files::cstring(
+            GamePtr::to(&race.physics.camera.lights_path),
+            "the lights data path",
+        )?, // "files\s\data\ldata"
         &race.course.lights_data.lights,
     )?;
     copy_lights_data()?;

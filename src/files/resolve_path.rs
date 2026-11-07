@@ -93,16 +93,3 @@ pub fn resolve(path: &[u8]) -> Result<Vec<u8>, BadInput> {
     out_buffer()?.write_bytes(&resolved, "the resolved path's buffer")?;
     Ok(resolved[..resolved.len() - 1].to_vec())
 }
-
-/// `resolve` for a path in the game's memory, for callers that hand the result on as an
-/// address: `path` itself, or this thread's buffer holding the resolved path.
-pub fn resolve_path_at(path: GamePtr) -> Result<GamePtr, BadInput> {
-    let g = globals()?;
-    let text = crate::files::cstring(path, "a path")?;
-    let Some(resolved) = resolve_path(&text, g.mode, &g.a, &g.b, &g.pct)? else {
-        return Ok(path);
-    };
-    let buf = out_buffer()?;
-    buf.write_bytes(&resolved, "the resolved path's buffer")?;
-    Ok(buf)
-}

@@ -12,31 +12,20 @@
 // Phase 6 (2026-10-24): `std::fs` / `std::env` in place of the Win32 calls (`SetCurrentDirectoryA`,
 // `CreateDirectoryA`, `RemoveDirectoryA`, `DeleteFileA`): the same cases fail (a folder
 // already there, one not empty, a read-only file), the answer 1 or 0 as the BOOL was.
-use crate::errors::BadInput;
-use crate::files::ansi_path;
-use crate::pointers::GamePtr;
 
-fn path(path: GamePtr) -> Result<std::path::PathBuf, BadInput> {
-    ansi_path(path)
-}
-
-/// `SetCurrentDirectoryA` on a path in hand: whether it worked.
-pub fn set_current_directory_to(path: &[u8]) -> bool {
+/// `SetCurrentDirectoryA`: whether it worked.
+pub fn set_current_directory(path: &[u8]) -> bool {
     std::env::set_current_dir(crate::files::host_path(path)).is_ok()
 }
 
-pub fn set_current_directory(at: GamePtr) -> Result<u32, BadInput> {
-    Ok(std::env::set_current_dir(path(at)?).is_ok() as u32)
+pub fn make_directory(path: &[u8]) -> bool {
+    std::fs::create_dir(crate::files::host_path(path)).is_ok()
 }
 
-pub fn make_directory(at: GamePtr) -> Result<u32, BadInput> {
-    Ok(std::fs::create_dir(path(at)?).is_ok() as u32)
+pub fn remove_directory(path: &[u8]) -> bool {
+    std::fs::remove_dir(crate::files::host_path(path)).is_ok()
 }
 
-pub fn remove_directory(at: GamePtr) -> Result<u32, BadInput> {
-    Ok(std::fs::remove_dir(path(at)?).is_ok() as u32)
-}
-
-pub fn delete_file(at: GamePtr) -> Result<u32, BadInput> {
-    Ok(std::fs::remove_file(path(at)?).is_ok() as u32)
+pub fn delete_file(path: &[u8]) -> bool {
+    std::fs::remove_file(crate::files::host_path(path)).is_ok()
 }

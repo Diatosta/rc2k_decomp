@@ -15,14 +15,14 @@
 use crate::errors::BadInput;
 // ---- Rust version ----
 
-use crate::files::handle::{GameFiles, GamePath};
+use crate::files::handle::GameFiles;
 use crate::pointers::GamePtr;
 pub use rc2k_core::files::io::ReadResult;
 
 /// Refuses what `resolve_path` refuses.
 #[track_caller]
 pub fn read_file(
-    path: impl GamePath,
+    path: &[u8],
     to: GamePtr,
     count: u32,
     offset: u32,
@@ -36,11 +36,7 @@ pub fn read_file(
 
 /// `read_file` into Rust's memory: `into` holds what the file's bytes do not reach over,
 /// as the game's buffer did. Refuses what `resolve_path` refuses.
-pub fn read_file_into(
-    path: impl GamePath,
-    into: &mut [u8],
-    offset: u32,
-) -> Result<ReadResult, BadInput> {
+pub fn read_file_into(path: &[u8], into: &mut [u8], offset: u32) -> Result<ReadResult, BadInput> {
     Ok(rc2k_core::files::io::read_file(
         &mut GameFiles::new(),
         path,
@@ -52,7 +48,7 @@ pub fn read_file_into(
 /// `read_file` into a store's field from its first byte.
 #[track_caller]
 pub fn read_file_to_store(
-    path: impl GamePath,
+    path: &[u8],
     to: &dyn crate::pointers::Store,
     count: u32,
     offset: u32,

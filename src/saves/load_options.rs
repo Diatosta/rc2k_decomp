@@ -209,7 +209,12 @@ pub struct Places<'a> {
 pub fn load_options(path: crate::pointers::GamePtr, places: &mut Places) -> Result<bool, Refused> {
     places.loaded.set(0);
     let file = &system().work.files.buffer;
-    let read = read_file_to_store(path, file, TEXT_ROOM + 1, 0)?;
+    let read = read_file_to_store(
+        &crate::files::cstring(path, "the options file's path")?,
+        file,
+        TEXT_ROOM + 1,
+        0,
+    )?;
     use rc2k_core::saves::kept;
     let block = file.read_at(0, TEXT_ROOM as usize + 1, "the options file")?;
     if !read.ok || !kept::head_ok(&block, kept::OPTIONS) {

@@ -47,7 +47,7 @@ pub fn first_match_read(
             .buffer
             .write_at(0, &joined, "the scratch buffer")?;
         Some(read_file_into(
-            crate::pointers::GamePtr::to(&system.work.files.buffer),
+            &joined[..joined.iter().position(|&b| b == 0).unwrap_or(joined.len())],
             into,
             offset,
         ))

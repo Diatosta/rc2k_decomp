@@ -19,7 +19,7 @@ pub fn write_stream_block(
     eax: u32,
 ) -> Result<(u32, bool, bool), BadInput> {
     Ok(rc2k_core::files::io::write_stream_block(
-        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        &mut crate::files::handle::GameFiles::new(),
         stream,
         bytes,
         eax,

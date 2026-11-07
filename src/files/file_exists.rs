@@ -20,8 +20,3 @@ pub fn file_exists(path: &[u8]) -> Result<bool, BadInput> {
         path,
     )?)
 }
-
-/// `file_exists` for a path in the game's memory (a C string at `path`).
-pub fn file_exists_at(path: crate::pointers::GamePtr) -> Result<bool, BadInput> {
-    file_exists(&crate::files::cstring(path, "a path")?)
-}

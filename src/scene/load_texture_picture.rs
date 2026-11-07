@@ -141,7 +141,10 @@ pub fn load_texture_picture_in_game(
             Call::Text(text) => crate::logfile::log_write::log_nul(&text[..], false, 1),
             Call::Number(number) => log_int(number as i32, false, 1),
             Call::Exists(path) => {
-                match crate::files::file_exists::file_exists_at(path.game_ptr()) {
+                match path
+                    .text("a texture folder")
+                    .and_then(|p| crate::files::file_exists::file_exists(&p))
+                {
                     Ok(exists) => return exists,
                     Err(e) => {
                         refused.get_or_insert(e.into());

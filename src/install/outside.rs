@@ -50,7 +50,7 @@ impl Outside for Game {
     }
 
     fn set_directory(&mut self, path: &[u8]) -> bool {
-        crate::files::directories::set_current_directory_to(path)
+        crate::files::directories::set_current_directory(path)
     }
 
     fn read_record(&mut self) -> Result<(), BadInput> {

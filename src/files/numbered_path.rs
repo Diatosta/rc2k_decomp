@@ -41,13 +41,6 @@ pub fn numbered_path(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {
     Ok(out)
 }
 
-/// For Rust callers: writes the buffer (as the original does) and returns its address.
-pub fn numbered_path_in_game(template: GamePtr, number: u32) -> Result<GamePtr, Refused> {
-    let template = crate::files::cstring(template, "a path template")?;
-    numbered_path_bytes(&template, number)?;
-    Ok(buffer())
-}
-
 /// For Rust callers: writes the buffer (as the original does) and returns the path, both
 /// `template` and the path without their NULs.
 pub fn numbered_path_bytes(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {

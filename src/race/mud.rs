@@ -83,10 +83,7 @@ pub fn load_mud(shared: &Shared) -> Result<(), Refused> {
     shared.vars.mud_path.set(0x11, tens as u8);
     shared.vars.mud_path.set(0x12, units as u8);
     MUD.with(|mud| {
-        crate::files::read_whole_file::read_whole_file_into(
-            crate::pointers::GamePtr::to(&shared.vars.mud_path),
-            mud,
-        )
+        crate::files::read_whole_file::read_whole_file_into(&shared.vars.mud_path.text(), mud)
     })??;
     Ok(())
 }

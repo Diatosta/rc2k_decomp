@@ -14,7 +14,7 @@ use crate::files::stream::Stream;
 /// The Rust version: `to.len()` bytes into `to`; the bytes read and the original's flag.
 pub fn read_stream_block(stream: &mut Stream, to: &mut [u8]) -> Result<(u32, bool), BadInput> {
     Ok(rc2k_core::files::io::read_stream_block(
-        &mut crate::files::handle::GameFiles::<&[u8]>::new(),
+        &mut crate::files::handle::GameFiles::new(),
         stream,
         to,
     )?)

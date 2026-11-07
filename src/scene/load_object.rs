@@ -176,9 +176,12 @@ pub fn load_object(
         .write(b'3', "an object's file name")?;
     BYTES_READ.set(0);
     read_whole_file_bytes(
-        scene
-            .file_numbers
-            .text_ptr(scene.file_numbers.object_ro3_path.bits() as usize),
+        &crate::files::cstring(
+            scene
+                .file_numbers
+                .text_ptr(scene.file_numbers.object_ro3_path.bits() as usize),
+            "an object's file path",
+        )?,
         crate::scene::objects::file(),
     )?;
     if BYTES_READ.get() == 0 {
