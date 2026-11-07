@@ -66,11 +66,11 @@ pub const SERVICE_NEXT: &Dword = &crate::menu::owner::MENUS.screens.event.servic
 // dword_755920
 
 /// The two championships' driver: `a8` for `menu::run_a8_championship`'s differences.
-pub fn run_event(a8: bool) -> Result<(), Refused> {
+pub fn run_event(menus: &crate::menu::owner::Menus, a8: bool) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::championship::run`.
-    Game::new().run(|g| rc2k_core::menu::championship::run(g, a8))
+    Game::new(menus).run(|g| rc2k_core::menu::championship::run(g, a8))
 }
 
-pub fn run_championship() -> Result<(), Refused> {
-    run_event(false)
+pub fn run_championship(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+    run_event(menus, false)
 }

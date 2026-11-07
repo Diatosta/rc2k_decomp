@@ -23,7 +23,6 @@ use crate::scene::matrix3::rounded;
 
 const CORNERS: u32 = 0x100;
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::owner::effects;
 /// Each vertex's texture place: the corner entry's word offsets (u, v).
 const UV_WORDS: [(u32, u32); 4] = [(0, 2), (4, 6), (0xC, 0xE), (8, 0xA)];
 
@@ -35,6 +34,10 @@ fn abs16(a: u32, b: u32) -> u32 {
 
 /// The Rust version (see the header): `corner` (the original's eax), `angle` (ebx, << 20),
 /// `alpha` (ecx), `size` (edx), `colour` (esi), `centre` (st(0) x, st(1) y).
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the original's registers, the effects' groups and the owners"
+)]
 pub fn draw_flare_part(
     corner: u32,
     angle: u32,
@@ -43,8 +46,8 @@ pub fn draw_flare_part(
     colour: u32,
     centre: [[u8; 10]; 2],
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
     if corner >= CORNERS {
         return Err(BadInput("a flare corner past g_marksCorners").into());
     }
@@ -107,7 +110,7 @@ pub fn draw_flare_part(
             .view_vars
             .cleared
             .set(effects.frame.view_vars.cleared.get().wrapping_add(1));
-        if clip_quad(scene)? {
+        if clip_quad(scene, effects)? {
             return Ok(());
         }
         draw_fan();

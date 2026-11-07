@@ -237,14 +237,14 @@ pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refus
     Ok(true)
 }
 
-pub fn load_game_options() -> Result<bool, Refused> {
+pub fn load_game_options(menus: &crate::menu::owner::Menus) -> Result<bool, Refused> {
     let pieces = pieces();
     load_options(
         &saves().files.options_path,
         &mut Places {
-            loaded: &menus().screens.loop_flags.options_loaded,
+            loaded: &menus.screens.loop_flags.options_loaded,
             pieces: &pieces,
-            rebuild_car_lists: &mut || rebuild_car_lists(crate::menu::owner::menus()),
+            rebuild_car_lists: &mut || rebuild_car_lists(menus),
         },
     )
 }

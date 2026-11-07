@@ -51,8 +51,8 @@ pub fn emit_particle_18(
     ring: &Ring,
     record: &MarkRecord,
     object: &'static MarkCar,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
     {
         let flags = record.flags.get();
         masks.surface.wheel_flags.set(flags);
@@ -81,12 +81,15 @@ pub fn emit_particle_18(
                 .motion
                 .each_ref()
                 .map(|r| extended(r.bits()));
-            let (moved, _) = jitter_point([
-                extended(effects.setup.floats.hundred_twenty_eight.bits()),
-                m[2],
-                m[1],
-                m[0],
-            ]);
+            let (moved, _) = jitter_point(
+                [
+                    extended(effects.setup.floats.hundred_twenty_eight.bits()),
+                    m[2],
+                    m[1],
+                    m[0],
+                ],
+                effects,
+            );
             put(field::MOTION_Z, rounded(moved[0]))?;
             put(field::MOTION_Y, rounded(moved[1]) & 0x7FFF_FFFF)?;
             put(field::MOTION_X, rounded(moved[2]))?;

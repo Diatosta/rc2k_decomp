@@ -10,8 +10,6 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::system::owner::system;
-
 // ---- game data ----
 
 /// The nine bytes kept: out of the image since 2026-10-24 (phase 5; they were `byte_51839F`,
@@ -20,7 +18,8 @@ pub const KEPT_LEN: usize = 9;
 
 /// The start's moment as kept (all 0 before `keep_start_time`).
 pub fn start_time() -> [u8; KEPT_LEN] {
-    system().start.kept.read()
+    let system = crate::system::owner::system();
+    system.start.kept.read()
 }
 
 // ---- Rust version ----
@@ -32,8 +31,8 @@ pub fn kept(t: &rc2k_core::system::time::LocalTime) -> [u8; KEPT_LEN] {
     rc2k_core::system::time::start_time(t)
 }
 
-pub fn keep_start_time() {
+pub fn keep_start_time(system: &crate::system::owner::System) {
     // The game's `SystemTime` (0x518988), a local here: nothing else read it.
     let time = crate::os::local_time();
-    system().start.kept.write(&kept(&time));
+    system.start.kept.write(&kept(&time));
 }

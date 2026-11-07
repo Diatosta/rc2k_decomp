@@ -121,7 +121,7 @@ pub fn emit_twin(
     }
     let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-    let car = emitting_car()?;
+    let car = emitting_car(effects)?;
     let cells = car.whole()?;
     let [x, y, y_less, z] = x87::turned_place(
         crate::session::read_bits(&particles.twin_state.point),
@@ -138,7 +138,10 @@ pub fn emit_twin(
             .zip(set.tuning.row_k.iter())
             .map(|(a, k)| x87::mul_80(a, k.bits()))
             .collect::<Vec<_>>();
-    let (moved, _) = jitter_point([extended(set.tuning.spread.bits()), row[2], row[1], row[0]]);
+    let (moved, _) = jitter_point(
+        [extended(set.tuning.spread.bits()), row[2], row[1], row[0]],
+        effects,
+    );
     let step: u32 = effects.setup.clock.reciprocal.bits();
     for n in 0..3 {
         put(

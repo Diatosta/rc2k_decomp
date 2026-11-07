@@ -33,7 +33,7 @@
 
 use crate::errors::Refused;
 use crate::framework::log;
-use crate::system::owner::{Session, system};
+use crate::system::owner::Session;
 
 /// `word_51D752` when the installer's script is set up.
 const INSTALLER_MARK: u16 = 0xBD;
@@ -121,9 +121,9 @@ pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Resul
 }
 
 /// The Rust version, logged on the way in and out.
-pub fn main_loop_in_game() -> Result<(), Refused> {
+pub fn main_loop_in_game(system: &crate::system::owner::System) -> Result<(), Refused> {
     log("system::main_loop: the Rust version runs");
-    main_loop(&system().session, crate::saves::owner::saves())?;
+    main_loop(&system.session, crate::saves::owner::saves())?;
     log("system::main_loop: the Rust version has come back");
     Ok(())
 }

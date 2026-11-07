@@ -40,7 +40,11 @@ fn corners(race: &Race) -> u32 {
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::lighting`.
-pub fn car_lighting(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn car_lighting(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let race_owner = race;
     race_owner
         .physics
@@ -152,7 +156,7 @@ pub fn car_lighting(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         race.shared.car.light_colour.set(lighting::add_colour(
             colour,
             race.shared.car.light_colour.get(),
-            crate::system::owner::system().session.machine.has_mmx.get() != 0,
+            system.session.machine.has_mmx.get() != 0,
         ));
     }
     Ok(())

@@ -42,6 +42,7 @@ fn rdtsc() -> u32 {
 /// The Rust version (see the header): `cars_particles`, `view_heading`, `view_motion`,
 /// `begin_quads`, `scene::depth_test_on`.
 pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
+    let scene = crate::scene::owner::scene();
     use crate::effects::{begin_quads, cars_particles, view_heading, view_motion};
     let info: u32 = race.course.lists.course_info.bits();
     if info == 0 {
@@ -65,10 +66,7 @@ pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
             word.set(u16::from_le_bytes(*pair));
         }
     }
-    let source: u32 = crate::scene::owner::scene()
-        .draw_switches
-        .marks_source
-        .bits();
+    let source: u32 = scene.draw_switches.marks_source.bits();
     if source != effects.frame.draw_frame.last_source.get() {
         effects
             .frame
@@ -81,10 +79,10 @@ pub fn draw_frame(race: &Race, effects: &Effects) -> Result<(), Refused> {
     effects.setup.work.sound_zero.set(0);
     effects.frame.view_vars.cleared.set(0);
     cars_particles::cars_particles(effects)?;
-    view_heading::view_heading(&race.frame);
-    view_motion::view_motion(&race.frame)?;
+    view_heading::view_heading(&race.frame, effects);
+    view_motion::view_motion(&race.frame, effects)?;
     let start = rdtsc();
-    begin_quads::begin_quads();
+    begin_quads::begin_quads(effects, scene);
     let frame = effects.setup.frame.frame_cycles.bits() as i32;
     let took = rdtsc().wrapping_sub(start) as i32;
     TIMES[0]

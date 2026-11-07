@@ -1,19 +1,19 @@
-use crate::system::owner::system;
 /// The info block's place (a game address). The shared scratch (`files::scratch::SCRATCH`,
 /// 0x93E8B0) holds first the file's first 0x80 bytes, then what the decoder says about the
 /// picture, a `PngInfo`.
-pub fn info_ptr() -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&system().work.files.buffer)
+pub fn info_ptr(system: &crate::system::owner::System) -> crate::pointers::GamePtr {
+    crate::pointers::GamePtr::to(&system.work.files.buffer)
 }
 
 /// The info's dword at `offset` (`core::mem::offset_of!(PngInfo, ..)`).
-pub fn info_dword(offset: usize) -> u32 {
-    system().work.files.buffer.get_u32(offset)
+pub fn info_dword(offset: usize, system: &crate::system::owner::System) -> u32 {
+    system.work.files.buffer.get_u32(offset)
 }
 
 /// The info's byte at `offset`.
 pub fn info_byte(offset: usize) -> u8 {
-    system().work.files.buffer.get(offset)
+    let system = crate::system::owner::system();
+    system.work.files.buffer.get(offset)
 }
 
 /// What `decode_png` leaves behind. Only the first byte of `has_palette` is written, and the

@@ -50,9 +50,10 @@ fn run(
     drops: &WindscreenDrops,
     fl: &WindscreenFlakes,
 ) -> Result<(), Refused> {
+    let effects = crate::effects::owner::effects();
     let scene = crate::scene::owner::scene();
     let shared = &crate::race::owner::race().shared;
-    let setup = &effects().setup;
+    let setup = &effects.setup;
     {
         crate::effects::windscreen_flakes_setup::windscreen_flakes_setup(fl, scene);
         let [a, b, c, d]: [u32; 4] = read_bits(&fl.state.run_places);
@@ -61,7 +62,7 @@ fn run(
             VERTICES.vertices[n].v.set_bits(v);
         }
         if setup.kind_floats.running.bits() != 0 {
-            windscreen_flakes_spawn(shared, drops, fl)?;
+            windscreen_flakes_spawn(shared, drops, fl, effects)?;
         }
         for item in &fl.items.items {
             if item.live.get() != 1 {
@@ -90,14 +91,15 @@ fn run(
                 less(fl.state.far.bits(), item.place[1].bits()),
                 extended(item.place[0].bits()),
             ];
-            crate::effects::draw_windscreen_flake::draw_windscreen_flake(fl, item, colour, values);
+            crate::effects::draw_windscreen_flake::draw_windscreen_flake(
+                fl, item, colour, values, effects, scene,
+            );
         }
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
     Ok(())
 }
 
-use crate::effects::owner::effects;
 use crate::math::x87_float as bh;
 
 /// `less`'s x87 block as plain Rust on the x87 model (3 instructions), same order: the two

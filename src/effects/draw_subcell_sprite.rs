@@ -29,29 +29,33 @@ use crate::d3d::vertices_store::VERTICES;
 const SUBCELLS: u32 = 0x410;
 
 /// The original's 0x4CBF47 .. 0x4CBFCB: the place turned by the view.
-fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3]) {
-    turn_x87(frame, p, &ring.work, &effects().frame.draw_work);
+fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3], effects: &crate::effects::owner::Effects) {
+    turn_x87(frame, p, &ring.work, &effects.frame.draw_work);
 }
 
 /// The original's 0x4CC009 .. 0x4CC140 (its integer moves done before): the square about
 /// the projected place.
-fn square() {
-    square_x87(&effects().frame.draw_work);
+fn square(effects: &crate::effects::owner::Effects, scene: &crate::scene::owner::Scene) {
+    square_x87(&effects.frame.draw_work, scene);
 }
 
 /// The Rust version (see the header): `subcell` (eax), `size` (edx, a float's bits),
 /// `entry` (esi). No caller reads a register it leaves.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the original's registers, the effects' groups and the owners"
+)]
 pub fn draw_subcell_sprite(
     frame: &Frame,
     masks: &Masks,
     ring: &Ring,
+    effects: &crate::effects::owner::Effects,
     subcell: u32,
     size: u32,
     entry: u32,
     place: [[u8; 10]; 3],
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
-    let effects = effects();
     if subcell >= SUBCELLS {
         return Err(BadInput("a mark subcell past g_marksSubcellPlaces").into());
     }
@@ -62,7 +66,7 @@ pub fn draw_subcell_sprite(
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    turn(frame, ring, &place);
+    turn(frame, ring, &place, effects);
     if effects.frame.draw_work.turned[2].bits() as i32 <= effects.frame.draw_work.near.bits() as i32
     {
         return Ok(());
@@ -84,8 +88,8 @@ pub fn draw_subcell_sprite(
         VERTICES.vertices[n].u.set_bits(u);
         VERTICES.vertices[n].v.set_bits(v);
     }
-    square();
-    if clip_quad(scene)? {
+    square(effects, scene);
+    if clip_quad(scene, effects)? {
         return Ok(());
     }
     draw_fan();
@@ -94,7 +98,6 @@ pub fn draw_subcell_sprite(
 }
 
 use crate::effects::frame_state::DrawWork;
-use crate::effects::owner::effects;
 use crate::effects::plain::st_cell;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::ld;
@@ -138,8 +141,8 @@ fn turn_x87(frame: &Frame, p: &[[u8; 10]; 3], w: &RingWork, dw: &DrawWork) {
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (41 instructions), same order and memory places.
-fn square_x87(dw: &DrawWork) {
-    let t0 = ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
+fn square_x87(dw: &DrawWork, scene: &crate::scene::owner::Scene) {
+    let t0 = ld(scene.drawing.scene.view_scale.bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = bh::ld(dw.turned[2].bits());
     let t3 = t2 * bh::ld(dw.z_k.bits());
@@ -154,7 +157,7 @@ fn square_x87(dw: &DrawWork) {
     let t6 = t1 * bh::ld(dw.turned[0].bits());
     let t7 = t1 * bh::ld(dw.turned[1].bits());
     let t8 = -t7;
-    let t9 = t8 + ld(crate::scene::owner::scene().drawing.scene.view_centre[1].bits());
+    let t9 = t8 + ld(scene.drawing.scene.view_centre[1].bits());
     let t10 = t9 - bh::ld(dw.half[1].bits());
     st_cell(&VERTICES.vertices[0].y, t10);
     let t11 = t9 - bh::ld(dw.half[1].bits());
@@ -163,7 +166,7 @@ fn square_x87(dw: &DrawWork) {
     st_cell(&VERTICES.vertices[2].y, t12);
     let t13 = t9 + bh::ld(dw.half[1].bits());
     st_cell(&VERTICES.vertices[3].y, t13);
-    let t14 = t6 + ld(crate::scene::owner::scene().drawing.scene.view_centre[0].bits());
+    let t14 = t6 + ld(scene.drawing.scene.view_centre[0].bits());
     let t15 = t14 - bh::ld(dw.half[0].bits());
     st_cell(&VERTICES.vertices[0].x, t15);
     let t16 = t14 + bh::ld(dw.half[0].bits());
@@ -432,7 +435,7 @@ mod asm_differential {
                         &[
                             0x0, 0x4, 0x8, 0x20, 0x24, 0x28, 0x40, 0x44, 0x48, 0x60, 0x64, 0x68,
                         ],
-                        || super::square_x87(dw),
+                        || super::square_x87(dw, crate::scene::owner::scene()),
                     );
                 });
             },

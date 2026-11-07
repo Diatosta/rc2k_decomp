@@ -820,7 +820,12 @@ pub fn face_colours(
                 let b = light_tables.lamp_table_b[b as usize].get();
                 (a, b)
             };
-            let c = corner_colour(c, lit, extra, crate::race::frame_draw::has_mmx());
+            let c = corner_colour(
+                c,
+                lit,
+                extra,
+                crate::race::frame_draw::has_mmx(crate::system::owner::system()),
+            );
             race.shared.view.corner_colours[k].set(c);
         }
     }
@@ -984,10 +989,11 @@ pub fn draw_tinted_face(
     // `object` is a byte: inside the 256 tints.
     let tint = race.course.stage_prefs.object_tints[object as usize].get();
     if tints(tint) {
-        drawing
-            .scene
-            .polygon_colour
-            .set(tinted(tint, colour, crate::race::frame_draw::has_mmx()));
+        drawing.scene.polygon_colour.set(tinted(
+            tint,
+            colour,
+            crate::race::frame_draw::has_mmx(crate::system::owner::system()),
+        ));
     }
     let done = draw_course_face(race, face, scene);
     drawing.scene.polygon_colour.set(colour);

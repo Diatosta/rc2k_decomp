@@ -15,7 +15,6 @@
 //! is to be taken), before anything.
 
 use crate::effects::blocks::{particle, set_particle};
-use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -26,8 +25,8 @@ const FULL: u32 = 0xFFF;
 const LIFE: u32 = 0xBB8;
 
 /// The marks' random: times 0x9D plus 0x47.
-fn next_seed() -> u32 {
-    let setup = &effects().setup;
+fn next_seed(effects: &crate::effects::owner::Effects) -> u32 {
+    let setup = &effects.setup;
     let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
     setup.work.seed.set(s);
     s
@@ -56,8 +55,12 @@ fn entries_taken(particles: &Particles, ring: &Ring) -> Result<Vec<u32>, Refused
 }
 
 /// The Rust version (see the header): `record` the particle it bursts from (esi).
-pub fn burst_particles(particles: &Particles, ring: &Ring, record: u32) -> Result<(), Refused> {
-    let effects = effects();
+pub fn burst_particles(
+    particles: &Particles,
+    ring: &Ring,
+    record: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
         if ring.pool.used.get() != FULL {
             if record == 0 {
@@ -68,7 +71,7 @@ pub fn burst_particles(particles: &Particles, ring: &Ring, record: u32) -> Resul
             }
         }
         crate::sound::owner::sound().race.stage.random[1].set(1);
-        let s = next_seed();
+        let s = next_seed(effects);
         let r = s & 0xFFFF;
         let m = effects.frame.draw_work.uv_k.bits();
         let [c, k] = effects
@@ -97,7 +100,7 @@ pub fn burst_particles(particles: &Particles, ring: &Ring, record: u32) -> Resul
             for o in [0xC, 0x10, 0x14] {
                 put(o, x87::loaded(particle(particles, record, o)?))?;
             }
-            let s = next_seed();
+            let s = next_seed(effects);
             let a = s.rotate_right(16) & 0xFFF;
             let b = s & 0xFFF;
             let radius: u32 = ring.pool.burst_radius.bits();

@@ -22,7 +22,6 @@
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;
 use crate::menu::remove_secret_cars::{FIRST, List, SECOND, read_list, write_list};
-use crate::race::owner::race;
 use rc2k_core::menu::car_lists;
 
 // ---- game data ----
@@ -54,7 +53,11 @@ const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
 // ---- Rust version ----
 
 /// `log` gets each line's text.
-pub fn apply_cheats(menus: &Menus, log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
+pub fn apply_cheats(
+    menus: &Menus,
+    log: &mut dyn FnMut(&[u8]),
+    race: &crate::race::owner::Race,
+) -> Result<(), BadInput> {
     let play = &menus.play;
     // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
     {
@@ -79,7 +82,7 @@ pub fn apply_cheats(menus: &Menus, log: &mut dyn FnMut(&[u8])) -> Result<(), Bad
             write_list(SECOND, &second.cars);
         }
         if a.stores {
-            race().shared.state.settings.a8_game.set(1u32);
+            race.shared.state.settings.a8_game.set(1u32);
         }
         for bit in a.logged {
             log(CHEATS[bit].0.to_bytes());

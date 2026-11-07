@@ -124,7 +124,11 @@ impl Steps<'_> {
 /// pace notes, overlay; `dword_621508` the object of kind 0x7A (else 0x79);
 /// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
 /// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
-pub fn loadlevel_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn loadlevel_init(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
@@ -210,11 +214,12 @@ pub fn loadlevel_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result
         &race.frame,
         scene.file_numbers.text_ptr(texts::MAP_PATH),
         scene.file_numbers.text_ptr(texts::MAP_KEY),
+        system,
     )?;
     s.progress(0x5A)?;
     s.indent(-3);
     s.step(
-        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx),
+        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx, system),
         Some(0x5C),
     )?;
     // init mark, with the log off.

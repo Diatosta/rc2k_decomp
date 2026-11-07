@@ -12,7 +12,6 @@ use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::{Trap, car_at};
 use crate::scene::owner::scene;
-use crate::system::owner::system;
 
 /// `race::full_view_window` (0x455ECB) / `race::full_view_window_2` (0x456004): the view
 /// window the whole screen (`dword_62408C` / `dword_624090` its size, `dword_623FB0` /
@@ -20,8 +19,9 @@ use crate::system::owner::system;
 /// first also `dword_6365C4` 0. Its callers (`race::draw_race_scene`,
 /// `race::draw_mirror_view`) read no register it leaves.
 pub fn full_view_window(race: &Race, first: bool) {
+    let system = crate::system::owner::system();
     let physics = &race.physics;
-    let session = &system().session;
+    let session = &system.session;
     let scene = scene();
     scene.drawing.scene.view_size[0].set(session.screen.width.get());
     scene.drawing.scene.view_size[1].set(session.screen.height.get());
@@ -41,8 +41,12 @@ pub fn full_view_window(race: &Race, first: bool) {
 /// its edges `dword_624138` .. `dword_624144`; `dword_624080` 0x100,
 /// `scene::set_view_window`, the fog (`race::set_up_fog`), `dword_6365C4` 0,
 /// `dword_63993C` 1. Refuses (before anything) a size whose scaling would fault.
-pub fn mirror_view_window(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let session = &system().session;
+pub fn mirror_view_window(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    let session = &system.session;
     // Converted: `rc2k_core::race::view::{mirror_entry, mirror_window}`.
     use rc2k_core::race::view::{Window, mirror_entry, mirror_window};
     let n = mirror_entry(
@@ -150,8 +154,9 @@ pub fn draw_marks_overlays(race: &Race, scene: &crate::scene::owner::Scene) -> R
             &effects.windscreen_drops,
             scene,
             gfx,
+            effects,
         )?;
-        crate::effects::draw_shadow::draw_shadow(race, &effects.masks)?;
+        crate::effects::draw_shadow::draw_shadow(race, &effects.masks, effects, scene)?;
     }
     Ok(())
 }
@@ -178,6 +183,7 @@ pub fn load_first_car(shared: &Shared) -> Result<(), Refused> {
 pub fn copy_mirror_picture(
     frame: &Frame,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let gfx_drawing = &gfx().drawing;
     // Converted: `rc2k_core::race::view_steps::copy_picture` (the last pixel's bits carried
@@ -209,7 +215,7 @@ pub fn copy_mirror_picture(
             height: gfx_drawing.draw_surface.height.get(),
             from_pitch: ebp,
             to_pitch: gfx_drawing.draw_surface.pitch.get(),
-            from_16: system().session.screen.bits.get() == 0x10,
+            from_16: system.session.screen.bits.get() == 0x10,
             to_16: gfx_drawing.draw_surface.bits_per_pixel.get() == 0x10,
         };
         let mut surfaces = GameSurfaces {
@@ -272,6 +278,7 @@ pub fn forget_view_textures(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;
@@ -350,7 +357,7 @@ pub fn forget_view_textures(
         .view_textures_forgotten
         .set(frame.frame_work.view_textures_forgotten.get() | MIRROR_BIT);
     if !uploaded {
-        copy_mirror_picture(frame, scene)?;
+        copy_mirror_picture(frame, scene, system)?;
         forget_slot_texture(textures.kinds.kind_first_textures[200].get(), scene)?;
     } else {
         // `sub_44E828`, the platform's upload (then the slot forgotten): through the
@@ -413,8 +420,8 @@ pub fn draw_screen_tint(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
 /// `race::clear_view_depth` (0x44E9A0): with the device on (`dword_5CDA8C`) the clip
 /// rectangle (`dword_624138` ..) the whole screen and the depth cleared there
 /// (`d3d::clear_viewport_unless_held`, the platform's `Clear`).
-pub fn clear_view_depth(scene: &crate::scene::owner::Scene) {
-    let session = &system().session;
+pub fn clear_view_depth(scene: &crate::scene::owner::Scene, system: &crate::system::owner::System) {
+    let session = &system.session;
     if scene.objects.tables.has_3d.get() == 0 {
         return;
     }
@@ -432,7 +439,11 @@ pub fn clear_view_depth(scene: &crate::scene::owner::Scene) {
 /// texture `dword_5D1E10`, render state 0x14 = 2, `g_polygonVertexCount` 4, the marks'
 /// overlays (`race::draw_marks_overlays`).
 /// Refuses (before anything) the car without its block.
-pub fn draw_own_car(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_own_car(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
     use rc2k_core::race::view_steps::{car_number, clears_depth, seen_inside};
@@ -460,7 +471,7 @@ pub fn draw_own_car(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         || scene.drawing.object_work.view_cleared[0].get(),
     );
     if clears {
-        clear_view_depth(scene);
+        clear_view_depth(scene, system);
         crate::scene::depth_buffer_on::depth_buffer(true);
     }
     // `race::draw_car_shined` reads only esi, the car's block.
@@ -487,8 +498,12 @@ fn int_over_times(i: u32, a: u32, b: u32) -> u32 {
 /// `flt_6416C0[]`, height / `flt_5C5D70` x `flt_6416D4[]`) for `effects::frame_marks` (part 1)
 /// and, unless `dword_6416B8`, `effects::run_frame` (part 2), the centre put back. Refuses
 /// (before anything) a null view block or car record, or no marks settings.
-pub fn run_view_marks(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let session = &system().session;
+pub fn run_view_marks(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    let session = &system.session;
     let effects = effects();
     let drawing = &scene.drawing;
     // Converted: `rc2k_core::race::view_steps::{check_view_marks, marks_shown,

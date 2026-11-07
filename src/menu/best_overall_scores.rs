@@ -7,7 +7,6 @@
 //! 4, a missing player, no table, and what an entry refuses, before anything.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
@@ -16,8 +15,7 @@ use crate::menu::standings::*;
 // g_yesNoAnswer
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn best_overall_scores() -> Result<(), Refused> {
-    let menus = menus();
+pub fn best_overall_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let players = counted_players(screens)?;
     screens.event.any_time_qualified.set(0u32);

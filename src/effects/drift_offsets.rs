@@ -14,21 +14,20 @@
 //! the x87 version stays for the Rust callers in unconverted code; the offsets' `fistp`
 //! stays the x87's).
 
-use crate::effects::owner::effects;
 use crate::effects::rain::Weather;
 use crate::math::x87;
 use crate::race::owner::Race;
 
 /// The marks' random: times 0x9D plus 0x47.
-fn next_seed() -> u32 {
-    let setup = &effects().setup;
+fn next_seed(effects: &crate::effects::owner::Effects) -> u32 {
+    let setup = &effects.setup;
     let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
     setup.work.seed.set(s);
     s
 }
 
 /// The Rust version (see the header).
-pub fn drift_offsets(race: &Race, weather: &Weather) {
+pub fn drift_offsets(race: &Race, weather: &Weather, effects: &crate::effects::owner::Effects) {
     let (r, k) = (&weather.rain, &weather.rain_rules);
     {
         let since = race
@@ -38,7 +37,7 @@ pub fn drift_offsets(race: &Race, weather: &Weather) {
             .bits()
             .wrapping_sub(r.drift_since.get());
         if since >= r.drift_wait.get() {
-            let s = next_seed();
+            let s = next_seed(effects);
             let x = (s & 0xFFF).wrapping_sub(0x7FF);
             r.drift_target[0].set_bits(x87::int_times(x as i32, k.target_scale[0].to_bits()));
             let y = ((s >> 12) & 0xFFF).wrapping_sub(0x7FF);
@@ -46,7 +45,7 @@ pub fn drift_offsets(race: &Race, weather: &Weather) {
             r.drift_wait.set(((s >> 24) + 0x40) * 5);
             r.drift_since
                 .set(race.shared.physics_tables.scene_clock.bits());
-            let s = next_seed();
+            let s = next_seed(effects);
             r.drift_halves[0].set((s & 0xFFFF) << 8);
             r.drift_halves[2].set((s >> 16) << 8);
         }

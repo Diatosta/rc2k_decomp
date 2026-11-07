@@ -22,5 +22,5 @@ pub fn arcade_level(menus: &Menus, play: &Play, level: u32) -> Result<(), Refuse
     play.arcade.level.set(level);
     play.arcade.stage.set(0u32);
     crate::menu::take_player1_units::take_player1_units(menus)?;
-    crate::menu::arcade_event::arcade_event()
+    crate::menu::arcade_event::arcade_event(menus)
 }

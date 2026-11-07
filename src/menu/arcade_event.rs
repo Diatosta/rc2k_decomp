@@ -1,7 +1,6 @@
 use crate::errors::Refused;
 use crate::menu::lists_store::CarList;
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::race::owner::race;
 use crate::session::Dword;
@@ -10,7 +9,8 @@ use rc2k_core::menu::arcade_event::{self as arcade, Step, Var};
 
 /// The game for `rc2k_core::menu::arcade_event`: the variables at their addresses, the
 /// steps' Rust versions and the car list the car choice was shown.
-struct Game {
+struct Game<'a> {
+    menus: &'a Menus,
     cars: Option<CarList>,
     player0: crate::menu::standings::PlayerCell,
 }
@@ -60,11 +60,11 @@ fn address(menus: &Menus, v: Var) -> &'_ Dword {
     }
 }
 
-impl arcade::Arcade for Game {
+impl arcade::Arcade for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        let menus = menus();
+        let menus = self.menus;
         match cell(v) {
             Some(cell) => cell.get(),
             None => address(menus, v).get(),
@@ -72,7 +72,7 @@ impl arcade::Arcade for Game {
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        let menus = menus();
+        let menus = self.menus;
         match v {
             Var::Player0Entry => self.player0.update(|p| p.entry = value),
             _ => match cell(v) {
@@ -84,7 +84,7 @@ impl arcade::Arcade for Game {
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
         let sound = crate::sound::owner::sound();
-        let menus = menus();
+        let menus = self.menus;
         let play = &menus.play;
         let screens = &menus.screens;
         use crate::menu as m;
@@ -131,18 +131,19 @@ impl arcade::Arcade for Game {
     }
 }
 
-impl Game {
+impl Game<'_> {
     /// A screen, entered with the car list (the only value a screen reads from its caller).
     fn screen(&self, screen: &Screen) -> Result<(), Refused> {
-        { run_screen(screen, &Entry::with_cars(menus(), self.cars)) }?;
+        { run_screen(screen, &Entry::with_cars(self.menus, self.cars)) }?;
         Ok(())
     }
 }
 
 /// The Rust version.
-pub fn arcade_event() -> Result<(), Refused> {
+pub fn arcade_event(menus: &Menus) -> Result<(), Refused> {
     let player0 = crate::menu::standings::player(0);
     let mut game = Game {
+        menus,
         cars: None,
         player0,
     };

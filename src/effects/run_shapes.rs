@@ -22,17 +22,21 @@ use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::race::owner_shared::Shared;
 
-use crate::effects::owner::effects;
 use crate::math::x87;
 const MASK_COUNT: u32 = 9;
 
 /// The Rust version (see the header).
-pub fn run_shapes(shared: &Shared, masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
-    let setup = &effects().setup;
+pub fn run_shapes(
+    shared: &Shared,
+    masks: &Masks,
+    drops: &WindscreenDrops,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    let setup = &effects.setup;
     let marks = crate::effects::setup::marks()?;
     {
         pick_shapes(masks, drops)?;
-        turn_all_shapes(masks, drops)?;
+        turn_all_shapes(masks, drops, effects)?;
         let clock: u32 = shared.physics_tables.scene_clock.bits();
         if clock as i32 >= drops.picks.next.get() as i32 {
             let r = next_c5(&setup.mask_constants.time_random);

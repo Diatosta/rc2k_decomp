@@ -17,7 +17,6 @@ use crate::math::x87_float::{int, ld, st};
 use crate::race::owner_shared::Shared;
 use crate::race::tyre_store::TyreChange;
 use crate::session::{Dword, Float};
-use crate::system::owner::system;
 
 /// The turn's arithmetic: `ty` the tyre change's variables (the constants and results), `e`
 /// the input device, `d` the rectangle (floats), `v` the vertices, `t` the scratch float
@@ -59,8 +58,8 @@ pub fn tyre_turned_quad(
     rect: &[Float; 4],
     colour: u32,
     device: &InputDevice,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let system = system();
     system.session.machine.scratch.set(0x40C9_0FDB);
     turn(
         &shared.tyre_change,

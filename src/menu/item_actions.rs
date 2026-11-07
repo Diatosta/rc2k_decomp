@@ -25,7 +25,6 @@ use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::menu::screen_loop::{Entry, run_screen};
-use crate::race::owner::race;
 
 // ---- the Rust versions ----
 
@@ -74,10 +73,10 @@ pub fn view_stage_details(menus: &Menus, screens: &Screens) -> Result<(), Refuse
 }
 
 /// `menu::new_simulation_if_unlocked` (it reads no register).
-pub fn new_simulation_if_unlocked() -> Result<(), Refused> {
+pub fn new_simulation_if_unlocked(race: &crate::race::owner::Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::simulation_unlocked`.
     use rc2k_core::menu::stage_screens::{REFUSED_SLEEP, REFUSED_SOUND, simulation_unlocked};
-    if simulation_unlocked(race().shared.state.settings.a8_game.get()) {
+    if simulation_unlocked(race.shared.state.settings.a8_game.get()) {
         // (An item of the typed tables: it runs with no carried values, as the menus'
         // items do.)
         crate::menu::new_simulation_loop::run()?;
@@ -94,5 +93,5 @@ pub fn start_arcade(menus: &Menus, play: &Play) -> Result<(), Refused> {
     play.arcade.level.set(0);
     play.arcade.stage.set(0);
     crate::menu::take_player1_units::take_player1_units(menus)?;
-    crate::menu::arcade_event::arcade_event()
+    crate::menu::arcade_event::arcade_event(menus)
 }

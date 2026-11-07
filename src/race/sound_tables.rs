@@ -7,7 +7,6 @@ use crate::net::owner::net;
 use crate::race::owner::Race;
 use crate::session::{Dword, Float};
 use crate::sound::sets_store::SoundSet;
-use crate::system::owner::system;
 
 /// `race::whole_to_float` (0x40D706): the dword at ebx made a float (`fild` / `fstp`)
 /// when it looks like a whole number (its top byte 0 or 0xFF). Leaves eax its top byte's
@@ -60,10 +59,11 @@ pub struct TableVars {
 
 impl TableVars {
     pub fn game() -> Self {
+        let system = crate::system::owner::system();
         Self {
             done: &crate::sound::owner::sound().race.surface.tables_done,
             sines: &crate::sound::owner::sound().race.kinds.sines,
-            scratch: &system().session.machine.scratch,
+            scratch: &system.session.machine.scratch,
         }
     }
 }

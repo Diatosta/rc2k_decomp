@@ -15,7 +15,6 @@
 //! before anything.
 
 use crate::effects::draw_flare_part::draw_flare_part;
-use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -23,8 +22,11 @@ use crate::math::x87;
 const PARTS: u32 = 0x11;
 
 /// The Rust version (see the header).
-pub fn draw_lens_flare(paths: &Paths, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let effects = effects();
+pub fn draw_lens_flare(
+    paths: &Paths,
+    scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     let settings: u32 = effects.setup.settings.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
@@ -74,6 +76,7 @@ pub fn draw_lens_flare(paths: &Paths, scene: &crate::scene::owner::Scene) -> Res
             0xFF_FFFF,
             [x, y],
             scene,
+            effects,
         )?;
     }
     Ok(())

@@ -14,7 +14,6 @@ use crate::memory::free_list::free_list;
 use crate::memory::take_from_list::take_from_list;
 use crate::session::Dword;
 use crate::strings::owner::strings;
-use crate::system::owner::system;
 
 /// IDA's address of the glyph tables' variables.
 pub const START: usize = 0x51B980;
@@ -53,7 +52,11 @@ impl GlyphTables {
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the
 /// surface's, and no table yet.
-pub fn begin_glyph_tables(vars: &SheetVars, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+pub fn begin_glyph_tables(
+    vars: &SheetVars,
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let strings = strings();
     let pictures = &gfx.pictures;
     pictures.picture.width.set(800u32);
@@ -69,7 +72,7 @@ pub fn begin_glyph_tables(vars: &SheetVars, gfx: &crate::gfx::owner::Gfx) -> Res
         .kilobytes
         .get()
         .wrapping_mul(0x400)
-        .wrapping_mul(system().session.screen.bytes.get());
+        .wrapping_mul(system.session.screen.bytes.get());
     // (The original's fatal error 0x80E48021 for no memory cannot come: the allocator
     // reports its own.) Only counted: the work memory holds nothing Rust reads back
     // (`build_glyphs` keeps the sheet's table in its own bytes).

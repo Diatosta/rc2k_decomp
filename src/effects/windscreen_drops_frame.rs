@@ -58,13 +58,18 @@ fn sprite_depth(drops: &WindscreenDrops) {
 }
 
 /// The original's 0x4BB9CE .. 0x4BBB1E: the six corners (the kind's offsets at `flt_814CFE`[c] ..) into `flt_814CB6` .., the depth's inverse (left on the x87 stack, so returned).
-fn sprite_corners(drops: &WindscreenDrops, c: u32) -> bh::X {
-    sprite_corners_x87(drops, c as usize)
+fn sprite_corners(drops: &WindscreenDrops, c: u32, scene: &crate::scene::owner::Scene) -> bh::X {
+    sprite_corners_x87(drops, c as usize, scene)
 }
 
 /// The original's 0x4BBB24 .. 0x4BBE28: the centre and corners projected into the buffer at e (six vertices), drawn in by `flt_81619A` / `E`, their depth.
-fn sprite_project(drops: &WindscreenDrops, e: u32, inverse_depth: bh::X) {
-    sprite_project_x87(drops, e as usize, inverse_depth);
+fn sprite_project(
+    drops: &WindscreenDrops,
+    e: u32,
+    inverse_depth: bh::X,
+    scene: &crate::scene::owner::Scene,
+) {
+    sprite_project_x87(drops, e as usize, inverse_depth, scene);
 }
 
 /// Why it refuses, if it does.
@@ -95,14 +100,15 @@ pub fn windscreen_drops_frame(
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let setup = &effects().setup;
+    let setup = &effects.setup;
     if let Some(why) = refusal(drops)? {
         return Err(BadInput(why).into());
     }
     {
         if setup.kind_floats.running.bits() != 0 {
-            crate::effects::windscreen_drops_drift::windscreen_drops_drift(frame, drops)?;
+            crate::effects::windscreen_drops_drift::windscreen_drops_drift(frame, drops, effects)?;
         }
         crate::effects::windscreen_drops_setup::windscreen_drops_setup(drops, scene);
         drops.state.live.set_bits(0u32);
@@ -136,8 +142,8 @@ pub fn windscreen_drops_frame(
             if (drops.work.cell[2].bits() as i32) < 0x4580_0000 {
                 continue;
             }
-            let inverse_depth = sprite_corners(drops, shape.wrapping_mul(0x48));
-            sprite_project(drops, drops.hex.buffer.get(), inverse_depth);
+            let inverse_depth = sprite_corners(drops, shape.wrapping_mul(0x48), scene);
+            sprite_project(drops, drops.hex.buffer.get(), inverse_depth, scene);
             let next = drops.hex.buffer.get().wrapping_add(0xC0);
             drops.hex.buffer.set(next);
             if next as usize == BUFFER_BYTES {
@@ -152,7 +158,7 @@ pub fn windscreen_drops_frame(
         if (live as i32) < marks.listener_switch_2.get() as i32
             && setup.kind_floats.running.bits() != 0
         {
-            crate::effects::windscreen_drops_spawn::windscreen_drops_spawn(drops)?;
+            crate::effects::windscreen_drops_spawn::windscreen_drops_spawn(drops, effects)?;
         }
     }
     Ok(())
@@ -224,10 +230,13 @@ fn sprite_depth_x87(drops: &WindscreenDrops) {
 /// `sprite_corners`: the six corners of the kind's shape (its offsets from `scaled[c / 4]`)
 /// placed around the item's `cell` into `corners`. Returns the inverse depth the projection
 /// takes (`view_scale / cell[2]`).
-fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
+fn sprite_corners_x87(
+    drops: &WindscreenDrops,
+    c: usize,
+    scene: &crate::scene::owner::Scene,
+) -> bh::X {
     let work = &drops.work;
-    let inverse_depth = bh::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits())
-        / bh::ld(work.cell[2].bits());
+    let inverse_depth = bh::ld(scene.drawing.scene.view_scale.bits()) / bh::ld(work.cell[2].bits());
     // Axis by axis (x, y, z), each of the six corners.
     for axis in 0..3 {
         for corner in 0..6 {
@@ -242,12 +251,16 @@ fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
 /// `sprite_project`: the centre and the six corners projected to the screen into the six
 /// vertices at `e` of the batch's records (0x20 bytes each; the depth at +8), `inverse_depth`
 /// being `view_scale / depth`. Same order and rounding as the original's x87 block.
-fn sprite_project_x87(drops: &WindscreenDrops, e: usize, inverse_depth: bh::X) {
+fn sprite_project_x87(
+    drops: &WindscreenDrops,
+    e: usize,
+    inverse_depth: bh::X,
+    scene: &crate::scene::owner::Scene,
+) {
     let gfx = crate::gfx::owner::gfx();
     let work = &drops.work;
     let records = &gfx.card.windscreen_drop_batch.records;
-    let centre =
-        |axis: usize| bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[axis].bits());
+    let centre = |axis: usize| bh::ld(scene.drawing.scene.view_centre[axis].bits());
     work.cell[2].set_bits(bh::st(inverse_depth));
     // The centre.
     let up = -(bh::ld(work.cell[1].bits()) * bh::ld(work.cell[2].bits()));
@@ -950,6 +963,7 @@ mod asm_differential {
                         super::sprite_corners_x87(
                             &crate::effects::owner::EFFECTS.windscreen_drops,
                             b[2],
+                            crate::scene::owner::scene(),
                         )
                     })
                     .0,
@@ -1080,6 +1094,7 @@ mod asm_differential {
                                             &crate::effects::owner::EFFECTS.windscreen_drops,
                                             0,
                                             super::bh::ld(b[3] as u32),
+                                            crate::scene::owner::scene(),
                                         );
                                     },
                                 );

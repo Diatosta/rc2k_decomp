@@ -27,8 +27,7 @@ fn slot_name(slot: u32) -> crate::place::Place {
 // ---- Rust version ----
 
 /// True if the slot's file was read and accepted.
-pub fn read_replay_slot(slot: u32) -> Result<bool, Refused> {
-    let race = race();
+pub fn read_replay_slot(slot: u32, race: &crate::race::owner::Race) -> Result<bool, Refused> {
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }

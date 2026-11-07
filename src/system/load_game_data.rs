@@ -37,7 +37,7 @@ use crate::session::Bytes;
 use crate::session::Dword;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::copy_printable::printable_from;
-use crate::system::owner::{Start, system};
+use crate::system::owner::Start;
 
 // ---- game data ----
 
@@ -221,10 +221,11 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
 
 /// The calls done by the Rust versions.
 fn in_game(call: Call) -> Result<u32, Refused> {
+    let race = crate::race::owner::race();
     let menus = menus();
     match call {
         Call::LoadOptions => {
-            crate::saves::load_options::load_game_options()?;
+            crate::saves::load_options::load_game_options(menus)?;
         }
         Call::LoadBestTimes => {
             crate::saves::load_best_times::load_game_best_times(crate::saves::owner::saves())?;
@@ -240,11 +241,15 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             menus,
             crate::settings::read_driver_names::path(),
         )?,
-        Call::ApplyPatches => crate::physics::apply_patches::apply_patches(race()),
+        Call::ApplyPatches => crate::physics::apply_patches::apply_patches(race),
         Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars(menus)?,
-        Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(menus, &mut |line| {
-            crate::logfile::log_write::log_nul(line, true, 1);
-        })?,
+        Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(
+            menus,
+            &mut |line| {
+                crate::logfile::log_write::log_nul(line, true, 1);
+            },
+            race,
+        )?,
         Call::UserName => {
             if let Some(mut name) = crate::os::user_name(USER_NAME_ROOM) {
                 name.push(0);
@@ -268,7 +273,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             crate::saves::read_savegame_slot::read_savegame_slot(slot)?;
         }
         Call::ReadReplaySlot(slot) => {
-            crate::saves::read_replay_slot::read_replay_slot(slot)?;
+            crate::saves::read_replay_slot::read_replay_slot(slot, race)?;
         }
         Call::ReadSetupSlot(slot) => {
             crate::service::read_setup_slot::read_setup_slot(service(), slot)?;
@@ -278,8 +283,8 @@ fn in_game(call: Call) -> Result<u32, Refused> {
 }
 
 /// The Rust version on the game's own calls.
-pub fn load_in_game() -> Result<(), Refused> {
-    load_game_data(&system().start, &mut in_game)
+pub fn load_in_game(system: &crate::system::owner::System) -> Result<(), Refused> {
+    load_game_data(&system.start, &mut in_game)
 }
 
 /// How many times the game was run (IDA 0x518BB0 .. 0x518BB4, the image's layout).
@@ -304,7 +309,8 @@ impl RunCount {
     #[cfg(test)]
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const system().start.run_count) as usize
+        crate::pointers::game_address(&raw const crate::system::owner::system().start.run_count)
+            as usize
     }
 }
 

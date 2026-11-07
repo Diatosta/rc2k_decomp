@@ -21,7 +21,6 @@ use crate::math::x87;
 use crate::scene::matrix3::rounded;
 
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::owner::effects;
 const ANGLES: u32 = 0x1000;
 
 /// The Rust version (see the header): `angle` (the original's ebx), `colour` (ecx, its
@@ -32,8 +31,8 @@ pub fn draw_turned_sprite(
     size: u32,
     place: [[u8; 10]; 3],
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
     if angle >= ANGLES {
         return Err(BadInput("an angle past the sine tables").into());
     }
@@ -73,7 +72,7 @@ pub fn draw_turned_sprite(
         for (n, v) in sq[2..6].iter().enumerate() {
             effects.frame.draw_work.sprite_half[n].set_bits(*v);
         }
-        if clip_quad(scene)? {
+        if clip_quad(scene, effects)? {
             return Ok(());
         }
         draw_fan();

@@ -22,7 +22,6 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
-use crate::effects::owner::effects;
 use crate::effects::ring_entries::field;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
@@ -118,7 +117,8 @@ pub fn emit_particle_5_with(
     wheel: &MarkRecord,
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
-    let kinds = &effects().kinds;
+    let effects = crate::effects::owner::effects();
+    let kinds = &effects.kinds;
     {
         if let Some(why) = refusal(ring, set, wheel)? {
             return Err(BadInput(why).into());
@@ -137,7 +137,7 @@ pub fn emit_particle_5_with(
         };
         kinds.emitter.sign.set(sign as u32);
         kinds.emitter.strength.set_bits(strength);
-        let car = emitting_car()?;
+        let car = emitting_car(effects)?;
         let m = car.whole()?;
         let r = next_c5(set.place_random);
         let (a, b) = (((r & 0x3FFF) as i32) - 0x2000, (r & 0x3FFF) as i32);
@@ -172,8 +172,10 @@ pub fn emit_particle_5_with(
                 )
             })
         })?;
-        let (moved, last) =
-            jitter_point([extended(set.spread.bits()), motion[2], motion[1], motion[0]]);
+        let (moved, last) = jitter_point(
+            [extended(set.spread.bits()), motion[2], motion[1], motion[0]],
+            effects,
+        );
         let speed = wheel.speed_18.bits();
         for (n, o) in [field::MOTION_Z, field::MOTION_Y, field::MOTION_X]
             .into_iter()

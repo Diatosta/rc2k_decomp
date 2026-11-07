@@ -25,13 +25,13 @@ fn limit(pong: &Pong, n: usize) -> u32 {
 }
 
 /// The Rust version (see the header).
-pub fn move_pong_ball(pong: &Pong) {
+pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {
     let p = &pong.state;
     let limit = |n| limit(pong, n);
     for n in 0..2 {
         p.ball[n].set_bits(x87::add(p.ball[n].bits(), p.ball_way[n].bits()));
     }
-    pong_ball_hits(pong);
+    pong_ball_hits(pong, effects);
     let flip = |r: &Float| r.set_bits(r.bits() ^ 0x8000_0000);
     if x87::compare_status(p.ball[0].bits(), limit(0)) != 0 {
         p.ball[0].set_bits(x87::loaded(limit(1)));

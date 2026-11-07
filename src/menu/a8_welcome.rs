@@ -15,7 +15,7 @@ use crate::menu::flow_game::Game;
 use rc2k_core::menu::welcome::{self};
 
 /// The Rust version.
-pub fn a8_welcome() -> Result<(), Refused> {
+pub fn a8_welcome(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::welcome::a8_welcome`.
-    Game::new().run(welcome::a8_welcome)
+    Game::new(menus).run(welcome::a8_welcome)
 }

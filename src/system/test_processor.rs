@@ -28,7 +28,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::session::{Dword, Machine};
-use crate::system::owner::system;
 use rc2k_core::system::processor::{Var, test};
 
 // ---- game data ----
@@ -110,8 +109,10 @@ fn cell(m: &Machine, v: Var) -> &Dword {
     }
 }
 
-pub fn test_processor(p: &dyn Processor) -> Result<(), Refused> {
-    let system = system();
+pub fn test_processor(
+    p: &dyn Processor,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     // Converted: `rc2k_core::system::processor::test`.
     let mut put = |v: Var, value: u32| {
         if v == Var::FpuWord {

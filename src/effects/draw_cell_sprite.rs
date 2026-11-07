@@ -31,20 +31,25 @@ const CELLS: u32 = 0x41;
 const ANGLES: u32 = 0x1000;
 
 /// The original's 0x4CB796 .. 0x4CB81A: the place turned by the view.
-fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3]) {
-    turn_x87(frame, p, &ring.work, &effects().frame.draw_work);
+fn turn(frame: &Frame, ring: &Ring, p: &[[u8; 10]; 3], effects: &crate::effects::owner::Effects) {
+    turn_x87(frame, p, &ring.work, &effects.frame.draw_work);
 }
 
 /// The original's 0x4CB84C .. 0x4CBA37 (its integer moves done before but those it does
 /// between the x87 steps): the square, turned, about the projected place. Gives what the
 /// original loads into edi at +0x17B: `flt_8EB8C1` between its two stores.
-fn square(k: u32, angle: u32) -> u32 {
-    let effects = effects();
+fn square(
+    k: u32,
+    angle: u32,
+    effects: &crate::effects::owner::Effects,
+    scene: &crate::scene::owner::Scene,
+) -> u32 {
     square_x87(
         k as usize,
         angle as usize,
         &effects.frame.draw_work,
         &effects.blocks.corner_slopes,
+        scene,
     )
 }
 
@@ -58,15 +63,15 @@ pub fn draw_cell_sprite(
     frame: &Frame,
     masks: &Masks,
     ring: &Ring,
+    effects: &crate::effects::owner::Effects,
     cell: u32,
     angle: u32,
     alpha: u32,
     size: u32,
     entry: u32,
     place: [[u8; 10]; 3],
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
-    let effects = effects();
     if cell >= CELLS {
         return Err(BadInput("a mark cell past g_marksCellPlaces").into());
     }
@@ -81,7 +86,7 @@ pub fn draw_cell_sprite(
     if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
-    turn(frame, ring, &place);
+    turn(frame, ring, &place, effects);
     if effects.frame.draw_work.turned[2].bits() as i32 <= effects.frame.draw_work.near.bits() as i32
     {
         return Ok(());
@@ -103,8 +108,8 @@ pub fn draw_cell_sprite(
         VERTICES.vertices[n].u.set_bits(u);
         VERTICES.vertices[n].v.set_bits(v);
     }
-    square(at, angle);
-    if clip_quad(scene)? {
+    square(at, angle, effects, scene);
+    if clip_quad(scene, effects)? {
         return Ok(());
     }
     draw_fan();
@@ -114,7 +119,6 @@ pub fn draw_cell_sprite(
 
 use crate::effects::blocks::CornerSlopes;
 use crate::effects::frame_state::DrawWork;
-use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, st_cell};
 use crate::math::x87_float as bh;
 use crate::scene::engine_tables_store::{cosine, sine};
@@ -172,9 +176,14 @@ fn slope_at(cs: &CornerSlopes, k: usize) -> &Float {
 /// adds to `g_marksCornerSlopes` (records of 0x24: it reads the float at that byte, whatever
 /// field it falls on: section 16), so that read goes through `slope_at`. `angle` is the
 /// sine table's cell (the original's `s` is four times it; the cosine is the cell 0x400 on).
-fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
-    let t0 =
-        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits());
+fn square_x87(
+    k: usize,
+    angle: usize,
+    dw: &DrawWork,
+    cs: &CornerSlopes,
+    scene: &crate::scene::owner::Scene,
+) -> u32 {
+    let t0 = crate::math::x87_float::ld(scene.drawing.scene.view_scale.bits());
     let t1 = t0 / bh::ld(dw.turned[2].bits());
     let t2 = bh::ld(dw.turned[2].bits());
     let t3 = t2 * bh::ld(dw.z_k.bits());
@@ -217,10 +226,7 @@ fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
     let t28 = t1 * bh::ld(dw.turned[0].bits());
     let t29 = t1 * bh::ld(dw.turned[1].bits());
     let t30 = -t29;
-    let t31 = t30
-        + crate::math::x87_float::ld(
-            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
-        );
+    let t31 = t30 + crate::math::x87_float::ld(scene.drawing.scene.view_centre[1].bits());
     let t32 = t31 - bh::ld(dw.sprite_half[1].bits());
     st_cell(&VERTICES.vertices[0].y, t32);
     let t33 = t31 - bh::ld(dw.sprite_half[3].bits());
@@ -229,10 +235,7 @@ fn square_x87(k: usize, angle: usize, dw: &DrawWork, cs: &CornerSlopes) -> u32 {
     st_cell(&VERTICES.vertices[2].y, t34);
     let t35 = t31 + bh::ld(dw.sprite_half[3].bits());
     st_cell(&VERTICES.vertices[3].y, t35);
-    let t36 = t28
-        + crate::math::x87_float::ld(
-            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
-        );
+    let t36 = t28 + crate::math::x87_float::ld(scene.drawing.scene.view_centre[0].bits());
     let t37 = t36 - bh::ld(dw.sprite_half[0].bits());
     st_cell(&VERTICES.vertices[0].x, t37);
     let t38 = t36 - bh::ld(dw.sprite_half[2].bits());
@@ -580,7 +583,9 @@ mod asm_differential {
                         let mut cells = vertices;
                         cells.push((sine(b[4] / 4), tables.wrapping_add(b[4])));
                         cells.push((cosine(b[4] / 4), tables.wrapping_add(b[4] + 0x1000)));
-                        staged(&cells, || super::square_x87(b[3], b[4] / 4, dw, cs))
+                        staged(&cells, || {
+                            super::square_x87(b[3], b[4] / 4, dw, cs, crate::scene::owner::scene())
+                        })
                     })
                 })
             },

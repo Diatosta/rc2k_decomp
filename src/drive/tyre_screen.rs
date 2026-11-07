@@ -40,6 +40,7 @@ pub fn tyre_screen(
     mode: u32,
     car: u32,
     input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     if car > 7 {
         return Err(crate::errors::BadInput("a car past 7 (g_inputDevices)").into());
@@ -87,6 +88,7 @@ pub fn tyre_screen(
         &shared.tyre_change.turning_rect,
         0xFF_FFFF,
         device,
+        system,
     )?;
     crate::drive::tyre_screen_parts::tyre_screen_parts(shared)
 }

@@ -32,6 +32,7 @@ pub fn read_picture_file(
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
 ) -> Result<bool, Refused> {
+    let system = crate::system::owner::system();
     use rc2k_core::gfx::loading::{Reader, ending, reader};
     let png = &gfx.png;
     let text = path.text("a picture's path")?;
@@ -40,7 +41,7 @@ pub fn read_picture_file(
     }
     let text = swap_missing_extension(path)?;
     match reader(ending(&text)?, png.setting.get()) {
-        Reader::PngThenPcx => Ok(read_png(png, &text, gfx)? || read_pcx(&text, gfx)?),
+        Reader::PngThenPcx => Ok(read_png(png, &text, gfx, system)? || read_pcx(&text, gfx)?),
         Reader::Pcx => Ok(read_pcx(&text, gfx)?),
         Reader::Nothing => Ok(true),
         Reader::Chatzone => {

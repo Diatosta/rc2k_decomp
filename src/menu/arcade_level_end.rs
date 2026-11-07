@@ -17,6 +17,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 
 /// The Rust version.
 pub fn arcade_level_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    let race = crate::race::owner::race();
     let play = &menus.play;
     // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};
@@ -28,7 +29,7 @@ pub fn arcade_level_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Re
     }
     let level = won_level(play.arcade.level.get())?;
     crate::sound::play_tune_6::play_tune_6();
-    crate::menu::arcade_finale::arcade_finale(menus, &menus.play, sound)?;
+    crate::menu::arcade_finale::arcade_finale(menus, &menus.play, sound, race)?;
     if first_win(play.arcade.levels_won.get(level as usize)) {
         play.arcade.levels_won.set(level as usize, 1);
         let shown = Entry::with_cars(menus, Some(CarList::Shown));

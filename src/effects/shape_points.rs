@@ -5,7 +5,6 @@
 
 use crate::effects::mask_store::Masks;
 use crate::effects::masks::PointList;
-use crate::effects::owner::effects;
 use crate::effects::shape_work::MarkShapes;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
@@ -201,7 +200,11 @@ fn all_steps<'a>(
 /// (`dword_844604` / `_08`) is 0, and `turn_shape_points` with them. The object's offset
 /// (times 0xAB8) is worked out and not used: the one set is turned every time (section
 /// 16). Refuses what `turn_shape_points` would, before writing.
-pub fn turn_all_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn turn_all_shapes(
+    masks: &Masks,
+    drops: &WindscreenDrops,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     use crate::effects::turns::{smooth_pair, smooth_steps};
     {
         let marks = crate::effects::setup::marks()?;
@@ -219,7 +222,12 @@ pub fn turn_all_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Ref
             for (n, &(step, a, b, _)) in all_steps.iter().enumerate() {
                 turns[n] = pick(
                     n,
-                    smooth_pair(step.get(), drops.tuning.turn_angles[a].bits(), b.get()),
+                    smooth_pair(
+                        step.get(),
+                        drops.tuning.turn_angles[a].bits(),
+                        b.get(),
+                        effects,
+                    ),
                 );
             }
             turn_shape_checks(drops, turns[0], turns[1])?;
@@ -234,6 +242,7 @@ pub fn turn_all_shapes(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Ref
                         step.get(),
                         drops.tuning.turn_angles[a].bits(),
                         b.get(),
+                        effects,
                     ),
                 );
             }
@@ -413,9 +422,10 @@ pub fn make_shape_sets(
     course: &Course,
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
-        let kind: u32 = effects().kinds.marks_kind.kind.bits();
+        let kind: u32 = effects.kinds.marks_kind.kind.bits();
         if kind >= SETS {
             return Err(BadInput("a marks' kind of 0x22 or more").into());
         }

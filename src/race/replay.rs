@@ -189,11 +189,12 @@ fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
 /// the rest (`pusha` / `popa`), and its zero flag is read by no caller. Both callers write
 /// the whole replay block (`dword_9613A4`, 0x2810 bytes): here it is that block.
 pub fn write_replay_chunk(shared: &Shared, handle: u32) -> Result<(u32, bool), Refused> {
+    let system = crate::system::owner::system();
     let block = VIEWER_BUFFERS.block_bytes();
     if shared.replay_file.chunks_plain.get() == 1 {
         return Ok(write(handle, &block));
     }
-    let (packing, packed) = crate::race::save_seal::pack_runs(&block)?;
+    let (packing, packed) = crate::race::save_seal::pack_runs(&block, system)?;
     // Converted: `rc2k_core::race::replay::packed_size`.
     Ok(
         match rc2k_core::race::replay::packed_size(packed, BLOCK_LEN) {

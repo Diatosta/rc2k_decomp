@@ -4,7 +4,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;
 use crate::menu::owner::menus;
-use crate::system::owner::system;
 
 /// " ", "-----", "Count:", "GB_Timed: t:- ", "CTs:-", "-----", "%%%%%", "-----",
 /// "GB_Shaun: ", "CTs:", "-----", "%%%%%", "%%%%%", "%%%%%".
@@ -31,10 +30,11 @@ const WORDS: [&std::ffi::CStr; 14] = [
 /// `dword_7558C8` is 1, else in `dword_7556E8`). None for a null pointer, or a table or
 /// the summary they go to (`saves::best_times::SUMMARY`) not taken.
 pub fn rally_times_places() -> Result<Option<(&'static StageTable, usize)>, BadInput> {
+    let system = crate::system::owner::system();
     let screens = &menus().screens;
     {
         let kind = screens.event.stage_group.get();
-        let stages = system()
+        let stages = system
             .records
             .stage_tables
             .group_event_table(kind, screens.event.stage_sub.get())?;

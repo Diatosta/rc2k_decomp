@@ -19,33 +19,36 @@ use crate::math::x87;
 const MOST: i32 = 0x80;
 
 /// The original's 0x4BC60E .. 0x4BC66B: the rate, compared (`fstsw` into `g_fpuStatus`).
-fn rate(drops: &WindscreenDrops) {
-    rate_x87(drops, &effects().frame.kept_view);
+fn rate(drops: &WindscreenDrops, effects: &crate::effects::owner::Effects) {
+    rate_x87(drops, &effects.frame.kept_view);
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_spawn(drops: &WindscreenDrops) -> Result<(), Refused> {
-    let setup = &effects().setup;
+pub fn windscreen_drops_spawn(
+    drops: &WindscreenDrops,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    let setup = &effects.setup;
     {
         drops
             .state
             .frames
             .set(drops.state.frames.get().wrapping_add(1));
         let old = x87::set_chop();
-        rate(drops);
+        rate(drops, effects);
         let status = setup.work.fpu_status.get() & 0x700;
         setup.work.fpu_status.set(status);
         if status != 0x100 {
             let v: u32 = drops.state.spawn_rate.bits();
             let n = x87::to_int(v).min(MOST);
             for _ in 0..n.max(0) {
-                pick_windscreen_drop(drops)?;
+                pick_windscreen_drop(drops, effects)?;
             }
             let share = x87::fraction_times_to_int(v, drops.hex.share_k.bits());
             let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
             setup.work.seed.set(s);
             if ((s >> 8) & 0xFFFF) as i32 <= share {
-                pick_windscreen_drop(drops)?;
+                pick_windscreen_drop(drops, effects)?;
             }
         }
         x87::set_control(old);
@@ -53,7 +56,6 @@ pub fn windscreen_drops_spawn(drops: &WindscreenDrops) -> Result<(), Refused> {
     Ok(())
 }
 
-use crate::effects::owner::effects;
 use crate::effects::plain::ld_cell;
 use crate::effects::view_vectors::KeptView;
 use crate::math::x87_float as bh;

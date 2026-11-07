@@ -19,7 +19,6 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::mask_store::Masks;
-use crate::effects::owner::effects;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -121,8 +120,8 @@ pub fn emit_particle_6(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
     {
         if let Some(why) = refusal(particles, ring, wheel, object)? {
             return Err(BadInput(why).into());
@@ -148,7 +147,7 @@ pub fn emit_particle_6(
         }
         let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, 6)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-        let car = emitting_car()?;
+        let car = emitting_car(effects)?;
         let m = car.whole()?;
         let r = next_c5(&particles.kind6_set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);

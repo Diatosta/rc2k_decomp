@@ -14,7 +14,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::handle::read_slice;
 use crate::race::viewer_buffers_store::{BLOCK_BYTES, VIEWER_BUFFERS};
-use crate::system::owner::system;
 
 /// The Rust version, into the replay block (`dword_9613A4`, the ebx of both callers):
 /// (eax, CF, ZF when it unpacked). A plain read of more than the block holds is refused
@@ -22,7 +21,8 @@ use crate::system::owner::system;
 // Converted: `rc2k_core::drive::race_steps::packed_bytes` (the unpacking:
 // `rc2k_core::drive::rle`).
 pub fn read_packed(file: u32, count: u32) -> Result<(u32, bool, Option<bool>), Refused> {
-    let work = &system().work;
+    let system = crate::system::owner::system();
+    let work = &system.work;
     let Some(packed) = rc2k_core::drive::race_steps::packed_bytes(count) else {
         if count as usize > BLOCK_BYTES {
             return Err(BadInput("a replay block read past the block").into());

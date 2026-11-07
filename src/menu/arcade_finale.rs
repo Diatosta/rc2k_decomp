@@ -16,15 +16,14 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
-use crate::race::owner::race;
 
 /// The Rust version. The original keeps every register of its caller.
 pub fn arcade_finale(
     menus: &Menus,
     play: &Play,
     sound: &crate::sound::owner::Sound,
+    race: &crate::race::owner::Race,
 ) -> Result<(), Refused> {
-    let race = race();
     let first = play.players.players[0].get();
     race.shared
         .state

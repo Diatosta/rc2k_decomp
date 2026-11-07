@@ -10,7 +10,6 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::owner::effects;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
 use crate::scene::matrix3::rounded;
@@ -18,8 +17,8 @@ use crate::scene::vector3::angle_between_vectors;
 use crate::session::write_bits;
 
 /// The Rust version (see the header).
-pub fn view_heading(frame: &Frame) {
-    let effects_frame = &effects().frame;
+pub fn view_heading(frame: &Frame, effects: &crate::effects::owner::Effects) {
+    let effects_frame = &effects.frame;
     let x = x87::loaded(frame.matrices.view_place[2].bits());
     let z = x87::loaded(frame.matrices.view_place[10].bits());
     write_bits(&effects_frame.draw_frame.level, [x, 0, z]);

@@ -251,10 +251,11 @@ fn stand_in(what: &str, variable: &crate::session::Dword, value: u32) {
 /// Once, on the main thread, after the image is built: the start-up functions it calls are
 /// still `unsafe` (they write the game's state before any thread of the game's runs).
 fn start() {
+    let menus = crate::menu::owner::menus();
     let system = system();
     let gfx = gfx();
     let r = Regs::default();
-    crate::menu::players_store::point_players();
+    crate::menu::players_store::point_players(menus);
     // Font 56's palette: the image names the palette sheet (`gfx::build_fonts` hangs the rest).
     gfx.fonts.typefaces.objects[56]
         .palette
@@ -267,11 +268,11 @@ fn start() {
         .format
         .set(crate::gfx::pixel_format::SCREEN_FORMAT);
     rust("system::keep_start_time");
-    crate::system::keep_start_time::keep_start_time();
+    crate::system::keep_start_time::keep_start_time(system);
     rust("math::seed_random");
     crate::math::seed_random::seed_random();
     rust("system::read_volume_serial");
-    crate::system::read_volume_serial::read_volume_serial();
+    crate::system::read_volume_serial::read_volume_serial(system);
     // eax: what `system::read_volume_serial` leaves there, `start`'s esi at entry (its
     // `pop eax`; the serial is lost: `notes/bugs.md`), 0 here.
     rust("math::stir_random");
@@ -279,14 +280,14 @@ fn start() {
     // `system::set_exception_filter` (0x410D4C) sets nothing in the standalone.
     rust("system::test_processor");
     if let Err(e) =
-        crate::system::test_processor::test_processor(&crate::system::test_processor::Real)
+        crate::system::test_processor::test_processor(&crate::system::test_processor::Real, system)
     {
         refused("system::test_processor", e, &r);
     }
     rust("system::read_keyboard_type");
-    crate::system::read_keyboard_type::read_keyboard_type();
+    crate::system::read_keyboard_type::read_keyboard_type(system);
     rust("system::read_windows_version");
-    crate::system::read_windows_version::read_windows_version();
+    crate::system::read_windows_version::read_windows_version(system);
     // `CoInitialize` (no COM is used on this thread since phase 11).
     // `memory::open_own_heap` (0x40298A): the own heap was removed (2026-11-07).
     rust("system::set_error_mode");
@@ -331,7 +332,7 @@ fn start() {
         finish("fatal error 0x900010FF, FPU is required", 1);
     }
     rust("system::read_command_line");
-    if let Err(why) = crate::system::read_command_line::read_own_command_line() {
+    if let Err(why) = crate::system::read_command_line::read_own_command_line(system) {
         refused("system::read_command_line", why.into(), &r);
     }
     rust("install::check_clio_disc");
@@ -376,7 +377,7 @@ fn start() {
         refused("strings::load_language", e, &r);
     }
     rust("system::load_game_data");
-    if let Err(e) = crate::system::load_game_data::load_in_game() {
+    if let Err(e) = crate::system::load_game_data::load_in_game(system) {
         refused("system::load_game_data", e, &r);
     }
     rust("system::find_running_game");
@@ -424,7 +425,7 @@ fn start() {
     rust("gfx::fill_thirds_table");
     crate::gfx::fill_thirds_table::fill_thirds_table(gfx);
     rust("gfx::install_converters");
-    crate::gfx::install_converters::install_converters(&gfx.pixel.converters);
+    crate::gfx::install_converters::install_converters(&gfx.pixel.converters, system);
     // `sound::open_cd_audio` (0x40F9DE): cut out of this build (`pusha; jmp` to its
     // end), so not called.
     // What the window's procedure and the key thread tell the main loop (the films
@@ -441,7 +442,7 @@ fn start() {
     );
     stand_in("the key thread runs", &system.session.clocks.key_ticks, 1);
     rust("system::main_loop");
-    if let Err(e) = crate::system::main_loop::main_loop_in_game() {
+    if let Err(e) = crate::system::main_loop::main_loop_in_game(system) {
         refused("system::main_loop", e, &r);
     }
     rust("net::shut_down");
@@ -463,7 +464,7 @@ fn start() {
         refused("install::run_after_exit", e, &r);
     }
     rust("system::restore_error_mode");
-    crate::system::restore_error_mode::restore_error_mode();
+    crate::system::restore_error_mode::restore_error_mode(system);
     // `memory::free_own_heap` (0x4029DB): the own heap was removed (2026-11-07).
     // `CoUninitialize` (see `CoInitialize`).
     rust("fatal::show_report_at_exit");

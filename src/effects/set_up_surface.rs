@@ -13,6 +13,7 @@
 
 use crate::effects::load_mask_pictures::{lock, put_pixel};
 use crate::effects::mask_store::Masks;
+#[cfg(test)]
 use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
@@ -56,8 +57,9 @@ pub fn set_up_surface(
     masks: &Masks,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let setup = &effects().setup;
+    let setup = &effects.setup;
     // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
     // block was.
     let mut mask = crate::memory::owned::counted(&masks.list.list, MASK_BYTES)?;

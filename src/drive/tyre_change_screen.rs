@@ -13,11 +13,15 @@ use crate::race::owner::Race;
 
 /// The Rust version; every register kept.
 // Converted: `rc2k_core::drive::race_ticks::tyre_change_shown`.
-pub fn tyre_change_screen(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+pub fn tyre_change_screen(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     if !rc2k_core::drive::race_ticks::tyre_change_shown(CAR_BLOCKS.cars[0].tyre_change_state.get())
     {
         return Ok(());
     }
     let shared = &race.shared;
-    crate::drive::tyre_screen::tyre_screen(shared, shared.vars.split.get(), 0, input)
+    crate::drive::tyre_screen::tyre_screen(shared, shared.vars.split.get(), 0, input, system)
 }

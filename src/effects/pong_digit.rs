@@ -14,7 +14,13 @@ use crate::errors::Refused;
 
 /// The Rust version (see the header): `digit` (eax).
 // Converted: `rc2k_core::effects::pong::{pattern, cells}`
-pub fn pong_digit(pong: &Pong, fl: &WindscreenFlakes, digit: u32) -> Result<(), Refused> {
+pub fn pong_digit(
+    pong: &Pong,
+    fl: &WindscreenFlakes,
+    digit: u32,
+    effects: &crate::effects::owner::Effects,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     use rc2k_core::effects::pong as core;
     let first = core::pattern(digit)? as usize;
     for (n, (col, row)) in core::cells().enumerate() {
@@ -24,6 +30,8 @@ pub fn pong_digit(pong: &Pong, fl: &WindscreenFlakes, digit: u32) -> Result<(), 
             pong.state.digit_patterns.get(first + n),
             col,
             row,
+            effects,
+            scene,
         )?;
     }
     pong.state.digit_at[0].set(pong.state.digit_at[0].get().wrapping_add(core::DIGIT_STEP));

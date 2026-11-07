@@ -24,7 +24,6 @@
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::effects::mark_slots::slot_matrix;
-use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -36,8 +35,7 @@ use crate::session::read_on_in;
 const UV_WORDS: [(u32, u32); 4] = [(0xC, 0xE), (8, 0xA), (0, 2), (4, 6)];
 
 /// Why it refuses, if it does, worked out before anything is written.
-fn refusal() -> Option<&'static str> {
-    let effects = effects();
+fn refusal(effects: &crate::effects::owner::Effects) -> Option<&'static str> {
     {
         if effects.setup.settings.is_set.get() == 0 {
             return Some("no marks settings");
@@ -57,9 +55,9 @@ pub fn draw_mark_slots(
     race: &Race,
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
-    if let Some(why) = refusal() {
+    if let Some(why) = refusal(effects) {
         return Err(BadInput(why).into());
     }
     // The settings' +0x8C and +0x64: the first car record's +0x2C and +4.
@@ -68,6 +66,7 @@ pub fn draw_mark_slots(
         crate::effects::add_mark_slot::add_mark_slot(
             first.word(4)?,
             crate::effects::mark_slots::VIEW_PLACE_MATRIX,
+            effects,
         );
     }
     crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());

@@ -10,7 +10,6 @@
 //!
 //! Caller: `effects::run_frame` (0x4D1693).
 
-use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::scene::matrix3::extended;
@@ -19,8 +18,11 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 
 /// The Rust version (see the header): the render states (`scene::set_render_state`), the
 /// texture (`scene::set_texture`), `draw_turned_sprite`.
-pub fn draw_glow(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let clipping = &effects().clipping;
+pub fn draw_glow(
+    scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    let clipping = &effects.clipping;
     {
         if clipping.glow.off.get() == 1 {
             return Ok(());
@@ -46,6 +48,7 @@ pub fn draw_glow(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
             0x1_0000,
             place,
             scene,
+            effects,
         )?;
     }
     Ok(())

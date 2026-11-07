@@ -50,6 +50,7 @@ fn record_tables() -> [crate::records::stages_store::RecordTable; 13] {
 /// 1, which it is only for `default_checkpoint_times`, which does not read it; the x is
 /// where a measuring starts, which a width does not depend on. The stage passed is 0.
 pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let gfx = crate::gfx::owner::gfx();
     let saves = saves();
     let best_times = &saves.best_times;
@@ -64,7 +65,7 @@ pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Re
     }
     crate::menu::link_player_names::link_player_names(menus)?;
     crate::menu::show_loading_picture::show_loading_picture(menus)?;
-    crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx)?;
+    crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx, system)?;
     crate::menu::fit_player_names::fit_player_names(menus)?;
     // The two dwords: the music volumes, then the tables' copies.
     sound
@@ -79,7 +80,7 @@ pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Re
         .set(menus.screens.option_work.other_volume.get());
     allocate_best_times::allocate_best_times(
         best_times,
-        system().records.stage_tables.championship(),
+        system.records.stage_tables.championship(),
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
     // variable says it is there, for the race's rivals.

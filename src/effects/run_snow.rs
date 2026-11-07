@@ -42,6 +42,7 @@ pub fn run_snow(
     race: &Race,
     weather: &Weather,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
@@ -50,7 +51,7 @@ pub fn run_snow(
         let marks = crate::effects::setup::marks()?;
         l.kept.set(marks.unknown_6bc[1].get());
         turn_light(frame, weather);
-        crate::effects::make_fade_colours::make_fade_colours(frame, weather);
+        crate::effects::make_fade_colours::make_fade_colours(frame, weather, effects);
         let mut flakes = marks.listener_switch_4.get() as i32;
         s.flakes.set(flakes as u32);
         if flakes == 0 {
@@ -116,7 +117,7 @@ pub fn run_snow(
         for m in 0..4 {
             s.wide_focal[m].set_bits(focal);
         }
-        crate::effects::draw_snow::draw_snow(weather, scene)?;
+        crate::effects::draw_snow::draw_snow(weather, scene, effects)?;
         crate::scene::depth_test_on::depth_test_on();
     }
     Ok(())

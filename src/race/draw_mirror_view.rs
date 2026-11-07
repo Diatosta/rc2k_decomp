@@ -13,7 +13,11 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 /// The Rust version (see the header).
-pub fn draw_mirror_view(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_mirror_view(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     if race.replay.finish.no_place.get() != 0
         || race.shared.work.in_credits.get() != 0
         || race.shared.switches.other_way.get() == 0
@@ -35,7 +39,7 @@ pub fn draw_mirror_view(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
         .set_bits(race.course.numbers.k256.bits());
     race.course.stage_prefs.grid_reach.set_bits(2u32);
     let drawn = (|| {
-        crate::race::frame_views::mirror_view_window(race, scene)?;
+        crate::race::frame_views::mirror_view_window(race, scene, system)?;
         race.shared.view.view_depth[1].set_bits(race.course.level_grid.view_value_kept.bits());
         crate::race::frame_flush::draw_view_backdrop(race, scene);
         crate::race::draw_view_scene::draw_view_scene(race, scene)

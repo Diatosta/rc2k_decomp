@@ -13,7 +13,6 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::cells::load;
 use crate::math::x87;
@@ -24,8 +23,7 @@ use crate::scene::vector3::{dot_product3, normalise};
 use crate::session::Dword;
 
 /// The Rust version (see the header).
-pub fn view_motion(frame: &Frame) -> Result<(), Refused> {
-    let effects = effects();
+pub fn view_motion(frame: &Frame, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     let m = &frame.matrices.view_place;
     // The original's six floats on its stack: the third row, then the step.
     let local: [Dword; 6] = std::array::from_fn(|_| Dword::new(0));

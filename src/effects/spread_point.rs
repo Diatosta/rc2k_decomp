@@ -12,15 +12,18 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::math::x87;
 use crate::scene::matrix3::{extended, rounded};
 use crate::session::Dword;
 
 /// The Rust version (see the header): the three out and eax.
-pub fn spread_point(paths: &Paths, inputs: [[u8; 10]; 4]) -> ([[u8; 10]; 3], u32) {
-    let setup = &effects().setup;
+pub fn spread_point(
+    paths: &Paths,
+    inputs: [[u8; 10]; 4],
+    effects: &crate::effects::owner::Effects,
+) -> ([[u8; 10]; 3], u32) {
+    let setup = &effects.setup;
     let [spread, b, c, d] = inputs.map(rounded);
 
     let first = paths

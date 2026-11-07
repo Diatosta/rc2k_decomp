@@ -30,7 +30,6 @@ use crate::gfx::glyph_tables::{
 use crate::memory::take_from_list::{rewind_list, take_from_list};
 use crate::pointers::Store;
 use crate::session::Dword;
-use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -221,6 +220,7 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// original's fatal error 0x80E48023 for a failed allocation cannot come: the allocator
 /// reports its own.)
 fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let gfx = gfx();
     let list = &gfx.fonts.glyph_tables.memory;
     let bytes = gfx
@@ -229,10 +229,10 @@ fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
         .units
         .get()
         .wrapping_mul(0x400)
-        .wrapping_mul(system().session.screen.bytes.get());
+        .wrapping_mul(system.session.screen.bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
-    begin_glyph_tables(vars, gfx)?;
+    begin_glyph_tables(vars, gfx, system)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
     palettes.set(palette_place(list)?);
     begin_glyph_table(vars, list)?;

@@ -37,6 +37,7 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
 /// The Rust version. Every register is kept (the original's `pusha` .. `popa`); the
 /// calls get theirs as noted, of which only the sound reads one (eax 8).
 pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
+    let race = crate::race::owner::race();
     let play = &menus.play;
     let name = crate::menu::player_names::name_ptr(
         menus,
@@ -52,9 +53,13 @@ pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
     // The original's registers at the calls: eax 8, ebx the entry, ecx the bit, edi
     // the record.
     crate::sound::play_menu_sound::play_menu_sound_in_game(8);
-    crate::menu::apply_cheats::apply_cheats(menus, &mut |line| {
-        crate::logfile::log_write::log_nul(line, true, 1);
-    })?;
+    crate::menu::apply_cheats::apply_cheats(
+        menus,
+        &mut |line| {
+            crate::logfile::log_write::log_nul(line, true, 1);
+        },
+        race,
+    )?;
     let mut hidden = Vec::new();
     crate::strings::append_string_by_id::push_string(&mut hidden, HIDDEN_NAME)?;
     hidden.push(0);

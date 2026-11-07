@@ -4,7 +4,6 @@
 
 use crate::errors::BadInput;
 use crate::race::seal_store::SealWork;
-use crate::system::owner::system;
 
 /// `race::pack_runs` (0x41EFEC): ecx bytes at esi packed to edi: runs of 2 .. 0x80 equal
 /// bytes as (length - 1, byte), other stretches of up to 0x80 as (-length, bytes); fewer
@@ -12,13 +11,16 @@ use crate::system::owner::system;
 /// counts. Returns the bytes written (ecx). Every other register kept. Here: `source`
 /// packed into the shared scratch (`g_pngInfo`, edi of its one caller); the packing (end
 /// mark included) is returned with the count.
-pub fn pack_runs(source: &[u8]) -> Result<(Vec<u8>, u32), BadInput> {
+pub fn pack_runs(
+    source: &[u8],
+    system: &crate::system::owner::System,
+) -> Result<(Vec<u8>, u32), BadInput> {
     // Converted: `rc2k_core::race::seal::pack_runs`.
     let mut packed = rc2k_core::race::seal::pack_runs(source);
     let len = packed.len() as u32;
     // The end mark is the first byte of a dword 0.
     packed.extend_from_slice(&[0, 0, 0]);
-    system()
+    system
         .work
         .files
         .buffer

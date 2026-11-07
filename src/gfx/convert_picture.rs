@@ -28,20 +28,20 @@ use crate::gfx::copy_pixel_rows::COPY_PIXEL_ROWS;
 use crate::gfx::formats::Formats;
 use crate::gfx::picture::{has_picture, with_picture};
 use crate::gfx::pixel_format::PixelFormat;
-use crate::system::owner::system;
 
 // ---- game data ----
 
 const FORMAT_NUMBER: usize = 0x14; // in the surface's format
 
 /// The surface format's number.
-fn format_number() -> u32 {
-    system().session.screen.format[FORMAT_NUMBER / 4].get()
+fn format_number(system: &crate::system::owner::System) -> u32 {
+    system.session.screen.format[FORMAT_NUMBER / 4].get()
 }
 
 /// The converter the game has for the surface's format, or 0.
 fn converter(converters: &Converters) -> u32 {
-    converters.table[format_number() as usize].get()
+    let system = crate::system::owner::system();
+    converters.table[format_number(system) as usize].get()
 }
 
 // ---- Rust version ----
@@ -56,6 +56,7 @@ pub fn convert_picture(
     screen_bits: u32,
     converter: u32,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<CarryLeft, BadInput> {
     let pictures = &gfx.pictures;
     let (width, height): (u32, u32) = (pictures.picture.width.get(), pictures.picture.height.get());
@@ -102,7 +103,7 @@ pub fn convert_picture(
             // of rotations (+0 negative), set after its loop over the masks (`shr ecx, 1`
             // shifting out the last bit).
             let last = u32::from_le_bytes(bytes[(pixels - 1) * 4..pixels * 4].try_into().unwrap());
-            let carry = last != 0 && (system().session.screen.format[0].get() as i32) >= 0;
+            let carry = last != 0 && (system.session.screen.format[0].get() as i32) >= 0;
             let scratch = rc2k_core::gfx::pixels::convert_in_place(
                 bytes,
                 pixels,
@@ -131,6 +132,7 @@ pub fn convert_picture(
 
 /// With the screen's bits and the surface format's converter as they are now.
 pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
+    let system = crate::system::owner::system();
     let gfx = crate::gfx::owner::gfx();
     let pixel = &gfx.pixel;
     if !has_picture() {
@@ -139,8 +141,9 @@ pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
     convert_picture(
         &pixel.formats,
         &pixel.converters,
-        system().session.screen.bits.get(),
+        system.session.screen.bits.get(),
         converter(&pixel.converters),
         gfx,
+        system,
     )
 }

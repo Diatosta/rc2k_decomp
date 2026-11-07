@@ -19,7 +19,6 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
-use crate::effects::owner::effects;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -32,7 +31,11 @@ const LOOK: u32 = 0x34;
 const LIFE: u32 = 0x3E8;
 
 /// The rate, from the wheel's +0xC.
-fn rate(particles: &Particles, wheel: &MarkRecord) -> Result<i32, Refused> {
+fn rate(
+    particles: &Particles,
+    wheel: &MarkRecord,
+    effects: &crate::effects::owner::Effects,
+) -> Result<i32, Refused> {
     Ok({
         let [k1, k2, k3, k4] = particles
             .kind21_set
@@ -44,7 +47,7 @@ fn rate(particles: &Particles, wheel: &MarkRecord) -> Result<i32, Refused> {
             k1,
             k2,
             k3,
-            effects().setup.floats.one.bits(),
+            effects.setup.floats.one.bits(),
             k4,
         )
     })
@@ -56,9 +59,10 @@ fn refusal(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<Option<&'static str>, Refused> {
     Ok({
-        if !gate_with(wheel, object, rate(particles, wheel)?)?.passes {
+        if !gate_with(wheel, object, rate(particles, wheel, effects)?)?.passes {
             return Ok(None);
         }
         // The ring full: nothing more is read.
@@ -76,13 +80,13 @@ pub fn emit_particle_21(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
     {
-        if let Some(why) = refusal(particles, ring, wheel, object)? {
+        if let Some(why) = refusal(particles, ring, wheel, object, effects)? {
             return Err(BadInput(why).into());
         }
-        let g = gate_with(wheel, object, rate(particles, wheel)?)?;
+        let g = gate_with(wheel, object, rate(particles, wheel, effects)?)?;
         ring.work.rate.set(g.rate as u32);
         if let Some(count) = g.count {
             wheel.pace.set(count);
@@ -92,7 +96,7 @@ pub fn emit_particle_21(
         }
         let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, 0x15)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-        let car = emitting_car()?;
+        let car = emitting_car(effects)?;
         let m = car.whole()?;
         let r = next_c5(&particles.kind21_set.side_random);
         let (a, b) = ((r & 1) as i32 - 1, (r & 1) as i32);

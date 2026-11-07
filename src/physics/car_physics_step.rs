@@ -59,6 +59,7 @@ fn motion(race: &Race, scene: &crate::scene::owner::Scene) {
 /// The steps. What the callees leave in the registers is read by none of them (each reads
 /// what it needs from memory), nor by the callers.
 pub fn steps(race: &Race) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let sound = crate::sound::owner::sound();
     let scene = crate::scene::owner::scene();
     let race_owner = race;
@@ -239,7 +240,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     }
     ph::hold_spin_on_ground::hold_spin_on_ground(race);
     ph::drop_broken_parts::drop_broken_parts(race, scene)?;
-    ph::car_lighting::car_lighting(race, scene)?;
+    ph::car_lighting::car_lighting(race, scene, system)?;
     ph::sum_forces::sum_forces(race);
     ph::blend_wheel_load::blend_wheel_load(race);
     ph::share_engine_sound::share_engine_sound(race)?;

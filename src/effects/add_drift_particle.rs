@@ -12,7 +12,6 @@
 //! ring (an entry to take), before anything.
 
 use crate::effects::blocks::{particle, set_particle};
-use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -30,6 +29,7 @@ pub fn add_drift_particle(
     ring: &Ring,
     kind: u32,
     v: [[u8; 10]; 6],
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
         let used: u32 = ring.pool.used.get();
@@ -53,7 +53,7 @@ pub fn add_drift_particle(
         put(0x10, rounded(v[4]))?;
         put(
             0x1C,
-            x87::ext_sub(v[4], effects().kinds.particle_tuning.drift_lower.bits()),
+            x87::ext_sub(v[4], effects.kinds.particle_tuning.drift_lower.bits()),
         )?;
         put(0xC, rounded(v[5]))?;
         put(0x18, rounded(v[5]))?;

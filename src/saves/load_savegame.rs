@@ -143,9 +143,9 @@ pub fn load_savegame(menus: &Menus) -> Result<(), Refused> {
     menus.screens.event.continuing_save.set(1u32);
     crate::menu::link_player_names::link_player_names(menus)?;
     if menus.play.champ_view.event_mode.get() == A8_MODE {
-        crate::menu::run_a8_championship::run_a8_championship()?;
+        crate::menu::run_a8_championship::run_a8_championship(menus)?;
     } else {
-        crate::menu::run_championship::run_championship()?;
+        crate::menu::run_championship::run_championship(menus)?;
     }
     go_back::go_back();
     Ok(())

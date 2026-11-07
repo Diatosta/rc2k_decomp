@@ -3,14 +3,12 @@
 //! not to be had); see `race/replay_mode.rs`.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
 use crate::race::replay_viewer::Mode;
 
 /// `menu::replay_item_a` (0x47053E): unless `dword_75ACDC` is 1, with a replay there
 /// (`dword_5BEC84` 1) `race::replay_mode_1`; else half a second's sleep and the menu's sound
 /// 8.
-pub fn replay_item_a() -> Result<(), Refused> {
-    let race = race();
+pub fn replay_item_a(race: &crate::race::owner::Race) -> Result<(), Refused> {
     if race.shared.state.settings.no_replay.get() != 1
         && race.shared.replay_file.replay_closed.get() == 1
     {
@@ -22,14 +20,14 @@ pub fn replay_item_a() -> Result<(), Refused> {
 }
 
 /// `menu::replay_item_b` (0x47052F): unless `dword_75ACDC` is 1, `race::replay_mode_3`.
-pub fn replay_item_b() -> Result<(), Refused> {
-    if race().shared.state.settings.no_replay.get() != 1 {
-        crate::race::replay_mode::replay_mode(race(), Mode::SaveLast)?;
+pub fn replay_item_b(race: &crate::race::owner::Race) -> Result<(), Refused> {
+    if race.shared.state.settings.no_replay.get() != 1 {
+        crate::race::replay_mode::replay_mode(race, Mode::SaveLast)?;
     }
     Ok(())
 }
 
 /// `menu::replay_item_c` (0x470529): the viewer's mode 2 (a 6-byte stub in the original).
-pub fn replay_item_c() -> Result<(), Refused> {
-    crate::race::replay_mode_2::replay_mode_2(race())
+pub fn replay_item_c(race: &crate::race::owner::Race) -> Result<(), Refused> {
+    crate::race::replay_mode_2::replay_mode_2(race)
 }

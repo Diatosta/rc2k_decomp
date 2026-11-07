@@ -26,7 +26,6 @@ use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
-use crate::race::owner::race;
 use crate::session::Dword;
 
 // ---- the volume steps ----
@@ -94,11 +93,11 @@ pub fn next_screen_mode(screens: &Screens) {
 
 /// `menu::previous_texture_setting` / `next_texture_setting`: the texture setting one
 /// step down or up.
-pub fn step_texture_setting(screens: &Screens, up: bool) {
+pub fn step_texture_setting(screens: &Screens, up: bool, race: &crate::race::owner::Race) {
     // Converted: `rc2k_core::menu::steps::texture`.
     let v = rc2k_core::menu::steps::texture(screens.option_work.setting_3.get(), up);
     screens.option_work.setting_3.set(v);
-    race().shared.state.settings.setting_3.set(v);
+    race.shared.state.settings.setting_3.set(v);
 }
 
 /// One of the colour choices: (its number, the table, where the pick goes).

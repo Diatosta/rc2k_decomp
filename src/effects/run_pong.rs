@@ -31,6 +31,7 @@ pub fn run_pong(
     pong: &Pong,
     fl: &WindscreenFlakes,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use crate::effects::draw_pong_box::draw_pong_box;
     let p = &pong.state;
@@ -44,11 +45,11 @@ pub fn run_pong(
         move_pong_bat(pong);
         let steps = p.steps.get() as i32;
         for _ in 0..steps.max(0) {
-            move_pong_ball(pong);
+            move_pong_ball(pong, effects);
         }
-        draw_pong_box(pong, fl, box_values(&p.ball, &p.ball_size));
-        draw_pong_box(pong, fl, box_values(&p.bat, &p.bat_size));
-        crate::effects::pong_score::pong_score(pong, fl)?;
+        draw_pong_box(pong, fl, box_values(&p.ball, &p.ball_size), effects, scene);
+        draw_pong_box(pong, fl, box_values(&p.bat, &p.bat_size), effects, scene);
+        crate::effects::pong_score::pong_score(pong, fl, effects, scene)?;
     }
     Ok(())
 }

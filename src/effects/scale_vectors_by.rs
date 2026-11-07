@@ -9,13 +9,12 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::owner::effects;
 use crate::effects::view_vectors::VectorSource;
 use crate::math::x87;
 
 /// The Rust version (see the header).
-pub fn scale_vectors_by() {
-    let frame = &effects().frame;
+pub fn scale_vectors_by(effects: &crate::effects::owner::Effects) {
+    let frame = &effects.frame;
     scale_triples(&[
         &frame.view_sources.sources[0],
         &frame.view_sources.sources[1],

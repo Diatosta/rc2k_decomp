@@ -1,7 +1,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::menu::finish::{self, Racer, Step, Var};
@@ -9,16 +8,21 @@ use rc2k_core::menu::finish::{self, Racer, Step, Var};
 /// The game for `rc2k_core::menu::finish`: the variables at their addresses, the finders'
 /// Rust versions, the steps their Rust versions. `racer` is the record (the original's
 /// edi) the racer fields are read through: a player's.
-pub struct Game {
+pub struct Game<'a> {
+    menus: &'a Menus,
     pub racer: RacerAt,
     /// A refused read or write of the core's variables (checked at each step and at the end).
     fault: Fault,
 }
 
-impl Game {
+impl<'a> Game<'a> {
     /// Runs a flow on a new game; a refused read or write of its variables ends it.
-    pub fn run(flow: impl FnOnce(&mut Game) -> Result<(), Refused>) -> Result<(), Refused> {
+    pub fn run(
+        menus: &'a Menus,
+        flow: impl FnOnce(&mut Game<'a>) -> Result<(), Refused>,
+    ) -> Result<(), Refused> {
         let mut game = Game {
+            menus,
             racer: RacerAt::None,
             fault: Fault::default(),
         };
@@ -40,7 +44,7 @@ pub enum RacerAt {
 const NO_RACER: crate::errors::BadInput = BadInput("a racer's field with no player chosen");
 const RACER_SET: crate::errors::BadInput = BadInput("a racer's field written");
 
-impl Game {
+impl Game<'_> {
     fn racer_get(&self, v: Var) -> u32 {
         let RacerAt::Player(p) = self.racer else {
             self.fault.ok::<u32>(Err(NO_RACER));
@@ -71,11 +75,11 @@ fn cell(menus: &Menus, v: Var) -> Option<&'_ Dword> {
     })
 }
 
-impl finish::Finish for Game {
+impl finish::Finish for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        let menus = menus();
+        let menus = self.menus;
         match v {
             Var::RacerNumber | Var::RacerCar => self.racer_get(v),
             _ => match cell(menus, v) {
@@ -86,7 +90,7 @@ impl finish::Finish for Game {
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        let menus = menus();
+        let menus = self.menus;
         match v {
             Var::RacerNumber | Var::RacerCar => self.fault.ok(Err(RACER_SET)),
             _ => match cell(menus, v) {
@@ -107,7 +111,7 @@ impl finish::Finish for Game {
     }
 
     fn find_done(&mut self) -> Result<Option<u32>, Refused> {
-        let screens = &menus().screens;
+        let screens = &self.menus.screens;
         let found = crate::menu::find_section_player::find_section_player(screens)?;
         self.racer = RacerAt::Player(found.record);
         Ok((found.index != u32::MAX).then_some(found.index))
@@ -140,9 +144,7 @@ impl finish::Finish for Game {
             )?,
             Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?,
             Step::LoadingPicture => {
-                crate::menu::show_loading_picture::show_loading_picture(
-                    crate::menu::owner::menus(),
-                )?;
+                crate::menu::show_loading_picture::show_loading_picture(self.menus)?;
             }
             Step::Render3dTidy => {
                 crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;

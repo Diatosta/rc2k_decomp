@@ -64,15 +64,17 @@ pub fn emit(
 ) -> Result<(), Refused> {
     let (masks, particles, ring) = (&effects.masks, &effects.particles, &effects.ring);
     match kind {
-        1 if table == Table::Body => emit_particle_18::emit_particle_18(masks, ring, wheel, object),
-        1 => emit_kind_1::emit_kind_1(masks, particles, ring, wheel, object),
+        1 if table == Table::Body => {
+            emit_particle_18::emit_particle_18(masks, ring, wheel, object, effects)
+        }
+        1 => emit_kind_1::emit_kind_1(masks, particles, ring, wheel, object, effects),
         3 if table == Table::Wheel => {
             emit_bursts_2::emit_bursts_2(effects, wheel, object)?;
-            emit_particle_6::emit_particle_6(masks, particles, ring, wheel, object)
+            emit_particle_6::emit_particle_6(masks, particles, ring, wheel, object, effects)
         }
         2..=4 | 6..=9 | 0xC => {
             emit_bursts::emit_bursts(effects, wheel, object)?;
-            emit_particle_6::emit_particle_6(masks, particles, ring, wheel, object)
+            emit_particle_6::emit_particle_6(masks, particles, ring, wheel, object, effects)
         }
         5 => emit_particle_5::emit_particle_5(ring, wheel, object),
         0xB => emit_particle_11::emit_particle_11(ring, wheel, object),

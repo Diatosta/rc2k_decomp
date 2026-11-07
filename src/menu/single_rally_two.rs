@@ -18,7 +18,7 @@ use crate::errors::Refused;
 use crate::menu::flow_game::Game;
 use rc2k_core::menu::rounds;
 
-pub fn single_rally_two() -> Result<(), Refused> {
+pub fn single_rally_two(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::single_rally_two`.
-    Game::new().run(rounds::single_rally_two)
+    Game::new(menus).run(rounds::single_rally_two)
 }

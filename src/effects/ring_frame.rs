@@ -28,6 +28,7 @@ pub fn ring_frame(
     particles: &Particles,
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     {
@@ -41,9 +42,9 @@ pub fn ring_frame(
         // The settings' +0x7C: the first car record's +0x1C.
         masks.surface.lives_by_level[8].set(marks.cars[0].word(0x1C)? & 0xFF_FFFF);
         particles.kind1_choice.choice.set(weather.rain.drops.get());
-        crate::effects::run_ring::run_ring(frame, masks, ring)?;
+        crate::effects::run_ring::run_ring(frame, masks, ring, effects)?;
         set_render_state(2, 0x14);
-        crate::effects::run_ribbons::run_ribbons(frame, ring, scene)?;
+        crate::effects::run_ribbons::run_ribbons(frame, ring, scene, effects)?;
     }
     Ok(())
 }

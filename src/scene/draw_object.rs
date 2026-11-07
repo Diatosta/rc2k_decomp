@@ -80,10 +80,11 @@ fn place_object_points_any(
 pub fn draw_object_in_game(
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     draw_object(&mut |step| {
         match step {
-            Step::Light => set_object_light_in_game(race, scene)?,
+            Step::Light => set_object_light_in_game(race, scene, system)?,
             Step::Material => set_object_material(race, scene)?,
             Step::Fade => set_object_fade(race, scene)?,
             Step::Points => place_object_points_any(race, scene)?,
@@ -98,7 +99,7 @@ pub fn draw_object_in_game(
             Step::Faces => {
                 draw_object_faces(
                     race,
-                    &mut |face| draw_object_face_in_game(race, face, scene),
+                    &mut |face| draw_object_face_in_game(race, face, scene, system),
                     scene,
                 )?;
             }

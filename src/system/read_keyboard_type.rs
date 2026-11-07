@@ -9,8 +9,6 @@
 //! `start` calls it directly (2026-10-23); the registers above are the original's, for
 //! reference.
 
-use crate::system::owner::system;
-
 // ---- game data ----
 
 // ---- Rust version ----
@@ -21,9 +19,9 @@ pub fn keyboard_type(subtype: u32) -> Option<u32> {
     rc2k_core::system::machine::keyboard_type(subtype)
 }
 
-pub fn read_keyboard_type() {
+pub fn read_keyboard_type(system: &crate::system::owner::System) {
     let subtype = crate::os::keyboard_subtype();
     if let Some(kind) = keyboard_type(subtype) {
-        system().session.machine.keyboard_type.set(kind);
+        system.session.machine.keyboard_type.set(kind);
     }
 }

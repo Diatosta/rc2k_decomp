@@ -10,14 +10,16 @@
 //! compared exactly as before (the earlier version stays for the Rust callers in
 //! unconverted code).
 
-use crate::effects::owner::effects;
 use crate::effects::spawn_windscreen_drop::spawn_windscreen_drop;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::Refused;
 
 /// The Rust version (see the header).
-pub fn pick_windscreen_drop(drops: &WindscreenDrops) -> Result<(), Refused> {
-    let setup = &effects().setup;
+pub fn pick_windscreen_drop(
+    drops: &WindscreenDrops,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    let setup = &effects.setup;
     {
         let s = setup.work.seed.get().wrapping_mul(0x9D).wrapping_add(0x47);
         setup.work.seed.set(s);

@@ -34,7 +34,6 @@ use crate::menu::owner::menus;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
-use crate::system::owner::system;
 use rc2k_core::race::tyre_change::{Gauge, Io, turn};
 
 /// flt_5C2C60 (`VIEWER_PANEL.one`): added to the square root in the press time's logarithm.
@@ -132,6 +131,7 @@ pub fn tyre_change_gauge(
     start: bool,
     player: u32,
     input: &'static crate::input::owner::Input,
+    system: &crate::system::owner::System,
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::tyre_change::turn`.
     if player > 7 {
@@ -152,7 +152,7 @@ pub fn tyre_change_gauge(
     if gauge != before {
         io.store(&gauge);
     }
-    system().session.machine.scratch.set(result);
+    system.session.machine.scratch.set(result);
     Ok(result)
 }
 

@@ -19,7 +19,7 @@ use crate::errors::Refused;
 use crate::menu::flow_game::Game;
 use rc2k_core::menu::rounds;
 
-pub fn single_rally_split() -> Result<(), Refused> {
+pub fn single_rally_split(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::single_rally_split`.
-    Game::new().run(rounds::single_rally_split)
+    Game::new(menus).run(rounds::single_rally_split)
 }

@@ -67,18 +67,18 @@ impl Colours257 {
 }
 
 /// The original's 0x4CF890 .. 0x4CF94D: a new streak's place turned into its last (+0x1C ..), and a first move.
-fn first_frame(frame: &Frame, ring: &Ring, e: u32) {
-    first_frame_x87(frame, ring, e, &effects().setup.clock, ring.kinds.ribbon_a);
+fn first_frame(frame: &Frame, ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
+    first_frame_x87(frame, ring, e, &effects.setup.clock, ring.kinds.ribbon_a);
 }
 
 /// The original's 0x4CF94D .. 0x4CF98C: the place moved by the motion, the motion's y by `flt_93A572`.
-fn move_(ring: &Ring, e: u32) {
-    move_x87(ring, e, &effects().setup.clock, ring.kinds.ribbon_b);
+fn move_(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
+    move_x87(ring, e, &effects.setup.clock, ring.kinds.ribbon_b);
 }
 
 /// The original's 0x4CF9A6 .. 0x4CFA2D: the place turned by the view into `flt_8EB8D5` ...
-fn turn_place(frame: &Frame, ring: &Ring, e: u32) {
-    turn_place_x87(frame, ring, e, &effects().frame.draw_work);
+fn turn_place(frame: &Frame, ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
+    turn_place_x87(frame, ring, e, &effects.frame.draw_work);
 }
 
 /// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
@@ -92,8 +92,13 @@ fn colour_count() -> i32 {
 }
 
 /// The colour `i` of the table in use (`i` below `colour_count`).
-fn colour_at(masks: &Masks, ring: &Ring, i: usize) -> u32 {
-    if effects().setup.kind_floats.other.bits() != 0 {
+fn colour_at(
+    masks: &Masks,
+    ring: &Ring,
+    i: usize,
+    effects: &crate::effects::owner::Effects,
+) -> u32 {
+    if effects.setup.kind_floats.other.bits() != 0 {
         masks.surface.colours[i].get()
     } else {
         ring.colours.colours[i]
@@ -101,12 +106,15 @@ fn colour_at(masks: &Masks, ring: &Ring, i: usize) -> u32 {
 }
 
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
-fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
+fn refusal(
+    ring: &Ring,
+    effects: &crate::effects::owner::Effects,
+) -> Result<Option<&'static str>, Refused> {
     Ok({
         let Ok(marks) = crate::effects::setup::marks() else {
             return Ok(Some("no marks settings"));
         };
-        let ticks: u32 = effects().setup.clock.frame_ticks.get();
+        let ticks: u32 = effects.setup.clock.frame_ticks.get();
         let mut e: u32 = ring.work.cursor.get();
         let count = ring.work.count.get() as i32;
         if count > 0 && (e == 0 || eg(ring, e, 0)? == 0) {
@@ -148,8 +156,8 @@ fn streak(
     ring: &Ring,
     e: u32,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<bool, Refused> {
-    let effects = effects();
     let t: u32 = effects.setup.clock.frame_ticks.get();
     let life = eg(ring, e, field::LIFE)?;
     ep(ring, e, field::LIFE, life.wrapping_sub(t))?;
@@ -160,13 +168,13 @@ fn streak(
         return Ok(true);
     }
     if eg(ring, e, field::PLACE_X)? == 0 {
-        first_frame(frame, ring, e);
+        first_frame(frame, ring, e, effects);
     }
-    move_on(ring, e);
+    move_on(ring, e, effects);
     effects.frame.draw_work.second[0].set_bits(eg(ring, e, field::LAST_PLACE_X)?);
     effects.frame.draw_work.second[1].set_bits(eg(ring, e, field::LAST_PLACE_Y)?);
     effects.frame.draw_work.second[2].set_bits(eg(ring, e, field::LAST_PLACE_Z)?);
-    turn_place(frame, ring, e);
+    turn_place(frame, ring, e, effects);
     let marks = crate::effects::setup::marks()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
         ep(
@@ -196,13 +204,21 @@ fn streak(
         eg(ring, e, field::ALPHA_FADE)?,
     );
     ring.work.whole.set(i as u32);
-    let colour = colour_at(&effects.masks, ring, i as usize);
-    crate::effects::draw_ribbon::draw_ribbon(&effects.masks, 0x20, i as u32, 0x800, colour, scene)?;
+    let colour = colour_at(&effects.masks, ring, i as usize, effects);
+    crate::effects::draw_ribbon::draw_ribbon(
+        &effects.masks,
+        0x20,
+        i as u32,
+        0x800,
+        colour,
+        scene,
+        effects,
+    )?;
     Ok(false)
 }
 
-fn move_on(ring: &Ring, e: u32) {
-    move_(ring, e);
+fn move_on(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) {
+    move_(ring, e, effects);
 }
 
 /// The Rust version (see the header).
@@ -210,8 +226,9 @@ pub fn run_ribbons(
     frame: &Frame,
     ring: &Ring,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    if let Some(why) = refusal(ring)? {
+    if let Some(why) = refusal(ring, effects)? {
         return Err(BadInput(why).into());
     }
     {
@@ -226,7 +243,7 @@ pub fn run_ribbons(
             // The settings' +0x60: the first car record's first word.
             if crate::effects::setup::marks()?.cars[0].word(0)? != 0
                 && eg(ring, e, field::KIND)? == STREAK
-                && streak(frame, ring, e, scene)?
+                && streak(frame, ring, e, scene, effects)?
             {
                 ring.work.count.set(ring.work.count.get().wrapping_sub(1));
                 if e == ring.work.cursor.get() {

@@ -25,6 +25,8 @@
 
 use crate::effects::emitters::matrix_cell;
 use crate::effects::mask_store::Masks;
+#[cfg(test)]
+use crate::effects::owner::effects;
 use crate::effects::ring_entries::field;
 use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
 use crate::effects::ring_store::Ring;
@@ -67,8 +69,8 @@ fn whole_of(car: &MarkCar) -> Result<&'static [Float; 16], BadInput> {
 }
 
 /// The original's 0x4CEA5E .. 0x4CEAD4 (and 0x4CED26 ..): that way made one long (`flt_76516C` over its length), dotted with the object's +0x4C .. into `flt_9356B4`.
-fn facing(ring: &Ring, car: &MarkCar) {
-    facing_x87(car, &effects().setup.floats, &ring.work);
+fn facing(ring: &Ring, car: &MarkCar, effects: &crate::effects::owner::Effects) {
+    facing_x87(car, &effects.setup.floats, &ring.work);
 }
 
 /// The original's 0x4CEF8A .. 0x4CEFDA: the place less the object's into `flt_935718` .., its length (kept, 80 bits, at `l`) less `flt_93A526` into `flt_9356BC`.
@@ -77,13 +79,18 @@ fn pull_length(ring: &Ring, e: u32, whole: &[Float; 16], length: &mut [u8; 10]) 
 }
 
 /// The original's 0x4CEFEC .. 0x4CF07F: the way made one long by the kept length, the object's +0x4C .. over its +0x88, minus their dot into `flt_9356B4`.
-fn pull_facing(ring: &Ring, car: &MarkCar, length: &[u8; 10]) {
-    pull_facing_x87(car, length, &effects().setup.floats, &ring.work);
+fn pull_facing(
+    ring: &Ring,
+    car: &MarkCar,
+    length: &[u8; 10],
+    effects: &crate::effects::owner::Effects,
+) {
+    pull_facing_x87(car, length, &effects.setup.floats, &ring.work);
 }
 
 /// The original's 0x4CF08B .. 0x4CF0D8: the entry's +0x64 pulled toward `flt_7651DC` (`fist` into `dword_9356C0`).
-fn pull_strength(ring: &Ring, e: u32, car: &MarkCar) {
-    let setup = &effects().setup;
+fn pull_strength(ring: &Ring, e: u32, car: &MarkCar, effects: &crate::effects::owner::Effects) {
+    let setup = &effects.setup;
     pull_strength_x87(
         ring,
         e,
@@ -222,9 +229,14 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
 }
 
 /// The life and the ground: whether the entry dies.
-fn aged(ring: &Ring, e: u32, ground: bool) -> Result<bool, Refused> {
+fn aged(
+    ring: &Ring,
+    e: u32,
+    ground: bool,
+    effects: &crate::effects::owner::Effects,
+) -> Result<bool, Refused> {
     Ok({
-        let t: u32 = effects().setup.clock.frame_ticks.get();
+        let t: u32 = effects.setup.clock.frame_ticks.get();
         let life = eg(ring, e, field::LIFE)?;
         ep(ring, e, field::LIFE, life.wrapping_sub(t))?;
         if life < t {
@@ -279,8 +291,13 @@ fn whole(ring: &Ring, v: i32) -> u32 {
 }
 
 /// The angle on and the place moved.
-fn spin_and_move(ring: &Ring, e: u32, spin: bool) -> Result<(), Refused> {
-    let setup = &effects().setup;
+fn spin_and_move(
+    ring: &Ring,
+    e: u32,
+    spin: bool,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    let setup = &effects.setup;
     {
         let t: i32 = setup.clock.frame_ticks.get() as i32;
         if spin {
@@ -312,9 +329,14 @@ fn spin_and_move(ring: &Ring, e: u32, spin: bool) -> Result<(), Refused> {
     Ok(())
 }
 
-fn gain_y(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
+fn gain_y(
+    ring: &Ring,
+    e: u32,
+    k_addr: &f32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
-        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
+        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
         ep(
             ring,
             e,
@@ -326,9 +348,14 @@ fn gain_y(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
 }
 
 /// The three dampings (a part that changes sign stops at 0).
-fn damp3(ring: &Ring, e: u32, ks: [&f32; 3]) -> Result<(), Refused> {
+fn damp3(
+    ring: &Ring,
+    e: u32,
+    ks: [&f32; 3],
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
-        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
+        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
         for (o, kk) in [field::MOTION_X, field::MOTION_Y, field::MOTION_Z]
             .into_iter()
             .zip(ks)
@@ -346,9 +373,14 @@ fn damp3(ring: &Ring, e: u32, ks: [&f32; 3]) -> Result<(), Refused> {
 }
 
 /// The size pulled toward +0x70.
-fn pull_size(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
+fn pull_size(
+    ring: &Ring,
+    e: u32,
+    k_addr: &f32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
-        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
+        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
         let (w, f) = x87::approach(
             eg(ring, e, field::SIZE_GOAL)? as i32,
             eg(ring, e, field::SIZE)?,
@@ -369,9 +401,9 @@ fn pull_size(ring: &Ring, e: u32, k_addr: &f32) -> Result<(), Refused> {
     Ok(())
 }
 
-fn fade(ring: &Ring, e: u32) -> Result<(), Refused> {
+fn fade(ring: &Ring, e: u32, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     {
-        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
+        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
         ep(
             ring,
             e,
@@ -387,7 +419,11 @@ fn fade(ring: &Ring, e: u32) -> Result<(), Refused> {
 }
 
 /// The box test of kinds 6 and 0x15: whether the size is pulled.
-fn outside_and_away(ring: &Ring, e: u32) -> Result<bool, Refused> {
+fn outside_and_away(
+    ring: &Ring,
+    e: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<bool, Refused> {
     Ok({
         let car = entry_car(ring, e)?;
         box_(ring, e, whole_of(car)?, car);
@@ -396,7 +432,7 @@ fn outside_and_away(ring: &Ring, e: u32) -> Result<bool, Refused> {
         if !outside {
             return Ok(false);
         }
-        facing(ring, car);
+        facing(ring, car, effects);
         (ring.work.facing.bits() as i32) <= 0
     })
 }
@@ -411,16 +447,22 @@ struct Sprite {
 
 /// The draws: 1 `draw_cell_sprite`, 2 its twin (the same Rust version), 3
 /// `draw_subcell_sprite`; `cell` is the (sub)cell, `size` the size.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "the original's registers, the effects' groups and the owners"
+)]
 fn draw(
     frame: &Frame,
     masks: &Masks,
     ring: &Ring,
+    effects: &crate::effects::owner::Effects,
     place: u32,
     sprite: Sprite,
     e: u32,
     p: [[u8; 10]; 3],
 ) -> Result<(), Refused> {
-    use crate::effects::{draw_cell_sprite as c, draw_subcell_sprite as s};
+    let scene = crate::scene::owner::scene();
+    use crate::effects::{draw_cell_sprite, draw_subcell_sprite};
     let Sprite {
         cell,
         angle,
@@ -429,8 +471,12 @@ fn draw(
     } = sprite;
     {
         match place {
-            3 => s::draw_subcell_sprite(frame, masks, ring, cell, size, e, p),
-            _ => c::draw_cell_sprite(frame, masks, ring, cell, angle, alpha, size, e, p),
+            3 => draw_subcell_sprite::draw_subcell_sprite(
+                frame, masks, ring, effects, cell, size, e, p, scene,
+            ),
+            _ => draw_cell_sprite::draw_cell_sprite(
+                frame, masks, ring, effects, cell, angle, alpha, size, e, p, scene,
+            ),
         }
     }
 }
@@ -443,9 +489,10 @@ fn drift_kind(
     e: u32,
     place: u32,
     ks: [&f32; 3],
+    effects: &crate::effects::owner::Effects,
 ) -> Result<bool, Refused> {
     {
-        if aged(ring, e, true)? {
+        if aged(ring, e, true, effects)? {
             return Ok(true);
         }
         if shown(ring, e)? {
@@ -460,6 +507,7 @@ fn drift_kind(
                 frame,
                 masks,
                 ring,
+                effects,
                 place,
                 Sprite {
                     cell,
@@ -471,9 +519,9 @@ fn drift_kind(
                 p,
             )?;
         }
-        spin_and_move(ring, e, true)?;
-        gain_y(ring, e, ks[0])?;
-        let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
+        spin_and_move(ring, e, true, effects)?;
+        gain_y(ring, e, ks[0], effects)?;
+        let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
         ep(
             ring,
             e,
@@ -499,9 +547,10 @@ fn fading_kind(
     e: u32,
     kind: u32,
     c: &Kind,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<bool, Refused> {
     {
-        if aged(ring, e, true)? {
+        if aged(ring, e, true, effects)? {
             return Ok(true);
         }
         if (eg(ring, e, field::ALPHA)? as i32) < 0 {
@@ -529,6 +578,7 @@ fn fading_kind(
                 frame,
                 masks,
                 ring,
+                effects,
                 1,
                 Sprite {
                     cell,
@@ -540,30 +590,30 @@ fn fading_kind(
                 p,
             )?;
         }
-        spin_and_move(ring, e, true)?;
+        spin_and_move(ring, e, true, effects)?;
         if c.gain.is_some() && kind == 0xD {
-            gain_y(ring, e, c.gain()?)?;
+            gain_y(ring, e, c.gain()?, effects)?;
         }
-        damp3(ring, e, c.damp)?;
+        damp3(ring, e, c.damp, effects)?;
         match kind {
             6 | 0x15 => {
-                if outside_and_away(ring, e)? {
-                    pull_size(ring, e, c.pull()?)?;
+                if outside_and_away(ring, e, effects)? {
+                    pull_size(ring, e, c.pull()?, effects)?;
                 }
-                fade(ring, e)?;
+                fade(ring, e, effects)?;
             }
             1 => {
-                pull_size(ring, e, c.pull()?)?;
-                fade(ring, e)?;
-                pull_toward(ring, e)?;
+                pull_size(ring, e, c.pull()?, effects)?;
+                fade(ring, e, effects)?;
+                pull_toward(ring, e, effects)?;
             }
             0xD => {
-                pull_size(ring, e, c.pull()?)?;
-                fade(ring, e)?;
+                pull_size(ring, e, c.pull()?, effects)?;
+                fade(ring, e, effects)?;
             }
             _ => {
-                fade(ring, e)?;
-                let t: i32 = effects().setup.clock.frame_ticks.get() as i32;
+                fade(ring, e, effects)?;
+                let t: i32 = effects.setup.clock.frame_ticks.get() as i32;
                 ep(
                     ring,
                     e,
@@ -577,8 +627,12 @@ fn fading_kind(
 }
 
 /// Kind 1's pull of its +0x64 when near and facing.
-fn pull_toward(ring: &Ring, e: u32) -> Result<(), Refused> {
-    let setup = &effects().setup;
+fn pull_toward(
+    ring: &Ring,
+    e: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    let setup = &effects.setup;
     {
         let car = entry_car(ring, e)?;
         let mut length = [0u8; 10];
@@ -586,11 +640,11 @@ fn pull_toward(ring: &Ring, e: u32) -> Result<(), Refused> {
         if (ring.work.near.bits() as i32) < 0 {
             return Ok(());
         }
-        pull_facing(ring, car, &length);
+        pull_facing(ring, car, &length, effects);
         if (ring.work.facing.bits() as i32) <= 0 {
             return Ok(());
         }
-        pull_strength(ring, e, car);
+        pull_strength(ring, e, car, effects);
         if (ring.work.whole.get() as i32) > (setup.floats.pull_limit.bits() as i32) {
             ep(ring, e, 0x64, x87::loaded(setup.floats.two_pow_16.bits()))?;
         }
@@ -606,18 +660,19 @@ fn boxed_kind(
     e: u32,
     gain: &f32,
     both: bool,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<bool, Refused> {
-    if aged(ring, e, true)? {
+    if aged(ring, e, true, effects)? {
         return Ok(true);
     }
-    spin_and_move(ring, e, false)?;
-    gain_y(ring, e, gain)?;
+    spin_and_move(ring, e, false, effects)?;
+    gain_y(ring, e, gain, effects)?;
     if shown(ring, e)? {
         let p = on_object(ring, e)?;
         let size = eg(ring, e, field::SIZE)?;
         let f = x87::int_times_times_to_int(
             eg(ring, e, field::LIFE)? as i32,
-            effects().setup.floats.twentieth.bits(),
+            effects.setup.floats.twentieth.bits(),
             eg(ring, e, 0x5C)?,
         );
         ring.work.whole.set(f as u32);
@@ -626,6 +681,7 @@ fn boxed_kind(
             frame,
             masks,
             ring,
+            effects,
             3,
             Sprite {
                 cell: subcell,
@@ -649,7 +705,12 @@ fn boxed_kind(
 }
 
 /// The Rust version (see the header).
-pub fn run_ring(frame: &Frame, masks: &Masks, ring: &Ring) -> Result<(), Refused> {
+pub fn run_ring(
+    frame: &Frame,
+    masks: &Masks,
+    ring: &Ring,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     if let Some(why) = refusal(ring)? {
         return Err(BadInput(why).into());
     }
@@ -674,6 +735,7 @@ pub fn run_ring(frame: &Frame, masks: &Masks, ring: &Ring) -> Result<(), Refused
                         &ring.kinds.drift5[1],
                         &ring.kinds.drift5[2],
                     ],
+                    effects,
                 )?,
                 0xB => drift_kind(
                     frame,
@@ -686,15 +748,16 @@ pub fn run_ring(frame: &Frame, masks: &Masks, ring: &Ring) -> Result<(), Refused
                         &ring.kinds.drift_b[1],
                         &ring.kinds.drift_b[2],
                     ],
+                    effects,
                 )?,
-                6 => fading_kind(frame, masks, ring, e, 6, &K6)?,
-                0x15 => fading_kind(frame, masks, ring, e, 0x15, &K15)?,
-                1 => fading_kind(frame, masks, ring, e, 1, &K1)?,
-                0xD => fading_kind(frame, masks, ring, e, 0xD, &KD)?,
-                0x13 => fading_kind(frame, masks, ring, e, 0x13, &K13)?,
-                0x16 => fading_kind(frame, masks, ring, e, 0x16, &K16)?,
-                0x10 => boxed_kind(frame, masks, ring, e, &ring.kinds.k10_gain, true)?,
-                0x11 => boxed_kind(frame, masks, ring, e, &ring.kinds.k11_gain, false)?,
+                6 => fading_kind(frame, masks, ring, e, 6, &K6, effects)?,
+                0x15 => fading_kind(frame, masks, ring, e, 0x15, &K15, effects)?,
+                1 => fading_kind(frame, masks, ring, e, 1, &K1, effects)?,
+                0xD => fading_kind(frame, masks, ring, e, 0xD, &KD, effects)?,
+                0x13 => fading_kind(frame, masks, ring, e, 0x13, &K13, effects)?,
+                0x16 => fading_kind(frame, masks, ring, e, 0x16, &K16, effects)?,
+                0x10 => boxed_kind(frame, masks, ring, e, &ring.kinds.k10_gain, true, effects)?,
+                0x11 => boxed_kind(frame, masks, ring, e, &ring.kinds.k11_gain, false, effects)?,
                 _ => false,
             };
             if dies {
@@ -719,7 +782,6 @@ pub fn run_ring(frame: &Frame, masks: &Masks, ring: &Ring) -> Result<(), Refused
     Ok(())
 }
 
-use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, ldi_cell};
 use crate::math::x87_float as bh;
 

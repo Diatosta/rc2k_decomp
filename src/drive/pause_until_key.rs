@@ -19,7 +19,6 @@ use crate::drive::race_parts::{
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
-use crate::system::owner::system;
 use rc2k_core::drive::race_ticks;
 
 /// Whether a key ends the pause: any of 1 .. 0x7F but 0x1D, 0x38, 0x0F, 0x3B .. 0x44, 0x57.
@@ -33,7 +32,11 @@ fn any_ending_key(input: &crate::input::owner::Input) -> u32 {
 // Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
 /// The Rust version. The registers it leaves are read by no caller (liveness: nothing
 /// live after `race_loop`'s call).
-pub fn pause_until_key(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+pub fn pause_until_key(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     shared.vars.hold_count.set(0x19);
     for _ in 0..5 {
@@ -58,7 +61,7 @@ pub fn pause_until_key(race: &Race, input: &crate::input::owner::Input) -> Resul
         }
         take_key();
         race_frame(race)?;
-        if system().session.flags.window_active.get() == 0 {
+        if system.session.flags.window_active.get() == 0 {
             hold = true;
             continue;
         }

@@ -60,8 +60,9 @@ pub fn run_rain(
     race: &Race,
     weather: &Weather,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let setup = &effects().setup;
+    let setup = &effects.setup;
     use crate::scene::set_render_state::set_render_state;
     let r = &weather.rain;
     {
@@ -104,7 +105,7 @@ pub fn run_rain(
         }
         scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
         if setup.kind_floats.running.bits() != 0 {
-            crate::effects::drift_offsets::drift_offsets(race, weather);
+            crate::effects::drift_offsets::drift_offsets(race, weather, effects);
         }
         let marks = crate::effects::setup::marks()?;
         let e = marks.marks_layout.get() as usize;
@@ -143,7 +144,7 @@ pub fn run_rain(
                 x87_run::int_80(y as i32, false),
                 x87_run::int_80(x as i32, false),
             ];
-            crate::effects::draw_rain_streak::draw_rain_streak(weather, place, scene)?;
+            crate::effects::draw_rain_streak::draw_rain_streak(weather, place, scene, effects)?;
             let marks = crate::effects::setup::marks()?;
             if marks.other_marks_shown.get() != 0 {
                 for (n, kept) in r.kept.iter().enumerate() {
@@ -156,7 +157,6 @@ pub fn run_rain(
     Ok(())
 }
 
-use crate::effects::owner::effects;
 use crate::math::x87_float as bh;
 
 /// `box_moved`'s x87 block as plain Rust on the x87 model (13 instructions), same order and memory places.

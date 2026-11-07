@@ -8,7 +8,6 @@ use crate::effects::spans::{span_quad, spans_fit, triangle_rows};
 use crate::errors::{BadInput, Refused};
 use crate::session::Bytes;
 
-use crate::effects::owner::effects;
 use crate::math::x87;
 use crate::session::{read_bits, write_bits};
 
@@ -52,7 +51,12 @@ fn quad(corners: &Bytes<3096>, k: u32) -> Result<[u32; 8], Refused> {
 /// give by the shape's radii (+0x1C, +0x20) and middle (+0xC, +0x10) into
 /// `g_marksRingQuad`, then all eight of its floats replaced by corner entries k and k + 1
 /// (section 16), and that spanned (`span_quad`). `s` the shape.
-fn span_ring_quad(masks: &Masks, s: &Shape, k: u32) -> Result<(), Refused> {
+fn span_ring_quad(
+    masks: &Masks,
+    s: &Shape,
+    k: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
         let [a1, a2]: [u32; 2] = read_bits(&masks.vars.ring_angles);
         let turns = [
@@ -84,7 +88,7 @@ fn span_ring_quad(masks: &Masks, s: &Shape, k: u32) -> Result<(), Refused> {
         );
         let corners = ring_corners(masks)?;
         write_bits(&masks.vars.ring_quad, quad(corners, k)?);
-        span_quad(masks, &masks.vars.ring_quad)?;
+        span_quad(masks, &masks.vars.ring_quad, effects)?;
     }
     Ok(())
 }
@@ -96,7 +100,12 @@ fn span_ring_quad(masks: &Masks, s: &Shape, k: u32) -> Result<(), Refused> {
 /// over the sines), and `span_ring_quad`; the angle on by pi over the count. Refuses a
 /// count of 0 or less or past 0x80 (the original's loop tests after counting), and runs or
 /// spans past their room, before writing.
-pub fn span_ring(masks: &Masks, s: &Shape, angles: &Bytes<1032>) -> Result<(), Refused> {
+pub fn span_ring(
+    masks: &Masks,
+    s: &Shape,
+    angles: &Bytes<1032>,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     let mut table = 0u32;
     {
         let n = s.count.get() as i32;
@@ -111,7 +120,7 @@ pub fn span_ring(masks: &Masks, s: &Shape, angles: &Bytes<1032>) -> Result<(), R
                 [q[0], q[1], q[2], q[3], q[4], q[5]],
                 [q[4], q[5], q[6], q[7], q[0], q[1]],
             ] {
-                rows = match (rows, triangle_rows(t)) {
+                rows = match (rows, triangle_rows(t, effects)) {
                     (Some(a), Some(b)) => Some(a + b),
                     _ => None,
                 };
@@ -123,7 +132,7 @@ pub fn span_ring(masks: &Masks, s: &Shape, angles: &Bytes<1032>) -> Result<(), R
             .run_count
             .set(masks.vars.run_count.get().wrapping_add(1));
         s.rows.set(masks.vars.runs.get());
-        let scales: [u32; 3] = read_bits(&effects().setup.mask_constants.ring_scales);
+        let scales: [u32; 3] = read_bits(&effects.setup.mask_constants.ring_scales);
         let ends = [
             x87::mul(s.angle_ends[0].bits(), scales[0]),
             x87::mul(s.angle_ends[1].bits(), scales[1]),
@@ -147,7 +156,7 @@ pub fn span_ring(masks: &Masks, s: &Shape, angles: &Bytes<1032>) -> Result<(), R
             angle_put(angles, table, a1)?;
             angle_put(angles, table + 8, a2)?;
             table += 8;
-            span_ring_quad(masks, s, k)?;
+            span_ring_quad(masks, s, k, effects)?;
             angle = x87::add(angle, step);
             masks.vars.ring_angle.set(angle);
         }

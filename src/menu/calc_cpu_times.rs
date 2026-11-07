@@ -106,13 +106,14 @@ pub fn check(screens: &Screens, rec: RecordRef) -> Result<(u32, &'_ [Driver], u3
 
 /// The Rust version (see the header): the registers it leaves.
 pub fn calc_cpu_times(screens: &Screens) -> Result<(), Refused> {
+    let race = crate::race::owner::race();
     let rec = record(screens)?;
     let (classes, drivers, length) = check(screens, rec)?;
     crate::logfile::log_write::log_nul(&TEXTS_RVA[0], true, 1);
     for (k, t) in rec.record()?.class_times().into_iter().enumerate() {
         screens.state.menus.class_times[k].set(t);
     }
-    crate::menu::scale_stage_times::scale_stage_times(screens, rec)?;
+    crate::menu::scale_stage_times::scale_stage_times(screens, rec, race)?;
     screens.state.menus.track_length[0].set(length);
     screens.state.menus.track_length[1].set(length.wrapping_mul(100) / 0x96A);
     // Converted: `rc2k_core::menu::event::{Spread, cpu_gap, cpu_time}`.

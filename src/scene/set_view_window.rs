@@ -27,11 +27,11 @@
 
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::system::owner::system;
 
 // ---- Rust version ----
 
 pub fn set_view_window(race: &Race, scene: &crate::scene::owner::Scene) {
+    let system = crate::system::owner::system();
     let drawing = &scene.drawing;
     let depth = race.course.stage_prefs.grid_reach.bits().wrapping_mul(0x20);
     crate::session::write_bits(&race.shared.view.view_depth, [depth, depth]);
@@ -52,7 +52,7 @@ pub fn set_view_window(race: &Race, scene: &crate::scene::owner::Scene) {
     };
     crate::session::write_bits(&drawing.scene.clip_edges, edges);
     drawing.scene.view_scale.set_bits(x87::int_float_int_float(
-        system().session.screen.width.get() as i32,
+        system.session.screen.width.get() as i32,
         race.frame.view_and_records.view_vars.view_scale.bits(),
         drawing.scene.view_zoom.bits() as i32,
         race.shared.vars.scale_factor.bits(),
@@ -101,7 +101,11 @@ pub fn set_view_window(race: &Race, scene: &crate::scene::owner::Scene) {
 /// stays for its Rust callers in modules not converted (race, `choose_view_window`,
 /// `prepare_menu_scene`).
 // Converted: `rc2k_core::scene::view_window::window_settings`
-pub fn set_view_window_plain(race: &Race, scene: &crate::scene::owner::Scene) {
+pub fn set_view_window_plain(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) {
     let drawing = &scene.drawing;
     use rc2k_core::scene::view_window::{WindowInputs, window_settings};
     let i = WindowInputs {
@@ -109,7 +113,7 @@ pub fn set_view_window_plain(race: &Race, scene: &crate::scene::owner::Scene) {
         size: crate::session::read_bits(&drawing.scene.view_size),
         offsets: crate::session::read_bits(&drawing.scene.view_offset),
         in_race: race.course.numbers.in_race.bits() == 1,
-        screen_width: system().session.screen.width.get(),
+        screen_width: system.session.screen.width.get(),
         scale: (
             race.frame.view_and_records.view_vars.view_scale.get(),
             drawing.scene.view_zoom.bits(),

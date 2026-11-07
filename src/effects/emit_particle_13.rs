@@ -20,7 +20,6 @@
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
-use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
@@ -54,8 +53,8 @@ pub fn emit_particle_13(
     particles: &Particles,
     ring: &Ring,
     object: &'static MarkCar,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
     if let Some(why) = refusal(ring, object)? {
         return Err(BadInput(why).into());
     }
@@ -65,7 +64,7 @@ pub fn emit_particle_13(
     let model = object.word(4)? as usize;
     let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, 0xD)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-    let car = emitting_car()?;
+    let car = emitting_car(effects)?;
     let cells = car.whole()?;
     let t: [u32; 3] = read_first(&paths.spline_head.points[3 * model..]);
     let [x, y, y_less, z] = x87::turned_place_less(

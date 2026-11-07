@@ -19,7 +19,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::system::owner::system;
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
 
 /// A stage is loading (`race::load_stage`). Not the original's: it draws the bar for the
@@ -65,8 +64,9 @@ pub fn loading_bar_frame(race: &Race) -> Result<(), Refused> {
 }
 
 fn frame(race: &Race) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let scene = crate::scene::owner::scene();
-    let session = &system().session;
+    let session = &system.session;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.
     use crate::scene::*;
@@ -89,9 +89,9 @@ fn frame(race: &Race) -> Result<(), Refused> {
         begin_scene::begin_scene();
         let framed: u32 = shared.switches.editor_mode.bits();
         shared.switches.editor_mode.set_bits(0u32);
-        choose_view_window::choose_view_window(race, scene);
+        choose_view_window::choose_view_window(race, scene, system);
         shared.switches.editor_mode.set_bits(framed);
-        crate::race::loading_bar_quad::loading_bar_quad(race, scene)?;
+        crate::race::loading_bar_quad::loading_bar_quad(race, scene, system)?;
         end_scene::end_scene();
         if lock_frame::lock_frame(race).0 < 1 {
             break 'frame false;

@@ -26,7 +26,6 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::session::Dword;
-use crate::system::owner::system;
 
 fn view_bit(view: &Dword) -> Result<bool, BadInput> {
     let car = crate::race::blocks_store::car_of(view.get()).ok_or(BadInput("a view's block"))?;
@@ -65,9 +64,12 @@ fn put_answer(shared: &Shared, answer: u32) -> Result<(), BadInput> {
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi,
 /// edx and esi after `drive::play_race`'s call have no read point).
-pub fn race_loop(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+pub fn race_loop(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let devices = &input.devices;
-    let system = system();
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].reset_marker.set_bits(10);
     }
@@ -179,7 +181,7 @@ pub fn race_loop(race: &Race, input: &crate::input::owner::Input) -> Result<(), 
         if net().vars.session.get() != 0 {
             net_player_car(&race.shared)?.input_keys.set_bits(0);
         } else {
-            { crate::drive::pause_until_key::pause_until_key(race, input) }?;
+            { crate::drive::pause_until_key::pause_until_key(race, input, system) }?;
         }
         system.session.flags.paused.set(0);
     }

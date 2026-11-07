@@ -8,7 +8,6 @@ use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::trap::Trap;
 use crate::session::{Dword, Word};
-use crate::system::owner::system;
 use crate::text::draw_string_by_id::draw_string_by_id_at;
 use crate::text::draw_text::{Canvas, draw_text_at};
 
@@ -50,9 +49,10 @@ fn credit_line(
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::credits::shown`.
-    if !rc2k_core::race::credits::shown(y, system().session.screen.height.get()) {
+    if !rc2k_core::race::credits::shown(y, system.session.screen.height.get()) {
         return Ok(());
     }
     draw_string_by_id_at(id, font, x, y, canvas)?;
@@ -162,8 +162,9 @@ pub fn roll_credits(
     eax: u32,
     canvas: &mut dyn Canvas,
     sound: &mut dyn FnMut(),
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let session = &system().session;
+    let session = &system.session;
     // Converted: `rc2k_core::race::credits::{start_top, lay_out, catch_up, rolled_off}`.
     use crate::system::tick_count::tick_count;
     use rc2k_core::race::credits::{Font, catch_up, lay_out, rolled_off, start_top};
@@ -203,7 +204,7 @@ pub fn roll_credits(
     );
     trap.finish()?;
     for line in lines {
-        credit_line(line.id, font_of(line.font), line.x, line.y, canvas)?;
+        credit_line(line.id, font_of(line.font), line.x, line.y, canvas, system)?;
     }
     let (top, clock, _) = catch_up(
         frame.credits.top.get(),

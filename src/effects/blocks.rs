@@ -2,6 +2,7 @@
 //! (Rust's since phase 12, counted on their lists), the corner table
 //! scaled, and the eight settings blocks reset.
 
+#[cfg(test)]
 use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
@@ -22,8 +23,8 @@ pub const SETTINGS_BLOCKS: u32 = 8;
 /// `g_marksPlaces`, its first three floats `flt_8DB5B4` ... Only code no reference
 /// reaches reads the block (0x4C3908, 0x4C396A, `sub_4C39D5`: `notes/reference.md`), so
 /// since phase 12 it is only counted on its list (the memory figures) and not kept.
-pub fn allocate_places() -> Result<(), Refused> {
-    crate::memory::owned::count_on(&effects().blocks.places.list, PLACES_LEN)
+pub fn allocate_places(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
+    crate::memory::owned::count_on(&effects.blocks.places.list, PLACES_LEN)
 }
 
 /// A particle of the ring (`g_marksRing`'s 0x4C-byte entries), its dwords by their
@@ -94,9 +95,9 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
 /// (round), then `effects::scale_corners`. Only code no reference reaches reads the block
 /// (0x4C5446 .. 0x4C5DEA, `sub_4C6242`: `notes/reference.md`), so since phase 12 it is
 /// only counted on its list (the memory figures) and not kept.
-pub fn allocate_links() -> Result<(), Refused> {
-    crate::memory::owned::count_on(&effects().blocks.links.list, LINKS_LEN)?;
-    scale_corners();
+pub fn allocate_links(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
+    crate::memory::owned::count_on(&effects.blocks.links.list, LINKS_LEN)?;
+    scale_corners(effects);
     Ok(())
 }
 
@@ -107,8 +108,7 @@ const CORNER_PAIRS: [u32; 4] = [0, 4, 0xC, 8];
 /// word pairs (+0, +4, +0xC, +8) each times `flt_8EB969` into the work and into +4 .. +0x20
 /// of the record's 0x24 at `g_marksCornerSlopes`; +0 there the slope: |+0xA - +2| over
 /// |+4 - +0| (sixteen-bit differences; `dword_8EB8B5`, `dword_8EB8B9`).
-pub fn scale_corners() {
-    let effects = effects();
+pub fn scale_corners(effects: &crate::effects::owner::Effects) {
     {
         let scale: u32 = effects.frame.draw_work.uv_k.bits();
         for n in (0..CORNERS).rev() {
@@ -145,13 +145,13 @@ pub fn scale_corners() {
 /// `effects::reset_settings_blocks` (0x4C9A6D), in step 3: the eight blocks of 0x4C8 at
 /// `g_marksSettings` + 0x60 (the last first): +0x4C .. +0x60 the six floats from
 /// `flt_9354C6`, the last three again at +0x64, +0x70, +0x7C, +0x30 8.
-pub fn reset_settings_blocks() -> Result<(), Refused> {
+pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     {
         let marks = crate::effects::setup::marks()?;
         for n in (0..SETTINGS_BLOCKS).rev() {
             let at = |o: u32| marks.cars[n as usize].at(o);
             for k in 0..6u32 {
-                let v = x87::loaded(effects().kinds.emitter.settings_start[k as usize].bits());
+                let v = x87::loaded(effects.kinds.emitter.settings_start[k as usize].bits());
                 at(0x4C + 4 * k).write(v, "a settings block")?;
             }
             let mut last = [0u32; 3];

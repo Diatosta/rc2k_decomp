@@ -46,7 +46,7 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
         use crate::debug::timing::{Stage, start, stop};
         let begun = start();
         crate::scene::begin_scene::begin_scene();
-        { crate::race::draw_race_scene::draw_race_scene(race, input) }?;
+        { crate::race::draw_race_scene::draw_race_scene(race, input, system) }?;
         crate::scene::end_scene::end_scene();
         stop(Stage::Scene, begun);
         // eax 0x12 here in the original; read by nothing.

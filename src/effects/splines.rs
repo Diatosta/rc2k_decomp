@@ -4,6 +4,7 @@
 //! object's faces of one kind, centred, turned, graded by height and ordered. These are the
 //! leaves; every function takes the record in ebp.
 
+#[cfg(test)]
 use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
@@ -647,12 +648,13 @@ pub fn load_splines(
     paths: &Paths,
     resume: u32,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let loaded: u32 = paths.spline_kinds.loaded.bits();
     if loaded != 0 && loaded != resume {
         return Err(BadInput("the splines' mark is neither 0 nor loc_4B9706").into());
     }
-    let kind: u32 = effects().kinds.marks_kind.kind.bits();
+    let kind: u32 = effects.kinds.marks_kind.kind.bits();
     if kind >= KINDS {
         return Err(BadInput("a marks' kind of 0x22 or more").into());
     }

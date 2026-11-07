@@ -23,7 +23,6 @@ use crate::d3d::owner::d3d;
 use crate::d3d::{NO_TEXTURE, Vertex};
 use crate::logfile::log_hex8::log_hex8;
 use crate::scene::owner::scene;
-use crate::system::owner::system;
 
 // ---- game data ----
 const TEXTURES: u32 = 0x400;
@@ -58,7 +57,8 @@ pub fn vertices_fit(vertices: &[Vertex], width: u32, height: u32) -> bool {
 }
 
 pub fn submit_polygon(outside: &mut dyn Outside) {
-    let session = &system().session;
+    let system = crate::system::owner::system();
+    let session = &system.session;
     let scene = scene();
     let has_3d = scene.objects.tables.has_3d.get() != 0;
     let texture: u32 = scene.drawing.scene.polygon_texture.bits();

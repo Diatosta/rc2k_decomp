@@ -9,15 +9,18 @@
 //! the x87 version stays for the Rust callers in unconverted code).
 
 use crate::effects::mask_store::Masks;
-use crate::effects::owner::effects;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 
 /// The Rust version (see the header).
-pub fn scale_setting(masks: &Masks, fl: &WindscreenFlakes) -> Result<(), Refused> {
+pub fn scale_setting(
+    masks: &Masks,
+    fl: &WindscreenFlakes,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
-        let settings: u32 = effects().setup.settings.is_set.get();
+        let settings: u32 = effects.setup.settings.is_set.get();
         if settings == 0 {
             return Err(BadInput("no marks settings").into());
         }

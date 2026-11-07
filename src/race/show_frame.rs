@@ -29,6 +29,7 @@ pub struct Shown {
 
 /// The Rust version (see the header).
 pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
+    let system = crate::system::owner::system();
     let scene = crate::scene::owner::scene();
     let frame = &race.frame;
     let (locked, kept) = crate::scene::lock_frame::lock_frame(race);
@@ -46,6 +47,7 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
             1,
             &mut crate::text::draw_text::GameCanvas,
             &mut crate::race::frame_text::credits_tune,
+            system,
         )?;
     }
     {
@@ -69,6 +71,7 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
     let time = clock.wrapping_sub(race.shared.view.clock_base.bits());
     race.shared.view.frame_time.set_bits(time);
     // The measuring leaves eax the counter's low half on the 16th call, else as it was.
-    let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene) }.unwrap_or(time);
+    let eax = { crate::race::measure_frame_rate::measure_frame_rate(race, scene, system) }
+        .unwrap_or(time);
     Ok(Shown { lost: false, eax })
 }

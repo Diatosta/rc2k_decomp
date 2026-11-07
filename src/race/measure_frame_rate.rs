@@ -12,7 +12,6 @@
 //! `wiki/Fixed-bugs.md`): the cycles from the whole counter, not its signed low halves.
 
 use crate::race::owner::Race;
-use crate::system::owner::system;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 /// The whole counter at the last measure (`dword_6214EC` holds its low half).
@@ -20,10 +19,10 @@ static LAST: AtomicU64 = AtomicU64::new(0);
 
 /// The rate worked out in plain floats.
 // Converted: `rc2k_core::race::frame_rate::frame_rate`.
-fn frame_rate_plain(race: &Race, cycles: u64) {
+fn frame_rate_plain(race: &Race, cycles: u64, system: &crate::system::owner::System) {
     let course = &race.course;
     let rate = rc2k_core::race::frame_rate::frame_rate(
-        system().session.machine.cpu_mhz.get() as i32,
+        system.session.machine.cpu_mhz.get() as i32,
         course.numbers.thousand.get(),
         course.numbers.sixteen.get(),
         cycles,
@@ -34,7 +33,11 @@ fn frame_rate_plain(race: &Race, cycles: u64) {
 /// The Rust version: the eax the original leaves when it changes it (on the 16th call, the
 /// time-stamp counter's low half, `dword_6214E8`); its edx and ebx (the counter's high
 /// half, the cycles) are read by no caller.
-pub fn measure_frame_rate(race: &Race, scene: &crate::scene::owner::Scene) -> Option<u32> {
+pub fn measure_frame_rate(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Option<u32> {
     let shared = &race.shared;
     // Converted: `rc2k_core::race::frame_rate::{count_frame, cycles_since}`.
     use rc2k_core::race::frame_rate::{count_frame, cycles_since};
@@ -48,7 +51,7 @@ pub fn measure_frame_rate(race: &Race, scene: &crate::scene::owner::Scene) -> Op
     shared.switches.frame_now.set_bits(now);
     if let Some(cycles) = cycles_since(whole, LAST.swap(whole, Relaxed)) {
         scene.drawing.scene.scratch.set_bits(cycles as u32);
-        frame_rate_plain(race, cycles);
+        frame_rate_plain(race, cycles, system);
     }
     shared.switches.frame_last.set_bits(now);
     Some(now)

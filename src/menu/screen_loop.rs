@@ -596,7 +596,7 @@ impl Loop<'_> {
     /// and the first frame drawn.
     fn set_up(&mut self) -> Result<Next, Refused> {
         let system = system();
-        let menus = menus();
+        let menus = self.entry.menus;
         let screens = &menus.screens;
         let screen = self.screen;
         let entry = self.entry;
@@ -674,7 +674,7 @@ impl Loop<'_> {
     /// One frame: blink, quit and Escape checks, the frame self.callback and the per-frame steps.
     fn frame(&mut self) -> Result<Next, Refused> {
         let system = system();
-        let menus = menus();
+        let menus = self.entry.menus;
         let screens = &menus.screens;
         let screen = self.screen;
         let entry = self.entry;
@@ -727,7 +727,7 @@ impl Loop<'_> {
 
     /// The keys of a frame (`menu::handle_keys`) and where they lead.
     fn keys(&mut self) -> Result<Next, Refused> {
-        let menus = menus();
+        let menus = self.entry.menus;
         Ok({
             menus.tables.texts.keys_menu.set(self.keys_menu.code());
             // The original hands it the time since set-up in eax (the frame's last
@@ -745,7 +745,7 @@ impl Loop<'_> {
 
     /// The highlighted item's action, and what it leaves: leave, next frame or set up again.
     fn action(&mut self) -> Result<Next, Refused> {
-        let menus = menus();
+        let menus = self.entry.menus;
         let screens = &menus.screens;
         let screen = self.screen;
         Ok({
@@ -805,7 +805,7 @@ impl Loop<'_> {
 
     /// Leaving: the question when the screen asks, then the `after` steps.
     fn leave(&mut self) -> Result<Left, Refused> {
-        let menus = menus();
+        let menus = self.entry.menus;
         let screens = &menus.screens;
         let screen = self.screen;
         let entry = self.entry;
@@ -898,7 +898,7 @@ pub fn screen_entry(name: &str, screen: &Screen) -> Result<(), Refused> {
 /// `car_specs_47af4c_loop`). Returns the screen's result where it has one (the original's
 /// eax).
 pub fn run_screen(screen: &Screen, entry: &Entry) -> Result<Option<u32>, Refused> {
-    let menus = menus();
+    let menus = entry.menus;
     let screens = &menus.screens;
     { screen_loop(screens, screen, entry) }?;
     Ok(screen.result.map(|result| result(menus)))

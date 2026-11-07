@@ -8,13 +8,11 @@
 //! before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn best_class_scores() -> Result<(), Refused> {
-    let menus = menus();
+pub fn best_class_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let players = counted_players(screens)?;
     let classes: u32 = menus.screens.event.classes.get();

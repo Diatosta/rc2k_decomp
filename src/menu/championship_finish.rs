@@ -20,7 +20,7 @@ use crate::menu::finish_calls::Game;
 use rc2k_core::menu::finish;
 
 /// The Rust version (see the header).
-pub fn championship_finish() -> Result<(), Refused> {
+pub fn championship_finish(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::finish::championship_finish`.
-    Game::run(finish::championship_finish)
+    Game::run(menus, finish::championship_finish)
 }

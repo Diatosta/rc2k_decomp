@@ -8,11 +8,8 @@
 //! One caller, `start`'s way out (0x401116, also the short one), which calls it directly
 //! (2026-10-23); the registers above are the original's, for reference.
 
-use crate::system::owner::system;
-
 /// The Rust version (see the header).
-pub fn restore_error_mode() {
-    let system = system();
+pub fn restore_error_mode(system: &crate::system::owner::System) {
     if system.start.error_mode.changed.get() != 1 {
         return;
     }

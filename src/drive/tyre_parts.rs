@@ -10,7 +10,6 @@
 
 use crate::d3d::vertices_store::{VERTICES, Vertex};
 use crate::errors::Refused;
-use crate::system::owner::system;
 
 use crate::math::x87_float::{int, ld, st};
 use crate::race::viewer_screen_store::VIEWER_PANEL;
@@ -43,7 +42,8 @@ pub fn quad_words(colour: u32) {
 /// the screen (width and height times the panel's two smaller scales, through the
 /// machine's scratch float).
 pub fn quad_tail(uv: [u32; 4]) {
-    let session = &system().session;
+    let system = crate::system::owner::system();
+    let session = &system.session;
     quad_tail_math(
         uv,
         &VERTICES.vertices[..4],

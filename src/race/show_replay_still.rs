@@ -35,7 +35,11 @@ fn load_frame(replay: &Replay) {
 }
 
 /// The Rust version (the original leaves registers nothing reads).
-pub fn show_replay_still(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+pub fn show_replay_still(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     use crate::drive::*;
     if !(1..=8).contains(&race.shared.view.race_cars.get()) {
         return Err(BadInput("a cars' count of 0 or past 8").into());
@@ -83,7 +87,7 @@ pub fn show_replay_still(race: &Race, input: &crate::input::owner::Input) -> Res
     let kept = race.shared.vars.scene_switch.get();
     race.shared.vars.scene_switch.set(1);
     // The scene (it reads no register).
-    crate::race::draw_race_scene::draw_race_scene(race, input)?;
+    crate::race::draw_race_scene::draw_race_scene(race, input, system)?;
     race.shared.vars.scene_switch.set(kept);
     race.frame.frame_work.drawing.set(0);
     race.frame.frame_work.still_2.set(0);

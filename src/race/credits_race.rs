@@ -23,6 +23,7 @@ const WORDS: [&std::ffi::CStr; 2] = [c"INIT CREDITS - track", c"car"]; // "INIT 
 /// The Rust version: the steps in order. (The original keeps ebp, ecx and edi and leaves
 /// esi and edx; no step reads a register of the caller or of an earlier step.)
 pub fn credits_race(race: &Race) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let frame = &race.frame;
     crate::framework::log("race::credits_race: the demonstration starts");
     race.course.numbers.replay_mode.set(0);
@@ -45,6 +46,7 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
         0,
         &mut crate::text::draw_text::GameCanvas,
         &mut crate::race::frame_text::credits_tune,
+        system,
     )?;
     race.shared.view.after_credits.set(0);
     crate::drive::play_race::play_race(race)?;

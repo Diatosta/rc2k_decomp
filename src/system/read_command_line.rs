@@ -28,7 +28,7 @@ use crate::audio::owner::audio;
 use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
 use crate::session::Dword;
-use crate::system::owner::{Start, system};
+use crate::system::owner::Start;
 
 // ---- game data ----
 
@@ -123,10 +123,10 @@ pub fn read_command_line(start: &Start, line: &[u8]) -> Result<Asked, BadInput> 
 /// The Rust version on the program's own command line (`os::command_line`, for
 /// `GetCommandLineA`; kept as a region); `-v` shows the version and leaves through
 /// `start`'s exit path.
-pub fn read_own_command_line() -> Result<(), BadInput> {
+pub fn read_own_command_line(system: &crate::system::owner::System) -> Result<(), BadInput> {
     let mut line = crate::os::command_line();
     line.push(0);
-    let start = &system().start;
+    let start = &system.start;
     if read_command_line(start, &line)? == Asked::Version {
         show_version_and_leave(start);
     }

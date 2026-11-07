@@ -13,7 +13,6 @@
 //! Caller: `sub_4B978A`. Refuses null settings, a spline number of 8 or more (before
 //! anything), and its steps' refusals (all it may write is put back first).
 
-use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::effects::place_graded_points::place_graded_points;
 use crate::effects::splines::{SPLINE_LEN, Spline, place_shape_points as place_shape};
@@ -35,8 +34,12 @@ fn sizes(a: u32, k: u32, k2: u32) -> (u32, u32) {
 }
 
 /// The Rust version (see the header).
-pub fn place_spline(paths: &Paths, n: u32) -> Result<(), Refused> {
-    let setup = &effects().setup;
+pub fn place_spline(
+    paths: &Paths,
+    n: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    let setup = &effects.setup;
     let settings: u32 = setup.settings.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());

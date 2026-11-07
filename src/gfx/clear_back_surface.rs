@@ -11,11 +11,12 @@
 //! height of 0 is refused (the original goes round 2^32 times), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::system::owner::system;
 
 /// The Rust version (see the header).
-pub fn clear_back_surface(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
-    let system = system();
+pub fn clear_back_surface(
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let drawing = &gfx.drawing;
     if drawing.surfaces.front.get() == 0 {
         return Ok(());

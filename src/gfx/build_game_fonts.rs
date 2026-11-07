@@ -27,7 +27,6 @@ use crate::gfx::glyph_tables::{
 use crate::gfx::owner::gfx;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::rewind_list;
-use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -82,6 +81,7 @@ pub fn build_game_fonts(
     vars: &SheetVars,
     pixels_b: &crate::session::Dword,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     let list = &gfx.fonts.game_fonts.memory;
     let bytes = gfx
@@ -90,10 +90,10 @@ pub fn build_game_fonts(
         .units
         .get()
         .wrapping_mul(0x400)
-        .wrapping_mul(system().session.screen.bytes.get());
+        .wrapping_mul(system.session.screen.bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
-    begin_glyph_tables(vars, gfx)?;
+    begin_glyph_tables(vars, gfx, system)?;
     gfx.pictures
         .decoder
         .builder_flags
@@ -157,8 +157,16 @@ pub fn build_game_fonts(
 }
 
 /// With the third font's palette's place, as the stage's loading calls it.
-pub fn build_game_fonts_in_game(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
-    build_game_fonts(&gfx.sheet, &gfx.fonts.menu_fonts.game_fonts[3].palette, gfx)
+pub fn build_game_fonts_in_game(
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    build_game_fonts(
+        &gfx.sheet,
+        &gfx.fonts.menu_fonts.game_fonts[3].palette,
+        gfx,
+        system,
+    )
 }
 
 #[cfg(test)]

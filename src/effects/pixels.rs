@@ -5,7 +5,6 @@
 
 use crate::effects::mask_store::Masks;
 use crate::effects::mask_vars::Shape;
-use crate::effects::owner::effects;
 use crate::effects::spans::run_get;
 use crate::effects::turns::{scale_rows3, set_line_turn, turn_pair};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -66,8 +65,14 @@ fn next_seed(s: u32) -> u32 {
 /// worked out from its x by a shake of the seed (one draw of 0x3FFF, a second of 0xFFFF
 /// when the x is not below the span: `x87::random_step`); turned back
 /// (`set_line_turn_back`), rounded with the line's start added, the low bytes kept.
-pub fn map_pixel(masks: &Masks, drops: &WindscreenDrops, row: u32, x: u32) -> Result<(), Refused> {
-    let setup = &effects().setup;
+pub fn map_pixel(
+    masks: &Masks,
+    drops: &WindscreenDrops,
+    row: u32,
+    x: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    let setup = &effects.setup;
     let table = pixel_table(drops, masks.vars.pixel_table.get())?;
     let f = |o: usize| -> Result<_, Refused> { Ok(masks.vars.lines[o].get()) };
     masks.vars.pixel[0].set(x);
@@ -77,7 +82,7 @@ pub fn map_pixel(masks: &Masks, drops: &WindscreenDrops, row: u32, x: u32) -> Re
         write_bits(&masks.vars.work_pixel, pixel);
         crate::scene::matrix3::identity_matrix3(&masks.vars.turn);
         set_line_turn(masks, line(masks, half.line), false);
-        scale_rows3(&masks.vars.turn);
+        scale_rows3(&masks.vars.turn, effects);
         let (lx, ly) = (f(half.line)?, f(half.line + 1)?);
         let turned = |x: [u8; 10], y: [u8; 10]| turn_pair(masks, [y, x]);
         let a = turned(
@@ -127,7 +132,7 @@ pub fn map_pixel(masks: &Masks, drops: &WindscreenDrops, row: u32, x: u32) -> Re
         let y = x87::random_step(r as i32, [shake, c, px, ends[0], rise, ends[1], k]);
         masks.vars.work_pixel[1].set(y);
         set_line_turn(masks, line(masks, half.line), true);
-        scale_rows3(&masks.vars.turn);
+        scale_rows3(&masks.vars.turn, effects);
         let q = turn_pair(masks, [extended(y), extended(px)]);
         let (qx, qy) = (rounded(q[1]), rounded(q[0]));
         let out = [x87::add_to_int(qx, lx), x87::add_to_int(qy, ly)];
@@ -174,6 +179,7 @@ pub fn map_shape_rows(
     drops: &WindscreenDrops,
     entries: u32,
     index: u32,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
         rows_fit(masks, entries, index)?;
@@ -193,11 +199,11 @@ pub fn map_shape_rows(
             let y: u32 = masks.vars.pixel[1].get();
             masks.vars.row_distance.set_bits(x87::int_plus_less_squared(
                 y as i32,
-                effects().setup.mask_constants.row_add.bits(),
+                effects.setup.mask_constants.row_add.bits(),
                 masks.vars.middle[1].bits(),
             ));
             for n in 0..(len as i32).max(0) as u32 {
-                map_pixel(masks, drops, at, x.wrapping_add(n))?;
+                map_pixel(masks, drops, at, x.wrapping_add(n), effects)?;
             }
             masks.vars.pixel[1].set(y.wrapping_add(1));
             at = at.wrapping_add(0x400);
@@ -214,6 +220,7 @@ pub fn map_shape(
     drops: &WindscreenDrops,
     shapes: &Shape,
     shape: u32,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
         let entries = shapes.rows.get();
@@ -221,8 +228,8 @@ pub fn map_shape(
         rows_fit(masks, entries, first)?;
         rows_fit(masks, entries, first.wrapping_add(1))?;
         masks.vars.mask_value.set(shape);
-        map_shape_rows(masks, drops, entries, first)?;
-        map_shape_rows(masks, drops, entries, first.wrapping_add(1))?;
+        map_shape_rows(masks, drops, entries, first, effects)?;
+        map_shape_rows(masks, drops, entries, first.wrapping_add(1), effects)?;
     }
     Ok(())
 }
@@ -247,7 +254,12 @@ const LINE_FROM: [(u32, u32); 8] = [
 /// `dword_8445DE`) hold the shape's number where the original kept addresses. Refuses a
 /// count of 0 or less or past 0x80 (its loop tests after counting), and rows or spans
 /// outside the table, before writing.
-pub fn map_shapes(masks: &Masks, drops: &WindscreenDrops, n: u32) -> Result<(), Refused> {
+pub fn map_shapes(
+    masks: &Masks,
+    drops: &WindscreenDrops,
+    n: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
         let shapes = masks
             .vars
@@ -286,7 +298,7 @@ pub fn map_shapes(masks: &Masks, drops: &WindscreenDrops, n: u32) -> Result<(), 
                 masks.vars.lines[to as usize / 4]
                     .set(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]));
             }
-            map_shape(masks, drops, shapes, k)?;
+            map_shape(masks, drops, shapes, k, effects)?;
         }
         x87::set_control_word(came);
     }

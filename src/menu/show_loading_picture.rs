@@ -12,5 +12,9 @@ use crate::menu::owner::Menus;
 
 /// The picture shown.
 pub fn show_loading_picture(menus: &Menus) -> Result<(), crate::errors::Refused> {
-    show_picture_file(&menus.tables.texts.loading_pcx, crate::gfx::owner::gfx())
+    show_picture_file(
+        &menus.tables.texts.loading_pcx,
+        crate::gfx::owner::gfx(),
+        crate::system::owner::system(),
+    )
 }

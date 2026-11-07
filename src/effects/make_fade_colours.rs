@@ -8,14 +8,17 @@
 //!
 //! One caller, `sub_4C25F6`.
 
-use crate::effects::owner::effects;
 use crate::effects::rain::Weather;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
 const FADES: usize = 0x11;
 
 /// The Rust version (see the header).
-pub fn make_fade_colours(frame: &Frame, weather: &Weather) {
+pub fn make_fade_colours(
+    frame: &Frame,
+    weather: &Weather,
+    effects: &crate::effects::owner::Effects,
+) {
     let l = &weather.snow_light;
     {
         let colour: u32 = frame.frame_work.view_light.bits();
@@ -40,7 +43,7 @@ pub fn make_fade_colours(frame: &Frame, weather: &Weather) {
                 .wrapping_add(frame.frame_work.view_light.bits());
             l.fade_colours[n].set(fade);
             l.fade_step
-                .set_bits(x87::add(step, effects().setup.floats.sixteenth.bits()));
+                .set_bits(x87::add(step, effects.setup.floats.sixteenth.bits()));
         }
     }
 }

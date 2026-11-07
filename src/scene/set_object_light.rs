@@ -28,7 +28,6 @@ use crate::scene::add_car_light::add_car_light;
 use crate::scene::add_car_lights::add_car_lights;
 use crate::scene::add_point_lights::add_point_lights;
 use crate::scene::vertex_light::plus;
-use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -40,6 +39,7 @@ pub fn set_object_light(
     race: &crate::race::owner::Race,
     gather: &mut dyn FnMut() -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     use rc2k_core::scene::lamps::{ObjectLight, WHITE, object_light};
     scene.drawing.object_work.light_added.set_bits(0u32);
@@ -74,7 +74,7 @@ pub fn set_object_light(
     if own_car {
         race.physics.ground.drawn_car_light.set_bits(u32::MAX);
     }
-    let mmx = system().session.machine.has_mmx.get() != 0;
+    let mmx = system.session.machine.has_mmx.get() != 0;
     scene.drawing.object_work.light_added.set_bits(plus(
         scene.lights.work.light_colour.bits(),
         scene.drawing.object_work.other_light.bits(),
@@ -87,17 +87,19 @@ pub fn set_object_light(
 pub fn set_object_light_in_game(
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     set_object_light(
         race,
         &mut || {
             add_car_lights(race, &mut |car| {
-                add_car_light(&race.course, car, scene);
+                add_car_light(&race.course, car, scene, system);
                 Ok(())
             })?;
-            add_point_lights(race, scene)?;
+            add_point_lights(race, scene, system)?;
             Ok(())
         },
         scene,
+        system,
     )
 }

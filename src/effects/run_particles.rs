@@ -63,8 +63,12 @@ fn colour_index(particles: &Particles, e: u32, life: u32) -> Result<(i32, bool),
 }
 
 /// Why it refuses, if it does: the walk as the original makes it, nothing written.
-fn refusal(particles: &Particles, ring: &Ring) -> Result<Option<&'static str>, Refused> {
-    let setup = &effects().setup;
+fn refusal(
+    particles: &Particles,
+    ring: &Ring,
+    effects: &crate::effects::owner::Effects,
+) -> Result<Option<&'static str>, Refused> {
+    let setup = &effects.setup;
     Ok({
         let settings: u32 = setup.settings.is_set.get();
         if settings == 0 {
@@ -107,6 +111,7 @@ fn refusal(particles: &Particles, ring: &Ring) -> Result<Option<&'static str>, R
 
 /// The step of the kind at e (see the header): whether the entry dies.
 fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<bool, Refused> {
+    let scene = crate::scene::owner::scene();
     let effects = effects();
     use crate::effects::{burst_particles, draw_particle, trail_particles};
     {
@@ -193,11 +198,11 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                 );
                 effects.setup.work.fpu_status.set(s as u32);
                 if s != 0x100 {
-                    burst_particles::burst_particles(particles, ring, e)?;
+                    burst_particles::burst_particles(particles, ring, e, effects)?;
                     return Ok(true);
                 }
                 if particle(particles, e, 0x2C)? & 0x8000_0000 == 0 {
-                    trail_particles::trail_particles(frame, particles, ring, e)?;
+                    trail_particles::trail_particles(frame, particles, ring, e, effects)?;
                 }
                 keep_last()?;
             }
@@ -223,6 +228,8 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                     place()?,
                     colour,
                     particle(particles, e, 0x38)?,
+                    effects,
+                    scene,
                 );
                 keep_last()?;
             }
@@ -282,7 +289,7 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
                         size = size.wrapping_add(BIGGER);
                     }
                 }
-                draw_particle::draw_particle(frame, place()?, colour, size);
+                draw_particle::draw_particle(frame, place()?, colour, size, effects, scene);
             }
         }
     }
@@ -290,9 +297,13 @@ fn step(frame: &Frame, particles: &Particles, ring: &Ring, e: u32) -> Result<boo
 }
 
 /// The Rust version (see the header).
-pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Result<(), Refused> {
-    let effects = effects();
-    if let Some(why) = refusal(particles, ring)? {
+pub fn run_particles(
+    frame: &Frame,
+    particles: &Particles,
+    ring: &Ring,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    if let Some(why) = refusal(particles, ring, effects)? {
         return Err(BadInput(why).into());
     }
     {
@@ -300,7 +311,7 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
         if marks.race_done.get() == 0 {
             return Ok(());
         }
-        crate::effects::set_quad_uvs::set_quad_uvs();
+        crate::effects::set_quad_uvs::set_quad_uvs(effects);
         let mut e: u32 = ring.pool.free.get();
         let mut counter = ring.pool.used.get() as i32;
         loop {
@@ -394,7 +405,9 @@ pub fn run_particles(frame: &Frame, particles: &Particles, ring: &Ring) -> Resul
             particles.puff_work.puff[n].set_bits(v);
         }
         let six = [mz, up, mx, z, y, x].map(extended);
-        crate::effects::add_drift_particle::add_drift_particle(frame, particles, ring, 0, six)?;
+        crate::effects::add_drift_particle::add_drift_particle(
+            frame, particles, ring, 0, six, effects,
+        )?;
     }
     Ok(())
 }

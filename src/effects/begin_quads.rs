@@ -12,7 +12,6 @@
 //! Caller: `sub_4C3EEE`.
 
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::owner::effects;
 use crate::session::read_bits;
 
 /// The render states set (value, state).
@@ -20,12 +19,10 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (5, 0x13), (6, 0x14), (0, 0x1C), (1,
 
 /// The Rust version (see the header): `scene::set_texture`, `scene::depth_buffer_on`,
 /// `scene::depth_test_off`, the render states (`scene::set_render_state`).
-pub fn begin_quads() {
-    let frame = &effects().frame;
+pub fn begin_quads(effects: &crate::effects::owner::Effects, scene: &crate::scene::owner::Scene) {
+    let frame = &effects.frame;
     {
-        crate::scene::set_texture::set_texture(
-            crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
-        );
+        crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].bits());
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_off::depth_test_off();
         for (value, state) in STATES {
@@ -42,13 +39,9 @@ pub fn begin_quads() {
             at.u.set_bits(u);
             at.v.set_bits(v);
         }
-        crate::scene::owner::scene()
-            .drawing
-            .scene
-            .polygon_vertex_count
-            .set_bits(4u32);
+        scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
         frame.draw_work.z_k.set_bits(crate::math::x87::reciprocal(
-            crate::scene::owner::scene().drawing.scene.farthest.bits(),
+            scene.drawing.scene.farthest.bits(),
         ));
         frame.draw_frame.cleared.set(0);
     }

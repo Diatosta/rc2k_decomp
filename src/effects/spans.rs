@@ -5,7 +5,6 @@
 //! all of it.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::session::{Float, read_bits, write_bits};
@@ -36,8 +35,8 @@ fn run_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
 
 /// The rows the edge pair's loop runs (its check: the row rounded below y1 rounded, the
 /// row counting up by `flt_89C9AC`), or `None` past `MOST_ROWS`.
-pub fn edge_rows(edge: &[u32; 6]) -> Option<u32> {
-    let one: u32 = effects().setup.mask_constants.ones[2].bits();
+pub fn edge_rows(edge: &[u32; 6], effects: &crate::effects::owner::Effects) -> Option<u32> {
+    let one: u32 = effects.setup.mask_constants.ones[2].bits();
     let mut row = x87::round_float(edge[0]);
     let end = x87::to_int(edge[1]);
     let mut rows = 0;
@@ -70,12 +69,16 @@ fn room(cursor: u32, rows: Option<u32>) -> Result<(), Refused> {
 /// rounded and the length the right less it. The x87's rounding as it is set (the triangle
 /// sets toward zero). Gives where the next row would go (the original's edi). Refuses
 /// rows past the work block or more than 0x1000, before writing.
-pub fn span_edges(masks: &Masks, to: u32) -> Result<u32, Refused> {
-    let setup = &effects().setup;
+pub fn span_edges(
+    masks: &Masks,
+    to: u32,
+    effects: &crate::effects::owner::Effects,
+) -> Result<u32, Refused> {
+    let setup = &effects.setup;
     let mut to = to;
     {
         let e: [u32; 6] = read_bits(&masks.vars.edge);
-        room(to, edge_rows(&e))?;
+        room(to, edge_rows(&e, effects))?;
         let [y0, y1, xa0, xb0, xa1, xb1] = e;
         let ones: [u32; 3] = read_bits(&setup.mask_constants.ones);
         let height = x87::sub(y1, y0);
@@ -156,11 +159,11 @@ fn halves(t: &[u32; 6]) -> ([[u32; 6]; 2], u32) {
 
 /// The rows a triangle's spans take (its corners as given, sorted here), or `None` when
 /// one half would run away; with the x87 rounding toward zero, as `span_triangle` has it.
-pub fn triangle_rows(corners: [u32; 6]) -> Option<u32> {
+pub fn triangle_rows(corners: [u32; 6], effects: &crate::effects::owner::Effects) -> Option<u32> {
     let came = x87::control_word();
     x87::set_control_word((came & 0xF3FF) | 0xC00);
     let (h, _) = halves(&sorted(corners).0);
-    let rows = match (edge_rows(&h[0]), edge_rows(&h[1])) {
+    let rows = match (edge_rows(&h[0], effects), edge_rows(&h[1], effects)) {
         (Some(a), Some(b)) => Some(a + b),
         _ => None,
     };
@@ -184,7 +187,11 @@ pub fn spans_fit(masks: &Masks, triangles: u32, rows: Option<u32>) -> Result<(),
 /// `dword_82E342` counting the spans. All with the x87 rounding toward zero; its control
 /// word put back after. Refuses runs past their table, and spans past the work block or
 /// away, before writing.
-pub fn span_triangle(masks: &Masks, at: &[Float; 6]) -> Result<(), Refused> {
+pub fn span_triangle(
+    masks: &Masks,
+    at: &[Float; 6],
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
         let came = x87::control_word();
         let own = (came & 0xF3FF) | 0xC00;
@@ -194,7 +201,10 @@ pub fn span_triangle(masks: &Masks, at: &[Float; 6]) -> Result<(), Refused> {
         let (halves, split) = halves(&t);
         let runs: u32 = masks.vars.runs.get();
         let cursor: u32 = masks.vars.cursor.get();
-        let rows = match (edge_rows(&halves[0]), edge_rows(&halves[1])) {
+        let rows = match (
+            edge_rows(&halves[0], effects),
+            edge_rows(&halves[1], effects),
+        ) {
             (Some(a), Some(b)) => Some(a + b),
             _ => None,
         };
@@ -213,13 +223,13 @@ pub fn span_triangle(masks: &Masks, at: &[Float; 6]) -> Result<(), Refused> {
         masks.vars.split.set_bits(split);
         for half in halves {
             write_bits(&masks.vars.edge, half);
-            to = span_edges(masks, to)?;
+            to = span_edges(masks, to, effects)?;
         }
         masks.vars.cursor.set(to);
         let count = (to - cursor) >> 3;
         // Through `dword_71C880`, as the original's `fistp`.
         let first = x87::to_int(y0) as u32;
-        effects().setup.work.scratch.set(first);
+        effects.setup.work.scratch.set(first);
         run_put(masks, runs + 4, first)?;
         run_put(masks, runs + 8, count)?;
         masks
@@ -234,7 +244,11 @@ pub fn span_triangle(masks: &Masks, at: &[Float; 6]) -> Result<(), Refused> {
 /// `effects::span_quad` (0x4BE0C6): the quad `at` (four x, y floats) as two triangles, its
 /// corners 0, 1, 2 and then 2, 3, 0 (through 0x833D46), each `span_triangle`d. Refuses as
 /// `span_triangle` (the second only after the first is made).
-pub fn span_quad(masks: &Masks, at: &[Float; 8]) -> Result<(), Refused> {
+pub fn span_quad(
+    masks: &Masks,
+    at: &[Float; 8],
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
         let q: [u32; 8] = read_bits(at);
         for corners in [[0usize, 1, 2], [2, 3, 0]] {
@@ -244,7 +258,7 @@ pub fn span_quad(masks: &Masks, at: &[Float; 8]) -> Result<(), Refused> {
                 t[2 * k + 1] = q[2 * c + 1];
             }
             write_bits(&masks.vars.quad_triangle, t);
-            span_triangle(masks, &masks.vars.quad_triangle)?;
+            span_triangle(masks, &masks.vars.quad_triangle, effects)?;
         }
     }
     Ok(())

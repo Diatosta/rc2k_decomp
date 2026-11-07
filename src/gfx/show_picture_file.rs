@@ -26,7 +26,6 @@ use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
 #[cfg(test)]
 use crate::gfx::owner::gfx;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
-use crate::system::owner::system;
 use rc2k_core::gfx::picture_size as sizes;
 
 // ---- game data ----
@@ -42,8 +41,8 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 pub fn show_picture_file(
     path: &dyn crate::session::TextPlace,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let system = system();
     pump_messages_now();
     gfx.pictures.showing.set(1);
     // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,

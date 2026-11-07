@@ -27,7 +27,6 @@ use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
-use crate::effects::owner::effects;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -110,8 +109,8 @@ pub fn emit_particle_1(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
     {
         if let Some(why) = refusal(ring, wheel)? {
             return Err(BadInput(why).into());
@@ -145,7 +144,7 @@ pub fn emit_particle_1(
         }
         let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, 1)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-        let car = emitting_car()?;
+        let car = emitting_car(effects)?;
         let m = car.whole()?;
         let side = (next_c5(&particles.kind1_set.side_random) & 0x3FFF) as i32 - 0x2000;
         effects.setup.frame.emit_side.set_bits(side as u32);
@@ -178,12 +177,15 @@ pub fn emit_particle_1(
                 ])
             })
         })?;
-        let (moved, _) = jitter_point([
-            extended(particles.kind1_set.spread.bits()),
-            motion[2],
-            motion[1],
-            motion[0],
-        ]);
+        let (moved, _) = jitter_point(
+            [
+                extended(particles.kind1_set.spread.bits()),
+                motion[2],
+                motion[1],
+                motion[0],
+            ],
+            effects,
+        );
         put(0x34, rounded(moved[0]))?;
         put(
             0x30,
@@ -216,11 +218,12 @@ pub fn emit_kind_1(
     ring: &Ring,
     wheel: &MarkRecord,
     object: &'static MarkCar,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     if particles.kind1_choice.choice.get() != 0 {
-        emit_particle_21(particles, ring, wheel, object)
+        emit_particle_21(particles, ring, wheel, object, effects)
     } else {
-        emit_particle_1(masks, particles, ring, wheel, object)
+        emit_particle_1(masks, particles, ring, wheel, object, effects)
     }
 }
 

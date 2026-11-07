@@ -4,7 +4,6 @@
 
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
-use crate::effects::owner::effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -40,8 +39,8 @@ pub fn load_edges(
     resume: u32,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
     let done: u32 = masks.edge_settings.done.get();
     if done != 0 && done != resume {
         return Err(BadInput("the edges' mark is neither 0 nor loc_4C0FFD").into());
@@ -100,11 +99,12 @@ pub fn load_edges(
         .tilt
         .tilt
         .set_bits(x87::mul(float, masks.edge_settings.tilt_scale.get()));
-    crate::effects::masks::make_masks(course, masks, drops, scene)?;
+    crate::effects::masks::make_masks(course, masks, drops, scene, effects)?;
     crate::effects::shapes::set_up_windscreen_drops(
         drops,
         crate::effects::shapes::WINDSCREEN_DROPS_RESUME,
         gfx,
+        effects,
     )?;
     crate::effects::shapes::set_up_windscreen_flakes(
         &effects.pong,
@@ -128,12 +128,13 @@ pub fn load_kind_data(
         let marks = crate::effects::setup::marks()?;
         let kind = marks.mark_car_file_number.get();
         effects.kinds.marks_kind.kind.set_bits(kind);
-        load_edges(course, masks, drops, RESUME, scene, gfx)?;
+        load_edges(course, masks, drops, RESUME, scene, gfx, effects)?;
         crate::effects::splines::load_splines(
             course,
             &effects.paths,
             crate::effects::splines::RESUME,
             scene,
+            effects,
         )?;
     }
     Ok(())

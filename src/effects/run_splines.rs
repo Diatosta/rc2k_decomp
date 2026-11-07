@@ -12,7 +12,6 @@
 //! Caller: `sub_4C1270`. Refuses null settings and more than 8 splines (before anything),
 //! and `place_spline`'s refusals (all it may write is put back first).
 
-use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::effects::place_spline::place_spline;
 use crate::errors::{BadInput, Refused};
@@ -64,8 +63,8 @@ fn step_made(paths: &Paths, half: u32) -> Result<(), Refused> {
 }
 
 /// The Rust version (see the header).
-pub fn run_splines(paths: &Paths) -> Result<(), Refused> {
-    let setup = &effects().setup;
+pub fn run_splines(paths: &Paths, effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
+    let setup = &effects.setup;
     let settings: u32 = setup.settings.is_set.get();
     if settings == 0 {
         return Err(BadInput("no marks settings").into());
@@ -93,7 +92,7 @@ pub fn run_splines(paths: &Paths) -> Result<(), Refused> {
         paths.spline_head.angle.set_bits(angle);
         paths.spline_head.wave.set_bits(wave);
         for n in (0..places.max(0) as u32).rev() {
-            place_spline(paths, n)?;
+            place_spline(paths, n, effects)?;
         }
     }
     Ok(())

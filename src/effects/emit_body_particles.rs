@@ -14,15 +14,18 @@
 use crate::effects::emit_wheel_particles::{Table, emit};
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;
-use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::marks_settings_store::{MarkCar, MarkRecord};
 const PACE: u32 = 0x386A0;
 
 /// The first part (see the header), written.
-fn prepare(ring: &Ring, record: &MarkRecord, object: &'static MarkCar) -> Result<(), Refused> {
-    let effects = effects();
+fn prepare(
+    ring: &Ring,
+    record: &MarkRecord,
+    object: &'static MarkCar,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
         let size =
             x87::int_times_to_int(object.word(0x90)? as i32, effects.setup.floats.three.bits());
@@ -53,7 +56,7 @@ pub fn emit_body_particles(
     object: &'static MarkCar,
 ) -> Result<(), Refused> {
     {
-        prepare(&effects.ring, record, object)?;
+        prepare(&effects.ring, record, object, effects)?;
         emit(effects, Table::Body, record.kind.get(), record, object)
     }
 }

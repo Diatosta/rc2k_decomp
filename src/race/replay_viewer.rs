@@ -41,7 +41,6 @@ use crate::race::owner::Race;
 use crate::race::viewer::LAST_RACE;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::race::viewer_state_store::ReplayViewBlock;
-use crate::system::owner::system;
 
 /// (key, action) with editing on, in the original's order (0x26 twice: the first wins).
 pub const KEYS: [(u8, u32); 30] = [
@@ -110,8 +109,9 @@ pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
 
 /// Up to the end.
 fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let devices = &input().devices;
-    let session = &system().session;
+    let session = &system.session;
     let replay = &race.replay;
     use crate::race::*;
     race.shared.replay_file.viewer_mode.set(mode as u32);

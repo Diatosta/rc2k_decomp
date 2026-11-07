@@ -4,7 +4,6 @@
 use crate::errors::Refused;
 use crate::menu::arcade_store::Arcade;
 use crate::menu::owner::Menus;
-use crate::race::owner::race;
 
 /// A note's box put up (converted: `rc2k_core::screens::locked`). The original's x for the
 /// box is the caller's ecx, which only the measuring of the text gets, in a font in measure
@@ -24,11 +23,11 @@ fn show(note: rc2k_core::screens::locked::Note) -> Result<(), Refused> {
 
 /// `screens::note_locked_item_3` (0x4AAAB8): unless cheat 0x11 is on, with item 3 chosen
 /// (`dword_755525`) and `dword_75ACCC` not 1, the message box.
-pub fn note_locked_item_3(menus: &Menus) -> Result<(), Refused> {
+pub fn note_locked_item_3(menus: &Menus, race: &crate::race::owner::Race) -> Result<(), Refused> {
     show(rc2k_core::screens::locked::item_3(
         menus.play.cheats.cheats.get(),
         menus.screens.loop_flags.item.get(),
-        race().shared.state.settings.a8_game.get(),
+        race.shared.state.settings.a8_game.get(),
     ))
 }
 

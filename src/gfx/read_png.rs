@@ -24,7 +24,6 @@ use crate::gfx::owner::Png;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
 use crate::memory::free_list::free_list;
-use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -33,8 +32,8 @@ const HEAD_LEN: u32 = 0x80;
 // ---- Rust version ----
 
 /// What comes before the memory is taken: whether the file's head is a PNG the game takes.
-fn head_is_taken(path: &[u8]) -> Result<bool, Refused> {
-    let scratch = &system().work.files.buffer;
+fn head_is_taken(path: &[u8], system: &crate::system::owner::System) -> Result<bool, Refused> {
+    let scratch = &system.work.files.buffer;
     scratch.write_at(0, &[0; 4], "the PNG head")?;
     let mut head = [0u8; HEAD_LEN as usize];
     head.copy_from_slice(&scratch.read_at(0, HEAD_LEN as usize, "the PNG head")?);
@@ -53,6 +52,7 @@ fn read_held(
     path: &[u8],
     size: u32,
     gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
 ) -> Result<bool, Refused> {
     let pictures = &gfx.pictures;
     // The file's memory Rust's (phase 12), counted on the list as the game's block was.
@@ -66,10 +66,10 @@ fn read_held(
         png,
         file,
         pictures.picture.buffer.get(),
-        crate::gfx::png::info_ptr(),
+        crate::gfx::png::info_ptr(system),
     )?;
     pictures.picture.flags.set(0x802u32);
-    lay_out_png(gfx)?;
+    lay_out_png(gfx, system)?;
     pictures.picture.width.set(pictures.decoder.width.get());
     pictures.picture.height.set(pictures.decoder.height.get());
     pictures
@@ -86,13 +86,18 @@ fn read_held(
 }
 
 /// Returns whether the picture was read.
-pub fn read_png(png: &Png, path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, Refused> {
+pub fn read_png(
+    png: &Png,
+    path: &[u8],
+    gfx: &crate::gfx::owner::Gfx,
+    system: &crate::system::owner::System,
+) -> Result<bool, Refused> {
     let free = || {
         // Refused only with the game's own heap, which `allocate` refuses first.
         let _ = free_list(&png.file.memory);
     };
     // The original gives the list back on every way out, also with nothing on it.
-    let taken = head_is_taken(path).inspect_err(|_| free())?;
+    let taken = head_is_taken(path, system).inspect_err(|_| free())?;
     if !taken {
         free();
         return Ok(false);
@@ -103,7 +108,7 @@ pub fn read_png(png: &Png, path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<
         return Ok(false);
     }
     png.file.length.set(size);
-    let worked = read_held(png, path, size, gfx);
+    let worked = read_held(png, path, size, gfx, system);
     free();
     worked
 }

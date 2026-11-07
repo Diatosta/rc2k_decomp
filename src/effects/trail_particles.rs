@@ -17,7 +17,6 @@
 
 use crate::effects::blocks::{particle, set_particle};
 use crate::effects::jitter_point::jitter_point;
-use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
@@ -60,8 +59,8 @@ pub fn trail_particles(
     particles: &Particles,
     ring: &Ring,
     p: u32,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    let effects = effects();
     {
         if ring.pool.used.get() != FULL {
             if p == 0 {
@@ -117,12 +116,15 @@ pub fn trail_particles(
                     ),
                 )?;
             }
-            let (moved, _) = jitter_point([
-                extended(effects.kinds.particle_tuning.trail_spread.bits()),
-                extended(particle(particles, e, 0x34)?),
-                extended(particle(particles, e, 0x2C)?),
-                extended(particle(particles, e, 0x28)?),
-            ]);
+            let (moved, _) = jitter_point(
+                [
+                    extended(effects.kinds.particle_tuning.trail_spread.bits()),
+                    extended(particle(particles, e, 0x34)?),
+                    extended(particle(particles, e, 0x2C)?),
+                    extended(particle(particles, e, 0x28)?),
+                ],
+                effects,
+            );
             put(0x34, rounded(moved[0]))?;
             put(0x2C, rounded(moved[1]))?;
             put(0x28, rounded(moved[2]))?;

@@ -58,6 +58,7 @@ pub fn draw_object_face(
     face: usize,
     step: &mut dyn FnMut(Step) -> Result<(), Refused>,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     if scene.lights.state.draw_mode.bits() != 0 {
         return Ok(());
@@ -132,7 +133,7 @@ pub fn draw_object_face(
         entry.u.set(fw(vertex + 4));
         entry.v.set(fw(vertex + 8));
         let light = if lit {
-            vertex_light(race, fw(vertex + 0xC), scene)?
+            vertex_light(race, fw(vertex + 0xC), scene, system)?
         } else {
             0x00FF_FFFF
         };
@@ -197,6 +198,7 @@ pub fn draw_object_face_in_game(
     race: &crate::race::owner::Race,
     face: usize,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
     draw_object_face(
         race,
@@ -216,5 +218,6 @@ pub fn draw_object_face_in_game(
             }
         },
         scene,
+        system,
     )
 }

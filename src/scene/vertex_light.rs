@@ -32,7 +32,6 @@ use crate::errors::BadInput;
 use crate::math::x87;
 use crate::scene::light_dot::light_dot;
 use crate::scene::owner::scene;
-use crate::system::owner::system;
 
 // ---- game data ----
 const TABLE_LEN: u32 = 0x100;
@@ -144,10 +143,11 @@ pub fn vertex_light(
     race: &crate::race::owner::Race,
     number: u32,
     scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
 ) -> Result<u32, BadInput> {
     let course = &race.course;
     let kind: u32 = scene.lights.work.light_kind.bits();
-    let mmx = system().session.machine.has_mmx.get() != 0;
+    let mmx = system.session.machine.has_mmx.get() != 0;
     if kind == 4 {
         // 0 plus the lit colour.
         return Ok(plus(0, lit(number, mmx)?, mmx));

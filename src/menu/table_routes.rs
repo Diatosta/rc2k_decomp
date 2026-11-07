@@ -230,6 +230,7 @@ use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
 pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
+    let race = crate::race::owner::race();
     let sound = crate::sound::owner::sound();
     match f {
         ItemFn::NextNationality => step_items::player_setting(Setting::Nationality, true),
@@ -255,11 +256,11 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::MasterVolumeDown => master_volume_down::run(),
         ItemFn::MasterVolumeUp => master_volume_up::run(),
         ItemFn::MusicVolumeDown => {
-            music_volume_down::run();
+            music_volume_down::run(menus);
             Ok(())
         }
         ItemFn::MusicVolumeUp => {
-            music_volume_up::run();
+            music_volume_up::run(menus);
             Ok(())
         }
         ItemFn::RaceMusicVolumeDown => race_music_volume_down::run(),
@@ -267,27 +268,27 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::RaceSoundsVolumeDown => race_sounds_volume_down::run(),
         ItemFn::RaceSoundsVolumeUp => race_sounds_volume_up::run(),
         ItemFn::SpeechVolumeDown => {
-            speech_volume_down::run();
+            speech_volume_down::run(menus);
             Ok(())
         }
         ItemFn::SpeechVolumeUp => {
-            speech_volume_up::run();
+            speech_volume_up::run(menus);
             Ok(())
         }
         ItemFn::MenuSoundsAVolumeDown => {
-            menu_sounds_a_volume_down::run();
+            menu_sounds_a_volume_down::run(menus);
             Ok(())
         }
         ItemFn::MenuSoundsAVolumeUp => {
-            menu_sounds_a_volume_up::run();
+            menu_sounds_a_volume_up::run(menus);
             Ok(())
         }
         ItemFn::MenuSoundsBVolumeDown => {
-            menu_sounds_b_volume_down::run();
+            menu_sounds_b_volume_down::run(menus);
             Ok(())
         }
         ItemFn::MenuSoundsBVolumeUp => {
-            menu_sounds_b_volume_up::run();
+            menu_sounds_b_volume_up::run(menus);
             Ok(())
         }
         ItemFn::MenuSoundsVolumeDown => menu_sounds_volume_down::run(),
@@ -486,11 +487,11 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::Toggle75565c => toggle_75565c::run(),
         ItemFn::Toggle755660 => toggle_755660::run(),
         ItemFn::PreviousTextureSetting => {
-            step_texture_setting(&menus.screens, false);
+            step_texture_setting(&menus.screens, false, race);
             Ok(())
         }
         ItemFn::NextTextureSetting => {
-            step_texture_setting(&menus.screens, true);
+            step_texture_setting(&menus.screens, true, race);
             Ok(())
         }
         ItemFn::Toggle755668 => toggle_755668::run(),
@@ -504,9 +505,9 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::ViewStageDetails => item_actions::view_stage_details(menus, &menus.screens),
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(&menus.screens),
         ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(&menus.screens),
-        ItemFn::ReplayItemC => replay_items::replay_item_c(),
-        ItemFn::ReplayItemB => replay_items::replay_item_b(),
-        ItemFn::ReplayItemA => replay_items::replay_item_a(),
+        ItemFn::ReplayItemC => replay_items::replay_item_c(race),
+        ItemFn::ReplayItemB => replay_items::replay_item_b(race),
+        ItemFn::ReplayItemA => replay_items::replay_item_a(race),
         ItemFn::ToggleCaptionChoice => {
             player_actions::toggle_caption_choice(&menus.screens).map_err(Into::into)
         }
@@ -572,7 +573,7 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::VisualOptionsLoop => visual_options_loop::run(),
         ItemFn::AdvancedAudioLoop => advanced_audio_loop::run(),
         ItemFn::SimpleSelectPlayersLoop => simple_select_players_loop::run(),
-        ItemFn::SwitchStageGroup => switch_stage_group::run(),
+        ItemFn::SwitchStageGroup => switch_stage_group::run(menus),
         ItemFn::NextStageSub => {
             stage_choice::next_stage_sub(&mut || stage_choice::draw_stage_map(menus))
         }
@@ -585,11 +586,11 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::PreviousStageNumber => {
             stage_choice::previous_stage_number(&mut || stage_choice::draw_stage_map(menus))
         }
-        ItemFn::SingleRally => single_rally::single_rally(),
-        ItemFn::SingleRallySplit => single_rally_split::single_rally_split(),
-        ItemFn::SingleRallyTwo => single_rally_two::single_rally_two(),
-        ItemFn::SingleRallyThree => single_rally_three::single_rally_three(),
-        ItemFn::SingleRallyFour => single_rally_four::single_rally_four(),
+        ItemFn::SingleRally => single_rally::single_rally(menus),
+        ItemFn::SingleRallySplit => single_rally_split::single_rally_split(menus),
+        ItemFn::SingleRallyTwo => single_rally_two::single_rally_two(menus),
+        ItemFn::SingleRallyThree => single_rally_three::single_rally_three(menus),
+        ItemFn::SingleRallyFour => single_rally_four::single_rally_four(menus),
         ItemFn::ArcadeSelectLevelLoop => arcade_select_level_loop::run(),
         ItemFn::StartArcade => item_actions::start_arcade(menus, &menus.play),
         ItemFn::ArcadeLevel1 => arcade_levels::arcade_level(menus, &menus.play, 1),
@@ -597,11 +598,11 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::ArcadeLevel3 => arcade_levels::arcade_level(menus, &menus.play, 3),
         ItemFn::ArcadeLevel4 => arcade_levels::arcade_level(menus, &menus.play, 4),
         ItemFn::ArcadeLevel5 => arcade_levels::arcade_level(menus, &menus.play, 5),
-        ItemFn::TimeTrialOne => time_trial_one::time_trial_one(),
-        ItemFn::TimeTrialSplit => time_trial_split::time_trial_split(),
-        ItemFn::TimeTrialTwo => time_trial_two::time_trial_two(),
-        ItemFn::TimeTrialThree => time_trial_three::time_trial_three(),
-        ItemFn::TimeTrialFour => time_trial_four::time_trial_four(),
+        ItemFn::TimeTrialOne => time_trial_one::time_trial_one(menus),
+        ItemFn::TimeTrialSplit => time_trial_split::time_trial_split(menus),
+        ItemFn::TimeTrialTwo => time_trial_two::time_trial_two(menus),
+        ItemFn::TimeTrialThree => time_trial_three::time_trial_three(menus),
+        ItemFn::TimeTrialFour => time_trial_four::time_trial_four(menus),
         ItemFn::TimeTrialSelectPlayersLoop => time_trial_select_players_loop::run(),
         ItemFn::InformationLoop => information_loop::run(),
         ItemFn::ViewBestTimesLoop => view_best_times_loop::run(),
@@ -618,7 +619,7 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::NextStageRowsOf90 => stage_rows::step_rows(menus, true, true),
         ItemFn::RallyResults => rally_results::rally_results(menus),
         ItemFn::ChampionshipStandings => championship_standings::championship_standings(menus),
-        ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(),
+        ItemFn::NewSimulationIfUnlocked => item_actions::new_simulation_if_unlocked(race),
         ItemFn::NewSimulationLoop => new_simulation_loop::run(),
         ItemFn::StartA8One => start_a8_one::start_a8_one(menus),
         ItemFn::StartA8Split => start_a8_split::start_a8_split(menus),
@@ -634,6 +635,7 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
 
 /// Runs screen function `f` (the draw lists' and the frames'; it takes nothing).
 pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
+    let race = crate::race::owner::race();
     match f {
         ScreenFn::DrawSectionBestTimes => {
             draw_section_best_times::draw_section_best_times(menus, &mut GameCanvas).map(|_| ())
@@ -704,7 +706,7 @@ pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawPlayerDetails => {
             draw_player_details::draw_player_page(menus, draw_player_details::FULL, &mut GameCanvas)
         }
-        ScreenFn::YesNoCaption => yes_no_caption::run(),
+        ScreenFn::YesNoCaption => yes_no_caption::run(menus),
         ScreenFn::DrawLeaveQuestion => draw_leave_question::draw_leave_question(&mut GameCanvas),
         ScreenFn::DrawGraphicsSettings => {
             draw_graphics_settings::draw_graphics_settings(&mut GameCanvas)
@@ -816,6 +818,6 @@ pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawEventBestScores => draw_event_best_scores::draw(menus, &mut GameCanvas),
         ScreenFn::DrawOverallBestScores => draw_overall_best_scores::draw(menus, &mut GameCanvas),
         ScreenFn::Nothing => Ok(()),
-        ScreenFn::NoteLockedItem3 => locked_notes::note_locked_item_3(menus),
+        ScreenFn::NoteLockedItem3 => locked_notes::note_locked_item_3(menus, race),
     }
 }

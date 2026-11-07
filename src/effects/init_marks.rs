@@ -50,22 +50,22 @@ pub fn init_marks(
         effects.setup.clock.started.set(0);
         edges::load_kind_data(course, effects, scene, gfx)?;
         setup::make_wave_tables(paths)?;
-        profiles::make_profiles(course, paths, profiles::RESUME)?;
-        setup::seed_noise(weather);
-        setup::make_noise_curve(weather, scene)?;
-        blocks::allocate_places()?;
-        kind_values::set_kind_values(&kind_values::FIRST)?;
-        kind_values::set_kind_values(&kind_values::SECOND)?;
-        load_mask_pictures::load_mask_pictures(masks, scene, gfx)?;
-        setup::clear_slots();
-        set_up_surface::set_up_surface(ring, masks, scene, gfx)?;
+        profiles::make_profiles(course, paths, profiles::RESUME, effects)?;
+        setup::seed_noise(weather, effects);
+        setup::make_noise_curve(weather, scene, effects)?;
+        blocks::allocate_places(effects)?;
+        kind_values::set_kind_values(&kind_values::FIRST, effects)?;
+        kind_values::set_kind_values(&kind_values::SECOND, effects)?;
+        load_mask_pictures::load_mask_pictures(masks, scene, gfx, effects)?;
+        setup::clear_slots(effects);
+        set_up_surface::set_up_surface(ring, masks, scene, gfx, effects)?;
         blocks::allocate_ring(&effects.particles, ring)?;
-        lines::set_up_blocks(course, paths, scene)?;
+        lines::set_up_blocks(course, paths, scene, effects)?;
         marks.unknown_67c[1].set(1);
         for r in &effects.setup.clock.settings_copies {
             r.set(1);
         }
-        setup::tick_clock(&race.shared)?;
+        setup::tick_clock(&race.shared, effects)?;
         effects.setup.frame.steps.set_bits(0u32);
         let less: u32 = effects.setup.floats.one.bits();
         for (n, side) in [&system.session.screen.width, &system.session.screen.height]

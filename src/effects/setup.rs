@@ -88,8 +88,8 @@ pub fn clock_at(mk: usize) -> &'static MarksClock {
 /// `effects::seed_noise` (0x4C1697): 0x100 steps of `g_marksSeed` (times 0x9D plus 0x47),
 /// each giving entry 0xFF .. 0 of the three noise tables its low 18 bits, its low 18 bits
 /// turned right 10 and turned right 20; `dword_8BC405` 0.
-pub fn seed_noise(weather: &Weather) {
-    let setup = &effects().setup;
+pub fn seed_noise(weather: &Weather, effects: &crate::effects::owner::Effects) {
+    let setup = &effects.setup;
     // Converted: `rc2k_core::effects::noise::seed_noise`.
     let (tables, seed) = rc2k_core::effects::noise::seed_noise(setup.work.seed.get());
     for (table, values) in weather.rain.noise.iter().zip(tables) {
@@ -135,8 +135,8 @@ pub fn make_wave_tables(paths: &Paths) -> Result<(), Refused> {
 }
 
 /// `effects::clear_slots` (0x4C967B): the first dword of the 0x20 slots 0.
-pub fn clear_slots() {
-    for slot in &effects().blocks.slots.slots {
+pub fn clear_slots(effects: &crate::effects::owner::Effects) {
+    for slot in &effects.blocks.slots.slots {
         slot.life.set(0);
     }
 }
@@ -147,8 +147,11 @@ pub fn clear_slots() {
 /// `g_marksSettings` +0x10 is 1), a quarter and a sixteenth of them (shifted), the
 /// reciprocal one over them (`fidiv`) and that times `flt_7651BC`, and the ticks' bits
 /// taken as a float (section 16) times `flt_93CC14`.
-pub fn tick_clock(shared: &Shared) -> Result<(), Refused> {
-    let setup = &effects().setup;
+pub fn tick_clock(
+    shared: &Shared,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
+    let setup = &effects.setup;
     let c = &setup.clock;
     {
         let clock: u32 = shared.physics_tables.scene_clock.bits();
@@ -205,6 +208,7 @@ pub const CURVE_RECORDS: u32 = 0x20;
 pub fn make_noise_curve(
     weather: &Weather,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use rc2k_core::effects::noise as core;
     let divisors = weather
@@ -292,7 +296,7 @@ pub fn make_noise_curve(
             cell.set(*v);
         }
     }
-    effects().setup.work.seed.set(t.seed);
+    effects.setup.work.seed.set(t.seed);
     weather.snow.flag.set(0);
     let values = weather
         .snow_light

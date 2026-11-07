@@ -36,12 +36,12 @@ fn turn(weather: &Weather, v: &[u32; 3]) {
 }
 
 /// The original's 0x4C2F9C .. 0x4C3038: the light's dot and its fade index.
-fn fade(weather: &Weather) {
-    fade_x87(&weather.snow, &weather.snow_light, &effects().setup.floats);
+fn fade(weather: &Weather, effects: &crate::effects::owner::Effects) {
+    fade_x87(&weather.snow, &weather.snow_light, &effects.setup.floats);
 }
 
 /// The original's 0x4C305B .. 0x4C30EE: the projected square, its depth and u.
-fn square(weather: &Weather, i: u32) {
+fn square(weather: &Weather, i: u32, scene: &crate::scene::owner::Scene) {
     let mut w = [0u32; 32];
     square_x87(
         crate::scene::x87_mem::cells(&mut w),
@@ -49,6 +49,7 @@ fn square(weather: &Weather, i: u32) {
         &weather.snow_tables,
         &weather.snow,
         &weather.snow_light,
+        scene,
     );
     for (vertex, w) in VERTICES.vertices.iter().zip(w.as_chunks::<8>().0) {
         vertex.x.set_bits(w[0]);
@@ -92,22 +93,26 @@ fn place(weather: &Weather, k: u32) -> ([u32; 3], [u32; 2], [u32; 3]) {
 }
 
 /// Why it refuses before anything is drawn, if it does.
-fn refusal(weather: &Weather) -> Option<&'static str> {
+fn refusal(weather: &Weather, effects: &crate::effects::owner::Effects) -> Option<&'static str> {
     let n = weather.snow.flakes.get() as i32;
     if n > MOST {
         return Some("more than 0x800 snowflakes");
     }
-    if n > 0 && effects().setup.settings.is_set.get() == 0 {
+    if n > 0 && effects.setup.settings.is_set.get() == 0 {
         return Some("no marks settings");
     }
     None
 }
 
 /// The Rust version (see the header).
-pub fn draw_snow(weather: &Weather, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_snow(
+    weather: &Weather,
+    scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     let (snow, snow_light) = (&weather.snow, &weather.snow_light);
     let snow_vars = &weather.snow_vars;
-    if let Some(why) = refusal(weather) {
+    if let Some(why) = refusal(weather, effects) {
         return Err(BadInput(why).into());
     }
     {
@@ -123,8 +128,8 @@ pub fn draw_snow(weather: &Weather, scene: &crate::scene::owner::Scene) -> Resul
             }
             turn(weather, &[ebx, eax, ecx]);
             if snow.depth.get() as i32 > 0x1_0000 {
-                if effects().setup.kind_floats.fading.bits() != 0 {
-                    fade(weather);
+                if effects.setup.kind_floats.fading.bits() != 0 {
+                    fade(weather, effects);
                     let mut index = snow_light.fade_index.get();
                     if (snow_light.dot.bits() as i32) < 0 {
                         index = 0;
@@ -137,7 +142,7 @@ pub fn draw_snow(weather: &Weather, scene: &crate::scene::owner::Scene) -> Resul
                         VERTICES.vertices[n].colour.set(colour);
                     }
                 }
-                square(weather, 4 * k);
+                square(weather, 4 * k, scene);
                 let [top, bottom] = snow_light
                     .v
                     .each_ref()
@@ -147,7 +152,7 @@ pub fn draw_snow(weather: &Weather, scene: &crate::scene::owner::Scene) -> Resul
                         .v
                         .set_bits(if n < 2 { top } else { bottom });
                 }
-                if !clip_quad(scene)? {
+                if !clip_quad(scene, effects)? {
                     draw_fan();
                     snow.drawn.set(snow.drawn.get().wrapping_add(1));
                     scene.drawing.scene.polygon_vertex_count.set_bits(4u32);
@@ -158,7 +163,6 @@ pub fn draw_snow(weather: &Weather, scene: &crate::scene::owner::Scene) -> Resul
     Ok(())
 }
 
-use crate::effects::owner::effects;
 use crate::math::x87_float as bh;
 use crate::scene::x87_mem::{Base, fild as ldi, fld as ld, fstp as st};
 
@@ -229,25 +233,24 @@ fn fade_x87(s: &SnowState, l: &SnowLight, f: &MarksFloats) {
 }
 
 /// `square`'s x87 block as plain Rust on the x87 model (38 instructions), same order and memory places.
-fn square_x87(vt: impl Base, i: usize, t: &SnowTables, s: &SnowState, l: &SnowLight) {
+fn square_x87(
+    vt: impl Base,
+    i: usize,
+    t: &SnowTables,
+    s: &SnowState,
+    l: &SnowLight,
+    scene: &crate::scene::owner::Scene,
+) {
     let t0 = bh::ld(s.turned[2].bits());
-    let t1 =
-        crate::math::x87_float::ld(crate::scene::owner::scene().drawing.scene.view_scale.bits())
-            / t0;
+    let t1 = crate::math::x87_float::ld(scene.drawing.scene.view_scale.bits()) / t0;
     s.depth.set(bh::st(t1));
     let t2 = bh::ld(s.turned[1].bits());
     let t3 = t2 * t1;
     let t4 = t1 * bh::ld(s.turned[0].bits());
     let t5 = -t3;
-    let t6 = t5
-        + crate::math::x87_float::ld(
-            crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
-        );
+    let t6 = t5 + crate::math::x87_float::ld(scene.drawing.scene.view_centre[1].bits());
     st(vt, 0x4, t6);
-    let t7 = t4
-        + crate::math::x87_float::ld(
-            crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
-        );
+    let t7 = t4 + crate::math::x87_float::ld(scene.drawing.scene.view_centre[0].bits());
     st(vt, 0x0, t7);
     let t8 = bh::ld(l.side.bits());
     let t9 = t8 * bh::ld(s.depth.get());
@@ -586,7 +589,14 @@ mod asm_differential {
                 with_copy(b[2], SnowTables::START, |t| {
                     with_copy(b[2], SnowState::START, |s| {
                         with_copy(b[2], SnowLight::START, |l| {
-                            super::square_x87(b[1].wrapping_add(0x5605A0), b[3], t, s, l);
+                            super::square_x87(
+                                b[1].wrapping_add(0x5605A0),
+                                b[3],
+                                t,
+                                s,
+                                l,
+                                crate::scene::owner::scene(),
+                            );
                         });
                     });
                 });

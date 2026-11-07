@@ -9,7 +9,6 @@ use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::scene::owner::scene;
-use crate::system::owner::system;
 
 /// `race::draw_distance_settings` (0x43932A): the draw distance's level (`race().course.stage_prefs.draw_distance_level`,
 /// held to 0 ..= 4 by sign) picks from six tables: `race().course.stage_prefs.grid_reach` (at least 1, by sign),
@@ -476,6 +475,7 @@ pub fn camera_view(race: &Race) -> Result<(), BadInput> {
 /// ..), `race().frame.frame_work.sun_on_screen` 1 when on the screen, `race().frame.frame_work.sun_size` its size (256
 /// less half its distance from the centre, at least 0).
 pub fn draw_sky(race: &Race) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let scene = scene();
     let frame = &race.frame;
     fetch_view_value(race)?;
@@ -513,14 +513,18 @@ pub fn draw_sky(race: &Race) -> Result<(), Refused> {
     crate::scene::depth_buffer_on::depth_buffer(true);
     scene.lights.state.view_kind.set_bits(0);
     race.shared.switches.no_far_clip.set_bits(0);
-    place_sun(race, scene)
+    place_sun(race, scene, system)
 }
 
 /// The sun: its direction from the stage's sun angles, turned by the sky's matrix, and when it is
 /// in front its place on the screen and its size. Cleared first, and left cleared when both sun settings are 0 or
 /// the sun is behind the view.
-fn place_sun(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let session = &system().session;
+fn place_sun(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    let session = &system.session;
     let drawing = &scene.drawing;
     use crate::math::x87_load::{sun_direction, sun_on_screen, sun_size, tbyte_to_int, to_tbyte};
     race.frame.frame_work.sun_on_screen.set_bits(0);

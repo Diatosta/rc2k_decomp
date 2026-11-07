@@ -179,6 +179,7 @@ pub fn make_masks(
     masks: &Masks,
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     // The two shapes' ring-angle tables (each shape's mask, pixel and corner tables are
     // found by its number).
@@ -187,18 +188,18 @@ pub fn make_masks(
     masks
         .work
         .take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
-    crate::effects::shape_points::make_shape_sets(course, drops, scene)?;
-    crate::effects::corners::make_corners(masks, drops)?;
+    crate::effects::shape_points::make_shape_sets(course, drops, scene, effects)?;
+    crate::effects::corners::make_corners(masks, drops, effects)?;
     reset_mask_cursor(masks);
     for (n, (shape, angles)) in masks.vars.shapes.iter().zip(ring_angles).enumerate() {
         masks.vars.ring_corners.set(n as u32);
-        crate::effects::rings::span_ring(masks, shape, angles)?;
+        crate::effects::rings::span_ring(masks, shape, angles, effects)?;
     }
     for n in 0..2 {
         draw_mask(masks, drops, n as u32)?;
     }
     for n in 0..2 {
-        crate::effects::pixels::map_shapes(masks, drops, n as u32)?;
+        crate::effects::pixels::map_shapes(masks, drops, n as u32, effects)?;
     }
     crate::memory::free_list::free_list(list)?;
     masks.work.give_back();

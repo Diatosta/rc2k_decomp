@@ -5,7 +5,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
-use crate::menu::owner::{Menus, menus};
+use crate::menu::owner::Menus;
 use crate::menu::run_championship as champ;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::menu::standings::Which;
@@ -17,9 +17,9 @@ use rc2k_core::menu::flow::{self, Picture, Var};
 
 pub const SPEECH_CHANNEL: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level; // dword_755698
 
-pub struct Game {
-    /// The menus' owner (fetched once, where the flow starts).
-    menus: &'static Menus,
+pub struct Game<'a> {
+    /// The menus' owner.
+    menus: &'a Menus,
     /// The record `Call::FindRecord` found (the original's edi), read through `Var::Record`.
     record: Option<RecordRef>,
     /// The car list the next car choice shows (`Game::hand_cars`, `Call::CheatCarList`).
@@ -28,10 +28,10 @@ pub struct Game {
     fault: Fault,
 }
 
-impl Game {
-    pub fn new() -> Self {
+impl<'a> Game<'a> {
+    pub fn new(menus: &'a Menus) -> Self {
         Self {
-            menus: menus(),
+            menus,
             record: None,
             cars: None,
             fault: Fault::default(),
@@ -41,7 +41,7 @@ impl Game {
     /// Runs a flow on this game; a refused read or write of its variables ends it.
     pub fn run<T>(
         mut self,
-        flow: impl FnOnce(&mut Game) -> Result<T, Refused>,
+        flow: impl FnOnce(&mut Game<'a>) -> Result<T, Refused>,
     ) -> Result<T, Refused> {
         let done = flow(&mut self);
         self.fault.check()?;
@@ -66,9 +66,9 @@ impl PlayerField {
 }
 
 /// Where a variable is.
-enum Place {
+enum Place<'a> {
     /// A variable of the front end's or the physics block's.
-    Cell(&'static Dword),
+    Cell(&'a Dword),
     /// Player n's field (edi the player).
     Player(u32, PlayerField),
     /// The found record's field.
@@ -77,7 +77,7 @@ enum Place {
     Quitting,
 }
 
-fn place(menus: &'static Menus, v: Var) -> Place {
+fn place(menus: &Menus, v: Var) -> Place<'_> {
     let race = race();
     use Place::Cell;
     match v {
@@ -130,7 +130,7 @@ fn place(menus: &'static Menus, v: Var) -> Place {
     }
 }
 
-impl Game {
+impl Game<'_> {
     /// A screen, entered with the car list handed (the only value a screen reads from its
     /// caller).
     fn screen(&self, screen: &Screen) -> Result<(), Refused> {
@@ -144,7 +144,7 @@ fn key(code: u8) -> Option<u8> {
     (code != 0).then_some(code)
 }
 
-impl flow::Game for Game {
+impl flow::Game for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
@@ -189,8 +189,8 @@ impl flow::Game for Game {
             C::ClearEventState => m::clear_event_state::clear_event_state(menus)?,
             C::ReadyPlayers => m::ready_players::ready_players(menus)?,
             C::ResetSingleEvent => m::reset_single_event::reset_single_event(menus)?,
-            C::ChampionshipWelcome => m::championship_welcome::championship_welcome()?,
-            C::A8Welcome => m::a8_welcome::a8_welcome()?,
+            C::ChampionshipWelcome => m::championship_welcome::championship_welcome(menus)?,
+            C::A8Welcome => m::a8_welcome::a8_welcome(menus)?,
             C::FindRecord { section, index } => {
                 use crate::records::find_record::{find_record_in, has_section};
                 let table = system().records.stage_tables.championship();
@@ -223,7 +223,7 @@ impl flow::Game for Game {
             C::ShowChampionshipStandings => {
                 m::show_championship_standings::show_championship_standings(menus)?;
             }
-            C::SectionFinish => m::section_finish::section_finish()?,
+            C::SectionFinish => m::section_finish::section_finish(self.menus)?,
             C::Review480D46 => self.screen(&m::review_options_480d46_loop::SCREEN)?,
             C::WalkSectionRecords => m::walk_section_records::walk_section_records(menus)?,
             C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all(menus)?,
@@ -251,10 +251,10 @@ impl flow::Game for Game {
             C::InspectionPass => m::inspection_pass::inspection_pass(menus)?,
             C::Review47D5A5 => self.screen(&m::review_options_47d5a5_loop::SCREEN)?,
             C::Review48108E => self.screen(&m::review_options_48108e_loop::SCREEN)?,
-            C::ChampionshipFinish => m::championship_finish::championship_finish()?,
+            C::ChampionshipFinish => m::championship_finish::championship_finish(self.menus)?,
             C::ClearScoreMarks => m::clear_score_marks::clear_score_marks()?,
-            C::BestClassScores => m::best_class_scores::best_class_scores()?,
-            C::BestOverallScores => m::best_overall_scores::best_overall_scores()?,
+            C::BestClassScores => m::best_class_scores::best_class_scores(menus)?,
+            C::BestOverallScores => m::best_overall_scores::best_overall_scores(menus)?,
             C::Review481429 => self.screen(&m::review_options_481429_loop::SCREEN)?,
             C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(menus)?,
             C::HideInGameOptions { players } => {

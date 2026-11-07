@@ -189,7 +189,7 @@ pub fn emit_bursts_with(
             if (r.rotate_right(16) & 0xFF) as i32 >= rate {
                 continue;
             }
-            let car = emitting_car()?;
+            let car = emitting_car(effects)?;
             let k: u32 = effects.setup.floats.minus_65_536.bits();
             let s: u32 = h.strength.bits();
             let scale = h.scaled.then(|| effects.setup.floats.half.bits());
@@ -219,6 +219,7 @@ pub fn emit_bursts_with(
                         extended(d[1]),
                         extended(d[0]),
                     ],
+                    effects,
                 );
                 put(0x34, rounded(out[0]))?;
                 put(0x30, rounded(out[1]))?;

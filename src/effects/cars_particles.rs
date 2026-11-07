@@ -167,7 +167,7 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         } else {
             emit_car_particles(effects, car)?;
         }
-        emit_particle_13::emit_particle_13(paths, particles, ring, car)?;
+        emit_particle_13::emit_particle_13(paths, particles, ring, car, effects)?;
         emit_particle_19::emit_particle_19(masks, particles, ring, car)?;
         emit_particle_22::emit_particle_22(masks, particles, ring, car)?;
     }

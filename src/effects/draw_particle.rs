@@ -13,13 +13,19 @@
 //! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC).
 
 use crate::d3d::vertices_store::VERTICES;
-use crate::effects::owner::effects;
 use crate::math::x87;
 use crate::race::owner_frame::Frame;
 
 /// The Rust version (see the header): `colour` (ecx), `size` (edx).
-pub fn draw_particle(frame: &Frame, place: [[u8; 10]; 3], colour: u32, size: u32) {
-    let effects_frame = &effects().frame;
+pub fn draw_particle(
+    frame: &Frame,
+    place: [[u8; 10]; 3],
+    colour: u32,
+    size: u32,
+    effects: &crate::effects::owner::Effects,
+    scene: &crate::scene::owner::Scene,
+) {
+    let effects_frame = &effects.frame;
     let turned = x87::column_turn(&place, &frame.matrices.view_matrix);
     for (n, v) in turned.into_iter().enumerate() {
         effects_frame.draw_work.turned[n].set_bits(v);
@@ -29,9 +35,9 @@ pub fn draw_particle(frame: &Frame, place: [[u8; 10]; 3], colour: u32, size: u32
         return;
     }
     let k = [
-        crate::scene::owner::scene().drawing.scene.view_scale.bits(),
-        crate::scene::owner::scene().drawing.scene.view_centre[0].bits(),
-        crate::scene::owner::scene().drawing.scene.view_centre[1].bits(),
+        scene.drawing.scene.view_scale.bits(),
+        scene.drawing.scene.view_centre[0].bits(),
+        scene.drawing.scene.view_centre[1].bits(),
         effects_frame.draw_work.z_k.bits(),
     ];
     let sq = x87::particle_square(a, b, c, k, size as i32);

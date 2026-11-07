@@ -4,7 +4,6 @@
 //! (`clamp_pair`); `span_ring` makes the rings of them.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::owner::effects;
 use crate::effects::shape_points::{farthest_pair, turn_shape_checks, turn_shape_points, turned};
 use crate::effects::turns::{clamp_pair, smooth_pair, smooth_steps};
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
@@ -56,12 +55,25 @@ fn put<const N: usize>(table: &Bytes<N>, at: u32, v: u32) -> Result<(), BadInput
 
 /// The two turns step k gives table n: the second result of each of its two steps.
 fn turns(drops: &WindscreenDrops, n: usize, k: u32) -> (u32, u32) {
-    let setup = &effects().setup;
+    let effects = crate::effects::owner::effects();
+    let setup = &effects.setup;
     let (starts, end) = steps(drops)[n];
     let b: u32 = end.get();
     (
-        smooth_pair(k, setup.mask_constants.corner_angles[starts[0]].bits(), b).1,
-        smooth_pair(k, setup.mask_constants.corner_angles[starts[1]].bits(), b).1,
+        smooth_pair(
+            k,
+            setup.mask_constants.corner_angles[starts[0]].bits(),
+            b,
+            effects,
+        )
+        .1,
+        smooth_pair(
+            k,
+            setup.mask_constants.corner_angles[starts[1]].bits(),
+            b,
+            effects,
+        )
+        .1,
     )
 }
 
@@ -74,8 +86,11 @@ fn turns(drops: &WindscreenDrops, n: usize, k: u32) -> (u32, u32) {
 /// +0x18, +0x1C) over them as floats; y from 0x80; and `clamp_pair`. Refuses a kind of
 /// 0x22 or more, a farthest pair past 0x3F, what `turn_shape_points` refuses at any step,
 /// before writing.
-pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refused> {
-    let effects = effects();
+pub fn make_corners(
+    masks: &Masks,
+    drops: &WindscreenDrops,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
         let kind: u32 = effects.kinds.marks_kind.kind.bits();
         if kind >= 0x22 {
@@ -100,6 +115,7 @@ pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refuse
                     k,
                     effects.setup.mask_constants.corner_angles[starts[0]].bits(),
                     end.get(),
+                    effects,
                 )
                 .1;
                 let second = smooth_steps(
@@ -107,6 +123,7 @@ pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refuse
                     k,
                     effects.setup.mask_constants.corner_angles[starts[1]].bits(),
                     end.get(),
+                    effects,
                 )
                 .1;
                 turn_shape_points(drops, first, second)?;
@@ -186,7 +203,10 @@ pub fn make_corners(masks: &Masks, drops: &WindscreenDrops) -> Result<(), Refuse
         for k in 0..corners {
             for table in tables(masks) {
                 let e = 12 * k;
-                let out = clamp_pair([extended(get(table, e + 4)?), extended(get(table, e)?)]);
+                let out = clamp_pair(
+                    [extended(get(table, e + 4)?), extended(get(table, e)?)],
+                    effects,
+                );
                 put(table, e + 4, rounded(out[0]))?;
                 put(table, e, rounded(out[1]))?;
             }

@@ -15,7 +15,6 @@
 //! was written put back).
 
 use crate::effects::mask_store::{Mask, Masks};
-use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 
 /// The Rust version (see the header): the lock and unlock (`d3d::lock_texture`,
@@ -25,10 +24,11 @@ pub fn swap_mask(
     masks: &Masks,
     scene: &crate::scene::owner::Scene,
     gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use crate::effects::load_mask_pictures::{lock, put_pixel};
     use rc2k_core::effects::masks;
-    let s: u32 = effects().setup.settings.is_set.get();
+    let s: u32 = effects.setup.settings.is_set.get();
     if s == 0 {
         return Err(BadInput("no marks settings").into());
     }

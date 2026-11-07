@@ -5,7 +5,6 @@
 //! hold the records' real addresses once `moved::point_into_homes` has run. (Split 2026-10-25 from the
 //! front end's block `menu::store`; the cars follow in `CarTable`.)
 
-use crate::menu::owner::menus;
 use crate::session::{Dword, Shared, with_runs};
 use rc2k_core::menu::player::Player;
 
@@ -270,8 +269,8 @@ pub fn players_addr() -> u32 {
 /// Links each player's name to its player (the image's records held the old links). The
 /// table of the records' addresses (`g_players`) keeps the image's: nothing reads it, the
 /// players are reached by number.
-pub fn point_players() {
-    for (n, player) in menus().play.players.players.iter().enumerate() {
+pub fn point_players(menus: &crate::menu::owner::Menus) {
+    for (n, player) in menus.play.players.players.iter().enumerate() {
         player.update(|p| p.set_name_player(n));
     }
 }
@@ -304,7 +303,9 @@ mod tests {
             assert_eq!(word(&image), 0x0075_5784 + 0x20 * n as u32);
             // The best-times entries get the name's address, where the pointer was.
             assert_eq!(
-                crate::menu::standings::name_address_of(&menus().play.players.players[n].get()),
+                crate::menu::standings::name_address_of(
+                    &crate::menu::owner::menus().play.players.players[n].get()
+                ),
                 Ok(crate::menu::player_names::name_address(n))
             );
             mine[at..at + 4].copy_from_slice(&image[at..at + 4]);

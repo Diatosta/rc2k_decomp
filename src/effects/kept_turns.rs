@@ -2,13 +2,12 @@
 //! `dword_7692A6` ..) by two angles: `effects::turn_kept_vectors` (0x4C13CA) and its two
 //! steps `effects::turn_kept_xz` (0x4C1411) and `effects::turn_kept_zy` (0x4C14D2).
 
-use crate::effects::owner::effects;
 use crate::math::x87;
 use crate::session::{Dword, Float};
 
 /// The kept vectors, in the original's order.
-fn vectors() -> [&'static [Dword; 3]; 3] {
-    let frame = &effects().frame;
+fn vectors(effects: &crate::effects::owner::Effects) -> [&[Dword; 3]; 3] {
+    let frame = &effects.frame;
     [
         &frame.kept_view.kept_a.vector,
         &frame.kept_view.kept_c.vector,
@@ -18,9 +17,9 @@ fn vectors() -> [&'static [Dword; 3]; 3] {
 
 /// One turn: for each kept vector, its (`b`, `a`) = (`a` s + `b` c, `a` c - `b` s) by the
 /// stored sine and cosine `sc` (`x87::turn_yz` with y the `b` field, z the `a`).
-fn turn_kept(a: usize, b: usize, sc: &[Float; 2]) {
+fn turn_kept(a: usize, b: usize, sc: &[Float; 2], effects: &crate::effects::owner::Effects) {
     let (s, c) = (sc[0].bits(), sc[1].bits());
-    for v in vectors() {
+    for v in vectors(effects) {
         let (nb, na) = x87::turn_yz(v[b].get(), v[a].get(), s, c);
         v[b].set(nb);
         v[a].set(na);
@@ -28,18 +27,18 @@ fn turn_kept(a: usize, b: usize, sc: &[Float; 2]) {
 }
 
 /// `effects::turn_kept_xz`: x and z by the second angle.
-pub fn turn_kept_xz() {
-    turn_kept(0, 2, &effects().frame.kept_view.second_sine_cosine);
+pub fn turn_kept_xz(effects: &crate::effects::owner::Effects) {
+    turn_kept(0, 2, &effects.frame.kept_view.second_sine_cosine, effects);
 }
 
 /// `effects::turn_kept_zy`: z and y by the first angle.
-pub fn turn_kept_zy() {
-    turn_kept(2, 1, &effects().frame.kept_view.first_sine_cosine);
+pub fn turn_kept_zy(effects: &crate::effects::owner::Effects) {
+    turn_kept(2, 1, &effects.frame.kept_view.first_sine_cosine, effects);
 }
 
 /// `effects::turn_kept_vectors`: the sines and cosines, then both turns.
-pub fn turn_kept_vectors() {
-    let frame = &effects().frame;
+pub fn turn_kept_vectors(effects: &crate::effects::owner::Effects) {
+    let frame = &effects.frame;
     for (angle, to) in [
         (
             &frame.kept_view.first_angle,
@@ -54,6 +53,6 @@ pub fn turn_kept_vectors() {
         to[0].set_bits(s);
         to[1].set_bits(c);
     }
-    turn_kept_xz();
-    turn_kept_zy();
+    turn_kept_xz(effects);
+    turn_kept_zy(effects);
 }

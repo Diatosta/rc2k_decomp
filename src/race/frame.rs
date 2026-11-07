@@ -215,6 +215,7 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
 /// started, then run, its time when done added. It reads no register at entry; the eax and
 /// esi it leaves are read by no caller (`drive::race_loop`).
 pub fn tyre_change(race: &Race) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let input = crate::input::owner::input();
     let shared = &race.shared;
     let textures = &scene().textures;
@@ -233,13 +234,13 @@ pub fn tyre_change(race: &Race) -> Result<(), Refused> {
         && car.tyre_change_state.get() == 0
         && car.stopped_steps.get() >= 0x12C
     {
-        tyre_change_gauge(race, true, 0, input)?;
+        tyre_change_gauge(race, true, 0, input, system)?;
         car.tyre_change_state.set(1);
     }
     if car.tyre_change_state.get() != 1 {
         return Ok(());
     }
-    let time = tyre_change_gauge(race, false, 0, input)?;
+    let time = tyre_change_gauge(race, false, 0, input, system)?;
     if time == 0 {
         return Ok(());
     }

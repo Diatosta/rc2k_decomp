@@ -17,7 +17,6 @@ use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::session::{Bytes, Loose};
-use crate::system::owner::system;
 
 const MAGIC: u32 = 0x4D53_5153; // "SQSM"
 const VERSION: u32 = 0x5_0000;
@@ -217,8 +216,12 @@ pub fn free_game_map(race: &Race) -> Result<(), Refused> {
 /// Refuses a count of 0 or past 0xFFFF and a short read not of whole pixels (the original
 /// counts round).
 /// `path` without its NUL.
-pub fn load_packed_game_map(frame: &Frame, path: &[u8]) -> Result<(), Refused> {
-    let work = &system().work;
+pub fn load_packed_game_map(
+    frame: &Frame,
+    path: &[u8],
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
+    let work = &system.work;
     use crate::files::handle::{close, open_by_mode};
     let (bytes, format) = take_format(frame)?;
     frame
@@ -305,7 +308,12 @@ pub fn load_packed_game_map(frame: &Frame, path: &[u8]) -> Result<(), Refused> {
 /// file) is read by no caller (conversion phase 3, 2026-10-24). A key not 8-bit is fatal
 /// error 0x80E48073. The key's list freed and `g_mapKeyPixels` 0 at the end; the picture
 /// limits and buffer put back.
-pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Result<(), Refused> {
+pub fn load_game_map(
+    frame: &Frame,
+    picture: GamePtr,
+    key_path: GamePtr,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let pictures = &gfx.pictures;
     if frame.map.use_packed.get() == 1
@@ -332,6 +340,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
         load_packed_game_map(
             frame,
             &crate::files::cstring(path, "the packed map's path")?,
+            system,
         )?;
         return Ok(());
     }

@@ -32,6 +32,7 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// and flags it leaves (eax the clock, carry clear) are read by none of its seven callers
 /// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
 pub fn load_stage(race: &Race) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     let gfx = crate::gfx::owner::gfx();
     let input = crate::input::owner::input();
     let scene = crate::scene::owner::scene();
@@ -55,7 +56,11 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     /* dword_71C3E0 */
     {
         // As `menu::show_loading_picture`.
-        crate::gfx::show_picture_file::show_picture_file(&menus().tables.texts.loading_pcx, gfx)?;
+        crate::gfx::show_picture_file::show_picture_file(
+            &menus().tables.texts.loading_pcx,
+            gfx,
+            system,
+        )?;
     }
     race.replay.replay_frames.last_kept.set(u32::MAX);
     crate::race::sounds::wake_car_sounds(race)?;
@@ -65,7 +70,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     use crate::race::loading_bar_frame::STAGE_LOADING;
     STAGE_LOADING.store(true, std::sync::atomic::Ordering::Relaxed);
     let begun = std::time::Instant::now();
-    crate::race::loadlevel::loadlevel_init(race, scene)?;
+    crate::race::loadlevel::loadlevel_init(race, scene, system)?;
     STAGE_LOADING.store(false, std::sync::atomic::Ordering::Relaxed);
     let (shown, micros) = crate::race::loading_bar_frame::shown();
     crate::framework::log(&format!(

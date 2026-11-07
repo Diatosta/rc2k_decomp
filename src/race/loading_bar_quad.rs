@@ -10,12 +10,15 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::system::owner::system;
 
 /// The Rust version (see the header).
-pub fn loading_bar_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn loading_bar_quad(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let shared = &race.shared;
-    let session = &system().session;
+    let session = &system.session;
     // Converted: `rc2k_core::race::loading::loading_bar`.
     use rc2k_core::race::loading::{BAR_COLOUR, loading_bar};
     let [w, h] = [session.screen.width.get(), session.screen.height.get()];

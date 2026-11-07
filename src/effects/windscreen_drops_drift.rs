@@ -25,17 +25,25 @@ use crate::scene::matrix3::{Axis, extended, turn_matrix3};
 use crate::session::{Bytes, Float};
 
 /// The original's 0x4BCC3D .. 0x4BCD03: the view's move (the settings' +0x26AC .. less the kept `flt_8161D6` .., times `flt_764FE0`) into `flt_8161EE` .., less the last move into `flt_8161FA` .., plus the last move times `flt_82E326` ...
-fn view_moved(drops: &WindscreenDrops, m: &MarksSettings) {
-    view_moved_x87(drops, m, &effects().setup.clock);
+fn view_moved(
+    drops: &WindscreenDrops,
+    m: &MarksSettings,
+    effects: &crate::effects::owner::Effects,
+) {
+    view_moved_x87(drops, m, &effects.setup.clock);
 }
 
 /// The original's 0x4BCE6A .. 0x4BCEB2: the view's move kept in `flt_8161E2` ...
-fn move_kept(drops: &WindscreenDrops, m: &MarksSettings) {
-    move_kept_x87(drops, m, &effects().setup.clock);
+fn move_kept(drops: &WindscreenDrops, m: &MarksSettings, effects: &crate::effects::owner::Effects) {
+    move_kept_x87(drops, m, &effects.setup.clock);
 }
 
 /// The Rust version (see the header).
-pub fn windscreen_drops_drift(frame: &Frame, drops: &WindscreenDrops) -> Result<(), Refused> {
+pub fn windscreen_drops_drift(
+    frame: &Frame,
+    drops: &WindscreenDrops,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
     let marks = crate::effects::setup::marks()?;
     for n in 0..3 {
@@ -47,7 +55,7 @@ pub fn windscreen_drops_drift(frame: &Frame, drops: &WindscreenDrops) -> Result<
         let second: u32 = drops.hex.moved.get();
         drops.hex.moved.set(1);
         if second != 0 {
-            view_moved(drops, m);
+            view_moved(drops, m, effects);
             let view = &frame.matrices.view_place;
             for col in 0..3usize {
                 let v = [view[col].bits(), view[4 + col].bits(), view[8 + col].bits()];
@@ -63,7 +71,7 @@ pub fn windscreen_drops_drift(frame: &Frame, drops: &WindscreenDrops) -> Result<
             turn_matrix3(Axis::X, &drops.hex.turn, extended(drops.hex.angle.bits()))?;
             drift_back_x87(drops, &drops.hex.turn, &temps, &kept);
         }
-        move_kept(drops, m);
+        move_kept(drops, m, effects);
     }
     for (k, v) in [
         marks.listener_car_place[0].bits(),
@@ -78,7 +86,6 @@ pub fn windscreen_drops_drift(frame: &Frame, drops: &WindscreenDrops) -> Result<
     Ok(())
 }
 
-use crate::effects::owner::effects;
 use crate::effects::plain::{ld_cell, ld80_at, st_cell, st80_at};
 use crate::math::x87_float as bh;
 

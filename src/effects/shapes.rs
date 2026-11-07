@@ -3,7 +3,6 @@
 //! 0x800 items, makes a quarter-circle curve of 0x100 floats and 8 circles of points (by
 //! the radii after the curve), and sets up what follows.
 
-use crate::effects::owner::effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;
 use crate::errors::{BadInput, Refused};
@@ -252,6 +251,7 @@ fn windscreen_drops_with(
     resume: u32,
     plain: bool,
     gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
         let shapes = Shapes::windscreen_drops(drops);
@@ -290,7 +290,7 @@ fn windscreen_drops_with(
                 at += 6;
             }
         }
-        let value: u32 = effects().setup.floats.two_fifty_six.bits();
+        let value: u32 = effects.setup.floats.two_fifty_six.bits();
         for n in 0..FANS as usize {
             for part in 0..6 {
                 let p = 0xC0 * n + 0x20 * part;
@@ -316,8 +316,9 @@ pub fn set_up_windscreen_drops(
     drops: &WindscreenDrops,
     resume: u32,
     gfx: &crate::gfx::owner::Gfx,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    windscreen_drops_with(drops, resume, false, gfx)
+    windscreen_drops_with(drops, resume, false, gfx, effects)
 }
 
 /// `effects::set_up_windscreen_flakes` (0x4BF529): its once-only mark set (`g_marksWindscreenFlakesDone`, then

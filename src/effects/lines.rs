@@ -3,6 +3,7 @@
 //! face's), summed into the eight settings blocks (at `g_marksSettings` + 0x29C, 0x4C8
 //! apart) by the face's kind, and then made shares of what they were.
 
+#[cfg(test)]
 use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
@@ -202,7 +203,11 @@ fn measured(every: bool) -> Result<Vec<(u32, u32, u32, u32)>, Refused> {
 /// Refuses more than 8 blocks, an object past 0xFF, faces past `g_faces`.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}` (the lengths and shares
 // stay x87: its `finit` between)
-pub fn measure_lines(course: &Course, paths: &Paths) -> Result<(), Refused> {
+pub fn measure_lines(
+    course: &Course,
+    paths: &Paths,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     {
         let marks = crate::effects::setup::marks()?;
         let every = paths.lines_work.every.get() == 1;
@@ -245,7 +250,7 @@ pub fn measure_lines(course: &Course, paths: &Paths) -> Result<(), Refused> {
                 measure_kind_lines(course, paths, from, to, block)?;
             }
             if paths.lines_work.shares.get() == 1 {
-                let hundred: u32 = effects().setup.floats.hundred.bits();
+                let hundred: u32 = effects.setup.floats.hundred.bits();
                 let share = |at: GamePtr, of: GamePtr| -> Result<_, Refused> {
                     put(
                         at,
@@ -281,11 +286,15 @@ pub fn measure_lines(course: &Course, paths: &Paths) -> Result<(), Refused> {
 /// cleared; then `g_marksMeasureEvery` 0 and `g_marksMakeShares` 1. Refuses as
 /// `measure_lines` with every block, before writing anything.
 // Converted: `rc2k_core::effects::lines::{measured, block_at}`
-pub fn measure_starting_sums(course: &Course, paths: &Paths) -> Result<(), Refused> {
+pub fn measure_starting_sums(
+    course: &Course,
+    paths: &Paths,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     measured(true)?;
     paths.lines_work.every.set(1u32);
     paths.lines_work.shares.set(0u32);
-    measure_lines(course, paths)?;
+    measure_lines(course, paths, effects)?;
     let marks = crate::effects::setup::marks()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
@@ -369,9 +378,10 @@ pub fn set_up_blocks(
     course: &Course,
     paths: &Paths,
     scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     measured(true)?;
-    measure_starting_sums(course, paths)?;
+    measure_starting_sums(course, paths, effects)?;
     let marks = crate::effects::setup::marks()?;
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {

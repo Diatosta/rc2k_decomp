@@ -12,7 +12,6 @@ use crate::race::trap::car_at;
 use crate::scene::faces_store::FACES;
 use crate::scene::owner::scene;
 use crate::session::Dword;
-use crate::system::owner::system;
 
 /// `race::car_light_modes` (0x455B70): `crate::race::owner::race().shared.view.shown_car` = the drawn view's car
 /// (`crate::race::owner::race().shared.view.view_cars[g_drawnView]`); every car block's +0x6FC 0; then for each race car with
@@ -178,14 +177,15 @@ pub fn gather_lamps(race: &Race) -> Result<(), Refused> {
 }
 
 /// Whether the game uses MMX (`g_hasMmx`).
-pub fn has_mmx() -> bool {
-    system().session.machine.has_mmx.get() != 0
+pub fn has_mmx(system: &crate::system::owner::System) -> bool {
+    system.session.machine.has_mmx.get() != 0
 }
 
 /// Two colours added byte by byte (`rc2k_core::race::lights::add_colours`), MMX or not
 /// as the game.
 pub fn add_colours(a: u32, b: u32) -> u32 {
-    rc2k_core::race::lights::add_colours(a, b, has_mmx())
+    let system = crate::system::owner::system();
+    rc2k_core::race::lights::add_colours(a, b, has_mmx(system))
 }
 
 /// `sub_44F691`: a car's headlights on the lit place, added to `g_lightColour` (see

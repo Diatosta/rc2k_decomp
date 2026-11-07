@@ -76,8 +76,10 @@ pub fn matrix_cell(matrix: &[Float], offset: u32) -> Result<u32, Refused> {
 }
 
 /// The car the emitters are on (`EMITTER.car`, a handle); refused when none is set.
-pub fn emitting_car() -> Result<&'static MarkCar, BadInput> {
-    crate::race::marks_settings_store::car_or_none(effects().kinds.emitter.car.get())
+pub fn emitting_car(
+    effects: &crate::effects::owner::Effects,
+) -> Result<&'static MarkCar, BadInput> {
+    crate::race::marks_settings_store::car_or_none(effects.kinds.emitter.car.get())
         .ok_or(BadInput("no car for the emitters"))
 }
 

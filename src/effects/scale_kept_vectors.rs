@@ -10,12 +10,11 @@
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 
-use crate::effects::owner::effects;
 use crate::effects::scale_vectors_by::scale_triples;
 
 /// The Rust version (see the header).
-pub fn scale_kept_vectors() {
-    let frame = &effects().frame;
+pub fn scale_kept_vectors(effects: &crate::effects::owner::Effects) {
+    let frame = &effects.frame;
     scale_triples(&[
         &frame.kept_view.kept_a,
         &frame.kept_view.kept_c,

@@ -91,12 +91,16 @@ pub fn draw_scene_object_in_game(
     description: Option<crate::pointers::GamePtr>,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let system = crate::system::owner::system();
     draw_scene_object(
         race,
         &mut |way| match way {
-            Way::Shown => {
-                draw_shown_object(race, &mut || draw_object_in_game(race, scene), scene).map(|_| ())
-            }
+            Way::Shown => draw_shown_object(
+                race,
+                &mut || draw_object_in_game(race, scene, system),
+                scene,
+            )
+            .map(|_| ()),
             Way::Described => {
                 crate::scene::draw_described_object::draw_described_object(race, description)
             }

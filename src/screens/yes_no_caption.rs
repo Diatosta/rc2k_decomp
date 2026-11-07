@@ -12,7 +12,6 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Tables;
-use crate::menu::owner::menus;
 use crate::strings::append_string_by_id::append_string_by_id;
 
 // ---- game data ----
@@ -37,8 +36,8 @@ pub fn yes_no_caption(tables: &Tables) -> Result<(), Refused> {
 
 /// The Rust version the typed tables run (what it leaves in registers is read by
 /// none of its callers).
-pub fn run() -> Result<(), Refused> {
-    let tables = &menus().tables;
+pub fn run(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+    let tables = &menus.tables;
     yes_no_caption(tables)?;
     Ok(())
 }

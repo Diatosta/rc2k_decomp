@@ -14,7 +14,6 @@
 
 use crate::errors::Refused;
 use crate::scene::polygon::{Listed, listed};
-use crate::system::owner::system;
 
 // ---- game data ----
 
@@ -30,7 +29,8 @@ pub fn scale_texture_coordinates(scene: &crate::scene::owner::Scene) -> Result<(
 
 /// `scale_texture_coordinates` on the polygon's entries as listed (a polygon of some).
 pub fn scale_entries(entries: &Listed, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let session = &system().session;
+    let system = crate::system::owner::system();
+    let session = &system.session;
     let drawing = &scene.drawing;
     use rc2k_core::scene::texture_coordinates as coordinates;
     let switches: [u32; 2] = [

@@ -10,9 +10,10 @@ use crate::scene::choose_view_window::choose_view_window;
 
 /// `choose_view_window` with the mode 2, the mode back to 0 after.
 pub fn full_view_window(race: &crate::race::owner::Race) {
+    let system = crate::system::owner::system();
     let scene = crate::scene::owner::scene();
     let light_tables = &scene.light_tables;
     light_tables.view_mode.set(2);
-    choose_view_window(race, scene);
+    choose_view_window(race, scene, system);
     light_tables.view_mode.set(0);
 }

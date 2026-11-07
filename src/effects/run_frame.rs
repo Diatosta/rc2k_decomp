@@ -12,7 +12,6 @@
 //!
 //! Caller: the race's frame (0x456464 ..). Its calls the Rust versions, in the order above.
 
-use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
@@ -36,12 +35,12 @@ fn rdtsc() -> u32 {
     crate::arch::rdtsc() as u32
 }
 
-fn share(at: usize, start: u32) {
+fn share(at: usize, start: u32, effects: &crate::effects::owner::Effects) {
     let to = SHARES[at];
     let took = rdtsc().wrapping_sub(start) as i32;
     to.set_bits(x87::int_over_int_times(
         took,
-        effects().setup.frame.frame_cycles.bits() as i32,
+        effects.setup.frame.frame_cycles.bits() as i32,
         FRAME_K.times[at].to_bits(),
     ));
 }
@@ -56,28 +55,36 @@ pub fn run_frame(race: &Race) -> Result<(), Refused> {
     let (weather, particles, ring) = (&effects.weather, &effects.particles, &effects.ring);
     let paths = &effects.paths;
     {
-        swap_mask::swap_mask(&effects.masks, scene, gfx)?;
-        setup::tick_clock(&race.shared)?;
+        swap_mask::swap_mask(&effects.masks, scene, gfx, effects)?;
+        setup::tick_clock(&race.shared, effects)?;
         let whole = rdtsc();
         for (value, state) in STATES {
             set_render_state(value, state);
         }
-        run_rain::run_rain(race, weather, scene)?;
-        run_snow::run_snow(race, weather, scene)?;
+        run_rain::run_rain(race, weather, scene, effects)?;
+        run_snow::run_snow(race, weather, scene, effects)?;
         let start = rdtsc();
-        share(0, start);
+        share(0, start, effects);
         draw_frame::draw_frame(race, effects)?;
         let start = rdtsc();
-        ring_frame::ring_frame(&race.frame, &effects.masks, weather, particles, ring, scene)?;
-        share(1, start);
+        ring_frame::ring_frame(
+            &race.frame,
+            &effects.masks,
+            weather,
+            particles,
+            ring,
+            scene,
+            effects,
+        )?;
+        share(1, start, effects);
         set_render_state(2, 0x14);
-        flare_frame::flare_frame(paths, scene)?;
+        flare_frame::flare_frame(paths, scene, effects)?;
         set_render_state(1, 3);
-        draw_mark_slots::draw_mark_slots(race, paths, scene)?;
-        run_particles::run_particles(&race.frame, particles, ring)?;
-        share(2, whole);
+        draw_mark_slots::draw_mark_slots(race, paths, scene, effects)?;
+        run_particles::run_particles(&race.frame, particles, ring, effects)?;
+        share(2, whole, effects);
         stage_record::stage_record(&race.frame)?;
-        draw_glow::draw_glow(scene)?;
+        draw_glow::draw_glow(scene, effects)?;
         crate::scene::depth_buffer_on::depth_buffer(true);
         crate::scene::depth_test_on::depth_test_on();
     }

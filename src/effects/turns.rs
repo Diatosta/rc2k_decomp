@@ -25,10 +25,10 @@ pub fn set_line_turn(masks: &Masks, line: &[Dword; 6], back: bool) {
 
 /// `effects::scale_rows3` (0x4BF498): the three rows of three floats at esi each made the
 /// length `flt_89CA24` .. `flt_89CA2C` says (`x87::scale_row`). Every register kept.
-pub fn scale_rows3(rows: &[Float; 9]) {
+pub fn scale_rows3(rows: &[Float; 9], effects: &crate::effects::owner::Effects) {
     for (n, row) in rows.as_chunks::<3>().0.iter().enumerate() {
         let bits = [row[0].bits(), row[1].bits(), row[2].bits()];
-        let length = effects().setup.mask_constants.row_lengths[n].bits();
+        let length = effects.setup.mask_constants.row_lengths[n].bits();
         for (cell, v) in row.iter().zip(x87::scale_row_bits(bits, length)) {
             cell.set_bits(v);
         }
@@ -39,14 +39,20 @@ pub fn scale_rows3(rows: &[Float; 9]) {
 /// `flt_89C9C0` (a float), then the first result (the original's ecx) a + t - t
 /// cos(pi (n plus 1) / `dword_89C9C4`) and the second (its ebx) the same with n over `dword_89C9C8`.
 /// `dword_764F40` and `dword_71C880` left holding a.
-pub fn smooth_steps(drops: &WindscreenDrops, n: u32, a: u32, b: u32) -> (u32, u32) {
+pub fn smooth_steps(
+    drops: &WindscreenDrops,
+    n: u32,
+    a: u32,
+    b: u32,
+    effects: &crate::effects::owner::Effects,
+) -> (u32, u32) {
     drops.inputs.scratch.set(a);
-    effects().setup.work.scratch.set(a);
-    smooth_pair(n, a, b)
+    effects.setup.work.scratch.set(a);
+    smooth_pair(n, a, b, effects)
 }
 /// `smooth_steps`' two results (ecx, ebx) from step n, a and b, writing nothing.
-pub fn smooth_pair(n: u32, a: u32, b: u32) -> (u32, u32) {
-    let setup = &effects().setup;
+pub fn smooth_pair(n: u32, a: u32, b: u32, effects: &crate::effects::owner::Effects) -> (u32, u32) {
+    let setup = &effects.setup;
     {
         let t = x87::sub_mul(b, a, setup.mask_constants.ease.bits());
         let steps: [i32; 2] = setup
@@ -81,8 +87,11 @@ fn int_over_80(v: i32, k: &Float) -> [u8; 10] {
 /// `effects::clamp_pair` (0x4BEF22): st(0) times `flt_89C9FC` rounded (b), st(1) times
 /// `flt_89CA00` (a); a held to 0 .. 0xFFFF and b to 0 .. 0x7FFF; then st(1) a over
 /// `flt_89CA04` and st(0) b over `flt_89CA08`, unrounded.
-pub fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
-    let scales = &effects().setup.mask_constants.pair_scales;
+pub fn clamp_pair(
+    inputs: [[u8; 10]; 2],
+    effects: &crate::effects::owner::Effects,
+) -> [[u8; 10]; 2] {
+    let scales = &effects.setup.mask_constants.pair_scales;
     let (b, a) = scaled_ints(&inputs, &scales[0], &scales[1]);
     let b = b.clamp(0, 0x7FFF);
     let a = a.clamp(0, 0xFFFF);
@@ -90,7 +99,6 @@ pub fn clamp_pair(inputs: [[u8; 10]; 2]) -> [[u8; 10]; 2] {
 }
 // ---- the converted versions (`rc2k_core::effects::turns`) ----
 
-use crate::effects::owner::effects;
 use crate::effects::plain::ld_cell;
 use crate::math::x87_float as bh;
 

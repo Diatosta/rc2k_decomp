@@ -23,7 +23,7 @@ use crate::errors::Refused;
 use crate::menu::flow_game::Game;
 use rc2k_core::menu::rounds;
 
-pub fn time_trial_one() -> Result<(), Refused> {
+pub fn time_trial_one(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::rounds::time_trial_one`.
-    Game::new().run(rounds::time_trial_one)
+    Game::new(menus).run(rounds::time_trial_one)
 }

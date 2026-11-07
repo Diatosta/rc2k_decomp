@@ -63,9 +63,9 @@ impl starters::Event for Game<'_> {
             }
             C::TakeShownCar => m::take_shown_car::take_shown_car(self.menus, self.cars)?,
             C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724(self.menus)?,
-            C::RunA8Championship => m::run_a8_championship::run_a8_championship()?,
+            C::RunA8Championship => m::run_a8_championship::run_a8_championship(self.menus)?,
             C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(self.menus)?,
-            C::RunChampionship => m::run_championship::run_championship()?,
+            C::RunChampionship => m::run_championship::run_championship(self.menus)?,
         }
 
         Ok(())
