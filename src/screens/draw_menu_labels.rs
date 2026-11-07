@@ -31,8 +31,10 @@ pub fn draw_menu_labels(
     menu: crate::menu::menus_store::MenuId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let labels = menu.labels_place()?;
-    let Some(first) = crate::menu::menus_store::labels_slot(menu.labels(), 0)? else {
+    let (Some(labels), Some(first)) = (
+        menu.labels_place()?,
+        crate::menu::menus_store::labels_slot(menu.labels(), 0)?,
+    ) else {
         return Err(BadInput("a menu without a label list").into());
     };
     // The dword `at` bytes into the list (bounded to the menus' store).

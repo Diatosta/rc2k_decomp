@@ -10,6 +10,41 @@
 
 use crate::session::{Bytes, Dword, Float, with_runs};
 
+/// Handles of the tables of sets (phase 13): in place of a list's, cue's or record's address
+/// a table holds `TAG | (address - the piece's start)`; 0 does not occur. The resolvers keep
+/// the original's reads: the list runs on in its piece as far as the sounds read.
+/// The race's sets (`RaceSoundSets`, by kind of car).
+pub const RACE_LIST_TAG: u32 = 0xC400_0000;
+/// The cues' lists (`CueLists`).
+pub const CUE_TAG: u32 = 0xC500_0000;
+/// The surface sets (`SurfaceSets`).
+pub const SURFACE_TAG: u32 = 0xC600_0000;
+/// The kinds' records (`SoundKinds`; 0xC3 is the view records', so this one is 0xC380).
+pub const KIND_TAG: u32 = 0xC380_0000;
+
+const fn offset_ref(tag: u32, ida: u32, start: usize, len: usize) -> u32 {
+    assert!(ida as usize >= start && (ida as usize) < start + len);
+    tag | (ida as usize - start) as u32
+}
+const fn race_ref(ida: u32) -> u32 {
+    offset_ref(RACE_LIST_TAG, ida, 0x511B10, 0x9D4)
+}
+const fn cue_ref(ida: u32) -> u32 {
+    offset_ref(CUE_TAG, ida, 0x512508, 0x508)
+}
+const fn surface_ref(ida: u32) -> u32 {
+    offset_ref(SURFACE_TAG, ida, 0x51639C, 0x1C0)
+}
+const fn kind_ref(ida: u32) -> u32 {
+    offset_ref(KIND_TAG, ida, 0x514F90, 0x13C8)
+}
+
+/// The offset in its piece a table's handle names (None: no handle of `tag`, or past `len`).
+fn offset_in(handle: u32, tag: u32, len: usize) -> Option<usize> {
+    let offset = handle.checked_sub(tag)? as usize;
+    (offset < len).then_some(offset)
+}
+
 /// The settings page's menu sounds list (IDA 0x511AE4 .. 0x511B0C, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
@@ -669,78 +704,78 @@ impl RaceSoundSets {
                 Dword::new(0xffffffff),
             ],
             kinds: [
-                Dword::new(0x511b10),
-                Dword::new(0x511e7c),
-                Dword::new(0x511b1c),
-                Dword::new(0x511e88),
-                Dword::new(0x511b28),
-                Dword::new(0x511e94),
-                Dword::new(0x511b34),
-                Dword::new(0x511ea0),
-                Dword::new(0x511b40),
-                Dword::new(0x511eac),
-                Dword::new(0x511b4c),
-                Dword::new(0x511eb8),
-                Dword::new(0x511b58),
-                Dword::new(0x511ec4),
-                Dword::new(0x511b64),
-                Dword::new(0x511ed0),
-                Dword::new(0x511b70),
-                Dword::new(0x511edc),
-                Dword::new(0x511b7c),
-                Dword::new(0x511ee8),
-                Dword::new(0x511b88),
-                Dword::new(0x511ef4),
-                Dword::new(0x511b94),
-                Dword::new(0x511f00),
-                Dword::new(0x511ba0),
-                Dword::new(0x511f0c),
-                Dword::new(0x511bac),
-                Dword::new(0x511f18),
-                Dword::new(0x511bb8),
-                Dword::new(0x511f24),
-                Dword::new(0x511bc4),
-                Dword::new(0x511f30),
-                Dword::new(0x511bd0),
-                Dword::new(0x511f3c),
-                Dword::new(0x511bdc),
-                Dword::new(0x511f48),
-                Dword::new(0x511be8),
-                Dword::new(0x511f54),
-                Dword::new(0x511bf4),
-                Dword::new(0x511f60),
-                Dword::new(0x511c00),
-                Dword::new(0x511f6c),
-                Dword::new(0x511c0c),
-                Dword::new(0x511f78),
-                Dword::new(0x511c18),
-                Dword::new(0x511f84),
-                Dword::new(0x511c24),
-                Dword::new(0x511f90),
-                Dword::new(0x511c30),
-                Dword::new(0x511f9c),
-                Dword::new(0x511c3c),
-                Dword::new(0x511fa8),
-                Dword::new(0x511c48),
-                Dword::new(0x511fb4),
-                Dword::new(0x511c54),
-                Dword::new(0x511fc0),
-                Dword::new(0x511c60),
-                Dword::new(0x511fcc),
-                Dword::new(0x511c6c),
-                Dword::new(0x511fd8),
-                Dword::new(0x511c78),
-                Dword::new(0x511fe4),
-                Dword::new(0x511c84),
-                Dword::new(0x511ff0),
-                Dword::new(0x511c90),
-                Dword::new(0x511ffc),
-                Dword::new(0x511c9c),
-                Dword::new(0x512008),
-                Dword::new(0x511bdc),
-                Dword::new(0x511f48),
-                Dword::new(0x511bdc),
-                Dword::new(0x511f48),
+                Dword::new(race_ref(0x511b10)),
+                Dword::new(race_ref(0x511e7c)),
+                Dword::new(race_ref(0x511b1c)),
+                Dword::new(race_ref(0x511e88)),
+                Dword::new(race_ref(0x511b28)),
+                Dword::new(race_ref(0x511e94)),
+                Dword::new(race_ref(0x511b34)),
+                Dword::new(race_ref(0x511ea0)),
+                Dword::new(race_ref(0x511b40)),
+                Dword::new(race_ref(0x511eac)),
+                Dword::new(race_ref(0x511b4c)),
+                Dword::new(race_ref(0x511eb8)),
+                Dword::new(race_ref(0x511b58)),
+                Dword::new(race_ref(0x511ec4)),
+                Dword::new(race_ref(0x511b64)),
+                Dword::new(race_ref(0x511ed0)),
+                Dword::new(race_ref(0x511b70)),
+                Dword::new(race_ref(0x511edc)),
+                Dword::new(race_ref(0x511b7c)),
+                Dword::new(race_ref(0x511ee8)),
+                Dword::new(race_ref(0x511b88)),
+                Dword::new(race_ref(0x511ef4)),
+                Dword::new(race_ref(0x511b94)),
+                Dword::new(race_ref(0x511f00)),
+                Dword::new(race_ref(0x511ba0)),
+                Dword::new(race_ref(0x511f0c)),
+                Dword::new(race_ref(0x511bac)),
+                Dword::new(race_ref(0x511f18)),
+                Dword::new(race_ref(0x511bb8)),
+                Dword::new(race_ref(0x511f24)),
+                Dword::new(race_ref(0x511bc4)),
+                Dword::new(race_ref(0x511f30)),
+                Dword::new(race_ref(0x511bd0)),
+                Dword::new(race_ref(0x511f3c)),
+                Dword::new(race_ref(0x511bdc)),
+                Dword::new(race_ref(0x511f48)),
+                Dword::new(race_ref(0x511be8)),
+                Dword::new(race_ref(0x511f54)),
+                Dword::new(race_ref(0x511bf4)),
+                Dword::new(race_ref(0x511f60)),
+                Dword::new(race_ref(0x511c00)),
+                Dword::new(race_ref(0x511f6c)),
+                Dword::new(race_ref(0x511c0c)),
+                Dword::new(race_ref(0x511f78)),
+                Dword::new(race_ref(0x511c18)),
+                Dword::new(race_ref(0x511f84)),
+                Dword::new(race_ref(0x511c24)),
+                Dword::new(race_ref(0x511f90)),
+                Dword::new(race_ref(0x511c30)),
+                Dword::new(race_ref(0x511f9c)),
+                Dword::new(race_ref(0x511c3c)),
+                Dword::new(race_ref(0x511fa8)),
+                Dword::new(race_ref(0x511c48)),
+                Dword::new(race_ref(0x511fb4)),
+                Dword::new(race_ref(0x511c54)),
+                Dword::new(race_ref(0x511fc0)),
+                Dword::new(race_ref(0x511c60)),
+                Dword::new(race_ref(0x511fcc)),
+                Dword::new(race_ref(0x511c6c)),
+                Dword::new(race_ref(0x511fd8)),
+                Dword::new(race_ref(0x511c78)),
+                Dword::new(race_ref(0x511fe4)),
+                Dword::new(race_ref(0x511c84)),
+                Dword::new(race_ref(0x511ff0)),
+                Dword::new(race_ref(0x511c90)),
+                Dword::new(race_ref(0x511ffc)),
+                Dword::new(race_ref(0x511c9c)),
+                Dword::new(race_ref(0x512008)),
+                Dword::new(race_ref(0x511bdc)),
+                Dword::new(race_ref(0x511f48)),
+                Dword::new(race_ref(0x511bdc)),
+                Dword::new(race_ref(0x511f48)),
                 Dword::new(0x0),
                 Dword::new(0x10),
                 Dword::new(0x0),
@@ -777,19 +812,19 @@ impl RaceSoundSets {
     pub fn kind_list_of(
         n: usize,
     ) -> Result<rc2k_core::audio::commands::SoundList, crate::errors::BadInput> {
-        let ida = crate::sound::owner::sound()
+        let handle = crate::sound::owner::sound()
             .race
             .sets
             .kinds
             .get(n)
             .filter(|_| n < Self::KIND_ENTRIES)
             .ok_or(crate::errors::BadInput("a race sound kind past the table"))?
-            .get() as usize;
-        match ida.checked_sub(Self::START) {
-            Some(offset) if offset < Self::LEN => Ok(rc2k_core::audio::commands::SoundList::Race {
+            .get();
+        match offset_in(handle, RACE_LIST_TAG, Self::LEN) {
+            Some(offset) => Ok(rc2k_core::audio::commands::SoundList::Race {
                 offset: offset as u32,
             }),
-            _ => Err(crate::errors::BadInput(
+            None => Err(crate::errors::BadInput(
                 "a sound table's entry off its piece",
             )),
         }
@@ -833,7 +868,7 @@ impl CueLists {
     pub const fn new() -> Self {
         CueLists {
     _lead: Bytes::new([0; 8]),
-    table: [Dword::new(0x5126cc), Dword::new(0x5126d0), Dword::new(0x5126d8), Dword::new(0x5126e0), Dword::new(0x5126e8), Dword::new(0x5126f0), Dword::new(0x5126f8), Dword::new(0x512700), Dword::new(0x512708), Dword::new(0x512710), Dword::new(0x51271c), Dword::new(0x512728), Dword::new(0x512734), Dword::new(0x512740), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x51274c), Dword::new(0x512754), Dword::new(0x51275c), Dword::new(0x512764), Dword::new(0x51276c), Dword::new(0x512774), Dword::new(0x51277c), Dword::new(0x512784), Dword::new(0x51278c), Dword::new(0x512798), Dword::new(0x5127a4), Dword::new(0x5127b0), Dword::new(0x5127bc), Dword::new(0x5127c8), Dword::new(0x5127d0), Dword::new(0x5127d8), Dword::new(0x5127e0), Dword::new(0x5127e8), Dword::new(0x5127f0), Dword::new(0x5127f8), Dword::new(0x512800), Dword::new(0x512808), Dword::new(0x512810), Dword::new(0x512818), Dword::new(0x512820), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x512828), Dword::new(0x512838), Dword::new(0x512840), Dword::new(0x512848), Dword::new(0x512850), Dword::new(0x512858), Dword::new(0x512860), Dword::new(0x512868), Dword::new(0x512870), Dword::new(0x5128c8), Dword::new(0x5128d0), Dword::new(0x5128d8), Dword::new(0x5128e0), Dword::new(0x5128e8), Dword::new(0x5128f0), Dword::new(0x5128f8), Dword::new(0x512900), Dword::new(0x512878), Dword::new(0x512888), Dword::new(0x512880), Dword::new(0x512890), Dword::new(0x512898), Dword::new(0x5128a0), Dword::new(0x5128a8), Dword::new(0x5128b0), Dword::new(0x5128b8), Dword::new(0x5128c0), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x5126cc), Dword::new(0x512908), Dword::new(0x512918), Dword::new(0x512910), Dword::new(0x512920), Dword::new(0x512928), Dword::new(0x512930), Dword::new(0x512938), Dword::new(0x512940), Dword::new(0x512948), Dword::new(0x512950), Dword::new(0x512958), Dword::new(0x512960), Dword::new(0x512968), Dword::new(0x512970), Dword::new(0x512978), Dword::new(0x512980), Dword::new(0x512988), Dword::new(0x512990), Dword::new(0x512998), Dword::new(0x5129a0), Dword::new(0x5129a8), Dword::new(0x5129b0), Dword::new(0x5129b8), Dword::new(0x5129c0), Dword::new(0x5129c8), Dword::new(0x5129d0), Dword::new(0x5129d8), Dword::new(0x5129e0), Dword::new(0x5129e8), Dword::new(0x5129f0), Dword::new(0x5129f8), Dword::new(0x512a00), Dword::new(0x512a08)],
+    table: [Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126d0)), Dword::new(cue_ref(0x5126d8)), Dword::new(cue_ref(0x5126e0)), Dword::new(cue_ref(0x5126e8)), Dword::new(cue_ref(0x5126f0)), Dword::new(cue_ref(0x5126f8)), Dword::new(cue_ref(0x512700)), Dword::new(cue_ref(0x512708)), Dword::new(cue_ref(0x512710)), Dword::new(cue_ref(0x51271c)), Dword::new(cue_ref(0x512728)), Dword::new(cue_ref(0x512734)), Dword::new(cue_ref(0x512740)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x51274c)), Dword::new(cue_ref(0x512754)), Dword::new(cue_ref(0x51275c)), Dword::new(cue_ref(0x512764)), Dword::new(cue_ref(0x51276c)), Dword::new(cue_ref(0x512774)), Dword::new(cue_ref(0x51277c)), Dword::new(cue_ref(0x512784)), Dword::new(cue_ref(0x51278c)), Dword::new(cue_ref(0x512798)), Dword::new(cue_ref(0x5127a4)), Dword::new(cue_ref(0x5127b0)), Dword::new(cue_ref(0x5127bc)), Dword::new(cue_ref(0x5127c8)), Dword::new(cue_ref(0x5127d0)), Dword::new(cue_ref(0x5127d8)), Dword::new(cue_ref(0x5127e0)), Dword::new(cue_ref(0x5127e8)), Dword::new(cue_ref(0x5127f0)), Dword::new(cue_ref(0x5127f8)), Dword::new(cue_ref(0x512800)), Dword::new(cue_ref(0x512808)), Dword::new(cue_ref(0x512810)), Dword::new(cue_ref(0x512818)), Dword::new(cue_ref(0x512820)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x512828)), Dword::new(cue_ref(0x512838)), Dword::new(cue_ref(0x512840)), Dword::new(cue_ref(0x512848)), Dword::new(cue_ref(0x512850)), Dword::new(cue_ref(0x512858)), Dword::new(cue_ref(0x512860)), Dword::new(cue_ref(0x512868)), Dword::new(cue_ref(0x512870)), Dword::new(cue_ref(0x5128c8)), Dword::new(cue_ref(0x5128d0)), Dword::new(cue_ref(0x5128d8)), Dword::new(cue_ref(0x5128e0)), Dword::new(cue_ref(0x5128e8)), Dword::new(cue_ref(0x5128f0)), Dword::new(cue_ref(0x5128f8)), Dword::new(cue_ref(0x512900)), Dword::new(cue_ref(0x512878)), Dword::new(cue_ref(0x512888)), Dword::new(cue_ref(0x512880)), Dword::new(cue_ref(0x512890)), Dword::new(cue_ref(0x512898)), Dword::new(cue_ref(0x5128a0)), Dword::new(cue_ref(0x5128a8)), Dword::new(cue_ref(0x5128b0)), Dword::new(cue_ref(0x5128b8)), Dword::new(cue_ref(0x5128c0)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x5126cc)), Dword::new(cue_ref(0x512908)), Dword::new(cue_ref(0x512918)), Dword::new(cue_ref(0x512910)), Dword::new(cue_ref(0x512920)), Dword::new(cue_ref(0x512928)), Dword::new(cue_ref(0x512930)), Dword::new(cue_ref(0x512938)), Dword::new(cue_ref(0x512940)), Dword::new(cue_ref(0x512948)), Dword::new(cue_ref(0x512950)), Dword::new(cue_ref(0x512958)), Dword::new(cue_ref(0x512960)), Dword::new(cue_ref(0x512968)), Dword::new(cue_ref(0x512970)), Dword::new(cue_ref(0x512978)), Dword::new(cue_ref(0x512980)), Dword::new(cue_ref(0x512988)), Dword::new(cue_ref(0x512990)), Dword::new(cue_ref(0x512998)), Dword::new(cue_ref(0x5129a0)), Dword::new(cue_ref(0x5129a8)), Dword::new(cue_ref(0x5129b0)), Dword::new(cue_ref(0x5129b8)), Dword::new(cue_ref(0x5129c0)), Dword::new(cue_ref(0x5129c8)), Dword::new(cue_ref(0x5129d0)), Dword::new(cue_ref(0x5129d8)), Dword::new(cue_ref(0x5129e0)), Dword::new(cue_ref(0x5129e8)), Dword::new(cue_ref(0x5129f0)), Dword::new(cue_ref(0x5129f8)), Dword::new(cue_ref(0x512a00)), Dword::new(cue_ref(0x512a08))],
     lists: Bytes::new(with_runs::<836>(&[(0, b"\xff\xff\xff\xffE\x01\x00\x00\xff\xff\xff\xffG\x01\x00\x00\xff\xff\xff\xffI\x01\x00\x00\xff\xff\xff\xffK\x01\x00\x00\xff\xff\xff\xffM\x01\x00\x00\xff\xff\xff\xffO\x01\x00\x00\xff\xff\xff\xffQ\x01\x00\x00\xff\xff\xff\xffS\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00E\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00G\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00I\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00K\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00M\x01\x00\x00\xff\xff\xff\xffU\x01\x00\x00\xff\xff\xff\xffW\x01\x00\x00\xff\xff\xff\xffY\x01\x00\x00\xff\xff\xff\xff[\x01\x00\x00\xff\xff\xff\xff]\x01\x00\x00\xff\xff\xff\xff_\x01\x00\x00\xff\xff\xff\xffa\x01\x00\x00\xff\xff\xff\xffc\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00U\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00W\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00Y\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00[\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00]\x01\x00\x00\xff\xff\xff\xffe\x01\x00\x00\xff\xff\xff\xffg\x01\x00\x00\xff\xff\xff\xff\xf9\x00\x00\x00\xff\xff\xff\xff\xfb\x00\x00\x00\xff\xff\xff\xff\xfd\x00\x00\x00\xff\xff\xff\xff\xff\x00\x00\x00\xff\xff\xff\xff\x01\x01\x00\x00\xff\xff\xff\xff\x03\x01\x00\x00\xff\xff\xff\xff\x05\x01\x00\x00\xff\xff\xff\xff\x07\x01\x00\x00\xff\xff\xff\xff\t\x01\x00\x00\xff\xff\xff\xff\x0b\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00!\x01\x00\x00?\x01\x00\x00\xff\xff\xff\xff\x11\x01\x00\x00\xff\xff\xff\xff\x0f\x01\x00\x00\xff\xff\xff\xff\x13\x01\x00\x00\xff\xff\xff\xff\r\x01\x00\x00\xff\xff\xff\xff1\x01\x00\x00\xff\xff\xff\xffA\x01\x00\x00\xff\xff\xff\xff=\x01\x00\x00\xff\xff\xff\xff3\x01\x00\x00\xff\xff\xff\xff\x1b\x01\x00\x00\xff\xff\xff\xff)\x01\x00\x00\xff\xff\xff\xff\x1d\x01\x00\x00\xff\xff\xff\xff#\x01\x00\x00\xff\xff\xff\xff+\x01\x00\x00\xff\xff\xff\xffC\x01\x00\x00\xff\xff\xff\xff\x15\x01\x00\x00\xff\xff\xff\xff\x17\x01\x00\x00\xff\xff\xff\xff\x1f\x01\x00\x00\xff\xff\xff\xff%\x01\x00\x00\xff\xff\xff\xff\x19\x01\x00\x00\xff\xff\xff\xff'\x01\x00\x00\xff\xff\xff\xff-\x01\x00\x00\xff\xff\xff\xff/\x01\x00\x00\xff\xff\xff\xff5\x01\x00\x00\xff\xff\xff\xff7\x01\x00\x00\xff\xff\xff\xff9\x01\x00\x00\xff\xff\xff\xff;\x01\x00\x00\xff\xff\xff\xff}\x01\x00\x00\xff\xff\xff\xff\x81\x01\x00\x00\xff\xff\xff\xff\x7f\x01\x00\x00\xff\xff\xff\xffs\x01\x00\x00\xff\xff\xff\xffi\x01\x00\x00\xff\xff\xff\xffk\x01\x00\x00\xff\xff\xff\xffm\x01\x00\x00\xff\xff\xff\xffo\x01\x00\x00\xff\xff\xff\xffq\x01\x00\x00\xff\xff\xff\xffu\x01\x00\x00\xff\xff\xff\xffw\x01\x00\x00\xff\xff\xff\xffy\x01\x00\x00\xff\xff\xff\xff{\x01\x00\x00\xff\xff\xff\xff\x83\x01\x00\x00\xff\xff\xff\xff\x85\x01\x00\x00\xff\xff\xff\xff\x87\x01\x00\x00\xff\xff\xff\xff\x89\x01\x00\x00\xff\xff\xff\xff\x8b\x01\x00\x00\xff\xff\xff\xff\x8d\x01\x00\x00\xff\xff\xff\xff\x8f\x01\x00\x00\xff\xff\xff\xff\x91\x01\x00\x00\xff\xff\xff\xff\x93\x01\x00\x00\xff\xff\xff\xff\x95\x01\x00\x00\xff\xff\xff\xff\x97\x01\x00\x00\xff\xff\xff\xff\x99\x01\x00\x00\xff\xff\xff\xff\x9b\x01\x00\x00\xff\xff\xff\xff\x9d\x01\x00\x00\xff\xff\xff\xff\x9f\x01\x00\x00\xff\xff\xff\xff\xa1\x01\x00\x00\xff\xff\xff\xff\xa3\x01\x00\x00\xff\xff\xff\xff\xa5\x01\x00\x00\xff\xff\xff\xff\xa7\x01\x00\x00\xff\xff\xff\xff\xa9\x01\x00\x00\xff\xff\xff\xff")])),
         }
     }
@@ -859,15 +894,12 @@ impl CueLists {
             .table
             .get(cue as usize)
             .ok_or(crate::errors::BadInput("a sound cue past the table"))?;
-        let at = cell.get() as usize;
-        if !(Self::START..Self::START + Self::LEN).contains(&at) {
-            return Err(crate::errors::BadInput(
-                "a sound table's entry off its piece",
-            ));
-        }
+        let at = offset_in(cell.get(), CUE_TAG, Self::LEN).ok_or(crate::errors::BadInput(
+            "a sound table's entry off its piece",
+        ))?;
         Ok(
             crate::pointers::GamePtr::to(&crate::sound::owner::sound().race.cue_lists)
-                .offset((at - Self::START + 8) as u32),
+                .offset((at + 8) as u32),
         )
     }
 }
@@ -1000,42 +1032,42 @@ impl SoundKinds {
     pub const fn new() -> Self {
         SoundKinds {
             kinds: [
-                Dword::new(0x515020),
-                Dword::new(0x5150a8),
-                Dword::new(0x515130),
-                Dword::new(0x5151b8),
-                Dword::new(0x515240),
-                Dword::new(0x5152c8),
-                Dword::new(0x515350),
-                Dword::new(0x5153d8),
-                Dword::new(0x515460),
-                Dword::new(0x5154e8),
-                Dword::new(0x515570),
-                Dword::new(0x5155f8),
-                Dword::new(0x515680),
-                Dword::new(0x515708),
-                Dword::new(0x515790),
-                Dword::new(0x515818),
-                Dword::new(0x5158a0),
-                Dword::new(0x515928),
-                Dword::new(0x5159b0),
-                Dword::new(0x515a38),
-                Dword::new(0x515ac0),
-                Dword::new(0x515b48),
-                Dword::new(0x515bd0),
-                Dword::new(0x515c58),
-                Dword::new(0x515ce0),
-                Dword::new(0x515d68),
-                Dword::new(0x515df0),
-                Dword::new(0x515e78),
-                Dword::new(0x515f00),
-                Dword::new(0x515f88),
-                Dword::new(0x516010),
-                Dword::new(0x516098),
-                Dword::new(0x516120),
-                Dword::new(0x5161a8),
-                Dword::new(0x515928),
-                Dword::new(0x515928),
+                Dword::new(kind_ref(0x515020)),
+                Dword::new(kind_ref(0x5150a8)),
+                Dword::new(kind_ref(0x515130)),
+                Dword::new(kind_ref(0x5151b8)),
+                Dword::new(kind_ref(0x515240)),
+                Dword::new(kind_ref(0x5152c8)),
+                Dword::new(kind_ref(0x515350)),
+                Dword::new(kind_ref(0x5153d8)),
+                Dword::new(kind_ref(0x515460)),
+                Dword::new(kind_ref(0x5154e8)),
+                Dword::new(kind_ref(0x515570)),
+                Dword::new(kind_ref(0x5155f8)),
+                Dword::new(kind_ref(0x515680)),
+                Dword::new(kind_ref(0x515708)),
+                Dword::new(kind_ref(0x515790)),
+                Dword::new(kind_ref(0x515818)),
+                Dword::new(kind_ref(0x5158a0)),
+                Dword::new(kind_ref(0x515928)),
+                Dword::new(kind_ref(0x5159b0)),
+                Dword::new(kind_ref(0x515a38)),
+                Dword::new(kind_ref(0x515ac0)),
+                Dword::new(kind_ref(0x515b48)),
+                Dword::new(kind_ref(0x515bd0)),
+                Dword::new(kind_ref(0x515c58)),
+                Dword::new(kind_ref(0x515ce0)),
+                Dword::new(kind_ref(0x515d68)),
+                Dword::new(kind_ref(0x515df0)),
+                Dword::new(kind_ref(0x515e78)),
+                Dword::new(kind_ref(0x515f00)),
+                Dword::new(kind_ref(0x515f88)),
+                Dword::new(kind_ref(0x516010)),
+                Dword::new(kind_ref(0x516098)),
+                Dword::new(kind_ref(0x516120)),
+                Dword::new(kind_ref(0x5161a8)),
+                Dword::new(kind_ref(0x515928)),
+                Dword::new(kind_ref(0x515928)),
             ],
             records: [
                 KindRecord::from_runs(&[
@@ -1468,7 +1500,13 @@ impl SoundKinds {
             .kinds
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a sound kind past the table"))?;
-        let at = (cell.get() as usize).wrapping_sub(Self::START + 36 * 4);
+        let at = (cell
+            .get()
+            .checked_sub(KIND_TAG)
+            .ok_or(crate::errors::BadInput(
+                "a sound table's entry off its piece",
+            ))? as usize)
+            .wrapping_sub(36 * 4);
         if !at.is_multiple_of(KIND_RECORD_LEN) {
             return Err(crate::errors::BadInput(
                 "a sound table's entry off its piece",
@@ -1516,7 +1554,7 @@ impl SurfaceSets {
     pub const fn new() -> Self {
         SurfaceSets {
     _lead: Bytes::new([0; 12]),
-    sets: [Dword::new(0x5163d4), Dword::new(0x5163f8), Dword::new(0x51640c), Dword::new(0x516430), Dword::new(0x516444), Dword::new(0x516468), Dword::new(0x51647c), Dword::new(0x5164a0), Dword::new(0x5164ec), Dword::new(0x516510), Dword::new(0x5164b4), Dword::new(0x5164d8), Dword::new(0x516524), Dword::new(0x516548)],
+    sets: [Dword::new(surface_ref(0x5163d4)), Dword::new(surface_ref(0x5163f8)), Dword::new(surface_ref(0x51640c)), Dword::new(surface_ref(0x516430)), Dword::new(surface_ref(0x516444)), Dword::new(surface_ref(0x516468)), Dword::new(surface_ref(0x51647c)), Dword::new(surface_ref(0x5164a0)), Dword::new(surface_ref(0x5164ec)), Dword::new(surface_ref(0x516510)), Dword::new(surface_ref(0x5164b4)), Dword::new(surface_ref(0x5164d8)), Dword::new(surface_ref(0x516524)), Dword::new(surface_ref(0x516548))],
     lists: Bytes::new(with_runs::<392>(&[(0, b"\x01\x00\x00\x00\x8c\x00\x00\x00\x8d\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x8e\x00\x00\x00\x8f\x00\x00\x00\x90\x00\x00\x00\x91\x00\x00\x00\x02\x00\x00\x00\x92\x00\x00\x00\x93\x00\x00\x00\x94\x00\x00\x00\x95\x00\x00\x00\x01\x00\x00\x00\x96\x00\x00\x00\x97\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x98\x00\x00\x00\x99\x00\x00\x00\x9a\x00\x00\x00\x9b\x00\x00\x00\x02\x00\x00\x00\x9c\x00\x00\x00\x9d\x00\x00\x00\x9e\x00\x00\x00\x9f\x00\x00\x00\x01\x00\x00\x00\xa0\x00\x00\x00\xa1\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\xa2\x00\x00\x00\xa3\x00\x00\x00\xa4\x00\x00\x00\xa5\x00\x00\x00\x02\x00\x00\x00\xa6\x00\x00\x00\xa7\x00\x00\x00\xa8\x00\x00\x00\xa9\x00\x00\x00\x01\x00\x00\x00\xaa\x00\x00\x00\xab\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\xac\x00\x00\x00\xad\x00\x00\x00\xae\x00\x00\x00\xaf\x00\x00\x00\x02\x00\x00\x00\xb0\x00\x00\x00\xb1\x00\x00\x00\xb2\x00\x00\x00\xb3\x00\x00\x00\x01\x00\x00\x00\xb4\x00\x00\x00\xb5\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\xb6\x00\x00\x00\xb7\x00\x00\x00\xb8\x00\x00\x00\xb9\x00\x00\x00\x02\x00\x00\x00\xba\x00\x00\x00\xbb\x00\x00\x00\xbc\x00\x00\x00\xbd\x00\x00\x00\x01\x00\x00\x00\xbe\x00\x00\x00\xbf\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\xc0\x00\x00\x00\xc1\x00\x00\x00\xc2\x00\x00\x00\xc3\x00\x00\x00\x02\x00\x00\x00\xc4\x00\x00\x00\xc5\x00\x00\x00\xc6\x00\x00\x00\xc7\x00\x00\x00\x01\x00\x00\x00\xc8\x00\x00\x00\xc9\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\xca\x00\x00\x00\xcb\x00\x00\x00\xcc\x00\x00\x00\xcd\x00\x00\x00\x02\x00\x00\x00\xce\x00\x00\x00\xcf\x00\x00\x00\xd0\x00\x00\x00\xd1")])),
     _tail: Bytes::new([0; 4]),
         }
@@ -1535,15 +1573,12 @@ impl SurfaceSets {
             .ok_or(crate::errors::BadInput(
                 "a surface sound set past the table",
             ))?;
-        let at = cell.get() as usize;
-        if !(Self::START..Self::START + Self::LEN).contains(&at) {
-            return Err(crate::errors::BadInput(
-                "a sound table's entry off its piece",
-            ));
-        }
+        let at = offset_in(cell.get(), SURFACE_TAG, Self::LEN).ok_or(crate::errors::BadInput(
+            "a sound table's entry off its piece",
+        ))?;
         Ok(
             crate::pointers::GamePtr::to(&crate::sound::owner::sound().race.surface_sets)
-                .offset((at - Self::START + 12) as u32),
+                .offset((at + 12) as u32),
         )
     }
 
@@ -3173,6 +3208,15 @@ impl SpotVoices {
 mod tests {
     use super::*;
 
+    /// The image's `count` address dwords from `at` made handles of `tag` (offsets from `start`).
+    fn handled(image: &mut [u8], at: usize, count: usize, tag: u32, start: usize) {
+        for k in 0..count {
+            let o = at + 4 * k;
+            let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+            image[o..o + 4].copy_from_slice(&(tag | (v - start as u32)).to_le_bytes());
+        }
+    }
+
     #[test]
     fn menusounds_starts_as_the_games() {
         let size = size_of::<MenuSounds>();
@@ -3190,7 +3234,8 @@ mod tests {
     #[test]
     fn racesoundsets_starts_as_the_games() {
         for n in 0..72 {
-            let ida = crate::sound::owner::sound().race.sets.kinds[n].get() as usize;
+            let handle = crate::sound::owner::sound().race.sets.kinds[n].get();
+            let ida = (handle ^ RACE_LIST_TAG) as usize + RaceSoundSets::START;
             let at = RaceSoundSets::kind_list_of(n).unwrap();
             assert_eq!(
                 at,
@@ -3208,13 +3253,20 @@ mod tests {
         assert!(RaceSoundSets::kind_list_of(72).is_err());
         let size = size_of::<RaceSoundSets>();
         assert!(RaceSoundSets::LEN <= size && size <= (RaceSoundSets::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(RaceSoundSets::START, RaceSoundSets::LEN);
+        let mut image = crate::moved::image_bytes(RaceSoundSets::START, RaceSoundSets::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
                 crate::pointers::host_at(RaceSoundSets::home()).cast_const(),
                 RaceSoundSets::LEN,
             )
         };
+        handled(
+            &mut image,
+            RaceSoundSets::KINDS_AT - RaceSoundSets::START,
+            72,
+            RACE_LIST_TAG,
+            RaceSoundSets::START,
+        );
         assert_eq!(mine, &image[..]);
     }
 
@@ -3228,13 +3280,14 @@ mod tests {
         assert!(CueLists::list(113).is_err());
         let size = size_of::<CueLists>();
         assert!(8 + CueLists::LEN <= size && size <= (8 + CueLists::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(CueLists::START, CueLists::LEN);
+        let mut image = crate::moved::image_bytes(CueLists::START, CueLists::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
                 crate::pointers::host_at(CueLists::home()).cast_const(),
                 CueLists::LEN,
             )
         };
+        handled(&mut image, 0, 113, CUE_TAG, CueLists::START);
         assert_eq!(mine, &image[..]);
     }
 
@@ -3242,13 +3295,14 @@ mod tests {
     fn soundkinds_starts_as_the_games() {
         let size = size_of::<SoundKinds>();
         assert!(SoundKinds::LEN <= size && size <= (SoundKinds::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(SoundKinds::START, SoundKinds::LEN);
+        let mut image = crate::moved::image_bytes(SoundKinds::START, SoundKinds::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
                 crate::pointers::host_at(SoundKinds::home()).cast_const(),
                 SoundKinds::LEN,
             )
         };
+        handled(&mut image, 0, 36, KIND_TAG, SoundKinds::START);
         assert_eq!(mine, &image[..]);
     }
 
@@ -3270,13 +3324,14 @@ mod tests {
         assert!(
             12 + SurfaceSets::LEN <= size && size <= (12 + SurfaceSets::LEN).next_multiple_of(16)
         );
-        let image = crate::moved::image_bytes(SurfaceSets::START, SurfaceSets::LEN);
+        let mut image = crate::moved::image_bytes(SurfaceSets::START, SurfaceSets::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
                 crate::pointers::host_at(SurfaceSets::home()).cast_const(),
                 SurfaceSets::LEN,
             )
         };
+        handled(&mut image, 0, 14, SURFACE_TAG, SurfaceSets::START);
         assert_eq!(mine, &image[..]);
     }
 

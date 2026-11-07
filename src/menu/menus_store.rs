@@ -12,7 +12,6 @@
 
 use crate::gfx::typefaces::FontCell;
 use crate::menu::item_sprites_store::SpriteCell;
-use crate::menu::owner::Tables;
 use crate::menu::owner::menus;
 use crate::session::Dword;
 
@@ -166,9 +165,10 @@ unsafe impl<const N: usize> crate::pointers::Cells for Menu<N> {
 }
 
 impl<const N: usize> Menu<N> {
+    /// `head` is the IDA address of the menu's labels (0: none); the cell holds the handle.
     pub const fn new(head: u32, items: [MenuItem; N]) -> Self {
         Self {
-            head: Dword::new(head),
+            head: Dword::new(label_list_ref(head)),
             items,
             end: Dword::new(0xFFFF_FFFF),
         }
@@ -1033,17 +1033,33 @@ pub static LABEL_LISTS: [&LabelList; 98] = [
     &crate::menu::owner::MENUS.tables.menus.visual_options_labels,
 ];
 
-/// Where the label list a menu's +0 names is now; 0 for a menu without any. A name off the
-/// lists is refused.
-pub fn labels_place_of(head: &Dword) -> Result<u32, crate::errors::BadInput> {
+/// Tag of a label list's handle (a menu's +0): `LABEL_LIST_TAG` plus the list's byte offset
+/// in the menus' tables (its IDA address minus `START`); 0 is none.
+pub const LABEL_LIST_TAG: u32 = 0xC100_0000;
+
+/// The handle of the label list at IDA address `ida` (0 for none).
+pub const fn label_list_ref(ida: u32) -> u32 {
+    if ida == 0 {
+        0
+    } else {
+        assert!(ida as usize >= START && ida as usize - START < 0x100_0000);
+        LABEL_LIST_TAG | (ida - START as u32)
+    }
+}
+
+/// Where the label list a menu's +0 names is: its byte offset in the menus' tables; 0 for a
+/// menu without any. A handle off the lists is refused.
+pub fn labels_place_of(head: &Dword) -> Result<Option<u32>, crate::errors::BadInput> {
     match head.get() {
-        0 => Ok(0),
-        ida => crate::moved::named_in(
-            ida,
-            START,
-            LABEL_LISTS.len() * LABEL_LIST_LEN,
+        0 => Ok(None),
+        h if h & 0xFF00_0000 == LABEL_LIST_TAG
+            && ((h & 0xFF_FFFF) as usize) < LABEL_LISTS.len() * LABEL_LIST_LEN =>
+        {
+            Ok(Some(h & 0xFF_FFFF))
+        }
+        _ => Err(crate::errors::BadInput(
             "a menu's labels off the label lists",
-        ),
+        )),
     }
 }
 
@@ -1054,24 +1070,20 @@ pub fn labels_slot(
     head: &Dword,
     offset: u32,
 ) -> Result<Option<crate::pointers::GamePtr>, crate::errors::BadInput> {
-    let tables = &menus().tables;
-    let at = labels_place_of(head)?;
-    if at == 0 {
+    let Some(at) = labels_place_of(head)? else {
         return Ok(None);
-    }
+    };
     Ok(Some(
-        crate::pointers::GamePtr::to(&menus().tables.menus)
-            .offset(at.wrapping_sub(menus_addr(tables)).wrapping_add(offset)),
+        crate::pointers::GamePtr::to(&menus().tables.menus).offset(at.wrapping_add(offset)),
     ))
 }
 
-/// The font of the label whose font field is at `at` (a game address in the label lists;
-/// `screens::draw_menu_labels` walks them by address). Refused: a place that is no label's
+/// The font of the label whose font field is `at` bytes into the menus' tables (in the label
+/// lists; `screens::draw_menu_labels` walks them by offset). Refused: a place that is no label's
 /// font (the walk gone off the lists' grid: the original would take what is there for a
 /// font object's address).
 pub fn label_font(at: u32) -> Result<crate::gfx::typefaces::FontId, crate::errors::BadInput> {
-    let tables = &menus().tables;
-    let off = at.wrapping_sub(menus_addr(tables)) as usize;
+    let off = at as usize;
     if off >= LABEL_LISTS.len() * LABEL_LIST_LEN || off % LABEL_LIST_LEN != 8 {
         return Err(crate::errors::BadInput("a label's font read off a label"));
     }
@@ -1091,7 +1103,8 @@ pub const START: usize = 0x747AD8;
 pub const END: usize = 0x755144;
 
 /// Where IDA 0x747AD8 is now (`moved::MOVED`'s home).
-pub fn menus_addr(tables: &Tables) -> u32 {
+#[cfg(test)]
+pub fn menus_addr(tables: &crate::menu::owner::Tables) -> u32 {
     crate::pointers::game_address(&raw const tables.menus)
 }
 
@@ -1805,13 +1818,13 @@ impl MenuId {
         }
     }
 
-    /// The menu's +0: the IDA address of its labels, a name (`labels_place` finds them).
+    /// The menu's +0: the handle of its labels (`label_list_ref`; `labels_place` finds them).
     pub fn labels(self) -> &'static Dword {
         self.parts().0
     }
 
-    /// Where the menu's labels are now; 0 for a menu without any.
-    pub fn labels_place(self) -> Result<u32, crate::errors::BadInput> {
+    /// The offset of the menu's labels in the menus' tables; None for a menu without any.
+    pub fn labels_place(self) -> Result<Option<u32>, crate::errors::BadInput> {
         labels_place_of(self.labels())
     }
 
@@ -1967,6 +1980,17 @@ mod tests {
                 ItemSprite::List(n) => (crate::menu::item_sprites_store::START + 0x14 * n) as u32,
             };
             mine[at + 0x20..at + 0x24].copy_from_slice(&sprites.to_le_bytes());
+        }
+        for n in 0..MENU_COUNT {
+            // The head holds a handle: the image's cell holds the list's IDA address.
+            let head = MenuId(n).labels();
+            let at = (crate::pointers::game_address(std::ptr::from_ref(head)) - menus_addr(tables))
+                as usize;
+            let ida = match labels_place_of(head).unwrap() {
+                Some(off) => START as u32 + off,
+                None => 0,
+            };
+            mine[at..at + 4].copy_from_slice(&ida.to_le_bytes());
         }
         for (n, list) in LABEL_LISTS.iter().enumerate() {
             let at = n * LABEL_LIST_LEN + 8;

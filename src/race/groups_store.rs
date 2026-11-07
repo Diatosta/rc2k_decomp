@@ -188,9 +188,12 @@ impl PanelAndOverlay {
 /// The view variables and the view records, with the image's first values.
 impl ViewAndRecords {
     pub const fn new() -> Self {
-        crate::pointers::cells_of_bytes(crate::race::store::first_values::<
-            { VIEW_AND_RECORDS_RANGE.1 - VIEW_AND_RECORDS_RANGE.0 },
-        >(VIEW_AND_RECORDS_RANGE.0))
+        crate::pointers::cells_of_bytes(crate::race::view_vars_store::with_view_refs(
+            crate::race::store::first_values::<
+                { VIEW_AND_RECORDS_RANGE.1 - VIEW_AND_RECORDS_RANGE.0 },
+            >(VIEW_AND_RECORDS_RANGE.0),
+            VIEW_AND_RECORDS_RANGE.0,
+        ))
     }
 }
 
@@ -235,7 +238,14 @@ mod tests {
         let (a, b) = LIGHTS_AND_GEAR_RANGE;
         crate::gfx::first_values_are_the_games(&race.frame.lights_and_gear, a, b);
         let (a, b) = VIEW_AND_RECORDS_RANGE;
-        crate::gfx::first_values_are_the_games(&race.frame.view_and_records, a, b);
+        crate::gfx::first_values_are_the_games_but(&race.frame.view_and_records, a, b, |image| {
+            for k in 0..52 {
+                let o = 0x606320 - a + 4 * k;
+                let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                image[o..o + 4]
+                    .copy_from_slice(&crate::race::view_vars_store::view_ref(v).to_le_bytes());
+            }
+        });
         let (a, b) = PANEL_AND_OVERLAY_RANGE;
         crate::gfx::first_values_are_the_games(
             &race.frame.panel_and_overlay.panel,

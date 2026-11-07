@@ -146,20 +146,9 @@ impl ViewVars {
     /// The bytes of a view record.
     pub const RECORD_SIZE: usize = 0x5C;
 
-    /// View record `n` (phase 13: the table keeps IDA's addresses as names). A view past
-    /// the 52, or a name off the records' starts, is refused.
+    /// View record `n` (phase 13: the table holds handles, `VIEW_TAG | k` for the k-th
+    /// record). A view past the 52, or a value that is no handle, is refused.
     pub fn record_of(n: usize) -> Result<&'static ViewRecord, crate::errors::BadInput> {
-        let at = Self::record_name(n)? - Self::RECORDS;
-        if at % Self::RECORD_SIZE != 0 {
-            return Err(crate::errors::BadInput(
-                "a view record's name off a record's start",
-            ));
-        }
-        Ok(&race().frame.view_and_records.records[at / Self::RECORD_SIZE])
-    }
-
-    /// The IDA address view record `n` is named by.
-    fn record_name(n: usize) -> Result<usize, crate::errors::BadInput> {
         let cell = race()
             .frame
             .view_and_records
@@ -167,14 +156,51 @@ impl ViewVars {
             .view_records
             .get(n)
             .ok_or(crate::errors::BadInput("a view past the 52 records"))?;
-        let at = cell.get() as usize;
-        if !(Self::RECORDS..Self::RECORDS_END).contains(&at) {
-            return Err(crate::errors::BadInput(
+        let k = cell
+            .get()
+            .checked_sub(VIEW_TAG)
+            .ok_or(crate::errors::BadInput(
+                "a view record's name that is no handle",
+            ))?;
+        race()
+            .frame
+            .view_and_records
+            .records
+            .get(k as usize)
+            .ok_or(crate::errors::BadInput(
                 "a view record's name off the records",
-            ));
-        }
-        Ok(at)
+            ))
     }
+}
+
+/// A view record by handle (phase 13): `VIEW_TAG | k` for the record `k` of the 52, in
+/// place of the record's address in `off_606320` (0xC3 of the tags 0xC3 .. 0xC6 given).
+pub const VIEW_TAG: u32 = 0xC300_0000;
+
+/// The handle for IDA's `ida` (a view record's address; anything else fails to compile).
+pub const fn view_ref(ida: u32) -> u32 {
+    let ida = ida as usize;
+    assert!(ida >= ViewVars::RECORDS && ida < ViewVars::RECORDS_END);
+    let off = ida - ViewVars::RECORDS;
+    assert!(off.is_multiple_of(ViewVars::RECORD_SIZE));
+    VIEW_TAG | (off / ViewVars::RECORD_SIZE) as u32
+}
+
+/// `bytes` (the group's first values from IDA's `start`) with the 52 dwords of `off_606320`
+/// made `view_ref`s.
+pub const fn with_view_refs<const N: usize>(mut bytes: [u8; N], start: usize) -> [u8; N] {
+    let mut k = 0;
+    while k < 52 {
+        let o = 0x606320 + 4 * k - start;
+        let v = u32::from_le_bytes([bytes[o], bytes[o + 1], bytes[o + 2], bytes[o + 3]]);
+        let h = view_ref(v).to_le_bytes();
+        bytes[o] = h[0];
+        bytes[o + 1] = h[1];
+        bytes[o + 2] = h[2];
+        bytes[o + 3] = h[3];
+        k += 1;
+    }
+    bytes
 }
 
 /// IDA 0x60626C, the first byte of the piece.
@@ -199,10 +225,17 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(
+        crate::gfx::first_values_are_the_games_but(
             &race().frame.view_and_records.view_vars,
             START,
             END,
+            |image| {
+                for k in 0..52 {
+                    let o = ViewVars::TABLE - START + 4 * k;
+                    let v = u32::from_le_bytes(image[o..o + 4].try_into().unwrap());
+                    image[o..o + 4].copy_from_slice(&view_ref(v).to_le_bytes());
+                }
+            },
         );
     }
 
@@ -211,10 +244,10 @@ mod tests {
         for n in 0..52usize {
             let ida = ViewVars::TABLE + 4 * n;
             let image = u32::from_le_bytes(crate::moved::image_bytes(ida, 4).try_into().unwrap());
-            // Kept as the image's name; resolved to the same record's place.
+            // A handle in place of the image's address, naming the same record.
             assert_eq!(
                 race().frame.view_and_records.view_vars.view_records[n].get(),
-                image
+                view_ref(image)
             );
             assert_eq!(image as usize, ViewVars::RECORDS + 0x5C * n);
             assert!(core::ptr::eq(
