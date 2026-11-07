@@ -27,7 +27,7 @@ pub fn show_background(vars: &NetVars) -> Result<(), Refused> {
         .picture
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
-    crate::gfx::picture_as_surface::picture_as_surface()?;
+    crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
     let title = if vars.session.get() == 1 {
         0x15A
     } else {

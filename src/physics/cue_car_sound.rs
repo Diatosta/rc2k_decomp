@@ -18,11 +18,15 @@ use rc2k_core::physics::listed_cars::cue_object;
 
 /// `cue` queued first for the car `which` (0 or 1: a player's), if it sounds.
 // Converted: `rc2k_core::physics::listed_cars::cue_object`.
-pub fn cue_car_sound(which: u32, cue: u32) -> Result<(), Refused> {
+pub fn cue_car_sound(
+    which: u32,
+    cue: u32,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let failed = std::cell::Cell::new(None);
     let found = cue_object(
         which,
-        |which| crate::sound::owner::sound().race.sounds.player_cars[which as usize].get(),
+        |which| sound.race.sounds.player_cars[which as usize].get(),
         |car| car,
         |car| match SoundObject::number(car) {
             Ok(o) => o.in_use.get(),

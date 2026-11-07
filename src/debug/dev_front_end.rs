@@ -200,8 +200,9 @@ fn finish_sequence(race: &Race) -> Result<(), Refused> {
 
 /// `sub_443104`, without its fonts (the menus' are up): the credits' race.
 fn credits(race: &Race) -> Result<(), Refused> {
+    let sound = crate::sound::owner::sound();
     round_a_race(race, || {
-        crate::race::sound_tables::silence_race_sounds()?;
+        crate::race::sound_tables::silence_race_sounds(sound)?;
         crate::race::credits_race::credits_race(race)
     })
 }

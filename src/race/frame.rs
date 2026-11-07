@@ -2,7 +2,6 @@
 //! players' states, the cars' counters, the view cars loaded into the work copy. Here
 //! its leaves.
 
-use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::input::owner::input;
 use crate::menu::owner::menus;
@@ -118,7 +117,8 @@ fn pressed(key: usize) -> bool {
 /// reads no register at entry; the ones it leaves are read by none of its callers
 /// (`drive::race_loop`, `drive::pause_until_key`).
 pub fn race_keys(race: &Race) -> Result<(), Refused> {
-    let state = &audio().state;
+    let audio = crate::audio::owner::audio();
+    let state = &audio.state;
     let shared = &race.shared;
     crate::drive::choose_shown_cars::choose_shown_cars(race)?;
     let second = input().devices.keys_now.get(VIEW_MODE_KEY) != 0;
@@ -186,7 +186,7 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
                     .options
                     .race_music_volume
                     .set(volume);
-                crate::sound::set_music_volume::set_music_volume(volume);
+                crate::sound::set_music_volume::set_music_volume(volume, audio);
             } else {
                 let volume = volume_step(state.master_volume.get(), step);
                 state.master_volume.set(volume);
@@ -215,6 +215,7 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
 /// started, then run, its time when done added. It reads no register at entry; the eax and
 /// esi it leaves are read by no caller (`drive::race_loop`).
 pub fn tyre_change(race: &Race) -> Result<(), Refused> {
+    let input = crate::input::owner::input();
     let shared = &race.shared;
     let textures = &scene().textures;
     use crate::race::blocks_store::CAR_BLOCKS;
@@ -232,13 +233,13 @@ pub fn tyre_change(race: &Race) -> Result<(), Refused> {
         && car.tyre_change_state.get() == 0
         && car.stopped_steps.get() >= 0x12C
     {
-        tyre_change_gauge(race, true, 0)?;
+        tyre_change_gauge(race, true, 0, input)?;
         car.tyre_change_state.set(1);
     }
     if car.tyre_change_state.get() != 1 {
         return Ok(());
     }
-    let time = tyre_change_gauge(race, false, 0)?;
+    let time = tyre_change_gauge(race, false, 0, input)?;
     if time == 0 {
         return Ok(());
     }

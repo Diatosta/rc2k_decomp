@@ -18,7 +18,6 @@
 //! `routes.rs`.
 
 use crate::errors::{FatalError, Refused};
-use crate::gfx::owner::gfx;
 use crate::gfx::set_clip::set_clip;
 use crate::system::find_entry::entries;
 
@@ -56,8 +55,7 @@ pub fn surface_of(flags: u32, pixels: u32) -> Result<[u32; SURFACE_DWORDS - 2], 
     })
 }
 
-pub fn picture_as_surface() -> Result<(), Refused> {
-    let gfx = gfx();
+pub fn picture_as_surface(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     // The surface is the picture buffer by its number (`gfx::surface::Target::Picture`),
     // `g_surface.pixels` 0 (no address).
     let block = surface_of(gfx.pictures.picture.flags.get(), 0)?;

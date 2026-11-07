@@ -27,16 +27,18 @@ use crate::session::Dword;
 /// The Rust version: whether the frame was lost (the carry the original leaves; it
 /// keeps the other registers).
 pub fn viewer_frame() -> Result<bool, Refused> {
+    let gfx = crate::gfx::owner::gfx();
+    let input = crate::input::owner::input();
     let race = race();
     let replay = &race.replay;
     if race.shared.replay_file.replay_at_end.get() == 1 {
-        crate::gfx::clear_back_surface::clear_back_surface()?;
+        crate::gfx::clear_back_surface::clear_back_surface(gfx)?;
     }
     // `d3d::begin_scene` cannot fail (its carry is clear).
     crate::platform_3d::begin_layer();
     if race.shared.replay_file.replay_at_end.get() != 1 {
         crate::drive::replay_frame_marks::replay_frame_marks(race)?;
-        crate::race::show_replay_still::show_replay_still(race)?;
+        crate::race::show_replay_still::show_replay_still(race, input)?;
     }
     if replay.replay_view.snapshot_asked.get() == 1 {
         replay.replay_view.snapshot_asked.set(0);

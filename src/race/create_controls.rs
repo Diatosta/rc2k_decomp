@@ -6,8 +6,6 @@
 //!
 //! One caller, `race::load_stage`.
 
-use crate::input::owner::input;
-
-pub fn create_controls() {
-    input().devices.input_command.set(3); // g_inputCommand
+pub fn create_controls(input: &crate::input::owner::Input) {
+    input.devices.input_command.set(3); // g_inputCommand
 }

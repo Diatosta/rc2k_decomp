@@ -10,7 +10,6 @@
 //! (`dword_A8C188` = 0), else `sound::start_stream` with it and `dword_755698`. Once a
 //! frame on four screens (the car specification, the slideshow, two stage screens).
 
-use crate::audio::owner::audio;
 use crate::errors::BadInput;
 use crate::menu::owner::menus;
 
@@ -25,17 +24,18 @@ use crate::menu::owner::menus;
 pub fn step_car_stream(
     playing: &mut dyn FnMut() -> bool,
     start: &mut dyn FnMut(u32, u32),
+    sound: &crate::sound::owner::Sound,
 ) -> Result<(), BadInput> {
     let menus = menus();
     // Converted: `rc2k_core::sound::race::stream_step`.
     use rc2k_core::sound::race::{StreamStep, stream_step};
-    let list: u32 = crate::sound::owner::sound().race.car_stream.stream.get();
+    let list: u32 = sound.race.car_stream.stream.get();
     let failed = std::cell::Cell::new(None);
     let step = stream_step(
         menus.play.champ_view.event_mode.get(),
-        crate::sound::owner::sound().race.car_stream.on.get(),
+        sound.race.car_stream.on.get(),
         playing,
-        crate::sound::owner::sound().race.car_stream.place.get(),
+        sound.race.car_stream.place.get(),
         |place| {
             crate::menu::texts_store::speech_entry(list, place).unwrap_or_else(|e| {
                 failed.set(Some(e));
@@ -49,29 +49,25 @@ pub fn step_car_stream(
     let (place, part) = match step {
         StreamStep::Nothing => return Ok(()),
         StreamStep::Ended { place } => {
-            crate::sound::owner::sound()
-                .race
-                .car_stream
-                .place
-                .set(place);
-            crate::sound::owner::sound().race.car_stream.on.set(0);
+            sound.race.car_stream.place.set(place);
+            sound.race.car_stream.on.set(0);
             return Ok(());
         }
         StreamStep::Start { place, part } => (place, part),
     };
-    crate::sound::owner::sound()
-        .race
-        .car_stream
-        .place
-        .set(place);
+    sound.race.car_stream.place.set(place);
     start(part, menus.screens.option_work.speech_level.get());
     Ok(())
 }
 
 /// With the game's stream flag and `sound::start_stream`.
-pub fn step_car_stream_in_game() -> Result<(), BadInput> {
+pub fn step_car_stream_in_game(
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), BadInput> {
     step_car_stream(
-        &mut || audio().state.sound_stream.get().playing == 1,
+        &mut || audio.state.sound_stream.get().playing == 1,
         &mut crate::sound::start_stream::start_stream,
+        sound,
     )
 }

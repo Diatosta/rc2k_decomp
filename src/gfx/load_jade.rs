@@ -15,7 +15,6 @@
 use crate::errors::{FatalError, Refused};
 use crate::files::read_file::read_file_to_store;
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::surface_format;
 
 // ---- game data ----
@@ -24,8 +23,8 @@ const ROOM: u32 = rc2k_core::gfx::screenshot::JADE_ROOM;
 
 // ---- Rust version ----
 
-pub fn load_jade(path: &[u8]) -> Result<(), Refused> {
-    let fonts = &gfx().fonts;
+pub fn load_jade(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+    let fonts = &gfx.fonts;
     // Converted: `rc2k_core::gfx::screenshot::jade_read`.
     use rc2k_core::gfx::screenshot::{JADE_COLOUR, jade_read};
     let read = read_file_to_store(path, &fonts.jade.glyphs, ROOM, 0)?;
@@ -38,7 +37,7 @@ pub fn load_jade(path: &[u8]) -> Result<(), Refused> {
 }
 
 /// The game's `files\d\gfx\jade.bun`.
-pub fn load_jade_in_game() -> Result<(), Refused> {
+pub fn load_jade_in_game(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     let path = &crate::gfx::texts::JADE;
-    load_jade(&path[..path.len() - 1])
+    load_jade(&path[..path.len() - 1], gfx)
 }

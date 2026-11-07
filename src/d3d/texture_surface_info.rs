@@ -25,7 +25,7 @@ pub fn texture_surface_info(
         field(record, 4),
         field(record, 8),
         bytes_per_pixel(kind),
-        crate::gfx::pixel_format::texture_description_format(kind),
+        crate::gfx::pixel_format::texture_description_format(kind, gfx),
         description.pitch.get(),
         description.pixels.get(),
     );

@@ -12,7 +12,6 @@
 //! `gfx::fill_rect` refuses (a surface of neither 16 nor 32 bits), before anything.
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
 use crate::text::draw_text::Canvas;
 use rc2k_core::screens::message_box::{FILL, FRAME, STRING, layout};
 
@@ -23,8 +22,11 @@ pub const BOX_START: usize = 0x52983C;
 pub static BOX: [crate::session::Dword; 4] = [const { crate::session::Dword::new(0) }; 4];
 
 /// The Rust version (`x` the caller's ecx).
-pub fn draw_message_box(x: i32, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let gfx = gfx();
+pub fn draw_message_box(
+    x: i32,
+    canvas: &mut dyn Canvas,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     use crate::gfx::rect::{Palette, fill_rect, frame_rect};
     use crate::text::draw_string_by_id::draw_string_by_id_at;
     use crate::text::measure_string_by_id::measure_string_by_id_at;

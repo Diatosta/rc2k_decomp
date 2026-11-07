@@ -42,10 +42,11 @@ impl rc2k_core::gfx::screenshot::Shooting for Shot<'_> {
         Ok(crate::platform::lock_surface() < 1)
     }
     fn write(&mut self) -> Result<(), Refused> {
+        let gfx = crate::gfx::owner::gfx();
         if let Some(screen) = crate::platform_3d::screen() {
             crate::render::bring_back(&screen);
         }
-        crate::gfx::write_screen_pcx::write_screen_pcx(self.shots, None)?;
+        crate::gfx::write_screen_pcx::write_screen_pcx(self.shots, None, gfx)?;
         Ok(())
     }
     fn unlock(&mut self) -> Result<(), Refused> {

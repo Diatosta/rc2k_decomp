@@ -49,8 +49,10 @@ fn record_tables() -> [crate::records::stages_store::RecordTable; 13] {
 /// `fit_player_names` as its x. Neither is looked at: the stage only while `dword_755A0C` is
 /// 1, which it is only for `default_checkpoint_times`, which does not read it; the x is
 /// where a measuring starts, which a width does not depend on. The stage passed is 0.
-pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
-    let best_times = &saves().best_times;
+pub fn set_up_front_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
+    let saves = saves();
+    let best_times = &saves.best_times;
     let stage = 0;
     use crate::saves::{
         allocate_best_times, default_best_scores, default_championship_times,
@@ -62,21 +64,21 @@ pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
     }
     crate::menu::link_player_names::link_player_names(menus)?;
     crate::menu::show_loading_picture::show_loading_picture(menus)?;
-    crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
+    crate::gfx::build_menu_sprites::build_menu_sprites_in_game(gfx)?;
     crate::menu::fit_player_names::fit_player_names(menus)?;
     // The two dwords: the music volumes, then the tables' copies.
-    crate::sound::owner::sound()
+    sound
         .menu
         .options
         .music_volume
         .set(menus.screens.option_work.music_level.get());
-    crate::sound::owner::sound()
+    sound
         .menu
         .options
         .race_music_volume
         .set(menus.screens.option_work.other_volume.get());
     allocate_best_times::allocate_best_times(
-        best_times.list(),
+        best_times,
         system().records.stage_tables.championship(),
     )?;
     // Every table is typed now (`saves::best_times`): none is copied; the summary's
@@ -90,7 +92,7 @@ pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
         menus.screens.draw_work.work_0c.set(0u32);
         default_best_scores::default_best_scores()?;
         menus.screens.draw_work.work_0c.set(0u32);
-        default_championship_times::default_championship_times(stage, &mut to_the_log)?;
+        default_championship_times::default_championship_times(saves, stage, &mut to_the_log)?;
         menus.screens.draw_work.work_0c.set(1u32);
         default_checkpoint_times::default_checkpoint_times(stage, &mut to_the_log)?;
         menus.screens.draw_work.work_0c.set(0u32);

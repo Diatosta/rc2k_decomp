@@ -34,12 +34,17 @@ use rc2k_core::sound::surfaces;
 
 /// The surface of the wheel picked (of object `so`), its set and `sound::surface_sound`
 /// (the other wheel of the pair, the original's edx, it does not read).
-fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Refused> {
+fn one(
+    o: &SoundObject,
+    request: &SoundRequest,
+    second: usize,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let system = system();
     // Converted: `rc2k_core::sound::surfaces` (`wheel`, `quieter`, `set_pair`).
     let (first, _) = surfaces::wheel(
-        crate::sound::owner::sound().race.surface.across.bits(),
-        crate::sound::owner::sound().race.surface.along.bits(),
+        sound.race.surface.across.bits(),
+        sound.race.surface.along.bits(),
     );
     let surface = o.voices[first].surface.get();
     if second == 0 {
@@ -48,21 +53,13 @@ fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Ref
     WHEEL_SURFACES[second].set(surface);
     if surfaces::quieter(surface) {
         if second == 0 {
-            x87_1(
-                &crate::sound::owner::sound().race.surface,
-                &system.session.machine.scratch,
-            );
+            x87_1(&sound.race.surface, &system.session.machine.scratch);
         } else {
-            x87_2(
-                &crate::sound::owner::sound().race.surface,
-                &system.session.machine.scratch,
-            );
+            x87_2(&sound.race.surface, &system.session.machine.scratch);
         }
     }
-    let pair = surfaces::set_pair(surface, |n| {
-        crate::sound::owner::sound().race.stage.surface_sets[n as usize].get()
-    })
-    .map_err(BadInput::from)?;
+    let pair = surfaces::set_pair(surface, |n| sound.race.stage.surface_sets[n as usize].get())
+        .map_err(BadInput::from)?;
     let set = crate::sound::sets_store::SurfaceSets::set(second + 2 * pair as usize)?;
     crate::sound::surface_sound::surface_sound(o, set, request)
 }
@@ -71,11 +68,12 @@ fn one(o: &SoundObject, request: &SoundRequest, second: usize) -> Result<(), Ref
 pub fn surface_sounds(
     so: &crate::sound::store::SoundObject,
     request: &SoundRequest,
+    sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    x87_3(so, &crate::sound::owner::sound().race.surface);
-    one(so, request, 0)?;
-    x87_4(so, &crate::sound::owner::sound().race.surface);
-    one(so, request, 1)
+    x87_3(so, &sound.race.surface);
+    one(so, request, 0, sound)?;
+    x87_4(so, &sound.race.surface);
+    one(so, request, 1, sound)
 }
 
 // ---- the arithmetic that was x87 assembly ----

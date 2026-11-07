@@ -17,18 +17,18 @@ fn wake(n: u32) -> Result<(), BadInput> {
 /// `race::start_race_sounds` (0x40D592): `sound::start_race_clock`, and unless
 /// `dword_514F7C` is 0 it is held to 1 .. 8 and that many objects woken; then
 /// `sound::let_sounds_play` and `dword_5124E4` 1.
-pub fn start_race_sounds() -> Result<(), Refused> {
-    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-    let count: u32 = crate::sound::owner::sound().race.sounds.count.get();
+pub fn start_race_sounds(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
+    let count: u32 = sound.race.sounds.count.get();
     if count != 0 {
         let count = count.clamp(1, OBJECTS);
-        crate::sound::owner::sound().race.sounds.count.set(count);
+        sound.race.sounds.count.set(count);
         for n in 0..count {
             wake(n)?;
         }
     }
     crate::sound::let_sounds_play::let_sounds_play();
-    crate::sound::owner::sound().race.clock.started.set(1);
+    sound.race.clock.started.set(1);
     Ok(())
 }
 
@@ -37,6 +37,7 @@ pub fn start_race_sounds() -> Result<(), Refused> {
 /// `race::start_race_sounds`. Refuses 0x10000 cars or
 /// more (the original counts on to them).
 pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
+    let sound = crate::sound::owner::sound();
     let shared = &race.shared;
     if shared.work.in_credits.bits() != 0 {
         return Ok(());
@@ -48,5 +49,5 @@ pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
     for n in 0..cars {
         wake(n)?;
     }
-    start_race_sounds()
+    start_race_sounds(sound)
 }

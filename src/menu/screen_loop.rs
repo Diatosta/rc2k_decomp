@@ -353,6 +353,9 @@ impl Callee {
     /// Runs the function: whether it failed (the original's carry flag; false for those that
     /// do not set it).
     pub fn run(self, menus: &Menus) -> Result<bool, Refused> {
+        let audio = crate::audio::owner::audio();
+        let input = crate::input::owner::input();
+        let sound = crate::sound::owner::sound();
         let play = &menus.play;
         let screens = &menus.screens;
         use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
@@ -368,19 +371,22 @@ impl Callee {
             }
             Self::PrepareScene => prepare_scene(),
             Self::ApplyController => ci::apply_controller()?,
-            Self::ReleaseController => ci::release_controller(),
+            Self::ReleaseController => ci::release_controller(input),
             Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map(menus)?,
             Self::StopStream => crate::sound::stop_stream::stop_stream(),
             Self::PlayTune4 => crate::sound::play_tune_4::play_tune_4(),
             Self::PlayTune9 => crate::sound::play_tune_9::play_tune_9(),
             Self::StopMusic => crate::sound::stop_music::stop_music(),
-            Self::StepCarStream => crate::sound::step_car_stream::step_car_stream_in_game()?,
+            Self::StepCarStream => {
+                crate::sound::step_car_stream::step_car_stream_in_game(sound, audio)?;
+            }
             Self::PlayCarStream => crate::sound::play_car_stream::play_car_stream(
                 &mut crate::sound::start_stream::start_stream,
+                sound,
             )?,
             // What it leaves (eax, the carry) is read by none of the screens.
             Self::AxisMoved(axis) => {
-                crate::input::axes::axis_moved(axis)?;
+                crate::input::axes::axis_moved(axis, input)?;
             }
             Self::RankStageTimes => rs::rank_stage_times(menus)?,
             Self::RankTotals => rs::rank_totals(menus)?,
@@ -389,7 +395,7 @@ impl Callee {
             Self::StyleStageItem => v::style_stage_item(screens, false)?,
             Self::StyleChosenStageItem => v::style_stage_item(screens, true)?,
             Self::CountStagePages => v::count_stage_pages(screens)?,
-            Self::PlayStageSpeech => v::play_stage_speech(menus)?,
+            Self::PlayStageSpeech => v::play_stage_speech(menus, sound)?,
             Self::PlayRallySpeech => v::play_rally_speech(menus)?,
             Self::LoadWelcomePicture => v::load_welcome_picture(menus)?,
             Self::LoadServiceBackground => crate::service::load_background::load_background()?,
@@ -423,7 +429,7 @@ impl Callee {
                 return Ok(!crate::gfx::load_picture::load_picture(path(menus))?);
             }
             Self::ConvertPicture => return Ok(crate::gfx::convert_picture::convert_picture_now()?),
-            Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(menus)?,
+            Self::SetUpFrontEnd => crate::menu::set_up_front_end::set_up_front_end(menus, sound)?,
             // What it leaves in eax, ebx, ecx and edx is read by none of the screens.
             Self::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
             Self::SetUpFrontEndScene => {

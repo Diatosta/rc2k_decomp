@@ -16,7 +16,7 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 /// The Rust version.
-pub fn arcade_level_end(menus: &Menus) -> Result<(), Refused> {
+pub fn arcade_level_end(menus: &Menus, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let play = &menus.play;
     // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};
@@ -28,7 +28,7 @@ pub fn arcade_level_end(menus: &Menus) -> Result<(), Refused> {
     }
     let level = won_level(play.arcade.level.get())?;
     crate::sound::play_tune_6::play_tune_6();
-    crate::menu::arcade_finale::arcade_finale(menus, &menus.play)?;
+    crate::menu::arcade_finale::arcade_finale(menus, &menus.play, sound)?;
     if first_win(play.arcade.levels_won.get(level as usize)) {
         play.arcade.levels_won.set(level as usize, 1);
         let shown = Entry::with_cars(menus, Some(CarList::Shown));
@@ -38,6 +38,6 @@ pub fn arcade_level_end(menus: &Menus) -> Result<(), Refused> {
             crate::saves::list_car_numbers::list_car_numbers().map_err(Refused::from)
         })?;
     }
-    crate::saves::save_game_data::save_in_game()?;
+    crate::saves::save_game_data::save_in_game(crate::saves::owner::saves())?;
     Ok(())
 }

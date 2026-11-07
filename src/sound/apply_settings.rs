@@ -18,11 +18,17 @@ pub use rc2k_core::sound::set_up::Step;
 
 /// A step run: each command sent with its eax, all the audio thread reads of it (the
 /// original carries eax on to the steps after it, which read no more).
-pub fn run_step(step: Step) -> Result<(), crate::errors::Refused> {
+pub fn run_step(
+    step: Step,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), crate::errors::Refused> {
+    let audio = crate::audio::owner::audio();
     match step {
         Step::StopMusic => crate::sound::stop_music::stop_music(),
         Step::Send { command, eax } => crate::sound::senders::send(command, [eax, 0, 0, 0]),
-        Step::LoadRaceSounds => crate::sound::load_race_sounds::load_race_sounds_in_game()?,
+        Step::LoadRaceSounds => {
+            crate::sound::load_race_sounds::load_race_sounds_in_game(sound, audio)?;
+        }
         Step::Wait => crate::sound::wait_for_commands::wait_for_commands(
             &mut crate::sound::wait_for_commands::Game([0; 7]),
         ),
@@ -31,15 +37,12 @@ pub fn run_step(step: Step) -> Result<(), crate::errors::Refused> {
 }
 
 pub fn apply_settings() -> Result<(), crate::errors::Refused> {
+    let sound = crate::sound::owner::sound();
     let audio = audio();
     // Converted: `rc2k_core::sound::set_up::menus`.
     use rc2k_core::sound::set_up::{MENUS, menus};
 
-    crate::sound::owner::sound()
-        .menu
-        .settings_applied
-        .done
-        .set(MENUS);
+    sound.menu.settings_applied.done.set(MENUS);
     let steps = menus(
         audio.state.menu_sound_mode.get(),
         SoundList::Menu,
@@ -50,7 +53,7 @@ pub fn apply_settings() -> Result<(), crate::errors::Refused> {
             .get(),
     );
     for s in steps {
-        run_step(s)?;
+        run_step(s, sound)?;
     }
     audio.state.sounds_held_back.set(0);
 

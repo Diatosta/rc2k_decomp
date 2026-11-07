@@ -10,19 +10,20 @@
 
 use crate::errors::BadInput;
 use crate::memory::free_list::free_list;
-use crate::saves::owner::saves;
+use crate::saves::best_times_store::BestTimes;
+use crate::saves::owner::Saves;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-pub fn free_best_times(list: &dyn crate::pointers::Store) -> Result<(), BadInput> {
-    free_list(list)?;
+pub fn free_best_times(best_times: &BestTimes) -> Result<(), BadInput> {
+    free_list(best_times.list())?;
     crate::saves::best_times::give_back_all();
-    saves().best_times.allocated.set(0);
+    best_times.allocated.set(0);
     Ok(())
 }
 
-pub fn free_in_game() -> Result<(), BadInput> {
-    free_best_times(saves().best_times.list())
+pub fn free_in_game(saves: &Saves) -> Result<(), BadInput> {
+    free_best_times(&saves.best_times)
 }

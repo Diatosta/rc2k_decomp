@@ -230,6 +230,7 @@ use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
 pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
+    let sound = crate::sound::owner::sound();
     match f {
         ItemFn::NextNationality => step_items::player_setting(Setting::Nationality, true),
         ItemFn::PreviousNationality => step_items::player_setting(Setting::Nationality, false),
@@ -344,14 +345,18 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
         ItemFn::FlipGearing => Ok(flip_gearing::flip_gearing(&menus.screens)?),
         ItemFn::NextGearing => gearing_text::step_gearing(menus, true),
         ItemFn::PreviousGearing => gearing_text::step_gearing(menus, false),
-        ItemFn::PreviousCar => step_items::car_button(menus, Which::PreviousCar),
-        ItemFn::NextCar => step_items::car_button(menus, Which::NextCar),
-        ItemFn::PreviousSlideshowCar => step_items::car_button(menus, Which::PreviousSlideshowCar),
-        ItemFn::NextSlideshowCar => step_items::car_button(menus, Which::NextSlideshowCar),
-        ItemFn::PreviousCarPage => step_items::car_button(menus, Which::PreviousPage),
-        ItemFn::NextCarPage => step_items::car_button(menus, Which::NextPage),
-        ItemFn::PreviousSlideshowPicture => step_items::car_button(menus, Which::PreviousPicture),
-        ItemFn::NextSlideshowPicture => step_items::car_button(menus, Which::NextPicture),
+        ItemFn::PreviousCar => step_items::car_button(menus, Which::PreviousCar, sound),
+        ItemFn::NextCar => step_items::car_button(menus, Which::NextCar, sound),
+        ItemFn::PreviousSlideshowCar => {
+            step_items::car_button(menus, Which::PreviousSlideshowCar, sound)
+        }
+        ItemFn::NextSlideshowCar => step_items::car_button(menus, Which::NextSlideshowCar, sound),
+        ItemFn::PreviousCarPage => step_items::car_button(menus, Which::PreviousPage, sound),
+        ItemFn::NextCarPage => step_items::car_button(menus, Which::NextPage, sound),
+        ItemFn::PreviousSlideshowPicture => {
+            step_items::car_button(menus, Which::PreviousPicture, sound)
+        }
+        ItemFn::NextSlideshowPicture => step_items::car_button(menus, Which::NextPicture, sound),
         ItemFn::NextController => controller_items::next_controller().map(|_| ()),
         ItemFn::PreviousController => controller_items::previous_controller().map(|_| ()),
         ItemFn::KeepPlayerKeys => player_actions::keep_player_keys(menus),
@@ -463,8 +468,8 @@ pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<()
             flip_yes_no::flip_yes_no(&menus.tables);
             Ok(())
         }
-        ItemFn::PreviousStagePage => stage_view_steps::step_stage_page(menus, false),
-        ItemFn::NextStagePage => stage_view_steps::step_stage_page(menus, true),
+        ItemFn::PreviousStagePage => stage_view_steps::step_stage_page(menus, false, sound),
+        ItemFn::NextStagePage => stage_view_steps::step_stage_page(menus, true, sound),
         ItemFn::Player0CarSpecs => player_actions::player_car_specs(menus, 0),
         ItemFn::Player1CarSpecs => player_actions::player_car_specs(menus, 1),
         ItemFn::Player2CarSpecs => player_actions::player_car_specs(menus, 2),

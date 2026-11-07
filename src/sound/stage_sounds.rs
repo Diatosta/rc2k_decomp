@@ -23,7 +23,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::sound::sample_settings::OWN;
 use crate::system::owner::system;
@@ -39,10 +38,13 @@ const MINUS_ONE: u32 = 0xBF80_0000;
 // ---- Rust version ----
 
 /// The stage's own sounds for the turn.
-pub fn stage_sounds() -> Result<(), Refused> {
+pub fn stage_sounds(
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
     use crate::sound::turn_parts::play;
     let request = crate::sound::turn_parts::request();
-    let stage = &crate::sound::owner::sound().race.stage;
+    let stage = &sound.race.stage;
     request.pitch_factor.set(ONE);
     request.volume_factor.set(ONE);
     for (n, sound) in ONE_OFFS {
@@ -52,7 +54,7 @@ pub fn stage_sounds() -> Result<(), Refused> {
         }
     }
     // Converted: `rc2k_core::sound::stage::wait_turn`.
-    let clock = crate::sound::owner::sound().race.clock.last.get();
+    let clock = sound.race.clock.last.get();
     let mut wait = rc2k_core::sound::stage::Wait {
         arm: stage.timed_arm.get(),
         delay: stage.timed_delay.get(),
@@ -87,7 +89,7 @@ pub fn stage_sounds() -> Result<(), Refused> {
         stage.random[n].set(0);
         let n = crate::math::next_random::next_random();
         // Converted: `rc2k_core::sound::stage::random`.
-        let r = rc2k_core::sound::stage::random(n, audio().state.mix_rate_setting.get());
+        let r = rc2k_core::sound::stage::random(n, audio.state.mix_rate_setting.get());
         // The scratch dword holds the last float.
         system().session.machine.scratch.set(r.ahead.to_bits());
         play(

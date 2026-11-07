@@ -17,7 +17,11 @@ use crate::race::owner::Race;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::race_ticks::{tick_runs, NO_CAR_FATAL}`.
-pub fn race_tick(race: &Race) -> Result<(), Refused> {
+pub fn race_tick(
+    race: &Race,
+    sound: &crate::sound::owner::Sound,
+    input: &crate::input::owner::Input,
+) -> Result<(), Refused> {
     if CAR_BLOCKS.cars[0].probe_count.bits() == 0 {
         return Err(FatalError {
             code: rc2k_core::drive::race_ticks::NO_CAR_FATAL,
@@ -26,7 +30,7 @@ pub fn race_tick(race: &Race) -> Result<(), Refused> {
         .into());
     }
     if race.shared.switches.levers_on.get() == 0 {
-        return crate::drive::simple_car_step::simple_car_step(race);
+        return crate::drive::simple_car_step::simple_car_step(race, input);
     }
     race.shared
         .vars
@@ -38,5 +42,5 @@ pub fn race_tick(race: &Race) -> Result<(), Refused> {
     ) {
         return Ok(());
     }
-    crate::drive::replay_step::replay_step(race)
+    crate::drive::replay_step::replay_step(race, sound)
 }

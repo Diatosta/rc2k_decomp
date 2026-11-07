@@ -30,7 +30,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_components::{Piece, blit_components, game_target};
-use crate::gfx::owner::gfx;
 use crate::gfx::read_texture_picture::read_texture_picture;
 use crate::gfx::texture_pixels::{halvable, halve_texture};
 use crate::gfx::texture_upload::{Record, halvings_apart, keep_second_picture, ready_picture};
@@ -129,6 +128,7 @@ pub struct CarIcon {
 
 /// The Rust version. The original keeps every register (`pusha` .. `popa`).
 pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     let texture = icon.texture;
     let record = Record::of(texture)?;
     upload.set(IconUpload {
@@ -139,7 +139,7 @@ pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Re
     });
     keep_second_picture(&record, Some(icon.alpha_sheet))?;
     let (pixels, width, height, _) = read_texture_picture(icon.sheet)?;
-    ready_picture(&record, pixels, width, height)?;
+    ready_picture(&record, pixels, width, height, gfx)?;
     let across = halvings_apart(
         &record,
         width,
@@ -172,7 +172,7 @@ pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Re
             pixels,
             row_bytes: height.wrapping_mul(4),
         };
-        let blitted = blit_components(&gfx().pixel.formats, &piece, &game_target()?);
+        let blitted = blit_components(&gfx.pixel.formats, &piece, &game_target(gfx)?);
         crate::d3d::unlock_texture::unlock_texture(texture)?;
         blitted?;
     }

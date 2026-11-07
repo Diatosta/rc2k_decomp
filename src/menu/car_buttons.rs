@@ -41,13 +41,17 @@ pub fn press(
 }
 
 /// The game's: each call through the Rust version.
-pub fn call_in_game(menus: &Menus, call: Call) -> Result<(), Refused> {
+pub fn call_in_game(
+    menus: &Menus,
+    call: Call,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     match call {
         Call::Background => load_car_background(menus, &mut |path| {
             crate::menu::load_background::load_background(&path, &mut GameCanvas)?;
             Ok(false)
         }),
-        Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream),
+        Call::Stream => play_car_stream(&mut crate::sound::start_stream::start_stream, sound),
         Call::Picture(way) => load_slideshow_picture_in_game(menus, way),
     }
 }

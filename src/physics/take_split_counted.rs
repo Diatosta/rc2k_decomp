@@ -26,7 +26,7 @@ use rc2k_core::physics::progress::{
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{split_due, finished_at}`.
-pub fn take_split_counted(race: &Race) -> Result<(), Refused> {
+pub fn take_split_counted(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let physics_store = &race.physics;
     if race.shared.work.current_car.get() != 0 {
         return Ok(());
@@ -38,7 +38,7 @@ pub fn take_split_counted(race: &Race) -> Result<(), Refused> {
         return Ok(());
     }
     { keep_split_time(race) }?;
-    { set_flag_51659c(race) }?;
+    { set_flag_51659c(race, sound) }?;
     split_by_mode(race)?;
     put_split_time(
         &race.shared,

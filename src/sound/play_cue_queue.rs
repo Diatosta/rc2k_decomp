@@ -29,12 +29,15 @@ use crate::sound::sample_duration::sample_duration;
 /// Converted: `rc2k_core::sound::cars::cue_turn`; the drops through `sound::drop_cue`, the
 /// queue in the game's memory meanwhile. Object `so`'s queue of cues: the next one played
 /// when it is due.
-pub fn play_cue_queue(so: &crate::sound::store::SoundObject) -> Result<(), Refused> {
+pub fn play_cue_queue(
+    so: &crate::sound::store::SoundObject,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     use rc2k_core::sound::cars::{CueQueue, CueTurn, OWN, cue_turn};
     let in_use = so.in_use.get() == 1;
     let q = &so.cue_queue;
     let mut queue = CueQueue::from_words(&crate::sound::drop_cue::read_words(q)?);
-    let clock = crate::sound::owner::sound().race.clock.last.get();
+    let clock = sound.race.clock.last.get();
     if !in_use {
         return Ok(());
     }

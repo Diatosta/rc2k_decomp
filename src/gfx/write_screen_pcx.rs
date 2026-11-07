@@ -47,8 +47,11 @@ fn next_shot_name(shots: &Shots) {
 
 /// The Rust version: whether it worked (carry clear). `name` the file's path (without its
 /// NUL), or None for the next numbered screenshot.
-pub fn write_screen_pcx(shots: &Shots, name: Option<&[u8]>) -> Result<bool, Refused> {
-    let gfx = gfx();
+pub fn write_screen_pcx(
+    shots: &Shots,
+    name: Option<&[u8]>,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
     let header_bytes = header(
         gfx.drawing.draw_surface.width.get(),
         gfx.drawing.draw_surface.height.get(),

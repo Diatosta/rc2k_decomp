@@ -28,6 +28,7 @@ use rc2k_core::net::record;
 /// The Rust version: true when the original ends with the carry set (no player but the
 /// host, Escape, or the car not finished: the link ends).
 pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
+    let sound = crate::sound::owner::sound();
     use crate::race::sound_tables;
     log(VIEWER_PANEL.text_ptr(texts::NET_LETS_RALLY), true, 2);
     net.vars.racing.set(1);
@@ -51,8 +52,8 @@ pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     crate::sound::stop_music::stop_music();
     crate::race::race_shell::set_race_screen_mode();
     crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
-    sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game())?;
-    crate::sound::set_up_race_sounds::set_up_race_sounds()?;
+    sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game(), sound)?;
+    crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
     crate::net::set_up_race::set_up_race(race, &net.vars)?;
     let tick = crate::system::tick_count::tick_count();
     net.vars.clock_a.set(tick);
@@ -76,7 +77,7 @@ pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     crate::sound::stop_music::stop_music();
     crate::platform::set_menu_mode_now();
     crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
-    sound_tables::clear_race_sound_objects()?;
+    sound_tables::clear_race_sound_objects(sound)?;
     crate::sound::apply_settings::apply_settings()?;
     crate::scene::set_up_engine::set_up_engine()?;
     crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;

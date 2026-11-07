@@ -29,7 +29,6 @@
 //! anything) a player past 7 or a null device.
 
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
 use crate::input::types::InputDevice;
 use crate::menu::owner::menus;
 use crate::race::owner::Race;
@@ -128,12 +127,17 @@ impl Io for GameIo<'_> {
 
 /// The Rust version: `start` (eax 0) starts the gauge, else runs it, for player `player`
 /// (esi); gives the result (eax; the original keeps the rest).
-pub fn tyre_change_gauge(race: &Race, start: bool, player: u32) -> Result<u32, Refused> {
+pub fn tyre_change_gauge(
+    race: &Race,
+    start: bool,
+    player: u32,
+    input: &'static crate::input::owner::Input,
+) -> Result<u32, Refused> {
     // Converted: `rc2k_core::race::tyre_change::turn`.
     if player > 7 {
         return Err(BadInput("a tyre change player past 7").into());
     }
-    let Some(d) = input().devices.input_device(player as usize)? else {
+    let Some(d) = input.devices.input_device(player as usize)? else {
         return Err(BadInput("a tyre change player without a device").into());
     };
     race.shared.tyre_change.player.set(player);

@@ -11,15 +11,14 @@
 //! `gfx::read_png`. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 use crate::gfx::png::{PngInfo, info_dword};
 use crate::system::owner::system;
 
 // ---- Rust version ----
 
-pub fn lay_out_png() -> Result<(), BadInput> {
-    let pictures = &gfx().pictures;
+pub fn lay_out_png(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
+    let pictures = &gfx.pictures;
     use core::mem::offset_of;
     // Converted: `rc2k_core::gfx::png::layout`.
     let layout = rc2k_core::gfx::png::layout(

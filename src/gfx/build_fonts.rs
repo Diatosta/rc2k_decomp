@@ -232,20 +232,20 @@ fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
         .wrapping_mul(system().session.screen.bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
-    begin_glyph_tables(vars)?;
+    begin_glyph_tables(vars, gfx)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
     palettes.set(palette_place(list)?);
     begin_glyph_table(vars, list)?;
-    build_glyphs(vars, &crate::gfx::texts::PAL_00, list)?;
+    build_glyphs(vars, &crate::gfx::texts::PAL_00, list, gfx)?;
     gfx.fonts.menu_fonts.font27_glyphs.set(vars.table.get());
-    palette_to_pixels(palettes.get())?;
+    palette_to_pixels(palettes.get(), gfx)?;
     // The palette sheet is a copy of the decoder's palette (256 dwords).
     let mut palette = [0u8; PALETTE_BYTES];
     gfx.pictures.decoder.palette.load(0, &mut palette)?;
     gfx.fonts.menu_fonts.palette_sheet.store(0, &palette)?;
     for (sheet, kept) in font_sheets() {
         begin_glyph_table(vars, list)?;
-        build_glyphs(vars, sheet, list)?;
+        build_glyphs(vars, sheet, list, gfx)?;
         kept.set(vars.table.get());
     }
     end_glyph_tables()?;
@@ -266,8 +266,7 @@ fn hung_value(variable: Source, plus: u32) -> u32 {
     variable.cell().get().wrapping_add(plus)
 }
 
-pub fn build_fonts() -> Result<(), Refused> {
-    let gfx = gfx();
+pub fn build_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     if gfx.fonts.menu_fonts.palettes.get() != 0 {
         return Err(FatalError {
             code: 0x80A4_8020,

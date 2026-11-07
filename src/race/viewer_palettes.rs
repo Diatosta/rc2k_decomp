@@ -11,7 +11,6 @@
 //! Caller: `race::viewer_load_stage`.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
 use crate::race::owner_shared::Shared;
 
 /// The replay viewer's panel fonts, whose palettes are pointed at the colours, in the
@@ -26,6 +25,7 @@ pub fn viewer_palettes(
     shared: &Shared,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
+    let gfx = crate::gfx::owner::gfx();
     let textures = &scene.textures;
     // The textures and slots kept: (to, from).
     for (to, from) in [
@@ -55,12 +55,13 @@ pub fn viewer_palettes(
     }
     {
         let screen = crate::gfx::pixel_format::surface_format()?;
-        let texture =
-            crate::gfx::pixel_format::layout(crate::gfx::pixel_format::texture_kind_format(3))?;
+        let texture = crate::gfx::pixel_format::layout(
+            crate::gfx::pixel_format::texture_kind_format(3, gfx),
+        )?;
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
-        let from = gfx().fonts.menu_fonts.palettes.get();
+        let from = gfx.fonts.menu_fonts.palettes.get();
         let to = &crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours;
         for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(

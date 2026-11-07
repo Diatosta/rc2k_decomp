@@ -58,24 +58,26 @@ pub fn apply_controller() -> Result<(), Refused> {
 }
 
 /// `menu::release_controller`.
-pub fn release_controller() {
-    request_device_release();
+pub fn release_controller(input: &crate::input::owner::Input) {
+    request_device_release(input);
 }
 
 /// The device's set-up with the player's sensitivity and pedal axes.
 fn set_up_device(p: PlayerCell, c: u32) -> Result<(), Refused> {
+    let input = crate::input::owner::input();
     let q = p.get();
     let axes = u32::from_le_bytes(q.axis_codes);
-    { request_device_setup(c - 1, q.sensitivity_level, axes, 0, 0) }?;
+    { request_device_setup(c - 1, q.sensitivity_level, axes, 0, 0, input) }?;
     Ok(())
 }
 
 /// The release for 0, else the set-up; refused (before anything) as the set-up is.
 fn choose(p: PlayerCell, c: u32) -> Result<(), Refused> {
+    let input = crate::input::owner::input();
     let applies = if c == 0 { false } else { would_apply(c)? };
     p.update(|q| q.controller = c);
     if c == 0 {
-        release_controller();
+        release_controller(input);
     } else if applies {
         set_up_device(p, c)?;
     }

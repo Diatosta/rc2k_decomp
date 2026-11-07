@@ -16,21 +16,24 @@ use crate::errors::{BadInput, Refused};
 // ---- Rust version ----
 
 /// The players' cars' cue queues played.
-pub fn play_cue_queues() -> Result<(), Refused> {
-    if crate::sound::owner::sound().race.sounds.count.get() == 0 {
+pub fn play_cue_queues(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    if sound.race.sounds.count.get() == 0 {
         return Ok(());
     }
     // Converted: `rc2k_core::sound::turn::cue_cars`.
     let cars = rc2k_core::sound::turn::cue_cars(
-        crate::sound::owner::sound().race.sounds.player_cars[0].get(),
-        || crate::sound::owner::sound().race.sounds.player_cars[1].get(),
-        crate::sound::owner::sound().race.sounds.one_player.get(),
+        sound.race.sounds.player_cars[0].get(),
+        || sound.race.sounds.player_cars[1].get(),
+        sound.race.sounds.one_player.get(),
     );
     if cars.iter().any(|&n| n > 7) {
         return Err(BadInput("a player's car past 7").into());
     }
     for n in cars {
-        crate::sound::play_cue_queue::play_cue_queue(crate::sound::store::SoundObject::number(n)?)?;
+        crate::sound::play_cue_queue::play_cue_queue(
+            crate::sound::store::SoundObject::number(n)?,
+            sound,
+        )?;
     }
     Ok(())
 }

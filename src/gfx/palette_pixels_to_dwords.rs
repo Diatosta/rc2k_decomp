@@ -9,15 +9,14 @@
 //! Refuses what `pixels_to_dwords::pixel_count` refuses. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
 use crate::gfx::picture::{read_bytes, write_bytes};
 use crate::gfx::pixels_to_dwords::pixel_count;
 
 // ---- Rust version ----
 
-pub fn palette_pixels_to_dwords() -> Result<(), BadInput> {
-    let pictures = &gfx().pictures;
-    let count = pixel_count()?;
+pub fn palette_pixels_to_dwords(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
+    let pictures = &gfx.pictures;
+    let count = pixel_count(gfx)?;
     // Converted: `rc2k_core::gfx::pixels::palette_to_dwords`, on a copy of the pixels' bytes.
     let mut buffer = read_bytes(pictures.picture.buffer.get(), 0, count * 4)?;
     let palette: [u32; 256] = pictures.decoder.palette();

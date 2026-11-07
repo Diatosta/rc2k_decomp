@@ -13,7 +13,6 @@
 //! Caller: `drive::race_tick`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::input::owner::input;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use rc2k_core::drive::roaming::{roam_distance, roam_turn};
@@ -21,8 +20,8 @@ use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
-pub fn simple_car_step(race: &Race) -> Result<(), Refused> {
-    crate::drive::car_input_words::car_input_words(race)?;
+pub fn simple_car_step(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+    crate::drive::car_input_words::car_input_words(race, input)?;
     crate::drive::read_car_controls::read_car_controls(race)?;
     crate::drive::steer_inputs::steer_inputs(race);
     crate::drive::pedal_inputs::pedal_inputs(race);
@@ -33,7 +32,7 @@ pub fn simple_car_step(race: &Race) -> Result<(), Refused> {
     let distance = roam_distance(
         CAR_BLOCKS.cars[0].throttle.bits(),
         CAR_BLOCKS.cars[0].brake.bits(),
-        input().devices.keys_now.get(0x1D) != 0, // byte_4F6B79
+        input.devices.keys_now.get(0x1D) != 0, // byte_4F6B79
     );
     let [x, _, z, _] = {
         crate::math::turn_point_xz::turn_point_xz(

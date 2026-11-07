@@ -88,7 +88,7 @@ pub fn open_installer(install: &'static crate::install::owner::Install) -> Resul
         .picture
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
-    crate::gfx::picture_as_surface::picture_as_surface()?;
+    crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
     draw_string(0x94, FONT_94, 0x316, 0x2F)?;
     draw_string(0x1000, FONT_1000, 0x320, 0x24B)?;
     draw_string(0x1002, FONT_1002, 0, 0x24B)?;

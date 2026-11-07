@@ -43,6 +43,7 @@ pub fn viewer_tidy_stage(race: &Race) -> Result<(), Refused> {
 }
 
 fn run(race: &Race, step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), Refused> {
+    let sound = crate::sound::owner::sound();
     let fonts = &gfx().fonts;
     use crate::race::{race_end, sound_tables};
     use rc2k_core::race::viewer_flow::TidyStep;
@@ -54,7 +55,7 @@ fn run(race: &Race, step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), 
         TidyStep::LoadingPicture => {
             crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
         }
-        TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects()?,
+        TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects(sound)?,
         TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
         TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
             &fonts.glyph_tables.memory,

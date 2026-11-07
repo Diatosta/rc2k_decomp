@@ -21,7 +21,6 @@ use crate::drive::race_parts::{
     input_update, players_all_out, race_frame, race_keys, restart_clock, tyre_change,
 };
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
 use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
@@ -66,8 +65,8 @@ fn put_answer(shared: &Shared, answer: u32) -> Result<(), BadInput> {
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi,
 /// edx and esi after `drive::play_race`'s call have no read point).
-pub fn race_loop(race: &Race) -> Result<(), Refused> {
-    let devices = &input().devices;
+pub fn race_loop(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+    let devices = &input.devices;
     let system = system();
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].reset_marker.set_bits(10);
@@ -109,7 +108,7 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
                     crate::framework::log("drive::race_loop: the credits race ends: rolled off");
                     return Ok(());
                 }
-                let or = crate::drive::any_key_down::any_key_down();
+                let or = crate::drive::any_key_down::any_key_down(input);
                 if or != 0 {
                     // Which keys (`g_keysPressed`, by scan code), and the window's own state
                     // of them (`g_keysDown`), for the credits race that ends at once after
@@ -132,7 +131,7 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
                 }
             }
             if devices.keys_pressed.get(1) != 0 {
-                let answer = { crate::drive::quit_question::quit_question(race) }?;
+                let answer = { crate::drive::quit_question::quit_question(race, input) }?;
                 if answer == 0 {
                     break false;
                 }
@@ -180,7 +179,7 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
         if net().vars.session.get() != 0 {
             net_player_car(&race.shared)?.input_keys.set_bits(0);
         } else {
-            { crate::drive::pause_until_key::pause_until_key(race) }?;
+            { crate::drive::pause_until_key::pause_until_key(race, input) }?;
         }
         system.session.flags.paused.set(0);
     }

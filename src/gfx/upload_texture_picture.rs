@@ -68,8 +68,8 @@ impl Surfaces for GameSurfaces {
     }
 }
 
-fn direct_draw_failed(code: u32) -> Refused {
-    if gfx().reports.on.get() == 1 {
+fn direct_draw_failed(code: u32, gfx: &crate::gfx::owner::Gfx) -> Refused {
+    if gfx.reports.on.get() == 1 {
         fatal(code)
     } else {
         BadInput("DirectDraw failed and the original's stack goes astray").into()
@@ -82,6 +82,7 @@ pub fn upload_texture_picture(
     width: u32,
     height: u32,
     surfaces: &mut dyn Surfaces,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     if pixels == 0 {
         return Ok(());
@@ -90,7 +91,7 @@ pub fn upload_texture_picture(
     // through `texture_upload::halvings_apart`).
     let record = Record::of(texture)?;
     let levels = uploads::levels(record.get().levels).map_err(BadInput::from)?;
-    ready_picture(&record, pixels, width, height)?;
+    ready_picture(&record, pixels, width, height, gfx)?;
     let apart = halvings_apart(
         &record,
         width,
@@ -117,7 +118,7 @@ pub fn upload_texture_picture(
         let surface = record.get().surfaces[level as usize];
         let (target, pitch) = surfaces
             .lock(surface)
-            .map_err(|_| direct_draw_failed(0x8021_8772))?;
+            .map_err(|_| direct_draw_failed(0x8021_8772, gfx))?;
         // The level's pixels read once; the surface is the platform's.
         let picture =
             crate::gfx::picture::read_bytes(pixels, 0, width as usize * height as usize * 4)?;
@@ -147,7 +148,7 @@ pub fn upload_texture_picture(
         }
         surfaces
             .unlock(surface)
-            .map_err(|_| direct_draw_failed(0x8021_8773))?;
+            .map_err(|_| direct_draw_failed(0x8021_8773, gfx))?;
     }
     Ok(())
 }

@@ -15,8 +15,8 @@ use rc2k_core::drive::replay_views::{RARE_FROM, first_level, rare_draw, second_l
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_views::{first_level, rare_draw, second_level}`.
-pub fn duel_sound_levels() {
-    let stage = &crate::sound::owner::sound().race.stage;
+pub fn duel_sound_levels(sound: &crate::sound::owner::Sound) {
+    let stage = &sound.race.stage;
     stage
         .loop_volume_a
         .set(first_level(CAR_BLOCKS.cars[0].surface_noise_a.bits()));

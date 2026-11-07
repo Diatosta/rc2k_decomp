@@ -61,9 +61,11 @@ pub static SLOTS: [ThreadSlot; SLOT_COUNT] = [
 /// A slot's routine (the IDA address the slot holds) run by its Rust version; None for
 /// an address that is none of the four.
 pub fn run_routine(routine: u32) -> Option<Result<(), Refused>> {
+    let audio = crate::audio::owner::audio();
+    let input = crate::input::owner::input();
     match routine {
-        0x4078DA => Some(crate::input::input_thread::thread_routine()),
-        0x409CCE => Some(crate::audio::thread::audio_thread()),
+        0x4078DA => Some(crate::input::input_thread::thread_routine(input)),
+        0x409CCE => Some(crate::audio::thread::audio_thread(audio)),
         0x4183C3 => Some(crate::net::receive_thread::receive_thread()),
         0x410C17 => Some(crate::threading::shutdown_thread::shutdown_thread()),
         _ => None,

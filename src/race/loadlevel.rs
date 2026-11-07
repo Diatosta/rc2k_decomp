@@ -125,6 +125,7 @@ impl Steps<'_> {
 /// `dword_719FD0`/`D4` 0; "finis". What the original leaves in the registers is read by
 /// no caller (`race::load_stage` calls on; conversion phase 3, 2026-10-24).
 pub fn loadlevel_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
     let v = LoadVars::game();
@@ -213,7 +214,7 @@ pub fn loadlevel_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     s.progress(0x5A)?;
     s.indent(-3);
     s.step(
-        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(),
+        &mut || crate::gfx::build_game_fonts::build_game_fonts_in_game(gfx),
         Some(0x5C),
     )?;
     // init mark, with the log off.
@@ -223,7 +224,7 @@ pub fn loadlevel_init(race: &Race, scene: &crate::scene::owner::Scene) -> Result
         .atomic()
         .swap(0, std::sync::atomic::Ordering::Relaxed);
     let effects = effects();
-    crate::effects::init_mark_step::init_mark_step(race, effects, scene)?;
+    crate::effects::init_mark_step::init_mark_step(race, effects, scene, gfx)?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.progress(0x5E)?;
     s.indent(-3);

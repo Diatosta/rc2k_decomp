@@ -66,6 +66,7 @@ pub fn windscreen_drops_top(
     masks: &Masks,
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let m = crate::effects::setup::marks()?;
     drops.hex.buffer.set(0);
@@ -99,19 +100,19 @@ pub fn windscreen_drops_top(
         point_turned(drops, p);
     }
     if drops.state.rate.bits() != 0 {
-        crate::effects::windscreen_drops_frame::windscreen_drops_frame(frame, masks, drops, scene)?;
+        crate::effects::windscreen_drops_frame::windscreen_drops_frame(
+            frame, masks, drops, scene, gfx,
+        )?;
         let at_now: u32 = drops.hex.buffer.get();
         if at_now != 0 {
             let quads =
                 x87::int_over_int_to_int(at_now as i32, drops.hex.per_vertex.get() as i32) as u32;
             drops.hex.buffer.set(0);
-            crate::gfx::owner::gfx()
-                .card
+            gfx.card
                 .windscreen_drop_batch
                 .index_count
                 .set(quads.wrapping_mul(12));
-            crate::gfx::owner::gfx()
-                .card
+            gfx.card
                 .windscreen_drop_batch
                 .vertex_count
                 .set(quads.wrapping_mul(6));

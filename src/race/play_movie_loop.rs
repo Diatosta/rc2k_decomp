@@ -14,7 +14,6 @@
 //! Caller: `race::play_movie`.
 
 use crate::errors::Refused;
-use crate::input::owner::input;
 use crate::race::owner::Race;
 
 const TEXTS: [&std::ffi::CStr; 4] = [
@@ -34,7 +33,7 @@ fn log_number(n: u32) {
 
 /// The Rust version. Reads no register, and its one caller (`race::play_movie`, whose
 /// caller reads none either) reads none it leaves (`lq -s 0x4607A5`: nothing live).
-pub fn play_movie_loop(race: &Race) -> Result<(), Refused> {
+pub fn play_movie_loop(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
     use crate::drive::race_parts;
     crate::race::stage_prefs::init_skidmarks(race)?;
     log_text(TEXTS[0], false);
@@ -50,7 +49,7 @@ pub fn play_movie_loop(race: &Race) -> Result<(), Refused> {
         .set(race.shared.physics_tables.scene_clock.get());
     loop {
         race_parts::input_update();
-        if input().devices.keys_pressed.get(1) != 0 {
+        if input.devices.keys_pressed.get(1) != 0 {
             break;
         }
         { crate::drive::race_step::race_step(race) }?;

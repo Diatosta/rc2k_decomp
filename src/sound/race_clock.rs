@@ -22,8 +22,8 @@ fn store(clock: &RaceClock, c: &rc2k_core::sound::clock::RaceClock) {
 }
 
 /// `sound::start_race_clock` (0x40F1E9). Converted: `rc2k_core::sound::clock`.
-pub fn start_race_clock(now: u32) {
-    let clock = &crate::sound::owner::sound().race.clock;
+pub fn start_race_clock(now: u32, sound: &crate::sound::owner::Sound) {
+    let clock = &sound.race.clock;
     let mut c = load(clock);
     c.start(now);
     store(clock, &c);
@@ -32,8 +32,8 @@ pub fn start_race_clock(now: u32) {
 /// `sound::step_race_clock` (0x40F20E): true if 20 ms or more have passed since the last
 /// turn, which then becomes this one. Converted: `rc2k_core::sound::clock`; nothing is
 /// stored when no turn is due.
-pub fn step_race_clock(now: u32) -> bool {
-    let clock = &crate::sound::owner::sound().race.clock;
+pub fn step_race_clock(now: u32, sound: &crate::sound::owner::Sound) -> bool {
+    let clock = &sound.race.clock;
     let mut c = load(clock);
     let due = c.step(now);
     if due {

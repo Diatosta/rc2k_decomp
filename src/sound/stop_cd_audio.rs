@@ -13,9 +13,9 @@ const STOPS: u32 = 5;
 
 // ---- Rust version ----
 
-pub fn stop_cd_audio() {
-    crate::sound::owner::sound().menu.cd_audio.track.set(0);
+pub fn stop_cd_audio(sound: &crate::sound::owner::Sound) {
+    sound.menu.cd_audio.track.set(0);
     for _ in 0..STOPS {
-        crate::sound::stop_cd_track::stop_cd_track_in_game();
+        crate::sound::stop_cd_track::stop_cd_track_in_game(sound);
     }
 }

@@ -1,6 +1,5 @@
 //! The race's shell (`sub_4843EC`, `single_rally`'s race, and `sub_443F0B`, IDA
 //! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
-use crate::input::owner::input;
 use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
@@ -13,8 +12,8 @@ use crate::session::Dword;
 pub const KIND_ORDER_LEN: u32 = rc2k_core::race::cars::KIND_ORDER_LEN;
 
 /// `race::release_controls` (0x409425): `dword_4F7DE4` 2. Every register kept.
-pub fn release_controls() {
-    input().devices.input_command.set(2); // g_inputCommand
+pub fn release_controls(input: &crate::input::owner::Input) {
+    input.devices.input_command.set(2); // g_inputCommand
 }
 
 /// `race::clear_player_absences` (0x449D44): the eight blocks' +0xB0 0. Every register
@@ -54,13 +53,13 @@ pub fn index_of_kind(shared: &Shared, kind: u32) -> Result<u32, BadInput> {
 /// `g_raceScreenMode`; every register and flag kept (`pusha` / `popa`; its carry is read
 /// by nobody).
 pub fn set_race_screen_mode() {
-    crate::platform::set_mode_now(gfx().display.mode.race_mode.get());
+    let gfx = crate::gfx::owner::gfx();
+    crate::platform::set_mode_now(gfx.display.mode.race_mode.get(), gfx);
 }
 
 // ---- batch 12 ----
 
 use crate::errors::{BadInput, Refused};
-use crate::gfx::owner::gfx;
 
 /// `race::release_stage_textures` (0x44E79F): `gfx::release_all_textures` (the
 /// platform's; a `call` and a `retn`).

@@ -102,11 +102,12 @@ fn set(x: Place, v: i32) {
 /// callers (the item call sites have nothing live after the call; register liveness,
 /// 2026-10-23).
 pub fn option_item(item: Item) -> Result<(), Refused> {
+    let audio = crate::audio::owner::audio();
     // Converted: `rc2k_core::menu::steps` (`flip`, `quality`, `volume`, `counter`,
     // `previous_mode`).
     use rc2k_core::menu::steps;
     let v = item.var;
-    let apply_audio = || crate::menu::option_steps::apply_audio_choices();
+    let apply_audio = || crate::menu::option_steps::apply_audio_choices(audio);
     match item.kind {
         Kind::Switch => set(v, steps::flip(get(v) as u32) as i32),
         Kind::SwitchCopy { other, flip } => {

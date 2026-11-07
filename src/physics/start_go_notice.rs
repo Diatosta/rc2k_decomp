@@ -16,7 +16,7 @@ use crate::race::owner::Race;
 use rc2k_core::physics::progress::{GO_NOTICE, GoFacts};
 
 /// The Rust version.
-pub fn start_go_notice(race: &Race) -> Result<(), Refused> {
+pub fn start_go_notice(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let c = &race.shared.car;
     let facts = GoFacts {
         mode: c.driver_kind.get(),
@@ -28,7 +28,7 @@ pub fn start_go_notice(race: &Race) -> Result<(), Refused> {
     if !facts.go_due() {
         return Ok(());
     }
-    set_flag(race, &crate::sound::owner::sound().race.stage.once[2])?;
+    set_flag(race, &sound.race.stage.once[2])?;
     c.go_stand_timer.set(1);
     c.notice_id.set(GO_NOTICE);
     c.notice_time_b.set(0x32);

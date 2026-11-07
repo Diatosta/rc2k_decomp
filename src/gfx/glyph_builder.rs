@@ -21,7 +21,8 @@ impl<'a> RowTable<'a> {
     }
 
     fn at(&self, x: u32, y: u32, len: usize) -> usize {
-        let at = row_address(y).wrapping_add(x) as usize;
+        let gfx = crate::gfx::owner::gfx();
+        let at = row_address(y, gfx).wrapping_add(x) as usize;
         if at.checked_add(len).is_none_or(|end| end > self.0.len()) {
             crate::fatal::raise::end(
                 "gfx::glyph_builder",

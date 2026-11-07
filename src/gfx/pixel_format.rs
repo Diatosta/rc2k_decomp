@@ -16,8 +16,8 @@ const NO_TEXTURE_FORMAT: u32 = TEXTURE_FORMAT | 0xFF;
 
 /// The handle for texture kind `n`'s layout, as the original takes its address
 /// (`kinds[n] + 8`) when it keeps it: the description it names now.
-pub fn texture_kind_format(n: usize) -> u32 {
-    match gfx().card.texture_tables.kind_index(n) {
+pub fn texture_kind_format(n: usize, gfx: &crate::gfx::owner::Gfx) -> u32 {
+    match gfx.card.texture_tables.kind_index(n) {
         Some(k) => TEXTURE_FORMAT | k as u32,
         None => NO_TEXTURE_FORMAT,
     }
@@ -26,12 +26,10 @@ pub fn texture_kind_format(n: usize) -> u32 {
 /// The handle for the layout of the texture description `description` names (a texture
 /// record's kind field, a `FORMAT_TAG` handle, whose +8 the original keeps): a value that
 /// is none gives a handle no read finds, as the original's read there would go wrong.
-pub fn texture_description_format(description: u32) -> u32 {
+pub fn texture_description_format(description: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {
     use crate::gfx::texture_upload::FORMAT_TAG;
     match description.checked_sub(FORMAT_TAG) {
-        Some(k) if (k as usize) < gfx().card.texture_tables.descriptions.len() => {
-            TEXTURE_FORMAT | k
-        }
+        Some(k) if (k as usize) < gfx.card.texture_tables.descriptions.len() => TEXTURE_FORMAT | k,
         _ => NO_TEXTURE_FORMAT,
     }
 }

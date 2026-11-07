@@ -59,6 +59,7 @@ fn motion(race: &Race, scene: &crate::scene::owner::Scene) {
 /// The steps. What the callees leave in the registers is read by none of them (each reads
 /// what it needs from memory), nor by the callers.
 pub fn steps(race: &Race) -> Result<(), Refused> {
+    let sound = crate::sound::owner::sound();
     let scene = crate::scene::owner::scene();
     let race_owner = race;
     ph::stir_car_word::stir_car_word(&race.shared);
@@ -66,7 +67,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::make_gear_ratios::make_gear_ratios(race)?;
     ph::store_motion_length::store_motion_length(race);
     ph::set_handling::set_handling(race)?;
-    ph::race_timers::race_timers(race)?;
+    ph::race_timers::race_timers(race, sound)?;
     for cell in [
         &race_owner.frame.sound_spots.sound_scratch_a,
         &race_owner.frame.sound_spots.sound_scratch_b,
@@ -213,8 +214,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::reset_when_stuck::reset_when_stuck(race)?;
     ph::engine_sound::engine_sound(race, scene)?;
     ph::spin_wheels::spin_wheels(race);
-    ph::track_checkpoints::track_checkpoints(race, scene)?;
-    ph::pace_notes_step::pace_notes_step(race, scene)?;
+    ph::track_checkpoints::track_checkpoints(race, scene, sound)?;
+    ph::pace_notes_step::pace_notes_step(race, scene, sound)?;
     ph::count_down_notice::count_down_notice(&race.shared);
     ph::turn_wheel_angles::turn_wheel_angles(race, scene);
     x87_1(race);

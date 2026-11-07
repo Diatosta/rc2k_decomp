@@ -521,6 +521,7 @@ pub enum Call {
 
 /// Does one of the race's calls. What the original's calls leave in registers is never read.
 pub fn step(call: Call) -> Result<(), Refused> {
+    let sound = crate::sound::owner::sound();
     let race = race();
     match call {
         Call::CopyRallyTimes => crate::race::rally::copy_rally_times()?,
@@ -532,13 +533,14 @@ pub fn step(call: Call) -> Result<(), Refused> {
         Call::SetUpRaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
             race,
             &crate::race::sound_tables::ObjectVars::game(),
+            sound,
         )?,
-        Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
+        Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?,
         Call::RaceFromMenu => crate::race::race_end::race_from_menu(race)?,
         Call::SetMenuScreenMode => {
             crate::platform::set_menu_mode_now();
         }
-        Call::ClearRaceSoundObjects => crate::race::sound_tables::clear_race_sound_objects()?,
+        Call::ClearRaceSoundObjects => crate::race::sound_tables::clear_race_sound_objects(sound)?,
         Call::ApplySettings => crate::sound::apply_settings::apply_settings()?,
         Call::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
         Call::SetUpFrontEndScene => {

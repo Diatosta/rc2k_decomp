@@ -227,7 +227,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             crate::saves::load_options::load_game_options()?;
         }
         Call::LoadBestTimes => {
-            crate::saves::load_best_times::load_game_best_times()?;
+            crate::saves::load_best_times::load_game_best_times(crate::saves::owner::saves())?;
         }
         Call::ReadSettings => crate::settings::read_settings::read_settings()?,
         Call::ReadSku => {
@@ -271,7 +271,7 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             crate::saves::read_replay_slot::read_replay_slot(slot)?;
         }
         Call::ReadSetupSlot(slot) => {
-            crate::service::read_setup_slot::read_setup_slot(slot)?;
+            crate::service::read_setup_slot::read_setup_slot(service(), slot)?;
         }
     }
     Ok(0)

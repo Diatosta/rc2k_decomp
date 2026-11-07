@@ -10,7 +10,6 @@
 //! in the listing, gives the memory back at the game's end.
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
 use crate::gfx::picture::{Buffer, take};
 
 // ---- game data ----
@@ -21,8 +20,8 @@ const SPARE: u32 = 0xC80;
 // ---- Rust version ----
 
 /// The Rust version (see the header).
-pub fn allocate_picture_buffer() -> Result<(), Refused> {
-    let pictures = &gfx().pictures;
+pub fn allocate_picture_buffer(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+    let pictures = &gfx.pictures;
     pictures.picture.size.set(BUFFER_LEN);
     // Rust's since phase 12 (`gfx::picture`), counted on the list as the game's block was.
     pictures.picture.buffer.set(take(

@@ -105,8 +105,8 @@ fn reset_object(o: &crate::sound::store::SoundObject) {
     }
 }
 /// dword_51659C .. dword_5165E8: set 0.
-fn clear_stage_flags() {
-    let s = &crate::sound::owner::sound().race.stage;
+fn clear_stage_flags(sound: &crate::sound::owner::Sound) {
+    let s = &sound.race.stage;
     for flag in [
         &s.once[0],
         &s.once[1],
@@ -144,30 +144,27 @@ pub fn wait_for_commands() {
 /// voices' +0 0x1888FFFF and +0x14 -2; `dword_5165EC`, `dword_518054` 0, the EAX
 /// environment 1.0; command 2 with eax 3; `dword_5124E4` 0. Every register kept; the
 /// commands' registers but those the audio thread reads (command 2's eax) go as 0.
-pub fn reset_race_sounds(v: &SoundVars) -> Result<(), Refused> {
+pub fn reset_race_sounds(v: &SoundVars, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    let audio = crate::audio::owner::audio();
     wait_for_commands();
     command(7, 0);
     command(0xA, 7);
     wait_for_commands();
-    crate::sound::hold_sounds_back::hold_sounds_back();
-    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count());
-    for o in &crate::sound::owner::sound().race.sounds.objects {
+    crate::sound::hold_sounds_back::hold_sounds_back(audio);
+    crate::sound::race_clock::start_race_clock(crate::system::tick_count::tick_count(), sound);
+    for o in &sound.race.sounds.objects {
         reset_object(o);
     }
-    clear_stage_flags();
+    clear_stage_flags(sound);
     for voice in v.voices.iter() {
         voice[0].set(0x1888_FFFF);
         voice[5].set(0xFFFF_FFFE);
     }
-    crate::sound::owner::sound().race.stage.shared_count.set(0);
-    crate::sound::owner::sound()
-        .race
-        .spot_picks
-        .spot_work_a
-        .set(0);
+    sound.race.stage.shared_count.set(0);
+    sound.race.spot_picks.spot_work_a.set(0);
     crate::audio::store::ENVIRONMENT.set(0x3F80_0000u32);
     command(2, 3);
-    crate::sound::owner::sound().race.clock.started.set(0);
+    sound.race.clock.started.set(0);
     Ok(())
 }
 
@@ -295,6 +292,8 @@ pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
 /// line break. Reads no register; of what it leaves its callers read only esi, which it
 /// keeps (taint at all six sites: 0 reads of the rest).
 pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
+    let input = crate::input::owner::input();
+    let sound = crate::sound::owner::sound();
     let shared = &race.shared;
     let s = Tidy;
     s.newline();
@@ -303,14 +302,14 @@ pub fn tidy_everything(race: &Race) -> Result<(), Refused> {
     s.indent(3);
     s.indent(-3);
     s.step(EVERYTHING_WORDS[2], || {
-        crate::race::race_shell::release_controls();
+        crate::race::race_shell::release_controls(input);
         Ok(())
     })?;
     s.step(EVERYTHING_WORDS[3], || Ok(()))?;
     s.step(EVERYTHING_WORDS[4], || tidy_stage(race))?;
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
-    reset_race_sounds(&SoundVars::game())?;
+    reset_race_sounds(&SoundVars::game(), sound)?;
     shared.view.view_on[0].set(1u32);
     shared.view.view_on[1].set(1u32);
     s.indent(-3);

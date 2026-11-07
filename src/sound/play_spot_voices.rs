@@ -17,7 +17,6 @@
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.
 
-use crate::audio::owner::audio;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87::from_int;
 use crate::sound::sample_duration::sample_duration;
@@ -29,7 +28,10 @@ use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, pl
 // ---- Rust version ----
 
 /// The spots' voices played through `request`.
-pub fn play_spot_voices(request: &SoundRequest) -> Result<(), Refused> {
+pub fn play_spot_voices(
+    request: &SoundRequest,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
     let clock = crate::sound::owner::sound().race.clock.last.get();
     for n in 0..VOICE_COUNT {
         let v = voice(n);
@@ -69,7 +71,7 @@ pub fn play_spot_voices(request: &SoundRequest) -> Result<(), Refused> {
                 if sound >= RECORDS {
                     return Err(BadInput("a sound past the sample records").into());
                 }
-                let looping = audio().sample_records.records[sound as usize]
+                let looping = audio.sample_records.records[sound as usize]
                     .get()
                     .voice_kind;
                 request.sound.set(going_on(request.sound.get(), looping));

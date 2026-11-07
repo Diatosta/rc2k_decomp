@@ -27,8 +27,12 @@ pub fn colour(tables: &Tables, colour: Colour, forward: bool) -> Result<(), Refu
 }
 
 /// A button of the car specification (the car, its page, the slideshow's car or picture).
-pub fn car_button(menus: &Menus, button: Which) -> Result<(), Refused> {
-    press(menus, button, &mut |call| call_in_game(menus, call))
+pub fn car_button(
+    menus: &Menus,
+    button: Which,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    press(menus, button, &mut |call| call_in_game(menus, call, sound))
 }
 
 /// The saved games' list one page on (`menu::next_savegame_page`, 0x46D407): adds 1 to

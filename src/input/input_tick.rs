@@ -20,14 +20,14 @@ use crate::input::types::InputDevice;
 use crate::session::Dword;
 
 /// A tick of the devices (see the header).
-pub fn input_tick(input: &Input) -> Result<(), Refused> {
+pub fn input_tick(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let command = input
         .devices
         .input_command
         .atomic()
         .swap(0, std::sync::atomic::Ordering::SeqCst);
     if command != 0 {
-        return crate::input::device_command::device_command(input, command);
+        return crate::input::device_command::device_command(input, command, sound);
     }
     let records = records(&input.devices);
     for record in records {
@@ -52,6 +52,9 @@ pub fn input_tick(input: &Input) -> Result<(), Refused> {
 }
 
 /// For the standalone's input thread.
-pub fn input_tick_in_game(input: &Input) -> Result<(), Refused> {
-    input_tick(input)
+pub fn input_tick_in_game(
+    input: &Input,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
+    input_tick(input, sound)
 }

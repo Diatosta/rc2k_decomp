@@ -23,6 +23,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::copy_picture_to_surface::{GameSurface, copy_picture_to_surface};
+#[cfg(test)]
 use crate::gfx::owner::gfx;
 use crate::platform::{lock_surface, pump_messages_now, show_frame_now, unlock_surface};
 use crate::system::owner::system;
@@ -38,16 +39,18 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 // ---- Rust version ----
 
 /// The Rust version on the picture at `path`.
-pub fn show_picture_file(path: &dyn crate::session::TextPlace) -> Result<(), Refused> {
+pub fn show_picture_file(
+    path: &dyn crate::session::TextPlace,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let system = system();
-    let gfx = gfx();
     pump_messages_now();
     gfx.pictures.showing.set(1);
     // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `pages`,
     // `rescaled`).
     crate::gfx::picture::set_size(sizes::READ);
     // A refused picture is not read, as `read_picture_file`'s callers by address see it.
-    let read = match crate::gfx::read_picture_file::read_picture_file(path) {
+    let read = match crate::gfx::read_picture_file::read_picture_file(path, gfx) {
         Ok(read) => read,
         Err(Refused::BadInput(_)) => false,
         Err(e) => return Err(e),
@@ -65,7 +68,7 @@ pub fn show_picture_file(path: &dyn crate::session::TextPlace) -> Result<(), Ref
         gfx.pictures.showing.set(0);
         if was_showing != 0 && gfx.fonts.menu_fonts.palettes.get() != 0 {
             gfx.pictures.picture.flags.set(0x802u32);
-            crate::gfx::picture_as_surface::picture_as_surface()?;
+            crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 0xC0,
                 LOADING_FONT,
@@ -83,6 +86,7 @@ pub fn show_picture_file(path: &dyn crate::session::TextPlace) -> Result<(), Ref
                 crate::gfx::rescale_to_surface::rescale_to_surface(
                     &gfx.rescale,
                     crate::pointers::GamePtr::to(&gfx.drawing.draw_surface.x).limited(0x30),
+                    gfx,
                 )?;
                 unlock_surface();
                 show_frame_now();

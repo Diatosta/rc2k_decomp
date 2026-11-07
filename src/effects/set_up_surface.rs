@@ -26,34 +26,19 @@ const CELLS: u32 = 0x40;
 /// `gfx::read_picture_file` at 256 x 256 (the picture's sizes kept round it): whether it
 /// was read.
 fn read(path: &Bytes<21>) -> Result<bool, Refused> {
+    let gfx = crate::gfx::owner::gfx();
     let sizes: [u32; 3] = [
-        crate::gfx::owner::gfx().pictures.picture.width.get(),
-        crate::gfx::owner::gfx().pictures.picture.height.get(),
-        crate::gfx::owner::gfx().pictures.picture.row_bytes.get(),
+        gfx.pictures.picture.width.get(),
+        gfx.pictures.picture.height.get(),
+        gfx.pictures.picture.row_bytes.get(),
     ];
-    crate::gfx::owner::gfx().pictures.picture.width.set(SIDE);
-    crate::gfx::owner::gfx().pictures.picture.height.set(SIDE);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .row_bytes
-        .set(0xFFFF_FFFEu32);
-    let read = crate::gfx::read_picture_file::read_picture_file(path);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .width
-        .set(sizes[0]);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .height
-        .set(sizes[1]);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .row_bytes
-        .set(sizes[2]);
+    gfx.pictures.picture.width.set(SIDE);
+    gfx.pictures.picture.height.set(SIDE);
+    gfx.pictures.picture.row_bytes.set(0xFFFF_FFFEu32);
+    let read = crate::gfx::read_picture_file::read_picture_file(path, gfx);
+    gfx.pictures.picture.width.set(sizes[0]);
+    gfx.pictures.picture.height.set(sizes[1]);
+    gfx.pictures.picture.row_bytes.set(sizes[2]);
     read
 }
 
@@ -70,33 +55,29 @@ pub fn set_up_surface(
     ring: &Ring,
     masks: &Masks,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let setup = &effects().setup;
     // The mask's copy is Rust's memory (phase 12), counted on the list as the game's
     // block was.
     let mut mask = crate::memory::owned::counted(&masks.list.list, MASK_BYTES)?;
     lock(scene.textures.kinds.kind_first_textures[211].bits(), true)?;
-    if crate::gfx::owner::gfx().drawing.draw_surface.width.get() < SIDE
-        || crate::gfx::owner::gfx().drawing.draw_surface.height.get() < SIDE
-    {
+    if gfx.drawing.draw_surface.width.get() < SIDE || gfx.drawing.draw_surface.height.get() < SIDE {
         return unlock_refusing("a surface under 256 x 256", scene);
     }
     if !read(&ring.names.surfmask)? {
         return unlock_refusing("surfmask.pcx was not read", scene);
     }
     mask[..4 * PIXELS as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
-        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
+        gfx.pictures.picture.buffer.get(),
         0,
         4 * PIXELS as usize,
     )?);
     if !read(&ring.names.surfdata)? {
         return unlock_refusing("surfdata.pcx was not read", scene);
     }
-    let picture = crate::gfx::picture::read_bytes(
-        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
-        0,
-        4 * PIXELS as usize,
-    )?;
+    let picture =
+        crate::gfx::picture::read_bytes(gfx.pictures.picture.buffer.get(), 0, 4 * PIXELS as usize)?;
     for n in 0..PIXELS {
         let at = 4 * n as usize;
         let data = u32::from_le_bytes(picture[at..at + 4].try_into().expect("four bytes"));

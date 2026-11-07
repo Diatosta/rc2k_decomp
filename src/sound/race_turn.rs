@@ -21,23 +21,27 @@ use crate::system::owner::system;
 // ---- Rust version ----
 
 /// The race's sounds for the frame.
-pub fn race_turn() -> Result<(), Refused> {
+pub fn race_turn(
+    sound: &crate::sound::owner::Sound,
+    input: &crate::input::owner::Input,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), Refused> {
     if system().session.flags.quitting.get() == 1 {
         // The original's quit jump (into `system::main_loop`'s way out): the program
         // ended as `start` ends it.
         crate::standalone::leave_on_close();
     }
-    if crate::sound::owner::sound().race.clock.started.get() != 1 {
+    if sound.race.clock.started.get() != 1 {
         return Ok(());
     }
-    if crate::sound::turn_parts::step_clock() {
+    if crate::sound::turn_parts::step_clock(sound) {
         use crate::sound::*;
-        mark_car_voices::mark_car_voices()?;
-        car_sounds_all::car_sounds_all()?;
-        play_cue_queues::play_cue_queues()?;
-        stage_sounds::stage_sounds()?;
-        spot_sounds::spot_sounds()?;
+        mark_car_voices::mark_car_voices(sound)?;
+        car_sounds_all::car_sounds_all(sound)?;
+        play_cue_queues::play_cue_queues(sound)?;
+        stage_sounds::stage_sounds(sound, audio)?;
+        spot_sounds::spot_sounds(sound, audio)?;
         send_end_of_turn::send_end_of_turn();
     }
-    crate::input::step_effects_clock::step_effects_clock()
+    crate::input::step_effects_clock::step_effects_clock(input)
 }

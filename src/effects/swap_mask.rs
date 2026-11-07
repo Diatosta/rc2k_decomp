@@ -21,7 +21,11 @@ use crate::errors::{BadInput, Refused};
 /// The Rust version (see the header): the lock and unlock (`d3d::lock_texture`,
 /// `unlock_texture`), `gfx::put_surface_pixel`, `scene::forget_slot_texture`.
 // Converted: `rc2k_core::effects::masks::{swapped, check_width, texture_pixels}`
-pub fn swap_mask(masks: &Masks, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn swap_mask(
+    masks: &Masks,
+    scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     use crate::effects::load_mask_pictures::{lock, put_pixel};
     use rc2k_core::effects::masks;
     let s: u32 = effects().setup.settings.is_set.get();
@@ -42,7 +46,7 @@ pub fn swap_mask(masks: &Masks, scene: &crate::scene::owner::Scene) -> Result<()
     // screen's: checked here (2026-10-18: checked before the lock, it refused every
     // frame). A row wider than the mask's would read past its block: unlocked, put
     // back and refused.
-    let width: u32 = crate::gfx::owner::gfx().drawing.draw_surface.width.get();
+    let width: u32 = gfx.drawing.draw_surface.width.get();
     if let Err(e) = masks::check_width(width) {
         lock(scene.textures.kinds.kind_first_textures[202].bits(), false)?;
         masks.blocks.seen.set(kept[0]);

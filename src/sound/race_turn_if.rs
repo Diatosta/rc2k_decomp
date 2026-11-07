@@ -12,10 +12,14 @@ use crate::errors::Refused;
 // ---- Rust version ----
 
 /// `sound::race_turn` while the race's sounds are on: true when it ran.
-pub fn race_turn_if() -> Result<bool, Refused> {
-    if crate::sound::owner::sound().race.sounds_on.get() == 0 {
+pub fn race_turn_if(
+    sound: &crate::sound::owner::Sound,
+    input: &crate::input::owner::Input,
+) -> Result<bool, Refused> {
+    let audio = crate::audio::owner::audio();
+    if sound.race.sounds_on.get() == 0 {
         return Ok(false);
     }
-    crate::sound::race_turn::race_turn()?;
+    crate::sound::race_turn::race_turn(sound, input, audio)?;
     Ok(true)
 }

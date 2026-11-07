@@ -94,6 +94,7 @@ pub fn windscreen_drops_frame(
     masks: &Masks,
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let setup = &effects().setup;
     if let Some(why) = refusal(drops)? {
@@ -141,16 +142,8 @@ pub fn windscreen_drops_frame(
             drops.hex.buffer.set(next);
             if next as usize == BUFFER_BYTES {
                 drops.hex.buffer.set(0);
-                crate::gfx::owner::gfx()
-                    .card
-                    .windscreen_drop_batch
-                    .index_count
-                    .set(0x300);
-                crate::gfx::owner::gfx()
-                    .card
-                    .windscreen_drop_batch
-                    .vertex_count
-                    .set(0x180);
+                gfx.card.windscreen_drop_batch.index_count.set(0x300);
+                gfx.card.windscreen_drop_batch.vertex_count.set(0x180);
                 draw_batch()?;
             }
         }
@@ -197,11 +190,8 @@ fn drift_move_x87(drops: &WindscreenDrops, k: usize, s: usize) {
 }
 
 /// The dword at `offset` of the record batch, as the x87 loads it.
-fn ld_record(offset: usize) -> bh::X {
-    ld_at(
-        &crate::gfx::owner::gfx().card.windscreen_drop_batch.records,
-        offset,
-    )
+fn ld_record(offset: usize, gfx: &crate::gfx::owner::Gfx) -> bh::X {
+    ld_at(&gfx.card.windscreen_drop_batch.records, offset)
 }
 
 /// `sprite_depth`: the item's whole-number place turned by the view into `cell` (and the
@@ -253,8 +243,9 @@ fn sprite_corners_x87(drops: &WindscreenDrops, c: usize) -> bh::X {
 /// vertices at `e` of the batch's records (0x20 bytes each; the depth at +8), `inverse_depth`
 /// being `view_scale / depth`. Same order and rounding as the original's x87 block.
 fn sprite_project_x87(drops: &WindscreenDrops, e: usize, inverse_depth: bh::X) {
+    let gfx = crate::gfx::owner::gfx();
     let work = &drops.work;
-    let records = &crate::gfx::owner::gfx().card.windscreen_drop_batch.records;
+    let records = &gfx.card.windscreen_drop_batch.records;
     let centre =
         |axis: usize| bh::ld(crate::scene::owner::scene().drawing.scene.view_centre[axis].bits());
     work.cell[2].set_bits(bh::st(inverse_depth));
@@ -282,10 +273,12 @@ fn sprite_project_x87(drops: &WindscreenDrops, e: usize, inverse_depth: bh::X) {
     work.screen[1].set_bits(bh::st(screen_y));
     for v in 0..6 {
         let at = e + 0x20 * v;
-        let x = (ld_record(at + 0x18) - bh::ld(work.cell[0].bits())) * ld_cell(&drops.hex.scale[2])
+        let x = (ld_record(at + 0x18, gfx) - bh::ld(work.cell[0].bits()))
+            * ld_cell(&drops.hex.scale[2])
             + bh::ld(work.screen[0].bits());
         st_at(records, at + 0x18, x);
-        let y = (ld_record(at + 0x1C) - bh::ld(work.cell[1].bits())) * ld_cell(&drops.hex.scale[3])
+        let y = (ld_record(at + 0x1C, gfx) - bh::ld(work.cell[1].bits()))
+            * ld_cell(&drops.hex.scale[3])
             + bh::ld(work.screen[1].bits());
         st_at(records, at + 0x1C, y);
     }

@@ -29,12 +29,13 @@ pub fn stop(request: &SoundRequest) -> Result<(), Refused> {
 
 /// `sound::play_placed_sound` with the request.
 pub fn placed(request: &SoundRequest) -> Result<(), Refused> {
+    let audio = crate::audio::owner::audio();
     Ok(crate::sound::play_placed_sound::play_placed_sound_in_game(
-        request,
+        request, audio,
     )?)
 }
 
 /// `sound::step_race_clock`: true when a turn is due (the original's carry clear).
-pub fn step_clock() -> bool {
-    crate::sound::race_clock::step_race_clock(crate::system::tick_count::tick_count())
+pub fn step_clock(sound: &crate::sound::owner::Sound) -> bool {
+    crate::sound::race_clock::step_race_clock(crate::system::tick_count::tick_count(), sound)
 }

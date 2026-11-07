@@ -27,6 +27,7 @@ const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platf
 /// `input::yes_no_key`, liveness: 0x44520A); its flags and other registers are read by
 /// no caller (only DF live after the other four calls).
 pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
+    let input = crate::input::owner::input();
     let system = system();
 
     let frame = &race.frame;
@@ -45,7 +46,7 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
         use crate::debug::timing::{Stage, start, stop};
         let begun = start();
         crate::scene::begin_scene::begin_scene();
-        { crate::race::draw_race_scene::draw_race_scene(race) }?;
+        { crate::race::draw_race_scene::draw_race_scene(race, input) }?;
         crate::scene::end_scene::end_scene();
         stop(Stage::Scene, begun);
         // eax 0x12 here in the original; read by nothing.

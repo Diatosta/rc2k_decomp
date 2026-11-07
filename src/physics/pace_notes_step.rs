@@ -40,7 +40,11 @@ const ONE_F32: u32 = 0x3F80_0000;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{calling, call_target, calls}`.
-pub fn pace_notes_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn pace_notes_step(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     if !calling(
         gates(race),
         race.shared.car.driver_kind.get(),
@@ -66,7 +70,7 @@ pub fn pace_notes_step(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
         let mut checkpoint = last;
         loop {
             checkpoint = checkpoint.wrapping_add(1);
-            crate::physics::queue_pace_note::queue_pace_note(race, checkpoint)?;
+            crate::physics::queue_pace_note::queue_pace_note(race, checkpoint, sound)?;
             if checkpoint >= target {
                 break;
             }

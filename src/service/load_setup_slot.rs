@@ -64,14 +64,15 @@ pub fn load_setup_slot(menus: &Menus) -> Result<(), Refused> {
         return Err(BadInput("a flag table has lost its end mark").into());
     }
 
-    if !read_setup_slot(slot)? {
+    let service = service();
+    if !read_setup_slot(service, slot)? {
         return Ok(());
     }
     clear_repair_flags(menus)?;
 
     // Converted: `rc2k_core::service::setups` (`SetupValues`, `CONFIRM_ORDER`).
     use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
-    let v = SetupValues::from_file(&service().set_ups.file.read());
+    let v = SetupValues::from_file(&service.set_ups.file.read());
     let in_car = |field: rc2k_core::menu::player::SetupField, v: u32| {
         player.update(|q| *field.of(q) = v);
     };

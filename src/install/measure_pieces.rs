@@ -20,15 +20,17 @@ use crate::install::installer::{
 };
 use crate::install::page_records::{BoxRecord, Piece, piece_count};
 use crate::install::vars::InstallerPages;
-use crate::strings::owner::strings;
+use crate::strings::owner::Strings;
 use rc2k_core::install::pieces::{self, Way};
 
 fn font_of(index: u32) -> Result<crate::gfx::typefaces::FontId, BadInput> {
     crate::install::vars::InstallerPages::font_of(index)
 }
 
-pub fn measure_pieces(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
-    let strings = strings();
+pub fn measure_pieces(
+    install: &'static crate::install::owner::Install,
+    strings: &'static Strings,
+) -> Result<(), Refused> {
     let count = piece_count(install);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());

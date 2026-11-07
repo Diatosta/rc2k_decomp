@@ -48,6 +48,7 @@ fn share(at: usize, start: u32) {
 
 /// The Rust version (see the header).
 pub fn run_frame(race: &Race) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     let scene = crate::scene::owner::scene();
     use crate::effects::*;
     use crate::scene::set_render_state::set_render_state;
@@ -55,7 +56,7 @@ pub fn run_frame(race: &Race) -> Result<(), Refused> {
     let (weather, particles, ring) = (&effects.weather, &effects.particles, &effects.ring);
     let paths = &effects.paths;
     {
-        swap_mask::swap_mask(&effects.masks, scene)?;
+        swap_mask::swap_mask(&effects.masks, scene, gfx)?;
         setup::tick_clock(&race.shared)?;
         let whole = rdtsc();
         for (value, state) in STATES {

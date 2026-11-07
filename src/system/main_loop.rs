@@ -58,7 +58,10 @@ fn quit_and_leave() -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn main_loop(session: &Session) -> Result<(), Refused> {
+pub fn main_loop(session: &Session, saves: &crate::saves::owner::Saves) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
+    let audio = crate::audio::owner::audio();
+    let sound = crate::sound::owner::sound();
     let install = crate::install::owner::install();
     let menus = crate::menu::owner::menus();
     log_line(c"");
@@ -77,7 +80,7 @@ pub fn main_loop(session: &Session) -> Result<(), Refused> {
     }
     crate::platform::set_menu_mode_now();
     crate::sound::apply_settings::apply_settings()?;
-    crate::gfx::load_jade::load_jade_in_game()?;
+    crate::gfx::load_jade::load_jade_in_game(gfx)?;
     crate::menu::build_notice::build_notice(menus);
     // The standalone in the download folder installs from it (`install::portable`); and
     // with `-u` (`dword_51B9CC`) it uninstalls where it is: its record is in the installed
@@ -99,28 +102,28 @@ pub fn main_loop(session: &Session) -> Result<(), Refused> {
     install.run.installing.set(0);
     install.run.updating.set(0);
     install.run.from_command.set(0);
-    crate::sound::stop_cd_audio::stop_cd_audio();
+    crate::sound::stop_cd_audio::stop_cd_audio(sound);
     // Its answer is not read (this build's nine `nop`s).
     crate::files::is_cd_drive::is_cd_drive(base_drive());
-    crate::menu::run_front_end::run_front_end(menus)?;
+    crate::menu::run_front_end::run_front_end(menus, audio)?;
     crate::sound::stop_music::stop_music();
     if session.flags.quitting.get() == 1 {
         // The original leaves here without saving: the window closed (or any quit by the
         // switch) lost the options and best times changed since the last save (section 16,
         // fixed 2026-10-29).
-        crate::saves::save_game_data::save_in_game()?;
+        crate::saves::save_game_data::save_in_game(saves)?;
         log_line(c"Leaving main loop...");
         return Ok(());
     }
-    crate::saves::save_game_data::save_in_game()?;
-    crate::saves::free_best_times::free_in_game()?;
+    crate::saves::save_game_data::save_in_game(saves)?;
+    crate::saves::free_best_times::free_in_game(saves)?;
     quit_and_leave()
 }
 
 /// The Rust version, logged on the way in and out.
 pub fn main_loop_in_game() -> Result<(), Refused> {
     log("system::main_loop: the Rust version runs");
-    main_loop(&system().session)?;
+    main_loop(&system().session, crate::saves::owner::saves())?;
     log("system::main_loop: the Rust version has come back");
     Ok(())
 }

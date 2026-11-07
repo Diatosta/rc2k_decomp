@@ -21,7 +21,6 @@ use crate::errors::Refused;
 use crate::gfx::decode_png::decode_png;
 use crate::gfx::lay_out_png::lay_out_png;
 use crate::gfx::owner::Png;
-use crate::gfx::owner::gfx;
 use crate::gfx::palette_pixels_to_dwords::palette_pixels_to_dwords;
 use crate::gfx::rgb_pixels_to_dwords::rgb_pixels_to_dwords;
 use crate::memory::free_list::free_list;
@@ -49,8 +48,13 @@ fn head_is_taken(path: &[u8]) -> Result<bool, Refused> {
 }
 
 /// The part with the file's memory held: whether it worked.
-fn read_held(png: &Png, path: &[u8], size: u32) -> Result<bool, Refused> {
-    let pictures = &gfx().pictures;
+fn read_held(
+    png: &Png,
+    path: &[u8],
+    size: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
+    let pictures = &gfx.pictures;
     // The file's memory Rust's (phase 12), counted on the list as the game's block was.
     let mut file = crate::memory::owned::counted(&png.file.memory, size)?;
     let file = &mut file[..size as usize];
@@ -65,7 +69,7 @@ fn read_held(png: &Png, path: &[u8], size: u32) -> Result<bool, Refused> {
         crate::gfx::png::info_ptr(),
     )?;
     pictures.picture.flags.set(0x802u32);
-    lay_out_png()?;
+    lay_out_png(gfx)?;
     pictures.picture.width.set(pictures.decoder.width.get());
     pictures.picture.height.set(pictures.decoder.height.get());
     pictures
@@ -74,15 +78,15 @@ fn read_held(png: &Png, path: &[u8], size: u32) -> Result<bool, Refused> {
         .set(pictures.decoder.stride.get());
     if crate::gfx::png::info_byte(core::mem::offset_of!(crate::gfx::png::PngInfo, has_palette)) == 1
     {
-        palette_pixels_to_dwords()?;
+        palette_pixels_to_dwords(gfx)?;
     } else {
-        rgb_pixels_to_dwords()?;
+        rgb_pixels_to_dwords(gfx)?;
     }
     Ok(true)
 }
 
 /// Returns whether the picture was read.
-pub fn read_png(png: &Png, path: &[u8]) -> Result<bool, Refused> {
+pub fn read_png(png: &Png, path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, Refused> {
     let free = || {
         // Refused only with the game's own heap, which `allocate` refuses first.
         let _ = free_list(&png.file.memory);
@@ -99,7 +103,7 @@ pub fn read_png(png: &Png, path: &[u8]) -> Result<bool, Refused> {
         return Ok(false);
     }
     png.file.length.set(size);
-    let worked = read_held(png, path, size);
+    let worked = read_held(png, path, size, gfx);
     free();
     worked
 }

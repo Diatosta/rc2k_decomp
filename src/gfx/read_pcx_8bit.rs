@@ -21,7 +21,6 @@ use crate::files::handle::{read_into, seek};
 use crate::files::read_stream_byte::{ByteRead, read_stream_byte};
 use crate::files::stream::Stream;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
-use crate::gfx::owner::gfx;
 use crate::gfx::pcx::{FILE_PALETTE_LEN, on_stream, read_stream_header};
 use crate::gfx::picture::{put_or_end, with_buffer};
 
@@ -29,21 +28,22 @@ use crate::gfx::picture::{put_or_end, with_buffer};
 
 /// The file's palette read with a seek and a plain read on the stream's handle, and the
 /// handle back at the start: whether it worked.
-pub fn read_file_palette(stream: &Stream) -> bool {
+pub fn read_file_palette(stream: &Stream, gfx: &crate::gfx::owner::Gfx) -> bool {
     let file = stream.file;
     seek(file, -(FILE_PALETTE_LEN as i32), 2).is_some()
-        && read_into(file, &gfx().pictures.pcx.file_palette).1
+        && read_into(file, &gfx.pictures.pcx.file_palette).1
         && seek(file, 0, 0).is_some()
 }
 
 /// The part between the open and the close: whether it worked.
 fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
-    let pictures = &gfx().pictures;
-    if !read_file_palette(stream) || !read_stream_header(stream)? {
+    let gfx = crate::gfx::owner::gfx();
+    let pictures = &gfx.pictures;
+    if !read_file_palette(stream, gfx) || !read_stream_header(stream, gfx)? {
         return Ok(false);
     }
     pictures.picture.flags.set(0x800u32);
-    let layout = lay_out_pcx()?;
+    let layout = lay_out_pcx(gfx)?;
     // Converted: `rc2k_core::gfx::pcx::decode_8bit`.
     let palette: [u32; 256] = pictures.decoder.palette();
     with_buffer(pictures.decoder.pixels.get(), |pixels| {

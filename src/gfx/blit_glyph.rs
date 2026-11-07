@@ -18,7 +18,6 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::glyph_store::{self, Glyphs};
-use crate::gfx::owner::gfx;
 use crate::gfx::surface::{Clip, Surface, Target, clip, surface};
 use rc2k_core::strings::bytes::Bytes as _;
 
@@ -38,8 +37,8 @@ pub struct Scratch {
     pub rows_left: i32,
 }
 
-fn read_scratch() -> Scratch {
-    let drawing = &gfx().drawing;
+fn read_scratch(gfx: &crate::gfx::owner::Gfx) -> Scratch {
+    let drawing = &gfx.drawing;
     Scratch {
         left_skip: drawing.blit.left_skip.get() as i32,
         visible_w: drawing.blit.visible_width.get() as i32,
@@ -48,8 +47,8 @@ fn read_scratch() -> Scratch {
     }
 }
 
-fn write_scratch(s: &Scratch) {
-    let drawing = &gfx().drawing;
+fn write_scratch(s: &Scratch, gfx: &crate::gfx::owner::Gfx) {
+    let drawing = &gfx.drawing;
     drawing.blit.left_skip.set(s.left_skip as u32);
     drawing.blit.visible_width.set(s.visible_w as u32);
     drawing.blit.top_skip.set(s.top_skip as u32);
@@ -186,9 +185,10 @@ pub fn blit_glyph_on_surface(
     y: i32,
     palette: Option<u32>,
 ) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     let surface = surface();
     let record = glyph_record(&surface, table, glyph)?;
-    let mut scratch = read_scratch();
+    let mut scratch = read_scratch(gfx);
     let target = surface.target.ok_or(NO_SURFACE)?;
     let surface_window = crate::pointers::Window::new();
     {
@@ -212,7 +212,7 @@ pub fn blit_glyph_on_surface(
             },
         )
     }?;
-    write_scratch(&scratch);
+    write_scratch(&scratch, gfx);
     Ok(())
 }
 

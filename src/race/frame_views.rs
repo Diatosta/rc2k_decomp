@@ -5,7 +5,6 @@
 use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
-use crate::input::owner::input;
 use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::Race;
@@ -140,6 +139,7 @@ fn shadow_refuses(sh: &crate::effects::draw_shadow::Shadow<'_>) -> Result<(), Re
 /// `race::draw_marks_overlays` (0x45632B): `effects::draw_overlays`, then
 /// `effects::draw_shadow`. Refuses (before anything) the second shadow's refusals.
 pub fn draw_marks_overlays(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     shadow_refuses(&crate::effects::draw_shadow::FIRST)?;
     // Neither reads a register, and the race reads none they leave (only DF, ST).
     {
@@ -149,6 +149,7 @@ pub fn draw_marks_overlays(race: &Race, scene: &crate::scene::owner::Scene) -> R
             &effects.masks,
             &effects.windscreen_drops,
             scene,
+            gfx,
         )?;
         crate::effects::draw_shadow::draw_shadow(race, &effects.masks)?;
     }
@@ -270,6 +271,7 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 pub fn forget_view_textures(
     race: &Race,
     scene: &crate::scene::owner::Scene,
+    input: &crate::input::owner::Input,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;
@@ -304,7 +306,7 @@ pub fn forget_view_textures(
         frame.frame_work.mirror_wanted.get(),
         frame.frame_work.mirror_switch.get(),
     );
-    let uploaded = input().devices.keys_now.get(0x18) != 0; // byte_4F6B74
+    let uploaded = input.devices.keys_now.get(0x18) != 0; // byte_4F6B74
     let mut slots: Vec<u32> = FORGET_ORDER
         .iter()
         .map(|&(f, _)| source(f))

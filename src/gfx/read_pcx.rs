@@ -9,7 +9,6 @@
 //! Refuses what `read_file` and the readers refuse. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
 use crate::gfx::pcx::read_header;
 use crate::gfx::read_pcx_8bit::read_pcx_8bit;
 use crate::gfx::read_pcx_24bit::read_pcx_24bit;
@@ -17,13 +16,13 @@ use crate::gfx::read_pcx_24bit::read_pcx_24bit;
 // ---- Rust version ----
 
 /// Returns whether the picture was decoded.
-pub fn read_pcx(path: &[u8]) -> Result<bool, BadInput> {
-    if !read_header(path)? {
+pub fn read_pcx(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
+    if !read_header(path, gfx)? {
         return Ok(false);
     }
     // Converted: `rc2k_core::gfx::pcx::kind`.
     use rc2k_core::gfx::pcx::{Kind, kind};
-    match kind(&gfx().pictures.pcx.header.read()) {
+    match kind(&gfx.pictures.pcx.header.read()) {
         Some(Kind::Palette) => read_pcx_8bit(path),
         Some(Kind::Planes) => read_pcx_24bit(path),
         None => Ok(false),

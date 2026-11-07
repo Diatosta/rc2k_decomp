@@ -83,6 +83,7 @@ impl arcade::Arcade for Game {
     }
 
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        let sound = crate::sound::owner::sound();
         let menus = menus();
         let play = &menus.play;
         let screens = &menus.screens;
@@ -120,7 +121,7 @@ impl arcade::Arcade for Game {
             Step::ClearScoreMarks => a::clear_arcade_score_marks(play)?,
             Step::EnterLevelScore => a::enter_arcade_level_score(menus)?,
             Step::BestScoresLoop => self.screen(&m::best_scores_48a69e_loop::SCREEN)?,
-            Step::LevelEnd => m::arcade_level_end::arcade_level_end(menus)?,
+            Step::LevelEnd => m::arcade_level_end::arcade_level_end(menus, sound)?,
             Step::NextLevelReview => self.screen(&m::review_options_4882e2_loop::SCREEN)?,
             Step::RetryReview => self.screen(&m::review_options_48861d_loop::SCREEN)?,
             Step::StageReview => self.screen(&m::arcade_review_options_loop::SCREEN)?,

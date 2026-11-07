@@ -17,15 +17,14 @@
 //! The name is a reading.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
 use crate::gfx::palette_to_dwords::palette_to_dwords;
 
 // ---- Rust version ----
 
 /// Converted: `rc2k_core::gfx::pcx::lay_out`, on the header and the variables in game memory.
 /// Returns the layout it stored.
-pub fn lay_out_pcx() -> Result<rc2k_core::gfx::pcx::Layout, BadInput> {
-    let pictures = &gfx().pictures;
+pub fn lay_out_pcx(gfx: &crate::gfx::owner::Gfx) -> Result<rc2k_core::gfx::pcx::Layout, BadInput> {
+    let pictures = &gfx.pictures;
     let target = rc2k_core::gfx::pcx::Target {
         width: pictures.picture.width.get(),
         height: pictures.picture.height.get(),

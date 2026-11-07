@@ -27,7 +27,7 @@ use crate::race::owner::Race;
 
 /// The Rust version. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{timer_rate, timer_run}`.
-pub fn race_timers(race: &Race) -> Result<(), Refused> {
+pub fn race_timers(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use rc2k_core::physics::splits::{TimerRun, timer_rate, timer_run};
     race.shared.physics_tables.weight.set_bits(1.0f32.to_bits());
     let finished = race.shared.car.finish_flag.get() != 0;
@@ -46,9 +46,9 @@ pub fn race_timers(race: &Race) -> Result<(), Refused> {
     }
     count_start_second(&race.shared);
     if run == TimerRun::Start {
-        count_down_start(race)?;
-        take_split_counted(race)?;
-        start_go_notice(race)?;
+        count_down_start(race, sound)?;
+        take_split_counted(race, sound)?;
+        start_go_notice(race, sound)?;
     } else {
         take_split(race)?;
     }

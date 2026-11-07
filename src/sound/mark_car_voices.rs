@@ -40,14 +40,8 @@ fn pairs() -> Result<Vec<(&'static SoundObject, u32)>, BadInput> {
 }
 
 /// Converted: `rc2k_core::sound::cars::voice_mark`.
-pub fn mark_car_voices() -> Result<(), Refused> {
-    if crate::sound::owner::sound()
-        .race
-        .sounds
-        .mark_car_voices
-        .get()
-        != 1
-    {
+pub fn mark_car_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    if sound.race.sounds.mark_car_voices.get() != 1 {
         return Ok(());
     }
     for (n, (o, car)) in pairs()?.into_iter().enumerate() {

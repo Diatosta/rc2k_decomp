@@ -21,7 +21,6 @@
 //! bytes.
 
 use crate::audio::names_store::SampleNames;
-use crate::audio::owner::audio;
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
@@ -62,8 +61,12 @@ fn lengths(list: GamePtr) -> Result<Vec<u32>, BadInput> {
 /// The variables (`sound::owner::Sound::race`'s `sounds`): dword_514F70 and dword_514F74 the
 /// two cars' numbers, dword_514F78, dword_514F7C the counts, off_512A10 the eight sound
 /// objects; dword_75B108 the replay switch.
-pub fn load_race_sounds(send: &mut dyn FnMut(SoundList)) -> Result<(), BadInput> {
-    let r = &crate::sound::owner::sound().race.sounds;
+pub fn load_race_sounds(
+    send: &mut dyn FnMut(SoundList),
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), BadInput> {
+    let r = &sound.race.sounds;
     let object = |number: &Dword| -> Result<u32, BadInput> {
         let number = number.get();
         if number >= OBJECTS {
@@ -113,7 +116,7 @@ pub fn load_race_sounds(send: &mut dyn FnMut(SoundList)) -> Result<(), BadInput>
     let (of_first, of_second) = (lengths(name(ebx)?)?, lengths(name(edx)?)?);
     // Nothing has been written or sent up to here.
     for n in 0..NAMES {
-        let records = &audio().sample_records.records;
+        let records = &audio.sample_records.records;
         records[FIRST_SAMPLE + n * 2].update(|r| r.data_key = ebx);
         records[FIRST_SAMPLE + n * 2 + 1].update(|r| r.data_key = edx);
         ebx += (of_first[n] as usize + 1) as u32;
@@ -154,6 +157,13 @@ pub fn load_race_sounds(send: &mut dyn FnMut(SoundList)) -> Result<(), BadInput>
 }
 
 /// In the game: each list sent as command 3.
-pub fn load_race_sounds_in_game() -> Result<(), BadInput> {
-    load_race_sounds(&mut |list| crate::sound::senders::send(START_3, [list.word(), 0, 0, 0]))
+pub fn load_race_sounds_in_game(
+    sound: &crate::sound::owner::Sound,
+    audio: &crate::audio::owner::Audio,
+) -> Result<(), BadInput> {
+    load_race_sounds(
+        &mut |list| crate::sound::senders::send(START_3, [list.word(), 0, 0, 0]),
+        sound,
+        audio,
+    )
 }

@@ -41,6 +41,7 @@ pub fn draw_overlays(
     masks: &Masks,
     drops: &WindscreenDrops,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use crate::scene::set_render_state::set_render_state;
     if let Some(e) = shadow_refuses() {
@@ -68,6 +69,7 @@ pub fn draw_overlays(
             masks,
             drops,
             scene,
+            gfx,
         )?;
         draw_shadow_with(race, masks, &SECOND, false)
     }

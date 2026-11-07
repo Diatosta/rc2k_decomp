@@ -5,6 +5,7 @@
 //! a palette number and the palette, 0x300 bytes, is the end of the file.
 
 use crate::files::stream::Stream;
+#[cfg(test)]
 use crate::gfx::owner::gfx;
 use crate::session::{Bytes, Dword, with_runs};
 
@@ -63,17 +64,23 @@ impl Pcx {
 
 /// The header zeroed and the file's first 0x80 bytes read into it (`files::read_file`):
 /// whether the read worked.
-pub fn read_header(path: &[u8]) -> Result<bool, crate::errors::BadInput> {
+pub fn read_header(
+    path: &[u8],
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, crate::errors::BadInput> {
     let mut header = [0u8; HEADER_LEN];
     let ok = crate::files::read_file::read_file_into(path, &mut header, 0)?.ok;
-    gfx().pictures.pcx.header.write(&header);
+    gfx.pictures.pcx.header.write(&header);
     Ok(ok)
 }
 
 /// The header read through `stream` (`files::read_stream_block`): whether it worked. The
 /// bytes past a short read stay as they were.
-pub fn read_stream_header(stream: &mut Stream) -> Result<bool, crate::errors::BadInput> {
-    let pictures = &gfx().pictures;
+pub fn read_stream_header(
+    stream: &mut Stream,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, crate::errors::BadInput> {
+    let pictures = &gfx.pictures;
     let mut header = pictures.pcx.header.read();
     let failed = crate::files::read_stream_block::read_stream_block(stream, &mut header)?.1;
     pictures.pcx.header.write(&header);

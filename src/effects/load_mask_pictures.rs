@@ -34,43 +34,20 @@ const ROWS: u32 = 0x7E;
 /// when not read (the original then counts 0x1FFFFFFF down and leaves with its stack one
 /// off).
 fn read(path: &dyn crate::session::TextPlace) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     path.text("a mask picture's path")?;
     let sizes: [u32; 3] = [
-        crate::gfx::owner::gfx().pictures.picture.width.get(),
-        crate::gfx::owner::gfx().pictures.picture.height.get(),
-        crate::gfx::owner::gfx().pictures.picture.row_bytes.get(),
+        gfx.pictures.picture.width.get(),
+        gfx.pictures.picture.height.get(),
+        gfx.pictures.picture.row_bytes.get(),
     ];
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .width
-        .set(0x100u32);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .height
-        .set(0x80u32);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .row_bytes
-        .set(0xFFFF_FFFEu32);
-    let read = crate::gfx::read_picture_file::read_picture_file(path);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .width
-        .set(sizes[0]);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .height
-        .set(sizes[1]);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .row_bytes
-        .set(sizes[2]);
+    gfx.pictures.picture.width.set(0x100u32);
+    gfx.pictures.picture.height.set(0x80u32);
+    gfx.pictures.picture.row_bytes.set(0xFFFF_FFFEu32);
+    let read = crate::gfx::read_picture_file::read_picture_file(path, gfx);
+    gfx.pictures.picture.width.set(sizes[0]);
+    gfx.pictures.picture.height.set(sizes[1]);
+    gfx.pictures.picture.row_bytes.set(sizes[2]);
     if !read? {
         return Err(BadInput("a mask picture was not read").into());
     }
@@ -79,7 +56,8 @@ fn read(path: &dyn crate::session::TextPlace) -> Result<(), Refused> {
 
 /// `gfx::put_surface_pixel` (components, x, y).
 pub fn put_pixel(components: u32, x: u32, y: u32) -> Result<(), Refused> {
-    crate::gfx::put_surface_pixel::put_surface_pixel(components, x, y)?;
+    let gfx = crate::gfx::owner::gfx();
+    crate::gfx::put_surface_pixel::put_surface_pixel(components, x, y, gfx)?;
     Ok(())
 }
 
@@ -134,6 +112,7 @@ fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Re
 pub fn load_mask_pictures(
     masks: &Masks,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let ground: i32 = masks.ground_names.ground.get() as i32;
     if ground >= NAMES {
@@ -165,7 +144,7 @@ pub fn load_mask_pictures(
     }
     let mut copy = crate::memory::owned::counted(&masks.picture_copy.list, COPY_BYTES)?;
     lock(scene.textures.kinds.kind_first_textures[202].bits(), true)?;
-    let width: u32 = crate::gfx::owner::gfx().drawing.draw_surface.width.get();
+    let width: u32 = gfx.drawing.draw_surface.width.get();
     if width > MOST_WIDTH {
         lock(scene.textures.kinds.kind_first_textures[202].bits(), false)?;
         return Err(BadInput("a mask surface wider than 256").into());

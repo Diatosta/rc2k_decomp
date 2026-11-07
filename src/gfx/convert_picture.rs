@@ -26,7 +26,6 @@ use crate::gfx::components_to_4444_rows::{COMPONENTS_TO_4444_ROWS, components_to
 use crate::gfx::converters::Converters;
 use crate::gfx::copy_pixel_rows::COPY_PIXEL_ROWS;
 use crate::gfx::formats::Formats;
-use crate::gfx::owner::gfx;
 use crate::gfx::picture::{has_picture, with_picture};
 use crate::gfx::pixel_format::PixelFormat;
 use crate::system::owner::system;
@@ -56,8 +55,9 @@ pub fn convert_picture(
     converters: &Converters,
     screen_bits: u32,
     converter: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<CarryLeft, BadInput> {
-    let pictures = &gfx().pictures;
+    let pictures = &gfx.pictures;
     let (width, height): (u32, u32) = (pictures.picture.width.get(), pictures.picture.height.get());
     if !has_picture() {
         return Err(BadInput("no picture buffer"));
@@ -131,7 +131,8 @@ pub fn convert_picture(
 
 /// With the screen's bits and the surface format's converter as they are now.
 pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
-    let pixel = &gfx().pixel;
+    let gfx = crate::gfx::owner::gfx();
+    let pixel = &gfx.pixel;
     if !has_picture() {
         return Err(BadInput("no picture buffer"));
     }
@@ -140,5 +141,6 @@ pub fn convert_picture_now() -> Result<CarryLeft, BadInput> {
         &pixel.converters,
         system().session.screen.bits.get(),
         converter(&pixel.converters),
+        gfx,
     )
 }

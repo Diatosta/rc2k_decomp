@@ -11,10 +11,12 @@ use crate::race::owner::race;
 /// mode (`dword_51E824`'s mode 4): it changes nothing, so 0. What the original leaves (eax)
 /// is read by no list entry after it.
 fn show(note: rc2k_core::screens::locked::Note) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     if note.eax.is_some() && note.show {
         crate::screens::draw_message_box::draw_message_box(
             0,
             &mut crate::text::draw_text::GameCanvas,
+            gfx,
         )?;
     }
     Ok(())

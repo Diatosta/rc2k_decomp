@@ -17,7 +17,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 
 /// The Rust version (the original leaves registers nothing reads).
-pub fn step_replay_cars(race: &Race) -> Result<(), Refused> {
+pub fn step_replay_cars(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
     let shared = &race.shared;
     use crate::drive::*;
     // Converted: `rc2k_core::race::viewer_flow::{check_replay_cars, car_block, car_runs,
@@ -29,7 +29,7 @@ pub fn step_replay_cars(race: &Race) -> Result<(), Refused> {
     choose_shown_cars::choose_shown_cars(race)?;
     shared.work.current_car.set(0);
     loop {
-        car_input_words::car_input_words(race)?;
+        car_input_words::car_input_words(race, input)?;
         play_inputs::play_inputs(race)?;
         shared.work.work_block.set(
             shared

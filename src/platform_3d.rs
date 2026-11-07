@@ -84,8 +84,7 @@ pub static GUIDS_B: [u32; 8] = [
 // ---- the texture formats ----
 
 /// `d3d::find_texture_formats`, for a screen of `bits`.
-pub fn describe_texture_formats(bits: u32) {
-    let gfx = gfx();
+pub fn describe_texture_formats(bits: u32, gfx: &crate::gfx::owner::Gfx) {
     // (bits, masks blue, green, red, alpha)
     let formats: [(u32, [u32; 4]); 4] = [
         (16, [0x001F, 0x03E0, 0x7C00, 0]),
@@ -652,8 +651,9 @@ fn allocate_textures(
     sizes: u32,
     kind: u32,
     mips: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), FatalError> {
-    let card = &gfx().card;
+    let card = &gfx.card;
     let width = size_of(sizes & 0xFF).ok_or(fatal(0x80A1_8641))?;
     let height = if sizes & 0x1000 != 0 {
         size_of((sizes >> 8) & 0xFF).ok_or(fatal(0x80A1_8642))?
@@ -693,7 +693,8 @@ pub fn allocate_textures_for(
     kind: u32,
     mips: u32,
 ) -> (u32, u32) {
-    match allocate_textures_now(video, system, sizes, kind, mips) {
+    let gfx = crate::gfx::owner::gfx();
+    match allocate_textures_now(video, system, sizes, kind, mips, gfx) {
         Ok(first) => first,
         Err(e) => {
             // The registers the report shows: the original's at the call.
@@ -721,12 +722,12 @@ pub fn allocate_textures_now(
     sizes: u32,
     kind: u32,
     mips: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(u32, u32), FatalError> {
-    let gfx = gfx();
     flush();
     let reports: u32 = gfx.reports.on.get();
     gfx.reports.on.set(0);
-    let done = allocate_textures(video, system, sizes, kind, mips);
+    let done = allocate_textures(video, system, sizes, kind, mips, gfx);
     gfx.reports.on.set(reports);
     done?;
     Ok((
@@ -738,8 +739,8 @@ pub fn allocate_textures_now(
 // ---- gfx::release_all_textures (0x4051D3) ----
 
 /// `sub_41A3B2` for every texture of a pool, and the count 0.
-fn release_pool(pool: usize) {
-    let pool_vars = gfx().card.texture_tables.pool(pool);
+fn release_pool(pool: usize, gfx: &crate::gfx::owner::Gfx) {
+    let pool_vars = gfx.card.texture_tables.pool(pool);
     let count: u32 = pool_vars.count.get();
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     levels_changed();
@@ -767,19 +768,20 @@ fn release_pool(pool: usize) {
 
 /// `gfx::release_all_textures` for Rust callers, as a call by its address.
 pub fn release_textures() {
-    release_all_textures();
+    let gfx = crate::gfx::owner::gfx();
+    release_all_textures(gfx);
 }
 
 /// `gfx::release_all_textures`: the drawing noted flushed, both pools emptied (also what
 /// `gfx::set_screen_mode` does first, 0x404C55).
-pub fn release_all_textures() {
+pub fn release_all_textures(gfx: &crate::gfx::owner::Gfx) {
     flush();
     let what = "the release text";
     let text = crate::files::cstring_at(VIEWER_PANEL.text_ptr(texts::SVM_RELEASE_TEXTURES), what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     crate::logfile::write_line::log_text(&text, true, 2);
-    release_pool(1);
-    release_pool(0);
+    release_pool(1, gfx);
+    release_pool(0, gfx);
 }
 
 // ---- scene::load_texture (0x44E778) ----

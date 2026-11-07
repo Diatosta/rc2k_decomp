@@ -130,13 +130,15 @@ impl finish::Finish for Game {
     /// The original leaves the value in eax for the key taken at the end, which replaces
     /// its low byte and is not read: nothing to keep.
     fn step(&mut self, s: Step) -> Result<(), Refused> {
+        let sound = crate::sound::owner::sound();
         self.fault.check()?;
         match s {
             Step::RaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
                 crate::race::owner::race(),
                 &crate::race::sound_tables::ObjectVars::game(),
+                sound,
             )?,
-            Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
+            Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?,
             Step::LoadingPicture => {
                 crate::menu::show_loading_picture::show_loading_picture(
                     crate::menu::owner::menus(),

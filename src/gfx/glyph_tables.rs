@@ -7,6 +7,7 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::build_glyphs::SheetVars;
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::glyph_builder::DIRECT_COLOUR;
+#[cfg(test)]
 use crate::gfx::owner::gfx;
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
@@ -52,9 +53,9 @@ impl GlyphTables {
 
 /// The work memory taken, the picture's size set for sheets, the pixel layout the
 /// surface's, and no table yet.
-pub fn begin_glyph_tables(vars: &SheetVars) -> Result<(), Refused> {
+pub fn begin_glyph_tables(vars: &SheetVars, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
     let strings = strings();
-    let pictures = &gfx().pictures;
+    let pictures = &gfx.pictures;
     pictures.picture.width.set(800u32);
     pictures.picture.height.set(600u32);
     pictures.picture.row_bytes.set(0xFFFF_FFFDu32);
@@ -98,8 +99,8 @@ pub fn end_glyph_tables() -> Result<(), BadInput> {
 
 /// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to`
 /// is 0 or the last sheet was one of components.
-pub fn palette_to_pixels(to: u32) -> Result<(), BadInput> {
-    let pictures = &gfx().pictures;
+pub fn palette_to_pixels(to: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
+    let pictures = &gfx.pictures;
     if to == 0 || pictures.decoder.builder_flags.get() & DIRECT_COLOUR != 0 {
         return Ok(());
     }
@@ -119,8 +120,8 @@ pub fn palette_to_pixels(to: u32) -> Result<(), BadInput> {
 /// The last sheet's palette for pixels that are a colour in the low four bits and an alpha
 /// in the top four: entry 0 becomes 0, every entry the colour of its low four bits'
 /// entry, and its fourth byte the alpha, the four bits twice.
-pub fn alpha_palette() {
-    let palette = &gfx().pictures.decoder.palette;
+pub fn alpha_palette(gfx: &crate::gfx::owner::Gfx) {
+    let palette = &gfx.pictures.decoder.palette;
     palette[0].set(0);
     for entry in 0..256usize {
         let colour = palette[entry & 0x0F].get();

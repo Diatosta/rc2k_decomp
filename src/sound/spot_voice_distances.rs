@@ -20,21 +20,19 @@ use crate::sound::spot_voices::{VOICE_COUNT, set, voice, vw};
 
 // ---- Rust version ----
 
-pub fn spot_voice_distances() -> Result<(), crate::errors::BadInput> {
+pub fn spot_voice_distances(
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), crate::errors::BadInput> {
     for n in 0..VOICE_COUNT {
         let bx = voice(n);
         if vw(bx, 4)? != 1 {
             continue;
         }
-        x87_1(bx, &crate::sound::owner::sound().race.clock);
+        x87_1(bx, &sound.race.clock);
         set(bx, 0x4C, 0)?;
         set(bx, 0x48, 0x3F80_0000)?;
         if vw(bx, 0x20)? != 1 {
-            x87_2(
-                bx,
-                &crate::sound::owner::sound().race.clock,
-                &crate::sound::owner::sound().race.surface,
-            );
+            x87_2(bx, &sound.race.clock, &sound.race.surface);
         }
         set(bx, 0x4C, 0x3F80_0000)?;
         if vw(bx, 0x40)? as i32 > 0x3F80_0000 {

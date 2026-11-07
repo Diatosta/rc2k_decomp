@@ -19,7 +19,11 @@ use crate::menu::owner::Play;
 use crate::race::owner::race;
 
 /// The Rust version. The original keeps every register of its caller.
-pub fn arcade_finale(menus: &Menus, play: &Play) -> Result<(), Refused> {
+pub fn arcade_finale(
+    menus: &Menus,
+    play: &Play,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let race = race();
     let first = play.players.players[0].get();
     race.shared
@@ -45,8 +49,9 @@ pub fn arcade_finale(menus: &Menus, play: &Play) -> Result<(), Refused> {
     crate::race::sound_tables::set_up_race_sound_objects(
         race,
         &crate::race::sound_tables::ObjectVars::game(),
+        sound,
     )?;
-    crate::sound::set_up_race_sounds::set_up_race_sounds()?;
+    crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
     crate::menu::show_loading_picture::show_loading_picture(menus)?;
     crate::race::stage_free::render3d_tidy(race)?;
     crate::race::stage_free::objects_tidy(race)?;

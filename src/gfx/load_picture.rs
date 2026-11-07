@@ -36,7 +36,7 @@ pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refuse
     // Converted: `rc2k_core::gfx::picture_size` (`READ`, `screen`, `rescaled`).
     set_size(sizes::READ);
     clear_picture()?;
-    let read = read_picture_file(path);
+    let read = read_picture_file(path, gfx);
     let screen_width: u32 = system.session.screen.width.get();
     set_size(sizes::screen(
         screen_width,
@@ -46,7 +46,7 @@ pub fn load_picture(path: &dyn crate::session::TextPlace) -> Result<bool, Refuse
         return Ok(false);
     }
     if sizes::rescaled(gfx.pictures.decoder.width.get(), screen_width) {
-        rescale_picture(&gfx.rescale)?;
+        rescale_picture(&gfx.rescale, gfx)?;
     }
     Ok(true)
 }

@@ -17,8 +17,8 @@ use crate::input::owner::Input;
 
 /// The effects started with sound objects in use (`g_raceSoundObjectCount`), and the
 /// effects' clock set.
-pub fn begin_effects(input: &Input) -> Result<(), Refused> {
-    if crate::sound::owner::sound().race.sounds.count.get() != 0 {
+pub fn begin_effects(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    if sound.race.sounds.count.get() != 0 {
         crate::input::start_effects::start_effects(input)?;
     }
     input

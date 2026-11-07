@@ -29,6 +29,7 @@ use crate::system::owner::system;
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
 
 pub fn run_installer(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     use crate::install as i;
     crate::platform_events::keep_running_after_close();
     // The folder page's edit item (0x51DBC8) shows the folder from its third byte
@@ -43,7 +44,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
     );
     crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
     i::read_languages::read_languages(install, &install.names.lang_cfg.text()[..])?;
-    { crate::gfx::build_fonts::build_fonts() }?;
+    { crate::gfx::build_fonts::build_fonts(gfx) }?;
     i::open_installer::open_installer(install)?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
     let from_command = install.run.from_command.get() == 1;
@@ -91,7 +92,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
         } else {
             crate::install::page_records::PageEntry::of(&install.pages.normal_pages)
         };
-        i::run_pages::run_pages(install, pages)?;
+        i::run_pages::run_pages(install, crate::strings::owner::strings(), pages)?;
     }
     if install.run.installing.get() == 1 && install.vars.running_from_cd.get() == 1 && lock() {
         copy_picture()?;
@@ -101,7 +102,7 @@ pub fn run_installer(install: &'static crate::install::owner::Install) -> Result
         sleep(2000);
     }
     i::close_installer::close_installer(install)?;
-    crate::gfx::free_fonts::free_fonts_in_game()?;
+    crate::gfx::free_fonts::free_fonts_in_game(gfx)?;
     Ok(())
 }
 

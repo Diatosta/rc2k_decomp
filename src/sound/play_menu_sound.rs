@@ -23,20 +23,20 @@ const VOLUME_C: &Dword = &crate::menu::owner::MENUS.screens.option_work.menu_sou
 // ---- Rust version ----
 
 /// `sound` the menu's sound (0: none); `now` is asked for the clock.
-pub fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32) {
+pub fn play_menu_sound(
+    sound: u32,
+    now: &mut dyn FnMut() -> u32,
+    owner: &crate::sound::owner::Sound,
+) {
     // Converted: `rc2k_core::sound::senders::menu_sound`.
     use rc2k_core::sound::senders::{MenuVolume, menu_sound};
     if sound == 0 {
         return;
     }
-    let Some((next, pick)) = menu_sound(
-        sound,
-        now(),
-        crate::sound::owner::sound().menu.next_sound_time.get(),
-    ) else {
+    let Some((next, pick)) = menu_sound(sound, now(), owner.menu.next_sound_time.get()) else {
         return;
     };
-    crate::sound::owner::sound().menu.next_sound_time.set(next);
+    owner.menu.next_sound_time.set(next);
     let Some((sound, volume)) = pick else {
         return;
     };
@@ -50,5 +50,5 @@ pub fn play_menu_sound(sound: u32, now: &mut dyn FnMut() -> u32) {
 
 /// With the game's clock: what other Rust code calls.
 pub fn play_menu_sound_in_game(sound: u32) {
-    play_menu_sound(sound, &mut tick_count);
+    play_menu_sound(sound, &mut tick_count, crate::sound::owner::sound());
 }

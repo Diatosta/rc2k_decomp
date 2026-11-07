@@ -7,7 +7,7 @@
 //! `entry` (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::saves::owner::saves;
+use crate::saves::owner::Saves;
 
 // ---- Rust version ----
 
@@ -26,9 +26,9 @@ pub fn save_game_data(
 /// The two parts on the game's files: whether the best times were written. The original's
 /// flags (carry: not written) are read by neither of its callers (`system::main_loop`,
 /// `menu::arcade_level_end`; register liveness, 2026-10-23).
-pub fn save_in_game() -> Result<bool, Refused> {
+pub fn save_in_game(saves: &Saves) -> Result<bool, Refused> {
     save_game_data(
-        &mut || crate::saves::save_options::save_options(&saves().files.options_path),
-        &mut || crate::saves::save_best_times::in_game(),
+        &mut || crate::saves::save_options::save_options(&saves.files.options_path),
+        &mut || crate::saves::save_best_times::in_game(saves),
     )
 }

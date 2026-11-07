@@ -33,7 +33,11 @@ const WORDS: [&std::ffi::CStr; 4] = [c"!!! invalid pace data", c"data", c"ecx", 
 /// (`physics::cue_listed_car_sound_last`) and queued (`physics::queue_listed_event`). The
 /// registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::pace_calls::{find_group, code, text_place}`.
-pub fn queue_pace_note(race: &Race, checkpoint: u32) -> Result<(), Refused> {
+pub fn queue_pace_note(
+    race: &Race,
+    checkpoint: u32,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let physics_store = &race.physics;
     use crate::logfile::log_int::log_int;
     let groups = physics_store.pace.group_count.get();
@@ -64,7 +68,9 @@ pub fn queue_pace_note(race: &Race, checkpoint: u32) -> Result<(), Refused> {
                 return Ok(());
             }
             Code::Call => {
-                crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(race, byte)?;
+                crate::physics::cue_listed_car_sound_last::cue_listed_car_sound_last(
+                    race, byte, sound,
+                )?;
                 { crate::physics::queue_listed_event::queue_listed_event(race, byte) }?;
                 at = at.wrapping_add(1);
             }

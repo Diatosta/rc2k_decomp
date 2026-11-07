@@ -137,6 +137,7 @@ pub fn load_texture_picture_in_game(
     texture: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     let mut refused = None;
     load_texture_picture(
         race,
@@ -162,6 +163,7 @@ pub fn load_texture_picture_in_game(
                         name.game_ptr(),
                         Some(second.game_ptr()),
                         texture,
+                        gfx,
                     ) {
                         refused.get_or_insert(e);
                     }

@@ -20,14 +20,18 @@ use rc2k_core::physics::splits::{at_split_end, check_tracked, split_ahead};
 
 /// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::splits::{check_tracked, at_split_end, split_ahead}`.
-pub fn track_checkpoints(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn track_checkpoints(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let physics_store = &race.physics;
     let checkpoint = { crate::physics::find_car_checkpoint::find_car_checkpoint(race, scene) }?;
     check_tracked(checkpoint, race.shared.car.splits_passed.get())?;
     race.shared.car.checkpoint.set(checkpoint);
     scene.lights.state.line_place.set(checkpoint);
     { crate::physics::checkpoint_offset::checkpoint_offset(race) }?;
-    crate::physics::off_line_warnings::off_line_warnings(race)?;
+    crate::physics::off_line_warnings::off_line_warnings(race, sound)?;
     let next = crate::race::checkpoints_store::cell_in(
         &crate::race::checkpoints_store::CHECKPOINTS.check_counts,
         race.shared.car.checkpoint.get() as usize,

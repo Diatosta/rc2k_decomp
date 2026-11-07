@@ -401,8 +401,14 @@ pub fn fatal(code: u32) -> Refused {
 
 /// The least colour, then the alpha from the kept picture or the colours keyed, then
 /// the grading.
-pub fn ready_picture(record: &Record, pixels: u32, width: u32, height: u32) -> Result<(), Refused> {
-    let gfx_grading = &gfx().grading;
+pub fn ready_picture(
+    record: &Record,
+    pixels: u32,
+    width: u32,
+    height: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
+    let gfx_grading = &gfx.grading;
     let count = width.wrapping_mul(height);
     if count == 0 {
         return Err(BadInput("a picture of no pixels").into());

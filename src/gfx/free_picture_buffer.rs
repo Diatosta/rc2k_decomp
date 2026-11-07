@@ -11,11 +11,10 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::gfx::owner::gfx;
 
 /// The Rust version (see the header).
-pub fn free_picture_buffer() -> Result<(), BadInput> {
-    let pictures = &gfx().pictures;
+pub fn free_picture_buffer(gfx: &crate::gfx::owner::Gfx) -> Result<(), BadInput> {
+    let pictures = &gfx.pictures;
     if pictures.picture.list.get().head != 0 {
         return Err(BadInput("a memory list holding a block"));
     }

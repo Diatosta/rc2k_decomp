@@ -22,7 +22,7 @@
 
 use crate::errors::Refused;
 use crate::input::devices::records;
-use crate::input::owner::{Input, input};
+use crate::input::owner::Input;
 use crate::system::owner::system;
 
 const START_TEXT_RVA: &std::ffi::CStr = c"INPUTTDB:START"; // "INPUTTDB:START"
@@ -35,7 +35,7 @@ fn log(text: &std::ffi::CStr) {
 }
 
 /// The thread's work up to its `ExitThread` (see the header).
-pub fn input_thread(input: &Input) -> Result<(), Refused> {
+pub fn input_thread(input: &Input, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     let system = system();
     use crate::threading::set_priority::set_priority;
     let flag = &crate::threading::thread_slot::slot_ref(crate::threading::thread_slot::INPUT)?.flag;
@@ -79,7 +79,7 @@ pub fn input_thread(input: &Input) -> Result<(), Refused> {
                 }
             }
             input.devices.last_tick.set(last);
-            crate::input::input_tick::input_tick_in_game(input)?;
+            crate::input::input_tick::input_tick_in_game(input, sound)?;
             if system.session.flags.window_focused.get() != 1 {
                 crate::system::sleep::sleep(1000);
             }
@@ -104,6 +104,7 @@ pub fn input_thread(input: &Input) -> Result<(), Refused> {
 
 /// The thread's routine as its slot starts it (by address: `routes.rs`): the work; its end
 /// ends the thread (the original's `ExitThread`).
-pub fn thread_routine() -> Result<(), Refused> {
-    input_thread(input())
+pub fn thread_routine(input: &crate::input::owner::Input) -> Result<(), Refused> {
+    let sound = crate::sound::owner::sound();
+    input_thread(input, sound)
 }

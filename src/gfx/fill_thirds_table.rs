@@ -4,7 +4,7 @@
 //! Out: every register preserved
 //! 0x300 bytes at `byte_4F4B30`: the mean of three components by their sum. One caller,
 //! `start`, which calls it directly (2026-10-23). Who reads the table has not been looked up.
-
+#[cfg(test)]
 use crate::gfx::owner::gfx;
 
 // ---- game data ----
@@ -15,10 +15,10 @@ pub const TABLE_LEN: usize = 0x300;
 
 // ---- Rust version ----
 
-pub fn fill_thirds_table() {
+pub fn fill_thirds_table(gfx: &crate::gfx::owner::Gfx) {
     // Converted: `rc2k_core::gfx::pixels::thirds_table`.
     let table: [u8; TABLE_LEN] = rc2k_core::gfx::pixels::thirds_table();
-    gfx().drawing.thirds.write(&table);
+    gfx.drawing.thirds.write(&table);
 }
 
 #[cfg(test)]

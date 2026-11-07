@@ -26,6 +26,7 @@ pub fn page_key(
     item: ListItem,
     list: ListMenu,
 ) -> Result<(u32, bool), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     use crate::install as i;
     // Converted: `rc2k_core::install::items` (`page_key`, `takes_every_key`, `STAYS`,
     // `SCREENSHOT_KEY`).
@@ -63,7 +64,7 @@ pub fn page_key(
         // cmp al, 1: another key
         (key, false)
     };
-    if crate::gfx::shots::on_byte() != 0 && key as u8 == items::SCREENSHOT_KEY {
+    if crate::gfx::shots::on_byte(gfx) != 0 && key as u8 == items::SCREENSHOT_KEY {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
     Ok((key, took(install, plain_edit)))

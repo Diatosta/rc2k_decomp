@@ -55,7 +55,7 @@ fn store(shared: &Shared, w: &Warnings) {
 
 /// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::progress::{Warnings, off_line, cue_due}`.
-pub fn off_line_warnings(race: &Race) -> Result<(), Refused> {
+pub fn off_line_warnings(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     if race.shared.car.finish_flag.get() != 0 || race.shared.car.go_stand_timer.get() != 0 {
         return Ok(());
     }
@@ -101,7 +101,7 @@ pub fn off_line_warnings(race: &Race) -> Result<(), Refused> {
     ] {
         if let Some(next) = cue_due(count.get(), time.get()) {
             time.set(next);
-            crate::physics::cue_listed_car_sound::cue_listed_car_sound(race, cue)?;
+            crate::physics::cue_listed_car_sound::cue_listed_car_sound(race, cue, sound)?;
         }
     }
     Ok(())

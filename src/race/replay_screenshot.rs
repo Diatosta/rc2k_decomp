@@ -13,12 +13,12 @@
 //! Caller: `drive::race_frame` (each frame drawn).
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
 use crate::pointers::Store;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 
 /// The Rust version (see the header). (The original keeps every register.)
 pub fn replay_screenshot() -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     if VIEWER_PANEL.replay_recording.bits() != 1 {
         return Ok(());
     }
@@ -37,7 +37,7 @@ pub fn replay_screenshot() -> Result<(), Refused> {
     // The surface locked (the carry says it was not), the picture written, the surface
     // unlocked.
     if crate::platform::lock_surface() >= 1 {
-        crate::gfx::write_screen_pcx::write_screen_pcx(&gfx().shots, Some(&name))?;
+        crate::gfx::write_screen_pcx::write_screen_pcx(&gfx.shots, Some(&name), gfx)?;
         crate::platform::unlock_surface();
     }
     VIEWER_PANEL.picture_clock.set(

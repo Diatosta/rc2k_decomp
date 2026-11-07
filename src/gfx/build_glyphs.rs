@@ -39,7 +39,6 @@ use crate::gfx::glyph_builder::{
     backdrop_of, direct_pixel_size, table_of, transparent_of,
 };
 use crate::gfx::glyph_store;
-use crate::gfx::owner::gfx;
 use crate::gfx::picture::{read_bytes, with_buffer, with_picture, write_bytes};
 use crate::gfx::read_sheet::read_sheet;
 use crate::logfile::log_hex8::log_hex8;
@@ -122,8 +121,14 @@ fn text(text: &[u8], newline: bool) {
 }
 
 /// `sub_41299B` with eax = 1: the two lines about a sheet.
-fn log_sheet(path: &[u8], image: bool, backdrop: u32, transparent: u32) {
-    let pictures = &gfx().pictures;
+fn log_sheet(
+    path: &[u8],
+    image: bool,
+    backdrop: u32,
+    transparent: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) {
+    let pictures = &gfx.pictures;
     text(b"Extracting: PCX\0", false);
     crate::logfile::log_write::log_nul(path, false, 1);
     log_int(pictures.pcx.file_width.get() as i32, false, 1);
@@ -219,8 +224,12 @@ fn append_to_table(vars: &SheetVars, sheet: u32, more: &[u8]) -> Result<(), Refu
 /// picture buffer's second half as the alpha of the one after it. The number moves on
 /// either way.
 /// The path's text, up to its NUL.
-fn read_alpha_sheet(vars: &SheetVars, template: &[u8]) -> Result<(), Refused> {
-    let pictures = &gfx().pictures;
+fn read_alpha_sheet(
+    vars: &SheetVars,
+    template: &[u8],
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
+    let pictures = &gfx.pictures;
     vars.alpha_loaded.set(0u32);
     let flags: u32 = pictures.decoder.builder_flags.get();
     if flags & ONE_FILE != 0 {
@@ -228,7 +237,7 @@ fn read_alpha_sheet(vars: &SheetVars, template: &[u8]) -> Result<(), Refused> {
     }
     let number: u32 = pictures.decoder.number.get();
     let path = numbered_path_bytes(template, number)?;
-    if file_exists(&path)? && read_sheet(&path)? {
+    if file_exists(&path)? && read_sheet(&path, gfx)? {
         if pictures.picture.flags.get() & 0x100 == 0 {
             return Err(fatal(
                 0x80E4_F412,
@@ -242,6 +251,7 @@ fn read_alpha_sheet(vars: &SheetVars, template: &[u8]) -> Result<(), Refused> {
             0,
             pictures.decoder.stride.get(),
             pictures.decoder.height.get(),
+            gfx,
         )?;
         let mut convert = |components: u32| components;
         let backdrop = with_buffer(pictures.decoder.pixels.get(), |pixels| {
@@ -266,7 +276,7 @@ fn read_alpha_sheet(vars: &SheetVars, template: &[u8]) -> Result<(), Refused> {
         pictures.decoder.transparent.set(transparent);
         if level() as i32 >= 3 {
             let path = numbered_path_bytes(template, number)?;
-            log_sheet(&path, false, backdrop, transparent);
+            log_sheet(&path, false, backdrop, transparent, gfx);
         }
         vars.alpha_loaded.set(1u32);
         let half = 4 * HALF_PICTURE_DWORDS;
@@ -282,8 +292,9 @@ pub fn build_glyphs(
     vars: &SheetVars,
     template: &[u8],
     list: &dyn crate::pointers::Store,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let pictures = &gfx().pictures;
+    let pictures = &gfx.pictures;
     let template = &template[..template
         .iter()
         .position(|&b| b == 0)
@@ -292,7 +303,7 @@ pub fn build_glyphs(
     pictures.decoder.number.set(0u32);
     loop {
         if pictures.decoder.builder_flags.get() & WITH_ALPHA != 0 {
-            read_alpha_sheet(vars, template)?;
+            read_alpha_sheet(vars, template, gfx)?;
         }
         let mut flags: u32 = pictures.decoder.builder_flags.get();
         let path = if flags & ONE_FILE != 0 {
@@ -304,7 +315,7 @@ pub fn build_glyphs(
             }
             path
         };
-        if !read_sheet(&path)? {
+        if !read_sheet(&path, gfx)? {
             return Err(fatal(0x80E4_F010, "Error loading PCX file"));
         }
 
@@ -327,6 +338,7 @@ pub fn build_glyphs(
             0,
             pictures.decoder.stride.get(),
             pictures.decoder.height.get(),
+            gfx,
         )?;
 
         let mut convert = |components: u32| match &format {
@@ -362,7 +374,7 @@ pub fn build_glyphs(
                 0 => numbered_path_bytes(template, pictures.decoder.number.get())?,
                 _ => template.to_vec(),
             };
-            log_sheet(&path, true, backdrop, transparent);
+            log_sheet(&path, true, backdrop, transparent, gfx);
         }
         if flags & WITH_ALPHA != 0 && vars.alpha_loaded.get() == 1 {
             // `sub_4124E9`: the kept sheet's low four bits become the top four here.

@@ -16,7 +16,6 @@
 //! Caller: `race::viewer_frame`.
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
 use crate::race::owner::Race;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
@@ -30,6 +29,7 @@ const FONT_E: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::PANE
 
 /// The Rust version (the original keeps every register of its caller).
 pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
     let replay = &race.replay;
     let text_stores = &strings().text;
     let shared = &race.shared;
@@ -42,11 +42,11 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
     }
     // The surface cleared (as `rep stosd` row by row). A height of 0 is refused: the
     // original goes round 2^32 times.
-    let height = gfx().drawing.draw_surface.height.get();
+    let height = gfx.drawing.draw_surface.height.get();
     if height == 0 {
         return Err(crate::errors::BadInput("a panel texture of no rows").into());
     }
-    crate::gfx::rows::clear_surface_rows(0, height)?;
+    crate::gfx::rows::clear_surface_rows(0, height, gfx)?;
     // A string of the game's texts drawn with a font at (x, y).
     let string =
         |id: u32, font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {

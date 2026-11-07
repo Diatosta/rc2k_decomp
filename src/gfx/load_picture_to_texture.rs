@@ -37,13 +37,14 @@ pub fn load_picture_to_texture_in_game(
     path: crate::pointers::GamePtr,
     second: Option<crate::pointers::GamePtr>,
     texture: u32,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     load_picture_to_texture(
         path,
         second,
         texture,
         &mut |texture, pixels, width, height| {
-            upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces)
+            upload_texture_picture(texture, pixels, width, height, &mut GameSurfaces, gfx)
         },
     )
 }

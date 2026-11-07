@@ -34,7 +34,11 @@ fn device(
 }
 
 /// The command `command` (its low byte the command, the next the device; see the header).
-pub fn device_command(input: &Input, command: u32) -> Result<(), Refused> {
+pub fn device_command(
+    input: &Input,
+    command: u32,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let race = race();
     // Converted: `rc2k_core::input::devices::command_steps`.
     use rc2k_core::input::devices::{CommandStep::*, command_steps};
@@ -43,7 +47,7 @@ pub fn device_command(input: &Input, command: u32) -> Result<(), Refused> {
             command as u8,
             (command >> 8) as u8,
             input.devices.two_devices_one_player.get(),
-            crate::sound::owner::sound().race.sounds.one_player.get(),
+            sound.race.sounds.one_player.get(),
         )?;
         for step in steps {
             match step {
@@ -57,7 +61,7 @@ pub fn device_command(input: &Input, command: u32) -> Result<(), Refused> {
                     crate::input::acquire_device::acquire_device(input, record)?;
                 }
                 EndEffects => crate::input::end_effects::end_effects(input)?,
-                Tick => crate::input::input_tick::input_tick(input)?,
+                Tick => crate::input::input_tick::input_tick(input, sound)?,
                 SetUp(n) => crate::input::set_up_device::set_up_device(
                     device(&input.devices, n)?,
                     &race.shared.state.settings.cars[n],
@@ -71,7 +75,7 @@ pub fn device_command(input: &Input, command: u32) -> Result<(), Refused> {
                     }
                 }
                 Sleep(ms) => crate::system::sleep::sleep(ms),
-                BeginEffects => crate::input::begin_effects::begin_effects(input)?,
+                BeginEffects => crate::input::begin_effects::begin_effects(input, sound)?,
             }
         }
     }

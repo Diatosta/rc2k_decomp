@@ -15,7 +15,6 @@
 
 use crate::drive::tyre_parts::*;
 use crate::errors::Refused;
-use crate::input::owner::input;
 use crate::race::owner_shared::Shared;
 use crate::session::read_all;
 use rc2k_core::drive::tyre_screen::{layout, wheel_place};
@@ -36,7 +35,12 @@ const STATES: [(u32, u32); 11] = [
 
 /// The Rust version: the mode `mode` (eax), the car `car` (esi); every register kept.
 // Converted: `rc2k_core::drive::tyre_screen::{layout, wheel_place}`.
-pub fn tyre_screen(shared: &Shared, mode: u32, car: u32) -> Result<(), Refused> {
+pub fn tyre_screen(
+    shared: &Shared,
+    mode: u32,
+    car: u32,
+    input: &crate::input::owner::Input,
+) -> Result<(), Refused> {
     if car > 7 {
         return Err(crate::errors::BadInput("a car past 7 (g_inputDevices)").into());
     }
@@ -60,7 +64,7 @@ pub fn tyre_screen(shared: &Shared, mode: u32, car: u32) -> Result<(), Refused> 
     shared.tyre_change.wheel[0].set(x);
     shared.tyre_change.wheel[1].set(y);
     shared.tyre_change.player.set(car);
-    let Some(device) = input().devices.input_device(car as usize)? else {
+    let Some(device) = input.devices.input_device(car as usize)? else {
         return Err(crate::errors::BadInput("a tyre screen car without a device").into());
     };
     set_texture(shared.tyre_change.device_texture.get());

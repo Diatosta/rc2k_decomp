@@ -22,7 +22,6 @@
 //! The names of the texture and colour steps are readings of their variables.
 
 use crate::audio::names_store::SampleNames;
-use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::Screens;
@@ -54,6 +53,7 @@ pub const SOUNDS_B_RVA: &Dword = &crate::menu::owner::MENUS.screens.option_work.
 /// The Rust version of a volume step. What it leaves in registers is read by none of its
 /// callers (the item call sites have nothing live after the call).
 pub fn volume_step(screens: &Screens, v: Volume) {
+    let audio = crate::audio::owner::audio();
     // Converted: `rc2k_core::menu::steps::volume`.
     let value = rc2k_core::menu::steps::volume(v.value.get() as i32, v.up);
     v.value.set(value as u32);
@@ -64,7 +64,7 @@ pub fn volume_step(screens: &Screens, v: Volume) {
                 .options
                 .music_volume
                 .set(value as u32);
-            crate::sound::set_music_volume::set_music_volume(value as u32);
+            crate::sound::set_music_volume::set_music_volume(value as u32, audio);
         }
         Then::Speech => crate::sound::start_stream::start_stream(
             core::mem::offset_of!(SampleNames, menu_speech_st1) as u32,
@@ -153,8 +153,7 @@ const CHOICES: [(&Dword, usize); 6] = [
     (&crate::menu::owner::MENUS.screens.option_work.ds3d, 2),     // DS3D
 ];
 /// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
-pub fn apply_audio_choices() -> Result<(), Refused> {
-    let audio = audio();
+pub fn apply_audio_choices(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
     for (work, n) in CHOICES {
         let value = work.get();
         audio.state.audio_options.update(|o| o.choice[n] = value);

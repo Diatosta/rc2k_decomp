@@ -16,7 +16,6 @@
 
 use crate::errors::Refused;
 use crate::files::swap_missing_extension::swap_missing_extension;
-use crate::gfx::owner::gfx;
 use crate::gfx::read_pcx::read_pcx;
 use crate::gfx::read_png::read_png;
 
@@ -29,21 +28,24 @@ pub const PNG_SETTING_START: usize = 0x51B97C;
 
 /// Returns whether a picture was read. Converted: `rc2k_core::gfx::loading::{ending,
 /// reader}`.
-pub fn read_picture_file(path: &dyn crate::session::TextPlace) -> Result<bool, Refused> {
+pub fn read_picture_file(
+    path: &dyn crate::session::TextPlace,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<bool, Refused> {
     use rc2k_core::gfx::loading::{Reader, ending, reader};
-    let png = &gfx().png;
+    let png = &gfx.png;
     let text = path.text("a picture's path")?;
     if &ending(&text)? == b".pcx" {
-        return Ok(read_pcx(&text)?);
+        return Ok(read_pcx(&text, gfx)?);
     }
     let text = swap_missing_extension(path)?;
     match reader(ending(&text)?, png.setting.get()) {
-        Reader::PngThenPcx => Ok(read_png(png, &text)? || read_pcx(&text)?),
-        Reader::Pcx => Ok(read_pcx(&text)?),
+        Reader::PngThenPcx => Ok(read_png(png, &text, gfx)? || read_pcx(&text, gfx)?),
+        Reader::Pcx => Ok(read_pcx(&text, gfx)?),
         Reader::Nothing => Ok(true),
         Reader::Chatzone => {
             let chatzone = &crate::gfx::texts::CHATZONE;
-            Ok(read_pcx(&chatzone[..chatzone.len() - 1])?)
+            Ok(read_pcx(&chatzone[..chatzone.len() - 1], gfx)?)
         }
     }
 }

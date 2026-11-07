@@ -15,7 +15,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;
 use crate::files::read_file::read_file_into;
-use crate::service::owner::service;
+use crate::service::owner::{Service, service};
 use crate::session::{Bytes, Dword};
 
 // ---- game data ----
@@ -68,8 +68,7 @@ pub fn slot_name(slot: u32) -> crate::place::Place {
 // ---- Rust version ----
 
 /// True if the slot's file was read and accepted.
-pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
-    let service = service();
+pub fn read_setup_slot(service: &'static Service, slot: u32) -> Result<bool, Refused> {
     if slot >= SLOT_COUNT {
         return Err(BadInput("slot past the name table").into());
     }
@@ -84,7 +83,8 @@ pub fn read_setup_slot(slot: u32) -> Result<bool, Refused> {
         let name = rc2k_core::saves::kept::setup_name(&file.read());
         match name {
             Some(name) if read.ok => {
-                slot_name(slot).write(&name[..NAME_LEN], "a setup's name")?;
+                crate::place::Place::In(&service.set_ups.names, slot as usize * NAME_LEN)
+                    .write(&name[..NAME_LEN], "a setup's name")?;
                 Ok(true)
             }
             _ => Ok(false),

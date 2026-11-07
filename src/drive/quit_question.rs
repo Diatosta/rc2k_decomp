@@ -22,7 +22,7 @@ use rc2k_core::drive::race_ticks;
 // quit_answer}`.
 /// The answer (eax): 0 to race on. The other registers it leaves are read by no caller
 /// (liveness: `race_loop` reads eax only).
-pub fn quit_question(race: &Race) -> Result<u32, Refused> {
+pub fn quit_question(race: &Race, input: &crate::input::owner::Input) -> Result<u32, Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
     stop_race_sounds()?;
@@ -50,7 +50,7 @@ pub fn quit_question(race: &Race) -> Result<u32, Refused> {
         // items on screen to choose from.
         eax = match crate::input::menu_pad::take_answer() {
             Some(answer) => answer,
-            None => { crate::input::yes_no_key::yes_no_key(eax) }?,
+            None => { crate::input::yes_no_key::yes_no_key(eax, input) }?,
         };
         match race_ticks::quit_answer(
             eax,

@@ -22,6 +22,8 @@ use crate::race::owner_frame::Frame;
 /// No caller reads what the original leaves in eax and ebx (every call site's live
 /// registers, 2026-10-23): the Rust version leaves nothing.
 pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
+    let input = crate::input::owner::input();
+    let sound = crate::sound::owner::sound();
     let race = race();
     // Converted: `rc2k_core::sound::turn::tick_due`.
     if !rc2k_core::sound::turn::tick_due(
@@ -34,7 +36,7 @@ pub fn race_sound_tick(frame: &Frame) -> Result<(), Refused> {
         .clock_ticks
         .sound_tick_last
         .set(race.shared.physics_tables.scene_clock.get());
-    crate::sound::race_turn_if::race_turn_if()?;
+    crate::sound::race_turn_if::race_turn_if(sound, input)?;
     frame
         .clock_ticks
         .sound_ticks

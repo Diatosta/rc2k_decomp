@@ -46,6 +46,7 @@ pub fn classify_controller(
 /// nothing; anything found goes to the player's +0x50 + 4 x (control - 1). The original keeps
 /// every register. Refuses (before anything) a player without its record.
 pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
+    let input = crate::input::owner::input();
     let controls = &screens_owner().controls;
     let screens = &menus.screens;
     if controls.learning.get() != 1 {
@@ -81,11 +82,11 @@ pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
     let mut take = true;
     let control = controls.learned.get();
     if l::by_axis(player.get().sensitivity_level, control) {
-        let m = crate::input::axes::axis_moved(1)?;
+        let m = crate::input::axes::axis_moved(1, input)?;
         if !m.carry {
             let (byte, found) = l::pedal(control);
             player.update(|p| p.axis_codes[byte] = m.eax as u8);
-            input().devices.records[0]
+            input.devices.records[0]
                 .axis_code
                 .set(u32::from_le_bytes(player.get().axis_codes));
             screens.draw_work.figure.set(found);
@@ -93,7 +94,7 @@ pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
             take = false;
         }
     } else {
-        let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state()?;
+        let [ecx, edx, eax, ebx] = crate::input::axes::first_device_state(input)?;
         classify_controller(controls, screens, eax, ebx, ecx, edx);
     }
     if take {
@@ -141,6 +142,7 @@ pub fn draw_controller_page(
     menus: &Menus,
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
+    let input = crate::input::owner::input();
     let screens = &menus.screens;
     // Converted: `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
@@ -158,12 +160,12 @@ pub fn draw_controller_page(
         // with a strength).
         let Some(entry) = (device as usize)
             .checked_sub(1)
-            .and_then(|n| input().devices.controllers.get(n))
+            .and_then(|n| input.devices.controllers.get(n))
         else {
             return Err(BadInput("a player's device past the controllers").into());
         };
         let record = crate::pointers::GamePtr::to(entry);
-        let [stick_x, _, _, buttons] = crate::input::axes::first_device_state()?;
+        let [stick_x, _, _, buttons] = crate::input::axes::first_device_state(input)?;
         let c = Controller {
             // Kept in `dword_755A0C` as the original keeps it.
             record: record.addr(),

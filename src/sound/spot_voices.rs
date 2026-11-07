@@ -28,9 +28,8 @@ pub fn voice(n: u32) -> &'static VoiceWords {
 }
 
 /// The address of voice `n` (the pickers' work holds addresses).
-fn voice_address(n: u32) -> u32 {
-    crate::session::address_of(&crate::sound::owner::sound().race.spot_voices.voices)
-        + n * VOICE_LEN
+fn voice_address(n: u32, sound: &crate::sound::owner::Sound) -> u32 {
+    crate::session::address_of(&sound.race.spot_voices.voices) + n * VOICE_LEN
 }
 
 /// The dword at byte `at` of voice `v`.
@@ -77,8 +76,8 @@ pub fn store_voices(voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT 
 }
 
 /// A voice's address, or 0 for none (the pickers' work holds addresses).
-pub fn voice_or_0(n: Option<usize>) -> u32 {
-    n.map_or(0, |n| voice_address(n as u32))
+pub fn voice_or_0(n: Option<usize>, sound: &crate::sound::owner::Sound) -> u32 {
+    n.map_or(0, |n| voice_address(n as u32, sound))
 }
 
 /// The pickers' work stored as the original leaves it, and the scratch dword (1000.0,
@@ -87,12 +86,13 @@ pub fn store_picks(
     picks: &rc2k_core::sound::spot_voices::Picks,
     trail: &rc2k_core::sound::spot_voices::Trail,
 ) {
-    let work = &crate::sound::owner::sound().race.spot_picks;
-    work.pick_playing.set(voice_or_0(picks.playing));
+    let sound = crate::sound::owner::sound();
+    let work = &sound.race.spot_picks;
+    work.pick_playing.set(voice_or_0(picks.playing, sound));
     work.pick_nearest_distance.set(picks.nearest_distance);
-    work.pick_nearest.set(voice_or_0(picks.nearest));
+    work.pick_nearest.set(voice_or_0(picks.nearest, sound));
     work.pick_next_distance.set(picks.next_distance);
-    work.pick_next.set(voice_or_0(picks.next));
+    work.pick_next.set(voice_or_0(picks.next, sound));
     if let Some(d) = trail.last_distance {
         system().session.machine.scratch.set(d);
     }

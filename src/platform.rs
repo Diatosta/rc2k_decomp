@@ -75,8 +75,8 @@ pub fn quitting() -> bool {
 /// `gfx::choose_screen_modes`: the menus' and the race's modes (the kept ones, else the
 /// original's choices in order) and the graphics options' choices. Fails (the original's
 /// carry, which its caller makes fatal error 0x90201101) when no mode works.
-pub fn choose_screen_modes() -> Result<(), crate::errors::FatalError> {
-    let gfx_display = &gfx().display;
+pub fn choose_screen_modes(gfx: &crate::gfx::owner::Gfx) -> Result<(), crate::errors::FatalError> {
+    let gfx_display = &gfx.display;
     {
         // Converted: `rc2k_core::gfx::screen_modes::choose`. A mode works here when the
         // mode table lists it: the window takes any listed mode, and every listed mode
@@ -138,9 +138,8 @@ fn looked_up(key: u32, table: crate::pointers::GamePtr, entries: u32) -> Option<
     )
 }
 
-fn set_screen_mode(mode: u32) -> Result<(), String> {
+fn set_screen_mode(mode: u32, gfx: &crate::gfx::owner::Gfx) -> Result<(), String> {
     let system = system();
-    let gfx = gfx();
     gfx.display.mode.mode_flags.set(mode);
     let size = looked_up(mode & 0xFF, crate::gfx::modes::Modes::sizes_ptr(), 8)
         .ok_or("a screen size that is not known")?;
@@ -152,7 +151,7 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
     let bytes = bits >> 3;
     // As the original (0x404C55): every texture given back before the screen changes;
     // the game loads again what it needs (a trial's 0x40 more found the pool full).
-    crate::platform_3d::release_all_textures();
+    crate::platform_3d::release_all_textures(gfx);
     system.session.screen.width.set(width);
     system.session.screen.height.set(height);
     system.session.screen.bits.set(bits);
@@ -266,7 +265,7 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
         pixels,
     });
     gfx.display.mode.mode_set.set(mode);
-    crate::platform_3d::describe_texture_formats(bits);
+    crate::platform_3d::describe_texture_formats(bits, gfx);
     log(&format!(
         "platform: screen mode {mode:#x}: {width} x {height}, {bits} bits"
     ));
@@ -274,10 +273,10 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
 }
 
 /// `gfx::set_screen_mode`: the screen in `mode`; false (and logged) if it cannot be.
-pub fn set_mode_now(mode: u32) -> bool {
+pub fn set_mode_now(mode: u32, gfx: &crate::gfx::owner::Gfx) -> bool {
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    let done = set_screen_mode(mode);
+    let done = set_screen_mode(mode, gfx);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
     }
@@ -289,10 +288,11 @@ pub fn set_mode_now(mode: u32) -> bool {
 /// `gfx::set_menu_screen_mode`: `gfx::set_screen_mode` with the menus' mode; false (and
 /// logged) if it cannot be.
 pub fn set_menu_mode_now() -> bool {
+    let gfx = crate::gfx::owner::gfx();
     // The 3D drawing noted so far, before the screen is shown, written or changed.
     crate::platform_3d::flush();
-    let mode = gfx().display.mode.menu_mode.get();
-    let done = set_screen_mode(mode);
+    let mode = gfx.display.mode.menu_mode.get();
+    let done = set_screen_mode(mode, gfx);
     if let Err(why) = &done {
         log(&format!("platform: screen mode {mode:#x}: {why}"));
     }

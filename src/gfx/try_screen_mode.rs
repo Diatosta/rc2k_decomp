@@ -42,14 +42,14 @@ pub fn try_screen_mode(display: &Display, mode: u32) -> Result<Flags, Refused> {
         }
         // The flags at the call: the search's match (zero); `gfx::set_screen_mode` sets
         // only the carry.
-        if !crate::platform::set_mode_now(mode) {
+        if !crate::platform::set_mode_now(mode, gfx) {
             return Ok(Err(true));
         }
         if display.mode.mode_flags.get() & 0x10_0000 == 0 {
             return Ok(Ok(mode));
         }
-        let (video, _) = crate::platform_3d::allocate_textures_now(0x40, 0x40, 1, 2, 0)?;
-        crate::platform_3d::release_all_textures();
+        let (video, _) = crate::platform_3d::allocate_textures_now(0x40, 0x40, 1, 2, 0, gfx)?;
+        crate::platform_3d::release_all_textures(gfx);
         Ok(Ok(video))
     })()?;
     gfx.card.upload.trying.set(0);

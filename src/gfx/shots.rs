@@ -39,8 +39,8 @@ pub fn on() -> u32 {
 }
 
 /// The switch's first byte.
-pub fn on_byte() -> u8 {
-    gfx().shots.on.get() as u8
+pub fn on_byte(gfx: &crate::gfx::owner::Gfx) -> u8 {
+    gfx.shots.on.get() as u8
 }
 
 #[cfg(test)]

@@ -38,7 +38,7 @@ pub fn load_background(
         .picture
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
-    picture_as_surface()?;
+    picture_as_surface(gfx)?;
     { canvas.blit_glyph(BlitCall::sprite(FRAME_SPRITE, 0, 0)) }?;
     Ok(())
 }

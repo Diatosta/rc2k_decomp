@@ -247,7 +247,12 @@ fn circle_cells(r: u32, out: &[Float], count: u32, c: u32, d: u32) {
 /// points); 0x40 fans of four triangles (words: n6, n6+1 .. n6+5); 0x40 records of six
 /// parts (+0xC `dword_7651A0`, +0x10 -1, +0x14 0xFF000000, 0x20 apart); `dword_8161AE` ..
 /// `dword_8161BA` 0. Refuses a mark neither 0 nor `resume`.
-fn windscreen_drops_with(drops: &WindscreenDrops, resume: u32, plain: bool) -> Result<(), Refused> {
+fn windscreen_drops_with(
+    drops: &WindscreenDrops,
+    resume: u32,
+    plain: bool,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     {
         let shapes = Shapes::windscreen_drops(drops);
         if shapes.first(resume)? {
@@ -276,11 +281,11 @@ fn windscreen_drops_with(drops: &WindscreenDrops, resume: u32, plain: bool) -> R
         for n in 0..FANS {
             for triangle in rc2k_core::effects::shapes::fan(n) {
                 for (k, v) in triangle.into_iter().enumerate() {
-                    crate::gfx::owner::gfx()
-                        .card
-                        .windscreen_drop_batch
-                        .fans
-                        .write_at(at + 2 * k, &v.to_le_bytes(), "a mark's field")?;
+                    gfx.card.windscreen_drop_batch.fans.write_at(
+                        at + 2 * k,
+                        &v.to_le_bytes(),
+                        "a mark's field",
+                    )?;
                 }
                 at += 6;
             }
@@ -290,11 +295,11 @@ fn windscreen_drops_with(drops: &WindscreenDrops, resume: u32, plain: bool) -> R
             for part in 0..6 {
                 let p = 0xC0 * n + 0x20 * part;
                 for (o, v) in [(0xC, value), (0x10, u32::MAX), (0x14, 0xFF00_0000)] {
-                    crate::gfx::owner::gfx()
-                        .card
-                        .windscreen_drop_batch
-                        .records
-                        .write_at(p + o, &v.to_le_bytes(), "a mark's field")?;
+                    gfx.card.windscreen_drop_batch.records.write_at(
+                        p + o,
+                        &v.to_le_bytes(),
+                        "a mark's field",
+                    )?;
                 }
             }
         }
@@ -307,8 +312,12 @@ fn windscreen_drops_with(drops: &WindscreenDrops, resume: u32, plain: bool) -> R
 }
 
 /// `effects::set_up_windscreen_drops`' x87 version, for `effects::load_edges`.
-pub fn set_up_windscreen_drops(drops: &WindscreenDrops, resume: u32) -> Result<(), Refused> {
-    windscreen_drops_with(drops, resume, false)
+pub fn set_up_windscreen_drops(
+    drops: &WindscreenDrops,
+    resume: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
+    windscreen_drops_with(drops, resume, false, gfx)
 }
 
 /// `effects::set_up_windscreen_flakes` (0x4BF529): its once-only mark set (`g_marksWindscreenFlakesDone`, then

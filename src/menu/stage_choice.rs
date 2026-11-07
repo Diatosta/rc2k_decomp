@@ -67,7 +67,7 @@ pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
         .picture
         .flags
         .set(gfx.display.mode.mode_flags.get() & 0xFFF);
-    picture_as_surface()?;
+    picture_as_surface(gfx)?;
     blit_glyph_on_surface(
         MAP_SPRITE,
         menus.screens.loop_flags.sprite_table.get(),

@@ -16,14 +16,9 @@ pub type SendCommand<'a> = &'a mut dyn FnMut(u32, u32, u32, u32) -> u32;
 
 // ---- Rust version ----
 
-pub fn stop_cd_track(send: SendCommand) {
-    if crate::sound::owner::sound().menu.cd_audio.open.get() == 1 {
-        send(
-            crate::sound::owner::sound().menu.cd_audio.mci_id.get(),
-            MCI_STOP,
-            0,
-            0,
-        );
+pub fn stop_cd_track(send: SendCommand, sound: &crate::sound::owner::Sound) {
+    if sound.menu.cd_audio.open.get() == 1 {
+        send(sound.menu.cd_audio.mci_id.get(), MCI_STOP, 0, 0);
     }
 }
 
@@ -33,6 +28,6 @@ pub fn game_send(_device: u32, _message: u32, _a: u32, _b: u32) -> u32 {
 }
 
 /// In the game: its variables and MCI.
-pub fn stop_cd_track_in_game() {
-    stop_cd_track(&mut game_send);
+pub fn stop_cd_track_in_game(sound: &crate::sound::owner::Sound) {
+    stop_cd_track(&mut game_send, sound);
 }

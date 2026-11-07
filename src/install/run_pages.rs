@@ -19,6 +19,7 @@ use rc2k_core::install::pages;
 /// The pages from the entry `first` on.
 pub fn run_pages(
     install: &'static crate::install::owner::Install,
+    strings: &'static crate::strings::owner::Strings,
     first: PageEntry,
 ) -> Result<(), Refused> {
     let mut entry = first;
@@ -30,7 +31,7 @@ pub fn run_pages(
             (prev, entry) = (Some(entry), next);
             continue;
         }
-        let answer = crate::install::run_page::run_page(install, list)?;
+        let answer = crate::install::run_page::run_page(install, strings, list)?;
         // Converted: `rc2k_core::install::pages` (`resets_highlight`, `next_entry_at`).
         if pages::resets_highlight(answer) {
             list.set_highlight(0);

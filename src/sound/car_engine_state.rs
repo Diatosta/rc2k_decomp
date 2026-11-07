@@ -136,14 +136,17 @@ fn store(o: &crate::sound::store::SoundObject, before: &Engine, now: &Engine) {
 
 /// The object `so` brought up to date; its sound kind's number returned (the original's edi
 /// held the record's address).
-pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Refused> {
+pub fn car_engine_state(
+    so: &crate::sound::store::SoundObject,
+    sound: &crate::sound::owner::Sound,
+) -> Result<u32, Refused> {
     // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
     // `over_256`); the floats are the original's x87 still.
     let kind = kind_of(so)?;
     let record = crate::sound::sets_store::SoundKinds::record(kind)?;
     let before = load(so);
     let mut object = before;
-    let clock = crate::sound::owner::sound().race.clock.last.get();
+    let clock = sound.race.clock.last.get();
     // The revs extrapolated, worked out first: its `idiv` may trap.
     let change = extrapolation(&object, clock, || {
         race().shared.replay_file.hold_car_revs.get()
@@ -154,7 +157,7 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     revs_input(so, record);
     so.throttle_input
         .set_bits(over_256(from_int(so.throttle.get() as i32)));
-    speed_input(so, &crate::sound::owner::sound().race.surface);
+    speed_input(so, &sound.race.surface);
     let before = load(so);
     let mut object = before;
     let low = state(&mut object, || record.flags.get(), clock);
@@ -162,13 +165,9 @@ pub fn car_engine_state(so: &crate::sound::store::SoundObject) -> Result<u32, Re
     if let Some(low) = low {
         gear_pitch(so, low);
     }
-    distance_and_approach(so, &crate::sound::owner::sound().race.clock);
+    distance_and_approach(so, &sound.race.clock);
     so.volume_factor.set_bits(0);
-    ease_pitch_factor(
-        so,
-        &crate::sound::owner::sound().race.clock,
-        &crate::sound::owner::sound().race.surface,
-    );
+    ease_pitch_factor(so, &sound.race.clock, &sound.race.surface);
     so.volume_factor.set_bits(0x3F80_0000);
     if so.distance.bits() as i32 > 0x3F80_0000 {
         volume_factor_by_distance(so);

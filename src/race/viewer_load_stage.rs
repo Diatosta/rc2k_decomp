@@ -22,7 +22,6 @@
 //! read none.
 
 use crate::errors::Refused;
-use crate::gfx::owner::gfx;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
@@ -55,6 +54,8 @@ fn settings(shared: &Shared) -> [(&Dword, &'static Dword); 5] {
 
 /// The Rust version (every register kept).
 pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
+    let sound = crate::sound::owner::sound();
     let scene = crate::scene::owner::scene();
     let shared = &race.shared;
     use crate::race::{race_end, race_shell, sound_tables, stage_free, stage_loading};
@@ -72,7 +73,7 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
             to.set(from.get());
         }
         // g_onePlayer (the sound module's) takes the header's setting too.
-        crate::sound::owner::sound()
+        sound
             .race
             .sounds
             .one_player
@@ -83,7 +84,7 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
             .state
             .settings
             .race_mode
-            .set(crate::sound::owner::sound().race.sounds.one_player.get());
+            .set(sound.race.sounds.one_player.get());
         // byte_719C8C: the low byte of the first dword of `unknown_7d0`.
         let door = REPLAY_WORK.unknown_7d0[0].get() & 0xFF;
         shared.state.settings.cars[0].race_number.set(door);
@@ -91,15 +92,15 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
         crate::logfile::log_int::log_int(door as i32, true, 1);
 
-        sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game())?;
-        crate::sound::set_up_race_sounds::set_up_race_sounds()?;
-        if gfx().fonts.menu_fonts.palettes.get() == 0 {
-            { crate::gfx::build_fonts::build_fonts() }?;
+        sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game(), sound)?;
+        crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
+        if gfx.fonts.menu_fonts.palettes.get() == 0 {
+            { crate::gfx::build_fonts::build_fonts(gfx) }?;
             shared.replay_file.viewer_fonts_built.set(1);
         }
         crate::race::read_replay_header::read_replay_header(shared);
         { stage_loading::load_stage(race) }?;
-        race_end::reset_race_sounds(&race_end::SoundVars::game())?;
+        race_end::reset_race_sounds(&race_end::SoundVars::game(), sound)?;
         crate::race::viewer_palettes::viewer_palettes(shared, scene)?;
         shared.replay_file.viewer_stage_loaded.set(1);
     }

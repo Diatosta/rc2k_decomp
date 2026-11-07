@@ -20,7 +20,7 @@ use crate::install::installer::{
 };
 use crate::install::page_records::{Piece, piece_count};
 use crate::install::vars::InstallerPages;
-use crate::strings::owner::strings;
+use crate::strings::owner::Strings;
 use rc2k_core::install::pieces::{self, Way};
 
 fn font(index: u32) -> Result<crate::gfx::typefaces::FontId, BadInput> {
@@ -31,8 +31,10 @@ fn colour(marks: u8, kind: u32) -> u32 {
     InstallerPages::kind_font(pieces::colour_at(marks, kind)) as u32
 }
 
-pub fn draw_pieces(install: &'static crate::install::owner::Install) -> Result<(), Refused> {
-    let strings = strings();
+pub fn draw_pieces(
+    install: &'static crate::install::owner::Install,
+    strings: &'static Strings,
+) -> Result<(), Refused> {
     let count = piece_count(install);
     if count == 0 {
         return Err(BadInput("a page of no pieces").into());

@@ -27,8 +27,8 @@ use crate::sound::store::SoundObject;
 
 /// Every car's sounds for the turn: the players' each, of the computer's the two nearest
 /// the listener (each keeping its voice).
-pub fn car_sounds_all() -> Result<(), Refused> {
-    let count = crate::sound::owner::sound().race.sounds.count.get();
+pub fn car_sounds_all(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+    let count = sound.race.sounds.count.get();
     if count == 0 {
         return Ok(());
     }
@@ -45,31 +45,21 @@ pub fn car_sounds_all() -> Result<(), Refused> {
             continue;
         }
         if o.sound_offset.get() as i32 >= 0 {
-            crate::sound::car_sounds::car_sounds(n)?;
+            crate::sound::car_sounds::car_sounds(n, sound)?;
             continue;
         }
-        x87_1(o, &crate::sound::owner::sound().race.sounds);
-        nearest.consider(
-            n,
-            crate::sound::owner::sound()
-                .race
-                .sounds
-                .nearest_distance
-                .bits(),
-        );
+        x87_1(o, &sound.race.sounds);
+        nearest.consider(n, sound.race.sounds.nearest_distance.bits());
     }
     let (first, second) = nearest.kept(
-        crate::sound::owner::sound().race.sounds.nearest.get(),
-        crate::sound::owner::sound().race.sounds.next.get(),
+        sound.race.sounds.nearest.get(),
+        sound.race.sounds.next.get(),
     );
-    crate::sound::owner::sound().race.sounds.nearest.set(first);
-    crate::sound::owner::sound().race.sounds.next.set(second);
+    sound.race.sounds.nearest.set(first);
+    sound.race.sounds.next.set(second);
     for (which, mark) in [
-        (
-            &crate::sound::owner::sound().race.sounds.nearest,
-            NEAREST_MARK,
-        ),
-        (&crate::sound::owner::sound().race.sounds.next, NEXT_MARK),
+        (&sound.race.sounds.nearest, NEAREST_MARK),
+        (&sound.race.sounds.next, NEXT_MARK),
     ] {
         let n = which.get();
         if (n as i32) < 0 {
@@ -78,7 +68,7 @@ pub fn car_sounds_all() -> Result<(), Refused> {
         let o = SoundObject::number(n)?;
         let kept = o.sound_offset.get();
         o.sound_offset.set(mark);
-        crate::sound::car_sounds::car_sounds(n)?;
+        crate::sound::car_sounds::car_sounds(n, sound)?;
         o.sound_offset.set(kept);
     }
     Ok(())

@@ -39,6 +39,7 @@ pub fn load_edges(
     drops: &WindscreenDrops,
     resume: u32,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let effects = effects();
     let done: u32 = masks.edge_settings.done.get();
@@ -72,46 +73,22 @@ pub fn load_edges(
         .path
         .set(DIGITS as usize + 1, (kind % 10) as u8 + b'0');
     let sizes: [u32; 3] = [
-        crate::gfx::owner::gfx().pictures.picture.width.get(),
-        crate::gfx::owner::gfx().pictures.picture.height.get(),
-        crate::gfx::owner::gfx().pictures.picture.row_bytes.get(),
+        gfx.pictures.picture.width.get(),
+        gfx.pictures.picture.height.get(),
+        gfx.pictures.picture.row_bytes.get(),
     ];
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .width
-        .set(0x100u32);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .height
-        .set(0x80u32);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .row_bytes
-        .set(0xFFFF_FFFEu32);
-    let read = crate::gfx::read_picture_file::read_picture_file(&masks.edge_settings.path);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .width
-        .set(sizes[0]);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .height
-        .set(sizes[1]);
-    crate::gfx::owner::gfx()
-        .pictures
-        .picture
-        .row_bytes
-        .set(sizes[2]);
+    gfx.pictures.picture.width.set(0x100u32);
+    gfx.pictures.picture.height.set(0x80u32);
+    gfx.pictures.picture.row_bytes.set(0xFFFF_FFFEu32);
+    let read = crate::gfx::read_picture_file::read_picture_file(&masks.edge_settings.path, gfx);
+    gfx.pictures.picture.width.set(sizes[0]);
+    gfx.pictures.picture.height.set(sizes[1]);
+    gfx.pictures.picture.row_bytes.set(sizes[2]);
     if !read? {
         return Err(BadInput("the edge picture was not read").into());
     }
     let pixels = crate::gfx::picture::read_bytes(
-        crate::gfx::owner::gfx().pictures.picture.buffer.get(),
+        gfx.pictures.picture.buffer.get(),
         0,
         4 * EDGE_LEN as usize,
     )?;
@@ -127,6 +104,7 @@ pub fn load_edges(
     crate::effects::shapes::set_up_windscreen_drops(
         drops,
         crate::effects::shapes::WINDSCREEN_DROPS_RESUME,
+        gfx,
     )?;
     crate::effects::shapes::set_up_windscreen_flakes(
         &effects.pong,
@@ -143,13 +121,14 @@ pub fn load_kind_data(
     course: &Course,
     effects: &Effects,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let (masks, drops) = (&effects.masks, &effects.windscreen_drops);
     {
         let marks = crate::effects::setup::marks()?;
         let kind = marks.mark_car_file_number.get();
         effects.kinds.marks_kind.kind.set_bits(kind);
-        load_edges(course, masks, drops, RESUME, scene)?;
+        load_edges(course, masks, drops, RESUME, scene, gfx)?;
         crate::effects::splines::load_splines(
             course,
             &effects.paths,

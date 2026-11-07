@@ -12,7 +12,6 @@
 //! dwords not all 0), and the map picture gives their pixels.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::pointers::GamePtr;
 use crate::race::owner::Race;
@@ -106,7 +105,8 @@ const NOT_8BIT: FatalError = FatalError {
 
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.
 fn take_format(frame: &Frame) -> Result<(u32, PixelFormat), BadInput> {
-    let card = &gfx().card;
+    let gfx = crate::gfx::owner::gfx();
+    let card = &gfx.card;
     let kind = card
         .texture_tables
         .kind_index(3)
@@ -117,7 +117,7 @@ fn take_format(frame: &Frame) -> Result<(u32, PixelFormat), BadInput> {
     frame
         .map
         .format
-        .set(crate::gfx::pixel_format::texture_kind_format(3));
+        .set(crate::gfx::pixel_format::texture_kind_format(3, gfx));
     let format = description.format;
     Ok((bytes, format))
 }
@@ -306,7 +306,8 @@ pub fn load_packed_game_map(frame: &Frame, path: &[u8]) -> Result<(), Refused> {
 /// error 0x80E48073. The key's list freed and `g_mapKeyPixels` 0 at the end; the picture
 /// limits and buffer put back.
 pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Result<(), Refused> {
-    let pictures = &gfx().pictures;
+    let gfx = crate::gfx::owner::gfx();
+    let pictures = &gfx.pictures;
     if frame.map.use_packed.get() == 1
         && !crate::files::file_exists::file_exists(&crate::files::cstring_at(
             picture,
@@ -357,10 +358,10 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
     pictures.picture.row_bytes.set(KEY_ROW_BYTES);
     pictures.picture.buffer.set(key);
     let built = (|| -> Result<(), Refused> {
-        if !crate::gfx::read_sheet::read_sheet(&crate::files::cstring_at(
-            key_path,
-            "the key sheet's path",
-        )?)? {
+        if !crate::gfx::read_sheet::read_sheet(
+            &crate::files::cstring_at(key_path, "the key sheet's path")?,
+            gfx,
+        )? {
             return Ok(());
         }
         if pictures.picture.flags.get() & 0x100 == 0 {
@@ -409,7 +410,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
         put_table(&table)?;
         let marked = table.iter().filter(|&&v| v != Tile::None).count() as u32;
         take_pixels(frame, (marked << 8).wrapping_mul(bytes))?;
-        if !crate::gfx::read_picture_file::read_picture_file(&picture)? {
+        if !crate::gfx::read_picture_file::read_picture_file(&picture, gfx)? {
             return Ok(());
         }
         frame.map.tile_count.set(0u32);

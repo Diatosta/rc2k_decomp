@@ -5,7 +5,6 @@
 //! 0x50 x `unk_4F6EF0`) +0x14 the axes it has.
 
 use crate::errors::BadInput;
-use crate::input::owner::input;
 use crate::input::types::InputDevice;
 
 /// `input::device_state` (0x408A49): device esi's four values: (ecx, edx, eax, ebx) =
@@ -20,8 +19,8 @@ pub fn device_state(device: &InputDevice) -> [u32; 4] {
 }
 
 /// `input::first_device_state` (0x409391): `device_state` of `g_inputDevices`.
-pub fn first_device_state() -> Result<[u32; 4], BadInput> {
-    let Some(device) = input().devices.device(0) else {
+pub fn first_device_state(input: &crate::input::owner::Input) -> Result<[u32; 4], BadInput> {
+    let Some(device) = input.devices.device(0) else {
         return Err(BadInput("no first input device record"));
     };
     Ok(device_state(device))
@@ -37,8 +36,7 @@ pub struct Moved {
 /// axes' rest values taken (`dword_4F6A28` -> `unk_4F8270`), carry. Else the first of the
 /// device's axes (its record's +0x14 bits) moved more than 0x80 from rest: eax its number,
 /// +0x10 when the way was up; carry when none (eax the last difference).
-pub fn axis_moved(eax: u32) -> Result<Moved, BadInput> {
-    let input = input();
+pub fn axis_moved(eax: u32, input: &crate::input::owner::Input) -> Result<Moved, BadInput> {
     let now: [u32; 6] = std::array::from_fn(|n| input.devices.device_state[n].get());
     if eax == 0 {
         crate::system::sleep::sleep(250);

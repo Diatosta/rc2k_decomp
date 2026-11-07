@@ -19,7 +19,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::saves::allocate_best_times::count_stages;
 use crate::saves::default_times::*;
-use crate::saves::owner::saves;
+use crate::saves::owner::Saves;
 use crate::system::owner::system;
 use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
@@ -27,7 +27,11 @@ use rc2k_core::saves::defaults::{Championship, RALLIES, championship_times};
 
 // ---- Rust version ----
 
-pub fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refused> {
+pub fn default_championship_times(
+    saves: &'static Saves,
+    ebp: u32,
+    log: Log,
+) -> Result<(), Refused> {
     let screens = &crate::menu::owner::menus().screens;
     // Converted: `rc2k_core::saves::defaults::championship_times`.
     {
@@ -45,7 +49,7 @@ pub fn default_championship_times(ebp: u32, log: Log) -> Result<(), Refused> {
         // Every rally has its table.
         let present = [true; RALLIES];
         for rally in 0..RALLIES {
-            tables.push(Target::Rally(saves().rally_times.table(rally)?));
+            tables.push(Target::Rally(saves.rally_times.table(rally)?));
         }
         let filled = championship_times(
             &mut GameSource { log },

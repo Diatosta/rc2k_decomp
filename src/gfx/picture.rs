@@ -161,6 +161,7 @@ mod tests {
         let path_at = crate::pointers::Lent::new(&path);
         let read = crate::gfx::read_picture_file::read_picture_file(
             &crate::pointers::GamePtr::new(path_at.addr()),
+            crate::gfx::owner::gfx(),
         );
         drop(path_at);
         std::fs::remove_file(&name).unwrap();
@@ -223,7 +224,8 @@ mod tests {
         let gfx = gfx();
         let name = format!("target/rc2k_png_test_{}.png", std::process::id());
         std::fs::write(&name, file).unwrap();
-        let read = crate::gfx::read_png::read_png(&gfx.png, name.as_bytes());
+        let read =
+            crate::gfx::read_png::read_png(&gfx.png, name.as_bytes(), crate::gfx::owner::gfx());
         std::fs::remove_file(&name).unwrap();
         assert!(read.unwrap(), "the picture was read");
         read_bytes(gfx.pictures.picture.buffer.get(), 0, 6 * 4).unwrap()

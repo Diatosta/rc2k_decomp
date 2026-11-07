@@ -23,7 +23,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
-use crate::gfx::owner::gfx;
 use crate::gfx::picture::{has_picture, read_bytes, with_picture};
 use crate::memory::MemoryList;
 use crate::memory::free_list::free_list;
@@ -93,8 +92,8 @@ impl Rescaler {
 // Converted: `rc2k_core::gfx::picture` (the arithmetic); here the copy, the row table and the
 // work variables.
 
-pub fn rescale_picture(rescaler: &Rescaler) -> Result<(), Refused> {
-    let pictures = &gfx().pictures;
+pub fn rescale_picture(rescaler: &Rescaler, gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+    let pictures = &gfx.pictures;
     let (from_width, from_height): (u32, u32) =
         (pictures.decoder.width.get(), pictures.decoder.height.get());
     let (width, height): (u32, u32) = (pictures.picture.width.get(), pictures.picture.height.get());

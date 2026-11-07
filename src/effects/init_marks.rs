@@ -31,6 +31,7 @@ pub fn init_marks(
     effects: &Effects,
     seed: u32,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     let course = &race.course;
     let system = system();
@@ -47,7 +48,7 @@ pub fn init_marks(
         effects.setup.settings.is_set.set(1);
         effects.setup.work.seed.set(seed);
         effects.setup.clock.started.set(0);
-        edges::load_kind_data(course, effects, scene)?;
+        edges::load_kind_data(course, effects, scene, gfx)?;
         setup::make_wave_tables(paths)?;
         profiles::make_profiles(course, paths, profiles::RESUME)?;
         setup::seed_noise(weather);
@@ -55,9 +56,9 @@ pub fn init_marks(
         blocks::allocate_places()?;
         kind_values::set_kind_values(&kind_values::FIRST)?;
         kind_values::set_kind_values(&kind_values::SECOND)?;
-        load_mask_pictures::load_mask_pictures(masks, scene)?;
+        load_mask_pictures::load_mask_pictures(masks, scene, gfx)?;
         setup::clear_slots();
-        set_up_surface::set_up_surface(ring, masks, scene)?;
+        set_up_surface::set_up_surface(ring, masks, scene, gfx)?;
         blocks::allocate_ring(&effects.particles, ring)?;
         lines::set_up_blocks(course, paths, scene)?;
         marks.unknown_67c[1].set(1);

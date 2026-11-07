@@ -9,7 +9,6 @@ use crate::errors::BadInput;
 use crate::files::read_stream_byte::read_stream_byte;
 use crate::files::stream::Stream;
 use crate::gfx::lay_out_pcx::lay_out_pcx;
-use crate::gfx::owner::gfx;
 use crate::gfx::pcx::{HEADER_PLANES, on_stream, read_header, read_stream_header};
 use crate::gfx::picture::{put_or_end, with_buffer};
 use crate::gfx::read_pcx_8bit::read_file_palette;
@@ -17,12 +16,13 @@ use crate::gfx::read_pcx_24bit::read_pcx_24bit;
 
 /// The part between the open and the close: whether it worked.
 fn read_rows(stream: &mut Stream) -> Result<bool, BadInput> {
-    let pictures = &gfx().pictures;
-    if !read_file_palette(stream) || !read_stream_header(stream)? {
+    let gfx = crate::gfx::owner::gfx();
+    let pictures = &gfx.pictures;
+    if !read_file_palette(stream, gfx) || !read_stream_header(stream, gfx)? {
         return Ok(false);
     }
     pictures.picture.flags.set(0x100u32);
-    lay_out_pcx()?;
+    lay_out_pcx(gfx)?;
 
     let (width, height, line_bytes): (u32, u32, u32) = (
         pictures.decoder.width.get(),
@@ -75,11 +75,11 @@ pub fn read_pcx_indexed(path: &[u8]) -> Result<bool, BadInput> {
 }
 
 /// Returns whether the picture was read.
-pub fn read_sheet(path: &[u8]) -> Result<bool, BadInput> {
-    if !read_header(path)? {
+pub fn read_sheet(path: &[u8], gfx: &crate::gfx::owner::Gfx) -> Result<bool, BadInput> {
+    if !read_header(path, gfx)? {
         return Ok(false);
     }
-    match gfx().pictures.pcx.header.get(HEADER_PLANES) {
+    match gfx.pictures.pcx.header.get(HEADER_PLANES) {
         1 => read_pcx_indexed(path),
         3 => read_pcx_24bit(path),
         _ => Ok(false),

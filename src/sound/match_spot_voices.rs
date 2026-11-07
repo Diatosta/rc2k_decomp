@@ -17,10 +17,10 @@ use crate::sound::spot_voices::{MOST_KIND, MOST_SPOTS, load_voices, store_voices
 
 // ---- Rust version ----
 
-pub fn match_spot_voices() -> Result<(), Refused> {
+pub fn match_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use rc2k_core::sound::spot_voices::Spot;
     // Converted: `rc2k_core::sound::spot_voices::match_spots`.
-    let stage = &crate::sound::owner::sound().race.stage;
+    let stage = &sound.race.stage;
     let count = stage.shared_count.get();
     if count > MOST_SPOTS {
         return Err(BadInput("more than 36 shared spots").into());
@@ -36,7 +36,7 @@ pub fn match_spot_voices() -> Result<(), Refused> {
             kind: spot.kind.get(),
         })
         .collect();
-    let kinds: [u32; MOST_KIND as usize + 1] = crate::sound::owner::sound()
+    let kinds: [u32; MOST_KIND as usize + 1] = sound
         .race
         .spot_picks
         .kind_sounds

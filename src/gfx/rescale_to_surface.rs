@@ -19,7 +19,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
 use crate::gfx::fill_row_table::{ROW_TABLE_ROOM, fill_row_table, row_address};
-use crate::gfx::owner::gfx;
 use crate::gfx::rescale_picture::Rescaler;
 
 // ---- game data ----
@@ -38,8 +37,9 @@ const ROW_GAP: usize = 0x2C;
 pub fn rescale_to_surface(
     rescaler: &Rescaler,
     surface: crate::pointers::GamePtr,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
-    let pictures = &gfx().pictures;
+    let pictures = &gfx.pictures;
     use crate::pointers::write_or_end;
     let field = |offset: usize| {
         surface
@@ -57,7 +57,7 @@ pub fn rescale_to_surface(
         return Err(BadInput("a decoded picture or a surface the rescaler cannot take").into());
     }
     // The count was checked above. The rows as offsets in the decoded buffer.
-    let _ = fill_row_table(0, pictures.decoder.stride.get(), from_height);
+    let _ = fill_row_table(0, pictures.decoder.stride.get(), from_height, gfx);
     // Converted: `rc2k_core::gfx::picture::rescale`; each pixel's parts through the
     // components variable, the last left there with its fourth byte as it was.
     let format = crate::gfx::pixel_format::layout(field(FORMAT)?)?;
@@ -74,7 +74,7 @@ pub fn rescale_to_surface(
                 width,
                 height,
             },
-            &|row, byte| match pixels.get(row_address(row).wrapping_add(byte) as usize) {
+            &|row, byte| match pixels.get(row_address(row, gfx).wrapping_add(byte) as usize) {
                 Some(&b) => b,
                 None => crate::fatal::raise::end(
                     "gfx::rescale_to_surface",

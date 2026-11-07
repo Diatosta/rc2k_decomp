@@ -12,17 +12,15 @@ use crate::sound::apply_settings::run_step;
 
 // ---- Rust version ----
 
-pub fn set_up_race_sounds() -> Result<(), crate::errors::Refused> {
+pub fn set_up_race_sounds(
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), crate::errors::Refused> {
     let audio = audio();
     // Converted: `rc2k_core::sound::set_up::race`.
     use rc2k_core::sound::set_up::{RACE, race};
-    crate::sound::owner::sound()
-        .menu
-        .settings_applied
-        .done
-        .set(RACE);
+    sound.menu.settings_applied.done.set(RACE);
     for s in race(audio.state.race_sound_mode.get()) {
-        run_step(s)?;
+        run_step(s, sound)?;
     }
     audio.state.sounds_held_back.set(0);
     Ok(())

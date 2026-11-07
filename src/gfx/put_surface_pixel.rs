@@ -10,12 +10,16 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::components_to_pixel::components_to_pixel;
-use crate::gfx::owner::gfx;
 
 /// The Rust version (see the header): `components` made a pixel and put at (`x`, `y`);
 /// the pixel (the original's eax).
-pub fn put_surface_pixel(components: u32, x: u32, y: u32) -> Result<u32, Refused> {
-    let drawing = &gfx().drawing;
+pub fn put_surface_pixel(
+    components: u32,
+    x: u32,
+    y: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<u32, Refused> {
+    let drawing = &gfx.drawing;
     // `g_surface`'s format pointer.
     let format: u32 = drawing.draw_surface.format.get();
     if components != 0 && format == 0 {

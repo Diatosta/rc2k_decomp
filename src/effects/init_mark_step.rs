@@ -27,6 +27,7 @@ pub fn init_mark_step(
     race: &Race,
     effects: &Effects,
     scene: &crate::scene::owner::Scene,
+    gfx: &crate::gfx::owner::Gfx,
 ) -> Result<(), Refused> {
     use rc2k_core::effects::race;
     {
@@ -72,7 +73,7 @@ pub fn init_mark_step(
             }
         }
         // The file number is left in eax: `init_marks`' seed.
-        crate::effects::init_marks::init_marks(race, effects, file, scene)?;
+        crate::effects::init_marks::init_marks(race, effects, file, scene, gfx)?;
     }
     Ok(())
 }

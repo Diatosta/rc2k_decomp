@@ -152,9 +152,10 @@ fn stack_returns(esp: usize) -> String {
 /// loop..." and returns to `start`), the program ended as `start` ends it. The data is saved
 /// first, once the front end has its tables: before that a save would write blanks.
 pub fn leave_on_close() -> ! {
-    let tables = &saves().best_times;
+    let saves = saves();
+    let tables = &saves.best_times;
     if [tables.allocated.get(), tables.loaded.get()] == [1, 1]
-        && let Err(e) = crate::saves::save_game_data::save_in_game()
+        && let Err(e) = crate::saves::save_game_data::save_in_game(saves)
     {
         log(&format!(
             "standalone: the game's data was not saved on closing: {e:?}"
@@ -409,11 +410,11 @@ fn start() {
     rust("system::sleep");
     crate::system::sleep::sleep(1000);
     rust("gfx::choose_screen_modes");
-    if let Err(e) = crate::platform::choose_screen_modes() {
+    if let Err(e) = crate::platform::choose_screen_modes(gfx) {
         refused("gfx::choose_screen_modes", e.into(), &r);
     }
     rust("gfx::allocate_picture_buffer");
-    if let Err(e) = crate::gfx::allocate_picture_buffer::allocate_picture_buffer() {
+    if let Err(e) = crate::gfx::allocate_picture_buffer::allocate_picture_buffer(gfx) {
         refused("gfx::allocate_picture_buffer", e, &r);
     }
     rust("gfx::set_component_format");
@@ -421,7 +422,7 @@ fn start() {
         refused("gfx::set_component_format", e, &r);
     }
     rust("gfx::fill_thirds_table");
-    crate::gfx::fill_thirds_table::fill_thirds_table();
+    crate::gfx::fill_thirds_table::fill_thirds_table(gfx);
     rust("gfx::install_converters");
     crate::gfx::install_converters::install_converters(&gfx.pixel.converters);
     // `sound::open_cd_audio` (0x40F9DE): cut out of this build (`pusha; jmp` to its
@@ -450,7 +451,7 @@ fn start() {
     // `gfx::release_screens` (0x404CD6), `sound::close_cd_audio` (0x40FA8B): SDL's
     // (`SDL_DOES`).
     rust("gfx::free_picture_buffer");
-    if let Err(why) = crate::gfx::free_picture_buffer::free_picture_buffer() {
+    if let Err(why) = crate::gfx::free_picture_buffer::free_picture_buffer(gfx) {
         finish(&format!("gfx::free_picture_buffer refused: {}", why.0), 1);
     }
     // `system::drain_messages` (0x410509): SDL's (`SDL_DOES`).

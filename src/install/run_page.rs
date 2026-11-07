@@ -50,6 +50,7 @@ fn tell(
 /// The page of `list` run until it is left; its answer.
 pub fn run_page(
     install: &'static crate::install::owner::Install,
+    strings: &'static crate::strings::owner::Strings,
     list: ListMenu,
 ) -> Result<u32, Refused> {
     let system = system();
@@ -93,12 +94,12 @@ pub fn run_page(
         i::show_backdrop::show_backdrop()?;
         loop {
             i::lay_out_pieces::lay_out_pieces(install, list)?;
-            i::measure_pieces::measure_pieces(install)?;
+            i::measure_pieces::measure_pieces(install, strings)?;
             i::place_pieces::place_pieces(install)?;
             run_frame(None)?;
             if lock() {
                 copy_picture()?;
-                i::draw_pieces::draw_pieces(install)?;
+                i::draw_pieces::draw_pieces(install, strings)?;
                 unlock();
                 show();
             }

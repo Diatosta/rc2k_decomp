@@ -11,6 +11,7 @@
 //! table holds each row's offset in it: its callers give 0 for the first row.
 
 use crate::errors::BadInput;
+#[cfg(test)]
 use crate::gfx::owner::gfx;
 
 // ---- game data ----
@@ -28,8 +29,8 @@ pub fn home() -> usize {
 }
 
 /// The address the table holds for a row.
-pub fn row_address(row: u32) -> u32 {
-    match gfx().drawing.row_table.get(row as usize) {
+pub fn row_address(row: u32, gfx: &crate::gfx::owner::Gfx) -> u32 {
+    match gfx.drawing.row_table.get(row as usize) {
         Some(cell) => cell.get(),
         None => crate::fatal::raise::end(
             "gfx::row_address",
@@ -40,12 +41,17 @@ pub fn row_address(row: u32) -> u32 {
 
 // ---- Rust version ----
 
-pub fn fill_row_table(first: u32, step: u32, rows: u32) -> Result<(), BadInput> {
+pub fn fill_row_table(
+    first: u32,
+    step: u32,
+    rows: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), BadInput> {
     if rows == 0 || rows > ROW_TABLE_ROOM {
         return Err(BadInput("a row count the row table has no room for"));
     }
     // Converted: `rc2k_core::gfx::pixels::row_table`.
-    for (cell, address) in gfx()
+    for (cell, address) in gfx
         .drawing
         .row_table
         .iter()

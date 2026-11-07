@@ -16,7 +16,6 @@
 
 use crate::drive::race_parts::{input_update, race_frame, restart_clock};
 use crate::errors::{BadInput, Refused};
-use crate::input::owner::input;
 use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
@@ -35,7 +34,12 @@ fn lift_car(race: &Race) {
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: esi after
 /// `drive::finish_race`'s call has no read point).
-pub fn finish_run(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn finish_run(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    sound: &crate::sound::owner::Sound,
+    input: &crate::input::owner::Input,
+) -> Result<(), Refused> {
     lift_car(race);
     restart_clock(race);
     race.frame
@@ -56,9 +60,7 @@ pub fn finish_run(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
         .start_clock
         .set(race.shared.physics_tables.scene_clock.get());
     loop {
-        crate::sound::owner::sound().race.sounds.objects[0]
-            .revs
-            .set(0);
+        sound.race.sounds.objects[0].revs.set(0);
         input_update();
         crate::drive::finish_timing::finish_timing(race, scene);
         let n = race.shared.state.results.finished.get();
@@ -71,7 +73,7 @@ pub fn finish_run(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(),
         ) {
             break;
         }
-        let pressed = |key: usize| input().devices.keys_pressed.get(key) != 0;
+        let pressed = |key: usize| input.devices.keys_pressed.get(key) != 0;
         if pressed(1) || pressed(0x1C) {
             break;
         }

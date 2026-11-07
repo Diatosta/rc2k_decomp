@@ -21,7 +21,6 @@
 //! hands on the entry's. Neither is read there (ecx is a volume for action 1, which does not
 //! read it; edx reaches `close_all` only when nothing plays yet, where every action stops).
 
-use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::system::owner::system;
 
@@ -30,8 +29,7 @@ const QUIT_TEXT: &std::ffi::CStr = c"AUDIOTDB:QUIT"; // "AUDIOTDB:QUIT"
 
 /// Runs to the `ExitThread`, which does not come back. Its slot's flag
 /// (`threading::thread_slot::AUDIO`) says it runs.
-pub fn audio_thread() -> Result<(), Refused> {
-    let audio = audio();
+pub fn audio_thread(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
     use crate::audio::*;
     use crate::system::tick_count::tick_count;
     use crate::threading::set_priority::set_priority;

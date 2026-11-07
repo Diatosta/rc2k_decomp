@@ -23,6 +23,7 @@ use crate::gfx::glyph_builder::{RUN_LENGTHS, WITH_ALPHA};
 use crate::gfx::glyph_tables::{
     alpha_palette, begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
+#[cfg(test)]
 use crate::gfx::owner::gfx;
 use crate::memory::MemoryList;
 use crate::memory::take_from_list::rewind_list;
@@ -77,8 +78,11 @@ fn fatal(code: u32) -> Refused {
 /// `pixels_b` is where the place of the second palette's pixels is read from when they
 /// are made. (The original's fatal error 0x80E48061 for a failed allocation cannot come:
 /// the allocator reports its own.)
-pub fn build_game_fonts(vars: &SheetVars, pixels_b: &crate::session::Dword) -> Result<(), Refused> {
-    let gfx = gfx();
+pub fn build_game_fonts(
+    vars: &SheetVars,
+    pixels_b: &crate::session::Dword,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), Refused> {
     let list = &gfx.fonts.game_fonts.memory;
     let bytes = gfx
         .fonts
@@ -89,7 +93,7 @@ pub fn build_game_fonts(vars: &SheetVars, pixels_b: &crate::session::Dword) -> R
         .wrapping_mul(system().session.screen.bytes.get());
     crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
-    begin_glyph_tables(vars)?;
+    begin_glyph_tables(vars, gfx)?;
     gfx.pictures
         .decoder
         .builder_flags
@@ -98,20 +102,20 @@ pub fn build_game_fonts(vars: &SheetVars, pixels_b: &crate::session::Dword) -> R
     gfx.pictures
         .decoder
         .format
-        .set(crate::gfx::pixel_format::texture_kind_format(3));
+        .set(crate::gfx::pixel_format::texture_kind_format(3, gfx));
     let palette_a = crate::gfx::build_fonts::palette_place(list)?;
     gfx.fonts.menu_fonts.game_fonts[0].update(|f| f.palette = palette_a);
     let palette_b = crate::gfx::build_fonts::palette_place(list)?;
     gfx.fonts.menu_fonts.game_fonts[3].update(|f| f.palette = palette_b);
     begin_glyph_table(vars, list)?;
-    build_glyphs(vars, &crate::gfx::texts::FNT22, list)?;
+    build_glyphs(vars, &crate::gfx::texts::FNT22, list, gfx)?;
     let table = vars.table.get();
     gfx.fonts.menu_fonts.game_fonts[0].update(|f| f.glyph_table = table);
     if vars.table_size.get() == 0 {
         return Err(fatal(0x80E4_8062));
     }
-    alpha_palette();
-    palette_to_pixels(gfx.fonts.menu_fonts.game_fonts[0].get().palette)?;
+    alpha_palette(gfx);
+    palette_to_pixels(gfx.fonts.menu_fonts.game_fonts[0].get().palette, gfx)?;
     end_glyph_tables()?;
 
     let (glyphs, palette_a): (u32, u32) = (
@@ -153,9 +157,8 @@ pub fn build_game_fonts(vars: &SheetVars, pixels_b: &crate::session::Dword) -> R
 }
 
 /// With the third font's palette's place, as the stage's loading calls it.
-pub fn build_game_fonts_in_game() -> Result<(), Refused> {
-    let gfx = gfx();
-    build_game_fonts(&gfx.sheet, &gfx.fonts.menu_fonts.game_fonts[3].palette)
+pub fn build_game_fonts_in_game(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
+    build_game_fonts(&gfx.sheet, &gfx.fonts.menu_fonts.game_fonts[3].palette, gfx)
 }
 
 #[cfg(test)]

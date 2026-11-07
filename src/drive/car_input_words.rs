@@ -17,7 +17,7 @@ use crate::race::owner::Race;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
-pub fn car_input_words(race: &Race) -> Result<(), Refused> {
+pub fn car_input_words(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
     let vars = &net().vars;
     let race_owner = race;
     let frame = &race.frame;
@@ -26,7 +26,7 @@ pub fn car_input_words(race: &Race) -> Result<(), Refused> {
     check_car(car)?;
     let device = frame.frame_work.listed_car_sounds[car as usize].get();
     let readings = if device != NO_DEVICE {
-        Some(crate::drive::device_axes::device_axes(device)?)
+        Some(crate::drive::device_axes::device_axes(device, input)?)
     } else {
         None
     };

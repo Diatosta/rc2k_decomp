@@ -81,8 +81,12 @@ impl Rows {
 
 /// `rows` rows of the drawing surface (a locked texture) cleared from byte `start` of its
 /// first (`rep stosd` of the row's dwords, then the row's gap, as the original steps).
-pub fn clear_surface_rows(start: u32, rows: u32) -> Result<(), BadInput> {
-    let drawing = &gfx().drawing;
+pub fn clear_surface_rows(
+    start: u32,
+    rows: u32,
+    gfx: &crate::gfx::owner::Gfx,
+) -> Result<(), BadInput> {
+    let drawing = &gfx.drawing;
     let dwords = drawing.draw_surface.row_dwords.get();
     let surface = Rows::new(
         crate::gfx::surface::address()?,

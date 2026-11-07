@@ -32,6 +32,8 @@ const WORDS: [&std::ffi::CStr; 9] = [
 /// and flags it leaves (eax the clock, carry clear) are read by none of its seven callers
 /// (`taint.py` at each site: no read point; conversion phase 3, 2026-10-24).
 pub fn load_stage(race: &Race) -> Result<(), Refused> {
+    let gfx = crate::gfx::owner::gfx();
+    let input = crate::input::owner::input();
     let scene = crate::scene::owner::scene();
     let indent = |by: i32| {
         crate::logfile::write_line::state::INDENT
@@ -53,7 +55,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     /* dword_71C3E0 */
     {
         // As `menu::show_loading_picture`.
-        crate::gfx::show_picture_file::show_picture_file(&menus().tables.texts.loading_pcx)?;
+        crate::gfx::show_picture_file::show_picture_file(&menus().tables.texts.loading_pcx, gfx)?;
     }
     race.replay.replay_frames.last_kept.set(u32::MAX);
     crate::race::sounds::wake_car_sounds(race)?;
@@ -82,7 +84,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     indent(-3);
     log();
     indent(3);
-    crate::race::create_controls::create_controls();
+    crate::race::create_controls::create_controls(input);
     indent(-3);
     log();
     indent(3);

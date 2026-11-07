@@ -82,7 +82,7 @@ fn draw_view(
 }
 
 /// The Rust version (see the header).
-pub fn draw_race_scene(race: &Race) -> Result<(), Refused> {
+pub fn draw_race_scene(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
     let session = &system().session;
     let scene = scene();
     let frame = &race.frame;
@@ -191,7 +191,7 @@ pub fn draw_race_scene(race: &Race) -> Result<(), Refused> {
     crate::race::car_parts::ready_car_parts(race, scene)?;
     crate::race::map_scroll::scroll_maps(race, scene)?;
     race.frame.panel_and_overlay.panel.texture_changes.set(0);
-    crate::race::frame_views::forget_view_textures(race, scene)?;
+    crate::race::frame_views::forget_view_textures(race, scene, input)?;
     crate::race::mud_frame::mud_frame(race, scene)?;
     race.frame.frame_work.kind_textures_done.set(0);
     crate::scene::assign_kind_textures::assign_kind_textures(scene)?;
@@ -263,7 +263,7 @@ pub fn draw_race_scene(race: &Race) -> Result<(), Refused> {
     crate::race::skid_laying::lay_skidmarks_if_on(race, scene)?;
     crate::race::name_plates::update_name_plates(race, scene)?;
     if race.course.numbers.replay_mode.bits() != 2 {
-        crate::drive::tyre_change_screen::tyre_change_screen(race)?;
+        crate::drive::tyre_change_screen::tyre_change_screen(race, input)?;
     }
     Ok(())
 }

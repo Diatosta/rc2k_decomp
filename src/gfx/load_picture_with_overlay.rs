@@ -16,7 +16,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::load_picture::load_picture;
-use crate::gfx::owner::gfx;
 use crate::gfx::picture::{Buffer, take, with_buffer};
 use crate::gfx::read_picture_file::read_picture_file;
 use crate::memory::free_list::free_list;
@@ -31,7 +30,8 @@ pub fn load_picture_with_overlay(
     path: &dyn crate::session::TextPlace,
     overlay_path: &dyn crate::session::TextPlace,
 ) -> Result<bool, Refused> {
-    let pictures = &gfx().pictures;
+    let gfx = crate::gfx::owner::gfx();
+    let pictures = &gfx.pictures;
     if !load_picture(path)? {
         return Ok(true);
     }
@@ -50,7 +50,7 @@ pub fn load_picture_with_overlay(
         pictures.picture.buffer.get(),
     ];
     pictures.picture.buffer.set(overlay);
-    let read = read_picture_file(overlay_path);
+    let read = read_picture_file(overlay_path, gfx);
     pictures.picture.width.set(kept[0]);
     pictures.picture.height.set(kept[1]);
     pictures.picture.row_bytes.set(kept[2]);

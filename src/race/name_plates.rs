@@ -16,7 +16,8 @@ use crate::strings::owner::strings;
 /// (ebx) drawn three times in the name font (box 0x168 wide) at x 4, -0x74, -0xEC and y 0, a
 /// line, two lines (a long name wrapped over the plate's three rows). Every register kept.
 pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Result<(), Refused> {
-    let fonts = &gfx().fonts;
+    let gfx = crate::gfx::owner::gfx();
+    let fonts = &gfx.fonts;
     let text = text.into();
     use crate::d3d::{lock_texture::lock_texture, unlock_texture::unlock_texture};
     if lock_texture(slot)?.carry {
@@ -25,7 +26,7 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Resul
     // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
     use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
     let line = fonts.menu_fonts.game_fonts[0].get().line_height as u32; // a line's height
-    crate::gfx::rows::clear_surface_rows(0, name_rows(line))?;
+    crate::gfx::rows::clear_surface_rows(0, name_rows(line), gfx)?;
     fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
         draw_text_in_game(&fonts.menu_fonts.game_fonts[2], text, x, y)?;
@@ -65,7 +66,7 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
     let line = gfx.fonts.menu_fonts.game_fonts[0].get().line_height as u32;
     let start = time_start(line, gfx.drawing.draw_surface.pitch.get());
-    crate::gfx::rows::clear_surface_rows(start, time_rows(line))?;
+    crate::gfx::rows::clear_surface_rows(start, time_rows(line), gfx)?;
     // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
     // block's next dword, so the place is bounded to the block, not the label.
     use crate::race::overlay_store::OverlayBlock;
