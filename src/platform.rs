@@ -535,12 +535,15 @@ pub fn show_frame_now() -> bool {
         }
         crate::platform_timing::start_sampler();
         crate::platform_timing::report_timing();
-        // A flip waits for the screen: some sixty frames a second at most.
+        // A flip waits for the screen: some sixty frames a second at most. The next frame's
+        // gap is counted from the end of this wait (counted from before it, every other
+        // frame skipped the wait: about 95 a second with 5 ms of work a frame).
         let now = sdl::ticks() as usize;
-        let since = now.wrapping_sub(LAST_SHOWN.swap(now, Ordering::SeqCst));
+        let since = now.wrapping_sub(LAST_SHOWN.load(Ordering::SeqCst));
         if since < 16 {
             sdl::delay((16 - since) as u32);
         }
+        LAST_SHOWN.store(sdl::ticks() as usize, Ordering::SeqCst);
     }
     true
 }
