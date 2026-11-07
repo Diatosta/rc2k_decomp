@@ -22,7 +22,6 @@ use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::effects;
-use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -123,7 +122,7 @@ pub fn emit_twin(
         return Ok(());
     }
     let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, set.kind)?;
-    let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
+    let slot = crate::effects::ring_entries::Slot::new(ring, e);
     let car = emitting_car(effects)?;
     let cells = car.whole()?;
     let [x, y, y_less, z] = x87::turned_place(
@@ -131,10 +130,10 @@ pub fn emit_twin(
         set.tuning.lift.bits(),
         car.whole()?,
     );
-    put(field::PLACE_X, x)?;
-    put(field::PLACE_Y, y)?;
-    put(field::GROUND_Y, y_less)?;
-    put(field::PLACE_Z, z)?;
+    slot.put(|en| &mut en.place[0], x)?;
+    slot.put(|en| &mut en.place[1], y)?;
+    slot.put(|en| &mut en.ground_y, y_less)?;
+    slot.put(|en| &mut en.place[2], z)?;
     let row =
         crate::effects::try_from_fn::<u32, 3>(|i| matrix_cell(cells, [0x18u32, 0x14, 0x10][i]))?
             .into_iter()
@@ -147,8 +146,8 @@ pub fn emit_twin(
     );
     let step: u32 = effects.setup.clock.reciprocal.bits();
     for n in 0..3 {
-        put(
-            field::MOTION_X + 4 * n as u32,
+        slot.put(
+            |en| &mut en.motion[n],
             x87::product_plus(
                 motion[n],
                 step,
@@ -158,20 +157,23 @@ pub fn emit_twin(
         )?;
     }
     let r = next_c5(&set.tuning.spin_random);
-    put(field::ANGLE_RATE, (r & 0x3F).wrapping_sub(0x20))?;
-    put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
-    put(field::CELL, set.flags & 0x3F)?;
+    slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
+    slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
+    slot.put(|en| &mut en.cell, set.flags & 0x3F)?;
     let size = (r.rotate_right(0x14) & 0x4000) + 0x4000;
     ring.work.whole.set(size);
-    put(field::SIZE, x87::from_int(size as i32))?;
+    slot.put(|en| &mut en.size, x87::from_int(size as i32))?;
     let life: u32 = masks.surface.lives_by_level[level as usize].get();
-    put(field::LIFE, life)?;
-    put(
-        field::ALPHA_FADE,
+    slot.put(|en| &mut en.life, life)?;
+    slot.put(
+        |en| &mut en.alpha_fade,
         x87::over_int(effects.setup.floats.two_fifty_seven.bits(), life as i32),
     )?;
-    put(field::ALPHA, effects.setup.floats.two_fifty_five.bits())?;
-    put(field::CAR, effects.kinds.emitter.car.get())?;
+    slot.put(
+        |en| &mut en.alpha,
+        effects.setup.floats.two_fifty_five.bits(),
+    )?;
+    slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
     Ok(())
 }
 

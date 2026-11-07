@@ -19,7 +19,6 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::mask_store::Masks;
-use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -146,7 +145,7 @@ pub fn emit_particle_6(
             return Ok(());
         }
         let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, 6)?;
-        let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
+        let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let car = emitting_car(effects)?;
         let m = car.whole()?;
         let r = next_c5(&particles.kind6_set.side_random);
@@ -165,13 +164,13 @@ pub fn emit_particle_6(
                 )
             })
         })?;
-        put(field::PLACE_Z, rounded(place[2]))?;
-        put(field::PLACE_Y, rounded(place[1]))?;
-        put(
-            field::GROUND_Y,
+        slot.put(|en| &mut en.place[2], rounded(place[2]))?;
+        slot.put(|en| &mut en.place[1], rounded(place[1]))?;
+        slot.put(
+            |en| &mut en.ground_y,
             x87::ext_less(place[1], particles.kind6_set.lift.bits()),
         )?;
-        put(field::PLACE_X, rounded(place[0]))?;
+        slot.put(|en| &mut en.place[0], rounded(place[0]))?;
         let motion: [u32; 3] = crate::effects::try_from_fn(|a| {
             Ok({
                 x87::three_products(crate::effects::try_from_fn(|n| {
@@ -186,13 +185,13 @@ pub fn emit_particle_6(
                 })?)
             })
         })?;
-        put(field::MOTION_Z, motion[2])?;
-        put(field::MOTION_Y, motion[1])?;
-        put(field::MOTION_X, motion[0])?;
+        slot.put(|en| &mut en.motion[2], motion[2])?;
+        slot.put(|en| &mut en.motion[1], motion[1])?;
+        slot.put(|en| &mut en.motion[0], motion[0])?;
         let r = next_c5(&particles.kind6_set.spin_random);
-        put(field::ANGLE_RATE, (r & 0x3F).wrapping_sub(0x20))?;
-        put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
-        put(field::CELL, flags & 0x3F)?;
+        slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
+        slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
+        slot.put(|en| &mut en.cell, flags & 0x3F)?;
         let s = effects
             .setup
             .work
@@ -201,20 +200,26 @@ pub fn emit_particle_6(
             .wrapping_mul(0x9D)
             .wrapping_add(0x47);
         effects.setup.work.seed.set(s);
-        put(field::SIZE, x87::from_int(((s & 0x3FFF) + 0x4000) as i32))?;
+        slot.put(
+            |en| &mut en.size,
+            x87::from_int(((s & 0x3FFF) + 0x4000) as i32),
+        )?;
         let life: u32 = masks.surface.lives_by_flags[(flags >> 6) as usize].get();
-        put(field::LIFE, life)?;
-        put(
-            field::ALPHA_FADE,
+        slot.put(|en| &mut en.life, life)?;
+        slot.put(
+            |en| &mut en.alpha_fade,
             x87::over_int(effects.setup.floats.two_fifty_seven.bits(), life as i32),
         )?;
-        put(field::ALPHA, effects.setup.floats.two_fifty_five.bits())?;
-        put(field::CAR, effects.kinds.emitter.car.get())?;
+        slot.put(
+            |en| &mut en.alpha,
+            effects.setup.floats.two_fifty_five.bits(),
+        )?;
+        slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
         let size = car.rate.get().wrapping_add(g.rate as u32);
-        put(field::SIZE_GOAL, size)?;
-        put(field::CAR_PACE, car.pace.get())?;
-        put(
-            field::SIZE,
+        slot.put(|en| &mut en.size_goal, size)?;
+        slot.put(|en| &mut en.car_pace, car.pace.get())?;
+        slot.put(
+            |en| &mut en.size,
             x87::int_times_plus(
                 size as i32,
                 particles.kind6_set.size_k[0].bits(),

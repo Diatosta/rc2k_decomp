@@ -20,8 +20,7 @@
 //! link on the way, and a colour index out of its table.
 
 use crate::effects::mask_store::Masks;
-use crate::effects::ring_entries::field;
-use crate::effects::ring_entries::{get as eg, ld as eld, put as ep, st as est};
+use crate::effects::ring_entries::{entry, ld, set, st};
 use crate::effects::ring_store::Ring;
 use crate::effects::setup::MarksClock;
 use crate::errors::{BadInput, Refused};
@@ -117,34 +116,32 @@ fn refusal(
         let ticks: u32 = effects.setup.clock.frame_ticks.get();
         let mut e: u32 = ring.work.cursor.get();
         let count = ring.work.count.get() as i32;
-        if count > 0 && (e == 0 || eg(ring, e, field::PREV)? == 0) {
+        if count > 0 && (e == 0 || entry(ring, e)?.prev == 0) {
             return Ok(Some("a null ring entry"));
         }
         for _ in 0..count.max(0) {
-            if e == 0 || eg(ring, e, field::PREV)? == 0 || eg(ring, e, field::NEXT)? == 0 {
+            if e == 0 || entry(ring, e)?.prev == 0 || entry(ring, e)?.next == 0 {
                 return Ok(Some("a null ring entry or link"));
             }
-            if marks.cars[0].streaks_on.get() != 0 && eg(ring, e, field::KIND)? == STREAK {
-                let life = eg(ring, e, field::LIFE)?;
+            if marks.cars[0].streaks_on.get() != 0 && entry(ring, e)?.kind == STREAK {
+                let life = entry(ring, e)?.life;
                 if life >= ticks
-                    && x87::compare_status(
-                        eg(ring, e, field::PLACE_Y)?,
-                        eg(ring, e, field::GROUND_Y)?,
-                    ) != 0x100
+                    && x87::compare_status(entry(ring, e)?.place[1], entry(ring, e)?.ground_y)
+                        != 0x100
                 {
                     if fog_at(0).is_err() {
                         return Ok(Some("the fog table is not there"));
                     }
                     let i = x87::int_times_to_int(
                         life.wrapping_sub(ticks) as i32,
-                        eg(ring, e, field::ALPHA_FADE)?,
+                        entry(ring, e)?.alpha_fade,
                     );
                     if !(0..colour_count(effects)).contains(&i) {
                         return Ok(Some("a streak's colour index past its table"));
                     }
                 }
             }
-            e = eg(ring, e, field::NEXT)?;
+            e = entry(ring, e)?.next;
         }
         None
     })
@@ -159,50 +156,38 @@ fn streak(
     effects: &crate::effects::owner::Effects,
 ) -> Result<bool, Refused> {
     let t: u32 = effects.setup.clock.frame_ticks.get();
-    let life = eg(ring, e, field::LIFE)?;
-    ep(ring, e, field::LIFE, life.wrapping_sub(t))?;
+    let life = entry(ring, e)?.life;
+    set(ring, e, life.wrapping_sub(t), |en| &mut en.life)?;
     if life < t {
         return Ok(true);
     }
-    if x87::compare_status(eg(ring, e, field::PLACE_Y)?, eg(ring, e, field::GROUND_Y)?) == 0x100 {
+    if x87::compare_status(entry(ring, e)?.place[1], entry(ring, e)?.ground_y) == 0x100 {
         return Ok(true);
     }
-    if eg(ring, e, field::PLACE_X)? == 0 {
+    if entry(ring, e)?.place[0] == 0 {
         first_frame(frame, ring, e, effects);
     }
     move_on(ring, e, effects);
-    effects.frame.draw_work.second[0].set_bits(eg(ring, e, field::LAST_PLACE_X)?);
-    effects.frame.draw_work.second[1].set_bits(eg(ring, e, field::LAST_PLACE_Y)?);
-    effects.frame.draw_work.second[2].set_bits(eg(ring, e, field::LAST_PLACE_Z)?);
+    effects.frame.draw_work.second[0].set_bits(entry(ring, e)?.last_place[0]);
+    effects.frame.draw_work.second[1].set_bits(entry(ring, e)?.last_place[1]);
+    effects.frame.draw_work.second[2].set_bits(entry(ring, e)?.last_place[2]);
     turn_place(frame, ring, e, effects);
     let marks = crate::effects::setup::marks()?;
     if marks.own_marks_shown.get() != 0 || marks.other_marks_shown.get() == 1 {
-        ep(
-            ring,
-            e,
-            field::LAST_PLACE_X,
-            effects.frame.draw_work.turned[0].bits(),
-        )?;
-        ep(
-            ring,
-            e,
-            field::LAST_PLACE_Y,
-            effects.frame.draw_work.turned[1].bits(),
-        )?;
-        ep(
-            ring,
-            e,
-            field::LAST_PLACE_Z,
-            effects.frame.draw_work.turned[2].bits(),
-        )?;
+        set(ring, e, effects.frame.draw_work.turned[0].bits(), |en| {
+            &mut en.last_place[0]
+        })?;
+        set(ring, e, effects.frame.draw_work.turned[1].bits(), |en| {
+            &mut en.last_place[1]
+        })?;
+        set(ring, e, effects.frame.draw_work.turned[2].bits(), |en| {
+            &mut en.last_place[2]
+        })?;
     }
     VERTICES.vertices[0]
         .specular
-        .set(fog_at(eg(ring, e, field::LAST_PLACE_Z)?)?);
-    let i = x87::int_times_to_int(
-        eg(ring, e, field::LIFE)? as i32,
-        eg(ring, e, field::ALPHA_FADE)?,
-    );
+        .set(fog_at(entry(ring, e)?.last_place[2])?);
+    let i = x87::int_times_to_int(entry(ring, e)?.life as i32, entry(ring, e)?.alpha_fade);
     ring.work.whole.set(i as u32);
     let colour = colour_at(&effects.masks, ring, i as usize, effects);
     crate::effects::draw_ribbon::draw_ribbon(
@@ -239,25 +224,25 @@ pub fn run_ribbons(
             if counter < 0 {
                 break;
             }
-            let next = eg(ring, e, field::NEXT)?;
+            let next = entry(ring, e)?.next;
             // The settings' +0x60: the first car record's first word.
             if crate::effects::setup::marks()?.cars[0].streaks_on.get() != 0
-                && eg(ring, e, field::KIND)? == STREAK
+                && entry(ring, e)?.kind == STREAK
                 && streak(frame, ring, e, scene, effects)?
             {
                 ring.work.count.set(ring.work.count.get().wrapping_sub(1));
                 if e == ring.work.cursor.get() {
-                    ring.work.cursor.set(eg(ring, e, field::NEXT)?);
+                    ring.work.cursor.set(entry(ring, e)?.next);
                 } else {
-                    let (before, after) = (eg(ring, e, field::PREV)?, eg(ring, e, field::NEXT)?);
-                    ep(ring, before, field::NEXT, after)?;
-                    ep(ring, after, field::PREV, before)?;
+                    let (before, after) = (entry(ring, e)?.prev, entry(ring, e)?.next);
+                    set(ring, before, after, |en| &mut en.next)?;
+                    set(ring, after, before, |en| &mut en.prev)?;
                     let cursor: u32 = ring.work.cursor.get();
-                    let last = eg(ring, cursor, field::PREV)?;
-                    ep(ring, cursor, field::PREV, e)?;
-                    ep(ring, last, field::NEXT, e)?;
-                    ep(ring, e, field::PREV, last)?;
-                    ep(ring, e, field::NEXT, cursor)?;
+                    let last = entry(ring, cursor)?.prev;
+                    set(ring, cursor, e, |en| &mut en.prev)?;
+                    set(ring, last, e, |en| &mut en.next)?;
+                    set(ring, e, last, |en| &mut en.prev)?;
+                    set(ring, e, cursor, |en| &mut en.next)?;
                 }
             }
             e = next;
@@ -274,9 +259,9 @@ use crate::math::x87_float::int;
 /// The entry's place turned by the view matrix (its rows' x, y, z columns plus the translation
 /// in cells 12 .. 14), in the x87's order: the three results unrounded to a stored float.
 fn view_turned(frame: &Frame, ring: &Ring, e: u32) -> [bh::X; 3] {
-    let t0 = eld(ring, e, field::PLACE_Z);
-    let t1 = eld(ring, e, field::PLACE_Y);
-    let t2 = eld(ring, e, field::PLACE_X);
+    let t0 = ld(ring, e, |en| en.place[2]);
+    let t1 = ld(ring, e, |en| en.place[1]);
+    let t2 = ld(ring, e, |en| en.place[0]);
     let t3 = bh::ld(frame.matrices.view_matrix[0].bits());
     let t4 = t3 * t2;
     let t5 = bh::ld(frame.matrices.view_matrix[4].bits());
@@ -310,9 +295,9 @@ fn view_turned(frame: &Frame, ring: &Ring, e: u32) -> [bh::X; 3] {
 /// `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
 fn first_frame_x87(frame: &Frame, ring: &Ring, e: u32, c: &MarksClock, ribbon_a: f32) {
     let [turned_x, turned_y, turned_z] = view_turned(frame, ring, e);
-    est(ring, e, field::LAST_PLACE_X, turned_x);
-    est(ring, e, field::LAST_PLACE_Y, turned_y);
-    est(ring, e, field::LAST_PLACE_Z, turned_z);
+    st(ring, e, turned_x, |en| &mut en.last_place[0]);
+    st(ring, e, turned_y, |en| &mut en.last_place[1]);
+    st(ring, e, turned_z, |en| &mut en.last_place[2]);
     move_x87(ring, e, c, ribbon_a);
 }
 
@@ -320,23 +305,19 @@ fn first_frame_x87(frame: &Frame, ring: &Ring, e: u32, c: &MarksClock, ribbon_a:
 /// places: the place gains the motion times the ticks, then the motion's y gains `y_gain` times the ticks.
 fn move_x87(ring: &Ring, e: u32, c: &MarksClock, y_gain: f32) {
     let ticks = int(c.frame_ticks.get() as i32);
-    for (place, motion) in [
-        (field::PLACE_X, field::MOTION_X),
-        (field::PLACE_Y, field::MOTION_Y),
-        (field::PLACE_Z, field::MOTION_Z),
-    ] {
-        est(
+    for axis in 0..3 {
+        st(
             ring,
             e,
-            place,
-            eld(ring, e, motion) * ticks + eld(ring, e, place),
+            ld(ring, e, |en| en.motion[axis]) * ticks + ld(ring, e, |en| en.place[axis]),
+            |en| &mut en.place[axis],
         );
     }
-    est(
+    st(
         ring,
         e,
-        field::MOTION_Y,
-        bh::ld(y_gain.to_bits()) * ticks + eld(ring, e, field::MOTION_Y),
+        bh::ld(y_gain.to_bits()) * ticks + ld(ring, e, |en| en.motion[1]),
+        |en| &mut en.motion[1],
     );
 }
 
@@ -353,7 +334,7 @@ fn turn_place_x87(frame: &Frame, ring: &Ring, e: u32, dw: &DrawWork) {
 #[cfg(test)]
 mod old {
     use super::*;
-    use crate::effects::ring_entries::{ld as eld, st as est};
+    use crate::effects::ring_entries::{ld, st};
     use crate::math::x87_float::int;
     /// The previous version of `first_frame`'s x87 block as plain Rust on the x87 model (52 instructions), same order and memory places.
     pub(super) fn first_frame_x87(
@@ -363,9 +344,9 @@ mod old {
         c: &MarksClock,
         ribbon_a: f32,
     ) {
-        let t0 = eld(ring, e, field::PLACE_Z);
-        let t1 = eld(ring, e, field::PLACE_Y);
-        let t2 = eld(ring, e, field::PLACE_X);
+        let t0 = ld(ring, e, |en| en.place[2]);
+        let t1 = ld(ring, e, |en| en.place[1]);
+        let t2 = ld(ring, e, |en| en.place[0]);
         let t3 = crate::math::x87_float::ld(frame.matrices.view_matrix[0].bits());
         let t4 = t3 * t2;
         let t5 = crate::math::x87_float::ld(frame.matrices.view_matrix[4].bits());
@@ -393,52 +374,52 @@ mod old {
         let t27 = t26 + t24;
         let t28 = t22 + t27;
         let t29 = t28 + crate::math::x87_float::ld(frame.matrices.view_matrix[14].bits());
-        est(ring, e, field::LAST_PLACE_X, t11);
-        est(ring, e, field::LAST_PLACE_Y, t20);
-        est(ring, e, field::LAST_PLACE_Z, t29);
-        let t30 = eld(ring, e, field::MOTION_X);
+        st(ring, e, t11, |en| &mut en.last_place[0]);
+        st(ring, e, t20, |en| &mut en.last_place[1]);
+        st(ring, e, t29, |en| &mut en.last_place[2]);
+        let t30 = ld(ring, e, |en| en.motion[0]);
         let t31 = t30 * int(c.frame_ticks.get() as i32);
-        let t32 = t31 + eld(ring, e, field::PLACE_X);
-        est(ring, e, field::PLACE_X, t32);
-        let t33 = eld(ring, e, field::MOTION_Y);
+        let t32 = t31 + ld(ring, e, |en| en.place[0]);
+        st(ring, e, t32, |en| &mut en.place[0]);
+        let t33 = ld(ring, e, |en| en.motion[1]);
         let t34 = t33 * int(c.frame_ticks.get() as i32);
-        let t35 = t34 + eld(ring, e, field::PLACE_Y);
-        est(ring, e, field::PLACE_Y, t35);
-        let t36 = eld(ring, e, field::MOTION_Z);
+        let t35 = t34 + ld(ring, e, |en| en.place[1]);
+        st(ring, e, t35, |en| &mut en.place[1]);
+        let t36 = ld(ring, e, |en| en.motion[2]);
         let t37 = t36 * int(c.frame_ticks.get() as i32);
-        let t38 = t37 + eld(ring, e, field::PLACE_Z);
-        est(ring, e, field::PLACE_Z, t38);
+        let t38 = t37 + ld(ring, e, |en| en.place[2]);
+        st(ring, e, t38, |en| &mut en.place[2]);
         let t39 = bh::ld(ribbon_a.to_bits());
         let t40 = t39 * int(c.frame_ticks.get() as i32);
-        let t41 = t40 + eld(ring, e, field::MOTION_Y);
-        est(ring, e, field::MOTION_Y, t41);
+        let t41 = t40 + ld(ring, e, |en| en.motion[1]);
+        st(ring, e, t41, |en| &mut en.motion[1]);
     }
 
     /// The previous version of `move_`'s x87 block as plain Rust on the x87 model (16 instructions), same order and memory places.
     pub(super) fn move_x87(ring: &Ring, e: u32, c: &MarksClock, ribbon_b: f32) {
-        let t0 = eld(ring, e, field::MOTION_X);
+        let t0 = ld(ring, e, |en| en.motion[0]);
         let t1 = t0 * int(c.frame_ticks.get() as i32);
-        let t2 = t1 + eld(ring, e, field::PLACE_X);
-        est(ring, e, field::PLACE_X, t2);
-        let t3 = eld(ring, e, field::MOTION_Y);
+        let t2 = t1 + ld(ring, e, |en| en.place[0]);
+        st(ring, e, t2, |en| &mut en.place[0]);
+        let t3 = ld(ring, e, |en| en.motion[1]);
         let t4 = t3 * int(c.frame_ticks.get() as i32);
-        let t5 = t4 + eld(ring, e, field::PLACE_Y);
-        est(ring, e, field::PLACE_Y, t5);
-        let t6 = eld(ring, e, field::MOTION_Z);
+        let t5 = t4 + ld(ring, e, |en| en.place[1]);
+        st(ring, e, t5, |en| &mut en.place[1]);
+        let t6 = ld(ring, e, |en| en.motion[2]);
         let t7 = t6 * int(c.frame_ticks.get() as i32);
-        let t8 = t7 + eld(ring, e, field::PLACE_Z);
-        est(ring, e, field::PLACE_Z, t8);
+        let t8 = t7 + ld(ring, e, |en| en.place[2]);
+        st(ring, e, t8, |en| &mut en.place[2]);
         let t9 = bh::ld(ribbon_b.to_bits());
         let t10 = t9 * int(c.frame_ticks.get() as i32);
-        let t11 = t10 + eld(ring, e, field::MOTION_Y);
-        est(ring, e, field::MOTION_Y, t11);
+        let t11 = t10 + ld(ring, e, |en| en.motion[1]);
+        st(ring, e, t11, |en| &mut en.motion[1]);
     }
 
     /// The previous version of `turn_place`'s x87 block as plain Rust on the x87 model (36 instructions), same order and memory places.
     pub(super) fn turn_place_x87(frame: &Frame, ring: &Ring, e: u32, dw: &DrawWork) {
-        let t0 = eld(ring, e, field::PLACE_Z);
-        let t1 = eld(ring, e, field::PLACE_Y);
-        let t2 = eld(ring, e, field::PLACE_X);
+        let t0 = ld(ring, e, |en| en.place[2]);
+        let t1 = ld(ring, e, |en| en.place[1]);
+        let t2 = ld(ring, e, |en| en.place[0]);
         let t3 = crate::math::x87_float::ld(frame.matrices.view_matrix[0].bits());
         let t4 = t3 * t2;
         let t5 = crate::math::x87_float::ld(frame.matrices.view_matrix[4].bits());
@@ -523,7 +504,10 @@ mod same_as_old {
                 c.set_bits(word(&mut state));
             }
             clock.frame_ticks.set(next(&mut state) % 40);
-            let entry: [u32; 0x94 / 4] = std::array::from_fn(|_| word(&mut state));
+            let entry =
+                crate::effects::ring_entries::Entry::from_words(std::array::from_fn(|_| {
+                    word(&mut state)
+                }));
             let gain = f32::from_bits(word(&mut state));
             let mut results = Vec::new();
             for which in 0..2 {
@@ -540,7 +524,7 @@ mod same_as_old {
                     (_, 0) => old::turn_place_x87(frame, ring, 1, &effects().frame.draw_work),
                     (_, _) => turn_place_x87(frame, ring, 1, &effects().frame.draw_work),
                 }
-                let mut bytes = ring.entries.with(|r| r[0].to_vec()).unwrap();
+                let mut bytes = ring.entries.with(|r| r[0].words().to_vec()).unwrap();
                 bytes.extend(turned.iter().map(crate::session::Float::bits));
                 results.push(bytes);
             }

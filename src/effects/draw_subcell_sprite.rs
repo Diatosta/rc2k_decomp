@@ -68,7 +68,7 @@ pub fn draw_subcell_sprite(
         return Ok(());
     }
     let fog = fog_at(ring.work.whole.get())?;
-    let colour = crate::effects::ring_entries::get(ring, entry, 0x90)? | 0xFF00_0000;
+    let colour = crate::effects::ring_entries::entry(ring, entry)?.car_tag | 0xFF00_0000;
     for n in 0..4 {
         VERTICES.vertices[n].specular.set(fog);
         VERTICES.vertices[n].colour.set(colour);

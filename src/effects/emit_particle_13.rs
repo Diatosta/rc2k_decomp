@@ -20,7 +20,6 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::paths::Paths;
-use crate::effects::ring_entries::field;
 use crate::effects::run_particles::Particles;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -62,7 +61,7 @@ pub fn emit_particle_13(
     }
     let model = object.model.get() as usize;
     let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, 0xD)?;
-    let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
+    let slot = crate::effects::ring_entries::Slot::new(ring, e);
     let car = emitting_car(effects)?;
     let cells = car.whole()?;
     let t: [u32; 3] = read_first(&paths.spline_head.points[3 * model..]);
@@ -73,10 +72,10 @@ pub fn emit_particle_13(
         particles.kind13_set.lift.bits(),
         car.whole()?,
     );
-    put(field::PLACE_X, x)?;
-    put(field::PLACE_Y, y)?;
-    put(field::GROUND_Y, y_less)?;
-    put(field::PLACE_Z, z)?;
+    slot.put(|en| &mut en.place[0], x)?;
+    slot.put(|en| &mut en.place[1], y)?;
+    slot.put(|en| &mut en.ground_y, y_less)?;
+    slot.put(|en| &mut en.place[2], z)?;
     let one: u32 = effects.setup.floats.one.bits();
     let s = x87::one_less_inverse(
         object.engine_speed.bits(),
@@ -93,9 +92,9 @@ pub fn emit_particle_13(
             )
         })
     })?;
-    put(field::MOTION_X, motion[0])?;
-    put(field::MOTION_Y, motion[1])?;
-    put(field::MOTION_Z, motion[2])?;
+    slot.put(|en| &mut en.motion[0], motion[0])?;
+    slot.put(|en| &mut en.motion[1], motion[1])?;
+    slot.put(|en| &mut en.motion[2], motion[2])?;
     let r = (next_c5(&particles.kind13_set.drift_random) & 0xFFFF) as i32;
     let moved = x87::drifted(
         r,
@@ -104,32 +103,32 @@ pub fn emit_particle_13(
         effects.setup.clock.frame_ticks.get() as i32,
         [x, y, z],
     );
-    put(field::PLACE_X, moved[0])?;
-    put(field::PLACE_Y, moved[1])?;
-    put(field::PLACE_Z, moved[2])?;
+    slot.put(|en| &mut en.place[0], moved[0])?;
+    slot.put(|en| &mut en.place[1], moved[1])?;
+    slot.put(|en| &mut en.place[2], moved[2])?;
     let r = next_c5(&particles.kind13_set.spin_random);
-    put(field::ANGLE_RATE, (r & 0x3F).wrapping_sub(0x20))?;
-    put(field::ANGLE, r.rotate_right(6) & 0xFFF)?;
-    put(field::CELL, LOOK)?;
-    put(field::LIFE, LIFE)?;
-    put(
-        field::ALPHA_FADE,
+    slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
+    slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
+    slot.put(|en| &mut en.cell, LOOK)?;
+    slot.put(|en| &mut en.life, LIFE)?;
+    slot.put(
+        |en| &mut en.alpha_fade,
         x87::times_over_int(s, effects.setup.floats.two_fifty_seven.bits(), LIFE as i32),
     )?;
-    put(
-        field::ALPHA,
+    slot.put(
+        |en| &mut en.alpha,
         x87::mul(s, effects.setup.floats.two_fifty_six.bits()),
     )?;
-    put(field::CAR, effects.kinds.emitter.car.get())?;
+    slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
     let size = x87::times_plus_to_int(
         particles.kind13_set.size_k[0].bits(),
         s,
         particles.kind13_set.size_k[1].bits(),
     );
-    put(field::SIZE_GOAL, size as u32)?;
-    put(field::CAR_PACE, car.pace.get())?;
-    put(
-        field::SIZE,
+    slot.put(|en| &mut en.size_goal, size as u32)?;
+    slot.put(|en| &mut en.car_pace, car.pace.get())?;
+    slot.put(
+        |en| &mut en.size,
         x87::int_times(size, particles.kind13_set.size_k[2].bits()),
     )?;
     Ok(())

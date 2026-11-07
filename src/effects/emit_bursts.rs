@@ -208,7 +208,7 @@ pub fn emit_bursts_with(
                     return Ok(());
                 }
                 let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, h.kind)?;
-                let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
+                let slot = crate::effects::ring_entries::Slot::new(ring, e);
                 let d = read_bits(&ring.work.direction);
                 let (out, _) = crate::effects::spread_point::spread_point(
                     paths,
@@ -220,20 +220,23 @@ pub fn emit_bursts_with(
                     ],
                     effects,
                 );
-                put(0x34, rounded(out[0]))?;
-                put(0x30, rounded(out[1]))?;
-                put(0x2C, rounded(out[2]))?;
+                slot.put(|en| &mut en.motion[2], rounded(out[0]))?;
+                slot.put(|en| &mut en.motion[1], rounded(out[1]))?;
+                slot.put(|en| &mut en.motion[0], rounded(out[2]))?;
                 let r = next_c5(&set.tuning.randoms(n)[2]);
                 let size = (r.rotate_right(8) & h.size.0) + h.size.1;
                 effects.setup.frame.emit_side.set_bits(size);
-                put(0x60, x87::from_int(size as i32))?;
-                put(0x58, ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3))?;
+                slot.put(|en| &mut en.size, x87::from_int(size as i32))?;
+                slot.put(
+                    |en| &mut en.cell,
+                    ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3),
+                )?;
                 let tk: u32 = effects.setup.floats.minus_eighth.bits();
-                put(0x40, x87::mul(car.motion[2].bits(), tk))?;
-                put(0x3C, x87::mul(car.motion[1].bits(), tk))?;
-                put(0x38, x87::mul(car.motion[0].bits(), tk))?;
-                for o in [0x44, 0x48, 0x4C] {
-                    put(o, 0)?;
+                slot.put(|en| &mut en.push[2], x87::mul(car.motion[2].bits(), tk))?;
+                slot.put(|en| &mut en.push[1], x87::mul(car.motion[1].bits(), tk))?;
+                slot.put(|en| &mut en.push[0], x87::mul(car.motion[0].bits(), tk))?;
+                for n in 0..3 {
+                    slot.put(|en| &mut en.spare[n], 0)?;
                 }
                 let m = car.whole()?;
                 let side = (r.rotate_right(8) & 0x3FFF).wrapping_sub(0x2000);
@@ -247,24 +250,30 @@ pub fn emit_bursts_with(
                         side as i32,
                     ))
                 })?;
-                put(0x10, place[0])?;
-                put(0x14, place[1])?;
-                put(0x28, place[1])?;
-                put(0x18, place[2])?;
+                slot.put(|en| &mut en.place[0], place[0])?;
+                slot.put(|en| &mut en.place[1], place[1])?;
+                slot.put(|en| &mut en.ground_y, place[1])?;
+                slot.put(|en| &mut en.place[2], place[2])?;
                 let pick = r & 0x7_FFFF;
                 ring.work.whole.set(pick);
-                put(
-                    0x5C,
+                slot.put(
+                    |en| &mut en.cell_rate,
                     x87::int_times_plus(
                         pick as i32,
                         effects.setup.floats.over_65536.bits(),
                         effects.setup.floats.one.bits(),
                     ),
                 )?;
-                put(0x84, LIFE)?;
-                put(0x7C, effects.kinds.emitter.looks[0].get())?;
-                put(0x80, effects.kinds.emitter.looks[1].get())?;
-                put(0x68, effects.kinds.emitter.car.get())?;
+                slot.put(|en| &mut en.life, LIFE)?;
+                slot.put(
+                    |en| &mut en.box_limit[0],
+                    effects.kinds.emitter.looks[0].get(),
+                )?;
+                slot.put(
+                    |en| &mut en.box_limit[1],
+                    effects.kinds.emitter.looks[1].get(),
+                )?;
+                slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
             }
         }
     }

@@ -21,7 +21,6 @@ use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;
 use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
-use crate::effects::ring_entries::field;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -128,7 +127,7 @@ pub fn emit_particle_5_with(
             return Ok(());
         }
         let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, set.kind)?;
-        let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
+        let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let (sign, strength) = if kinds.emitter.record.get() & 1 == 0 {
             (-1i32, x87::sub(strength, wheel.speed_10.bits()))
         } else {
@@ -155,10 +154,10 @@ pub fn emit_particle_5_with(
                 )
             })
         })?;
-        put(field::PLACE_Z, place[2])?;
-        put(field::GROUND_Y, place[1])?;
-        put(field::PLACE_Y, place[1])?;
-        put(field::PLACE_X, place[0])?;
+        slot.put(|en| &mut en.place[2], place[2])?;
+        slot.put(|en| &mut en.ground_y, place[1])?;
+        slot.put(|en| &mut en.place[1], place[1])?;
+        slot.put(|en| &mut en.place[0], place[0])?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let lift = (k == 1).then(|| set.lift.bits());
@@ -176,25 +175,23 @@ pub fn emit_particle_5_with(
             effects,
         );
         let speed = wheel.speed_18.bits();
-        for (n, o) in [field::MOTION_Z, field::MOTION_Y, field::MOTION_X]
-            .into_iter()
-            .enumerate()
-        {
+        // (Motion z first, then y, then x.)
+        for (n, moved) in moved.into_iter().enumerate() {
             let row = matrix_cell(m, 0x28 - 4 * n as u32)?;
-            put(
-                o,
-                x87::product_plus(row, set.roll_k[n].bits(), speed, rounded(moved[n])),
+            slot.put(
+                |en| &mut en.motion[2 - n],
+                x87::product_plus(row, set.roll_k[n].bits(), speed, rounded(moved)),
             )?;
         }
-        put(
-            field::ANGLE_RATE,
+        slot.put(
+            |en| &mut en.angle_rate,
             x87::float_times_int_to_int(set.spin.bits(), sign) as u32,
         )?;
-        put(field::CELL, wheel.flags.get() & 0x3F)?;
-        put(field::SIZE, ((last >> 2) & 0xFFF) + 0x7800)?;
-        put(field::ALPHA, 0xFF00_0000)?;
-        put(field::LIFE, set.life)?;
-        put(field::CAR, kinds.emitter.car.get())?;
+        slot.put(|en| &mut en.cell, wheel.flags.get() & 0x3F)?;
+        slot.put(|en| &mut en.size, ((last >> 2) & 0xFFF) + 0x7800)?;
+        slot.put(|en| &mut en.alpha, 0xFF00_0000)?;
+        slot.put(|en| &mut en.life, set.life)?;
+        slot.put(|en| &mut en.car, kinds.emitter.car.get())?;
     }
     Ok(())
 }

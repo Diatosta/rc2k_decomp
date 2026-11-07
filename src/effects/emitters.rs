@@ -44,11 +44,7 @@ pub fn next_entry(ring: &Ring) -> Result<Option<u32>, Refused> {
         if ring.work.count.get() == MOST_TAKEN {
             return Ok(None);
         }
-        Some(crate::effects::ring_entries::get(
-            ring,
-            ring.work.cursor.get(),
-            0,
-        )?)
+        Some(crate::effects::ring_entries::entry(ring, ring.work.cursor.get())?.prev)
     })
 }
 
@@ -60,16 +56,13 @@ pub fn take_entry(
     kind: u32,
 ) -> Result<u32, Refused> {
     Ok({
-        let e = crate::effects::ring_entries::get(ring, ring.work.cursor.get(), 0)?;
+        let e = crate::effects::ring_entries::entry(ring, ring.work.cursor.get())?.prev;
         ring.work.cursor.set(e);
         ring.work.count.set(ring.work.count.get().wrapping_add(1));
-        let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-        put(
-            crate::effects::ring_entries::field::EMITTER_TAG,
-            effects.kinds.emitter.tag.get(),
-        )?;
-        put(crate::effects::ring_entries::field::CAR_TAG, tag)?;
-        put(crate::effects::ring_entries::field::KIND, kind)?;
+        let slot = crate::effects::ring_entries::Slot::new(ring, e);
+        slot.put(|en| &mut en.emitter_tag, effects.kinds.emitter.tag.get())?;
+        slot.put(|en| &mut en.car_tag, tag)?;
+        slot.put(|en| &mut en.kind, kind)?;
         e
     })
 }

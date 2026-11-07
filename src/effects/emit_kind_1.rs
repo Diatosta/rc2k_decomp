@@ -142,7 +142,7 @@ pub fn emit_particle_1(
             return Ok(());
         }
         let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, 1)?;
-        let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
+        let slot = crate::effects::ring_entries::Slot::new(ring, e);
         let car = emitting_car(effects)?;
         let m = car.whole()?;
         let side = (next_c5(&particles.kind1_set.side_random) & 0x3FFF) as i32 - 0x2000;
@@ -154,13 +154,13 @@ pub fn emit_particle_1(
                 side,
             ))
         })?;
-        put(0x10, rounded(place[0]))?;
-        put(0x14, rounded(place[1]))?;
-        put(
-            0x28,
+        slot.put(|en| &mut en.place[0], rounded(place[0]))?;
+        slot.put(|en| &mut en.place[1], rounded(place[1]))?;
+        slot.put(
+            |en| &mut en.ground_y,
             x87::ext_less(place[1], effects.setup.floats.two_pow_16.bits()),
         )?;
-        put(0x18, rounded(place[2]))?;
+        slot.put(|en| &mut en.place[2], rounded(place[2]))?;
         let motion: [[u8; 10]; 3] = crate::effects::try_from_fn(|k| {
             Ok({
                 let k4 = 4 * k as u32;
@@ -185,27 +185,27 @@ pub fn emit_particle_1(
             ],
             effects,
         );
-        put(0x34, rounded(moved[0]))?;
-        put(
-            0x30,
+        slot.put(|en| &mut en.motion[2], rounded(moved[0]))?;
+        slot.put(
+            |en| &mut en.motion[1],
             x87::add(rounded(moved[1]), particles.kind1_set.lift.bits()),
         )?;
-        put(0x2C, rounded(moved[2]))?;
+        slot.put(|en| &mut en.motion[0], rounded(moved[2]))?;
         let r = next_c5(&particles.kind1_set.spin_random);
-        put(0x54, (r & 0x3F).wrapping_sub(0x20))?;
-        put(0x50, r.rotate_right(6) & 0xFFF)?;
-        put(0x58, flags & 0x3F)?;
-        put(0x84, life as u32)?;
-        put(0x78, x87::over_int(fade, life))?;
-        put(0x74, fade)?;
-        put(0x68, effects.kinds.emitter.car.get())?;
-        put(0x70, SIZE)?;
-        put(0x6C, car.pace.get())?;
-        put(
-            0x60,
+        slot.put(|en| &mut en.angle_rate, (r & 0x3F).wrapping_sub(0x20))?;
+        slot.put(|en| &mut en.angle, r.rotate_right(6) & 0xFFF)?;
+        slot.put(|en| &mut en.cell, flags & 0x3F)?;
+        slot.put(|en| &mut en.life, life as u32)?;
+        slot.put(|en| &mut en.alpha_fade, x87::over_int(fade, life))?;
+        slot.put(|en| &mut en.alpha, fade)?;
+        slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+        slot.put(|en| &mut en.size_goal, SIZE)?;
+        slot.put(|en| &mut en.car_pace, car.pace.get())?;
+        slot.put(
+            |en| &mut en.size,
             x87::int_times(SIZE as i32, particles.kind1_set.size_k.bits()),
         )?;
-        put(0x64, 0)?;
+        slot.put(|en| &mut en.size_factor, 0)?;
     }
     Ok(())
 }

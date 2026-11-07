@@ -18,7 +18,6 @@ use crate::effects::emitters::*;
 use crate::effects::jitter_point::jitter_point;
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::effects;
-use crate::effects::ring_entries::field;
 use crate::effects::ring_store::Ring;
 use crate::errors::Refused;
 use crate::math::x87;
@@ -69,11 +68,11 @@ pub fn emit_particle_18(
             let tag = match before {
                 None => object.tag.get(),
                 // (The original's esi: the entry before's last x, 0 here.)
-                Some(b) => crate::effects::ring_entries::get(ring, b, field::LAST_PLACE_X)?,
+                Some(b) => crate::effects::ring_entries::entry(ring, b)?.last_place[0],
             };
             let e = take_entry(ring, effects, tag & 0xFF_FFFF, 0x12)?;
             before = Some(e);
-            let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
+            let slot = crate::effects::ring_entries::Slot::new(ring, e);
             let m = effects
                 .kinds
                 .emitter
@@ -89,30 +88,26 @@ pub fn emit_particle_18(
                 ],
                 effects,
             );
-            put(field::MOTION_Z, rounded(moved[0]))?;
-            put(field::MOTION_Y, rounded(moved[1]) & 0x7FFF_FFFF)?;
-            put(field::MOTION_X, rounded(moved[2]))?;
-            put(field::PLACE_X, x87::loaded(record.place[0].bits()))?;
-            put(field::PLACE_Y, x87::loaded(record.place[1].bits()))?;
-            put(
-                field::GROUND_Y,
+            slot.put(|en| &mut en.motion[2], rounded(moved[0]))?;
+            slot.put(|en| &mut en.motion[1], rounded(moved[1]) & 0x7FFF_FFFF)?;
+            slot.put(|en| &mut en.motion[0], rounded(moved[2]))?;
+            slot.put(|en| &mut en.place[0], x87::loaded(record.place[0].bits()))?;
+            slot.put(|en| &mut en.place[1], x87::loaded(record.place[1].bits()))?;
+            slot.put(
+                |en| &mut en.ground_y,
                 x87::sub(
                     record.place[1].bits(),
                     effects.setup.floats.two_pow_16.bits(),
                 ),
             )?;
-            put(field::PLACE_Z, x87::loaded(record.place[2].bits()))?;
-            for o in [
-                field::LAST_PLACE_X,
-                field::LAST_PLACE_Y,
-                field::LAST_PLACE_Z,
-            ] {
-                put(o, 0)?;
+            slot.put(|en| &mut en.place[2], x87::loaded(record.place[2].bits()))?;
+            for n in 0..3 {
+                slot.put(|en| &mut en.last_place[n], 0)?;
             }
-            put(field::LIFE, LIFE)?;
-            put(field::CAR, effects.kinds.emitter.car.get())?;
-            put(
-                field::ALPHA_FADE,
+            slot.put(|en| &mut en.life, LIFE)?;
+            slot.put(|en| &mut en.car, effects.kinds.emitter.car.get())?;
+            slot.put(
+                |en| &mut en.alpha_fade,
                 x87::over_int(effects.setup.floats.two_fifty_seven.bits(), LIFE as i32),
             )?;
         }
