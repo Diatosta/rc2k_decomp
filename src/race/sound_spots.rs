@@ -16,7 +16,7 @@ const GRID_DWORDS: u32 = 0x1084 / 4;
 /// through, and the original reads on into the variables after the grid (a slip kept).
 fn grid_cell(course: &Course, c: u32) -> Result<u32, BadInput> {
     crate::session::read_on_in(
-        &course.level_grid,
+        &*course.level_grid,
         &course.level_grid.course_grid,
         c as usize,
         "the variables after the course grid",
@@ -91,7 +91,7 @@ pub fn face_sound_spot(
         }
         let put = |o: u32, v: u32| {
             crate::session::write_on_in(
-                &race.frame.sound_spots,
+                &*race.frame.sound_spots,
                 &race.frame.sound_spots.sound_spots,
                 spot + (o / 4) as usize,
                 v,

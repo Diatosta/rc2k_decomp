@@ -13,9 +13,11 @@ use crate::race::prefs_store::StagePrefs;
 
 /// The race's course state (step 11, owned state: the stores move in as fields).
 pub struct Course {
-    pub course: CourseWork,
+    /// One copy per drawing thread (`workers`).
+    pub course: crate::workers::PerWorker<CourseWork>,
     pub lists: CourseLists,
-    pub level_grid: LevelGrid,
+    /// One copy per drawing thread (`workers`).
+    pub level_grid: crate::workers::PerWorker<LevelGrid>,
     pub level_paths: LevelPaths,
     pub kind_records: KindRecords,
     pub lights_data: LightsData,
@@ -28,9 +30,13 @@ pub struct Course {
 impl Course {
     pub const fn new() -> Self {
         Course {
-            course: CourseWork::new(),
+            course: crate::workers::PerWorker::new(
+                [const { CourseWork::new() }; crate::workers::COUNT],
+            ),
             lists: CourseLists::new(),
-            level_grid: LevelGrid::new(),
+            level_grid: crate::workers::PerWorker::new(
+                [const { LevelGrid::new() }; crate::workers::COUNT],
+            ),
             level_paths: LevelPaths::new(),
             kind_records: KindRecords::new(),
             lights_data: LightsData::new(),

@@ -68,4 +68,5 @@ mod text;
 mod threading;
 #[cfg(target_os = "emscripten")]
 pub mod web;
+mod workers;
 mod write_watch;

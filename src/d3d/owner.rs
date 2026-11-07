@@ -6,13 +6,17 @@ use crate::d3d::cards_store::Cards3d;
 /// The d3d module's state.
 pub struct D3d {
     /// The 3D cards' variables (current texture, render states, modes).
-    pub cards: Cards3d,
+    /// One copy per drawing thread (`workers`): the states and texture a thread's fans are
+    /// noted with.
+    pub cards: crate::workers::PerWorker<Cards3d>,
 }
 
 impl D3d {
     pub const fn new() -> Self {
         D3d {
-            cards: Cards3d::new(),
+            cards: crate::workers::PerWorker::new(
+                [const { Cards3d::new() }; crate::workers::COUNT],
+            ),
         }
     }
 }

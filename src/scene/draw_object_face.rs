@@ -157,7 +157,7 @@ pub fn draw_object_face(
         }
         scene.drawing.scene.polygon_textures[1].set_bits(REFLECTION_TEXTURE);
     }
-    let faded = race.frame.view_and_records.view_vars.fade_alpha.bits() != 0
+    let faded = race.frame.fade_alpha.bits() != 0
         && scene.lights.state.face_bits.bits() == race.physics.camera.faded_bits.bits();
     scene.lights.state.faded.set_bits(faded as u32);
     if race.shared.switches.face_any_shine.bits() == 0 {

@@ -20,15 +20,21 @@ use crate::race::text_state_store::TextState;
 /// `panel_and_overlay` (`view_vars_store`, `panel_store`, `overlay_store` read them there).
 pub struct Frame {
     pub frame_work: FrameWork,
-    pub matrices: SceneMatrices,
-    pub scratch: FrameScratch,
+    /// One copy per drawing thread (`workers`).
+    pub matrices: crate::workers::PerWorker<SceneMatrices>,
+    /// The alpha of the car being drawn (`dword_606284`: `race::car_draw` sets it for the car,
+    /// `scene::draw_polygon` and `scene::draw_object_face` read it), one per drawing thread.
+    pub fade_alpha: crate::workers::PerWorker<crate::session::Dword>,
+    /// One copy per drawing thread (`workers`).
+    pub scratch: crate::workers::PerWorker<FrameScratch>,
     pub counter: FrameCounter,
     pub draw_batches: DrawBatches,
     pub panel_clock: PanelClock,
     pub text_state: TextState,
     pub clock_ticks: ClockTicks,
     pub shadow_skids: ShadowSkids,
-    pub sound_spots: SoundSpotBlock,
+    /// One copy per drawing thread (`workers`).
+    pub sound_spots: crate::workers::PerWorker<SoundSpotBlock>,
     pub error_list: ErrorList,
     pub credits: Credits,
     pub map: MapVars,
@@ -41,15 +47,24 @@ impl Frame {
     pub const fn new() -> Self {
         Frame {
             frame_work: FrameWork::new(),
-            matrices: SceneMatrices::new(),
-            scratch: FrameScratch::new(),
+            fade_alpha: crate::workers::PerWorker::new(
+                [const { crate::session::Dword::new(0) }; crate::workers::COUNT],
+            ),
+            matrices: crate::workers::PerWorker::new(
+                [const { SceneMatrices::new() }; crate::workers::COUNT],
+            ),
+            scratch: crate::workers::PerWorker::new(
+                [const { FrameScratch::new() }; crate::workers::COUNT],
+            ),
             counter: FrameCounter::new(),
             draw_batches: DrawBatches::new(),
             panel_clock: PanelClock::new(),
             text_state: TextState::new(),
             clock_ticks: ClockTicks::new(),
             shadow_skids: ShadowSkids::new(),
-            sound_spots: SoundSpotBlock::new(),
+            sound_spots: crate::workers::PerWorker::new(
+                [const { SoundSpotBlock::new() }; crate::workers::COUNT],
+            ),
             error_list: ErrorList::new(),
             credits: Credits::new(),
             map: MapVars::new(),

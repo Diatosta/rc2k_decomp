@@ -8,7 +8,6 @@ use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::scene::faces_store::FACES;
-use crate::scene::polygon_store::POLYGON_WORK;
 
 // FACES.sort_entries: 0x1000 of 8 bytes
 pub const SORT_MAX: u32 = 0x1000;
@@ -156,7 +155,7 @@ pub fn face_depth(
     let by = depth_by(kind, || {
         let object = trap.keep_read(face_field::<u8>(face, 1)) as u32;
         // +0x2E of the object's 0x40-byte info (`object` a byte: inside the 0x100).
-        POLYGON_WORK.texture_infos[object as usize].words[11]
+        crate::scene::polygon_store::POLYGON_TABLES.texture_infos[object as usize].words[11]
             .get()
             .to_le_bytes()[2]
     });

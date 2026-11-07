@@ -9,7 +9,6 @@ use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
 use crate::scene::faces_store::FACES;
-use crate::scene::polygon_store::POLYGON_WORK;
 use crate::session::Dword;
 
 /// `race::car_label` (0x45B1B7): the panel's seven-byte label " CAR nn" for the neighbouring
@@ -216,7 +215,7 @@ pub fn object_bytes(course: &Course, scene: &crate::scene::owner::Scene) -> Resu
     };
     let outputs = face_tables(course);
     for n in 0..0x100usize {
-        let record = &POLYGON_WORK.texture_infos[n].words[8..];
+        let record = &crate::scene::polygon_store::POLYGON_TABLES.texture_infos[n].words[8..];
         let flags = record[3].get().to_le_bytes()[2];
         let record_kind = kind(record[0].get())?;
         let face_kind = if scene.objects.slots.face_counts[n].get() != 0 {

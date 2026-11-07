@@ -27,11 +27,14 @@ pub struct Shared {
     /// `TYRE_CHANGE` (`race`).
     pub tyre_change: TyreChange,
     /// `RACE_VARS` (`race`).
-    pub vars: RaceVars,
+    /// One copy per drawing thread (`workers`).
+    pub vars: crate::workers::PerWorker<RaceVars>,
     /// `RACE_VIEW` (`race`).
-    pub view: RaceView,
+    /// One copy per drawing thread (`workers`).
+    pub view: crate::workers::PerWorker<RaceView>,
     /// `FRAME_SWITCHES` (`race`).
-    pub switches: FrameSwitches,
+    /// One copy per drawing thread (`workers`).
+    pub switches: crate::workers::PerWorker<FrameSwitches>,
     /// `REPLAY_FILE` (`race`).
     pub replay_file: ReplayFileBlock,
     /// `TEMPLATES` (`race`).
@@ -52,9 +55,15 @@ impl Shared {
             tables: RaceTables::new(),
             buffers: Buffers::new(),
             tyre_change: TyreChange::new(),
-            vars: RaceVars::new(),
-            view: RaceView::new(),
-            switches: FrameSwitches::new(),
+            vars: crate::workers::PerWorker::new(
+                [const { RaceVars::new() }; crate::workers::COUNT],
+            ),
+            view: crate::workers::PerWorker::new(
+                [const { RaceView::new() }; crate::workers::COUNT],
+            ),
+            switches: crate::workers::PerWorker::new(
+                [const { FrameSwitches::new() }; crate::workers::COUNT],
+            ),
             replay_file: ReplayFileBlock::new(),
             replay_templates: Templates::new(),
             replays: Replays::new(),

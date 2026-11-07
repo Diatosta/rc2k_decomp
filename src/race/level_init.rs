@@ -188,7 +188,7 @@ pub fn build_texture_infos(course: &Course) -> Result<(), Refused> {
         }
         // Converted: `rc2k_core::race::stage::texture_info`.
         for n in 0..TEXTURES {
-            let out = &crate::scene::polygon_store::POLYGON_WORK.texture_infos[n as usize].words;
+            let out = &crate::scene::polygon_store::POLYGON_TABLES.texture_infos[n as usize].words;
             let kind = course.stage_prefs.texture_kinds[n as usize].get();
             let rec = kind * 0x80;
             let trap = Trap::new();

@@ -126,7 +126,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
             race.physics.contact.lit_face_pace.set(step);
             let kind_of: u32 = scene.objects.tables.object_kind(object as u32);
             // The material's byte +0x1C (the low byte of its eighth word).
-            let kind = crate::scene::polygon_store::POLYGON_WORK
+            let kind = crate::scene::polygon_store::POLYGON_TABLES
                 .object_materials
                 .get(kind_of as usize)
                 .ok_or(crate::errors::BadInput("an object kind past the materials"))?

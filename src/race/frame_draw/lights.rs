@@ -254,11 +254,16 @@ pub(super) fn car_lights_on_point(
             || shared.vars.run_kind.bits(),
             || {
                 let n = shared.view.drawn_view.bits() as usize;
-                crate::session::read_on_in(&shared.view, &shared.view.view_cars, n, "the view cars")
-                    .unwrap_or_else(|e| {
-                        trap.keep(e);
-                        0
-                    })
+                crate::session::read_on_in(
+                    &*shared.view,
+                    &shared.view.view_cars,
+                    n,
+                    "the view cars",
+                )
+                .unwrap_or_else(|e| {
+                    trap.keep(e);
+                    0
+                })
             },
         );
         trap.finish()?;

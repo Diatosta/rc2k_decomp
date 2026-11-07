@@ -617,7 +617,7 @@ pub fn place_object_matrix(
         .objects
         .tables
         .object_kind(race.shared.switches.object_number.get());
-    let material = POLYGON_WORK
+    let material = crate::scene::polygon_store::POLYGON_TABLES
         .object_materials
         .get(kind as usize)
         .ok_or(BadInput("an object kind past the 1200 materials"))?

@@ -22,7 +22,7 @@ pub fn fog_at(depth: u32) -> Result<u32, Refused> {
         // A byte of the table (the store types it in dwords).
         |n| {
             let dword = reading.keep(crate::session::read_on_in(
-                &lights.state,
+                &*lights.state,
                 &lights.state.fog_table,
                 n / 4,
                 "the fog table",

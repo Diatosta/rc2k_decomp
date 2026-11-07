@@ -156,7 +156,7 @@ const _: () = assert!(END - START == core::mem::size_of::<RaceView>());
 /// Where IDA 0x63D9B8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().shared.view))
+    crate::pointers::game_address(core::ptr::from_ref(race().shared.view.first()))
 }
 
 #[cfg(test)]

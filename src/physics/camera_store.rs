@@ -149,7 +149,7 @@ const _: () = assert!(END - START == core::mem::size_of::<CameraWork>());
 /// Where IDA 0x608B08 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().physics.camera))
+    crate::pointers::game_address(core::ptr::from_ref(race().physics.camera.first()))
 }
 
 #[cfg(test)]
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &crate::race::owner::race().physics.camera,
+            crate::race::owner::race().physics.camera.first(),
             START,
             END,
         );

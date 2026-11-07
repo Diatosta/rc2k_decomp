@@ -87,7 +87,7 @@ const _: () = assert!(END - START == core::mem::size_of::<SceneMatrices>());
 /// Where IDA 0x5E9EC8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.matrices))
+    crate::pointers::game_address(core::ptr::from_ref(race().frame.matrices.first()))
 }
 
 #[cfg(test)]
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.matrices, START, END);
+        crate::gfx::first_values_are_the_games(race().frame.matrices.first(), START, END);
     }
 
     #[test]

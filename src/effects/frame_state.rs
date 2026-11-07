@@ -408,6 +408,8 @@ mod typed_tests {
 
     #[test]
     fn draw_work_starts_as_the_games() {
+        // Other tests write the work: read it while none runs.
+        let _lock = crate::store::test_lock();
         assert_eq!(size_of::<DrawWork>(), DrawWork::LEN);
         let image = crate::moved::image_bytes(DrawWork::START, DrawWork::LEN);
         let mine = unsafe {

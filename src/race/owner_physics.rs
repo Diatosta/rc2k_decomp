@@ -12,10 +12,12 @@ use crate::race::car_specs_store::CarSpecs;
 
 /// The race's physics state (step 11, owned state: the stores move in as fields).
 pub struct Physics {
-    pub camera: CameraWork,
+    /// One copy per drawing thread (`workers`).
+    pub camera: crate::workers::PerWorker<CameraWork>,
     pub contact: ContactWork,
     pub ground_probe: GroundProbe,
-    pub ground: GroundWork,
+    /// One copy per drawing thread (`workers`).
+    pub ground: crate::workers::PerWorker<GroundWork>,
     pub pace: PaceNotes,
     pub split_tables: SplitTables,
     pub damage: DamageModel,
@@ -25,10 +27,14 @@ pub struct Physics {
 impl Physics {
     pub const fn new() -> Self {
         Physics {
-            camera: CameraWork::new(),
+            camera: crate::workers::PerWorker::new(
+                [const { CameraWork::new() }; crate::workers::COUNT],
+            ),
             contact: ContactWork::new(),
             ground_probe: GroundProbe::new(),
-            ground: GroundWork::new(),
+            ground: crate::workers::PerWorker::new(
+                [const { GroundWork::new() }; crate::workers::COUNT],
+            ),
             pace: PaceNotes::new(),
             split_tables: SplitTables::new(),
             damage: DamageModel::new(),

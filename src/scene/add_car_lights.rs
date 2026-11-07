@@ -50,7 +50,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
         let shared = &self.0.shared;
         // The store holds two views; the original's index is not held to them.
         self.1.keep(crate::session::read_on_in(
-            &shared.view,
+            &*shared.view,
             &shared.view.view_cars,
             shared.view.drawn_view.bits() as usize,
             "the drawn view's car",

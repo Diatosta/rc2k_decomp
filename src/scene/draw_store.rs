@@ -195,7 +195,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&scene().drawing.scene, START, END);
+        crate::gfx::first_values_are_the_games(scene().drawing.scene.first(), START, END);
     }
 
     #[test]

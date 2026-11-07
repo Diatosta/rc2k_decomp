@@ -339,7 +339,7 @@ fn clear_a_switch(
     let bytes = entries.iter().map(|&(_, entry)| entry.amount.get());
     let (all, any) = bytes.fold((0xFFu8, 0u8), |(all, any), b| (all & b, any | b));
     if all == 0xFF {
-        let info = crate::scene::polygon_store::POLYGON_WORK
+        let info = crate::scene::polygon_store::POLYGON_TABLES
             .texture_infos
             .get(shared.view.texture_b.bits() as usize)
             .ok_or(BadInput("a texture past the records"))?;
@@ -429,10 +429,7 @@ pub fn draw_polygon(
             scene.drawing.scene.texture_page.bits(),
         );
         // 0x44CAD5.
-        let (from, alpha): (u32, u32) = (
-            d3d().cards.fade_from.get(),
-            race.frame.view_and_records.view_vars.fade_alpha.bits(),
-        );
+        let (from, alpha): (u32, u32) = (d3d().cards.fade_from.get(), race.frame.fade_alpha.bits());
         let uv = crate::session::read_bits(&race.shared.vars.fade_uv);
         for (n, &(_, entry)) in entries.iter().enumerate() {
             let out = out(n);

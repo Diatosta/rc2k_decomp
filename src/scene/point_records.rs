@@ -28,8 +28,12 @@ pub const HELD: u32 = 1;
 pub type Record = [u32; 8];
 
 /// The records, as cells: read and written many times a polygon.
-static RECORDS: [[Dword; 8]; COUNT as usize] =
-    [const { [const { Dword::new(0) }; 8] }; COUNT as usize];
+/// One set per drawing thread (`workers`): a record is a thread's own projection, made again
+/// by another thread that needs it.
+static RECORDS: crate::workers::PerWorker<[[Dword; 8]; COUNT as usize]> =
+    crate::workers::PerWorker::new(
+        [const { [const { [const { Dword::new(0) }; 8] }; COUNT as usize] }; crate::workers::COUNT],
+    );
 /// Whether the records are taken.
 static TAKEN: AtomicBool = AtomicBool::new(false);
 
@@ -39,7 +43,12 @@ pub fn take(
     list: &dyn crate::pointers::Store,
 ) -> Result<(), Refused> {
     crate::memory::owned::count_on(list, BYTES)?;
-    RECORDS.iter().flatten().for_each(|cell| cell.set(0));
+    RECORDS
+        .all()
+        .iter()
+        .flatten()
+        .flatten()
+        .for_each(|cell| cell.set(0));
     TAKEN.store(true, Ordering::Relaxed);
     course.lists.point_records.set(HELD);
     Ok(())

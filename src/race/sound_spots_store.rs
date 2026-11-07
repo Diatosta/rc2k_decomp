@@ -76,7 +76,7 @@ const _: () = assert!(END - START == core::mem::size_of::<SoundSpotBlock>());
 /// Where IDA 0x6D18C8 is now (its own static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(core::ptr::from_ref(&race().frame.sound_spots))
+    crate::pointers::game_address(core::ptr::from_ref(race().frame.sound_spots.first()))
 }
 
 #[cfg(test)]
@@ -86,7 +86,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().frame.sound_spots, START, END);
+        crate::gfx::first_values_are_the_games(race().frame.sound_spots.first(), START, END);
     }
 
     #[test]

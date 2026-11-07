@@ -29,7 +29,7 @@ pub fn place_sound_object(race: &Race, scene: &crate::scene::owner::Scene) -> Re
         |kind| {
             // The material's byte +0x24 (the low byte of its tenth word).
             trap.keep(
-                crate::scene::polygon_store::POLYGON_WORK
+                crate::scene::polygon_store::POLYGON_TABLES
                     .object_materials
                     .get(kind as usize)
                     .map(|m| m.words[9].get() as u8)

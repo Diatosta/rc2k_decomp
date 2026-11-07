@@ -376,13 +376,13 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
         }
         ecx = 0xF0;
     }
-    race.frame.view_and_records.view_vars.fade_alpha.set(ecx);
+    race.frame.fade_alpha.set(ecx);
     car_at(car)?
         .group_mask
         .set(race.frame.view_and_records.view_vars.group_mask.bits());
     // `view_cars[drawn_view]`: past the two, read on by address as the original does.
     let view_car = crate::session::read_on_in(
-        &race.shared.view,
+        &*race.shared.view,
         &race.shared.view.view_cars,
         race.shared.view.drawn_view.bits() as usize,
         "the view cars",

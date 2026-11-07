@@ -39,16 +39,16 @@ pub fn pool_start() -> u32 {
 /// records alone: `scene::set_object_material` is given kind -1 and reads the record before
 /// the first (the texture infos' tail), as the original does.
 pub fn materials_ptr() -> crate::pointers::GamePtr {
-    use crate::scene::polygon_store::{POLYGON_WORK, PolygonWork};
-    crate::pointers::GamePtr::to(&*POLYGON_WORK)
-        .offset(core::mem::offset_of!(PolygonWork, object_materials) as u32)
+    use crate::scene::polygon_store::{POLYGON_TABLES, PolygonTables};
+    crate::pointers::GamePtr::to(&*POLYGON_TABLES)
+        .offset(core::mem::offset_of!(PolygonTables, object_materials) as u32)
 }
 
 /// Byte `offset` of texture info `n` (`g_textureInfos` + 0x40 n): an offset past the
 /// record reads on into the next, as the original's arithmetic does.
 #[track_caller]
 pub fn texture_info_byte(n: u32, offset: u32) -> Result<u8, BadInput> {
-    crate::pointers::GamePtr::to(&crate::scene::polygon_store::POLYGON_WORK.texture_infos)
+    crate::pointers::GamePtr::to(&crate::scene::polygon_store::POLYGON_TABLES.texture_infos)
         .offset(n.wrapping_mul(0x40).wrapping_add(offset))
         .read("a texture info's byte")
 }
@@ -57,7 +57,7 @@ pub fn texture_info_byte(n: u32, offset: u32) -> Result<u8, BadInput> {
 /// kind -1 the record before the first, as the original reads it).
 #[track_caller]
 pub fn material_byte(kind: u32, offset: u32) -> Result<u8, BadInput> {
-    crate::pointers::GamePtr::to(&crate::scene::polygon_store::POLYGON_WORK.object_materials)
+    crate::pointers::GamePtr::to(&crate::scene::polygon_store::POLYGON_TABLES.object_materials)
         .offset(kind.wrapping_mul(0x80).wrapping_add(offset))
         .read("an object's material byte")
 }

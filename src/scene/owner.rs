@@ -34,17 +34,21 @@ pub struct Scene {
 /// The drawing state: the draw variables and the scene objects' work.
 pub struct Drawing {
     /// The scene's draw variables (`DRAW`).
-    pub scene: SceneDraw,
+    /// One copy per drawing thread (`workers`).
+    pub scene: crate::workers::PerWorker<SceneDraw>,
     /// The scene objects' work variables (`OBJECT_WORK`).
-    pub object_work: ObjectWork,
+    /// One copy per drawing thread (`workers`).
+    pub object_work: crate::workers::PerWorker<ObjectWork>,
 }
 
 /// The light state and the lights' work variables.
 pub struct Lights {
     /// The light state (`LIGHT_STATE`).
-    pub state: LightState,
+    /// One copy per drawing thread (`workers`).
+    pub state: crate::workers::PerWorker<LightState>,
     /// The lights' work variables (`LIGHT_WORK`).
-    pub work: LightWork,
+    /// One copy per drawing thread (`workers`).
+    pub work: crate::workers::PerWorker<LightWork>,
 }
 
 /// The object tables: the slots and the kinds' tables.
@@ -70,12 +74,14 @@ pub static SCENE: Scene = Scene {
     light_tables: LightTables::new(),
     icon_upload: IconUploadCell::new(),
     drawing: Drawing {
-        scene: SceneDraw::new(),
-        object_work: ObjectWork::new(),
+        scene: crate::workers::PerWorker::new([const { SceneDraw::new() }; crate::workers::COUNT]),
+        object_work: crate::workers::PerWorker::new(
+            [const { ObjectWork::new() }; crate::workers::COUNT],
+        ),
     },
     lights: Lights {
-        state: LightState::new(),
-        work: LightWork::new(),
+        state: crate::workers::PerWorker::new([const { LightState::new() }; crate::workers::COUNT]),
+        work: crate::workers::PerWorker::new([const { LightWork::new() }; crate::workers::COUNT]),
     },
     objects: Objects {
         slots: ObjectSlots::new(),

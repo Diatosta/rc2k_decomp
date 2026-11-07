@@ -160,30 +160,60 @@ pub struct PolygonWork {
     pub unknown_2400: [Dword; 0x180],
     /// +0x2a00 (0x977F10): `g_polygonRecordPool`: the point records a clip makes, 0x2020 bytes (`scene::clip`, `scene::draw_flat_quad`).
     pub record_pool: [Dword; 0x808],
-    /// +0x4a20 (0x979F30): `g_textureInfos`: 256 records of 0x40 bytes (`scene::draw_polygon`, `race::course_faces`, `physics::wheel_surfaces`, `race::level_init`; `dword_979F50` is the kind of the object whose record it is, +0x20).
+}
+
+/// The textures' records and the objects' materials, after the work (IDA 0x979F30 ..
+/// 0x9A3730): shared by every drawing thread, unlike the work.
+#[repr(C)]
+#[derive(rc2k_derive::Cells)]
+pub struct PolygonTables {
+    /// +0x0 (0x979F30): `g_textureInfos`: 256 records of 0x40 bytes (`scene::draw_polygon`, `race::course_faces`, `physics::wheel_surfaces`, `race::level_init`; `dword_979F50` is the kind of the object whose record it is, +0x20).
     pub texture_infos: [TextureInfo; 256],
-    /// +0x8a20 (0x97DF30): `g_objectMaterials`: by object kind, 0x80 bytes each, 1200 of them (`scene::set_object_material`, `scene::draw_described_object`, `physics::face_contact`, `drive::animate_lit_faces`).
+    /// +0x4000 (0x97DF30): `g_objectMaterials`: by object kind, 0x80 bytes each, 1200 of them (`scene::set_object_material`, `scene::draw_described_object`, `physics::face_contact`, `drive::animate_lit_faces`).
     pub object_materials: [ObjectMaterial; 1200],
 }
 
-/// The piece, a field of `crate::race::owner::race().shared.buffers`.
+/// The work, a field of `crate::race::owner::race().shared.buffers` for the game's own thread
+/// and one of `WORKER_COPIES` for each other drawing thread (`workers`).
 pub struct InBuffers;
+
+/// The drawing threads' copies of the work but the game's thread's.
+static WORKER_COPIES: [PolygonWork; crate::workers::COUNT - 1] =
+    [const { crate::pointers::cells_of_bytes([0u8; WORK_LEN]) }; crate::workers::COUNT - 1];
 
 impl core::ops::Deref for InBuffers {
     type Target = PolygonWork;
+    #[inline]
     fn deref(&self) -> &PolygonWork {
-        &race().shared.buffers.polygon
+        crate::workers::pick(&race().shared.buffers.polygon, &WORKER_COPIES)
     }
 }
 
 pub static POLYGON_WORK: InBuffers = InBuffers;
+
+/// The tables, a field of `crate::race::owner::race().shared.buffers`.
+pub struct TablesInBuffers;
+
+impl core::ops::Deref for TablesInBuffers {
+    type Target = PolygonTables;
+    fn deref(&self) -> &PolygonTables {
+        &race().shared.buffers.polygon_tables
+    }
+}
+
+pub static POLYGON_TABLES: TablesInBuffers = TablesInBuffers;
+
+/// The work's bytes.
+const WORK_LEN: usize = core::mem::size_of::<PolygonWork>();
 
 /// IDA 0x975510, the first byte of the piece.
 pub const START: usize = 0x975510;
 /// IDA 0x9A3730, the end of the piece.
 pub const END: usize = 0x9A3730;
 
-const _: () = assert!(END - START == core::mem::size_of::<PolygonWork>());
+const _: () = assert!(
+    END - START == core::mem::size_of::<PolygonWork>() + core::mem::size_of::<PolygonTables>()
+);
 
 /// Where IDA 0x975510 is now.
 #[cfg(test)]
@@ -210,7 +240,10 @@ mod tests {
         assert_eq!(offset_of!(PolygonWork, list), 0x977710 - START);
         assert_eq!(offset_of!(PolygonWork, old_list), 0x977810 - START);
         assert_eq!(offset_of!(PolygonWork, record_pool), 0x977F10 - START);
-        assert_eq!(offset_of!(PolygonWork, texture_infos), 0x979F30 - START);
-        assert_eq!(offset_of!(PolygonWork, object_materials), 0x97DF30 - START);
+        assert_eq!(core::mem::size_of::<PolygonWork>(), 0x979F30 - START);
+        assert_eq!(
+            offset_of!(PolygonTables, object_materials),
+            0x97DF30 - 0x979F30
+        );
     }
 }

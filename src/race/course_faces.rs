@@ -404,7 +404,7 @@ pub fn second_set(race: &Race) -> TextureSet<'_> {
 /// lie one after another, and the original's sums of addresses may leave the record, or
 /// the records (then read by address, checked).
 fn info_bytes<const N: usize>(texture: u32, offset: u32) -> Result<[u8; N], BadInput> {
-    let infos = &POLYGON_WORK.texture_infos;
+    let infos = &crate::scene::polygon_store::POLYGON_TABLES.texture_infos;
     let at = (texture << 6).wrapping_add(offset) as usize;
     let (dword, byte) = (at / 4, at % 4);
     if let Some(info) = infos.get(dword / 16)
@@ -648,9 +648,10 @@ pub fn draw_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
     let trap = Trap::new();
     let picked = || {
         // A run-on: the picked info number is not bounded, as the original.
-        let record = GamePtr::to(&POLYGON_WORK.texture_infos[0].words)
-            .unbounded()
-            .offset(second << 6);
+        let record =
+            GamePtr::to(&crate::scene::polygon_store::POLYGON_TABLES.texture_infos[0].words)
+                .unbounded()
+                .offset(second << 6);
         let pick = trap.read_at::<u8>(record.offset(0x2C), "a texture info's kind") as usize;
         // dword_63D9D0: indexed by a byte (not bounded by the field's 4 dwords), so
         // read by address.

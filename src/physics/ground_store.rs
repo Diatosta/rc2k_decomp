@@ -135,7 +135,7 @@ const _: () = assert!(END - START == core::mem::size_of::<GroundWork>());
 /// Where IDA 0x63967C is now (the piece's static).
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
-    crate::pointers::game_address(std::ptr::from_ref(&race().physics.ground))
+    crate::pointers::game_address(std::ptr::from_ref(race().physics.ground.first()))
 }
 
 #[cfg(test)]
@@ -145,7 +145,7 @@ mod tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&race().physics.ground, START, END);
+        crate::gfx::first_values_are_the_games(race().physics.ground.first(), START, END);
     }
 
     #[test]

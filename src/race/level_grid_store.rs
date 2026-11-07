@@ -71,7 +71,7 @@ const _: () = assert!(END - START == core::mem::size_of::<LevelGrid>());
 #[cfg(test)]
 pub fn piece_addr() -> u32 {
     crate::pointers::game_address(core::ptr::from_ref(
-        &crate::race::owner::RACE.course.level_grid,
+        crate::race::owner::RACE.course.level_grid.first(),
     ))
 }
 
@@ -83,7 +83,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         crate::gfx::first_values_are_the_games(
-            &crate::race::owner::RACE.course.level_grid,
+            crate::race::owner::RACE.course.level_grid.first(),
             START,
             END,
         );

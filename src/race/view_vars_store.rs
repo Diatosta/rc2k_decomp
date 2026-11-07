@@ -22,8 +22,9 @@ pub struct ViewVars {
     pub drawn_car: Dword,
     /// +0x14 (0x606280): `dword_606280`: face group mask for the drawn car (`race::car_draw`, `scene::list_object_face`).
     pub group_mask: Dword,
-    /// +0x18 (0x606284): `dword_606284`: fade alpha (`scene::draw_polygon`, `scene::draw_object_face`, `race::car_draw`).
-    pub fade_alpha: Dword,
+    /// +0x18 (0x606284): `dword_606284`: the car's fade alpha, now `Frame::fade_alpha` (one per
+    /// drawing thread): this place is no longer reached.
+    pub fade_alpha_moved: Dword,
     /// +0x1c (0x606288): `dword_606288`: camera height bias (`physics::camera_height_bias`).
     pub camera_height_bias: Dword,
     /// +0x20 (0x60628C): `flt_60628C` (`physics::camera_height_bias`).
@@ -266,7 +267,7 @@ mod tests {
             crate::framework::game_addr(crate::framework::rva(START))
         );
         assert_eq!(offset_of!(ViewVars, view_car_flag_a), 0x60626C - START);
-        assert_eq!(offset_of!(ViewVars, fade_alpha), 0x606284 - START);
+        assert_eq!(offset_of!(ViewVars, fade_alpha_moved), 0x606284 - START);
         assert_eq!(offset_of!(ViewVars, view_place_f), 0x6062A4 - START);
         assert_eq!(offset_of!(ViewVars, camera_distance), 0x60631C - START);
     }

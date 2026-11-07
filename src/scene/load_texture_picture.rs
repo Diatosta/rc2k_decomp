@@ -109,7 +109,7 @@ pub fn load_texture_picture(
             // eight) reads on, as the original.
             let tyres = &shared.vars.car_tyres;
             let gravel = crate::session::read_on_in(
-                &shared.vars,
+                &*shared.vars,
                 tyres,
                 car as usize,
                 "a car's tyre switch",

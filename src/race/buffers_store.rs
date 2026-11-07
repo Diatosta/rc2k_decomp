@@ -12,7 +12,7 @@ use crate::race::owner::race;
 use crate::race::viewer_buffers_store::ViewerBuffers;
 use crate::scene::engine_tables_store::EngineTables;
 use crate::scene::faces_store::Faces;
-use crate::scene::polygon_store::PolygonWork;
+use crate::scene::polygon_store::{PolygonTables, PolygonWork};
 use crate::screens::text_buffers_store::TextBuffers;
 use crate::session::Bytes;
 use core::mem::{offset_of, size_of};
@@ -33,6 +33,8 @@ pub struct Buffers {
     pub viewer: ViewerBuffers,
     /// +0x15510 (0x975510): `scene::polygon_store`.
     pub polygon: PolygonWork,
+    /// +0x19F30 (0x979F30): `scene::polygon_store`'s tables.
+    pub polygon_tables: PolygonTables,
     /// +0x43730 (0x9A3730): `scene::faces_store`.
     pub faces: Faces,
     /// +0x83738 (0x9E3738): `race::checkpoints_store`.

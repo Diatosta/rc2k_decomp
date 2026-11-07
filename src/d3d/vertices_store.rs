@@ -36,13 +36,20 @@ pub struct PolygonVertices {
     pub vertices: [Vertex; 64],
 }
 
-/// The piece, a field of `crate::race::owner::race().shared.buffers`.
+/// The piece, a field of `crate::race::owner::race().shared.buffers` for the game's own thread
+/// and one of `WORKER_COPIES` for each other drawing thread.
 pub struct InBuffers;
+
+/// The drawing threads' copies but the game's thread's (`workers`).
+static WORKER_COPIES: [PolygonVertices; crate::workers::COUNT - 1] =
+    [const { crate::pointers::cells_of_bytes([0u8; core::mem::size_of::<PolygonVertices>()]) };
+        crate::workers::COUNT - 1];
 
 impl core::ops::Deref for InBuffers {
     type Target = PolygonVertices;
+    #[inline]
     fn deref(&self) -> &PolygonVertices {
-        &race().shared.buffers.vertices
+        crate::workers::pick(&race().shared.buffers.vertices, &WORKER_COPIES)
     }
 }
 
