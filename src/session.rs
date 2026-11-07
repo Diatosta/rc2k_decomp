@@ -792,6 +792,43 @@ impl<const N: usize> TextPlace for [u8; N] {
     }
 }
 
+/// A text in a `Bytes` that begins `from` bytes in (a path among several in one buffer): read
+/// up to its NUL inside the buffer, written to inside it.
+pub struct TextFrom<'a, const N: usize> {
+    buffer: &'a Bytes<N>,
+    from: usize,
+}
+
+impl<const N: usize> Bytes<N> {
+    /// The text that begins `from` bytes in.
+    pub fn text_from(&self, from: usize) -> TextFrom<'_, N> {
+        TextFrom { buffer: self, from }
+    }
+}
+
+impl<const N: usize> TextPlace for TextFrom<'_, N> {
+    fn text(&self, _what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        let all = self.buffer.read();
+        let rest = all
+            .get(self.from..)
+            .ok_or(crate::errors::BadInput("a text past its buffer"))?;
+        match rest.iter().position(|&c| c == 0) {
+            Some(n) => Ok(rest[..n].to_vec()),
+            None => Err(crate::errors::BadInput("a text with no end in its buffer")),
+        }
+    }
+
+    fn write_text_at(
+        &self,
+        at: usize,
+        bytes: &[u8],
+        what: &str,
+    ) -> Result<(), crate::errors::BadInput> {
+        self.buffer
+            .write_at(self.from.saturating_add(at), bytes, what)
+    }
+}
+
 impl TextPlace for crate::pointers::GamePtr {
     fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
         crate::files::cstring_at(*self, what)

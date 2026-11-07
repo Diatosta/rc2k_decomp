@@ -20,7 +20,11 @@ const VERSION_INFO_LEN: usize = 0x94;
 pub fn read_windows_version() {
     let record = crate::os::version_record();
     debug_assert_eq!(record.len(), VERSION_INFO_LEN);
-    crate::pointers::GamePtr::to(&system().session.machine.version)
-        .write_bytes(&record, "the Windows version's record")
+    use crate::pointers::Store as _;
+    system()
+        .session
+        .machine
+        .version
+        .store(0, &record)
         .unwrap_or_else(|e| crate::fatal::raise::end("system::read_windows_version", e));
 }

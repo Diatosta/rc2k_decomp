@@ -206,11 +206,11 @@ pub struct Places<'a> {
 }
 
 /// `saves::load_options` (see the header).
-pub fn load_options(path: crate::pointers::GamePtr, places: &mut Places) -> Result<bool, Refused> {
+pub fn load_options(path: &dyn Store, places: &mut Places) -> Result<bool, Refused> {
     places.loaded.set(0);
     let file = &system().work.files.buffer;
     let read = read_file_to_store(
-        &crate::files::cstring_at(path, "the options file's path")?,
+        &crate::files::cstring(path, "the options file's path")?,
         file,
         TEXT_ROOM + 1,
         0,
@@ -240,7 +240,7 @@ pub fn load_options(path: crate::pointers::GamePtr, places: &mut Places) -> Resu
 pub fn load_game_options() -> Result<bool, Refused> {
     let pieces = pieces();
     load_options(
-        crate::pointers::GamePtr::to(&saves().files.options_path),
+        &saves().files.options_path,
         &mut Places {
             loaded: &menus().screens.loop_flags.options_loaded,
             pieces: &pieces,

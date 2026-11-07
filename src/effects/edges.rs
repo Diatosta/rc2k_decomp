@@ -8,7 +8,6 @@ use crate::effects::owner::effects;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::owner_course::Course;
 use crate::race::panel_store::Loose32;
 use crate::session::{Bytes, Dword, Float, read_bits};
@@ -91,8 +90,7 @@ pub fn load_edges(
         .picture
         .row_bytes
         .set(0xFFFF_FFFEu32);
-    let read =
-        crate::gfx::read_picture_file::read_picture_file(&GamePtr::to(&masks.edge_settings.path));
+    let read = crate::gfx::read_picture_file::read_picture_file(&masks.edge_settings.path);
     crate::gfx::owner::gfx()
         .pictures
         .picture

@@ -66,8 +66,8 @@ pub fn show_version_and_leave(start: &Start) -> ! {
     ));
     let mut kept = text.clone();
     kept.push(0);
-    GamePtr::to(&crate::fatal::state::TEXT) // Text
-        .write_bytes(&kept, "the version's text")
+    crate::fatal::state::TEXT // Text
+        .write_at(0, &kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
     // MB_ICONINFORMATION | MB_TASKMODAL.
     let caption = crate::files::cstring_at(caption, "the caption").unwrap_or_else(|e| leave(e));

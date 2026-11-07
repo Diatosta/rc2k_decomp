@@ -33,20 +33,8 @@ const ROWS: u32 = 0x7E;
 /// `gfx::read_picture_file` at 256 x 128 (the picture's sizes kept round it); refused
 /// when not read (the original then counts 0x1FFFFFFF down and leaves with its stack one
 /// off).
-fn read(path: crate::pointers::GamePtr) -> Result<(), Refused> {
-    {
-        use rc2k_core::strings::bytes::Bytes as _;
-        let text = path.bytes("a mask picture's path")?;
-        let mut k = 0;
-        loop {
-            match text.byte(k) {
-                Some(0) => break,
-                Some(_) => k += 1,
-                None => return Err(BadInput("a mask picture's path runs past its region").into()),
-            }
-        }
-    }
-    // SAFETY: the path's NUL lies in its region (checked above).
+fn read(path: &dyn crate::session::TextPlace) -> Result<(), Refused> {
+    path.text("a mask picture's path")?;
     let sizes: [u32; 3] = [
         crate::gfx::owner::gfx().pictures.picture.width.get(),
         crate::gfx::owner::gfx().pictures.picture.height.get(),
@@ -67,7 +55,7 @@ fn read(path: crate::pointers::GamePtr) -> Result<(), Refused> {
         .picture
         .row_bytes
         .set(0xFFFF_FFFEu32);
-    let read = crate::gfx::read_picture_file::read_picture_file(&path);
+    let read = crate::gfx::read_picture_file::read_picture_file(path);
     crate::gfx::owner::gfx()
         .pictures
         .picture
@@ -111,7 +99,7 @@ pub fn lock(slot: u32, lock: bool) -> Result<(), Refused> {
 fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Result<(), Refused> {
     {
         // A file path (text up to its NUL) at a byte offset in the paths.
-        read(crate::pointers::GamePtr::to(&masks.picture_copy.paths).offset(path as u32))?;
+        read(&masks.picture_copy.paths.text_from(path))?;
         copy[..4 * COPIED as usize].copy_from_slice(&crate::gfx::picture::read_bytes(
             crate::gfx::owner::gfx().pictures.picture.buffer.get(),
             0,
@@ -119,8 +107,10 @@ fn mask(masks: &Masks, path: usize, to: Mask, copy: &mut [u8], width: u32) -> Re
         )?);
         // The ground's file path, a text up to its NUL, at the offset the settings name.
         read(
-            crate::pointers::GamePtr::to(&masks.ground_names.names)
-                .offset(masks.ground_names.ground_path.get()),
+            &masks
+                .ground_names
+                .names
+                .text_from(masks.ground_names.ground_path.get() as usize),
         )?;
         for y in 0..ROWS {
             for x in 0..width.max(1) {

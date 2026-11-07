@@ -13,7 +13,7 @@
 //! what `files::read_whole_file` refuses (nothing written then).
 
 use crate::errors::Refused;
-use crate::files::read_whole_file::read_whole_file;
+use crate::files::read_whole_file::read_whole_file_cells;
 use crate::files::state::BYTES_READ;
 use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
@@ -21,12 +21,9 @@ use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
-fn paths(course: &Course) -> [crate::pointers::GamePtr; 2] {
+fn paths(course: &Course) -> [&dyn crate::pointers::Store; 2] {
     let p = &course.level_paths;
-    [
-        crate::pointers::GamePtr::to(&p.cdat_src),
-        crate::pointers::GamePtr::to(&p.cdat_files),
-    ]
+    [&p.cdat_src, &p.cdat_files]
 }
 use crate::scene::owner::scene;
 use rc2k_core::race::stage_objects::COURSES;
@@ -44,10 +41,10 @@ pub fn find_present_courses(race: &Race) -> Result<(), Refused> {
         let present = course_present(paths(course).len() as u32, |file| {
             BYTES_READ.set(0);
             let path = paths(course)[file as usize];
-            read_whole_file(
-                &crate::files::cstring_at(path, "a course file's path")?,
-                crate::pointers::GamePtr::to(&scene().drawing.scene.work_dword),
-                PROBE_BYTES,
+            debug_assert_eq!(PROBE_BYTES, 4);
+            read_whole_file_cells(
+                &crate::files::cstring(path, "a course file's path")?,
+                std::slice::from_ref(&scene().drawing.scene.work_dword),
             )?;
             Ok::<u32, Refused>(BYTES_READ.get())
         })?;

@@ -3,15 +3,15 @@
 //! the first to the last (both included) read, sorted, the changed ones written back.
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 use rc2k_core::race::quick_sort::{Order, quick_sort};
 
-/// The `count` records of `N` dwords from `first` sorted by dword `key` in `order`
+/// The `count` records of `N` dwords from `first` (a store) sorted by dword `key` in `order`
 /// (nothing done with fewer than two, as the original's first test). The registers the
 /// original leaves are read by none of its callers (conversion phase 3, 2026-10-24).
 /// Refuses (before anything) a sort that would go past the records' bound.
 pub fn sort_records<const N: usize>(
-    first: GamePtr,
+    first: &dyn Store,
     count: u32,
     key: usize,
     order: Order,
@@ -23,13 +23,13 @@ pub fn sort_records<const N: usize>(
     let size = 4 * N as u32;
     let count = count as usize;
     // The records are read and written as raw dwords (the sort's own byte layout).
-    let at = |n: usize| first.offset((n as u32).wrapping_mul(size));
     let len = count
         .checked_mul(size as usize)
         .ok_or(crate::errors::BadInput(
             "more records to sort than memory holds",
         ))?;
-    let bytes = first.read_bytes(len, "the records to sort")?;
+    let mut bytes = vec![0; len];
+    first.load(0, &mut bytes)?;
     let mut list: Vec<[u32; N]> = bytes
         .chunks_exact(size as usize)
         .map(|record| {
@@ -47,7 +47,11 @@ pub fn sort_records<const N: usize>(
     quick_sort(&mut list, key, order)?;
     for (n, (now, was)) in list.iter().zip(&before).enumerate() {
         if now != was {
-            at(n).write(*now, "a sorted record")?;
+            let mut record = Vec::with_capacity(size as usize);
+            for value in now {
+                record.extend_from_slice(&value.to_le_bytes());
+            }
+            first.store(n * size as usize, &record)?;
         }
     }
     Ok(())

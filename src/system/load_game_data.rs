@@ -83,8 +83,9 @@ pub enum Call {
 pub type Outside<'a> = &'a mut dyn FnMut(Call) -> Result<u32, Refused>;
 
 /// The string and what follows it, with a NUL, at `to`.
-fn default_name(
-    to: crate::pointers::GamePtr,
+fn default_name<const N: usize>(
+    to: &Bytes<N>,
+    at: usize,
     room: usize,
     id: u32,
     after: &[u8],
@@ -93,7 +94,7 @@ fn default_name(
     push_string(&mut string, id)?;
     let name = rc2k_core::system::game_data::default_name(&string, after, room)
         .ok_or(BadInput("a default name longer than its place"))?;
-    to.write_bytes(&name, "a default name")?;
+    to.write_at(at, &name, "a default name")?;
     Ok(())
 }
 
@@ -139,20 +140,24 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
 
     for (player, id) in PLAYER_NAME_IDS.into_iter().enumerate() {
         // The player's name bytes at their slot in the names buffer.
-        let name = crate::pointers::GamePtr::to(&play.names.player_names)
-            .offset((player * NAME_LEN) as u32);
         if play.names.player_names.get(player * NAME_LEN) != 0 {
             continue;
         }
         if player == 0 {
-            let place = name;
+            let place = crate::pointers::GamePtr::to(&play.names.player_names);
             outside(Call::UserName(place))?;
             copy_printable(place, place, USER_NAME_ROOM)?;
             if play.names.player_names.get(player * NAME_LEN) != 0 {
                 continue;
             }
         }
-        default_name(name, NAME_LEN, id, &[])?;
+        default_name(
+            &play.names.player_names,
+            player * NAME_LEN,
+            NAME_LEN,
+            id,
+            &[],
+        )?;
     }
 
     if net.vars.machine_name.get(0) == 0 {
@@ -161,7 +166,8 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
         copy_printable(place, place, MACHINE_NAME_ROOM as u32)?;
         if net.vars.machine_name.get(0) == 0 {
             default_name(
-                crate::pointers::GamePtr::to(&net.vars.machine_name),
+                &net.vars.machine_name,
+                0,
                 MACHINE_NAME_ROOM,
                 MACHINE_NAME_ID,
                 &[],

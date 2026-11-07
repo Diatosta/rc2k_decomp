@@ -73,8 +73,9 @@ pub fn open_installer(g: &'static crate::install::owner::Install) -> Result<(), 
         0x80AF_7445,
     )?;
     crate::gfx::palette_to_dwords::palette_to_dwords(
-        crate::pointers::GamePtr::to(&g.palette.palette),
-        crate::pointers::GamePtr::to(&crate::text::blend_font::BLENDED_PALETTE),
+        &g.palette.palette,
+        0,
+        &crate::text::blend_font::BLENDED_PALETTE,
     )?;
     components_to_pixels(
         &crate::text::blend_font::BLENDED_PALETTE,

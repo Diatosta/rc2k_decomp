@@ -8,7 +8,6 @@ use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::owner_course::Course;
 use crate::session::{Bytes, Dword, Float, read_bits};
 
@@ -620,7 +619,6 @@ pub fn make_spline(course: &Course, paths: &Paths, object: u32) -> Result<(), Re
     Ok(())
 }
 pub const RESUME: u32 = 0x4B9706; // loc_4B9706
-pub const FILE_LEN: u32 = 0xC00;
 const KINDS: u32 = 0x22;
 /// The settings' objects: a count at +0x26B8, then the objects.
 const OBJECTS_AT: u32 = 0x26B8;
@@ -660,10 +658,9 @@ pub fn load_splines(course: &Course, paths: &Paths, resume: u32) -> Result<(), R
         spline_checks(paths, o)?;
     }
     if loaded == 0 {
-        crate::files::read_whole_file::read_whole_file(
+        crate::files::read_whole_file::read_whole_file_bytes(
             &crate::files::cstring(&paths.spline_path.path, "a spline file's path")?,
-            GamePtr::to(&paths.spline_head.file),
-            FILE_LEN,
+            &paths.spline_head.file,
         )?;
         paths.spline_kinds.loaded.set_bits(resume);
     }

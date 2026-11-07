@@ -53,9 +53,6 @@ pub fn lay_out_pcx() -> Result<rc2k_core::gfx::pcx::Layout, BadInput> {
     }
     pictures.decoder.pixels.set(pictures.picture.buffer.get());
     // Neither is null: both are the game's own tables.
-    palette_to_dwords(
-        crate::pointers::GamePtr::to(&pictures.pcx.file_palette),
-        crate::pointers::GamePtr::to(&pictures.decoder.palette),
-    )?;
+    palette_to_dwords(&pictures.pcx.file_palette, 0, &pictures.decoder.palette)?;
     Ok(l)
 }

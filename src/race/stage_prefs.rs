@@ -4,16 +4,16 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::pointers::{GamePtr, Store};
+use crate::pointers::Store;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 
 // The stage's localdat is the whole of `race().course.stage_prefs` (0x608CB4, 0x206C bytes).
 /// `files\levels\levelxx\localdat`, `srclvls\levelxx\localdat` (the xx the course's).
-fn prefs_paths(course: &Course) -> [GamePtr; 2] {
+fn prefs_paths(course: &Course) -> [&dyn Store; 2] {
     let p = &course.level_paths;
-    [GamePtr::to(&p.localdat_files), GamePtr::to(&p.localdat_src)]
+    [&p.localdat_files, &p.localdat_src]
 }
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 
@@ -78,7 +78,7 @@ pub fn load_prefs(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     for path in prefs_paths(course) {
         crate::files::read_whole_file::read_whole_file_cells(
-            &crate::files::cstring_at(path, "a prefs path")?,
+            &crate::files::cstring(path, "a prefs path")?,
             course.stage_prefs.dwords(),
         )?;
     }

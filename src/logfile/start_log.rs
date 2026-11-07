@@ -68,8 +68,7 @@ pub fn start_log() -> Result<(), BadInput> {
     let c_text = |p: crate::pointers::GamePtr| crate::files::cstring_at(p, "a start-up text");
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
-    let scratch = crate::pointers::GamePtr::to(&system.work.numbers);
-    let date = write_date_text(scratch)?;
+    let date = write_date_text(&system.work.numbers)?;
     // `Buffer` (0x4E0558), written and read here only: a local.
     let memory = crate::os::memory();
     let free = free_space_kb();

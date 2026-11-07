@@ -38,7 +38,7 @@ const LOADING_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts
 // ---- Rust version ----
 
 /// The Rust version on the picture at `path`.
-pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> {
+pub fn show_picture_file(path: &dyn crate::session::TextPlace) -> Result<(), Refused> {
     let system = system();
     let gfx = gfx();
     pump_messages_now();
@@ -47,7 +47,7 @@ pub fn show_picture_file(path: crate::pointers::GamePtr) -> Result<(), Refused> 
     // `rescaled`).
     crate::gfx::picture::set_size(sizes::READ);
     // A refused picture is not read, as `read_picture_file`'s callers by address see it.
-    let read = match crate::gfx::read_picture_file::read_picture_file(&path) {
+    let read = match crate::gfx::read_picture_file::read_picture_file(path) {
         Ok(read) => read,
         Err(Refused::BadInput(_)) => false,
         Err(e) => return Err(e),

@@ -5,23 +5,22 @@
 //! Out: every register preserved
 //! A dword is the entry's first byte shifted up 16, its second shifted up 8, and its third;
 //! the top byte is 0. Entry 255 is done first. Four callers, the picture readers.
-//! Refuses null pointers. The name is a reading.
+//! A palette or dwords field too short is refused. The name is a reading.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 
 pub const ENTRIES: usize = 256;
 
 // ---- Rust version ----
 
-pub fn palette_to_dwords(from: GamePtr, to: GamePtr) -> Result<(), BadInput> {
-    if from.is_null() || to.is_null() {
-        return Err(BadInput("no palette"));
-    }
+/// The palette is read at byte `from_at` of `from`; the dwords go to the start of `to`.
+pub fn palette_to_dwords(from: &dyn Store, from_at: usize, to: &dyn Store) -> Result<(), BadInput> {
     // From the last entry down, as the original goes: it matters if the two overlap. The
     // bytes are read first (an entry's three bytes lie below its dword, so the order of the
     // writes cannot change a read that comes after it).
-    let palette = from.read_bytes(ENTRIES * 3, "a palette")?;
+    let mut palette = [0u8; ENTRIES * 3];
+    from.load(from_at, &mut palette)?;
     let mut dwords = Vec::with_capacity(ENTRIES * 4);
     for entry in 0..ENTRIES {
         // Converted: `rc2k_core::gfx::pixels::palette_entry`.
@@ -32,5 +31,5 @@ pub fn palette_to_dwords(from: GamePtr, to: GamePtr) -> Result<(), BadInput> {
         ];
         dwords.extend_from_slice(&rc2k_core::gfx::pixels::palette_entry(bytes).to_le_bytes());
     }
-    to.write_bytes(&dwords, "a palette's dwords")
+    to.store(0, &dwords)
 }

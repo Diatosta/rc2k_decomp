@@ -52,9 +52,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     /* dword_71C3E0 */
     {
         // As `menu::show_loading_picture`.
-        crate::gfx::show_picture_file::show_picture_file(crate::pointers::GamePtr::to(
-            &menus().tables.texts.loading_pcx,
-        ))?;
+        crate::gfx::show_picture_file::show_picture_file(&menus().tables.texts.loading_pcx)?;
     }
     race.replay.replay_frames.last_kept.set(u32::MAX);
     crate::race::sounds::wake_car_sounds(race)?;
