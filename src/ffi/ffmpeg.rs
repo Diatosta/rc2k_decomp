@@ -15,6 +15,7 @@ use std::ffi::{CStr, c_char, c_void};
 // The declarations below are FFmpeg's (libavcodec 61 / libavutil 59), every pointer
 // argument a C pointer of the type named in its header.
 
+#[cfg(not(target_os = "emscripten"))]
 #[link(name = "avcodec")]
 unsafe extern "C" {
     fn avcodec_find_decoder_by_name(name: *const c_char) -> *const c_void;
@@ -43,6 +44,7 @@ unsafe extern "C" {
     fn av_parser_close(parser: *mut c_void);
 }
 
+#[cfg(not(target_os = "emscripten"))]
 #[link(name = "avutil")]
 unsafe extern "C" {
     fn av_frame_alloc() -> *mut c_void;
@@ -52,6 +54,72 @@ unsafe extern "C" {
     fn av_get_pix_fmt_name(format: i32) -> *const c_char;
     fn av_get_sample_fmt_name(format: i32) -> *const c_char;
 }
+
+// The web build has no FFmpeg (the films are left out of its first cut): no decoder is found,
+// so `Decoder::open` fails and the film player skips the film, and nothing past it is reached.
+#[cfg(target_os = "emscripten")]
+mod none {
+    #![allow(clippy::missing_safety_doc, clippy::too_many_arguments)]
+    use std::ffi::{c_char, c_void};
+    use std::ptr::null_mut;
+    pub unsafe fn avcodec_find_decoder_by_name(_: *const c_char) -> *const c_void {
+        null_mut()
+    }
+    pub unsafe fn avcodec_alloc_context3(_: *const c_void) -> *mut c_void {
+        null_mut()
+    }
+    pub unsafe fn avcodec_open2(_: *mut c_void, _: *const c_void, _: *mut c_void) -> i32 {
+        -1
+    }
+    pub unsafe fn avcodec_free_context(_: *mut *mut c_void) {}
+    pub unsafe fn av_packet_alloc() -> *mut c_void {
+        null_mut()
+    }
+    pub unsafe fn av_packet_free(_: *mut *mut c_void) {}
+    pub unsafe fn av_packet_from_data(_: *mut c_void, _: *mut u8, _: i32) -> i32 {
+        -1
+    }
+    pub unsafe fn av_packet_unref(_: *mut c_void) {}
+    pub unsafe fn avcodec_send_packet(_: *mut c_void, _: *const c_void) -> i32 {
+        -1
+    }
+    pub unsafe fn avcodec_receive_frame(_: *mut c_void, _: *mut c_void) -> i32 {
+        -1
+    }
+    pub unsafe fn av_parser_init(_: i32) -> *mut c_void {
+        null_mut()
+    }
+    pub unsafe fn av_parser_parse2(
+        _: *mut c_void,
+        _: *mut c_void,
+        _: *mut *mut u8,
+        _: *mut i32,
+        _: *const u8,
+        _: i32,
+        _: i64,
+        _: i64,
+        _: i64,
+    ) -> i32 {
+        -1
+    }
+    pub unsafe fn av_parser_close(_: *mut c_void) {}
+    pub unsafe fn av_frame_alloc() -> *mut c_void {
+        null_mut()
+    }
+    pub unsafe fn av_frame_free(_: *mut *mut c_void) {}
+    pub unsafe fn av_malloc(_: usize) -> *mut c_void {
+        null_mut()
+    }
+    pub unsafe fn av_free(_: *mut c_void) {}
+    pub unsafe fn av_get_pix_fmt_name(_: i32) -> *const c_char {
+        std::ptr::null()
+    }
+    pub unsafe fn av_get_sample_fmt_name(_: i32) -> *const c_char {
+        std::ptr::null()
+    }
+}
+#[cfg(target_os = "emscripten")]
+use none::*;
 
 /// `AV_NOPTS_VALUE`.
 const NO_TIME: i64 = i64::MIN;

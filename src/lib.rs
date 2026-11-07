@@ -66,3 +66,5 @@ mod sync;
 mod system;
 mod text;
 mod threading;
+#[cfg(target_os = "emscripten")]
+pub mod web;

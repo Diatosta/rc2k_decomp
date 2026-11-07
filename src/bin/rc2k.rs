@@ -16,6 +16,8 @@
 use std::path::Path;
 
 fn main() {
+    #[cfg(target_os = "emscripten")]
+    rc2k_decomp::web::enter_game_folder();
     let log = std::env::args()
         .skip(1)
         .find(|a| !a.starts_with('-') && !a.to_ascii_lowercase().ends_with(".exe"))

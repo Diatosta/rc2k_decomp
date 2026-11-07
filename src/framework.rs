@@ -86,6 +86,10 @@ pub fn log(msg: &str) {
     {
         let _ = writeln!(f, "{msg}");
     }
+    // The web build: the browser's console shows the log as it goes (the file is in the
+    // origin's storage, out of sight).
+    #[cfg(target_os = "emscripten")]
+    eprintln!("{msg}");
 }
 
 /// The carry and zero flags a function leaves, for Rust callers that still read them

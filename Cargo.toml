@@ -61,6 +61,10 @@ sdl3-sys = { version = "0.7", features = ["build-from-source-static"] }
 [target.'cfg(all(target_os = "linux", target_arch = "aarch64"))'.dependencies]
 sdl3-sys = { version = "0.7", features = ["build-from-source-static", "sdl-unix-console-build"] }
 
+# The web build (`tools/web/build.sh`): Emscripten links its own SDL3 port (`-sUSE_SDL=3`).
+[target.'cfg(target_os = "emscripten")'.dependencies]
+sdl3-sys = { version = "0.7", features = ["no-link"] }
+
 # Windows' own (`src/os/windows.rs`, the fault handler, the profiler, the shortcuts).
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61.2", features = ["Win32_Foundation", "Win32_System_LibraryLoader", "Win32_System_SystemServices", "Win32_UI_Input_KeyboardAndMouse", "Win32_System_Console", "Win32_System_Threading", "Win32_System_Diagnostics_Debug", "Win32_Storage", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_IO", "Win32_System_SystemInformation", "Win32_Globalization", "Win32_System_Environment", "Win32_UI_WindowsAndMessaging", "Win32_System_Registry", "Win32_System_WindowsProgramming", "Win32_System_Memory", "Win32_System_Kernel", "Win32_System_Com", "Win32_UI_Shell"] }

@@ -42,6 +42,7 @@ pub struct MemoryStats {
 }
 
 /// `sysinfo` with its `mem_unit` applied (saturating); None when it fails.
+#[cfg(not(target_os = "emscripten"))]
 pub fn memory_stats() -> Option<MemoryStats> {
     // SAFETY: all zeros is a valid value of this plain C struct.
     let mut info: libc::sysinfo = unsafe { std::mem::zeroed() };
@@ -126,7 +127,7 @@ pub fn image() -> (usize, Vec<(usize, usize)>) {
 
 /// The program's own image: its load address, and its loaded segments (first byte, byte
 /// past the end), from the program's headers.
-#[cfg(not(miri))]
+#[cfg(not(any(miri, target_os = "emscripten")))]
 pub fn image() -> (usize, Vec<(usize, usize)>) {
     unsafe extern "C" fn each(
         info: *mut libc::dl_phdr_info,
@@ -191,6 +192,7 @@ pub fn module_of_address(address: usize) -> Option<(String, usize)> {
 ///
 /// # Safety
 /// The system's signal handler: `info` and `context` are the system's, live during the call.
+#[cfg(not(target_os = "emscripten"))]
 unsafe extern "C" fn on_signal(
     _signal: libc::c_int,
     info: *mut libc::siginfo_t,
@@ -225,6 +227,7 @@ unsafe extern "C" fn on_signal(
 
 /// The fault reporter installed for SIGSEGV and SIGBUS (on the thread's alternate stack,
 /// which std gives its threads, so a stack overflow is reported too).
+#[cfg(not(target_os = "emscripten"))]
 pub fn install_fault_reporter() {
     // SAFETY: a handler of the system's signature, for the program's life.
     unsafe {
@@ -237,3 +240,34 @@ pub fn install_fault_reporter() {
         }
     }
 }
+
+// ---- the web build (Emscripten): what a browser has no counterpart for ----
+
+/// The browser says nothing of the machine's memory.
+#[cfg(target_os = "emscripten")]
+pub fn memory_stats() -> Option<MemoryStats> {
+    None
+}
+
+/// The program's statics and constants: WebAssembly's code is not in the memory, its data is
+/// the memory's first part, from the linker's `__global_base` to `__heap_base` (the main
+/// stack's room with it).
+#[cfg(target_os = "emscripten")]
+pub fn image() -> (usize, Vec<(usize, usize)>) {
+    unsafe extern "C" {
+        static __global_base: u8;
+        static __heap_base: u8;
+    }
+    // SAFETY: the linker's own symbols; only their addresses are taken.
+    let (start, end) = unsafe {
+        (
+            (&raw const __global_base).expose_provenance(),
+            (&raw const __heap_base).expose_provenance(),
+        )
+    };
+    (start, vec![(start, end)])
+}
+
+/// No signals for a fault: a trap ends the module, and the browser's console shows it.
+#[cfg(target_os = "emscripten")]
+pub fn install_fault_reporter() {}
