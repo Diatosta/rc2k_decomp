@@ -9,15 +9,15 @@
 //! (`routes.rs`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::memory::free_list::free_list_at;
+use crate::memory::free_list::free_list;
 use crate::saves::owner::saves;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-pub fn free_best_times(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
-    free_list_at(list)?;
+pub fn free_best_times(list: &dyn crate::pointers::Store) -> Result<(), BadInput> {
+    free_list(list)?;
     crate::saves::best_times::give_back_all();
     saves().best_times.allocated.set(0);
     Ok(())

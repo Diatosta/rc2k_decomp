@@ -383,7 +383,7 @@ pub fn set_up_blocks(course: &Course, paths: &Paths) -> Result<(), Refused> {
             .block_points
             .get(k as usize)
             .ok_or(BadInput("more than 8 settings blocks"))?;
-        table.take(block.at(BLOCK + 0x4C), bytes, vec![[0; 3]; points as usize])?;
+        table.take_at(block.at(BLOCK + 0x4C), bytes, vec![[0; 3]; points as usize])?;
         let taken = k + 1;
         paths.morph_work.taken.set(taken);
         block.put(BLOCK + 0x8C, taken)?;
@@ -486,14 +486,12 @@ mod lines_work_tests {
         let _lock = crate::store::test_lock();
         let paths = &effects().paths;
         let figures = crate::memory::figures();
-        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
-        let _region = crate::pointers::Lent::new(&memory);
-        let list =
-            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
+        let memory = crate::memory::ListCells::empty();
+        let list = &memory;
         paths.block_points[2]
             .take(list, 24, vec![[1, 2, 3], [4, 5, 6]])
             .unwrap();
-        assert_eq!(u32::from_le_bytes(memory[4..8].try_into().unwrap()), 24);
+        assert_eq!(memory.get().total, 24);
         assert_eq!(block_point(paths, 3, 1).unwrap(), [4, 5, 6]);
         assert!(block_point(paths, 3, 2).is_err());
         assert!(block_point(paths, 0, 0).is_err());

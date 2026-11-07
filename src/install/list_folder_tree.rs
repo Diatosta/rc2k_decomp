@@ -154,7 +154,6 @@ pub fn list_folder_tree(folder: impl Into<crate::place::Place>) -> Result<(), Re
 #[cfg(test)]
 mod tests {
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
-    use crate::memory::MemoryList;
 
     #[test]
     fn a_tree_is_listed_into_the_tables() {
@@ -178,9 +177,8 @@ mod tests {
         let root = crate::files::ansi_bytes(&dir.to_string_lossy());
         let mut path = root.clone();
         path.push(0);
-        let memory = vec![0u8; size_of::<MemoryList>()];
-        let list_region = crate::pointers::Lent::new(&memory);
-        let list = crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_ptr()));
+        let memory = crate::memory::ListCells::empty();
+        let list = &memory;
         FOLDERS.take(list, 0x10100, NameTable::default()).unwrap();
         FILES.take(list, 0x40100, NameTable::default()).unwrap();
         for d in [
@@ -224,7 +222,6 @@ mod tests {
         );
         FOLDERS.give_back();
         FILES.give_back();
-        drop(list_region);
         crate::memory::with_figures(|f| *f = figures);
         for (d, v) in [
             &crate::install::owner::install().run.dir_count,

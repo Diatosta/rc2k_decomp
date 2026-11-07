@@ -27,7 +27,7 @@ pub fn allocate_picture_buffer() -> Result<(), Refused> {
     // Rust's since phase 12 (`gfx::picture`), counted on the list as the game's block was.
     pictures.picture.buffer.set(take(
         Buffer::Main,
-        crate::pointers::GamePtr::to(&pictures.picture.list),
+        &pictures.picture.list,
         BUFFER_LEN + SPARE,
     )?);
     Ok(())

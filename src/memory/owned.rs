@@ -9,25 +9,29 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::memory::{MemoryList, own_heap, with_figures};
+use crate::pointers::{load_value, store_value};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
-/// `count_on_at` on the store's own place.
+/// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
+/// memory figures). Refuses what `allocate` refuses: the game's own heap, a size that with
+/// the header wraps.
 pub fn count_on(list: &dyn crate::pointers::Store, bytes: u32) -> Result<(), Refused> {
-    count_on_at(crate::pointers::GamePtr::of_store(list), bytes)
+    check_count(bytes)?;
+    let mut l = load_value::<MemoryList>(list, 0)?;
+    l.total = l.total.wrapping_add(bytes);
+    store_value(list, 0, l)?;
+    with_figures(|f| f.taken(bytes));
+    Ok(())
 }
 
-/// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
-/// memory figures). Refuses what `allocate` refuses: the game's own heap, no list, a size
-/// that with the header wraps.
+/// `count_on` for a list that is a computed place; refuses none.
 pub fn count_on_at(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
-    if own_heap() == 1 {
-        return Err(BadInput("the game's own heap is in use (altmemenable)").into());
-    }
-    if list.is_null() || rc2k_core::memory::block_size(bytes).is_none() {
+    check_count(bytes)?;
+    if list.is_null() {
         return Err(BadInput("no list, or a size that wraps").into());
     }
-    // As in `free_list`.
+    // Stores type a list by its first dword: the record runs on past that field.
     let at = list.unbounded();
     let mut l = at.read::<MemoryList>("a memory list")?;
     l.total = l.total.wrapping_add(bytes);
@@ -36,9 +40,14 @@ pub fn count_on_at(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Ref
     Ok(())
 }
 
-/// `counted_at` on the store's own place.
-pub fn counted(list: &dyn crate::pointers::Store, bytes: u32) -> Result<Vec<u8>, Refused> {
-    counted_at(crate::pointers::GamePtr::of_store(list), bytes)
+fn check_count(bytes: u32) -> Result<(), Refused> {
+    if own_heap() == 1 {
+        return Err(BadInput("the game's own heap is in use (altmemenable)").into());
+    }
+    if rc2k_core::memory::block_size(bytes).is_none() {
+        return Err(BadInput("no list, or a size that wraps").into());
+    }
+    Ok(())
 }
 
 /// `bytes` of Rust's memory, zeroed, counted on `list` as `memory::allocate` counts a
@@ -46,8 +55,8 @@ pub fn counted(list: &dyn crate::pointers::Store, bytes: u32) -> Result<Vec<u8>,
 /// only while one function runs. Sized as the game's block was (whole pages less its
 /// header), so a read just past `bytes` gives zeros as it did. Refuses what `count_on`
 /// refuses.
-pub fn counted_at(list: crate::pointers::GamePtr, bytes: u32) -> Result<Vec<u8>, Refused> {
-    count_on_at(list, bytes)?;
+pub fn counted(list: &dyn crate::pointers::Store, bytes: u32) -> Result<Vec<u8>, Refused> {
+    count_on(list, bytes)?;
     Ok(vec![0; block_len(bytes)])
 }
 
@@ -103,6 +112,18 @@ impl<T> Owned<T> {
 
     /// `value` taken, `bytes` (the game's block size) counted on `list`.
     pub fn take(
+        &self,
+        list: &dyn crate::pointers::Store,
+        bytes: u32,
+        value: T,
+    ) -> Result<(), Refused> {
+        count_on(list, bytes)?;
+        *self.lock() = Some(Box::new(value));
+        Ok(())
+    }
+
+    /// `take` on a list that is a computed place (a record by offset).
+    pub fn take_at(
         &self,
         list: crate::pointers::GamePtr,
         bytes: u32,
@@ -161,11 +182,11 @@ impl<T> ThreadOwned<T> {
     /// `value` taken, `bytes` (the game's block size) counted on `list`.
     pub fn take(
         &self,
-        list: crate::pointers::GamePtr,
+        list: &dyn crate::pointers::Store,
         bytes: u32,
         value: T,
     ) -> Result<(), Refused> {
-        count_on_at(list, bytes)?;
+        count_on(list, bytes)?;
         self.set(value);
         Ok(())
     }
@@ -223,13 +244,16 @@ mod tests {
     fn taken_counted_lent_and_given_back() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let mut memory = vec![0u8; size_of::<MemoryList>()];
-        let _region = crate::pointers::Lent::new(&memory);
-        let l = crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
+        let l = crate::memory::ListCells::new(MemoryList {
+            head: 0,
+            total: 0,
+            cursor: 0,
+            remaining: 0,
+        });
         let owned: Owned<[u32; 2]> = Owned::new("no test table");
         assert_eq!(owned.with(|_| ()), Err(BadInput("no test table")));
-        owned.take(l, 8, [1, 2]).unwrap();
-        assert_eq!(u32::from_le_bytes(memory[4..8].try_into().unwrap()), 8);
+        owned.take(&l, 8, [1, 2]).unwrap();
+        assert_eq!(l.get().total, 8);
         owned.with(|v| v[1] = 5).unwrap();
         assert_eq!(owned.with(|v| *v), Ok([1, 5]));
         assert!(owned.with(|_| owned.with(|_| ())).unwrap().is_err());

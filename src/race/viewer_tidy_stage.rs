@@ -57,7 +57,7 @@ fn run(race: &Race, step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), 
         TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects()?,
         TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
         TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
-            crate::pointers::GamePtr::to(&fonts.glyph_tables.memory),
+            &fonts.glyph_tables.memory,
             &fonts.menu_fonts.palettes,
         )?,
         TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,

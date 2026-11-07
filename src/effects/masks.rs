@@ -178,7 +178,7 @@ pub fn make_masks(course: &Course, masks: &Masks, drops: &WindscreenDrops) -> Re
     // The two shapes' ring-angle tables (each shape's mask, pixel and corner tables are
     // found by its number).
     let ring_angles = [&masks.vars.ring_angles_a, &masks.vars.ring_angles_b];
-    let list = crate::pointers::GamePtr::to(&masks.vars.list);
+    let list = &masks.vars.list;
     masks
         .work
         .take(list, WORK_LEN, vec![0; WORK_LEN as usize / 4])?;
@@ -195,7 +195,7 @@ pub fn make_masks(course: &Course, masks: &Masks, drops: &WindscreenDrops) -> Re
     for n in 0..2 {
         crate::effects::pixels::map_shapes(masks, drops, n as u32)?;
     }
-    crate::memory::free_list::free_list_at(list)?;
+    crate::memory::free_list::free_list(list)?;
     masks.work.give_back();
     Ok(())
 }

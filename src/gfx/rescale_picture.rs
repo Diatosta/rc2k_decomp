@@ -26,7 +26,7 @@ use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
 use crate::gfx::owner::gfx;
 use crate::gfx::picture::{has_picture, read_bytes, with_picture};
 use crate::memory::MemoryList;
-use crate::memory::free_list::free_list_at;
+use crate::memory::free_list::free_list;
 use crate::session::{Bytes, Dword};
 
 // ---- game data ----
@@ -110,10 +110,9 @@ pub fn rescale_picture(rescaler: &Rescaler) -> Result<(), Refused> {
     // The copy is Rust's memory (phase 12), counted on the list as the game's block
     // was; its rows are read in it, not through the row table (which the original
     // fills with the copy's rows and nothing reads before it is filled again).
-    let list = crate::pointers::GamePtr::to(&rescaler.copy_memory);
+    let list = &rescaler.copy_memory;
     let row_bytes = from_width.wrapping_mul(4);
-    let mut copy =
-        crate::memory::owned::counted_at(list, from_width.wrapping_mul(from_height) << 2)?;
+    let mut copy = crate::memory::owned::counted(list, from_width.wrapping_mul(from_height) << 2)?;
     let gap: u32 = pictures.decoder.row_gap.get();
     let mut source = 0usize;
     for row in copy
@@ -160,7 +159,7 @@ pub fn rescale_picture(rescaler: &Rescaler) -> Result<(), Refused> {
     rescaler.weight_y.set(work.weight_y);
     rescaler.columns_left.set(0);
     rescaler.rows_left.set(0);
-    free_list_at(list)?;
+    free_list(list)?;
     Ok(())
 }
 

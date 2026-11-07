@@ -132,11 +132,7 @@ pub fn init_mud(race: &Race) -> Result<(), Refused> {
         .lists
         .course_bytes_total
         .set(course.lists.course_bytes_total.bits().wrapping_add(MUD_LEN));
-    MUD.take(
-        crate::pointers::GamePtr::to(&course.lists.mud_list),
-        MUD_LEN,
-        vec![0; MUD_LEN as usize],
-    )?;
+    MUD.take(&course.lists.mud_list, MUD_LEN, vec![0; MUD_LEN as usize])?;
     load_mud(&race.shared)?;
     clear_mud_state(&race.shared);
     sample_mud_colours(&race.shared)

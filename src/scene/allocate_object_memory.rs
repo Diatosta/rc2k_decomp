@@ -26,7 +26,7 @@ pub fn allocate_object_memory_in_game(
     course: &crate::race::owner_course::Course,
 ) -> Result<(), Refused> {
     let (points, faces) = rooms(course.numbers.in_race.bits() != 0);
-    let list = crate::pointers::GamePtr::to(&course.lists.object_points_list);
+    let list = &course.lists.object_points_list;
     course.lists.course_bytes_total.set_bits(
         course
             .lists

@@ -68,21 +68,21 @@ impl NetTables {
 pub static NET_TABLES: Owned<NetTables> = Owned::new("no network lists");
 
 /// The network's list (`g_netMemory`).
-pub fn list(vars: &NetVars) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&vars.memory)
+pub fn list(vars: &NetVars) -> &[crate::session::Dword; 4] {
+    &vars.memory
 }
 
 /// `allocate_lists`: both tables taken, counted as the game's two blocks.
 pub fn take() -> Result<(), Refused> {
     let vars = &net().vars;
     NET_TABLES.take(list(vars), TABLES[0].0, NetTables::new())?;
-    crate::memory::owned::count_on_at(list(vars), TABLES[1].0)
+    crate::memory::owned::count_on(list(vars), TABLES[1].0)
 }
 
 /// `bytes` more counted on the network's list (a block the original takes there).
 pub fn count(bytes: u32) -> Result<(), Refused> {
     let vars = &net().vars;
-    crate::memory::owned::count_on_at(list(vars), bytes)
+    crate::memory::owned::count_on(list(vars), bytes)
 }
 
 /// The original's `net::connection_entry` checks: a number not below the count, then no

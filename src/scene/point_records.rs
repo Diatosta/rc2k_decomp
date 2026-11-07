@@ -36,9 +36,9 @@ static TAKEN: AtomicBool = AtomicBool::new(false);
 /// The records made, zeroed, counted on `list`.
 pub fn take(
     course: &crate::race::owner_course::Course,
-    list: crate::pointers::GamePtr,
+    list: &dyn crate::pointers::Store,
 ) -> Result<(), Refused> {
-    crate::memory::owned::count_on_at(list, BYTES)?;
+    crate::memory::owned::count_on(list, BYTES)?;
     RECORDS.iter().flatten().for_each(|cell| cell.set(0));
     TAKEN.store(true, Ordering::Relaxed);
     course.lists.point_records.set(HELD);
@@ -195,14 +195,9 @@ mod tests {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = course.lists.point_records.get();
-        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
-        let _region = crate::pointers::Lent::new(&memory);
-        take(
-            course,
-            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr())),
-        )
-        .unwrap();
-        assert_eq!(u32::from_le_bytes(memory[4..8].try_into().unwrap()), BYTES);
+        let memory = crate::memory::ListCells::empty();
+        take(course, &memory).unwrap();
+        assert_eq!(memory.get().total, BYTES);
         assert_eq!(at_offset(0x20 * 5), of_scene_point(0x1005));
         assert_eq!(of_object_point(3), at_offset(0x20 * 0x1003));
         put_field(of_scene_point(7), 0x18, 42).unwrap();

@@ -46,10 +46,7 @@ pub fn run_front_end(menus: &Menus) -> Result<(), Refused> {
     crate::menu::store_player_names::store_player_names(menus, play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);
     })?;
-    crate::gfx::free_fonts::free_fonts(
-        crate::pointers::GamePtr::to(&fonts.glyph_tables.memory),
-        &fonts.menu_fonts.palettes,
-    )?;
+    crate::gfx::free_fonts::free_fonts(&fonts.glyph_tables.memory, &fonts.menu_fonts.palettes)?;
     crate::saves::list_car_numbers::list_car_numbers()?;
     log("menu::run_front_end: the Rust version has come back");
     Ok(())

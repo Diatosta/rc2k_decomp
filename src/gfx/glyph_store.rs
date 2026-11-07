@@ -26,8 +26,8 @@ const TABLE_FIRST: u32 = 0x4000;
 const PLACE_END: u32 = 0x1_0000;
 
 struct Held {
-    /// The list it is counted on.
-    list: GamePtr,
+    /// The list it is counted on: its game address (`give_back`'s key).
+    list: u32,
     bytes: Arc<Vec<u8>>,
 }
 
@@ -66,23 +66,23 @@ fn slot(s: &mut Store, place: u32) -> Option<(&mut Arc<Vec<u8>>, usize)> {
 
 /// A new palette, zeroed, counted on nothing (the caller has carved its bytes off `list`):
 /// its place. Refused when all fifteen are held.
-pub fn new_palette(list: crate::pointers::GamePtr) -> Result<u32, BadInput> {
+pub fn new_palette(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
     let mut s = store();
     let id = (1..PALETTE_IDS)
         .find(|&id| s.palettes[id].is_none())
         .ok_or(BadInput("more than fifteen palettes held"))?;
     s.palettes[id] = Some(Held {
-        list,
+        list: key(list),
         bytes: Arc::new(vec![0; PALETTE_BYTES]),
     });
     Ok((id as u32) << 10)
 }
 
 /// A new glyph table, empty: its place. Refused past the places there are.
-pub fn new_table(list: crate::pointers::GamePtr) -> Result<u32, BadInput> {
+pub fn new_table(list: &dyn crate::pointers::Store) -> Result<u32, BadInput> {
     let mut s = store();
     let held = Some(Held {
-        list,
+        list: key(list),
         bytes: Arc::new(Vec::new()),
     });
     let id = match s.tables.iter().position(Option::is_none) {
@@ -103,8 +103,13 @@ pub fn new_table(list: crate::pointers::GamePtr) -> Result<u32, BadInput> {
     Ok(place)
 }
 
-/// Everything held on `list` given back (`memory::free_list`).
-pub fn give_back(list: GamePtr) {
+/// What names a list: its game address.
+fn key(list: &dyn crate::pointers::Store) -> u32 {
+    crate::pointers::game_address(list.first())
+}
+
+/// Everything held on the list at game address `list` given back (`memory::free_list`).
+pub fn give_back(list: u32) {
     let mut s = store();
     let Store { palettes, tables } = &mut *s;
     for slot in palettes.iter_mut().chain(tables.iter_mut()) {
@@ -236,12 +241,15 @@ mod tests {
     #[test]
     fn places_are_kept_apart_and_given_back_by_list() {
         let _lock = crate::store::test_lock();
-        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
-        let _region = crate::pointers::Lent::new(&memory);
-        let list =
-            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
-        let p = new_palette(list).unwrap();
-        let t = new_table(list).unwrap();
+        let list = crate::memory::ListCells::new(crate::memory::MemoryList {
+            head: 0,
+            total: 0,
+            cursor: 0,
+            remaining: 0,
+        });
+        let key = crate::pointers::game_address(crate::pointers::Store::first(&list));
+        let p = new_palette(&list).unwrap();
+        let t = new_table(&list).unwrap();
         assert!(is_place(p) && is_place(t) && p < TABLE_FIRST && t >= TABLE_FIRST);
         write_bytes(p + 0x180, 4, &[1, 2], "a palette").unwrap();
         assert_eq!(bytes(p, "a palette").unwrap().byte(0x184), Some(1));
@@ -251,7 +259,7 @@ mod tests {
         write_bytes(t, 8, &[7; 4], "a table").unwrap();
         let held = bytes(t, "a table").unwrap();
         assert_eq!((held.byte(11), held.byte(12)), (Some(7), None));
-        give_back(list);
+        give_back(key);
         assert!(bytes(p, "a palette").is_err());
         assert!(bytes(t, "a table").is_err());
     }

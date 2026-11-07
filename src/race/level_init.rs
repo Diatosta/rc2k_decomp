@@ -51,11 +51,7 @@ pub fn allocate_course_memory(
     );
     // Counted whole, as the original's one block; the info part is Rust's own store
     // (`race::course_places::INFO`), named by its place.
-    let memory = take_course_memory(
-        crate::pointers::GamePtr::to(list),
-        FIRST_PART + INFO_PART,
-        FIRST_PART,
-    )?;
+    let memory = take_course_memory(list, FIRST_PART + INFO_PART, FIRST_PART)?;
     course.lists.course_memory.set(memory);
     course
         .lists
@@ -85,11 +81,11 @@ pub const COURSE_TAG: u32 = 0xCF00_0000;
 /// `bytes` of course memory counted on `list`, the first `kept` of them held: their handle
 /// (`COURSE_TAG`).
 fn take_course_memory(
-    list: crate::pointers::GamePtr,
+    list: &dyn crate::pointers::Store,
     bytes: u32,
     kept: u32,
 ) -> Result<u32, Refused> {
-    let mut memory = crate::memory::owned::counted_at(list, bytes)?;
+    let mut memory = crate::memory::owned::counted(list, bytes)?;
     memory.truncate(kept as usize);
     memory.shrink_to_fit();
     let memory = crate::pointers::LentBytes::from_vec(memory);

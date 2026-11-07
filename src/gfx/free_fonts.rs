@@ -10,15 +10,15 @@
 
 use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
-use crate::memory::free_list::free_list_at;
+use crate::memory::free_list::free_list;
 
 // ---- Rust version ----
 
 pub fn free_fonts(
-    list: crate::pointers::GamePtr,
+    list: &dyn crate::pointers::Store,
     palettes: &crate::session::Dword,
 ) -> Result<(), BadInput> {
-    free_list_at(list)?;
+    free_list(list)?;
     palettes.set(0);
     Ok(())
 }
@@ -26,6 +26,6 @@ pub fn free_fonts(
 /// With the game's list and palettes' place.
 pub fn free_fonts_in_game() -> Result<(), BadInput> {
     let fonts = &gfx().fonts;
-    let list = crate::pointers::GamePtr::to(&fonts.glyph_tables.memory);
+    let list = &fonts.glyph_tables.memory;
     free_fonts(list, &fonts.menu_fonts.palettes)
 }

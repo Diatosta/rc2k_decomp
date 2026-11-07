@@ -22,7 +22,7 @@ use crate::logfile::log_hex8::log_hex8;
 use crate::logfile::log_int::log_int;
 use crate::logfile::write_line::level;
 use crate::memory::MemoryList;
-use crate::memory::free_list::free_list_at;
+use crate::memory::free_list::free_list;
 use crate::session::Dword;
 use crate::strings::owner::{Lexicon, strings};
 use rc2k_core::strings::lexicon::{Compiled, compile};
@@ -180,8 +180,8 @@ pub fn compile_lexicon() -> Result<(), Refused> {
         strings.lexicon.work.write(&[0; WORK_LEN]);
         // The original's memory, for the game's memory figures: counted and given back
         // (nothing is put in it: the lexicon is built in Rust's memory).
-        let list = crate::pointers::GamePtr::to(&strings.lexicon.memory.memory);
-        crate::memory::owned::count_on_at(
+        let list = &strings.lexicon.memory.memory;
+        crate::memory::owned::count_on(
             list,
             strings.lexicon.memory.kilobytes.get().wrapping_mul(0x400),
         )?;
@@ -230,7 +230,7 @@ pub fn compile_lexicon() -> Result<(), Refused> {
             number(b"LC: Lexicon index size\t=\0", compiled.index_size);
         }
         line(b"Compilation complete\0", true);
-        free_list_at(list)?;
+        free_list(list)?;
         line(b"\0", true);
         Ok(())
     }

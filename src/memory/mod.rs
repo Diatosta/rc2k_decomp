@@ -47,6 +47,17 @@ impl ListCells {
         }
     }
 
+    /// An empty list (tests).
+    #[cfg(test)]
+    pub const fn empty() -> Self {
+        Self::new(MemoryList {
+            head: 0,
+            total: 0,
+            cursor: 0,
+            remaining: 0,
+        })
+    }
+
     #[cfg(test)]
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(std::ptr::from_ref(self))

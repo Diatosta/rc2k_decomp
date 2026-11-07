@@ -127,7 +127,7 @@ pub fn set_up_surface(ring: &Ring, masks: &Masks) -> Result<(), Refused> {
     )?;
     crate::memory::free_list::free_list(&masks.list.list)?;
 
-    crate::effects::ring_entries::take(ring, crate::pointers::GamePtr::to(&ring.work.list))?;
+    crate::effects::ring_entries::take(ring, &ring.work.list)?;
     ring.work.block.set(1);
     ring.work.cursor.set(1);
     ring.work.count.set(0);

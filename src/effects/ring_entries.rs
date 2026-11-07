@@ -57,7 +57,7 @@ pub mod field {
 pub type Entry = [u32; (ENTRY_LEN / 4) as usize];
 
 /// The ring made: each entry linked to its neighbours, counted on `list`.
-pub fn take(ring: &Ring, list: crate::pointers::GamePtr) -> Result<(), crate::errors::Refused> {
+pub fn take(ring: &Ring, list: &dyn crate::pointers::Store) -> Result<(), crate::errors::Refused> {
     let entries = (0..ENTRIES)
         .map(|i| {
             let mut e = [0; (ENTRY_LEN / 4) as usize];
@@ -142,18 +142,10 @@ mod tests {
     fn the_ring_is_linked_and_read_by_number() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
-        let _region = crate::pointers::Lent::new(&memory);
+        let memory = crate::memory::ListCells::empty();
         let ring = &effects().ring;
-        take(
-            ring,
-            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr())),
-        )
-        .unwrap();
-        assert_eq!(
-            u32::from_le_bytes(memory[4..8].try_into().unwrap()),
-            RING_BYTES
-        );
+        take(ring, &memory).unwrap();
+        assert_eq!(memory.get().total, RING_BYTES);
         assert_eq!(get(ring, 1, 0).unwrap(), ENTRIES);
         assert_eq!(get(ring, 1, 4).unwrap(), 2);
         assert_eq!(get(ring, ENTRIES, 4).unwrap(), 1);

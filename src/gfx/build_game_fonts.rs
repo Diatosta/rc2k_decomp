@@ -79,7 +79,7 @@ fn fatal(code: u32) -> Refused {
 /// the allocator reports its own.)
 pub fn build_game_fonts(vars: &SheetVars, pixels_b: &crate::session::Dword) -> Result<(), Refused> {
     let gfx = gfx();
-    let list = crate::pointers::GamePtr::to(&gfx.fonts.game_fonts.memory);
+    let list = &gfx.fonts.game_fonts.memory;
     let bytes = gfx
         .fonts
         .game_fonts
@@ -87,7 +87,7 @@ pub fn build_game_fonts(vars: &SheetVars, pixels_b: &crate::session::Dword) -> R
         .get()
         .wrapping_mul(0x400)
         .wrapping_mul(system().session.screen.bytes.get());
-    crate::memory::owned::count_on_at(list, bytes)?;
+    crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
     begin_glyph_tables(vars)?;
     gfx.pictures

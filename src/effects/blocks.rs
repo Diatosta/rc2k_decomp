@@ -82,11 +82,7 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
             p
         })
         .collect();
-    particles.ring.take(
-        crate::pointers::GamePtr::to(&ring.pool.list),
-        RING_LEN,
-        links,
-    )?;
+    particles.ring.take(&ring.pool.list, RING_LEN, links)?;
     ring.pool.ring.set(1);
     ring.pool.free.set(1);
     ring.pool.used.set(0u32);

@@ -104,10 +104,6 @@ const NOT_8BIT: FatalError = FatalError {
     message: "Game mapkey file must be 8bit",
 };
 
-fn list(bytes: &Bytes<16>) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(bytes)
-}
-
 /// Entry 3 of the pixel kinds: (bytes a pixel, the format), into the map's variables.
 fn take_format(frame: &Frame) -> Result<(u32, PixelFormat), BadInput> {
     let card = &gfx().card;
@@ -169,7 +165,7 @@ pub static GAME_MAP: crate::memory::owned::Owned<GameMap> =
 /// The tile table taken (0x10000 bytes counted on the map's list), no pixels yet.
 fn take_tiles(frame: &Frame) -> Result<(), Refused> {
     GAME_MAP.take(
-        list(&frame.map.list),
+        &frame.map.list,
         0x1_0000,
         GameMap {
             tiles: vec![Tile::None; TILES as usize],
@@ -180,7 +176,7 @@ fn take_tiles(frame: &Frame) -> Result<(), Refused> {
 
 /// The pixels' block taken (`bytes` counted on the map's list), zeroed.
 fn take_pixels(frame: &Frame, bytes: u32) -> Result<(), Refused> {
-    crate::memory::owned::count_on_at(list(&frame.map.list), bytes)?;
+    crate::memory::owned::count_on(&frame.map.list, bytes)?;
     GAME_MAP.with(|m| m.pixels = vec![0; bytes as usize])?;
     Ok(())
 }
@@ -201,8 +197,8 @@ fn put_pixels(at: usize, bytes: &[u8]) -> Result<(), BadInput> {
 pub fn free_game_map(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
-    crate::memory::free_list::free_list_at(list(&frame.map.key_list))?;
-    crate::memory::free_list::free_list_at(list(&frame.map.list))?;
+    crate::memory::free_list::free_list(&frame.map.key_list)?;
+    crate::memory::free_list::free_list(&frame.map.list)?;
     GAME_MAP.give_back();
     for cell in [
         &frame.map.key_pixels,
@@ -341,7 +337,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
     // its list as the game's block was; `key_pixels` holds its number.
     let key = crate::gfx::picture::take(
         crate::gfx::picture::Buffer::Key,
-        list(&frame.map.key_list),
+        &frame.map.key_list,
         0x100_0000,
     )?;
     frame.map.key_pixels.set(key);
@@ -459,7 +455,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
     pictures.pcx.height_limit.set(kept[1]);
     pictures.pcx.width_limit.set(kept[0]);
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
-    crate::memory::free_list::free_list_at(list(&frame.map.key_list))?;
+    crate::memory::free_list::free_list(&frame.map.key_list)?;
     frame.map.key_pixels.set(0u32);
     Ok(())
 }

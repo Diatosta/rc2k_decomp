@@ -48,7 +48,7 @@ pub fn open_installer(g: &'static crate::install::owner::Install) -> Result<(), 
     // The names' tables are Rust's (phase 12), counted on the list as the game's blocks
     // were; the scan and cursors count names and bytes from 0.
     use crate::install::name_tables::{FILES, FOLDERS, NameTable};
-    let list = crate::pointers::GamePtr::to(&g.run.buffers);
+    let list = &g.run.buffers;
     FOLDERS.take(list, 0x10100, NameTable::default())?;
     g.run.dir_scan.set(0);
     g.run.dir_cursor.set(0);
@@ -58,7 +58,7 @@ pub fn open_installer(g: &'static crate::install::owner::Install) -> Result<(), 
     g.run.file_count.set(0);
     // The progress glyphs: a glyph table of Rust's (`gfx::glyph_store`), counted on the
     // list as the game's block was (its fatal error 0x80AF7022 for none cannot come).
-    let mut bytes = crate::memory::owned::counted_at(list, 0x3000)?;
+    let mut bytes = crate::memory::owned::counted(list, 0x3000)?;
     let glyphs = crate::gfx::glyph_store::new_table(list)?;
     g.run.bar_glyphs.set(glyphs);
     let path = g.names.installer_data.text();

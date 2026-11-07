@@ -47,7 +47,7 @@ fn owned(handle: u32) -> Result<&'static Owned<Vec<u8>>, BadInput> {
 
 /// Buffer `which` taken, zeroed, `bytes` counted on `list` (sized as the game's block was:
 /// whole pages less its header). Its number.
-pub fn take(which: Buffer, list: crate::pointers::GamePtr, bytes: u32) -> Result<u32, Refused> {
+pub fn take(which: Buffer, list: &dyn crate::pointers::Store, bytes: u32) -> Result<u32, Refused> {
     let memory = vec![0u8; crate::memory::owned::block_len(bytes)];
     BUFFERS[which as usize - 1].take(list, bytes, memory)?;
     Ok(which as u32)
@@ -113,13 +113,11 @@ mod tests {
     fn a_buffer_is_taken_read_and_given_back() {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
-        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
-        let _region = crate::pointers::Lent::new(&memory);
-        let list =
-            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
+        let memory = crate::memory::ListCells::empty();
+        let list = &memory;
         let n = take(Buffer::Key, list, 0x100).unwrap();
         assert_eq!(n, 3);
-        assert_eq!(u32::from_le_bytes(memory[4..8].try_into().unwrap()), 0x100);
+        assert_eq!(memory.get().total, 0x100);
         write_bytes(n, 4, &[1, 2, 3]).unwrap();
         assert_eq!(read_bytes(n, 3, 5).unwrap(), [0, 1, 2, 3, 0]);
         let len = 0x1000 - crate::memory::HEADER_LEN as usize;
@@ -136,10 +134,8 @@ mod tests {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::moved::snapshot();
-        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
-        let _region = crate::pointers::Lent::new(&memory);
-        let list =
-            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
+        let memory = crate::memory::ListCells::empty();
+        let list = &memory;
         pictures
             .picture
             .buffer
@@ -239,10 +235,8 @@ mod tests {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = crate::moved::snapshot();
-        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
-        let _region = crate::pointers::Lent::new(&memory);
-        let list =
-            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr()));
+        let memory = crate::memory::ListCells::empty();
+        let list = &memory;
         pictures
             .picture
             .buffer

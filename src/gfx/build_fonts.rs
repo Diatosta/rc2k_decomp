@@ -222,7 +222,7 @@ const HUNG: [(usize, Field, Source, u32); 125] = [
 /// reports its own.)
 fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
     let gfx = gfx();
-    let list = crate::pointers::GamePtr::to(&gfx.fonts.glyph_tables.memory);
+    let list = &gfx.fonts.glyph_tables.memory;
     let bytes = gfx
         .fonts
         .glyph_tables
@@ -230,7 +230,7 @@ fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
         .get()
         .wrapping_mul(0x400)
         .wrapping_mul(system().session.screen.bytes.get());
-    crate::memory::owned::count_on_at(list, bytes)?;
+    crate::memory::owned::count_on(list, bytes)?;
     rewind_list(list)?;
     begin_glyph_tables(vars)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
@@ -254,7 +254,7 @@ fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
 
 /// 0x400 bytes carved off `list` for a palette: its place in `gfx::glyph_store`, or 0
 /// when the list has no room (the original's cursor would have been none).
-pub fn palette_place(list: crate::pointers::GamePtr) -> Result<u32, Refused> {
+pub fn palette_place(list: &dyn crate::pointers::Store) -> Result<u32, Refused> {
     Ok(match take_from_list(list, 0x400)? {
         Some(_) => crate::gfx::glyph_store::new_palette(list)?,
         None => 0,

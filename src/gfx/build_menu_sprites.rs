@@ -27,7 +27,7 @@ pub fn build_menu_sprites(
     sprite_table: &crate::session::Dword,
 ) -> Result<(), Refused> {
     let gfx = gfx();
-    let list = crate::pointers::GamePtr::to(&gfx.fonts.glyph_tables.memory);
+    let list = &gfx.fonts.glyph_tables.memory;
     begin_glyph_tables(vars)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);
     begin_glyph_table(vars, list)?;

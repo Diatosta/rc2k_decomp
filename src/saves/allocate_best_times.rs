@@ -41,7 +41,7 @@ pub fn sizes(stages: u32) -> [u32; TABLES] {
 /// (typed, `saves::best_times`, counted on it; `crate::saves::owner::saves().best_times.tables` keeps each one's size),
 /// the marked ones ending in -1 (each typed table's own end).
 pub fn allocate_best_times(
-    list: crate::pointers::GamePtr,
+    list: &dyn crate::pointers::Store,
     records: RecordTable,
 ) -> Result<(), Refused> {
     let best_times = &saves().best_times;

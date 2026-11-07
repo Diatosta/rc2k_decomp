@@ -22,7 +22,7 @@ crate::memory::owned::thread_owned!(
 /// `bytes` of points, zeroed, counted on `list`.
 pub fn take(
     course: &crate::race::owner_course::Course,
-    list: crate::pointers::GamePtr,
+    list: &dyn crate::pointers::Store,
     bytes: u32,
 ) -> Result<(), Refused> {
     POINTS.take(list, bytes, vec![0; bytes as usize])?;
@@ -96,14 +96,8 @@ mod tests {
         let _lock = crate::store::test_lock();
         let figures = crate::memory::figures();
         let kept = course.lists.object_points.get();
-        let mut memory = vec![0u8; size_of::<crate::memory::MemoryList>()];
-        let _region = crate::pointers::Lent::new(&memory);
-        take(
-            course,
-            crate::pointers::GamePtr::new(crate::pointers::game_address(memory.as_mut_ptr())),
-            36,
-        )
-        .unwrap();
+        let memory = crate::memory::ListCells::empty();
+        take(course, &memory, 36).unwrap();
         let p = course.lists.object_points.get() + 12;
         set_point(p, [1, 2, 3]).unwrap();
         assert_eq!((point(p).unwrap(), word(p + 8).unwrap()), ([1, 2, 3], 3));

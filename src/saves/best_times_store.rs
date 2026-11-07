@@ -56,8 +56,8 @@ impl BestTimes {
     }
 
     /// The memory list.
-    pub fn list(&self) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(&self.memory)
+    pub fn list(&self) -> &Bytes<16> {
+        &self.memory
     }
 }
 

@@ -21,8 +21,5 @@ pub fn allocate_point_records_in_game(course: &Course) -> Result<(), Refused> {
         .lists
         .course_bytes_total
         .set_bits(course.lists.course_bytes_total.bits().wrapping_add(BYTES));
-    point_records::take(
-        course,
-        crate::pointers::GamePtr::to(&course.lists.point_records_list),
-    )
+    point_records::take(course, &course.lists.point_records_list)
 }

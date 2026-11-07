@@ -281,14 +281,14 @@ fn read_alpha_sheet(vars: &SheetVars, template: &[u8]) -> Result<(), Refused> {
 pub fn build_glyphs(
     vars: &SheetVars,
     template: &[u8],
-    list: crate::pointers::GamePtr,
+    list: &dyn crate::pointers::Store,
 ) -> Result<(), Refused> {
     let pictures = &gfx().pictures;
     let template = &template[..template
         .iter()
         .position(|&b| b == 0)
         .unwrap_or(template.len())];
-    let work = crate::pointers::GamePtr::to(&strings().lexicon.memory.memory);
+    let work = &strings().lexicon.memory.memory;
     pictures.decoder.number.set(0u32);
     loop {
         if pictures.decoder.builder_flags.get() & WITH_ALPHA != 0 {

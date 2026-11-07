@@ -154,14 +154,8 @@ pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
     // The masks and the picture copy are Rust's (phase 12), counted on their lists
     // as the game's blocks were.
     for (mask, list) in [
-        (
-            Mask::Plain,
-            crate::pointers::GamePtr::to(&masks.blocks.list_a),
-        ),
-        (
-            Mask::Bordered,
-            crate::pointers::GamePtr::to(&masks.blocks.list_b),
-        ),
+        (Mask::Plain, &masks.blocks.list_a),
+        (Mask::Bordered, &masks.blocks.list_b),
     ] {
         mask.pixels(masks)
             .take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
