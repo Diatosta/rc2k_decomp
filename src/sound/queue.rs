@@ -1,14 +1,15 @@
 //! The queue of commands for the audio thread: 0x400 records of 0x20 bytes at
 //! `unk_9566F8`, written at `dword_506A24` (which wraps), counted in `dword_506A1C`; the
-//! audio thread's `sub_40A8A4` takes them from `dword_506A20` on and counts them down.
+//! audio thread's `audio::take_commands` takes them from `dword_506A20` on and counts them down.
 //!
 //! A record is the command's number and the sender's registers: eax, ebx, ecx, edx, esi,
 //! edi, ebp. The commands, as the audio thread acts on them (read 2026-10-12, the
-//! functions under them not read): 1 `sub_40A9D1` with eax as a signed word (a sound);
-//! 2 `dword_506C78` = eax; 3 `dword_50695C` = eax and `sub_40AEB9`; 4 `sub_40AF4B` and
-//! `dword_50695C` = 0; 5 `sub_40A426` with eax; 6 `sub_40AFD6`; 7 `sub_40AFD9`; 8
-//! `sub_40B016` with eax; 9 `sub_40C194` with eax, ecx, edx; 0xB `sub_40C4DD` with eax,
-//! ebx, ecx, edx; 0xA ends the thread's taking for this turn.
+//! functions under them not read): 1 `audio::start_voice` with eax as a signed word (a sound);
+//! 2 `dword_506C78` = eax; 3 `dword_50695C` = eax and `audio::load_sounds`; 4 `audio::free_voices`
+//! and
+//! `dword_50695C` = 0; 5 `audio::set_mode` with eax; 6 0x40AFD6; 7 `audio::stop_all_voices`; 8
+//! `audio::volume_command` with eax; 9 `audio::stream_command` with eax, ecx, edx; 0xB
+//! `audio::music_command` with eax, ebx, ecx, edx; 0xA ends the thread's taking for this turn.
 
 use crate::audio::owner::audio;
 use std::sync::atomic::Ordering;
@@ -44,7 +45,7 @@ pub fn send_command(command: u32, registers: [u32; 7]) {
     }
 }
 
-/// `sub_409C01`: true if commands are still waiting. Without audio the count is cleared.
+/// 0x409C01: true if commands are still waiting. Without audio the count is cleared.
 pub fn pending() -> bool {
     let audio = audio();
     if audio.state.no_audio.get() != 0 {

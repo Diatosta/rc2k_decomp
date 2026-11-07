@@ -6,8 +6,6 @@
 //! `race::tint_to_mud_colour` (ebp = (strength + 1) / 2), the top byte set, and put back
 //! (`race::put_mud_texel`).
 //!
-//! In:  the place's number (eax)
-//!
 //! See `race/mud.rs`. Callers: `race::throw_mud_texel` (twice). Refuses a texture past 3 (the
 //! map would be read past its 64 KB) and no mud, before anything; what `put_mud_texel` refuses
 //! (`dword_62400C` put back).

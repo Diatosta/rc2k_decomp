@@ -3,7 +3,7 @@
 //! Returns: the voice
 //!
 //! `g_voices[g_voiceCount]`, and the count + 1; with 0x200 in use fatal error 0x80A28501.
-//! One caller, command 3 (`sub_40AEB9`).
+//! One caller, command 3 (`audio::load_sounds`).
 
 use crate::audio::store::AudioState;
 use crate::errors::{FatalError, Refused};

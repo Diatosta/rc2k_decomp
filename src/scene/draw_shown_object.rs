@@ -14,8 +14,8 @@
 //!
 //! Outside a race `scene::clear_kind_bytes` (0x46219C, inlined): the 0x100 dwords at
 //! `dword_5CD688` = 0, then the seventh, eighth and tenth = 999 (eax = 0, ecx = 0, edi = the
-//! table's end). Then `scene::draw_object`. One caller, `sub_451E3E`. Refuses, in a race, an
-//! object's number of 0x100 or more (the original reads past its tables).
+//! table's end). Then `scene::draw_object`. One caller, `scene::draw_scene_object`. Refuses, in a
+//! race, an object's number of 0x100 or more (the original reads past its tables).
 //!
 //! Converted 2026-10-21: the race's tests and the kind bytes through
 //! `rc2k_core::scene::shown` (the variables read where the tests read them).

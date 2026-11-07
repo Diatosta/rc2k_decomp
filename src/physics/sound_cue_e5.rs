@@ -2,8 +2,8 @@
 //! not -1, its sound object (`g_raceSoundObjects[g_currentCar & 7]`) gets +0x24C 0xE5,
 //! +0x250 0 and +0x10 1 (a reading: a sound to play).
 //!
-//! Caller: `sub_45EDB5` (its tail). Refuses (before anything) a current car past 7, or a
-//! null sound object when written.
+//! Caller: `physics::crash_contact` (its tail). Refuses (before anything) a current car past 7, or
+//! a null sound object when written.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

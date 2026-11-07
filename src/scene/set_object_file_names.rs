@@ -2,8 +2,6 @@
 //! files.
 //!
 //! Takes: the kind (which folder), `dword_634FE8` = the kind (the number)
-//! Out: eax = the tens digit as a character, ecx = 10, edx = the units digit as a
-//!      character, esi and ebp = where the number is in the two names
 //!
 //! By the kind: under 0x190 `files\a\obj????.ro3` and `.lwo`, under 0x258 `files\b\`, under
 //! 0x320 `files\g\frnt\`, else `files\s\extr\`. Four pointers are set: the `.ro3` path

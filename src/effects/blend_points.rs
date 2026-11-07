@@ -4,9 +4,8 @@
 //! st(2) .. st(0) (x deepest).
 //!
 //! Takes: `a`, `b`, `c` the points, `entry` the entry
-//! Out: x, y, z (the original's st(2) .. st(0))
 //!
-//! Caller: `sub_4BA646`.
+//! Caller: `effects::bend_points`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 

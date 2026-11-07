@@ -3,7 +3,7 @@
 //! at 0x410C17 logs "SHUTDOWN:START", waits for the other threads and posts a close message
 //! to the window.
 //!
-//! Two callers: the fatal-error reporter and `sub_415383`.
+//! Two callers: the fatal-error reporter and `system::main_loop`.
 //! It cannot be run twice or undone.
 
 use crate::errors::FatalError;

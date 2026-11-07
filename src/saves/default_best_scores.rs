@@ -3,7 +3,7 @@
 //!
 //! The table at `dword_7556D4` (0xBB8 bytes) is five groups of ten entries of 0x3C bytes.
 //! In each group the entries get 50, 49, .. 41 at +0x38 and a driver each
-//! (`sub_47CDA7`, a plain function here): a random number under 0xB3 is drawn; for the
+//! (0x47CDA7, a plain function here): a random number under 0xB3 is drawn; for the
 //! groups 0 .. 3 it is thrown away and the driver is a random number under
 //! `dword_75AB00[group]` plus `dword_75AB10[group]`, for group 4 it is the driver. From
 //! the driver's record: its +8 to the entry's +0x10, +0x14 to +8, +0x18 to +0xC, and the

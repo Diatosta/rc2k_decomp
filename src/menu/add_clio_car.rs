@@ -4,7 +4,7 @@
 //! `unk_7574E0` is not in the list, it is written over the list's -1. No -1 is written
 //! after it: the list then ends wherever the next -1 happens to be (the original's
 //! slip, kept; in the image the lists are followed by -1 up to the next one).
-//! One caller, the main menu's set-up `sub_47C63F`, when `g_hasClio` is 1 (the Clio
+//! One caller, the main menu's set-up `menu::set_up_front_end`, when `g_hasClio` is 1 (the Clio
 //! update's file is there).
 //! Refuses a list without its end within its room.
 

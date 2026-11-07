@@ -7,7 +7,7 @@
 //! the same, times `flt_623DAC` and `flt_623DB4`, added to the four at `dword_623D70`.
 //! Each s goes through `dword_62400C`.
 //!
-//! Caller: `sub_43B635` (0x43B91E), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B91E), every physics step.
 
 use crate::math::x87;
 use crate::race::kind_store::KIND_TABLES;

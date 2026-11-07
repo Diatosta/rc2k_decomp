@@ -3,10 +3,7 @@
 //! points' faces (`dword_71ADC8`, 0x40 dwords) to 0x6D2F14 (`rep movsd`): by the look of
 //! it the step's starting points kept (a reading).
 //!
-//! Out: ecx 0, esi 0x71ADC8 + 0x100, edi 0x6D2F14 + 0x100; eax, ebx, edx as
-//!      `probe_ground` leaves them (with no probe points: kept)
-//!
-//! Caller: `sub_43B635` (0x43B700), every physics step; next a call (no flags read).
+//! Caller: `physics::car_physics_step` (0x43B700), every physics step; next a call (no flags read).
 //! Refuses what `probe_ground` refuses (nothing written).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

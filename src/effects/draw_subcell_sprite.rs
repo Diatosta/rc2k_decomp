@@ -8,10 +8,7 @@
 //! corners about the projected place; `effects::clip_quad`, and unless all is outside
 //! `scene::draw_fan` and `g_polygonVertexCount` 4.
 //!
-//! In:  st(0) .. st(2) the place (popped), eax the subcell, edx the size (a float), esi the
-//!      entry
-//!
-//! Callers: the ring's kinds 0x10, 0x11 (`sub_4CB64D`) and code at 0x4C55EF .. 0x4C5AB4.
+//! Callers: the ring's kinds 0x10, 0x11 (`effects::run_ring`) and code at 0x4C55EF .. 0x4C5AB4.
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables. Refuses,
 //! before anything, a subcell past the table's 0x410, a null entry, and the fog's and the
 //! clip's refusals.

@@ -6,7 +6,6 @@
 //! +0x80 zeroed; +0x298 = -1. Stream A's reading: the block's grades and values.
 //!
 //! Takes: the block
-//! Out: eax 0, ecx 0, edi esi + 0x368; the rest kept; no flags read
 //!
 //! Callers: `physics::reset_current_car` (esi `g_car`), and unreferenced code at 0x43FDDF
 //! that runs it over every car before `race::grade_all_cars`.

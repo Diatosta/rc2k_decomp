@@ -3,8 +3,8 @@
 //! If voices are in use (`g_voiceCount`): `audio::release_eax`, `audio::release_voice_manager`,
 //! `audio::release_voice` on each of them, `g_voiceCount` 0. Then every sample record's
 //! `first_voice` 0, `audio::clear_channels`, `g_soundBufferLost`, `g_commit3d`,
-//! `g_channelsUsed` and both lists 0, and the samples' memory given back (`sub_409E0F`,
-//! `memory::free_list` on `g_sampleMemory`, inlined). Callers: `sub_409DD5` (the thread's
+//! `g_channelsUsed` and both lists 0, and the samples' memory given back (0x409E0F,
+//! `memory::free_list` on `g_sampleMemory`, inlined). Callers: `audio::close_all` (the thread's
 //! end), `audio::set_mode`, `audio::take_commands`.
 //! Refuses more than 0x200 voices in use.
 

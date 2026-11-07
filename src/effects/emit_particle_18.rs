@@ -1,5 +1,5 @@
-//! `effects::emit_particle_18` (0x4CDF3A, a chunk of `sub_4CA13B` entered by `jz` from
-//! 0x4CA1C5 for the record's kind 1, left by `popa; retn`): ring entries of kind 0x12.
+//! `effects::emit_particle_18` (0x4CDF3A, a chunk of `effects::emit_body_particles` entered by `jz`
+//! from 0x4CA1C5 for the record's kind 1, left by `popa; retn`): ring entries of kind 0x12.
 //!
 //! Takes: the record (the car object's +0x1F4), the car object
 //!

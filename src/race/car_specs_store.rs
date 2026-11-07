@@ -13,7 +13,7 @@ use crate::session::{Bytes, Dword, Float};
 #[derive(rc2k_derive::Cells)]
 pub struct CarSpec {
     /// +0x0: the car's title, padded with spaces, e.g. "00 renault maxi megane"
-    /// (drawn by `sub_4426D4`).
+    /// (drawn by 0x4426D4).
     pub name: Bytes<24>,
     /// +0x18: the drive kind, checked 0 ..= 3 (`physics::load_car_specs`); also the start
     /// value (`race::race_shell`).

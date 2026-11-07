@@ -23,6 +23,12 @@ cleanup() {
     kill -0 "$PID" 2>/dev/null && kill "$PID" 2>/dev/null; sleep 1
     kill -0 "$PID" 2>/dev/null && kill -9 "$PID" 2>/dev/null
   fi
+  # the installer starts the installed copy at its end: stop every rc2k run from the box
+  for p in $(pgrep -x rc2k); do
+    case "$(readlink /proc/$p/exe 2>/dev/null)" in
+      "$BOX"/*) kill "$p" 2>/dev/null; sleep 1; kill -0 "$p" 2>/dev/null && kill -9 "$p" 2>/dev/null ;;
+    esac
+  done
 }
 trap cleanup EXIT
 [ "$1" = nobuild ] || {

@@ -5,9 +5,6 @@
 //! `dword_623854` 0, `dword_62389C` 3, and 72 more stores (`WRITES`: the first car
 //! block's settings, the race's switches, -1 into +0x298).
 //!
-//! Out: eax 3, ebx 0x17, edx the car kind's index; the rest kept; no flags read (a call
-//!      follows)
-//!
 //! Caller: `race::credits_race`, which calls the Rust version directly. Refuses nothing.
 
 use crate::errors::Refused;

@@ -2,8 +2,8 @@
 //!
 //! Takes: the number
 //! One step of the generator on eax with the state mixed in; unless that is 0, it becomes
-//! the state. One caller, `start`, after `sub_403131` (which asks about the volume and
-//! ends with a `pop eax` that takes the esi it had saved: so what is stirred in is
+//! the state. One caller, `start`, after `system::read_volume_serial` (which asks about the volume
+//! and ends with a `pop eax` that takes the esi it had saved: so what is stirred in is
 //! whatever esi was at the process's start, not the volume's number).
 
 // ---- Rust version ----

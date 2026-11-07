@@ -8,8 +8,8 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4D14B4`. Refuses (before anything) null settings, more than 8 cars, and for
-//! a car whose factors changed: an object past 0xFF, a null base list or one (`lines::
+//! Caller: `effects::frame_marks`. Refuses (before anything) null settings, more than 8 cars, and
+//! for a car whose factors changed: an object past 0xFF, a null base list or one (`lines::
 //! BLOCK_POINTS`, Rust's since phase 12) shorter than the points, points past the
 //! object points' room, a point count below 0 (the loop runs on); and `measure_lines`'
 //! refusals (all it may write is put back first).

@@ -1,11 +1,9 @@
 //! `scene::face_faces_away` (0x45205B): whether a face of an object is seen from behind.
 //!
 //! Takes: the face
-//! Out: eax = 1 if it faces away (or has fewer than three vertices), 0 if not;
-//!      everything else preserved
 //!
 //! `g_polygonVertexCount` = the face's number of vertices. Then, for the triangles of
-//! the face's first point with each two that follow one another (`sub_4520A5`): the
+//! the face's first point with each two that follow one another (0x4520A5): the
 //! three points' places in the view (their records 0x1000 + (number & 0xFFF), +0x10
 //! .. +0x18) to `dword_6396A0` ..; the two sides from the first point to
 //! `dword_6396C4` ..; their cross product to the work vector; and the first point's
@@ -13,7 +11,7 @@
 //! the first one that does not ends it with 0. The x87's arithmetic in `X` (plain Rust since
 //! 2026-10-24; the original's instructions are `asm_reference` in the tests).
 //! A point's number below 0 is fatal error 0x80600314.
-//! One caller, `sub_45071B`, which turns the answer into the carry flag.
+//! One caller, 0x45071B, which turns the answer into the carry flag.
 //! Refuses when there is no face or no records.
 
 use crate::errors::{BadInput, FatalError, Refused};
@@ -29,7 +27,7 @@ const BAD_POINT: FatalError = FatalError {
 
 // ---- Rust version ----
 
-/// `sub_4520A5` from its first `fld`: the block is the three points (nine floats), the
+/// 0x4520A5 from its first `fld`: the block is the three points (nine floats), the
 /// six differences, the cross product, and the x87's status after `fldz; fcompp` (only the
 /// condition bits are modelled).
 fn triangle_at(w: impl Base) {

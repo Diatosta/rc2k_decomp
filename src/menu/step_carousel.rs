@@ -1,9 +1,10 @@
 //! `menu::step_carousel` (0x46989B): moves a menu's turning objects on by the time passed.
 //!
 //! The time since the last call (the clock `dword_613830` less `dword_75AA84`, which becomes the
-//! clock) is kept, held to 100, in `dword_75AA88`. Then the turn (`sub_49044F`, inlined): while
+//! clock) is kept, held to 100, in `dword_75AA88`. Then the turn (`menu::turn_carousel`, inlined):
+//! while
 //! `dword_75A660` is not 0 the angle `dword_75AA80` is moved by ((angle / 8) + 0x4000000) x the
-//! time / 20 (`sub_4904C7`), down for a negative direction, up (from the angle negated) for a
+//! time / 20 (0x4904C7), down for a negative direction, up (from the angle negated) for a
 //! positive one. When it passes zero it is 0 and the direction 0; after a turn upwards the object
 //! in front, `dword_75AA7C`, is the next one, the first again after the last (`dword_75AA78`).
 //! `menu::move_highlight_left` and `_right` start a turn. In 17 lists of the screens with turning

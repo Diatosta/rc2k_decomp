@@ -22,8 +22,9 @@
 //! The x87 runs are plain Rust over `X` (`math/x87_float.rs`), the original's instructions
 //! (from IDA) being `asm_reference` in the tests; the integer steps in Rust.
 //!
-//! Callers: `sub_43B635` (0x43B70F), `sub_43A1CA`. Refuses no faces, a table index (+0x2C)
-//! past 5 (before anything) and a surface past 15 (what was written by then is put back).
+//! Callers: `physics::car_physics_step` (0x43B70F), `drive::simple_car_step`. Refuses no faces, a
+//! table index (+0x2C) past 5 (before anything) and a surface past 15 (what was written by then is
+//! put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

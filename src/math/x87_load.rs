@@ -60,7 +60,7 @@ fn rotated(point: [i32; 3], matrix: &[u32]) -> [X; 3] {
 
 /// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
 /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
-/// into the third from the x87's precision (`sub_4573FA`).
+/// into the third from the x87's precision (0x4573FA).
 pub fn rotate_rounding_z(point: [i32; 3], matrix: &[u32]) -> [u32; 3] {
     let s = rotated(point, matrix);
     [st(s[0]), st(s[1]), to_int(s[2]) as u32]
@@ -118,7 +118,7 @@ pub fn int_square_sum_scaled_to_int(a: i32, b: i32, k: u32, times: u32) -> u32 {
     to_int(x) as u32
 }
 
-/// The camera's roll eased towards a target (`sub_4386A4`), rounded once at the end:
+/// The camera's roll eased towards a target (`race::view_matrices`), rounded once at the end:
 /// `((((i / a / a / b) v c) - m) h) + m`.
 pub fn eased_roll(i: i32, a: u32, b: u32, v: u32, c: u32, m: u32, h: u32) -> u32 {
     let mut x = int(i);
@@ -138,7 +138,7 @@ pub fn product4_to_int(a: u32, b: u32, c: u32, d: u32) -> u32 {
     to_int(ld(a) * ld(b) * ld(c) * ld(d)) as u32
 }
 
-/// The sun's direction in `sub_455540`: with `p = (k - a) s` and `q = b s`, cos p cos q,
+/// The sun's direction in `race::draw_sky`: with `p = (k - a) s` and `q = b s`, cos p cos q,
 /// sin q and sin p cos q, each times `m` and stored as a float.
 pub fn sun_direction(a: i32, k: u32, s: u32, b: i32, m: u32) -> [u32; 3] {
     let p = (-int(a) + ld(k)) * ld(s);
@@ -160,7 +160,7 @@ pub fn tbyte_to_int(a: [u8; 10]) -> u32 {
     to_int(from_f80(a)) as u32
 }
 
-/// A point of whole numbers onto the screen as in `sub_455540`: `v` = x, y, z, the flat
+/// A point of whole numbers onto the screen as in `race::draw_sky`: `v` = x, y, z, the flat
 /// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`, as a float)
 /// and the scale over the flat depth + 1; else the scale over z. Gives x as a float and
 /// rounded, y as a float and rounded (each `x r + cx` and `cy - y r`, r the ratio).

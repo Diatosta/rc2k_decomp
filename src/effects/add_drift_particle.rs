@@ -5,10 +5,8 @@
 //! at +0xC and +0x18 (the place, now and last); +0x38 0x8000, +0x3C 0xFF000000, +0x44
 //! 50000, +0x24 the view's +0x34 (`flt_5EA3CC`). With the ring full the six are dropped.
 //!
-//! In:  st(0) .. st(5) as above (all popped), eax the kind
-//!
-//! Caller: `sub_4CFB49` (every eighth marks step, a drift puff by the view). Refuses a null
-//! ring (an entry to take), before anything.
+//! Caller: `effects::run_particles` (every eighth marks step, a drift puff by the view). Refuses a
+//! null ring (an entry to take), before anything.
 
 use crate::effects::blocks::{particle, set_particle};
 use crate::effects::ring_store::Ring;

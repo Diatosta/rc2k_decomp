@@ -8,10 +8,9 @@
 //! line.
 //!
 //! Takes: the HUD's record
-//! Out: ebx the parts drawn (kept with none: the original zeroes it after the test), ecx 0;
-//!      the rest kept
 //!
-//! Caller: layout 0's drawer (0x4B1DC7). Refuses more than 0x40 parts and a colour offset past
+//! Caller: layout 0's drawer (`hud::layout_0`, 0x4B1DC7). Refuses more than 0x40 parts and a colour
+//! offset past
 //! `dword_75BF70`'s four, before anything.
 
 use crate::errors::Refused;

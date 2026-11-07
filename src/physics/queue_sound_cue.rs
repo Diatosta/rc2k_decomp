@@ -6,10 +6,6 @@
 //! up to a -1; one not below 0 plus the object's base, esi's +0) at +8 .., their number at
 //! +4; the count up by one.
 //!
-//! In:  eax 0 first / else last, ebx the cue, esi the sound object, edi its queue
-//! Out: ebx the cue's list, ecx the sounds' number, edx the entry, eax the last sound;
-//!      the rest kept; no flags read
-//!
 //! Caller: `physics::cue_car_sound`. The object is a reference; the queue is its typed
 //! +0x298 (`CueQueue`), walked by dword as the original does (a dword past it refused).
 //! Refuses (before anything) a cue past 0x5F (the list's size not worked out).

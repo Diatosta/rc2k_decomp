@@ -3,8 +3,8 @@
 //!
 //! `scene::clear_depth_buffer`, `scene::assign_kind_textures`,
 //! `scene::assign_menu_textures`, `scene::map_texture_places`,
-//! `scene::load_slot_textures`, then `sub_49006F` (one caller): `dword_6365C4` = 0 and
-//! `sub_49007F` (one caller), between `pusha` and `popa`:
+//! `scene::load_slot_textures`, then 0x49006F (one caller): `dword_6365C4` = 0 and
+//! 0x49007F (one caller), between `pusha` and `popa`:
 //! - the turn about y from the clock (`g_sceneClock` times 8, its low sixteen bits)
 //!   to `dword_635040`; the place's x (`dword_63501C`) 0 and its z (`dword_635024`)
 //!   `dword_75A66C`;
@@ -35,7 +35,7 @@ use crate::scene::map_texture_places::map_texture_places;
 
 // ---- Rust version ----
 
-/// `sub_49007F`: the highlighted item's object set up and drawn by `draw`.
+/// 0x49007F: the highlighted item's object set up and drawn by `draw`.
 pub fn draw_highlighted(
     menus: &Menus,
     draw: &mut dyn FnMut() -> Result<(), Refused>,
@@ -75,7 +75,7 @@ pub fn draw_highlighted(
 
 /// The Rust version the typed tables run: its six calls in order. It reads no register of
 /// its caller's (register liveness, 2026-10-23), and the drawing reads none of what the
-/// calls before it leave (the eax and ebx `sub_49007F` gives it included).
+/// calls before it leave (the eax and ebx 0x49007F gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
     let scene = crate::scene::owner::scene();
     let race = race();

@@ -2,7 +2,7 @@
 //! made-up best time and top speed.
 //!
 //! Takes the record table. Nothing if the first record's byte +0x54 is not 0 (it has a name there
-//! already). Else for every record with tag 0, up to the table's -1 (`sub_47CE05`, a plain function
+//! already). Else for every record with tag 0, up to the table's -1 (0x47CE05, a plain function
 //! here), from four random numbers under 0xAA: a driver, whose +0x14 goes to the record's +0x74,
 //! +0x18 to +0x78 and name (without a NUL) to +0x54; the second + 1000 to +0x30; another driver to
 //! +0x9C, +0xA0 and +0x7C; the fourth + 1000 to +0x2C. One caller, `menu::set_up_front_end`, on

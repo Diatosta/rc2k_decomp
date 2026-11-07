@@ -7,7 +7,8 @@
 //!
 //! Takes the x the measuring starts at.
 //!
-//! Callers: `screens::cheat_locked_note` .. (0x4AAAD5, 0x48ADF2 and others). Refuses what
+//! Callers: `screens::cheat_locked_note` .. (`screens::note_locked_item_3`, 0x4AAAD5, 0x48ADF2 and
+//! others). Refuses what
 //! `gfx::fill_rect` refuses (a surface of neither 16 nor 32 bits), before anything.
 
 use crate::errors::{BadInput, Refused};

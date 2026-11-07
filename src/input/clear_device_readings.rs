@@ -3,7 +3,8 @@
 //!
 //! Takes: the device's record (`input/devices.rs`)
 //!
-//! Callers: `sub_408473` (an acquiring that failed), `sub_4087F3` (the release).
+//! Callers: `input::acquire_device` (an acquiring that failed), `input::release_device` (the
+//! release).
 
 use crate::input::types::InputDevice;
 

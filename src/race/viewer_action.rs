@@ -1,5 +1,5 @@
 //! `race::viewer_action` (0x41DE6F): one of the replay viewer's actions, ebx (its body is
-//! `sub_41DE81`, in chunks, entered only from here; unknown actions `inc ebp`):
+//! 0x41DE81, in chunks, entered only from here; unknown actions `inc ebp`):
 //!
 //! | action | what |
 //! | --- | --- |
@@ -26,7 +26,6 @@
 //! | 0x25 .. 0x28 | play between the marks saving pictures (`race::start_frame_pictures` 0, 0xA0, 0x50, 0x28 ms; `race::stop_frame_pictures`) |
 //!
 //! Takes: the action
-//! Out: ZF set when it was one
 //!
 //! Callers: `race::replay_viewer` (three). The camera bytes' edits (0xE .. 0x10, 0x18) keep the
 //! undo before they look at the block; nothing is checked of the table's room for a cut or a

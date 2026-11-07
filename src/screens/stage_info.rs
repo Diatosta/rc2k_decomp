@@ -1,7 +1,8 @@
-//! A rally stage's information page (`sub_489AC8` -> `sub_4744A9`; stream A, part F1,
-//! 2026-10-18): the stage record (`off_73555A[dword_7587EC]` + 0xA4 x `dword_7587F0`) and
-//! its track-pack entry: start and finish times, the time allowed, the length, the surface's
-//! shares, the weather, the description, the stage's number, and the best and fastest.
+//! A rally stage's information page (`screens::draw_rally_stage_info` ->
+//! `screens::draw_stage_best_and_fastest`; stream A, part F1, 2026-10-18): the stage record
+//! (`off_73555A[dword_7587EC]` + 0xA4 x `dword_7587F0`) and its track-pack entry: start and finish
+//! times, the time allowed, the length, the surface's shares, the weather, the description, the
+//! stage's number, and the best and fastest.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

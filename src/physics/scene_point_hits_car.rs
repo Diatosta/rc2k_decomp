@@ -3,9 +3,8 @@
 //! `dword_614108` + 1, `dword_6D3B40` .. = 0.
 //!
 //! Takes: the record (+4 the point's number), the object
-//! Out: CF as `point_hits_car` leaves it; ebx the number, esi the point; the rest kept
 //!
-//! Caller: `sub_45E3BF` (0x45E48C, `jb`).
+//! Caller: `physics::face_contact` (0x45E48C, `jb`).
 
 use crate::errors::Refused;
 use crate::physics::flow::fill_cells;

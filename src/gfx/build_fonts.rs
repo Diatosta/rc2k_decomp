@@ -11,8 +11,8 @@
 //! 125 stores: each font object's palette (+0x14: the palettes' place plus the offset of
 //! its sixteen colours) and glyph table (+0x18), as listed in `HUNG`. A font that measures
 //! (mode 4) gets a palette too, which `text::draw_text` then uses as its line counter.
-//! Callers: `sub_47486C` (the game's start, before the main menu), `sub_4154CD`,
-//! `sub_4703C2`, `sub_41CDC2`, `sub_412DE0`, `sub_443104`.
+//! Callers: `menu::run_front_end` (the game's start, before the main menu), 0x4154CD,
+//! `menu::apply_screen_mode`, `race::viewer_load_stage`, `install::run_installer`, 0x443104.
 //! A refusal from one of the steps leaves the work half done; none can come with the
 //! game's own files.
 //! The registers above are the original's, for reference; a call by address goes through

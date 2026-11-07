@@ -7,9 +7,9 @@
 //!
 //! Takes: `s` a spline record (`g_marksSplinesC`)
 //!
-//! Callers: 0x4B99D4, 0x4B9A2C. Refuses (before anything) a negative count (the loop runs
-//! on), points past the record's 0x80, a null pointer among them, an angle `fsincos` cannot
-//! take, and `bend_points`' refusals.
+//! Callers: `effects::place_spline` (0x4B99D4), `effects::place_spline` (0x4B9A2C). Refuses (before
+//! anything) a negative count (the loop runs on), points past the record's 0x80, a null pointer
+//! among them, an angle `fsincos` cannot take, and `bend_points`' refusals.
 
 use crate::effects::bend_points::bend_points;
 use crate::effects::paths::Paths;

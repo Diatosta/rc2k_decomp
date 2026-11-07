@@ -7,8 +7,6 @@
 //! (`dword_4F52AC`) off, both put back after.
 //!
 //! Takes: the mode
-//! Out: carry = the mode does not work; else carry clear and the zero flag by the eax the
-//!      last call left
 //!
 //! Callers: `gfx::choose_screen_modes` (its list of modes), `gfx::screen_mode_choices`,
 //! `gfx::keep_race_screen_mode`, and two in the race's set-up (0x442D2C, 0x4432B6). Its

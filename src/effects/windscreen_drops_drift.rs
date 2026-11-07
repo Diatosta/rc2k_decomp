@@ -10,9 +10,10 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4BC0B1` (0x4BC0BA). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables (the three values it keeps on the x87 stack across the two calls kept
-//! as 80 bits); the calls their Rust versions. Refuses null settings, before anything.
+//! Caller: `effects::windscreen_drops_frame` (0x4BC0BA). The x87 runs are plain Rust on the x87
+//! model (`math::x87_float`), in the original's order, over the game's variables (the three values
+//! it keeps on the x87 stack across the two calls kept as 80 bits); the calls their Rust versions.
+//! Refuses null settings, before anything.
 
 use crate::effects::adjugate3::adjugate3;
 use crate::effects::setup::MarksClock;

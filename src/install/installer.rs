@@ -1,14 +1,14 @@
-//! The installer that `RAL.EXE` also is (`sub_412DE0` and its tree, read 2026-10-19): the
-//! variables its parts share, the calls they make, the functions its tables hold (its
+//! The installer that `RAL.EXE` also is (`install::run_installer` and its tree, read 2026-10-19):
+//! the variables its parts share, the calls they make, the functions its tables hold (its
 //! registry calls: `install::read_registry::Registry`).
 //!
 //! The installer runs only with its script set up (`-i`, `-u`, `-p`, or the update and Clio
 //! discs: `install::check_at_start`, `check_clio_disc`). Its pages are list menus
-//! (`sub_4144CF`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item chosen,
+//! (`install::run_page`): a list of 0x18 bytes (+0 flags, +1 items, +2 title, +4 the item chosen,
 //! +8 the list's action with the state 0 at the start, 1 after a key, -1 at the end, +0x10
 //! the neighbours for `menu::list_step`, +0x14 a key action) and its items of 0x10 bytes
 //! from +0x18 (+0 kind and marks, +1 the next list or the choices, +2 the text, +8 and +0xC
-//! the kind's pointers). `sub_4144AA` goes from list to list by the answer.
+//! the kind's pointers). `install::run_pages` goes from list to list by the answer.
 //!
 //! Conversion phase 3 (2026-10-23): the parts call each other and the game's other
 //! functions directly with typed arguments; the functions the tables hold (by address in
@@ -177,7 +177,7 @@ pub fn make_dir(path: impl Into<Place>) -> bool {
     crate::files::directories::make_directory(&path_text(path))
 }
 
-/// `sub_403123` (remove a directory): whether it worked.
+/// `files::remove_directory` (remove a directory): whether it worked.
 pub fn remove_dir(path: impl Into<Place>) -> bool {
     crate::files::directories::remove_directory(&path_text(path))
 }

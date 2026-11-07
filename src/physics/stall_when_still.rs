@@ -6,10 +6,7 @@
 //! and both drive speeds 0. By the look of it the engine stalling when the car turns
 //! back on itself (a reading).
 //!
-//! Out: esi 0x71A17C and edi 0x61409C when the dot was taken, else esi 0x61409C; the rest
-//!      kept; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B896), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B896), every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

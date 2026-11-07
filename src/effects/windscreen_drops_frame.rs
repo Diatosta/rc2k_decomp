@@ -6,8 +6,8 @@
 //! turned, unless the depth is below 4096.0 the six corners (its kind's offsets)
 //! projected into the buffer at `dword_816232` (0xC0 bytes each; at `unk_628A44` back to
 //! `unk_625A44`, `dword_62423C` 0x300, `dword_625A40` 0x180 and the batch drawn by
-//! `sub_41ADB9`, the platform's). Then, with fewer live than the settings' +0x273C and the
-//! drift on, `effects::windscreen_drops_spawn`.
+//! `d3d::draw_marks_windscreen_drops`, the platform's). Then, with fewer live than the settings'
+//! +0x273C and the drift on, `effects::windscreen_drops_spawn`.
 //!
 //! Works on `g_marksSettings`.
 //!

@@ -1,5 +1,5 @@
 //! The car's shadow, its whole-number parts (converted 2026-10-21 from `race::shadow_hull`
-//! 0x45836F, the cells of `race::shadow_faces` 0x457618 with `sub_4576C9`, and the near
+//! 0x45836F, the cells of `race::shadow_faces` 0x457618 with 0x4576C9, and the near
 //! test of `race::clip_shadow_to_face` 0x457960). A shadow point is a 0x20-byte record
 //! (+0 x, +4 y, +8 z as whole numbers, +0xC the angle, ...). The cars' shadows' passes
 //! converted 2026-10-21 from `race::cast_car_shadow` 0x4575C1 and `race::cast_car_shadows`
@@ -127,7 +127,7 @@ pub fn cell_near_car(car: (u32, u32), cell: (u32, u32)) -> bool {
     off(car.0, cell.0).wrapping_add(1) < 3 && off(car.1, cell.1).wrapping_add(1) < 3
 }
 
-/// Whether a course face takes the shadow (`sub_4576C9`): its kind below 0x10 and bit 7 of
+/// Whether a course face takes the shadow (0x4576C9): its kind below 0x10 and bit 7 of
 /// its switches' word (asked for only then) clear.
 pub fn takes_shadow(kind: u8, switches: impl FnOnce() -> u16) -> bool {
     kind < 0x10 && switches() & 0x80 == 0
@@ -174,7 +174,7 @@ pub fn face_near(car: (u32, u32), mut corner: impl FnMut(usize) -> (u32, u32)) -
     found
 }
 
-/// `sub_457A85`'s walk: the polygon's `count` sides (`entry(k)` and `entry(k + 1)`, the
+/// 0x457A85's walk: the polygon's `count` sides (`entry(k)` and `entry(k + 1)`, the
 /// first entry again after the last) cut by an edge: for each side whether each end is on
 /// the inner side (`inside`, asked of the first then the second), the first kept (`add`)
 /// when it is, and where the two differ the crossing (`cross`, giving the new entry)

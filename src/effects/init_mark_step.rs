@@ -7,8 +7,6 @@
 //! fixed numbers +0x36C .. +0x3AC; then `effects::init_marks` with the settings
 //! `asc_5C2F84`.
 //!
-//! In:  nothing (the original reads none of its registers; it keeps edi)
-//!
 //! Caller: `race::loadlevel_init` (0x444670, with the log off round it). The file number is
 //! its Rust version, also `init_marks`' seed; then `init_marks`. Refuses a car count of 0
 //! or past 8 (the original's loop would run on) and a missing block or record, before

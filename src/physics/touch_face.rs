@@ -11,11 +11,7 @@
 //!
 //! Then `physics::place_sound_object` and the count + 1.
 //!
-//! Out: ebx the face's number, esi its address; when the face was free, edx the count
-//!      before; eax as the kind's path leaves it (the kind, the random number, or
-//!      `dword_6D3B70`); the rest kept; no flags read (callers return)
-//!
-//! Callers: `sub_45E3BF` (six). Refuses (before anything) a count past 0x100 (the list's
+//! Callers: `physics::face_contact` (six). Refuses (before anything) a count past 0x100 (the list's
 //! room); what `place_sound_object` refuses (its writes put back).
 
 use crate::errors::{BadInput, Refused};

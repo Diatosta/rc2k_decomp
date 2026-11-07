@@ -21,13 +21,9 @@
 //!   `dword_4F4E90` by its fourth nibble, less 1, not below 0); +0x10 masked by +0x20;
 //!   made.
 //!
-//! In:  eax = 0 to make the list again, else to try the choice
-//! Out: carry = refused by the original's own checks or the mode does not work; else carry
-//!      clear and the zero flag by the eax left
-//!
 //! Callers: `gfx::choose_screen_modes` (0x4045CA) and the graphics options' actions
-//! (`sub_470017`, `sub_4703C2`). Refuses (before anything is written) a list longer than the
-//! record's room (16 modes: the original would write over 0x4F51F0's constants) and a size's
+//! (0x470017, `menu::apply_screen_mode`). Refuses (before anything is written) a list longer than
+//! the record's room (16 modes: the original would write over 0x4F51F0's constants) and a size's
 //! place of 0x1000 or more when made (the original reads that far past the list).
 
 use crate::d3d::owner::d3d;

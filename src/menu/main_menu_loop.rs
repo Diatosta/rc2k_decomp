@@ -7,7 +7,7 @@
 //!   (`late_highlight`), and `dword_7585D8` = 1 is stored before every frame;
 //! - an idle timer at the top of each frame (`idle`): while `dword_755551` is not 0 (set by
 //!   `menu::update_blink` after 300,000 ms without a key) `dword_755555` counts up, and
-//!   unless `g_noFmv` (0x5BE870, `nofmv` in `var\ral.cfg`) is 1, `sub_4161CD` is called with
+//!   unless `g_noFmv` (0x5BE870, `nofmv` in `var\ral.cfg`) is 1, `menu::play_films` is called with
 //!   eax = 1 (it plays the intro film), the flag cleared and the screen set up again;
 //! - after an action: `restart_action_check`;
 //! - leaving is always asked about, and after a "yes" the loop returns at once
@@ -16,7 +16,8 @@
 //! The five calls and three stores between the last jump and the end (0x474CD9 ..
 //! 0x474D0F) are never reached and are not in the Rust version. The name is a reading from the menu
 //! (0x748CB8): its items open `start_rally_loop`, `load_championship_loop`, `network_rally_loop`
-//! and `options_loop`, and the fifth is `menu::go_back`. Screen: the main menu. Rust callers run its `entry` (`routes.rs`).
+//! and `options_loop`, and the fifth is `menu::go_back`. Screen: the main menu. Rust callers run
+//! its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::framework::log;
@@ -78,11 +79,11 @@ fn idle(entry: &Entry) -> Result<Flow, Refused> {
     if crate::film::NO_FMV.get() == 1 {
         return Ok(Flow::On);
     }
-    log("menu::main_menu_loop: idle, sub_4161CD is called");
+    log("menu::main_menu_loop: idle, `menu::play_films` is called");
     // `menu::play_films` with mode 1 in eax; it keeps every register. edi is the menu
     // here (the loop's last store to it); ebp it does not read.
     crate::menu::play_films::play_films(true)?;
-    log("menu::main_menu_loop: sub_4161CD has come back");
+    log("menu::main_menu_loop: `menu::play_films` has come back");
     menus.screens.loop_flags.idle.set(0u32);
     update_blink(menus);
     let now = system.session.clocks.frame.get();

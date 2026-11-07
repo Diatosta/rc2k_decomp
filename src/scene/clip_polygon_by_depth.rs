@@ -2,9 +2,9 @@
 //! be drawn.
 //!
 //! `dword_624124` = 1; `dword_62411C` = 0x1000 and one pass of `scene/clip.rs` that
-//! keeps what is deeper than that (`sub_44DB93`); then, with `dword_621510` at 0,
+//! keeps what is deeper than that (0x44DB93); then, with `dword_621510` at 0,
 //! `dword_621900` not 0 and three vertices or more left, `dword_62411C` =
-//! `dword_624230` and a pass that keeps what is not deeper (`sub_44DEAA`).
+//! `dword_624230` and a pass that keeps what is not deeper (0x44DEAA).
 //! Seven callers. Refuses as `scene::clip_polygon_to_screen`.
 
 use crate::errors::BadInput;

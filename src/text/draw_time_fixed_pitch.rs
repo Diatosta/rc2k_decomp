@@ -2,7 +2,6 @@
 //! time in fixed columns, so that the digits of a time like "01:23.45" do not move.
 //!
 //! Takes: font, text, x of the right edge, y
-//! Out: carry as the last `draw_text` leaves it; every register preserved
 //! Each byte is copied to text + 0x40 with a NUL after it and drawn from there, so the text
 //! needs 0x42 bytes of room. All eight bytes are read even if a NUL comes earlier. The columns
 //! are at x - 100 plus 0, 13, 23, 33, 46, 56, 66 and 79.

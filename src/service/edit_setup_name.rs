@@ -8,9 +8,9 @@
 //! slot (whether that worked is not looked at); 0x6E the name is cleared; 0x0E the last character
 //! goes (`backspace_setup_name`); any other `key_to_char`; a character is appended unless the
 //! length is already above the maximum (`dword_755571`), and taken off again if the name then
-//! measures 0xEC pixels or more in the font at 0x51E824. Called from the screen loop `sub_46EB7A`
-//! while `dword_7556A8` is 1. Refuses, before the key is taken: a slot past 99, a length outside 0
-//! .. 0x1F, no car object, no keyboard layout.
+//! measures 0xEC pixels or more in the font at 0x51E824. Called from the screen loop
+//! `menu::save_setup_loop` while `dword_7556A8` is 1. Refuses, before the key is taken: a slot past
+//! 99, a length outside 0 .. 0x1F, no car object, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::{has_layout, key_to_char};

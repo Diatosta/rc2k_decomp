@@ -2,8 +2,6 @@
 //! square root.
 //!
 //! Takes: the three differences
-//! Out: eax = the length; ebx and ecx = the two smaller parts' shares of it;
-//!      everything else preserved
 //!
 //! Each difference over 256 (signed) and without its sign; the largest times 0xF2, the
 //! middle one times 0x60 and the smallest times 0x4B, added.

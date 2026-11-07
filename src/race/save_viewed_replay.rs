@@ -11,8 +11,6 @@
 //! new index (0x3840 bytes). Both closed; the undo emptied again.
 //!
 //! Takes: the slot (`race::replay_path`'s number)
-//! Out: carry set when it failed (nothing to save, an open or a write failing); ZF when it
-//!      worked
 //!
 //! Callers: `race::viewer_action` (0x15 back into a saved slot, 0x16 into a chosen one),
 //! `race::save_last_replay`. Saving into slot 222 would make the file it reads from anew (the

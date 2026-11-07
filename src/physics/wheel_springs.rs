@@ -16,10 +16,7 @@
 //! 0x6148DC .. and 0x61495C ..; `flt_6148C0` 0; minus `flt_6141D4` into 0x6148E0,
 //! 0x614900, 0x614920, 0x614940 and minus `flt_6141D8` into 0x614960 .. 0x6149C0.
 //!
-//! Out: ebx 4, eax minus wheel 3's height; the rest kept; no flags read (the next is a
-//!      call)
-//!
-//! Caller: `sub_43B635` (0x43B813), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B813), every physics step.
 
 use crate::math::x87;
 use crate::math::x87_run::{ext_div2, int_80, neg_mul2, neg_rounded, sub_mul, wheel_int};

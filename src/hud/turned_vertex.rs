@@ -4,10 +4,7 @@
 //! (`math::turn_float_point_xz`, ebx the middle value), times `dword_75C2B8` plus
 //! `dword_75C2A0` / `dword_75C2A4`; colour white under the quad record's alpha, specular 0.
 //!
-//! In:  st(0) y, st(1) x (popped), edi the vertex, edx the angle, ebx passed on
-//! Out: eax the colour, ecx the turned y, ebx as the turn leaves it; edx, ebp kept
-//!
-//! Callers: `sub_4B6ECD`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
+//! Callers: `hud::draw_needle`'s four (code at 0x4B6FFE ..). The turn is its Rust version.
 
 use crate::d3d::vertices_store::Vertex;
 use crate::hud::owner::Hud;

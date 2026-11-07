@@ -559,7 +559,7 @@ pub fn draw_indexed_bytes<const V: usize, const I: usize>(
     );
 }
 
-/// `sub_41ADF5` (`d3d::draw_indexed`), the platform's draw of the race's batches: the same
+/// 0x41ADF5 (`d3d::draw_indexed`), the platform's draw of the race's batches: the same
 /// call as `draw_triangles` (DrawIndexedPrimitive, type 4, flags 0x1C; the original takes
 /// edx the index count, ecx the indices, eax the vertex count, ebx the vertices). Returns
 /// Direct3D's result: 0, drawn. Its edx leftover is read by no caller (`lq.py -s`: the
@@ -739,7 +739,7 @@ pub fn allocate_textures_now(
 
 // ---- gfx::release_all_textures (0x4051D3) ----
 
-/// `sub_41A3B2` for every texture of a pool, and the count 0.
+/// 0x41A3B2 for every texture of a pool, and the count 0.
 fn release_pool(pool: usize, gfx: &crate::gfx::owner::Gfx) {
     let pool_vars = gfx.card.texture_tables.pool(pool);
     let count: u32 = pool_vars.count.get();
@@ -853,7 +853,7 @@ pub fn begin_layer() {
     {
         crate::d3d::set_render_state::set_render_state(value, state);
     }
-    // `sub_41ACDE`: no texture is the current one, then none is set.
+    // 0x41ACDE: no texture is the current one, then none is set.
     d3d.cards.current_texture.set(0xFFFF_FC44u32);
     crate::d3d::set_texture::set_texture(NO_TEXTURE);
 }

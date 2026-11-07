@@ -4,11 +4,8 @@
 //! (`g_carBlocks[g_currentCar]`) +0xFD0 .. gives them, or, for the car recorded
 //! (`dword_52A920`), takes them.
 //!
-//! Out: eax .. edx the readings (eax the car with a replay on), esi the device or the
-//!      block; the rest kept; no flags read
-//!
-//! Callers: `drive::car_controls` (`sub_43A1CA`), `sub_460835`, `sub_460B2F`. Refuses
-//! (before anything) a current car past 7, and what `device_axes` refuses.
+//! Callers: `drive::car_controls` (0x43A1CA), `race::step_replay_cars`, `drive::replay_step`.
+//! Refuses (before anything) a current car past 7, and what `device_axes` refuses.
 
 use crate::errors::Refused;
 use crate::net::owner::net;

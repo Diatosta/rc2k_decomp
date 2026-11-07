@@ -6,11 +6,6 @@
 //! (`scene::restart_clock`) and its time less `dword_63DC38` into `dword_63DC3C`, the frame
 //! rate measured (`race::measure_frame_rate`); carry clear.
 //!
-//! Out: carry set when the frame was lost (the lock or the showing failed), else clear;
-//!      eax as the last call leaves it (read: `drive::race_frame` hands it on to
-//!      `drive::quit_question`'s `input::yes_no_key`, taint from 0x4541FF); no other
-//!      register is read after it
-//!
 //! Caller: `drive::race_frame`. Its calls are the Rust versions: `scene::lock_frame`
 //! (0x44E837), `sound::race_sound_tick` (0x421BA9), `race::roll_credits` (0x415FC2),
 //! `race::draw_frame_rate` (0x4562B2), `scene::unlock_frame` (0x44E851),

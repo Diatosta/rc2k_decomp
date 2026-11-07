@@ -4,10 +4,8 @@
 //! back as it was.
 //!
 //! Takes: x, y, z, the angle
-//! Out: ebx x', eax z', edx as `turn_scratch_xz` leaves it; the rest kept (esi, ebp
-//!      pushed too); no flags read
 //!
-//! Callers: `sub_438E5A` (twice).
+//! Callers: `physics::place_camera` (twice).
 
 use crate::math::turn_point_xz::turn_point_xz;
 

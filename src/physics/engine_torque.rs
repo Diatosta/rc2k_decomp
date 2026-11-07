@@ -8,7 +8,8 @@
 //!
 //! Returns: i on the curve's path
 //!
-//! Callers: `physics::engine_torque_or_cut`, `sub_421848`, `sub_43CAAB`, `sub_43EA80`.
+//! Callers: `physics::engine_torque_or_cut`, `physics::test_drive_run`, 0x43CAAB,
+//! `physics::free_rev`.
 
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};

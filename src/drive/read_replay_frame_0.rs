@@ -2,9 +2,8 @@
 //! tenth 0 (ebx kept round it).
 //!
 //! Takes: the frame
-//! Out: CF as `read_replay_frame` leaves it; every register kept
 //!
-//! Callers: `drive::load_replay_frame`, `sub_41DE81` (six).
+//! Callers: `drive::load_replay_frame`, 0x41DE81 (six).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

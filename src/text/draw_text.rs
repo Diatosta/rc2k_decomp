@@ -1,9 +1,6 @@
 //! `text::draw_text` (0x4023D5): draws NUL-terminated text with a bitmap font, line by line.
 //!
 //! Takes: font, text, x, y
-//! Out: carry set if a line was wider than the box (`FLAG_FAIL_IF_WIDER`), else clear;
-//!      eax = 0, ebx = text after the NUL (the start of the failed line on carry),
-//!      ecx = x as given, edx = y of the last line; esi, edi and ebp preserved
 //!
 //! Bytes from `first_char` to `last_char` are glyphs, bytes above are ignored, bytes below are
 //! control codes:

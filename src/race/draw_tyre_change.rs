@@ -18,7 +18,6 @@
 //! the game), `dword_5BEBE8` 1.
 //!
 //! Takes: the device
-//! Out: ebp = esi; the rest kept; the flags of the copy (no caller reads them)
 //!
 //! Callers: `race::tyre_change_gauge` (twice), which calls the Rust version directly. The text
 //! is built with the Rust versions of `strings::append_string_by_id` and `append_time`. Refuses

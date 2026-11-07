@@ -3,9 +3,6 @@
 //! 0x8021A173) and +0x60 0.
 //!
 //! Takes: the texture
-//! Out: the flags as the original leaves them (unlocked: zero set, carry clear; no
-//!      surface: those of `cmp [+0x14], 0`; not locked: of `cmp [+0x60], 1`); every
-//!      register kept
 //!
 //! Callers: those of `d3d::lock_texture`. The unlock is the surface's own method. Refuses
 //! a texture past the pool's 0x140, before anything.

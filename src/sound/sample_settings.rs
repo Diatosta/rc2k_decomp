@@ -1,9 +1,6 @@
 //! `sound::sample_settings` (0x40BA71): a sound's volume and rate, the sample's own where
 //! asked for and held to what the mixer takes.
 //!
-//! In:  eax the sample (a record of `g_sampleRecords`, 0x40 bytes each), ecx the volume,
-//!      edx the rate; -0x6F (`0xFFFFFF91`) in either: the sample's own, -0x70 for the
-//!      rate: its buffer's
 //! Returns: the volume, the rate
 //! A sample without a buffer (+8 null): ecx 0, edx 44100. Else ecx -0x6F takes the
 //! record's +0x28, then is held to 0 .. 0x40 (signed); edx -0x6F takes the record's

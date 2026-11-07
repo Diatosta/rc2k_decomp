@@ -7,11 +7,8 @@
 //! `to` and queue a notice (`physics::queue_notice`: esi the notice, eax the gauge, ebx
 //! the rank); falling steps (the hysteresis of some gauges), below, set it back.
 //!
-//! Out: eax, ebx, esi the last notice's, edx as `queue_notice` leaves it (kept when none);
-//!      the rest kept; no flags read (the caller goes on)
-//!
-//! Caller: `sub_43B635` (0x43B95C), every physics step. Refuses what `queue_notice` refuses
-//! (everything written put back).
+//! Caller: `physics::car_physics_step` (0x43B95C), every physics step. Refuses what `queue_notice`
+//! refuses (everything written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

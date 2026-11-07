@@ -1,10 +1,6 @@
 //! `gfx::upload_texture_picture` (0x41A68B): a picture into every level of a system
 //! texture.
 //!
-//! In:  eax = the system texture, ebx = the picture's pixels (0: nothing is done),
-//!      ecx, edx = its width and height
-//! Out: carry clear; every register preserved
-//!
 //! - The picture made ready (`gfx/texture_upload.rs`: the least colour, the alpha from
 //!   the kept picture or the colours keyed, the grading).
 //! - Picture and texture the same number of halvings from 256 across and down, else a

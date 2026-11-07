@@ -9,7 +9,7 @@
 //! 0x40 (+0x468, `g_viewBlocks`; the second with two views) while not holding
 //! (`dword_6235EC` 0) pauses; else `race::race_keys`, `drive::race_step`,
 //! `race::tyre_change`, all out (`race::players_all_out`) ends it, and the race's frame
-//! (`sub_4541BF`, stream A's: through the game). Paused: in a replay its car's +0x468 0,
+//! (`drive::race_frame`, stream A's: through the game). Paused: in a replay its car's +0x468 0,
 //! else `drive::pause_until_key`; unpaused again.
 //!
 //! Caller: `drive::play_race`. Refuses what its calls refuse.

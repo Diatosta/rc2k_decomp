@@ -2,10 +2,7 @@
 //! tape: frame `dword_6EF7E4` (16 bytes; the car's 8) has ebx and the packed word, taken
 //! apart (`drive::unpack_inputs`) into `dword_6138C4` .. (eax, ebx, ecx, edx).
 //!
-//! Out: eax .. edx the words, esi the tape's offset (cars 0, 1); the rest kept; no flags
-//!      read
-//!
-//! Callers: `drive::play_inputs_if`, `sub_460835`.
+//! Callers: `drive::play_inputs_if`, `race::step_replay_cars`.
 
 use crate::errors::BadInput;
 use crate::pointers::Store;

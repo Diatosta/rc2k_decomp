@@ -1,5 +1,5 @@
-//! `menu::results_482e9b_loop` (0x482E9B): a screen titled "RESULTADOS" called by sub_4828B0
-//! and sub_482B7A.
+//! `menu::results_482e9b_loop` (0x482E9B): a screen titled "RESULTADOS" called by
+//! `menu::single_rally_three` and `menu::single_rally_four`.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `results1.png`; leaving is asked about; left

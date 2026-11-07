@@ -3,7 +3,7 @@
 //! `dword_764FAC` into `dword_7692C2` .. and `dword_7692BE`; `dword_764F94` .. and
 //! `dword_764F90` into `dword_7692A6` .. and `dword_7692A2`.
 //!
-//! Caller: `sub_4C1270`.
+//! Caller: `effects::view_frame`.
 
 /// The Rust version (see the header).
 pub fn keep_vectors(effects: &crate::effects::owner::Effects) {

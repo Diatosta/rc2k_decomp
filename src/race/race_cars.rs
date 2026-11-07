@@ -1,7 +1,9 @@
-//! Race init's "cars" (`sub_43603C`, IDA 2026-10-17): by the kind of race one of
-//! `sub_43645B` / `sub_43647F` / `sub_4364AD` / `sub_4364BD` (each: the car blocks reset,
-//! a two-player rule, the two players' kinds) and the cars' data file read
-//! (`sub_437971`: per stage, three-digit numbers into `dword_601430`). Here the steps.
+//! Race init's "cars" (`race::set_up_cars`, IDA 2026-10-17): by the kind of race one of
+//! `race::set_up_mode_1_cars` / `race::set_up_mode_4_cars` / `race::set_up_race_cars` /
+//! `race::set_up_mode_0_cars` (each: the car blocks reset, a two-player rule, the two players'
+//! kinds) and the cars' data file read
+//! (`race::read_stage_car_numbers`: per stage, three-digit numbers into `dword_601430`). Here the
+//! steps.
 
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;

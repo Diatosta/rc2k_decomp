@@ -5,11 +5,7 @@
 //! `g_nearestCheckpointDistance`; above 0xA0000 (unsigned) `race::nearest_checkpoint`
 //! over them all (eax), else eax the nearest (ebp).
 //!
-//! In:  nothing (the registers are passed on)
-//! Out: eax the checkpoint; the rest as the calls leave them; no flags read (the caller
-//!      stores eax)
-//!
-//! Caller: `sub_44157B`. Refuses what the two calls refuse.
+//! Caller: `physics::track_checkpoints`. Refuses what the two calls refuse.
 
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_div2, int_80};

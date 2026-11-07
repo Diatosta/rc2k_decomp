@@ -3,7 +3,7 @@
 //!
 //! Returns: the new word
 //!
-//! Caller: `sub_43B635`, its first instruction: every physics step.
+//! Caller: `physics::car_physics_step`, its first instruction: every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

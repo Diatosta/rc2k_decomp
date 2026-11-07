@@ -4,8 +4,7 @@
 //! (`dword_4E0534`), bl / cl / dl its next three bytes, its eighth byte 0x5A plus the
 //! seven before it each inverted (a byte sum); then `race::seal_block`.
 //!
-//!
-//! Caller: `sub_4A3D38`. The cipher is its Rust version.
+//! Caller: `menu::sealed_player_time`. The cipher is its Rust version.
 
 use crate::menu::owner::menus;
 use crate::race::owner::race;

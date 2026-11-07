@@ -11,9 +11,6 @@
 //! `physics::contact_force` into contact record 1 (`g_contactRecords` + 0x20),
 //! `physics::place_sound_e1`.
 //!
-//! Out: ebp the face, and the registers as the steps and `contact_force` leave them; no
-//!      flags read (the caller goes on)
-//!
 //! Caller: `physics::crossed_edge`. Refuses (before anything) a probe point past 0x3F (the
 //! tables' room), and what `place_sound_e1` refuses (what was written put back).
 //!

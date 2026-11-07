@@ -6,12 +6,7 @@
 //! (`scene::rotate_point`) and `fistp`ed into the offset `dword_6D3B40` .., then
 //! `physics::point_hits_car` (esi, ebp the caller's); the first inside ends it.
 //!
-//! In:  esi, ebp passed to `point_hits_car` (ebp the object's record)
-//! Out: CF set when a point is inside; eax the point's number, ecx the points left (0 when
-//!      none was inside), edx its address (kept with no points), ebx `dword_6D321C`; the
-//!      rest kept
-//!
-//! Caller: `sub_45E3BF` (0x45E51B, `jb`). Refuses (before anything) an object past 0xFF
+//! Caller: `physics::face_contact` (0x45E51B, `jb`). Refuses (before anything) an object past 0xFF
 //! (the tables' room; `object_turn_matrix` refuses it too).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

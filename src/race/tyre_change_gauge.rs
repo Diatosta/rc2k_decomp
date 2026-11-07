@@ -20,7 +20,6 @@
 //!
 //! The result also goes into `g_soundScratch` (which the original uses as its scratch).
 //!
-//! In:  eax 0 to start, else to run; esi the player (`dword_5BEBEC`)
 //! Returns: the result
 //!
 //! Caller: `race::tyre_change` (twice), which calls the Rust version directly and reads only

@@ -11,10 +11,8 @@
 //! `dword_635918[]` into `dword_62DB00` / `62DB04`, each added to +0x240 byte by byte
 //! with saturation (four bytes with `g_hasMmx`, else the low three).
 //!
-//! Out: eax, ebx (the texture's record), ecx, edx, esi (the face) as left; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B990), every physics step. Refuses a light index past 0xFF
-//! (the tables are 256) and no faces; what was written is put back.
+//! Caller: `physics::car_physics_step` (0x43B990), every physics step. Refuses a light index past
+//! 0xFF (the tables are 256) and no faces; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

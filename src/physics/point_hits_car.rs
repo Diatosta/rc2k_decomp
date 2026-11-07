@@ -12,7 +12,6 @@
 //! `unk_71A20C` = 1, `unk_71A1CC` = 0x32.
 //!
 //! Takes: the point, the object
-//! Out: CF set when inside; every register kept
 //!
 //! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car` (both `jb`).
 

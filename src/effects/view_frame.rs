@@ -4,7 +4,7 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4D14B4`. Refuses null settings before anything, and its steps' refusals
+//! Caller: `effects::frame_marks`. Refuses null settings before anything, and its steps' refusals
 //! (all it may write is put back first).
 
 use crate::effects::owner::Effects;

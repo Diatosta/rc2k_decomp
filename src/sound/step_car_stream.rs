@@ -2,7 +2,7 @@
 //! when one has ended.
 //!
 //! Only with `dword_7556D0` at 2 and `dword_A8C188` at 1, and while the stream is not
-//! playing (`sub_40C4D5`: `dword_506960` is not 1; one other caller): `dword_A8C180` + 1
+//! playing (`sound::stream_playing`: `dword_506960` is not 1; one other caller): `dword_A8C180` + 1
 //! and the part at that place of the list `dword_A8C184`; -1 ends it
 //! (`dword_A8C188` = 0), else `sound::start_stream` with it and `dword_755698`. Once a
 //! frame on four screens (the car specification, the slideshow, two stage screens).
@@ -12,11 +12,11 @@ use crate::menu::owner::menus;
 
 // ---- game data ----
 
-// sub_40C4D5
+// `sound::stream_playing`
 
 // ---- Rust version ----
 
-/// `playing` stands for `sub_40C4D5`, `start` for `sound::start_stream` (the part, the
+/// `playing` stands for `sound::stream_playing`, `start` for `sound::start_stream` (the part, the
 /// volume).
 pub fn step_car_stream(
     playing: &mut dyn FnMut() -> bool,

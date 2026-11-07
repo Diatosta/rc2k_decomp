@@ -1,9 +1,9 @@
 //! `net::destroy_connection` (0x4187EE): with a DirectPlay object (`dword_5AB288`), the
 //! network race ended (`dword_52A910` 0), "NET: Destroy connection" logged, and through
-//! DirectPlay the own player destroyed (`sub_41916B`), the session closed (`sub_418DD3`),
-//! the object released (`sub_41864E`) and the lobby's (`sub_41900F`); either way the
-//! network's memory given back (`net::free_messages`).
-//!
+//! DirectPlay the own player destroyed (`net::destroy_player`), the session closed
+//! (`net::close_session`),
+//! the object released (`net::release_dplay`) and the lobby's (`net::release_lobby`); either way
+//! the network's memory given back (`net::free_messages`).
 //!
 //! See `net/mod.rs`. Two callers: `net::stop` and `net::system_message` (0x31). DirectPlay's
 //! four from Rust . Refuses what `net::free_messages` refuses.

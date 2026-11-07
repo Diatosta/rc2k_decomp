@@ -4,7 +4,7 @@
 //! `flt_614248` += `flt_614234` x it x `flt_6140B8` and `flt_61424C` += `flt_614238` x it
 //! x `flt_6140B8`.
 //!
-//! Caller: `sub_43DFB1` (0x43E51E).
+//! Caller: `physics::drive_wheels_step` (0x43E51E).
 
 use crate::math::x87;
 use crate::math::x87_run::mul2_plus;

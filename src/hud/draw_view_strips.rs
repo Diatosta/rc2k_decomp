@@ -5,9 +5,7 @@
 //! with texture `dword_6240BC` 0xC4 (0xC5); then the strips' shared tail (the original
 //! jumps to 0x45B9AA).
 //!
-//! Out: as the path leaves them (esi the last block looked at)
-//!
-//! Caller: `sub_45A893` (0x45A92E).
+//! Caller: `hud::overlay_pass` (0x45A92E).
 
 use crate::errors::{BadInput, Refused};
 use crate::hud::overlay_pass::shown_layout;

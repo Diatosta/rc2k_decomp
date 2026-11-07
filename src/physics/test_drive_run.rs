@@ -10,9 +10,6 @@
 //! gear into `flt_5CB990[k]`, `dword_5CBD90[k]`; at the end the speed x `flt_5C5D00` into
 //! `dword_5CB984` and the two steps / `flt_5C5D14` (times) back into theirs.
 //!
-//! Out: ebx 5000, eax the last step / 20, ecx 20, edx its remainder (the gear when 0); the
-//!      rest kept; no flags read
-//!
 //! Caller: `physics::test_drive`. Refuses a gear outside -1 ..= 7 (past `g_gearRatios`) and
 //! what its calls refuse; everything written put back.
 //!

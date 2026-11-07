@@ -6,7 +6,7 @@
 //!
 //! Takes: the block
 //!
-//! Callers: `sub_43A35A` (0x43A454), `sub_43A649` (0x43A66C).
+//! Callers: `drive::read_car_controls` (0x43A454), `race::race_keys` (0x43A66C).
 
 use crate::drive::set_camera_view::set_view_at;
 use crate::errors::BadInput;

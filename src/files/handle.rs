@@ -1,7 +1,7 @@
 //! The game's file primitives as Rust functions: `files::open_by_mode` (0x402DE8),
 //! `files::read` (0x402E3D), `files::write` (0x402E57), `files::seek` (0x402E75),
-//! `files::handle_size` (0x402EA9), `files::close` (0x402E23), and `sub_402F1C` /
-//! `sub_402F4D` (a file's time read and set, for `files::copy_file`). Each was a few
+//! `files::handle_size` (0x402EA9), `files::close` (0x402E23), and `files::file_time` /
+//! `files::set_file_time` (a file's time read and set, for `files::copy_file`). Each was a few
 //! instructions around one Win32 call; since phase 6 (2026-10-24) they go through
 //! `std::fs::File` on the game's handle (`with_file`). Since phase 11 a handle is a key in
 //! a table of `File`s (no Win32 handle): `close` takes the file out (whether it was there).
@@ -201,13 +201,13 @@ pub fn handle_size(file: u32) -> Option<u32> {
     (size != u32::MAX).then_some(size)
 }
 
-/// `sub_402F1C`: the file's last write time as DOS date << 16 | time, or None.
+/// `files::file_time`: the file's last write time as DOS date << 16 | time, or None.
 pub fn file_time(file: u32) -> Option<u32> {
     let modified = with_file(file, |f| f.metadata().and_then(|m| m.modified())).ok()?;
     rc2k_core::files::dos_time::from_ticks(ticks_of(modified)?)
 }
 
-/// `sub_402F4D`: a DOS date << 16 | time put on the file as its last access and write
+/// `files::set_file_time`: a DOS date << 16 | time put on the file as its last access and write
 /// time; whether it worked (not for fields that are not a time).
 pub fn set_file_time(file: u32, dos: u32) -> bool {
     let Some(time) = rc2k_core::files::dos_time::to_ticks(dos).and_then(time_of) else {

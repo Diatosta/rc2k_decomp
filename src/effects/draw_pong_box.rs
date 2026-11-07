@@ -6,8 +6,6 @@
 //! frame into `flt_89CF92` .., the four corners; unless the first corner's depth is below
 //! `flt_76921A`: projected, depth times `flt_89CEEA`, colour -1, `scene::draw_fan`.
 //!
-//! In:  st(0) height, st(1) width, st(2) along, st(3) across (popped)
-//!
 //! Callers: `effects::run_pong` (ball, bat), `effects::pong_cell`. The x87 runs are plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables.
 

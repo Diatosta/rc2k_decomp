@@ -2,9 +2,7 @@
 //! replay's starting state at `unk_7172EC` copied back into the four car blocks, the race
 //! slots and `unk_71BF84`.
 //!
-//! Out: ecx 0, esi past the copy, edi past the last piece; the rest kept; no flags read
-//!
-//! Callers: `sub_460049`, `sub_46062E` (twice).
+//! Callers: `drive::play_replay_frame`, `race::show_replay_still` (twice).
 
 use crate::drive::save_replay_cars::copy_piece;
 use crate::race::owner::Race;

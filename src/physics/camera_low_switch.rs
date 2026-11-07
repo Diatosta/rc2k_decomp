@@ -6,10 +6,7 @@
 //! plus 1, `unk_71A660` = 4, `unk_71A66C` = 1, `unk_71A674` = 0, `unk_71A670` = 10,
 //! `unk_71A668` = the clock (`unk_719FE0`).
 //!
-//! Out: eax as the steps leave it, the rest as `count_ground_probe` leaves them; no flags
-//!      read (the caller goes on)
-//!
-//! Caller: `sub_437A53`. Refuses what `count_ground_probe` refuses.
+//! Caller: `physics::update_camera`. Refuses what `count_ground_probe` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

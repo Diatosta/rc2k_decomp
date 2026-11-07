@@ -2,9 +2,7 @@
 //! (`g_carBlockStore`), the race slots (0xF0) and `unk_71BF84` (0x100) copied in that
 //! order to `unk_7172EC` (`rep movsd`): the replay's starting state.
 //!
-//! Out: ecx 0, esi past the last piece, edi past the copy; the rest kept; no flags read
-//!
-//! Caller: `sub_45FFB6`.
+//! Caller: `drive::keep_replay_frame`.
 
 use crate::pointers::{Cells, copy_cells};
 use crate::race::blocks_store::{CAR_BLOCKS, REPLAY_STATE_OFFSET};

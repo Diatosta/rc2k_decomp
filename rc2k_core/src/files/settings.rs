@@ -171,7 +171,7 @@ pub fn table(bytes: &(impl Bytes + ?Sized), limit: usize) -> Result<Vec<(Vec<u8>
     Ok(entries)
 }
 
-/// What a settings text sets (`settings::apply_settings`, `sub_4114FF`): for each key it
+/// What a settings text sets (`settings::apply_settings`, 0x4114FF): for each key it
 /// has, in the table's order, the key's index and the number of its value (0 for a value
 /// that is no number). A key the text lacks sets nothing; of two keys with one variable
 /// the later one wins, as the caller stores in order.

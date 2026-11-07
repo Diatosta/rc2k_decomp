@@ -5,7 +5,7 @@
 //! into +0x214, +0x218, +0x21C; +0x10 1. A reading: the car's
 //! sound placed against the view (+0x6A4 .. the listener's place).
 //!
-//! Caller: `sub_441324` (its tail). Refuses (before anything) a null sound object.
+//! Caller: `physics::sound_on_bit` (its tail). Refuses (before anything) a null sound object.
 
 use crate::errors::Refused;
 use crate::math::x87_run::{ext_times, ints_diff_80};

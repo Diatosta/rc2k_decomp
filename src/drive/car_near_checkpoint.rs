@@ -3,7 +3,6 @@
 //! has its sign set.
 //!
 //! Takes: a car block, a checkpoint
-//! Out: CF; ebx the distance when +0x25C is not 0; the rest kept (ZF not read: `jb`)
 //!
 //! Caller: `drive::checkpoint_taken` (four cars).
 

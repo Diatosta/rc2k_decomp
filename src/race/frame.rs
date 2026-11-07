@@ -1,4 +1,4 @@
-//! The race's frame outside the physics (`sub_444D46`'s callees, IDA 2026-10-17): the
+//! The race's frame outside the physics (`drive::race_loop`'s callees, IDA 2026-10-17): the
 //! players' states, the cars' counters, the view cars loaded into the work copy. Here
 //! its leaves.
 

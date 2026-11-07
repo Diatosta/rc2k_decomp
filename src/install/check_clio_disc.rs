@@ -1,6 +1,6 @@
 //! `install::check_clio_disc` (0x416653): the Clio update.
 //!
-//! `g_hasClio` (0x529DB4) = 1 if `files\b\obj0570.ro3` is there (`sub_47C63F` reads it:
+//! `g_hasClio` (0x529DB4) = 1 if `files\b\obj0570.ro3` is there (`menu::set_up_front_end` reads it:
 //! the extra car), and nothing at all if not. The rest is for a start from the update's
 //! disc: only if the installer is not running, there is no `var\ral.zog` here, the
 //! registry records an installation (status 1, a source) which is not where the game was
@@ -11,7 +11,7 @@
 //! under 2) is "CLIO: Requires normal or full installation" in the log and the fatal
 //! error. Otherwise the installer's script is set up (as in `check_at_start`, with
 //! string 0x1038), the car's name `aRenaultClioSpo` is put in capitals up to its `(`,
-//! where a line feed ends it, and `off_51DD48` becomes `sub_41675B`.
+//! where a line feed ends it, and `off_51DD48` becomes `install::install_clio`.
 //! One caller, `start`, which calls it directly (2026-10-23).
 
 use crate::errors::{BadInput, FatalError, Refused};
@@ -23,7 +23,7 @@ const CAR_NAME_LEN: usize = 0x1B;
 
 // ---- game data ----
 
-const CLIO_STEP: u32 = 0x41675B; // sub_41675B
+const CLIO_STEP: u32 = 0x41675B; // `install::install_clio`
 
 // ---- Rust version ----
 

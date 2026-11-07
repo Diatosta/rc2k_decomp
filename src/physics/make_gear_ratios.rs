@@ -10,8 +10,8 @@
 //!
 //! Returns: `g_gearCount`
 //!
-//! Callers: `sub_43B635` (0x43B63F) and `sub_4217E4` (the car specification's). Refuses
-//! (before anything) a gear count above 7 (past `g_gearRatios`).
+//! Callers: `physics::car_physics_step` (0x43B63F) and `physics::test_drive` (the car
+//! specification's). Refuses (before anything) a gear count above 7 (past `g_gearRatios`).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

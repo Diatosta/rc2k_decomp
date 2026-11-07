@@ -11,9 +11,8 @@
 //! white.
 //!
 //! In:  nothing (`dword_623DE8` .. `dword_623E24`, set by the caller)
-//! Out: eax 0, ecx 4, esi the record pool going into the calls; then as they leave them
 //!
-//! Callers: `sub_45B86E` (three), and code at 0x4436B2, 0x4437C1, 0x45BCD8, 0x45BDD0. The
+//! Callers: `hud::draw_view_strip` (three), and code at 0x4436B2, 0x4437C1, 0x45BCD8, 0x45BDD0. The
 //! calls (the scale, the clip, the depth buffer off, the draw, the depth buffer on) are
 //! their Rust versions; a refusal of theirs comes after the writes.
 

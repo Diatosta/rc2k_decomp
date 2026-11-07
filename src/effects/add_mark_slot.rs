@@ -5,8 +5,8 @@
 //!
 //! Takes: what the slot holds, the matrix (a handle, `mark_slots::VIEW_PLACE_MATRIX`)
 //!
-//! One caller, `sub_4C969A` (the marks' frame). The float first gets `flt_935406`, then the
-//! random at once: only the second is kept.
+//! One caller, `effects::draw_mark_slots` (the marks' frame). The float first gets `flt_935406`,
+//! then the random at once: only the second is kept.
 
 use crate::math::x87;
 

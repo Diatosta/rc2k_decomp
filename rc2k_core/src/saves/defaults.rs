@@ -2,7 +2,7 @@
 //! from `saves::default_stage_times` 0x47C7FE, `default_stage_times_alt` 0x47C86F,
 //! `default_class_times` 0x47C8E3, `default_best_scores` 0x47C923,
 //! `default_championship_times` 0x47C973, `default_checkpoint_times` 0x47CA46, and their
-//! plain helpers `default_time_entry` 0x47CB74, `sub_47CB2D`, `sub_47CDA7`,
+//! plain helpers `default_time_entry` 0x47CB74, `saves::random_driver`, 0x47CDA7,
 //! `physics::guess_checkpoint_times` 0x4650F6).
 //!
 //! Every entry gets a random driver (one of the 180 drivers' records: three of its dwords,
@@ -138,7 +138,7 @@ impl TimeEntry {
     }
 }
 
-/// A random driver (`sub_47CB2D`).
+/// A random driver (`saves::random_driver`).
 fn random_driver(src: &mut dyn Source) -> Result<Driver, Invalid> {
     let number = src.below(DRIVER_DRAW)?;
     src.driver(number)
@@ -376,7 +376,7 @@ pub fn class_times(src: &mut dyn Source) -> Result<Vec<(u32, Driver)>, Invalid> 
 
 /// `default_best_scores`: five groups of ten, scores 50 down to 41. Each entry draws a
 /// number under 0xB3; in groups 0 .. 3 it is thrown away and the driver is one of the
-/// group's `counts[group]` from `firsts[group]` on (`sub_47CDA7`). Refuses (before any
+/// group's `counts[group]` from `firsts[group]` on (0x47CDA7). Refuses (before any
 /// draw) a group without drivers (the original divides by 0).
 pub fn best_scores(
     src: &mut dyn Source,

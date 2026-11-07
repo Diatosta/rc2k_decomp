@@ -6,7 +6,8 @@
 //!
 //! Takes: the point (`dword_639824`, `dword_63982C`; the callers set it)
 //!
-//! Callers: `sub_438BF4`, `sub_438CEC` (three). Refuses what `find_ground` refuses.
+//! Callers: `physics::camera_low_switch`, `physics::camera_over_ground` (three). Refuses what
+//! `find_ground` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

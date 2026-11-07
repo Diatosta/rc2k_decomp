@@ -7,7 +7,7 @@
 //!
 //! Returns: `dword_61389C`, `unk_71A440`
 //!
-//! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
+//! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`.
 
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;

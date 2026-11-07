@@ -12,7 +12,7 @@
 //! and then that menu's numbers, the object's size `dword_635038`, the entries' kinds
 //! from `dword_75A674` on, `g_carouselCount`, the front, angle and direction 0, and
 //! the spacing and place (`dword_75A664` .. `dword_75A670`).
-//! - 0xB (`sub_48FED9`) the cars of the list `off_759DCA`, 0xD (`sub_4A08AB`) those
+//! - 0xB (0x48FED9) the cars of the list `off_759DCA`, 0xD (0x4A08AB) those
 //!   of the list in esi: the list's address to `dword_75A65C` (here its `CarList`); for each entry until
 //!   -1, the car's number (its first dword) picks a kind from `dword_75A1FE`, which
 //!   goes to the next entry's kind; the count to `g_carouselCount`, one less to
@@ -20,11 +20,11 @@
 //!   spacing and place of the cars' carousels, `dword_63503C` = 0x10FF (the angle
 //!   about x) and `dword_635020` = 0xFFFE6000 (the height). Out: eax, ebx, edi as the
 //!   last entry left them, ecx = the count less one, esi = the list's -1 (here: no list);
-//! - 0xE (`sub_4A094F`) as 0xD, but first the list is counted from its second entry
+//! - 0xE (0x4A094F) as 0xD, but first the list is counted from its second entry
 //!   (its first is not looked at) and a list of one car has that car copied over its
 //!   -1 (the original's way of showing one car twice: the list is changed, and is then
 //!   read on to its next -1);
-//! - 0xC (`sub_48FF83`) the six fixed kinds 0x195 .. 0x1BD with `off_759D16` as the
+//! - 0xC (0x48FF83) the six fixed kinds 0x195 .. 0x1BD with `off_759D16` as the
 //!   list (esi = it).
 //!
 //! 26 callers (the screen loops' set-up). Refuses, for the cars' carousels, no list, a list
@@ -79,7 +79,7 @@ const CARS_TAIL: [Op; 9] = [
     Op::Run(|| &scene().drawing.object_work.place[1], 0xFFFE_6000),
 ];
 
-/// `sub_48FF83`'s six kinds.
+/// 0x48FF83's six kinds.
 const FIXED_KINDS: [u32; 6] = [0x195, 0x199, 0x19F, 0x1A5, 0x1AD, 0x1BD];
 
 // ---- Rust version ----

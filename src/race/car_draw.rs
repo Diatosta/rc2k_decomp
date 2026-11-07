@@ -1,5 +1,6 @@
-//! The cars drawn (`race::draw_list_entry` place 5: `sub_455105` -> `sub_461669` ->
-//! `sub_4616AA`, part R2, IDA 2026-10-18). A car is block esi (`g_carBlocks`, `CarBlock`):
+//! The cars drawn (`race::draw_list_entry` place 5: `race::draw_car_entry` ->
+//! `race::draw_car_shined` ->
+//! `race::draw_car`, part R2, IDA 2026-10-18). A car is block esi (`g_carBlocks`, `CarBlock`):
 //! +0x24 its model, +0x134 .. +0x13C its place, +0x298 its parts' switches, +0x6FC its
 //! state bits, +0x740 .. +0x8BF six matrices (four parts', the body's, the turn), +0xF04 the
 //! shown parts' mask.
@@ -470,7 +471,7 @@ pub fn draw_car(race: &Race, car: u32, scene: &crate::scene::owner::Scene) -> Re
     Ok(())
 }
 
-/// `sub_4616AA`'s nearness: `dword_71BA08` = (`dword_6415A4` - 0xA0000) / 0x140000 held to 0 ..
+/// `race::draw_car`'s nearness: `dword_71BA08` = (`dword_6415A4` - 0xA0000) / 0x140000 held to 0 ..
 /// 1 (`flt_5C5D90`, `flt_5C5D38`), `g_shine` (and `dword_5CCE78`) times 1 less it (`dword_62400C`
 /// left 0x140000).
 fn nearness(race: &Race, scene: &crate::scene::owner::Scene) {
@@ -508,7 +509,7 @@ fn nearness(race: &Race, scene: &crate::scene::owner::Scene) {
     }
 }
 
-/// `sub_4616AA`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
+/// `race::draw_car`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
 /// `dword_62400C`).
 fn near_size(shared: &Shared, scene: &crate::scene::owner::Scene) -> u32 {
     use crate::math::x87_float::{int, ld, to_int};
@@ -663,7 +664,7 @@ mod asm_reference {
         }
     }
 
-    /// `sub_4616AA`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
+    /// `race::draw_car`'s size: 0x90 (into `dword_62400C`) times `dword_71BA08`, rounded (left in
     /// `dword_62400C`).
     pub(super) unsafe fn near_size_asm() -> u32 {
         let drawing = &scene().drawing;

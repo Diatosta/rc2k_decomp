@@ -5,10 +5,8 @@
 //! gearbox refuses it.
 //!
 //! Takes: the gear
-//! Out: eax the gear or 0; the rest kept (ebx and ecx pushed around); no flags read
-//!      (the caller stores eax)
 //!
-//! Caller: `sub_43C1E3` (0x43C1FD). Refuses what `gear_bit` refuses (a bit past 31).
+//! Caller: `physics::take_asked_gear` (0x43C1FD). Refuses what `gear_bit` refuses (a bit past 31).
 
 use crate::errors::Refused;
 use crate::physics::gear_bit::bits_at;

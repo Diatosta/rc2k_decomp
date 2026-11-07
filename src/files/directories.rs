@@ -3,7 +3,7 @@
 //! eax the BOOL, carry set when it failed, zero set when it is 1, everything else kept:
 //! - `files::set_current_directory` (0x403105, edx the path): `SetCurrentDirectoryA`;
 //! - `files::make_directory` (0x403113, edx): `CreateDirectoryA` (no security attributes);
-//! - `sub_403123` (proposed `files::remove_directory`, edx): `RemoveDirectoryA`, the
+//! - 0x403123 (proposed `files::remove_directory`, edx): `RemoveDirectoryA`, the
 //!   uninstaller's (`install::uninstall`);
 //! - `files::delete_file` (0x402E8C, eax): `DeleteFileA`.
 //!

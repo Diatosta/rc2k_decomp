@@ -1,21 +1,19 @@
 //! `scene::set_object_fade` (0x451609): how see-through an object is drawn by how far
 //! off it is, and whether another, simpler object is drawn in its place.
 //!
-//! Out: the original leaves eax, ebx, ecx, edx and esi changed; its caller goes on
-//!      without them, and the Rust version keeps them
-//!
 //! From the record of the object's kind (0x80 bytes at `unk_97DF30`) two words: +0x1D to
 //! `qword_6214E0` (another kind to draw instead) and +0x22 to its second half (a distance).
 //! `dword_635004` and `dword_63500C` = 0, `dword_63996C` = 0 (no fading), `dword_639974` =
 //! 0x100 (not see-through). Nothing more if both words are 0 or the object's place
 //! `dword_634FFC` (a point of the scene) is -1. Else that point's record (made if it is not
-//! there: `sub_44CF33`, the same as `scene::project_point` makes one) gives `dword_635004` and
+//! there: 0x44CF33, the same as `scene::project_point` makes one) gives `dword_635004` and
 //! `dword_63500C`: its x and depth in the view as whole numbers. With the depth beyond the
 //! distance times 65536: `dword_639974` and `dword_639978` = (the distance times 65536 less the
 //! depth, plus 0x100000, not under 0) over 0x1000, `dword_63996C` = 1, and if the first word is
-//! not 0 and an object of that kind exists (`sub_422298`: the first of the objects 1 .. 0xFF
-//! with that kind), `g_objectNumber` becomes that object. One caller, `sub_45045D`. Refuses an
-//! object's number past the tables and, where a record has to be made, no records or no points.
+//! not 0 and an object of that kind exists (`scene::find_object_of_kind`: the first of the objects
+//! 1 .. 0xFF
+//! with that kind), `g_objectNumber` becomes that object. One caller, `scene::draw_object`. Refuses
+//! an object's number past the tables and, where a record has to be made, no records or no points.
 
 use crate::errors::BadInput;
 use crate::math::x87;

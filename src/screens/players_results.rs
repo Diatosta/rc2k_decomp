@@ -1,10 +1,12 @@
-//! The players' stage results pages (`sub_4836CF` with the points column, `sub_48D32E`
-//! without; stream A, part F1, 2026-10-18). Both draw the same columns, one loop over the rows
-//! each (rows in the order `dword_758720` .. `dword_75872C`, byte offsets into `g_players`,
-//! 0x17 apart from y 0xFE), shifted 0x1E right on `sub_48D32E`'s page; their differences are
-//! the `Layout`. The original's slips are kept (bugs.md): `sub_4836CF` draws four rows for two
-//! players, tests the first row's time with `jl` (the others with equality) and puts the third
-//! row's time at 0x1B2.
+//! The players' stage results pages (`screens::draw_players_results_points` with the points column,
+//! `screens::draw_players_results` without; stream A, part F1, 2026-10-18). Both draw the same
+//! columns, one loop over the rows each (rows in the order `dword_758720` .. `dword_75872C`, byte
+//! offsets into `g_players`,
+//! 0x17 apart from y 0xFE), shifted 0x1E right on `screens::draw_players_results`'s page; their
+//! differences are
+//! the `Layout`. The original's slips are kept (bugs.md): `screens::draw_players_results_points`
+//! draws four rows for two players, tests the first row's time with `jl` (the others with equality)
+//! and puts the third row's time at 0x1B2.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;

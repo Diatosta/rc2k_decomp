@@ -2,8 +2,6 @@
 //! dwords of each 0 (`dec ecx; jnz` back to its own first instruction).
 //!
 //! Takes: the first record, their number
-//! Out: edi past the last, ecx 0; the rest kept; ZF set (`dec`), not read (its callers
-//!      return next, theirs go on with calls). Nothing is returned now
 //!
 //! Its loop goes back to its first byte: `.private_copy` (the whole function).
 //! Callers: `physics::clear_forces` (0x614770, 0x17), `physics::clear_contacts` (0x614A50,

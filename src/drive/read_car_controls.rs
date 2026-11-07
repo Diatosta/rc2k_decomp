@@ -11,12 +11,9 @@
 //!
 //! The bytes after its `retn` (0x43A4E5 ..) are another entry that nothing calls.
 //!
-//! Out: eax as the path leaves it (the last bit's, `next_camera_view`'s, or
-//!      `start_blend`'s count); esi `g_car` when the view changed; the rest kept; no
-//!      flags read (callers go on with calls)
-//!
-//! Callers: race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`, `sub_43A1CA`.
-//! Refuses what `drive_computer_car` refuses (before anything).
+//! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
+//! `drive::replay_step`, `drive::simple_car_step`. Refuses what `drive_computer_car` refuses
+//! (before anything).
 
 use crate::drive::drive_computer_car::drive_computer_car;
 use crate::drive::next_camera_view::next_view_at;

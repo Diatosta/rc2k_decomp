@@ -1,10 +1,8 @@
 //! `physics::free_rev_clutch` (0x43EA63): in gear with the clutch out (+0x250,
 //! `unk_71A228`): `physics::free_rev`, then `physics::wheels_from_revs`.
 //!
-//! Out: ebx the gear (`wheels_from_revs`), and what `free_rev` leaves; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B7B7), every physics step. Refuses (before anything) a gear
-//! outside -1 ..= 7.
+//! Caller: `physics::car_physics_step` (0x43B7B7), every physics step. Refuses (before anything) a
+//! gear outside -1 ..= 7.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -1,4 +1,4 @@
-//! The race frame's views and small drawing steps under `sub_45429B` (part R3, IDA
+//! The race frame's views and small drawing steps under `race::draw_race_scene` (part R3, IDA
 //! 2026-10-18): the full-screen and mirror windows, the flat triangle, the marks'
 //! overlays, the first car loaded.
 
@@ -276,7 +276,7 @@ impl rc2k_core::race::view_steps::Surfaces for GameSurfaces<'_> {
 /// `dword_5D1E58` / `dword_5D1E5C`, bits 0x10, 0x1000); with the mirror on
 /// (`dword_6415E0`, not `dword_6415E8`) bit 0x20 and 0x400 more, its picture copied
 /// (`race::copy_mirror_picture`, then slot `dword_5D0E08` forgotten) or with
-/// `byte_4F6B74` uploaded (`sub_44E828`, esi `dword_A12AE4`, eax the slot). Its one caller,
+/// `byte_4F6B74` uploaded (0x44E828, esi `dword_A12AE4`, eax the slot). Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves. Refuses (before anything) a null
 /// view block or a slot past 0x3FF.
 pub fn forget_view_textures(
@@ -365,7 +365,7 @@ pub fn forget_view_textures(
         copy_mirror_picture(frame, scene, system)?;
         forget_slot_texture(textures.kinds.kind_first_textures[200].get(), scene)?;
     } else {
-        // `sub_44E828`, the platform's upload (then the slot forgotten): through the
+        // 0x44E828, the platform's upload (then the slot forgotten): through the
         // game, esi the picture, eax the slot (the only registers it reads).
         crate::standalone::not_ported(0x44E828, "race::frame_views");
     }
@@ -585,7 +585,7 @@ pub fn run_view_marks(
     done
 }
 
-/// `d3d::clear_viewport_unless_held` (0x44E9EE, was `sub_44E9EE`; ported 2026-10-23, the
+/// `d3d::clear_viewport_unless_held` (0x44E9EE, was 0x44E9EE; ported 2026-10-23, the
 /// game's was called before): `d3d::clear_viewport` (0x44E9D9, the same `Clear` of
 /// `dword_624138` with flag 2) unless `dword_624238` is not 0.
 pub fn clear_viewport_unless_held(scene: &crate::scene::owner::Scene) {

@@ -4,7 +4,7 @@
 //!
 //! Returns: y's move
 //!
-//! Callers: `sub_43B635` (0x43B827, 0x43B8A0), every physics step.
+//! Callers: `physics::car_physics_step` (0x43B827, 0x43B8A0), every physics step.
 
 use crate::math::x87_run::mul2_to_int;
 use crate::race::owner::Race;

@@ -2,10 +2,10 @@
 //!
 //! Takes cursor. Returns the cursor after the text. "Monday 12th October 2026 14:49:56.46": the
 //! day's name, the day with its ending, the month's name, the year, the time with hundredths. From
-//! what `sub_410F29` took from `GetLocalTime` at the game's start: `byte_51839F` the day of the
-//! week, `dword_5183A0` the day, the month and (a word) the year, `dword_5183A4` hour, minute,
-//! second and hundredths. After the text a carriage return, a line feed and two NULs are written,
-//! which the cursor is not moved past. One caller, the log's start.
+//! what `system::keep_start_time` took from `GetLocalTime` at the game's start: `byte_51839F` the
+//! day of the week, `dword_5183A0` the day, the month and (a word) the year, `dword_5183A4` hour,
+//! minute, second and hundredths. After the text a carriage return, a line feed and two NULs are
+//! written, which the cursor is not moved past. One caller, the log's start.
 
 use crate::errors::BadInput;
 use rc2k_core::files::log::Started;

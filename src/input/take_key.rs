@@ -1,7 +1,6 @@
 //! `input::take_key` (0x407F95): takes the pending key: returns `byte_4F6ADC` and sets it to 0,
 //! in one `xchg`.
 //!
-//! Out: al = the key, 0 if there was none (the rest of eax is preserved); ZF = (al == 0)
 //! 65 callers. The
 //! other flags of the original's `test al, al` (sign, parity) are not reproduced; carry and
 //! zero are.

@@ -1,7 +1,7 @@
 //! `menu::clear_players_284` (0x4A9679): every player's `hud_bits` set to -1.
 //!
-//! The four players of `g_players`. Called at the start of each kind of event (`sub_482382` and
-//! seven more).
+//! The four players of `g_players`. Called at the start of each kind of event (`menu::single_rally`
+//! and seven more).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

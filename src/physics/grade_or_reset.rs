@@ -2,8 +2,6 @@
 //! (the work copy's grades reset); else `physics::rate_current_car` (its damage made into
 //! grades and failures).
 //!
-//! Out: as the branch taken leaves them; no flags read
-//!
 //! Caller: `physics::set_handling` (0x43EB5D), first.
 
 use crate::physics::rate_damage::rate_damage;

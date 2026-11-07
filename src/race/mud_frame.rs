@@ -2,8 +2,6 @@
 //! one more; at 0xE it is 0 again and the next of the four mud textures is worked on
 //! (`dword_623D5C`, kept to 0 .. 3: `race::mud_texture_turn`, then one more, `and 3`).
 //!
-//! In:  nothing (the original reads no register at entry)
-//!
 //! See `race/mud.rs`. Refuses what `mud_texture_turn` refuses.
 
 use crate::errors::Refused;

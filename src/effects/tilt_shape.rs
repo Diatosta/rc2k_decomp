@@ -3,7 +3,7 @@
 //! them (`x87::turn_yz`); then the point `flt_811BDF` .. made of length 1 into
 //! `unk_811BD3` .., its length in `dword_811BCF` (`x87::unit_and_length`).
 //!
-//! Caller: `sub_4C1148`.
+//! Caller: `effects::shapes_frame`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 

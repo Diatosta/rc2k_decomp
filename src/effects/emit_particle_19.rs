@@ -12,7 +12,7 @@
 //! `dword_93A1C2` .. by `flt_764FE0` and `flt_93A4A2` ..; a random spin and turn; the
 //! flags' low 6 bits; a size 0x4000 or 0x8000 by the random's bit 6 (`dword_9356C0`, +0x60
 //! as a float); a life `dword_939B86[level]` (+0x78 `flt_7651A4` over it); +0x74
-//! `dword_76519C`; +0x68 `g_marksCar`. Caller: `sub_4C9AF6` (the cars' loop). Refuses
+//! `dword_76519C`; +0x68 `g_marksCar`. Caller: `effects::cars_particles` (the cars' loop). Refuses
 //! (before anything) a null object, and when an entry is made a null `g_marksCar` or matrix
 //! and a level past `dword_939B86`'s 9 entries (the original reads on).
 

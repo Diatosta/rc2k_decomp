@@ -2,12 +2,10 @@
 //! `g_car` -> `g_carBlocks[g_currentCar & 7]` (0xFE0 bytes, `rep movsd`).
 //!
 //! Works on `g_currentCar` 0x71B3F8.
-//! Out: eax = `g_currentCar & 7`, ecx = 0, esi = 0x719FD8 + 0xFE0, edi = the block + 0xFE0
-//!      (flags: the `and`'s; no caller reads them)
 //!
-//! See `drive/car.rs`. Callers (17): the race's frame, both halves (`sub_43703E`,
-//! `sub_460B2F` under `sub_4454D2`; `sub_454253`, `sub_454265`, `sub_454289`, `sub_446463`,
-//! `sub_4608BB` under `sub_4541BF`). Refuses a null block (the original faults).
+//! See `drive/car.rs`. Callers (17): the race's frame, both halves (`drive::start_cars_behind`,
+//! `drive::replay_step` under `drive::race_step`; 0x454253, 0x454265, 0x454289, `race::start_cars`,
+//! `drive::race_cars_step` under `drive::race_frame`). Refuses a null block (the original faults).
 
 use crate::drive::car::*;
 use crate::errors::Refused;

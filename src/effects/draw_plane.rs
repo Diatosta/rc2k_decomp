@@ -13,9 +13,10 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4C74DA` (0x4C752F). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables; the vector helpers and `scale_axes` their Rust versions. Refuses null
-//! settings and a corner past `g_marksCorners`, before anything.
+//! Caller: `effects::draw_overlays` (0x4C752F). The x87 runs are plain Rust on the x87 model
+//! (`math::x87_float`), in the original's order, over the game's variables; the vector helpers and
+//! `scale_axes` their Rust versions. Refuses null settings and a corner past `g_marksCorners`,
+//! before anything.
 
 use crate::effects::kind_store::QuadWork;
 use crate::effects::plain::ldi_cell;

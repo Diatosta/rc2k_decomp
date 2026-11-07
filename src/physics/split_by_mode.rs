@@ -3,8 +3,6 @@
 //! into +0xA0C; 1 `physics::rank_split_time`; 3 `physics::compare_split_times`; else
 //! nothing.
 //!
-//! Out: as the step leaves them (mode 2: eax the place); no flags read
-//!
 //! Callers: `physics::take_split`, `physics::take_split_counted`. Refuses what the steps
 //! refuse.
 //!

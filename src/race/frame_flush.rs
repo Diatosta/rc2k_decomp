@@ -1,5 +1,5 @@
-//! The race frame's device batches and the view's backdrop under `sub_45429B` (part R3, IDA
-//! 2026-10-18): two batches of triangles flushed by the device (`sub_41ADF5`, the platform's
+//! The race frame's device batches and the view's backdrop under `race::draw_race_scene` (part R3,
+//! IDA 2026-10-18): two batches of triangles flushed by the device (0x41ADF5, the platform's
 //! `DrawPrimitive`), and a quad over the view window.
 
 use crate::errors::Refused;
@@ -17,7 +17,7 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1,
 pub struct Batch<'a> {
     pub count: &'a Dword,
     pub word: &'a Dword,
-    /// The platform's draw on the batch's vertices and indices (`sub_41ADF5`, its result),
+    /// The platform's draw on the batch's vertices and indices (0x41ADF5, its result),
     /// given their counts.
     pub draw: fn(&Frame, u32, u32) -> u32,
     pub kept: &'a Dword,
@@ -67,7 +67,7 @@ pub fn textured(frame: &Frame) -> Batch<'_> {
 /// first sets texture `dword_5D1D04` (`scene::set_texture`); the render states
 /// (eax the value, ebx the state); with triangles in the batch (its count also into its
 /// kept count) the second looks up its texture (`scene::look_up_texture`) and sets it
-/// inside `pusha`; the draw (`sub_41ADF5`, the platform's: edx the
+/// inside `pusha`; the draw (0x41ADF5, the platform's: edx the
 /// count, eax the word, ebx the vertices, ecx the indices), a failure (eax not 0) logged as
 /// "drawtri" and its code (level 1); the count and word 0. Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves.
@@ -117,7 +117,7 @@ fn int_over_two(i: u32, a: u32, b: u32) -> u32 {
 /// one pixel wider each way; its corners kept in `dword_623E10` .. `dword_623E24`) with
 /// texture place (0xF80000, 0x80000) / `flt_5C5E2C` / `flt_5C5D98` at every corner (kept in
 /// `dword_623DF0` / `dword_623E00`), colour 0xFF000000, `g_polygonVertexCount` 4; drawn with
-/// the glow's render states (`sub_44E44D`), texture `dword_5D1DE8` (`scene::set_texture`),
+/// the glow's render states (0x44E44D), texture `dword_5D1DE8` (`scene::set_texture`),
 /// the device's unclipped fan (`d3d::draw_fan_unclipped`), then the depth buffer on. Its one
 /// caller, `race::draw_mirror_view`, reads no register it leaves.
 pub fn draw_view_backdrop(race: &Race, scene: &crate::scene::owner::Scene) {

@@ -3,7 +3,7 @@
 //!
 //! `memory::free_list` on `g_glyphTablesMemory` (0x51B984), and `g_fontPalettes`
 //! (0x51DEB0) = 0, which is what lets `gfx::build_fonts` build them again.
-//! Five callers; `sub_47486C` calls it after the main menu is left.
+//! Five callers; `menu::run_front_end` calls it after the main menu is left.
 //! Refuses what `free_list` refuses.
 
 use crate::errors::BadInput;

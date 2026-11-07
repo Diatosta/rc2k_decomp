@@ -2,7 +2,7 @@
 //! of x, y, z `flt_7692EA` .. = -(`flt_76927A` .. less `flt_769296` ..) (`fld; fsub;
 //! fchs; fstp`), then `flt_769296` .. = `flt_76927A` .. (`push`/`pop`).
 //!
-//! Caller: `sub_4C1270`.
+//! Caller: `effects::view_frame`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 

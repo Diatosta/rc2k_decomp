@@ -1,8 +1,6 @@
 //! `scene::depth_buffer_on` (0x44E41F): the depth buffer used and written, compared with
 //! less-or-equal (Direct3D render states 7 = 1, 14 = 1, 23 = 4).
 //!
-//! Out: eax 4, ebx 0x17; the rest as `scene::set_render_state` leaves them (kept)
-//!
 //! Three calls of `scene::set_render_state`. 22 callers (the marks, the race's drawing). The
 //! registers above are the original's; a call by address goes through `routes.rs`, which maps
 //! them.

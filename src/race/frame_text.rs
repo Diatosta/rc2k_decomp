@@ -1,4 +1,4 @@
-//! The race frame's texts (`sub_4547AE`'s, IDA 2026-10-18): the frame rate and the credits
+//! The race frame's texts (`race::show_frame`'s, IDA 2026-10-18): the frame rate and the credits
 //! that roll over the race (`dword_71C3E0`), also used by the credits' screen.
 
 use crate::audio::owner::audio;
@@ -41,7 +41,7 @@ pub fn draw_frame_rate(
     Ok(())
 }
 
-/// `sub_4161BA`: string `id` in `font` at (x, y), unless y is at or above the screen's
+/// `race::credit_line`: string `id` in `font` at (x, y), unless y is at or above the screen's
 /// bottom (`g_screenHeight`) or at or below -0x1B.
 fn credit_line(
     id: u32,

@@ -2,8 +2,6 @@
 //! buffer, NUL-terminates it and measures it with `measure_text`.
 //!
 //! Takes: string id, font (one in measure mode), x
-//! Out: as `measure_text`: ebx = lines, ecx = the widest line, edx = y, eax = 0, carry;
-//!      esi, edi, ebp preserved
 //! 13 callers. A text longer than the buffer is refused: the original writes past it.
 
 use crate::errors::Refused;

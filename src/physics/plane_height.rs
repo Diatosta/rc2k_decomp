@@ -2,10 +2,10 @@
 //! c) `flt_639814`, `fistp`'d (the control word's rounding), with a, b, c the whole
 //! numbers `dword_639718`, `dword_639724`, `dword_63970C`: by the look of it the height
 //! of a course face's plane under a point, from its corners' heights and the point's
-//! shares (a reading; set by `sub_442006`).
+//! shares (a reading; set by `physics::face_under_point`).
 //!
-//! Callers (2): `sub_442006` (the face under a point, the ground's search) and
-//! `sub_457B86`.
+//! Callers (2): `physics::face_under_point` (the face under a point, the ground's search) and
+//! 0x457B86.
 
 use crate::race::owner_physics::Physics;
 

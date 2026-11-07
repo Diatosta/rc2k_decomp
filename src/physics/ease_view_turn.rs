@@ -5,7 +5,7 @@
 //!
 //! Returns: the last step
 //!
-//! Caller: `sub_43907F`.
+//! Caller: `physics::camera_avoid_ground`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

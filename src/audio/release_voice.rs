@@ -3,8 +3,8 @@
 //! Takes: the voice
 //!
 //! With A3D (`g_useA3d` 1, the chunk at 0x40CD47): its buffer, if any, is stopped (A3D's
-//! +0x38, `sub_40CEBB`) and released. Otherwise a buffer is stopped (`Stop`, +0x48,
-//! `sub_40B963`), then its 3D buffer and the buffer released (`Release`, +8) and cleared.
+//! +0x38, 0x40CEBB) and released. Otherwise a buffer is stopped (`Stop`, +0x48,
+//! `audio::stop_buffer`), then its 3D buffer and the buffer released (`Release`, +8) and cleared.
 //! Then the voice: `flags`, `data_key` .. `length`, `format`, `frames`, `priority`,
 //! `kind`, `state`, `dirty`, `channel`, `next` 0; `own_frequency` 44100, `scale` and
 //! `volume_factor` 0x40, `min_distance` 1.0. Callers: `audio::start` (0x40A0DB) and

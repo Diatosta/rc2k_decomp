@@ -4,8 +4,8 @@
 //! `memory::allocate` on the list `stru_4F49E4` (Rust's since phase 12: `gfx::picture`); the
 //! address to `g_pictureBuffer` (here the buffer's number)
 //! (0x4F49DC). A failed allocation would be fatal error 0x80A19090, but the allocator
-//! reports its own and does not come back. One caller, `start`. `sub_4060B7`, after it
-//! in the listing, gives the memory back at the game's end.
+//! reports its own and does not come back. One caller, `start`. `gfx::free_picture_buffer`, after
+//! it in the listing, gives the memory back at the game's end.
 
 use crate::errors::Refused;
 use crate::gfx::picture::{Buffer, take};

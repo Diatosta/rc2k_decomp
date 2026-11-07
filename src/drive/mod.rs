@@ -1,4 +1,4 @@
-//! The race's run (`sub_444CEE` and under it, part R): the frame of a stage being driven.
+//! The race's run (`drive::play_race` and under it, part R): the frame of a stage being driven.
 
 pub mod animate_lit_faces;
 pub mod animate_stage;

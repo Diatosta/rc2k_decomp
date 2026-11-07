@@ -26,8 +26,8 @@
 //!
 //! the holds are `physics/flow.rs`'s.
 //!
-//! Callers: `physics::race_cars_step` (0x4608BB), `sub_460835`, `sub_460B2F`. Refuses
-//! (before anything) a current car past 7 (`dword_641680` is read by it), and what its
+//! Callers: `physics::race_cars_step` (0x4608BB), `race::step_replay_cars`, `drive::replay_step`.
+//! Refuses (before anything) a current car past 7 (`dword_641680` is read by it), and what its
 //! calls refuse; the work car and the physics' variables (`step_regions`) are put back then
 //! (the callees put back their own other writes).
 //!

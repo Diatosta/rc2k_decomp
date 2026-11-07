@@ -6,7 +6,8 @@
 //! faces the third axis away (a negative dot, `flt_814718`); the 0x30 points of
 //! `g_marksWindscreenDropPoints` scaled into `flt_814CFE` .. and turned onto the axes; unless the
 //! rate is 0: `effects::windscreen_drops_frame`, the vertices left in the ring drawn (their count by
-//! `dword_82E27A`: `dword_62423C` / `dword_625A40`, `sub_41ADB9`, the platform's), and with
+//! `dword_82E27A`: `dword_62423C` / `dword_625A40`, `d3d::draw_marks_windscreen_drops`, the
+//! platform's), and with
 //! the settings' +0x2744 and the drift on `effects::windscreen_drops_step`; then `scene::set_texture`
 //! (`dword_5D1E10`) and `g_polygonVertexCount` 4.
 //!
@@ -14,9 +15,9 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4C74DA` (0x4C7539). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables; the vector helpers their Rust versions. Refuses null settings, before
-//! anything.
+//! Caller: `effects::draw_overlays` (0x4C7539). The x87 runs are plain Rust on the x87 model
+//! (`math::x87_float`), in the original's order, over the game's variables; the vector helpers
+//! their Rust versions. Refuses null settings, before anything.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::{ld_cell, ldi_cell, st_cell};

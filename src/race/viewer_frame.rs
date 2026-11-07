@@ -10,9 +10,6 @@
 //! the bar, the two marks and the place shown along it, the four buttons) and the panel
 //! (`race::draw_viewer_panel`); the scene ended and the frame shown (`gfx::show_frame`).
 //!
-//! Out: carry set when the frame was lost (the scene's begin or end, the showing); every
-//!      register kept (`pusha` / `popa`; `screens::run_frame` reads only carry)
-//!
 //! The marks' and the place's positions are `mark * w / blocks` (`mul` / `div`): a quotient
 //! past 32 bits (the original's divide error) is refused, before the bar is drawn. Caller:
 //! `screens::run_frame` (eax, from `race::replay_viewer`).

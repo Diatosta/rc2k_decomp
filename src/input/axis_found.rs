@@ -5,7 +5,6 @@
 //! controller's entry's +0x14 (kept: the bits are added to it). Always goes on (eax 1).
 //!
 //! In:  (stdcall) the `DIDEVICEOBJECTINSTANCEA`, the context (the controller's entry)
-//! Out: eax = 1; ebx, esi, edi, ebp kept; `ret 8`
 //!
 //! Caller: DirectInput, from `input::joystick_found`.
 

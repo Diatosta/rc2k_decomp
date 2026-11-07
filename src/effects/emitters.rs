@@ -1,5 +1,5 @@
-//! What the marks' particle emitters under `sub_4CA085` share (IDA, 2026-10-17): the ring
-//! of 0x94-byte entries (`g_marksRingCursor`, `g_marksRingCount`, at most 0x3FE taken),
+//! What the marks' particle emitters under `effects::emit_wheel_particles` share (IDA, 2026-10-17):
+//! the ring of 0x94-byte entries (`g_marksRingCursor`, `g_marksRingCount`, at most 0x3FE taken),
 //! the rate gate on a wheel record (edi) and its object (esi), and their randoms.
 //! `effects::emit_wheel_particles` (0x4CA085) picks an emitter by the wheel record's +0x1C
 //! (the surface's particle kind); the patched EXE some owners use turns it into a `ret`

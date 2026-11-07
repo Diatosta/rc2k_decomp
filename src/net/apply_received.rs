@@ -3,8 +3,7 @@
 //! 0x4040: a count, then records of 0x100 bytes, +1 the length, +2 the message) applied
 //! (`net::apply_message`, with the message, its length and the player).
 //! The players' loop ends on `jnz` against `dword_52AD98`: with no players it would not end.
-//! The receiving thread keeps a count to 0x40 (`sub_419677`), the room there is.
-//!
+//! The receiving thread keeps a count to 0x40 (`net::store_received`), the room there is.
 //!
 //! See `net/mod.rs`. One caller, `net::race_step`. Refuses (before anything) no players
 //! and more than 16.

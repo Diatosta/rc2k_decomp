@@ -3,7 +3,7 @@
 //! `dword_614BDC` .. into its spin (`dword_71A15C` .., +0x184), eax pushed around; then
 //! `physics::car_frame_motion`. The undoing of `physics::keep_motion_vectors`.
 //!
-//! Caller: `sub_43B635` (0x43B8F1, before `sub_43F7AC`).
+//! Caller: `physics::car_physics_step` (0x43B8F1, before `physics::limit_motion`).
 
 use crate::physics::car_frame_motion::car_frame_motion;
 use crate::race::owner::Race;

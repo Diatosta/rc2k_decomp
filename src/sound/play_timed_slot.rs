@@ -1,11 +1,6 @@
 //! `sound::play_timed_slot` (0x40E59E): a sound slot of the race's sounds started when
 //! asked, and marked done when its time is up.
 //!
-//! In:  ebp the slot, six dwords: +0 the sound, +4 1 = start it, +8 1 = playing, +0xC
-//!      when it ends (`dword_5124E8` time), +0x10 the volume, +0x14 the rate (-0x6F: the
-//!      sample's own); esi the request (`unk_5124BC`), its place already in it
-//! Out: started: eax the end, ecx the volume, edx the rate (`sound::sample_settings`);
-//!      checked: eax the clock; else nothing changed
 //! +4 at 1 is cleared; then it starts unless it is playing (sound 0xE9 starts even
 //! then): the
 //! request's sound, volume (+8) and rate (+4, floats by `fild`) set, the end = the

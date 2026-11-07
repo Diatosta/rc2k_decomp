@@ -4,7 +4,7 @@
 //! below 300 with 0xCE the last, `dword_71A700` and `dword_71A6FC` 0. What the figure is
 //! is not known.
 //!
-//! Caller: `sub_43B635` (0x43B9AE), its last call, every physics step.
+//! Caller: `physics::car_physics_step` (0x43B9AE), its last call, every physics step.
 
 use crate::race::owner_shared::Shared;
 use crate::session::Cell32;

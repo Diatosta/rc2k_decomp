@@ -8,9 +8,6 @@
 //! `popa`).
 //!
 //! Takes: the checkpoint
-//! Out: no groups: every register kept; none at edx: ecx the groups' count; else ecx the
-//!      group, esi the text's place where it stopped, ebx that code (0 or 0x54 ..); the
-//!      rest kept; no flags read (the caller's `pusha` / `popa`)
 //!
 //! Caller: `physics::pace_notes_step`. Its calls by place (this
 //! file's `pace_part`): 0 `logfile::log_write_l1`, 1 `logfile::log_int_l1`, 2

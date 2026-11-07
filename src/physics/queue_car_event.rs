@@ -5,11 +5,9 @@
 //! of the car (under `physics::pace_notes_step`).
 //!
 //! Takes: a delay, the event
-//! Out: eax the time, ecx the count before; the rest kept; no flags read (the caller
-//!      `popa`s)
 //!
-//! Caller: `sub_44194D`. Refuses (before anything) a count above 7 (the original writes
-//! past the queue).
+//! Caller: `physics::queue_listed_event`. Refuses (before anything) a count above 7 (the original
+//! writes past the queue).
 
 use crate::errors::Refused;
 use crate::physics::cells::{set_changed, set_values_changed, values};

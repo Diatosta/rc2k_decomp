@@ -1,11 +1,10 @@
 //! `sound::apply_settings` (0x40EFF3): sends the kept sound settings to the audio thread.
 //!
-//! In:  nothing (the other registers go into the commands as they are)
 //! `dword_518080` = 1; `sound::stop_music`; command 5 with `dword_4F82C4`; command 3 with the
 //! menus' list (`unk_511AE4`, by handle); command 8 with `dword_755684`; `sound::wait_for_commands`;
-//! `dword_506C84` = 0 (`sub_409B76`).
+//! `dword_506C84` = 0 (`sound::let_sounds_play`).
 //! What the two numbers are is a reading: volumes, the second the one the options screen
-//! steps between 0 and 0x40 (`sub_467F00`, `sub_467F24`).
+//! steps between 0 and 0x40 (0x467F00, 0x467F24).
 //! Five callers; `system::main_loop` calls it once the window is there.
 
 use crate::audio::owner::audio;

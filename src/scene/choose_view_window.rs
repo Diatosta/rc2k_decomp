@@ -3,7 +3,8 @@
 //! with it 800 x 600 at 0, 0 when `dword_621480` is set or `word_636526` is 2, else 720 x
 //! 540 at 0x50, 0; `dword_624080` 0x100 either way.
 //!
-//! Callers: `scene::full_view_window`, code at 0x446810. `set_view_window` is its Rust version.
+//! Callers: `scene::full_view_window`, code at `race::loading_bar_frame` (0x446810).
+//! `set_view_window` is its Rust version.
 
 use crate::race::owner::Race;
 

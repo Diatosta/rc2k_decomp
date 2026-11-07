@@ -3,10 +3,7 @@
 //! (`dword_5D3AE8[]`, below 0xFA0); else a kind's first slot (`g_kindFirstSlots[]`, below
 //! 0x400); a slot not below `g_textureSlotCount` (or none loaded) none (0xFFFFFC43).
 //!
-//! In:  nothing (eax is not read: its caller 0x45FF6C loads one it does not use)
-//! Out: eax as it leaves it (the word, or the slot); everything else kept
-//!
-//! Callers: 0x44CCB8, `race::flush_texture_batch`.
+//! Callers: `scene::choose_texture` (0x44CCB8), `race::flush_texture_batch`.
 
 /// The Rust version: what it leaves in eax.
 pub fn look_up_texture(scene: &crate::scene::owner::Scene) -> u32 {

@@ -7,15 +7,13 @@
 //! `dword_6141DC` the word at +0x26 of the face under probe point 4 (`dword_71ADD8`). A
 //! reading: the wheels in the air, the ground's kind.
 //!
-//! Out: eax the face's word, ebx the face, esi its address; ecx, edx as `probe_ground` /
-//!      `lowest_body_point` leave them; no flags read
-//!
 //! It begins with a call: `.private_copy` (its three calls relocated) with
 //! `.manual_patch`.
-//! Callers: `sub_43B635` (0x43B6F6, 0x43B860, 0x43B8FB), `sub_45D737`, `sub_45D7B6`
-//! (twice), `sub_45E3BF`, `sub_45EFF3`. Refuses (before anything) more than 0x40 probe
-//! points; `probe_ground`'s refusals mid-way (it puts back what it wrote; `dword_71A6C8` is
-//! the original's to write again).
+//! Callers: `physics::car_physics_step` (0x43B6F6, 0x43B860, 0x43B8FB), `physics::crossed_edge`,
+//! `physics::wall_contacts`
+//! (twice), `physics::face_contact`, `physics::ground_contact`. Refuses (before anything) more than
+//! 0x40 probe points; `probe_ground`'s refusals mid-way (it puts back what it wrote; `dword_71A6C8`
+//! is the original's to write again).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -1,8 +1,6 @@
 //! `scene::set_up_textures` (0x44E7A5): the texture memory for everything that is
 //! needed, and one texture more for the game's own use.
 //!
-//! Out: carry clear; eax and ebx as `gfx::allocate_textures` leaves them
-//!
 //! `scene::build_texture_catalogue`; `dword_624234` = 0; then one system texture of size code 3
 //! and pixel kind 4 without mip levels from `gfx::allocate_textures` (0x4051ED, Direct3D: not
 //! ported; eax = 0, ebx = 1, ecx = 3, edx = 4, ebp = 0), whose number (ebx) goes to

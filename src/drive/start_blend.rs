@@ -6,7 +6,7 @@
 //!
 //! Returns: the held count
 //!
-//! Caller: `sub_43A35A` (0x43A486).
+//! Caller: `drive::read_car_controls` (0x43A486).
 
 use crate::math::x87;
 use crate::math::x87_run::{add3, compare_full};

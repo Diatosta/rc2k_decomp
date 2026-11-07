@@ -22,12 +22,10 @@
 //!
 //! Then the first four of 0x6D1E14, 0x6D2114, 0x6D2014 into 0x71AEE8 .. 0x71AF14.
 //!
-//! Out: (count not 0) ebx the count; eax, ecx, edx, esi as the last point leaves them
-//!      (see `probe_ground_at`); edi, ebp kept. No caller reads the flags.
-//!
-//! Callers (6): `sub_43BDD1`, `sub_43F1A8`, `race::settle_car` (twice), `sub_456056`,
-//! `sub_45DC12`. Refuses (before anything: what it wrote is put back) a count above 0x40
-//! (the lists' room), and what `find_ground` refuses on any point.
+//! Callers (6): `physics::find_clear_place`, `physics::feel_ground`, `race::settle_car` (twice),
+//! `race::face_hide_mask`,
+//! `physics::probe_and_keep`. Refuses (before anything: what it wrote is put back) a count above
+//! 0x40 (the lists' room), and what `find_ground` refuses on any point.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

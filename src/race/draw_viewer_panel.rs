@@ -4,11 +4,11 @@
 //! text 0x1A5 and the replay's length, the names of the block's two cameras
 //! (`word_5C291C` by its bytes 0 and 1, at most 0x2E; `strings::append_string_by_id`),
 //! each three times 0x78 to the left and 0xD down, texts 0x560 and 0x561 (the fonts at
-//! `stru_51EAE4` ..; `text::draw_text_keep_regs`, `sub_402368`); unlocked
-//! (`d3d::unlock_texture`), copied to its device texture (`dword_5BECBC`, `sub_41A8F9`),
-//! made the texture (`d3d::set_texture`) and drawn as ten quads (`drive::tyre_quad`, the
-//! texture's and the screen's rectangles `dword_5C2A1C`, `dword_5C2A0C`), the switch lights
-//! dimmed (0x555555) by the block's camera byte 5 (0: the second, 1: the first).
+//! `stru_51EAE4` ..; `text::draw_text_keep_regs`, 0x402368); unlocked
+//! (`d3d::unlock_texture`), copied to its device texture (`dword_5BECBC`,
+//! `d3d::copy_to_device_texture`), made the texture (`d3d::set_texture`) and drawn as ten quads
+//! (`drive::tyre_quad`, the texture's and the screen's rectangles `dword_5C2A1C`, `dword_5C2A0C`),
+//! the switch lights dimmed (0x555555) by the block's camera byte 5 (0: the second, 1: the first).
 //!
 //! Caller: `race::viewer_frame`.
 

@@ -1,8 +1,5 @@
 //! `math::normalise_vector` (0x45C3FE): the work vector made one long.
 //!
-//! Out: without SSE eax = the squares' sum as a float's bits (the original pops it
-//!      from the slot it kept eax in); everything else preserved
-//!
 //! The vector is the three floats at `xmmword_5C5F60`; the original leaves its length in
 //! `flt_6D18C8` (not kept here: nothing reached reads it). Two ways, by the switch `dword_621A58` (a key's toggle and the
 //! processor's SSE together, set at 0x43B471; 0 as the game starts, so the x87 way is

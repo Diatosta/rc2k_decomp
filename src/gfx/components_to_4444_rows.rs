@@ -1,15 +1,10 @@
 //! `gfx::components_to_4444_rows` (0x40750D): the plain picture converter for pixel format
 //! number 4, two bytes a pixel with four bits for each component.
 //!
-//! In:  esi = from (four bytes a pixel), edi = to, ecx = pixels in a row, edx = rows, ebp =
-//!      what is taken off edi after each row
-//! Out: ebx = ecx as it came, edx = 0, esi and edi moved on past the rows, ax = what the
-//!      last pixel left there (al its second byte, ah the top four bits of its fourth
-//!      component); the rest of eax, ecx and ebp preserved. The flags are not reproduced.
 //! A pixel's first byte is the top four bits of its first component in the low half and
 //! of its second in the high half; its second byte the same of the third and fourth.
 //! Reached only through the converter table `dword_4F5288`, where `gfx::install_converters`
-//! puts it when the processor has no MMX; with MMX `sub_407276` stands there instead (not
+//! puts it when the processor has no MMX; with MMX 0x407276 stands there instead (not
 //! ported). So on a machine of today it is never called.
 //! Refuses a row or a row count of 0 (the original counts through all 32 bits). The name
 //! is a reading. Since phase 12 the Rust version works in place on the picture's bytes,

@@ -2,8 +2,6 @@
 //! level at least.
 //!
 //! Takes: the level, the tag
-//! Out: ecx = 0x400, edx = 1 if any entry changed, else 0; zero set if any changed,
-//!      carry set if none; everything else preserved
 //!
 //! For every texture whose tag (`dword_5CDAE0`) is ebx: its level in each of the two tables
 //! (`dword_5CEAE0`, `dword_5CFAE0`) becomes eax if eax is above it, unsigned (so -1, "not

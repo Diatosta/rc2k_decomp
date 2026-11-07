@@ -1,5 +1,5 @@
-//! The race's results file (`sub_41E6EC` / `sub_41E85A`, IDA 2026-10-17): its bytes packed
-//! by runs (`race::pack_runs`) and a block sealed by a DES-like cipher of the game's
+//! The race's results file (`race::open_replay` / `race::close_replay`, IDA 2026-10-17): its bytes
+//! packed by runs (`race::pack_runs`) and a block sealed by a DES-like cipher of the game's
 //! tables (`race::seal_block`, with `race::permute_bits`).
 
 use crate::errors::BadInput;

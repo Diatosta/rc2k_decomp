@@ -1,5 +1,5 @@
 //! `race::flush_draw_batch` (0x45FD1D): the scene's draw batch handed to the device: with
-//! indices in it (`dword_6D3CEC`, edx), `sub_41ADF5` (the platform's `DrawIndexedPrimitive`:
+//! indices in it (`dword_6D3CEC`, edx), 0x41ADF5 (the platform's `DrawIndexedPrimitive`:
 //! eax the vertex count `dword_6D3CF0`, ebx the vertices `unk_6D3CF4`, ecx the indices
 //! `unk_6D7CF4`); a failure (eax not 0) logged as "drawtri" and its code (level 1, each
 //! inside `pusha`); then both counts 0.

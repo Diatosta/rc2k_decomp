@@ -3,8 +3,7 @@
 //! each tenth gone (`dword_613844`, signed), stopping when the players are all out
 //! (`race::players_all_out`).
 //!
-//!
-//! Callers: `drive::race_loop`, `sub_4607A5`. Refuses what its calls refuse.
+//! Callers: `drive::race_loop`, `race::play_movie_loop`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

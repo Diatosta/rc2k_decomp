@@ -1,4 +1,8 @@
-//! The race panel: the HUD record the race frame fills for the HUD (`hud::draw_hud` walks it from `g_hudRecord`, IDA 0x6D13FE, by address) and the variables around it: the two views' values (place, times, split gaps, motion), the overlay's miles and parts, the start lights, the marks, the HUD flags and the texture counter. Names are readings unless IDA's.
+//! The race panel: the HUD record the race frame fills for the HUD (`g_hudRecord`, IDA 0x6D13FE;
+//! the original's HUD walks it by offset, the `hud::` drawers read its fields) and the variables
+//! around it: the two views' values (place, times, split gaps, motion), the overlay's miles and
+//! parts, the start lights, the marks, the HUD flags and the texture counter. Names are readings
+//! unless IDA's.
 //! Most of its dwords lie at addresses that are not a multiple of 4 (the piece starts at 0x6D13FE): they are `Loose32` cells and the piece needs no alignment.
 
 #[cfg(test)]
@@ -73,9 +77,12 @@ pub struct ViewB {
 pub struct Lights {
     /// The lit count (`unk_6D1482`; -1 before the race: no extra texture).
     pub lit: Loose32,
-    pub fade: Loose32,
-    pub size: Loose32,
-    pub shift: Loose32,
+    /// The start-lights icon's width (`hud::draw_icon`).
+    pub width: Loose32,
+    /// The icon's alpha.
+    pub alpha: Loose32,
+    /// How far the icon drops below its row.
+    pub drop: Loose32,
 }
 
 /// One view's marks (0x14 bytes from 0x6D14A2 and 0x6D14B6; `race::panel_marks`).
@@ -91,7 +98,8 @@ pub struct Marks {
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct Panel {
-    /// +0x0 (0x6D13FE): `g_hudRecord`: the HUD record's first dword (the first car's split gap 6, `race::panel_values`); `hud::draw_hud` walks the record from here by address.
+    /// +0x0 (0x6D13FE): `g_hudRecord`: the HUD record's first dword (the first car's split gap 6,
+    /// `race::panel_values`).
     pub split_6: Loose32,
     /// +0x4 (0x6D1402): `unk_6D1402`: the first car's split gap 5.
     pub split_5: Loose32,

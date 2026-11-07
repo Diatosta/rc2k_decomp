@@ -7,9 +7,6 @@
 //! start. Then +0xFA0 moves 4 towards +0xF9C (not past it; left when at or below it, by
 //! the sign).
 //!
-//! Out: eax +0xFA0, ecx 4; after a shift esi 0x71AF70, edi 0x71AF6C; the rest kept; no
-//!      flags read (the callers return)
-//!
 //! Callers: `physics::pace_notes_step`, and itself. Refuses (before anything) a count above
 //! 7.
 

@@ -7,8 +7,7 @@
 //! `flt_614C48` the share, `physics::lever_push`; `flt_614B4C` = `flt_71ACC8` and
 //! `flt_614C48` 1 less it, `physics::lever_push`. It ends through the `retn` at 0x43DFB0.
 //!
-//!
-//! Callers: `sub_43B635` (0x43B831, 0x43B8AA), every physics step.
+//! Callers: `physics::car_physics_step` (0x43B831, 0x43B8AA), every physics step.
 
 use crate::math::x87;
 use crate::math::x87_run::{lever_share, one_less};

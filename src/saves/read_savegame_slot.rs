@@ -6,8 +6,9 @@
 //! dword is "R5SG" and the dword at +8 is 0x51122; the 0x20 bytes at +0x10 then go to
 //! `byte_526BB4[slot * 0x20]`. A short file is not noticed as such: what the buffer held
 //! before decides (reproduced). It only fills the buffer: putting the state back into the
-//! game is done by its callers `sub_46D88F` and `sub_46E6E1`, which are not ported.
-//! Called for all 100 slots at start-up (`sub_411239`). Refuses a slot past 99.
+//! game is done by its callers `screens::draw_savegame_preview` and `saves::load_savegame`, which
+//! are not ported. Called for all 100 slots at start-up (`system::load_game_data`). Refuses a slot
+//! past 99.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;

@@ -3,7 +3,7 @@
 //! texture places at `flt_9605B8` (0x20 bytes apart: +0x18 of Direct3D vertices from
 //! 0x9605A0, a reading).
 //!
-//! One caller, `sub_4CFB49` (the marks' frame).
+//! One caller, `effects::run_particles` (the marks' frame).
 
 use crate::d3d::vertices_store::VERTICES;
 

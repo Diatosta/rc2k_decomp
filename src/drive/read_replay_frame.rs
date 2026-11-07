@@ -8,9 +8,8 @@
 //! `dword_9613A4` (`drive::read_packed`).
 //!
 //! Takes: the frame, the tenth
-//! Out: CF set when not playing or the seek or read failed; every register kept
 //!
-//! Callers: `drive::read_replay_frame_0`, `sub_41DE81` (four), `sub_41E224`. Refuses what
+//! Callers: `drive::read_replay_frame_0`, 0x41DE81 (four), `race::play_marked`. Refuses what
 //! `read_packed` refuses.
 
 use crate::errors::{FatalError, Refused};

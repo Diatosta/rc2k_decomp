@@ -3,8 +3,8 @@
 //! slot names (`draw_setup_slot_names`).
 //!
 //! Its address is in the draw list at 0x759156. That it is the "save" screen is a reading: the
-//! screen loop `sub_46EB7A`, which also runs the name editor, uses that list. IDA had no function
-//! here until 2026-10-10. The menus and draw lists run its `entry` (`menu::table_calls`).
+//! screen loop `menu::save_setup_loop`, which also runs the name editor, uses that list. IDA had no
+//! function here until 2026-10-10. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

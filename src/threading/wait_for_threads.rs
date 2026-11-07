@@ -1,11 +1,11 @@
 //! `threading::wait_for_threads` (0x410BA8): the shutdown's wait: the input thread's,
 //! the audio thread's and the network's receiving thread's slots (`g_inputThreadSlot`,
-//! `g_audioThreadSlot`, `stru_518714`) each resumed if suspended (`sub_410D1D`), their
-//! three handles waited for, all of them, three seconds at most
+//! `g_audioThreadSlot`, `stru_518714`) each resumed if suspended (`threading::resume_slot_thread`),
+//! their three handles waited for, all of them, three seconds at most
 //! (`WaitForMultipleObjects`), and closed (`CloseHandle`, the last pushed first). The
-//! handles are the three pushed as `sub_410D1D`'s arguments, which it leaves on the stack:
-//! they are the array the wait gets.
-//! `sub_410D1D` (`threading::resume_slot_thread`: one Win32 call): with a slot
+//! handles are the three pushed as `threading::resume_slot_thread`'s arguments, which it leaves on
+//! the stack: they are the array the wait gets.
+//! 0x410D1D (`threading::resume_slot_thread`: one Win32 call): with a slot
 //! whose +0xC is 0xFF (`neg`: made 1), `ResumeThread` on its +8.
 //!
 //! Returns the wait's result.

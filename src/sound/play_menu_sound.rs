@@ -1,6 +1,5 @@
 //! `sound::play_menu_sound` (0x40F059): plays one of the menus' sounds.
 //!
-//! In:  eax = which, as bits; esi goes into the command as it is
 //! Nothing for eax = 0, and nothing before the time kept in `dword_511B0C` (125 ms after
 //! the last sound; compared by the sign of the difference). The time is moved on before
 //! the bits are looked at. The first bit set of these, in this order, picks the sound

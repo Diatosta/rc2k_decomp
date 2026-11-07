@@ -3,10 +3,6 @@
 //! the bonus vehicles, 82 x 42 each, with their masks). The game's log calls every texture a
 //! "plate"; this was `scene::load_number_plates` until 2026-10-24.
 //!
-//! Out: kind 0xC1 has no first texture: ebx = -1, the rest preserved; else eax, ecx =
-//!      the second icon's two picture names, edx, esi its two numbers, edi = 0xAD,
-//!      ebp = 0x94, ebx = the texture
-//!
 //! Unless kind 0xC1's first texture (`dword_5D0DEC`) is none, twice, for the player's
 //! car (`dword_70F410`, or with `dword_52A910` set the block of the car
 //! `dword_52A920`, its +0x24) and then for `dword_7103F0`:

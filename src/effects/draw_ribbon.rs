@@ -10,8 +10,10 @@
 //!
 //! Takes: the cell, the alpha, the width, the colour (and the two places)
 //!
-//! Callers: the marks' lines (0x4C5D65) and 0x4CFAA3. The x87 block is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables. Refuses, before anything, a cell past 0x40 and
-//! null marks settings (the clip's refusal).
+//! Callers: the marks' lines (0x4C5D65) and `effects::run_ribbons` (0x4CFAA3). The x87 block is
+//! plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's
+//! variables. Refuses, before anything, a cell past 0x40 and null marks settings (the clip's
+//! refusal).
 
 use crate::effects::clip_quad::{clip_quad, draw_fan};
 use crate::effects::mask_store::Masks;

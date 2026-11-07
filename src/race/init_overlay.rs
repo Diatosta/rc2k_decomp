@@ -10,8 +10,8 @@
 //! +0xF78 .. +0xF98 and +0xFA0 0, `flt_6D146A` and `flt_6D146E` 0. The x87 steps through
 //! `math::x87`; `dword_62400C` left as the original's `fild` leaves it.
 //!
-//! One caller, `sub_44426F` ("loadlevel_init : initoverlay"; no `pusha`). Refuses more than
-//! 0x40 parts (the original writes past its three lists).
+//! One caller, `race::loadlevel_init` ("loadlevel_init : initoverlay"; no `pusha`). Refuses more
+//! than 0x40 parts (the original writes past its three lists).
 
 use crate::errors::Refused;
 use crate::math::x87;
@@ -90,12 +90,12 @@ pub fn init_overlay(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(
         }
         // The sizes (`rc2k_core::race::panel::OVERLAY_SIZES`): dword_6D1486 .. dword_6D149E.
         let sizes = [
-            &race.frame.panel_and_overlay.panel.lights[0].fade,
-            &race.frame.panel_and_overlay.panel.lights[0].size,
-            &race.frame.panel_and_overlay.panel.lights[0].shift,
-            &race.frame.panel_and_overlay.panel.lights[1].fade,
-            &race.frame.panel_and_overlay.panel.lights[1].size,
-            &race.frame.panel_and_overlay.panel.lights[1].shift,
+            &race.frame.panel_and_overlay.panel.lights[0].width,
+            &race.frame.panel_and_overlay.panel.lights[0].alpha,
+            &race.frame.panel_and_overlay.panel.lights[0].drop,
+            &race.frame.panel_and_overlay.panel.lights[1].width,
+            &race.frame.panel_and_overlay.panel.lights[1].alpha,
+            &race.frame.panel_and_overlay.panel.lights[1].drop,
         ];
         for (cell, value) in sizes.into_iter().zip(OVERLAY_SIZES) {
             cell.set(value);

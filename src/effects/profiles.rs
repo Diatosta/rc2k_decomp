@@ -1,4 +1,4 @@
-//! `effects::make_profiles` (0x4C3B01), the body of `init_marks`' step 3 (`sub_4C4E1C` is
+//! `effects::make_profiles` (0x4C3B01), the body of `init_marks`' step 3 (0x4C4E1C is
 //! only its call; IDA, 2026-10-16): two rings of 0x100 indexes, once the 13 profile
 //! tables (0x100 whole numbers and their 0x100 differences each), then the corners from
 //! the course and `allocate_links`, `reset_settings_blocks`.

@@ -1,9 +1,6 @@
 //! `scene::build_texture_catalogue` (0x42274B): gets memory for every texture that is
 //! needed, making the textures smaller group by group until it is had.
 //!
-//! Out: carry clear. The original leaves eax, ecx and edi changed; its caller sets
-//!      them anew. The Rust version keeps them.
-//!
 //! The listing is one list of 432 steps of a few kinds, which
 //! `scene/texture_steps.rs` holds as a table (made by `tools/texture_catalogue`):
 //! log a text or a number; count a reduction in `dword_5DC97C` (0x100 counters);

@@ -4,15 +4,15 @@
 //! In:  nothing; the polygon's entries are the work table's first, in order
 //!
 //! The pool of records, the list (0, 1, 2 .. and a 0) and the next free entry are set as
-//! `scene::draw_clipped_polygon` sets them; `scene::project_polygon`; then `sub_451EED` says
-//! whether a polygon of three vertices or more has one that is nearer than `flt_5C5D90`, or
+//! `scene::draw_clipped_polygon` sets them; `scene::project_polygon`; then `scene::needs_clipping`
+//! says whether a polygon of three vertices or more has one that is nearer than `flt_5C5D90`, or
 //! left of or above that same number, or at or past the screen's right or bottom edge. If none,
 //! or with exactly three vertices: `dword_639960` + 1 and `scene::draw_clipped_polygon`. Else
 //! `dword_639964` + 1, the entries are kept at `unk_976610`, and the polygon is drawn as a fan
 //! of triangles: the first three entries as they are, then for n = 3 .. the entries 0, n - 1
-//! and n from the kept ones (`sub_45204A` copies one), each with the number of vertices at 3,
-//! where it stays. Three call sites, all in `sub_450BDA`. Refuses a polygon of no vertices or
-//! of more than 64 (the kept entries' room).
+//! and n from the kept ones (0x45204A copies one), each with the number of vertices at 3,
+//! where it stays. Three call sites, all in `scene::draw_object_face`. Refuses a polygon of no
+//! vertices or of more than 64 (the kept entries' room).
 //!
 //! Converted 2026-10-21: the test, the list, the choice and the fan through
 //! `rc2k_core::scene::polygons` (compares of stored floats: exact).
@@ -29,7 +29,7 @@ pub enum Step {
     Draw,
 }
 
-/// `sub_451EED` on the work table's records.
+/// `scene::needs_clipping` on the work table's records.
 fn needs_clipping(
     course: &crate::race::owner_course::Course,
     count: u32,

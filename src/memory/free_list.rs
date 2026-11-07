@@ -3,9 +3,9 @@
 //! Takes: the list (`MemoryList`), or 0
 //! Nothing happens without a list. The bytes held now are counted down by the list's total
 //! (also when it has no block). Then, if it has one: the list is emptied (head, total, and
-//! through `sub_402941` the cursor and what remains, all 0) and each block is given back
+//! through `memory::rewind_list` the cursor and what remains, all 0) and each block is given back
 //! with `VirtualFree`, or, with the setting `altmemenable`, to the game's own heap
-//! (`sub_402A92`). No block is put on a list any more (the own heap and the system's
+//! (0x402A92). No block is put on a list any more (the own heap and the system's
 //! blocks removed 2026-11-07): a list holding one is refused.
 //! 38 callers.
 

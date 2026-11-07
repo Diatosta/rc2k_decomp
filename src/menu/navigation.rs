@@ -1,7 +1,7 @@
 //! Each menu item names its neighbours by number at +0x24, +0x28, +0x2C and +0x30 (which key
 //! goes with which is in `Direction`). A link of 0x6F means there is none, and 0xFFFFFC1A
 //! means "ask the item": its callback for that direction (+0x34 .. +0x40) is called
-//! instead. Every move plays the click, `sub_40F059` with eax = 1.
+//! instead. Every move plays the click, `sound::play_menu_sound` with eax = 1.
 //! The two vertical moves go on along the same link until they reach an item whose +0x48 is
 //! 0xFFFFFC1B, so items that cannot be chosen are stepped over. The two horizontal ones take
 //! one step and, while `dword_7554EC` is 1, first turn a counter: `dword_75AA7C` goes round
@@ -43,7 +43,7 @@ impl Direction {
 
 // ---- Rust version of the four moves ----
 
-/// The click is `sub_40F059` with sound 1 (`sound::play_menu_sound`); the callback gets
+/// The click is 0x40F059 with sound 1 (`sound::play_menu_sound`); the callback gets
 /// the item (edi in the original, the only register its callbacks read).
 pub fn move_highlight(menus: &Menus, direction: Direction) -> Result<(), Refused> {
     let screens = &menus.screens;

@@ -3,7 +3,7 @@
 //! first (`dword_5C2CD4` 1, `dword_5C2CD0` = `GetTickCount`); the six digits of the name
 //! `rpl\000000.pcx` (0x5C2CDC) one more (each past '9' back to '0' and the one before
 //! raised; all six at most); the name as `dword_4F49C8` while the surface is locked
-//! (`gfx::lock_surface`; carry: not saved), written (`sub_411E0C`, the PCX writer) and
+//! (`gfx::lock_surface`; carry: not saved), written (`gfx::write_screen_pcx`, the PCX writer) and
 //! unlocked (`gfx::unlock_surface`), `dword_4F49C8` put back; the clock on by `dword_5C2CF3`
 //! (the recording's frame time) for the next.
 //!

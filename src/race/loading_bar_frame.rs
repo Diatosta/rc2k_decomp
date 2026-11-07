@@ -5,7 +5,7 @@
 //! (`dword_621514` 0 for `scene::choose_view_window`, put back), `race::loading_bar_quad`,
 //! `scene::end_scene`, `scene::lock_frame`, an empty function, `scene::unlock_frame`,
 //! `scene::present_frame`, carry clear. A failed step (or the window inactive, or the
-//! surfaces lost) instead, unless quitting, restores the surfaces (`sub_405B10`, the
+//! surfaces lost) instead, unless quitting, restores the surfaces (0x405B10, the
 //! platform's) and leaves carry set when they were neither lost before nor after.
 //!
 //! Caller: the stage's loading (through `dword_623704`). Its calls are the Rust versions (the
@@ -14,7 +14,7 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
+const RESTORE: usize = 0x405B10; // 0x405B10: the surfaces restored (the platform's)
 
 /// A stage is loading (`race::load_stage`). Not the original's: it draws the bar for the
 /// credits' race only; here for every stage, over the loading picture (owner, 2026-10-30).

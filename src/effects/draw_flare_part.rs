@@ -9,9 +9,6 @@
 //! float) times `flt_8EB96D`; `dword_8F3981` plus 1; `effects::clip_quad`, and unless all is
 //! outside `scene::draw_fan`.
 //!
-//! In:  the corner, the angle << 20, the alpha, the size, the colour (the original's
-//!      eax, ebx, ecx, edx, esi), the centre (st(0), st(1), popped)
-//!
 //! Caller: `effects::draw_lens_flare` (0x4C4FEA). Refuses a corner past `g_marksCorners`
 //! (0x100 or more) and null marks settings (`clip_quad`'s refusal), before anything.
 

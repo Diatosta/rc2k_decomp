@@ -2,11 +2,8 @@
 //! `physics::apply_torques` on the 7 records at `unk_614A50` (the ones
 //! `physics::apply_contact_forces` pushes with); else nothing.
 //!
-//! Out: `dword_614148` 0: ebx the count, edi the first record; else nothing changed;
-//!      the rest kept; no flags read (the caller's next instruction is a `cmp`)
-//!
-//! Caller: `sub_43B635` (0x43B888, after `physics::apply_contact_forces`), every physics
-//! step.
+//! Caller: `physics::car_physics_step` (0x43B888, after `physics::apply_contact_forces`), every
+//! physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_torques::apply_torques;

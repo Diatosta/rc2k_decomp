@@ -1,4 +1,4 @@
-//! `race::load_stage`'s "loadlevel_init" (`sub_44426F`): its small steps (IDA,
+//! `race::load_stage`'s "loadlevel_init" (`race::loadlevel_init`): its small steps (IDA,
 //! 2026-10-16). The course memory (`alloc coursemem`): 0x1300000 bytes from
 //! `memory::allocate` on `stru_5C6D50`, `g_courseMemory` (0x5C6F94) its start and
 //! `g_courseInfo` (0x5C6FA0) its last 0x400000 bytes, where the texture and mark info

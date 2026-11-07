@@ -20,10 +20,9 @@
 //! being `asm_reference` in the tests.
 //!
 //! In:  nothing (`dword_614B40` the record)
-//! Out: eax `dword_6D3098` (the point's z turned), ebx and esi 0x6D3090, ecx 0x6D31F4,
-//!      edx 0x6D31E4, edi the record; no flags read (callers call on)
 //!
-//! Callers: `sub_45D8FB`, `sub_45DA14`, `sub_45DC3E`, `sub_45E3BF`,
+//! Callers: `physics::wall_push_back`, `physics::wall_edge_contact`,
+//! `physics::crossed_edge_contact`, `physics::face_contact`,
 //! `physics::crash_contact`, `physics::ground_contact`.
 
 use crate::math::x87_float::compare;

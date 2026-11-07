@@ -4,11 +4,7 @@
 //! last face (`unk_71AEC8`, `unk_71AECC`, `unk_71AED0`; `physics/camera_ground.rs`).
 //! CF clear when all three are found; the first not found sets CF and ends it.
 //!
-//! In:  nothing (ebx passed to the turns as y)
-//! Out: CF; eax, ecx, edx as the turns and probes leave them, the rest as
-//!      `count_ground_probe` leaves them (the caller reads CF)
-//!
-//! Caller: `sub_43907F` (four). Refuses what `count_ground_probe` refuses.
+//! Caller: `physics::camera_avoid_ground` (four). Refuses what `count_ground_probe` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

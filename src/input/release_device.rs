@@ -1,5 +1,5 @@
 //! `input::release_device` (0x4087F3): a device given back: with a DirectInput device (+4),
-//! `Unacquire`, its effects stopped (`sub_4095AE`) when its controller's entry
+//! `Unacquire`, its effects stopped (`input::end_force`) when its controller's entry
 //! (`dword_4F78E4` + 0x50 its number, +0x1C) is 1, `Release`, +4 0; then +0x24 (acquired)
 //! and +0x28 (effects on) 0 and its readings cleared (`input::clear_device_readings`).
 //!

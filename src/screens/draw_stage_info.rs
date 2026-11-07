@@ -3,9 +3,10 @@
 //! rows.
 //!
 //! It is not called directly: its address is in the list of draw functions at 0x758D7E, which
-//! belongs to the screen loop `sub_473B21`. That loop is called from `sub_4A0E60` and
-//! `sub_4AA4D7`, which step through the stages of an event (`inc index`) and show another
-//! screen (`sub_472596`) before this one.
+//! belongs to the screen loop `menu::next_stage_loop`. That loop is called from
+//! `menu::run_championship` and
+//! `menu::run_a8_championship`, which step through the stages of an event (`inc index`) and show
+//! another screen (`menu::rally_stages_loop`) before this one.
 //!
 //! The stage is the record `find_record(g_recordTable, index, section)`.
 //!

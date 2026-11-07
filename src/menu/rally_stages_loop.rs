@@ -7,7 +7,7 @@
 //! (`SCREEN`): before the loop it clears the Escape flag `dword_755A3C`;
 //! its background comes from `menu::load_background`, after which a set carry flag is fatal
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
-//! Callers: the event loops `sub_4A0E60`.
+//! Callers: the event loops `menu::run_championship`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

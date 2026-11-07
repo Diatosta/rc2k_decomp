@@ -12,9 +12,10 @@
 //! corners projected, their depths less `flt_934BC0` .. times `flt_8EB96D`, and
 //! `scene::draw_fan`.
 //!
-//! Caller: the race's frame (0x456330). The long x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order,
-//! over the game's variables; the vector helpers their Rust versions. Refuses, before
-//! anything, a corner past `g_marksCorners` and an angle `fsincos` cannot take.
+//! Caller: the race's frame (`race::draw_marks_overlays`, 0x456330). The long x87 runs are plain
+//! Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables;
+//! the vector helpers their Rust versions. Refuses, before anything, a corner past `g_marksCorners`
+//! and an angle `fsincos` cannot take.
 
 use crate::effects::kind_store::{CONSTS_1, CONSTS_2, KindConsts, QuadWork};
 use crate::effects::mask_store::Masks;
@@ -30,7 +31,7 @@ use crate::session::Float;
 use crate::d3d::vertices_store::VERTICES;
 
 /// A shadow's variables (the typed statics of `effects::kind_store`: the second shadow's,
-/// `sub_4C74DA`'s, are set 1's, the first's set 2's) and its x87 blocks.
+/// `effects::draw_overlays`'s, are set 1's, the first's set 2's) and its x87 blocks.
 pub struct Shadow<'a> {
     pub quad: &'a QuadWork,
     pub consts: &'a KindConsts,
@@ -48,7 +49,7 @@ pub static FIRST: Shadow<'static> = Shadow {
     field: |marks| &marks.listener_float_b,
 };
 
-/// `sub_4C74DA`'s.
+/// `effects::draw_overlays`'s.
 pub static SECOND: Shadow<'static> = Shadow {
     quad: &crate::effects::owner::EFFECTS.kinds.quad_1,
     consts: &CONSTS_1,

@@ -3,9 +3,8 @@
 //! `flt_75C0AC` (`fistp` through `dword_75C060`), coloured `dword_75BF50`.
 //!
 //! Takes: the HUD's record
-//! Out: eax 0x5C0, ebx the x, ecx 0, esi the rectangle (as `add_sprite` keeps them)
 //!
-//! Caller: layout 0's drawer (0x4B1F0C).
+//! Caller: layout 0's drawer (`hud::layout_0`, 0x4B1F0C).
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;

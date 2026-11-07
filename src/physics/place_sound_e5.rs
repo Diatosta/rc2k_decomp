@@ -2,8 +2,8 @@
 //! goes to its sound object with +0x24C 0xE5, +0x250 the band, the place at +0x254 .. and
 //! +0x10 1 (see `physics/car_sounds.rs`).
 //!
-//! Caller: `sub_45EDB5`. Refuses (before anything) a car number past 7, a null sound object
-//! when it is written.
+//! Caller: `physics::crash_contact`. Refuses (before anything) a car number past 7, a null sound
+//! object when it is written.
 
 use crate::errors::Refused;
 use crate::physics::car_sounds::{cue_plain, listed, object};

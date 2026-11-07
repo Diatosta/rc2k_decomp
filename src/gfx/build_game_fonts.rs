@@ -1,7 +1,7 @@
 //! `gfx::build_game_fonts` (0x41B178): builds the font with an alpha that a stage's loading
 //! asks for, and hangs it on five font objects.
 //!
-//! ("LOADLEVEL_INIT : loadgamefonts" in the game's log; one caller, `sub_44426F`.)
+//! ("LOADLEVEL_INIT : loadgamefonts" in the game's log; one caller, `race::loadlevel_init`.)
 //! Takes `dword_5BE894` * 0x400 * `dword_4F4958` bytes on the list `stru_5BE898` (fatal
 //! error 0x80E48061 if there are none), `begin_glyph_tables`, the builder's flags = 0x21
 //! (run-length coded, with alpha sheets), the pixel layout at `off_5ABACC` + 8, twice

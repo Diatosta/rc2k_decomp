@@ -1,7 +1,6 @@
 //! `gfx::blit_bar` (0x46B574): draws a bar filled to a percentage: the fill sprite with the
 //! clip rectangle's right edge pulled in to where the fill ends, then an end piece there.
 //!
-//! In:  nothing in registers; the bar is described by six globals (see `Bar`)
 //! Nothing is drawn at 0 percent. If width * percent is 0 with a non-zero percent the original
 //! reports fatal error 0x80701010. The blitter is given the fill's end x as its palette,
 //! which only works because these sprites do not use one; it is reproduced as is.

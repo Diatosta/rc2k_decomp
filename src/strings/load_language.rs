@@ -13,14 +13,14 @@
 //!   addresses, the layout is the block of 0x14 bytes its byte +0xB chooses, and if its
 //!   byte +8 is 0x0C three entries of that layout's fourth table are set (0x1034, 0x1035,
 //!   0x1036 at +0x34, +0x36, +0x52);
-//! - `sub_4034C2`: the case tables. `g_lowerCase` (0x4F0BC8): every character itself, A .. Z
-//!   in lower case, then string 2 as pairs "lower, upper". `byte_4F0CC8`: a copy of that in
-//!   which string 3's accented letters become the plain letter before them ("aàáâ.." );
-//! - `sub_403462`: with keyboard type 2 (`dword_518404`) a built-in layout takes the file's
+//! - `strings::make_case_tables`: the case tables. `g_lowerCase` (0x4F0BC8): every character
+//!   itself, A .. Z in lower case, then string 2 as pairs "lower, upper". `byte_4F0CC8`: a copy of
+//!   that in which string 3's accented letters become the plain letter before them ("aàáâ.." );
+//! - 0x403462: with keyboard type 2 (`dword_518404`) a built-in layout takes the file's
 //!   place;
-//! - `sub_403495`: on a Japanese system (`GetSystemDefaultLCID`, language 0x11) a notice
+//! - 0x403495: on a Japanese system (`GetSystemDefaultLCID`, language 0x11) a notice
 //!   kind other than 7 is fatal error 0x90006044; with kind 7 `dword_51B980` is 0x2EE;
-//! - `sub_416389`: four corrections in the lexicon itself: in string 0x6CA the word
+//! - `strings::correct_lexicon`: four corrections in the lexicon itself: in string 0x6CA the word
 //!   "Bowland" loses its `w`, in 0x6AB "Laukennen" becomes "Laukkanen", and in 0x23B the
 //!   word "A7" or "(A7)" is replaced by string 0x23A's "A8" or "(A8)";
 //! - `dword_51B9E4` = 1 if the notice kind is 2, string 0x57C is not empty and the file
@@ -115,7 +115,8 @@ fn built(text: &Text, id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
     Ok(bytes)
 }
 
-/// `sub_4034C2` (converted: `rc2k_core::strings::case::CaseTable::{for_language, plain_letters}`).
+/// `strings::make_case_tables` (converted: `rc2k_core::strings::case::CaseTable::{for_language,
+/// plain_letters}`).
 fn make_case_tables(strings: &Strings) -> Result<(), BadInput> {
     let lower = CaseTable::for_language(&built(&strings.text, 2, true)?)?;
     set_case_table(&lower.lower);
@@ -124,7 +125,8 @@ fn make_case_tables(strings: &Strings) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// `sub_416389` (converted: `rc2k_core::strings::lexicon::correct`), on the lexicon's room.
+/// `strings::correct_lexicon` (converted: `rc2k_core::strings::lexicon::correct`), on the lexicon's
+/// room.
 fn correct_lexicon() -> Result<(), BadInput> {
     let room = crate::strings::string_table::lexicon_room();
     let mut table = room.read_bytes(LEXICON_ROOM, "the lexicon's room")?;
@@ -174,13 +176,13 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 
     make_case_tables(strings)?;
 
-    // `sub_403462`: the NEC keyboard's head (its layout mode) and layout.
+    // 0x403462: the NEC keyboard's head (its layout mode) and layout.
     if system().session.machine.keyboard_type.get() == 2 {
         layouts().use_nec();
         install.run.first_drive.set(0x61u32);
     }
 
-    // `sub_403495`
+    // 0x403495
     let kind = file.notice_kind;
     if crate::os::language_id() & 0x3FF == 0x11 && kind != 7 {
         return Err(fatal(

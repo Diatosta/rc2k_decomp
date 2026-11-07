@@ -7,7 +7,7 @@
 //! started (`dword_5124E4` 1): `sound::step_race_clock`; with a turn due (carry clear)
 //! `sound::mark_car_voices`, `car_sounds_all`, `play_cue_queues`, `stage_sounds`,
 //! `spot_sounds`, `send_end_of_turn`; and either way `input::step_effects_clock`.
-//! One caller, `sub_421BCF` (`sound::race_turn_if`).
+//! One caller, 0x421BCF (`sound::race_turn_if`).
 //! Refuses what its callees refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

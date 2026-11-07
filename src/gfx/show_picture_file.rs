@@ -2,7 +2,7 @@
 //! page of the screen: the loading picture.
 //!
 //! Takes: the picture's path
-//! The window's messages are passed on (`sub_410535`); `dword_51B9C4` = 1; the picture's
+//! The window's messages are passed on (0x410535); `dword_51B9C4` = 1; the picture's
 //! size is set to 800 x 600 with row length 0xFFFFFFFD and the file is read
 //! (`gfx::read_picture_file`); the size then becomes the screen's, the row length the
 //! screen's width * 4.

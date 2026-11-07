@@ -1,7 +1,6 @@
 //! `audio::make_buffer` (0x40B5CF): a voice's DirectSound buffer made.
 //!
 //! Takes: the voice
-//! Out: carry = not made; every register preserved
 //!
 //! Nothing (carry clear) unless voices have buffers of their own (`g_soundMode` bit
 //! 0x10000). No `g_directSound`: carry. A voice that shares data gets a duplicate of the
@@ -65,7 +64,8 @@ pub fn make_buffer(state: &AudioState, at: u32, ebx: u32) -> Result<bool, Refuse
             return Err(BadInput("a volume or pan past the volume table").into());
         }
         // ebx as the original has it at each call: the caller's, the frequency after the
-        // create path (`mov ebx, [esi+60h]`), the 3D buffer's place after `sub_40C6B5`'s.
+        // create path (`mov ebx, [esi+60h]`), the 3D buffer's place after
+        // `audio::open_voice_manager`'s.
         let mut ebx = ebx;
         let mut made = false;
         if v.source != 0 {

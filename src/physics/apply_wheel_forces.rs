@@ -2,7 +2,7 @@
 //!
 //! Returns: the first record, the count
 //!
-//! Caller: `sub_43B635` (0x43B81D), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B81D), every physics step.
 
 use crate::errors::Refused;
 use crate::physics::apply_forces::apply_forces;

@@ -1,7 +1,6 @@
 //! `scene::draw_main_menu_carousel` (0x49012C): the main menu's carousel, drawn the
 //! plain way.
 //!
-//! In:  ecx, passed on
 //! Out: as `scene::draw_carousel`
 //!
 //! `dword_6365C4` = 0 (the way `scene::draw_scene_object` draws by), then

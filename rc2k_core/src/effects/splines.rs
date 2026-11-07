@@ -10,8 +10,8 @@ use crate::effects::points::{Collected, add_points};
 
 /// The most points a record holds.
 pub const MOST_POINTS: u32 = 0x80;
-/// The heights the grades part at (`sub_4BA316`'s; its reading of +0x18 and +0x1C is
-/// overwritten).
+/// The heights the grades part at (`effects::grade_spline_points`'s; its reading of +0x18 and +0x1C
+/// is overwritten).
 pub const LOW: i32 = 0x3830;
 pub const HIGH: i32 = 0x6720;
 /// The grades.

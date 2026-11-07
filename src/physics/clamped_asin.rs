@@ -4,9 +4,6 @@
 //! `fpatan` of st(0) (unheld, 80 bits) over the root of 1 less the held float's square.
 //! A value past the limit gives +-pi/2.
 //!
-//! In:  st(0) the sine
-//! Out: st(0) the angle (in its place); every register kept; flags changed (no caller
-//!      reads them)
 //! Callers: `physics::matrix_angles` (twice), unowned code at 0x42119E.
 
 use crate::math::x87_run::clamped_asin_80;

@@ -310,7 +310,7 @@ pub fn lock_surface() -> u32 {
     let have = SCREEN.lock().is_ok_and(|screen| screen.is_some());
     if !quitting() && have {
         gfx.locked.surface.set(1);
-        // `sub_405726`: the surface the blitters draw on, and the clip rectangle.
+        // 0x405726: the surface the blitters draw on, and the clip rectangle.
         let s = &gfx.drawing.draw_surface;
         let (row_bytes, pitch): (u32, u32) = (
             system.session.screen.row_bytes.get(),

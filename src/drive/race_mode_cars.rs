@@ -1,7 +1,8 @@
 //! `drive::race_mode_cars` (0x436758): by the race's mode `dword_62389C`: 2 runs
 //! `drive::start_cars_behind`; 0, 1, 3, 4 and the others nothing (five separate `retn`s).
 //!
-//! Callers: race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`. Refuses what
+//! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
+//! `drive::replay_step`. Refuses what
 //! `start_cars_behind` refuses.
 
 use crate::errors::Refused;

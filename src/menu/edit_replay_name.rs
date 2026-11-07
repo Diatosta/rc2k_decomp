@@ -16,7 +16,7 @@
 //! A slip in the original, reproduced: the clear key, the backspace key and the "too wide"
 //! case act on the highlighted name of the SAVED GAME list, not the replay list, while the
 //! length they change is the replay entry's.
-//! Called from the screen loop `sub_47F77B` while `dword_7556A8` is 1.
+//! Called from the screen loop `menu::save_replay_loop` while `dword_7556A8` is 1.
 //!
 //! Refuses, before the key is taken: a name past either list, a length outside 0 .. 0x1F, no
 //! keyboard layout.

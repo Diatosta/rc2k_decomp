@@ -7,7 +7,7 @@
 //! state loaded again; then each car (`g_currentCar`) loaded (`drive::load_car`), its
 //! camera worked out when it runs and is not 2 (`physics::camera_frame`, `dword_6EF7CC`
 //! 1), stored (`drive::store_car`); `dword_63DB74`, `dword_63DB78` 0, `dword_6416B8` 1,
-//! the race's scene drawn (`sub_454229`: `race::draw_race_scene`) with `dword_6235E8` 1
+//! the race's scene drawn (0x454229: `race::draw_race_scene`) with `dword_6235E8` 1
 //! (put back after), the three switches 0.
 //!
 //! Caller: `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.

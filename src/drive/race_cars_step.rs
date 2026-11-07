@@ -5,9 +5,6 @@
 //! `physics::gear_input_rules` and `physics::car_physics_step`; `drive::store_car`. Then
 //! `drive::animate_stage` and `drive::race_mode_cars`.
 //!
-//! Out: eax the cars' count, then as `animate_stage` and `race_mode_cars` leave the
-//!      registers; no flags read
-//!
 //! Caller: `drive::race_init` (its fifty settling steps). Refuses (before anything) a cars'
 //! count of 0 or past 8 (the original's `jnz` loop runs on), and what its calls refuse; the
 //! cars' blocks, the work car and the physics' variables are put back then. The pace notes'

@@ -5,7 +5,7 @@
 //! loaded (`race::load_stage`); `dword_63DB84` 0; `drive::finish_run`; everything tidied
 //! (`race::tidy_everything`); `dword_5C2F88`, `64BB18`, `606744`, `606748` 0; logged.
 //!
-//! Callers: `drive::finish_race_0`, `sub_442FEF`. Refuses what its calls refuse.
+//! Callers: `drive::finish_race_0`, 0x442FEF. Refuses what its calls refuse.
 
 use crate::drive::race_parts::log_line;
 use crate::errors::{BadInput, Refused};

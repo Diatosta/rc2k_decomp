@@ -5,7 +5,7 @@
 //!
 //! For a voice whose sound is not negative, by its sample record: sound 0x1C4 keeps only
 //! the halvings (low four bits); groups 1 and 2 at least one halving, group 3 at least
-//! two; the rest as it is. One caller, command 3 (`sub_40AEB9`).
+//! two; the rest as it is. One caller, command 3 (`audio::load_sounds`).
 //! Refuses a sound of 0x1CD or more.
 
 use crate::audio::samples::sample_mode;

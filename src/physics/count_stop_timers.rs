@@ -5,7 +5,7 @@
 //! below) it goes up, and on reaching 300 (unsigned) the same. A reading: the car has
 //! stood still too long after a start or a finish.
 //!
-//! Caller: `sub_436790` (four calls).
+//! Caller: `physics::race_timers` (four calls).
 
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;

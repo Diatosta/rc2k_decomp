@@ -1,4 +1,4 @@
-//! The camera's view steps under `sub_437A53` (stream B, 2026-10-18): the mode record
+//! The camera's view steps under `physics::update_camera` (stream B, 2026-10-18): the mode record
 //! (`off_606320[mode]`, the mode `unk_71A65C` held to 0 ..= 0x33), the share of a
 //! change done (`unk_719FE0` - `unk_71A668` held to 0 ..= the record's +0x3C, over it,
 //! into `flt_605260`), and the tests' frame of `physics::take_view_a`, `take_view_b`,

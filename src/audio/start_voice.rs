@@ -1,10 +1,6 @@
 //! `audio::start_voice` (0x40A9D1): command 1 on the audio thread: a sound started,
 //! changed or stopped.
 //!
-//! In:  eax = the sound's number (the sender's ax, sign-extended), esi = the command's
-//!      record (`sound/queue.rs`: +4 eax, +8 volume, +0xC pan, +0x10 frequency, +0x14 ..
-//!      +0x1C the place)
-//!
 //! See `audio/voices.rs`. Nothing for a negative number, a sound not loaded, or one whose
 //! first voice is not. With a volume and a voice of kind 0 (or, for another kind or no
 //! volume, a voice not playing, unless the sender's eax has bit 31): the first of its

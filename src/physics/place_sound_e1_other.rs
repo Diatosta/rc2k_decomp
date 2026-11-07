@@ -3,7 +3,7 @@
 //! current car's sound object with +0x238 0xE1, +0x23C the band, the place at +0x240 ..
 //! and +0x10 1 (see `physics/car_sounds.rs`). A reading: a sound of another car met.
 //!
-//! Caller: `sub_45F7B1` (its tail). Refuses (before anything) a car number past 7, a null
+//! Caller: `physics::bump_cars` (its tail). Refuses (before anything) a car number past 7, a null
 //! sound object when it is written (the object is looked up first, but only written after
 //! the band).
 

@@ -2,7 +2,6 @@
 //! the picture buffer as 32-bit pixels.
 //!
 //! Takes: path
-//! Out: carry = failed; every register preserved
 //! Opens the file as the stream `dword_5195E4`, reads the header through it, sets
 //! `g_pictureFlags` to 0x800 and calls `lay_out_pcx`. Then the rows. A row in the file is
 //! one plane after the other, each the header's count of bytes; plane n's bytes go to byte
@@ -12,7 +11,7 @@
 //! but the byte it repeats is 0 from the end of a row on (the zeroing leaves al 0). What
 //! `read_stream_byte` says about the end of the file is not looked at.
 //! It fails if the open, the header's read or the close fails.
-//! Two callers, `gfx::read_pcx` and `sub_4119AF`. Refuses a decoded width or height of 0 (the
+//! Two callers, `gfx::read_pcx` and 0x4119AF. Refuses a decoded width or height of 0 (the
 //! original counts through all 32 bits) and what `open_stream` refuses. The name is a reading.
 
 use crate::errors::BadInput;

@@ -1,7 +1,7 @@
 //! `saves::save_game_data` (0x411499): writes what the game keeps between runs.
 //!
 //! `saves::save_options`, then `saves::save_best_times`. Callers: the main loop after the front end
-//! is left, and `sub_48AD73`. Rust callers run its `entry` (`routes.rs`).
+//! is left, and `menu::arcade_level_end`. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::saves::owner::Saves;

@@ -7,7 +7,7 @@
 //! `drive::play_race`; `dword_71C3E0` 0; `race::tidy_everything`.
 //!
 //! Callers: `menu::play_films` (with ebp kept round it), which calls the Rust version directly,
-//! and `sub_443104`. Its calls by place: 0 `set_up_credits_race`, 1 `set_up_arcade_cars`, 2
+//! and 0x443104. Its calls by place: 0 `set_up_credits_race`, 1 `set_up_arcade_cars`, 2
 //! `set_start_states`, 3 `log_write_l1`, 4 `log_int_l1`, 5 `log_int_l1_nl`, 6 `load_stage`, 7
 //! `roll_credits`, 8 `play_race`, 9 `tidy_everything`.
 

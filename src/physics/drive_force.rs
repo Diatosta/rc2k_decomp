@@ -3,11 +3,8 @@
 //! `flt_614744`; `flt_614750` = it x `flt_5CB968` / the gear's ratio / 10000, or 0 with
 //! +0x1D0 (`unk_71A1A8`) set; `physics::drive_torque_share`.
 //!
-//! Out: ebx the gear, and what the calls leave; no flags read (the caller goes on with a
-//!      call)
-//!
-//! Caller: `sub_43B635` (0x43B732), every physics step. Refuses (before anything) a gear
-//! outside -1 ..= 7.
+//! Caller: `physics::car_physics_step` (0x43B732), every physics step. Refuses (before anything) a
+//! gear outside -1 ..= 7.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87_run::{mul_div2, sum_times_int_over_minus};

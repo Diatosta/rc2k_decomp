@@ -11,7 +11,6 @@
 //! the replay closed (`race::close_viewed_replay`) and carry.
 //!
 //! Takes: the replay (`race::replay_path`'s number)
-//! Out: carry set when it failed
 //!
 //! Callers: `race::replay_viewer`, `race::viewer_action` (action 0x14),
 //! `race::save_last_replay`, 0x444014 (`sub_443FxF`'s replay run).

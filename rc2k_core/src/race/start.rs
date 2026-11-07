@@ -9,9 +9,12 @@ pub struct Lights {
     pub shown: u32,
     /// The lights lit: the hundreds, -1 from 6.
     pub lit: u32,
-    pub fade: u32,
-    pub size: u32,
-    pub shift: u32,
+    /// The icon's width (`hud::draw_icon`).
+    pub width: u32,
+    /// The icon's alpha.
+    pub alpha: u32,
+    /// How far the icon drops below its row.
+    pub drop: u32,
     /// On a whole hundred (with lights lit).
     pub whole: bool,
 }
@@ -23,8 +26,8 @@ pub fn steps(since: u32) -> (u32, u32) {
 }
 
 /// The lights at `since` (None: negative, nothing more is done): the rest x 2 taken from
-/// 0x100 for fade and size (none on a whole hundred); with five shown, fade 0x80 x that
-/// (held 0 .. 0x100) / 0x30 and shift half what that took away.
+/// 0x100 for the width and the alpha (none on a whole hundred); with five shown, the width
+/// 0x80 x that (held 0 .. 0x100) / 0x30 and the drop half what that took away.
 pub fn lights(since: u32) -> Option<Lights> {
     if (since as i32) < 0 {
         return None;
@@ -34,19 +37,19 @@ pub fn lights(since: u32) -> Option<Lights> {
     let lit = if q < 6 { q } else { u32::MAX };
     let whole = rem == 0 && lit != u32::MAX;
     let rest = 0x100 - if whole { 0 } else { rem * 2 };
-    let (fade, shift) = if shown == 5 {
+    let (width, drop) = if shown == 5 {
         let v = (rest as i32).clamp(0, 0x100);
-        let fade = (v as i64 * 0x80 / 0x30) as i32;
-        (fade as u32, (v.wrapping_sub(fade) >> 1) as u32)
+        let width = (v as i64 * 0x80 / 0x30) as i32;
+        (width as u32, (v.wrapping_sub(width) >> 1) as u32)
     } else {
         (rest, 0)
     };
     Some(Lights {
         shown,
         lit,
-        fade,
-        size: rest,
-        shift,
+        width,
+        alpha: rest,
+        drop,
         whole,
     })
 }
@@ -109,12 +112,12 @@ mod tests {
         assert_eq!(lights(u32::MAX), None);
         let l = lights(300).unwrap();
         assert_eq!(
-            (l.shown, l.lit, l.whole, l.fade, l.size),
+            (l.shown, l.lit, l.whole, l.width, l.alpha),
             (3, 3, true, 0x100, 0x100)
         );
         let l = lights(550).unwrap();
         assert_eq!(
-            (l.shown, l.fade, l.shift),
+            (l.shown, l.width, l.drop),
             (
                 5,
                 0x9C * 0x80 / 0x30,

@@ -4,8 +4,6 @@
 //! `race::place_car_on_line`, `race::reset_car_motion`; then +0xFB0 and +0xFB4
 //! (`dword_71AF88`, `8C`) 8 and +0xFAC (`dword_71AF84`) 10.
 //!
-//! In:  nothing (the registers are passed on to the calls)
-//!
 //! Caller: `physics::reset_car` (its end). Refuses what the three calls refuse.
 
 use crate::errors::Refused;

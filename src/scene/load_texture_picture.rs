@@ -2,8 +2,6 @@
 //! texture.
 //!
 //! Takes: the picture's number, the texture
-//! Out: the original leaves eax, ebx, ecx, edx and ebp changed; its one caller keeps
-//!      them all. The Rust version keeps them.
 //!
 //! A picture is `tx<number>.pcx`, four decimal digits, and with it goes the picture
 //! numbered one higher (by the look of it its transparency). The folder is by the

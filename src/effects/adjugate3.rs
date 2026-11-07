@@ -4,8 +4,8 @@
 //!
 //! Takes: the matrix, the result (here two arrays of nine floats)
 //!
-//! Caller: `sub_4BCB1D` (0x4BCD63). The arithmetic is plain Rust on the x87 model
-//! (`math::x87_float`), in the original's order.
+//! Caller: `effects::expire_windscreen_drops` (0x4BCD63). The arithmetic is plain Rust on the x87
+//! model (`math::x87_float`), in the original's order.
 
 use crate::session::Float;
 

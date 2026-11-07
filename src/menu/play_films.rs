@@ -1,17 +1,18 @@
 //! `menu::play_films` (0x4161CD): the films: the two logos at the start, then the intro,
 //! over and over with the game's own demonstration between, until a key.
 //!
-//! - `sub_40F826`, and a pending key is taken and thrown away.
+//! - `sound::stop_music`, and a pending key is taken and thrown away.
 //! - At the start only: nothing at all (straight to the end) with the setting `nofmv`;
 //!   else `allogo.avi` if the screen has 16 bits (its extension swapped by
 //!   `files::swap_missing_extension` if the file is missing), then `mflogo.mpg`, each
-//!   through the player `sub_41AE39` with ebx = 0; then `sub_4059F4`.
-//! - `sub_415515`; from the idle menu also `sub_4433A7`, `nullsub_6`.
+//!   through the player 0x41AE39 with ebx = 0; then `gfx::clear_front_surface`.
+//! - `scene::set_up_lit_engine`; from the idle menu also `race::render3d_tidy`, `nullsub_6`.
 //! - Then round and round: without `nofmv`, and if `intro.mpg` is there, the intro
 //!   through the player, which ends the round if it comes back with the zero flag
-//!   clear; else `sub_463666` (ebp kept across it), and a key ends the
+//!   clear; else `race::credits_race` (ebp kept across it), and a key ends the
 //!   round.
-//! - `sub_409B76`, `sub_4059F4`; from the idle menu also `sub_442AF6`.
+//! - `sound::let_sounds_play`, `gfx::clear_front_surface`; from the idle menu also
+//!   `scene::set_up_engine`.
 //!
 //! What the unnamed ones do has not been read. Callers: `menu::run_front_end` (with 0),
 //! `menu::main_menu_loop`'s idle step (with 1), and 0x470593. Rust callers run its `entry`
@@ -118,7 +119,7 @@ impl Game {
                 flags.zero = there;
             }
             // Fixed (2026-10-24, `wiki/Fixed-bugs.md`): the players' absences cleared
-            // first, as the original's other caller of the demonstration (`sub_443104`)
+            // first, as the original's other caller of the demonstration (0x443104)
             // does; the original's films kept the quit answer of the last race left by
             // the quit question, and its demonstration ended at its first frame.
             Step::Demonstration => {

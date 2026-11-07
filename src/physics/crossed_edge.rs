@@ -4,9 +4,9 @@
 //! raised to |`flt_6D3108`|, `unk_71A20C` = 1, `unk_71A1CC` = 0x32;
 //! `physics::feel_ground`.
 //!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) a
-//! probe point past 0x3F (the tables' room), and what its calls refuse (what was written
-//! put back).
+//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
+//! (before anything) a probe point past 0x3F (the tables' room), and what its calls refuse (what
+//! was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

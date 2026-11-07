@@ -3,7 +3,6 @@
 //! times; 0 ends it.
 //!
 //! Takes: the packed bytes, where they go
-//! Out: ecx the bytes written; eax, esi, edi kept (pushed); no flags read
 //!
 //! Caller: `drive::read_packed`, into the replay block. Refuses (before anything) more
 //! than 0x100000 bytes out (a guard against a broken frame) or more than the block holds.

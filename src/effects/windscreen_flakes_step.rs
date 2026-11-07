@@ -3,7 +3,8 @@
 //! `effects::pick_shapes` and `effects::expire_windscreen_flakes`, `dword_84460C` on one (low byte); then
 //! `dword_814714` it.
 //!
-//! Caller: `sub_4BF60F` (0x4BF809). The calls are their Rust versions. Refuses
+//! Caller: `effects::windscreen_flakes_frame` (0x4BF809). The calls are their Rust versions.
+//! Refuses
 //! `pick_shapes`' refusals (all it may write put back first).
 
 use crate::effects::expire_windscreen_flakes::expire_windscreen_flakes;

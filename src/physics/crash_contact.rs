@@ -12,8 +12,8 @@
 //! `flt_5C5D60`) / `flt_5C5D60` held at most 1, times `unk_71A160`; `unk_71AA10` =
 //! `dword_6D310C`.
 //!
-//! Caller: `sub_43B635`, every physics step. Refuses a point past 0x3F on the long path
-//! (the tables' room), and what its calls refuse; what was written is put back.
+//! Caller: `physics::car_physics_step`, every physics step. Refuses a point past 0x3F on the long
+//! path (the tables' room), and what its calls refuse; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

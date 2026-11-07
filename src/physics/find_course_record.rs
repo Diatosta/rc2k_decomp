@@ -2,15 +2,12 @@
 //! whose first dword is the key in eax, looked for among its kind's records: kind = (key &
 //! 0xF) + ((key >> 11) & 0xF) * 0x10, records `g_kindFirstRecords[kind]` ..=
 //! `g_kindLastRecords[kind]` (`race/course_data.rs`; -1 first: none). The key is a grid
-//! cell by its callers (`sub_441FBA`: (z >> 21) << 11 + (x >> 21)).
+//! cell by its callers (0x441FBA: (z >> 21) << 11 + (x >> 21)).
 //!
 //! Takes: the key
-//! Out: CF clear when found: ebx its number, esi its address; CF set when not: ebx -1
-//!      (no records) or last + 1, esi the last tried (kept when none). Always edx = eax
-//!      = the key, ebp = ((key >> 11) & 0xF) << 4. ZF not read (`jb`).
 //!
-//! Callers (2): `sub_441FBA` (the ground's search, `sub_441E2F`'s nine cells) and
-//! `sub_45E291`. Refuses (before anything) a kind whose last record is at or past
+//! Callers (2): 0x441FBA (the ground's search, `physics::ground_search`'s nine cells) and
+//! `physics::cell_face_contacts`. Refuses (before anything) a kind whose last record is at or past
 //! `g_courseRecordCount` while its first is not -1 (a search past the records; not worked
 //! out).
 //!

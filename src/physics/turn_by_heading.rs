@@ -3,9 +3,8 @@
 //! `math::turn_float_point_xz` (ebx passed through as y) and stored back.
 //!
 //! Takes: the point, passed on
-//! Out: eax x', ecx z', edx as `turn_scratch_xz` leaves it; the rest kept; no flags read
 //!
-//! Caller: `sub_45E800` (0x45E8A9).
+//! Caller: `physics::point_hits_car` (0x45E8A9).
 
 use crate::math::turn_float_point_xz::turn_float_point_xz;
 use crate::race::owner_shared::Shared;

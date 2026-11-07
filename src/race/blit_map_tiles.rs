@@ -6,8 +6,6 @@
 //! tile's place on the locked surface (`g_surface`); the gap between a tile's rows kept in
 //! `dword_5BE9AD`; unlocked (`d3d::unlock_texture`, eax as the lock left it).
 //!
-//! In:  `texture` (eax), `first_x` / `first_y` (ecx / edx) the first tile's column and row
-//!
 //! Callers: `race::map_tiles_stub`, so `race::map_tiles` (the map's scroll). Refuses (after the
 //! lock, unlocking first) a null surface, and a null tile table with a tile inside the 0x80 x
 //! 0x80.

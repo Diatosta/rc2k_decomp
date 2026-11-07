@@ -5,8 +5,6 @@
 //! `dword_63DC58` back from `dword_63E170`, the backdrop (`race::draw_view_backdrop`), the
 //! scene (`race::draw_view_scene`); the two put back; the full view's window again
 //! (`race::full_view_window_2`).
-//!
-//! In:  nothing (its steps read no register it gives them)
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

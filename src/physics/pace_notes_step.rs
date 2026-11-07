@@ -9,9 +9,6 @@
 //! (`physics::queue_pace_note`, edx the checkpoint), and
 //! `unk_71A074` = ebx. Then (unless it left at the start) `physics::expire_car_events`.
 //!
-//! Out: the start's gates closed: every register kept; else ebx and edx as above (edx not
-//!      set when nothing was called) and what `expire_car_events` leaves; no flags read
-//!
 //! Caller: `physics::car_physics_step`, which calls the Rust version directly. Its calls by
 //! `physics/queue_pace_note.rs`' places (5 the group, 6 the expiry). Refuses what its calls
 //! refuse.

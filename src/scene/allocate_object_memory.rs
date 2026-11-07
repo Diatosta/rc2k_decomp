@@ -1,9 +1,6 @@
 //! `scene::allocate_object_memory` (0x41F814): takes the memory the objects' points
 //! and faces are loaded into.
 //!
-//! Out: eax = the memory's end, ebx = the list it is taken on; everything else
-//!      preserved
-//!
 //! One block on the list `stru_5C6DD0`, counted in `dword_5C6F90`: in a race 0x300000 bytes,
 //! 0xC0000 of them for the points and 0x240000 for the faces; else 0x580000, 0x180000 and
 //! 0x400000. `g_objectPoints` = the block, `dword_5C6FA8` (the faces' memory) = what follows

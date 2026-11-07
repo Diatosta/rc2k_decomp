@@ -3,9 +3,9 @@
 //! Takes: the voice
 //!
 //! Only for a voice with data, a length and a `data_key`: `length` bytes from the samples'
-//! memory (`sub_409DFB`, inlined: `memory::allocate` on `g_sampleMemory`; its fatal
+//! memory (0x409DFB, inlined: `memory::allocate` on `g_sampleMemory`; its fatal
 //! error 0x80E28021 cannot come), the data copied there and the voice's data pointed at it. One caller,
-//! command 3 (`sub_40AEB9`). Since phase 12 the copy is Rust's (`audio::sample_data::keep`,
+//! command 3 (`audio::load_sounds`). Since phase 12 the copy is Rust's (`audio::sample_data::keep`,
 //! counted on `g_sampleMemory` as the block was) and the voice's data its id.
 
 use crate::audio::store::AudioState;

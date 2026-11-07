@@ -3,8 +3,6 @@
 //! clear otherwise (and clear without either setting).
 //!
 //! Takes: the object
-//! Out: CF; eax its kind when a setting was on, else kept; the rest kept (ZF as the last
-//!      compare leaves it, not read: callers `jb`)
 //!
 //! Callers: `scene::object_hidden_by_kind` (0x4522F0, inlined in `scene::draw_shown_object`),
 //! `scene::kind_hidden_at` (0x4522FC). Refuses an object past 0xFF while a setting is on (the

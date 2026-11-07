@@ -11,8 +11,8 @@
 //! run is plain Rust over `X` (`math/x87_float.rs`) in the named helpers below, the
 //! original's instructions being `asm_reference` in the tests.
 //!
-//! Caller: `sub_43B635`, every physics step. Refuses (before anything) a gear outside -1
-//! ..= 7 (`revs_from_wheels` would; the gear is not written here).
+//! Caller: `physics::car_physics_step`, every physics step. Refuses (before anything) a gear
+//! outside -1 ..= 7 (`revs_from_wheels` would; the gear is not written here).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

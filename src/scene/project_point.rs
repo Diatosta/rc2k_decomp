@@ -2,10 +2,6 @@
 //! worked out once and kept.
 //!
 //! Takes: the point's number
-//! Out: edx = its record (Rust: `scene::point_records`' number, phase 13); a point of the scene: eax unchanged, ecx = the point's address
-//!      (or the number of points + 0x40 if the record was already made); a point of an
-//!      object (a negative number): eax = the record's offset; everything else preserved
-//!      (Rust: the record only; no caller reads the original's eax and ecx)
 //!
 //! The records are 0x20 bytes each at `dword_5C6FB8`: +0 the point's number, +0xC the
 //! x on the screen, +0x10, +0x14, +0x18 the point in the view, +0x1C the y on the
@@ -13,7 +9,7 @@
 //! record 0x1000 + (n & 0xFFF), which is made elsewhere and only found here.
 //! A record whose number is not the point's is made anew: the point's three whole
 //! numbers (12 bytes each at `dword_5CCCC0`) through the matrix `flt_5EA2CC`
-//! (`sub_44D110`: three rows of x, y, z factors and a fourth to add; x87, inlined here
+//! (`scene::rotate_point`: three rows of x, y, z factors and a fourth to add; x87, inlined here
 //! with its own instructions), the screen's two set to 0, and, unless the depth is
 //! under 4096: x = x' * (`flt_624088` / depth) + `flt_62409C`, y = `flt_6240A0` - y' *
 //! (the same). With `dword_60932C` set the depth divided by is `dword_5CCD80` + 1
@@ -53,7 +49,7 @@ const TOO_HIGH: FatalError = FatalError {
 
 // ---- Rust version ----
 
-/// `sub_44D110` as `project_point` uses it: the point's three whole numbers through the
+/// `scene::rotate_point` as `project_point` uses it: the point's three whole numbers through the
 /// matrix, into the record's +0x10, +0x14, +0x18.
 pub(crate) fn rotate(point: &[u32], matrix: &[u32], record: &mut [u32]) {
     rotate_at(point, matrix, cells(record));
@@ -176,7 +172,7 @@ pub struct Projected {
     pub record: u32,
 }
 
-/// A scene point's record made anew (`sub_44CF4E`, and the same code in
+/// A scene point's record made anew (0x44CF4E, and the same code in
 /// `project_point`): the point through the view's matrix and onto the screen.
 pub(crate) fn make_scene_record(
     race: &Race,

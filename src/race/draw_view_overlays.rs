@@ -5,9 +5,6 @@
 //! (`race::draw_flat_triangle`), the depth buffer on, the filters; the own car drawn
 //! (`race::draw_own_car`) with `dword_621900` 0 meanwhile (put back after), the screen's
 //! tint, the draw batch flushed, the filters.
-//!
-//! In:  nothing (no step reads a register its caller gives; edx's "read" in the liveness is
-//!      the marks' `imul`)
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

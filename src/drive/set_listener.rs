@@ -14,9 +14,6 @@
 //! two floats copied; with `dword_601024` set, `dword_5C5680` and `dword_5C5684` 0. By
 //! the look of it the listener for the 3D sounds (a reading).
 //!
-//! Out: eax the old `dword_70F628`, ebx 0x10000, ecx 0, edx 0, esi `g_madeObjectMatrix`,
-//!      edi 0x5EA10C, ebp `g_madeObjectMatrix`; no flags read
-//!
 //! Caller: `drive::share_all_cars` (0x456484), second. Refuses (before anything) a viewed
 //! car past the eight blocks or with a null block, a car file number above 0x21, and a
 //! light record figure whose times 65536 over 1000 leaves 32 bits (the original's `idiv`

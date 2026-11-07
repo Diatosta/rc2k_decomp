@@ -1,14 +1,12 @@
 //! `scene::count_texture_needs` (0x423EB1): how many textures are needed and how much
 //! memory they take, for the log.
 //!
-//! Out: eax = the last number looked at, ecx = 0x400
-//!
 //! Over the 0x400 textures: those needed in system memory (`dword_5CEAE0` not -1) are counted
 //! in `dword_5DC974` and their levels' sizes (`dword_5CDAAC`) added in `dword_5DC96C`; those
 //! needed in video memory (`dword_5CFAE0`) in `dword_5DC970` and `dword_5DC968`. Then one line
 //! in the game's log: "VID <k> k in <n> texs - SYS <k> k in <n> texs". `dword_5DC970` is also
 //! what `scene::load_slot_textures` takes for the slots' number. Two call sites in
-//! `sub_42274B`. Refuses a level past the sizes' table.
+//! `scene::build_texture_catalogue`. Refuses a level past the sizes' table.
 
 use crate::errors::BadInput;
 use crate::logfile::log_int::log_int;

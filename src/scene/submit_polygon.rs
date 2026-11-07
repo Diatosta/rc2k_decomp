@@ -4,9 +4,6 @@
 //! In:  nothing: the vertices are at `g_polygonVertices` (0x9605A0), their number in
 //!      `g_polygonVertexCount` (0x6240F8), the texture's number in `g_polygonTexture`
 //!      (0x6240D4)
-//! Out: the original leaves eax, ecx, edx and esi changed; none of its fourteen call
-//!      sites (all in `sub_44BA2C`) reads them, and the Rust version keeps every
-//!      register
 //! With `scene::draw_polygon_fan` (0x44EA36), `scene::check_polygon_vertices`
 //! (0x44EA6A), `scene::set_texture` (0x44E77E) and `scene::clear_texture` (0x44E958)
 //! inlined, each of which has this as its only caller on the way here.
@@ -15,7 +12,7 @@
 //! (`dword_5CDA8C` not 0; a reading).
 //! The vertices: each must have x in 0 .. the screen's width, y in 0 .. its height
 //! and z in 0 .. 1 (compared on the x87; one that is not a number fails), else "Error"
-//! is logged, the buffer shown by `sub_443AEC` and nothing drawn. Then, with 3D, the
+//! is logged, the buffer shown by `scene::show_bad_polygon` and nothing drawn. Then, with 3D, the
 //! fan; a result other than 0 is logged as "drawtri" and the number.
 
 use crate::d3d::draw_fan_unclipped::polygon;
@@ -38,7 +35,7 @@ pub trait Outside {
     fn set_texture(&mut self, texture: u32);
     /// `d3d::draw_fan_unclipped`: Direct3D's result.
     fn draw_fan(&mut self, vertices: &[Vertex]) -> u32;
-    /// A vertex is off the screen: "Error" to the log and `sub_443AEC`.
+    /// A vertex is off the screen: "Error" to the log and `scene::show_bad_polygon`.
     fn bad_vertex(&mut self);
     /// Direct3D did not draw: "drawtri" and its result to the log.
     fn not_drawn(&mut self, result: u32);

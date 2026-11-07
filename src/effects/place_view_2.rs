@@ -3,7 +3,7 @@
 //! `flt_8DB53C`, out at `dword_8D2214`, the copy at `dword_8D2220`), then `dword_8D20C0`
 //! .. `dword_8D20DC` 0 and the four floats at `xmmword_8D20E0` 0x80000.
 //!
-//! See `marks/place_view.rs`; no variable shared with it. One caller, `sub_4C25F6`.
+//! See `marks/place_view.rs`; no variable shared with it. One caller, `effects::run_snow`.
 //!
 //! compared as `place_view`.
 

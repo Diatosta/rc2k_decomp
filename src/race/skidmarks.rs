@@ -1,6 +1,6 @@
-//! The skidmarks' drawing (`sub_4585E3` / `sub_458C03`, IDA 2026-10-18). A skidmark is a
-//! chain of up to 0x400 links (`word_643AE8`, 8 bytes each: +0 the link before, -1 none;
-//! +6 the views it shows in, a bit each) with two points each (`unk_645B18`, 0xC bytes a
+//! The skidmarks' drawing (`race::draw_skidmarks_if_on` / `race::draw_skidmarks`, IDA 2026-10-18).
+//! A skidmark is a chain of up to 0x400 links (`word_643AE8`, 8 bytes each: +0 the link before, -1
+//! none; +6 the views it shows in, a bit each) with two points each (`unk_645B18`, 0xC bytes a
 //! point: x, y, z whole numbers); each link and the one before give a quad.
 
 use crate::errors::BadInput;

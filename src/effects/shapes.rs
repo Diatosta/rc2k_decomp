@@ -1,4 +1,4 @@
-//! Two of `sub_4C0F2E`'s steps (IDA, 2026-10-17): the shape tables of two kinds of marks'
+//! Two of `effects::load_edges`'s steps (IDA, 2026-10-17): the shape tables of two kinds of marks'
 //! items, named here by their shapes (what draws them is not read yet). Each clears its
 //! 0x800 items, makes a quarter-circle curve of 0x100 floats and 8 circles of points (by
 //! the radii after the curve), and sets up what follows.
@@ -52,7 +52,7 @@ pub const ITEMS: u32 = 0x800;
 const CURVE: u32 = 0x100;
 const RADII: u32 = 8;
 
-/// `sub_4BAA55`'s, over the group's stores.
+/// `effects::set_up_windscreen_drops`'s, over the group's stores.
 impl<'a> Shapes<'a> {
     pub fn windscreen_drops(drops: &'a WindscreenDrops) -> Self {
         Shapes {
@@ -71,13 +71,13 @@ impl<'a> Shapes<'a> {
     }
 }
 
-/// Where `sub_4BAA55` goes on once done: `loc_4BAAC5`.
+/// Where `effects::set_up_windscreen_drops` goes on once done: `loc_4BAAC5`.
 pub const WINDSCREEN_DROPS_RESUME: u32 = 0x4BAAC5;
 
-/// Where `sub_4BF529` goes on once done: `loc_4BF545`.
+/// Where `effects::set_up_windscreen_flakes` goes on once done: `loc_4BF545`.
 pub const WINDSCREEN_FLAKES_RESUME: u32 = 0x4BF545;
 
-/// The squares' side of `Shapes` (`sub_4BF529`'s): the same steps over the squares' typed
+/// The squares' side of `Shapes` (0x4BF529's): the same steps over the squares' typed
 /// variables (`effects::windscreen_flakes_store`), four points to a circle.
 mod squares {
     use super::{CURVE, RADII};

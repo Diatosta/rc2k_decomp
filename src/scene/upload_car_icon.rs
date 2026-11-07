@@ -2,10 +2,6 @@
 //! The game's log calls every texture a "icon"; this was `scene::upload_plate` until
 //! 2026-10-24.
 //!
-//! In:  eax, ecx = the icon sheet's two pictures (the second for the alpha), ebx = the
-//!      system texture, edx, esi = where on the sheet the icon is, edi, ebp = where on
-//!      the texture it goes
-//!
 //! - ebx, edi, ebp, edx, esi to `dword_5BE8F1`, `_8F5`, `_8F9`, `_8FD`, `_901`, the
 //!   icon's size 0x52 x 0x2A to `dword_5BE905`, `_909`.
 //! - With the texture's record (0x78 bytes at `unk_5B521C`) +0x5C at 1: the second
@@ -18,10 +14,10 @@
 //!   a size not in it, or two different numbers, is a fatal error (0x80A18761 ..
 //!   0x80A18767). The picture is halved that many times (`halve_texture`) and the six
 //!   places and sizes stored are shifted right by it.
-//! - The texture locked (`sub_41AA4B`, which makes it `g_surface`); if it locked, the
+//! - The texture locked (`d3d::lock_texture`, which makes it `g_surface`); if it locked, the
 //!   icon's piece blitted (`gfx::blit_components`, the picture's row bytes being its
 //!   height times 4: the original's, a square sheet makes it right) and the texture
-//!   unlocked (`sub_41AB02`). Those two are Direct3D and stay the game's.
+//!   unlocked (`d3d::unlock_texture`). Those two are Direct3D and stay the game's.
 //!
 //! Two call sites in `scene::load_hud_car_icons`. Refuses a texture of 0x140 or more, a record
 //! without its format, and what the pixel functions refuse; a refusal after the pictures are

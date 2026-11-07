@@ -2,8 +2,8 @@
 //! current car's work copy, `drive/car.rs`): `physics::revs_from_wheels` (0x43C0C9),
 //! `physics::wheels_from_revs` (0x43C124). Both do nothing in gear 0 (neutral); else they
 //! divide or multiply by the gear's ratio, `g_gearRatios[gear]` (0x6140C0; gear -1, the
-//! reverse, at 0x6140BC; seven forward gears by `sub_4219E6`). With `g_carDriveKind` 1 the
-//! two driven speeds are averaged / both set: by the look of it four-wheel drive (a
+//! reverse, at 0x6140BC; seven forward gears by `physics::make_gear_ratios`). With `g_carDriveKind`
+//! 1 the two driven speeds are averaged / both set: by the look of it four-wheel drive (a
 //! reading, not seen in a race). The exact x87 versions (`*_at`) serve the Rust callers in
 //! the gearbox.
 

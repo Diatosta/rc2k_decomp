@@ -9,7 +9,8 @@
 //!   (`scene::known_kind_picture` of `dword_623858`[car]) and the seven after it.
 //! - `scene::reload_system_textures`, `scene::reload_slot_textures`.
 //!
-//! Callers: `sub_44426F` (loadlevel_init) and the code at 0x425B29. Refuses more than 8 cars.
+//! Callers: `race::loadlevel_init` (loadlevel_init) and the code at 0x425B29. Refuses more than 8
+//! cars.
 
 use crate::errors::Refused;
 use crate::pointers::GamePtr;

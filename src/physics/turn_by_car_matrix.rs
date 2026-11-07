@@ -6,8 +6,8 @@
 //! Returns: the point turned
 //!
 //! `physics::turn_by_inverse` (0x43F118) is the same with the matrix at 0x71A9A4
-//! (`g_carInverseMatrix`, made by `sub_43F16C` with `scene::invert_turn`).
-//! Callers (6): the cars' physics under `sub_4454D2`.
+//! (`g_carInverseMatrix`, made by `race::invert_car_matrix` with `scene::invert_turn`).
+//! Callers (6): the cars' physics under `drive::race_step`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

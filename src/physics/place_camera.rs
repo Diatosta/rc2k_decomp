@@ -7,7 +7,7 @@
 //! ..; then the second offset (`dword_608B74` .., / 65536) turned by `g_crashMatrix`
 //! (`scene::rotate_point`), x 65536 (`fistp`), plus `dword_6416E8` .., added to it.
 //!
-//! Callers: `sub_43907F` (seven).
+//! Callers: `physics::camera_avoid_ground` (seven).
 
 use crate::math::x87_float::{f80, int, ld};
 use crate::race::owner::Race;

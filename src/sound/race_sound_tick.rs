@@ -1,13 +1,12 @@
 //! `sound::race_sound_tick` (0x421BA9): the race frame's sound tick: every 20 ms of the
 //! scene clock, `sound::race_turn_if`.
 //!
-//! Out: eax the scene clock less the last tick (not due) or the clock (due); ebx as
-//!      `race_turn_if` leaves it; everything else preserved
 //! `g_sceneClock` less `dword_5CC3B0` under 0x14 (unsigned): nothing. Else
 //! `dword_5CC3B0` = the clock, `sound::race_turn_if`, `dword_5CC3B8` counts up.
-//! 28 callers, all in the race's frame (`sub_4541BF`, `sub_45429B`, `sub_4547AE`,
-//! `sub_4557AB`, `sub_4559A6`, `sub_442D49`): for the Rust ones, the Rust version
-//! (`race_sound_tick`); `race_turn`'s quit jump then
+//! 28 callers, all in the race's frame (`drive::race_frame`, `race::draw_race_scene`,
+//! `race::show_frame`,
+//! `race::draw_view_scene`, `race::draw_view_overlays`, 0x442D49): for the Rust ones, the Rust
+//! version (`race_sound_tick`); `race_turn`'s quit jump then
 //! skips their frames (held for the owner: notes/open_items_full.md).
 
 use crate::errors::Refused;

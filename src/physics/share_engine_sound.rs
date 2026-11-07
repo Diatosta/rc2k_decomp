@@ -6,8 +6,8 @@
 //!
 //! Returns: the sound object
 //!
-//! Caller: `sub_43B635` (0x43B99F), every physics step. Refuses (before anything) a null
-//! sound object.
+//! Caller: `physics::car_physics_step` (0x43B99F), every physics step. Refuses (before anything) a
+//! null sound object.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

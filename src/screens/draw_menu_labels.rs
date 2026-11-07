@@ -3,8 +3,8 @@
 //! Takes the menu.
 //! The menu's first dword points at a list of labels, 0x10 bytes each: x, y, font, string id. The
 //! list ends with -1, but the first label is drawn without being checked for it. Each is drawn with
-//! `draw_string_by_id`. One caller, the menu's drawing step `sub_4746B7`. Refuses a menu without a
-//! label list, a list without an end in its first 256 labels, and a label whose font
+//! `draw_string_by_id`. One caller, the menu's drawing step `menu::draw_menu`. Refuses a menu
+//! without a label list, a list without an end in its first 256 labels, and a label whose font
 //! field is off the lists' grid (the fonts are handles: `menus_store::label_font`).
 
 use crate::errors::{BadInput, Refused};

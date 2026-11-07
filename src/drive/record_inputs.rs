@@ -3,9 +3,6 @@
 //! car's 8 of its 16 bytes), and the words given back as the tape keeps them
 //! (`drive::unpack_inputs`).
 //!
-//! Out: eax .. edx the words, esi the tape's offset (cars 0, 1); the rest kept; no flags
-//!      read
-//!
 //! Caller: `drive::record_inputs_if`.
 
 use crate::errors::BadInput;

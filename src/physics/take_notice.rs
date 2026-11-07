@@ -4,10 +4,8 @@
 //! look of them, times to show it), the count less 1, and the three lists moved down one
 //! (0x1F dwords each, `rep movsd`).
 //!
-//! Out: when one is taken: eax the id, ecx 0, esi 0x71A5D4, edi 0x71A5D0 (the last
-//!      `rep movsd`'s ends); else every register kept
-//!
-//! Caller: `sub_43B635` (0x43B961), every physics step, right after `sub_4B0241`.
+//! Caller: `physics::car_physics_step` (0x43B961), every physics step, right after
+//! `physics::damage_notices`.
 
 use crate::physics::cells::set_changed;
 use crate::physics::queue_notice::{load, store};

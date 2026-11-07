@@ -6,10 +6,7 @@
 //! `dword_62400C`, / 256 into +0x280 (`unk_71A258`). Then with `dword_60934C` set +0x900
 //! 0, else +0x904 0.
 //!
-//! Out: eax the second sample (held), ebx its range, ecx and edx as left, esi
-//!      `unk_A2AB04`; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B714), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B714), every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

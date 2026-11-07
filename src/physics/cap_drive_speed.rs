@@ -3,7 +3,7 @@
 //! unordered one counts as below); `g_carDriveSpeed` held to at most the speed plus it
 //! (through `dword_62400C`; a drive speed below that, or unordered, is left).
 //!
-//! Caller: `sub_43DFB1` (0x43E0DD).
+//! Caller: `physics::drive_wheels_step` (0x43E0DD).
 
 use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;

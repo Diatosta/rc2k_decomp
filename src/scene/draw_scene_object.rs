@@ -1,8 +1,6 @@
 //! `scene::draw_scene_object` (0x451E3E): chooses the set of textures for the object
 //! `g_objectNumber` and draws it the way the scene's mode asks for.
 //!
-//! In:  esi, passed on to `scene::draw_described_object`
-//!
 //! An object's number of 0x100 or more is fatal error 0x80600A01. `dword_639954` (added to
 //! every face's texture number) = 0; then 0x108 for, outside a race, an object of kind 0x23A,
 //! and in a race for objects 0x50 .. 0xEF (the cars, 0x14 objects each) whose car's block has
@@ -63,7 +61,7 @@ fn texture_set(
 
 /// `draw`: what stands for the two calls. What the original leaves in the registers (ebx
 /// the object's number among them) none of its callers reads (register liveness,
-/// 2026-10-23: only the unreached `sub_49081A` after `scene::draw_menu_object`).
+/// 2026-10-23: only the unreached 0x49081A after `scene::draw_menu_object`).
 // Converted: `rc2k_core::scene::shown::way`
 pub fn draw_scene_object(
     race: &crate::race::owner::Race,

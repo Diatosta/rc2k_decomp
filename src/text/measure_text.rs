@@ -2,8 +2,6 @@
 //! first, and returns them.
 //!
 //! Takes: font, text, x
-//! Out: carry and eax = 0 as `draw_text` leaves them; ebx = the font's dword at +0x14,
-//!      ecx = the one at +0x1C, edx = `draw_text`'s y; esi, edi, ebp preserved
 //! With a font in measure mode nothing is drawn, +0x14 counts the lines and +0x1C is the
 //! width of the widest one, which is what its twelve callers want. The y passed on is the
 //! font's dword at +8. With any other font it would draw, with a null palette: reproduced as

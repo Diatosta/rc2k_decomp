@@ -4,9 +4,7 @@
 //! it comes back), and `dword_614C24` = whether either now has the limit's size (C3: also
 //! when no number). A reading: no tumbling on the ground.
 //!
-//! Out: ecx the wheels down, ebx 4; the rest kept; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B986), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B986), every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

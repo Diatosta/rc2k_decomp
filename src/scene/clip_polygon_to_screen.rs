@@ -1,9 +1,6 @@
 //! `scene::clip_polygon_to_screen` (0x44D15A): cuts the polygon to the screen's four
 //! edges.
 //!
-//! Out: the original leaves eax, ecx, edx, esi changed, and after a clipping ebx, edi
-//!      and ebp too; its callers go on by the number of vertices alone (none reads them)
-//!
 //! `dword_624120` = 1. Each vertex's place on the screen (its record's +0xC and +0x1C) against
 //! the edges `flt_6241EC` (left), `flt_6241F0` (right), `flt_6241E4` (top) and `flt_6241E8`
 //! (bottom) gives the bits 1, 2, 4, 8 of a mask: right is looked at first and left only if the

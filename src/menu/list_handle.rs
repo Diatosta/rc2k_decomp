@@ -1,4 +1,4 @@
-//! A list menu (`sub_4144CF`'s pages, the replay viewer's items) and its items by name, in
+//! A list menu (`install::run_page`'s pages, the replay viewer's items) and its items by name, in
 //! place of `list + 0x18 + 0x10 * n` sums on game addresses.
 //!
 //! A list is a header of 0x18 bytes (+0 flags, +1 the item count, +2 the title's string,

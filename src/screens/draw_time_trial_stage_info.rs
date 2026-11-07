@@ -3,8 +3,9 @@
 //! above the panel: the group's title, the table's title and a heading built with string
 //! 0x482.
 //!
-//! Reached through the draw list at 0x758CFE of the screen loop `sub_48F1F4`, which the
-//! service area's "stage details" action `sub_47037E` starts when the event type
+//! Reached through the draw list at 0x758CFE of the screen loop
+//! `menu::time_trial_stage_details_loop`, which the service area's "stage details" action
+//! `menu::view_stage_details` starts when the event type
 //! `dword_755954` is 3 (a time trial); in the other event types that action opens
 //! `draw_service_stage_info`.
 //!

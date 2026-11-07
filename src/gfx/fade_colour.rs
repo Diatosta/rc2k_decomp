@@ -3,8 +3,6 @@
 //! the byte of ecx in the same place; the top byte kept.
 //!
 //! Takes: the colour, the colour faded to, how far (0x100 all the way)
-//! Out: eax = ebx = the colour; ecx kept (turned twice); esi the third byte of the colour
-//!      before; edx the high dword of the last `imul`; no flags read
 //!
 //! Callers: 0x425A23, `race::splash_mud` (0x44A403), 0x44CB15.
 

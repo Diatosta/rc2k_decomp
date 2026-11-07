@@ -2,9 +2,9 @@
 //! the copy it is kept in while it is typed (`unk_755884`, 0x1F bytes; the other text
 //! entries keep theirs at `unk_7558A4`).
 //!
-//! - `sub_467D20`: edi = the current player's name (`Player::name`), eax kept;
-//! - `sub_467D34`: the name's 0x1F bytes to the copy; `sub_467D50`: back again;
-//! - `sub_467DA5`: unless the length typed (`dword_75556D`) is 0, one less, and a NUL
+//! - `menu::player_name`: edi = the current player's name (`Player::name`), eax kept;
+//! - 0x467D34: the name's 0x1F bytes to the copy; 0x467D50: back again;
+//! - 0x467DA5: unless the length typed (`dword_75556D`) is 0, one less, and a NUL
 //!   there.
 //!
 //! Inlined into `menu::begin_player_name` and `menu::edit_player_name`.

@@ -5,8 +5,8 @@
 //! Unless there are no system textures (`dword_5DC974`): the progress `dword_623700` = the low
 //! end `dword_623634` plus eax times (the high end `dword_623638` less the low) over the
 //! textures' number, plus 1. Then the function `dword_623704` names is called (the front end's
-//! set-up puts `sub_4467C7` there, which draws). One caller, `scene::reload_system_textures`.
-//! Refuses no function to call.
+//! set-up puts `race::loading_bar_frame` there, which draws). One caller,
+//! `scene::reload_system_textures`. Refuses no function to call.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;

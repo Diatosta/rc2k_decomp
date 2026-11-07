@@ -6,8 +6,6 @@
 //! `dword_601434[split]` x 100; +0xA4 0; the splits taken made +0x90; at
 //! `g_splitColourCount` finished: +0xA8 1, the notice 0xC8 (+0x72C -1, +0x730 0).
 //!
-//! Out: eax, ebx and what the calls leave; no flags read
-//!
 //! Caller: `physics::race_timers`. Refuses (before anything) a split past 0x3F, and what
 //! the calls refuse.
 //!

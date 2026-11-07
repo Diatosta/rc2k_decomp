@@ -8,8 +8,8 @@
 //!
 //! Returns: `g_carDriveKind`
 //!
-//! Callers: `sub_43B635` (every physics step) and `race::settle_car`. Refuses (before
-//! anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables hold
+//! Callers: `physics::car_physics_step` (every physics step) and `race::settle_car`. Refuses
+//! (before anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables hold
 //! two).
 
 use crate::errors::{BadInput, Refused};

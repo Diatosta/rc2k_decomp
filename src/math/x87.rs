@@ -233,8 +233,8 @@ pub fn mul_div_div_to_int(a: u32, b: u32, c: u32, d: u32) -> i32 {
     bh::to_int(bh::ld(a) * bh::ld(b) / bh::ld(c) / bh::ld(d))
 }
 
-/// `sub_41FC4D`'s sequence: x, y, z squared and summed (y and z first), the root taken and
-/// compared with `zero`; unless equal (or unordered), each of the three is divided by the
+/// `race::normalise_work_vector`'s sequence: x, y, z squared and summed (y and z first), the root
+/// taken and compared with `zero`; unless equal (or unordered), each of the three is divided by the
 /// root (not rounded to a float first) and stored back; then the root is stored. Returns
 /// the root's bits and whether it compared equal.
 pub fn normalise_in_place(v: &mut [u32; 3], zero: u32) -> (u32, bool) {
@@ -966,8 +966,8 @@ fn matrix_turn(m: &[u32; 15], a: bh::X, b: bh::X, c: bh::X, translate: bool) -> 
     out
 }
 
-/// `sub_4CE05E`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its rows
-/// 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
+/// `effects::emit_particle_13`'s point: (-t0 k, (t1 - d) k, t2 k) turned by the matrix at `m` (its
+/// rows 0x10 apart), placed by +0x30 .. and the place taken off again; then x, y, y less
 /// `lift`, z.
 pub fn turned_place_less(
     t: [u32; 3],
@@ -1064,7 +1064,7 @@ pub fn normalised3(p: [u32; 3], one: u32) -> [u32; 3] {
     [0, 1, 2].map(|i| bh::st(bh::ld(p[i]) * inverse))
 }
 
-/// `sub_4C9AF6`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
+/// `effects::cars_particles`'s third side: the cross product of (p0, p1, p2) and the vector at `w`
 /// (unrounded) turned by the transposed matrix at `m` (rows 0x10 apart).
 pub fn crossed_turned(
     p: [u32; 3],
@@ -1101,7 +1101,7 @@ pub fn sine_and_cosine(t: u32) -> (u32, u32) {
     (bh::st(t.sin()), bh::st(t.cos()))
 }
 
-/// `sub_4C1194`'s turn of (y, z) by the stored sine and cosine: z s + y c and z c - y s.
+/// `effects::tilt_shape`'s turn of (y, z) by the stored sine and cosine: z s + y c and z c - y s.
 pub fn turn_yz(y: u32, z: u32, s: u32, c: u32) -> (u32, u32) {
     let (y, z, s, c) = (bh::ld(y), bh::ld(z), bh::ld(s), bh::ld(c));
     (bh::st(z * s + y * c), bh::st(z * c - y * s))
@@ -1136,14 +1136,14 @@ pub fn int_over_int_times(a: i32, b: i32, k: u32) -> u32 {
     bh::st(bh::int(a) / bh::int(b) * bh::ld(k))
 }
 
-/// `sub_4B8A0B`'s crossing: t = (m - fc) / (fs - fc), then for each (s, c) pair
+/// `effects::clip_quad`'s crossing: t = (m - fc) / (fs - fc), then for each (s, c) pair
 /// (s - c) t + c, t kept unrounded.
 pub fn clip_lerp3(m: u32, fc: u32, fs: u32, pairs: [[u32; 2]; 3]) -> [u32; 3] {
     let t = (bh::ld(m) - bh::ld(fc)) / (bh::ld(fs) - bh::ld(fc));
     pairs.map(|[s, c]| bh::st((bh::ld(s) - bh::ld(c)) * t + bh::ld(c)))
 }
 
-/// `sub_4C969A`'s projection: q = focal / z, kept; x' = q x + cx, y' = -(q y) + cy,
+/// `effects::draw_mark_slots`'s projection: q = focal / z, kept; x' = q x + cx, y' = -(q y) + cy,
 /// s = q k.
 pub fn slot_project(focal: u32, z: u32, x: u32, cx: u32, y: u32, cy: u32, k: u32) -> [u32; 3] {
     let q = bh::ld(focal) / bh::ld(z);
@@ -1174,7 +1174,7 @@ pub fn diff_times_plus_times(b: u32, a: u32, k: u32, c: u32, m: u32) -> u32 {
     bh::st((bh::ld(b) - bh::ld(a)) * bh::ld(k) + bh::ld(c) * bh::ld(m))
 }
 
-/// `sub_4CFDD5`'s turn: the point p (x, y, z, 80 bits) by the matrix at m read by
+/// `effects::draw_particle`'s turn: the point p (x, y, z, 80 bits) by the matrix at m read by
 /// columns, each (m[c] x + (m[c+4] y + m[c+8] z)) + m[c+12]; the three rounded.
 pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Cells + ?Sized)) -> [u32; 3] {
     let [x, y, z] = {
@@ -1189,8 +1189,8 @@ pub fn column_turn(p: &[[u8; 10]; 3], m: &(impl crate::math::cells::Cells + ?Siz
     [bh::st(x), bh::st(y), bh::st(z)]
 }
 
-/// `sub_4CFDD5`'s square: q = focal / c, kept; z' = c zk; s = size q; Y = -(q b) + cy and
-/// X = q a + cx kept unrounded, the corners Y - s, Y - s, Y + s, Y + s and X - s, X + s,
+/// `effects::draw_particle`'s square: q = focal / c, kept; z' = c zk; s = size q; Y = -(q b) + cy
+/// and X = q a + cx kept unrounded, the corners Y - s, Y - s, Y + s, Y + s and X - s, X + s,
 /// X + s, X - s (s as stored). Out: [s, z', y0 .. y3, x0 .. x3].
 pub fn particle_square(a: u32, b: u32, c: u32, k: [u32; 4], size: i32) -> [u32; 10] {
     // k: focal, cx, cy, zk
@@ -1246,8 +1246,8 @@ pub fn int_times_plus_times_plus(r: i32, k1: u32, a: u32, k2: u32, b: u32) -> u3
     bh::st((bh::int(r) * bh::ld(k1) + bh::ld(a)) * bh::ld(k2) + bh::ld(b))
 }
 
-/// `sub_4CBD12`'s square: q = focal / c, kept; z' = c zk; s = size q; the half sides
-/// (s, s) and (s, -s) turned by sin / cos (u' = v cos + u sin, v' = -v sin + u cos, the
+/// `effects::draw_turned_sprite`'s square: q = focal / c, kept; z' = c zk; s = size q; the half
+/// sides (s, s) and (s, -s) turned by sin / cos (u' = v cos + u sin, v' = -v sin + u cos, the
 /// sides as stored); Y = -(q b) + cy and X = q a + cx kept unrounded, the corners Y - v1,
 /// Y - v2, Y + v1, Y + v2 and X - u1, X - u2, X + u1, X + u2. Out: [s, z', u1, v1, u2, v2,
 /// y0 .. y3, x0 .. x3].
@@ -1307,8 +1307,8 @@ pub fn int_to_float(a: i32) -> u32 {
     bh::st(bh::int(a))
 }
 
-/// `sub_4C4FFB`'s turn of a corner (x, y) by sin / cos about (cx, cy): x' = (x cos + y
-/// sin) + cx, y' = (-x sin + y cos) + cy.
+/// `effects::draw_flare_part`'s turn of a corner (x, y) by sin / cos about (cx, cy): x' = (x cos +
+/// y sin) + cx, y' = (-x sin + y cos) + cy.
 pub fn turn_about(x: u32, y: u32, sin: u32, cos: u32, cx: u32, cy: u32) -> [u32; 2] {
     let (x, y, sn, cs) = (bh::ld(x), bh::ld(y), bh::ld(sin), bh::ld(cos));
     [

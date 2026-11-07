@@ -6,7 +6,7 @@
 //!
 //! Returns: unchanged but on the 16th: and the counter, the cycles
 //!
-//! Caller: `sub_4547AE` (0x4547FD, `race::show_frame`); `flt_6214F0` is shown by
+//! Caller: 0x4547AE (0x4547FD, `race::show_frame`); `flt_6214F0` is shown by
 //! `race::draw_frame_rate`. The rate is worked out in plain floats. Fixed (2026-10-30,
 //! `wiki/Fixed-bugs.md`): the cycles from the whole counter, not its signed low halves.
 

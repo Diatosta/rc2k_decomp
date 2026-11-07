@@ -6,11 +6,9 @@
 //! `dword_641680` .. -1 but the shown ones' 0 (the first, and the second when there are
 //! two views). By the look of it the split screen's set-up (a reading).
 //!
-//! Out: eax `dword_63DBA0` (with `dword_52A910` set) or the second view's block; the
-//!      rest kept; no flags read (callers go on with `mov`, `lea`, calls)
-//!
-//! Callers (5): race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F`, `sub_43A649`,
-//! `sub_45429B`. Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with
+//! Callers (5): race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
+//! `drive::replay_step`, `race::race_keys`,
+//! `race::draw_race_scene`. Refuses (before anything) a replay car (`dword_63DBA0`) above 7 with
 //! `dword_52A910` set (it would write past `dword_641680`'s eight).
 
 use crate::errors::Refused;

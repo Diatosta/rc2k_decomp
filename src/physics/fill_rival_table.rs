@@ -4,9 +4,7 @@
 //! `dword_6238BC` points at a table of 90 records of 0x50 bytes, each record's +0, +8 and
 //! +0xC into `id`, `dword_602038` and `dword_601ED0` instead.
 //!
-//! Out: eax, ebx 23, ecx 90, edx, esi (the table's end, or 0) as left; no flags read
-//!
-//! Callers: `physics::rank_split_time`, `sub_435F43`.
+//! Callers: `physics::rank_split_time`, 0x435F43.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

@@ -1,13 +1,12 @@
 //! `audio::fill_buffer` (0x40B82B): a voice's sample data copied into its buffer.
 //!
 //! Takes: the voice
-//! Out: carry = failed; every register preserved
 //!
 //! Only for a voice with a buffer of its own (none shared): `Lock` (+0x2C) from 0 for its
 //! length into `g_lockedParts` (0x506A98: two pointers and their sizes), the data copied
 //! into the first part and, if there is one, on into the second, `Unlock` (+0x4C) with
 //! them. A failing `Lock` or `Unlock` sets the carry, and with `DSERR_BUFFERLOST`
-//! (0x88780096) `g_soundBufferLost`. Callers: command 3 and `sub_40A7C9` (the lost
+//! (0x88780096) `g_soundBufferLost`. Callers: command 3 and `audio::restore_lost` (the lost
 //! buffers' restoring).
 //! Refuses A3D (the chunk at 0x40CDE8).
 

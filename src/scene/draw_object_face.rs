@@ -1,18 +1,13 @@
 //! `scene::draw_object_face` (0x450BDA): one face of an object, from its record to the
 //! work table and on to the drawing.
 //!
-//! In:  ebp = the face: +0 the number of vertices, +7 a byte whose low five bits go to
-//!      `dword_636608`, +9 a byte for `dword_6240D8` (how much the face reflects),
-//!      +0xC a dword for `dword_6240DC`, from +0x10 a vertex every 0x10 bytes: the
-//!      point's number, two texture coordinates, the normal's number
-//!
 //! Nothing at all unless `dword_6365C4` is 0. Then, per vertex, an entry of the work table
-//! (`sub_450E37`): the point's number negated (an object's point), the point's place in the
+//! (0x450E37): the point's number negated (an object's point), the point's place in the
 //! view copied to `dword_62DA8C` .., the coordinates, and the light: `scene::vertex_light`, or
 //! plain white with `dword_6365C8` at 4, with the face's kind `dword_6D18CC` at 5, or with a
 //! kind of 10 and up other than 0x1C while `dword_6D18D0` is not 0. With reflections
 //! (`dword_5CCE74` and `dword_6238AC` not 0, `dword_6365C8` not 4, the face's own amount not 0)
-//! each entry also gets (`sub_45188C`) a second pair of coordinates from
+//! each entry also gets (0x45188C) a second pair of coordinates from
 //! `scene::cached_reflection_coordinates` and, in its byte +0x21, the face's amount times
 //! `dword_5CCE74` times the first entry's byte +0x20, over 0x1000, held to 255; `dword_621504`
 //! says whether any of them was not 0, and the second texture is 0x87. `dword_621504` is only
@@ -23,7 +18,7 @@
 //! entries get that as their byte +0x21 and their first coordinates as their second, the
 //! switches the other way round, the second texture = the first, mode 3. Then
 //! `scene::draw_object_polygon`, mode 0, the fade off. The other way, with `dword_621480` set
-//! and `dword_6214DC` at 2 (`sub_450EE2` per vertex): the coordinates as the second pair, 0xFF
+//! and `dword_6214DC` at 2 (0x450EE2 per vertex): the coordinates as the second pair, 0xFF
 //! in the byte +0x21, the light `dword_635054`; second texture = first, mode 4, and the drawing
 //! with the depth test off around it. One caller, `scene::draw_object_faces`; a second call, at
 //! 0x450B9B, is in code nothing refers to. Refuses a face of no vertices (the original goes

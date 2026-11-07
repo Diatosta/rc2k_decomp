@@ -6,8 +6,9 @@
 //! - `physics::sound_band_3` (0x45D0F1): `flt_6D3CD0` x `flt_6D1AE8`, less 10;
 //! - `physics::sound_band_4` (0x45D121): `g_car` +0x1C4 x `flt_6D1AE4`, less 1.
 //!
-//! A reading: volume or pitch steps for the car's sounds (their callers `sub_45CD60` ..
-//! `sub_45CF95` drive the sound objects).
+//! A reading: volume or pitch steps for the car's sounds (their callers
+//! `physics::place_sound_object` ..
+//! `physics::place_sound_e5` drive the sound objects).
 //!
 //! Returns: the band
 

@@ -2,10 +2,6 @@
 //! itself times st(0) times a random times `dbl_76521C` (`x87::grown`), left as st(0) ..
 //! st(2).
 //!
-//! In:  st(0) the spread, st(1) .. st(3) the point (each rounded to a float)
-//! Out: st(0) .. st(2) the point grown (st(1)'s first); eax the random as left; the rest
-//!      kept
-//!
 //! The random (`g_marksSpreadRandom`): times 0x9D plus 0x47, then rotated right 12 twice,
 //! each of the three a whole number (signed) of it: the third for st(3), the second for
 //! st(2), the first for st(1). Callers: four in the marks' particles.

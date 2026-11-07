@@ -1,10 +1,6 @@
 //! `scene::project_polygon` (0x44E1F7): finds or makes the record of each of the
 //! polygon's points and counts those outside the depths that can be drawn.
 //!
-//! Out: eax, ecx, edx, esi as the last point's work leaves them (eax and edx as
-//!      `scene::project_point`, ecx = the number of vertices, esi = the last entry);
-//!      everything else preserved
-//!
 //! For each entry of the polygon: its point (+0) through `scene::project_point`, the record
 //! (`scene::point_records`' number since phase 13; the original's address) to its +4; `dword_6240F4`, 0 at the start, counts the points whose depth is under
 //! 4096 (or is no number) or is `flt_6241C8` or more. The callers compare the count with the

@@ -1,7 +1,7 @@
 //! `physics::mark_car_started` (0x436AA7): `g_car` +0xA0 (`unk_71A078`) set to 1 when
 //! it is 0 and +0x29C (`unk_71A274`) is not (a reading: the car has got going).
 //!
-//! Caller: `sub_436790` (four calls).
+//! Caller: `physics::race_timers` (four calls).
 
 use crate::race::owner_shared::Shared;
 use crate::session::Cell32;

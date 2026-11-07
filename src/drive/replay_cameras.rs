@@ -8,11 +8,8 @@
 //! both from `dword_63DB7C`, `63DB80`, and the head's bytes 2 .. 5 into `dword_63DB74`,
 //! `63DB78`, `63DB84`, `63DB88`.
 //!
-//! Out: eax the head's byte 5, esi the first block, ebx and edx as the draws leave them;
-//!      the rest kept; no flags read
-//!
-//! Callers: `drive::play_replay_frame`, `sub_46062E`. Refuses what `pick_replay_camera`
-//! refuses (everything written put back).
+//! Callers: `drive::play_replay_frame`, `race::show_replay_still`. Refuses what
+//! `pick_replay_camera` refuses (everything written put back).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;

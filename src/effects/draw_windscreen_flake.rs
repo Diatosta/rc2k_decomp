@@ -8,11 +8,8 @@
 //! projected (`flt_624088` over each depth, the centre `flt_62409C` / `flt_6240A0`), depth
 //! (plus `g_marksKindFloat`, times `flt_89CEEA`), colour edx, `scene::draw_fan`.
 //!
-//! In:  st(0) the along share, st(1) the across share (popped), esi the item, edx the
-//!      colour
-//!
-//! Caller: `sub_4BFFEC` (0x4C00FE). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables.
+//! Caller: `effects::run_windscreen_flakes` (0x4C00FE). The x87 runs are plain Rust on the x87
+//! model (`math::x87_float`), in the original's order, over the game's variables.
 
 use crate::effects::tuning::MarksKindFloats;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;

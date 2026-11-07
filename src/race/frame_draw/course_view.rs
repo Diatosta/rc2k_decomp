@@ -59,7 +59,7 @@ pub fn checkpoint_colours(race: &Race) -> Result<(), BadInput> {
     Ok(())
 }
 
-/// A scene point's record (`sub_44CF33`, inline in the callers): the record at
+/// A scene point's record (0x44CF33, inline in the callers): the record at
 /// `g_pointRecords` + (point & 0xFFF) x 0x20, made anew (`scene::make_scene_record`) when
 /// its +0 is not the point.
 pub fn point_record(
@@ -469,7 +469,7 @@ pub fn visible_records(course: &Course) -> Result<Vec<u32>, BadInput> {
 }
 
 /// `race::sort_sort_entries` (0x454F62) / `race::sort_depth_entries` (0x454ED4): with two
-/// entries or more, the list's quicksort (`sub_454F85` / its twin `sub_454EF7`: 8-byte
+/// entries or more, the list's quicksort (0x454F85 / its twin 0x454EF7: 8-byte
 /// entries by their first dword, the largest first) from its first entry to its last.
 /// Refuses (before anything) a sort that would go past the
 /// list.

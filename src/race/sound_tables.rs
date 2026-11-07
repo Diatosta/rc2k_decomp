@@ -1,5 +1,5 @@
-//! The race's sound set-up (`sub_415C93`, IDA 2026-10-17): the sound tables made ready
-//! once (`race::prepare_sound_tables`: whole numbers made floats, spans, reciprocals, a
+//! The race's sound set-up (`race::set_up_race_sound_objects`, IDA 2026-10-17): the sound tables
+//! made ready once (`race::prepare_sound_tables`: whole numbers made floats, spans, reciprocals, a
 //! sine table) and the race's sounds restarted or silenced. Here the steps.
 
 use crate::errors::{BadInput, Refused};

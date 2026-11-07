@@ -16,17 +16,14 @@
 //!   wanted in kind 0xDC's first slot and the next; the places mapped, the slots' textures
 //!   loaded; the sound tick (0xC); the panel set up unless `dword_64BB18`;
 //! - the views: one (`dword_63DB98` 1: car A's, the scene, ticks 0xD and 0xE around
-//!   `sub_455D38`, the overlays, tick 0xF, the mirror if the view's flags have bit 3), or
-//!   two halves (`dword_6238A4` 1 side by side, else one above the other), each with its
+//!   `d3d::copy_screen_to_texture`, the overlays, tick 0xF, the mirror if the view's flags have bit
+//!   3), or two halves (`dword_6238A4` 1 side by side, else one above the other), each with its
 //!   window (`dword_62408C` .. `dword_624080`, `scene::set_view_window`), its car, the
 //!   scene, tick 0xD, the overlays, tick 0xF and its mirror;
 //! - the first car loaded, both batches flushed, the sound spots found and shared, the
 //!   parts' sounds woken, the sound tick (0x10), render states 0x11 and 0x12 = 2; the HUD's
 //!   pass unless `dword_71C3E0` or `dword_64BB18`; the sound tick (0x11), the skidmarks laid,
 //!   the name plates; the tyre change screen unless `dword_5C5CE0` is 2.
-//!
-//! In:  nothing (the original reads no register at entry; nor do its steps read one it
-//!      gives them: each sets what it uses)
 //!
 //! Refuses (before anything) a null view block, and a wanted texture's slot past
 //! `g_slotWantedTextures`' 0x400; then what its steps refuse.

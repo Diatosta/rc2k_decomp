@@ -27,7 +27,7 @@ block!(pub mod vars {
 /// overwritten at once by `pop ebx`), the debug pages' titles (`g_debugPageTitles`, read only
 /// by `debug::draw_page_title`), the developers' front end's digit texts (`off_621C44`, read
 /// only by `dev_front_end__draw`) and the texture kinds' names `off_64CD0C` (its one read,
-/// 0x459D6F in `sub_459CC2`, a stage-by-stage dump of the texture kinds to the log reached only
+/// 0x459D6F in 0x459CC2, a stage-by-stage dump of the texture kinds to the log reached only
 /// from the `running sub program` chunk at 0x442BE3, no function of the Rust side). Their
 /// addresses are not pointed anywhere and nothing may read them.
 ///

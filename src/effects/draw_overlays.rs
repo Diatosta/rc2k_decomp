@@ -4,8 +4,9 @@
 //! `effects::windscreen_flakes_frame`, `effects::windscreen_drops_top`; then the second shadow, the twin of
 //! `effects::draw_shadow` without its depth calls (`draw_shadow`'s `SECOND`).
 //!
-//! Caller: the race's frame (0x45632B, just before `draw_shadow`). the shadow's vector
-//! helpers their Rust versions. Refuses the shadow's refusals (null settings, a corner past
+//! Caller: the race's frame (`race::draw_marks_overlays`, 0x45632B, just before `draw_shadow`). the
+//! shadow's vector helpers their Rust versions. Refuses the shadow's refusals (null settings, a
+//! corner past
 //! `g_marksCorners`, an angle `fsincos` cannot take), before anything.
 
 use crate::effects::draw_shadow::{SECOND, draw_shadow_with};

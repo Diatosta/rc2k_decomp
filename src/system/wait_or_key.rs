@@ -4,8 +4,7 @@
 //!
 //! Takes the milliseconds. Returns the key (0 when the time ran out).
 //!
-//! Caller: `sub_47F314` (the welcome's speech).
-//!
+//! Caller: `menu::championship_welcome` (the welcome's speech).
 
 use rc2k_core::system::time::{time_up, wait_end};
 

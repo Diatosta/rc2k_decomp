@@ -8,7 +8,7 @@
 //! `dword_4F3B74` with `gfx::blend_palette` from the two fonts' palettes, `eax & (ebx - 1)`
 //! of the way (with `dword_4F3F74` = 2 that amount t is eased: t * t >> 8, then the same on
 //! 255 - t), and the blended font is given that palette.
-//! Two callers: the menu items and `sub_4695C6`.
+//! Two callers: the menu items and `screens::draw_highlighted_caption`.
 //! Refuses null fonts, and null palettes when a palette is made.
 
 use crate::errors::BadInput;

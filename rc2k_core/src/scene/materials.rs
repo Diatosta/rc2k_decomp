@@ -1,5 +1,5 @@
 //! What an object's drawing takes from its kind's record (converted 2026-10-21 from
-//! `scene::set_object_material` 0x45170E and its `sub_45079A`): the kind's way (+0x20 of its
+//! `scene::set_object_material` 0x45170E and its 0x45079A): the kind's way (+0x20 of its
 //! record), and for a kind that moves between two shapes (way 4) the bytes between them
 //! and the fraction of the way it has moved, from a clock of four phases.
 
@@ -31,7 +31,7 @@ pub struct ShapeClock {
 }
 
 impl ShapeClock {
-    /// `sub_45079A` at `clock`: the time since last here (at most 100) added; while the time
+    /// 0x45079A at `clock`: the time since last here (at most 100) added; while the time
     /// is not under the length it loses the length, the phase goes on by one of four and
     /// the new length is the phase's base plus `random()`'s top half times its random
     /// part. Returns the fraction: 0 in phase 0, time over length in 1, 1 in 2, 1 less that

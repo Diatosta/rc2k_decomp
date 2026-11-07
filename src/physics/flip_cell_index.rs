@@ -3,10 +3,8 @@
 //! first, then 4 flips edx, 5 both, 6 none, 7 ebx), then edx = 2 edx + ebx.
 //!
 //! Takes: the way, and the cell
-//! Out: eax & 7, ebx and edx as worked out; the rest kept; no flags read (callers store
-//!      edx)
 //!
-//! Caller: `sub_43D59A` (twice).
+//! Caller: `physics::wheel_surfaces` (twice).
 
 /// The Rust version: (eax, ebx, edx) out.
 // Converted: `rc2k_core::physics::ground::flip_cell_index`.

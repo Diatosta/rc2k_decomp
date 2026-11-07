@@ -1,10 +1,6 @@
 //! `effects::jitter_point` (0x4C6106): the three values in st(1) .. st(3) each moved by the
 //! remainder of a random by st(0) (`fprem`), left as st(0) .. st(2).
 //!
-//! In:  st(0) the spread, st(1) .. st(3) the point (each rounded to a float)
-//! Out: st(0) .. st(2) the point moved (st(1)'s first); ebx the last random >> 12
-//!      (arithmetic); the rest kept
-//!
 //! Three steps of the marks' random (times 0x9D plus 0x47, shifted right 12): the first
 //! moves st(3), the second st(2), the third st(1). Nine callers in the marks' particles.
 //!

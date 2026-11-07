@@ -6,11 +6,9 @@
 //! reading).
 //!
 //! Takes: the block
-//! Out: eax the step count; the rest kept; no flags read (callers go on with `mov`,
-//!      `retn`)
 //!
 //! A `jmp` is its first instruction: `.private_copy` with `.manual_patch`.
-//! Callers: `drive::next_camera_view`, `sub_43A649` (0x43A94F), and code at 0x43B62E.
+//! Callers: `drive::next_camera_view`, `race::race_keys` (0x43A94F), and code at 0x43B62E.
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;

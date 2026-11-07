@@ -11,7 +11,6 @@
 //! that set `dword_4F49C8` (and put it back after) pass the name instead.
 //!
 //! In:  nothing (the surface locked)
-//! Out: carry set when it failed (the open, a write, the close); every register kept
 //!
 //! A 16-bit pixel is read with `mov ax`: the conversion gets the upper half of eax as it
 //! was (reproduced, eax followed through). Pixels of other sizes are not read: the last

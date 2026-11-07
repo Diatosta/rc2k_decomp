@@ -6,10 +6,11 @@
 //! its pair of variables holds (tables 1, 2, 3, 4, 7 and 8 of `allocate_best_times`: 0xBB8
 //! bytes, an entry of 0x618 a stage, 0x15E0, 0xDB60, 0xDB60, an entry a stage again); the
 //! file is closed and `dword_747614` = 1.
-//! A read that fails or gives fewer bytes than asked for (`sub_4AB21C`, inlined) closes
+//! A read that fails or gives fewer bytes than asked for (`saves::read_or_close`, inlined) closes
 //! the file and ends it there, with what was read so far left in the tables. A head that
 //! is not the right one ends it without the file being closed: the original's slip, kept.
-//! One caller, `sub_411239`. Refuses what `resolve_path` and `allocate_best_times` refuse.
+//! One caller, `system::load_game_data`. Refuses what `resolve_path` and `allocate_best_times`
+//! refuse.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::handle::{close, open_by_mode};

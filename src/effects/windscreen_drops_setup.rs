@@ -7,8 +7,8 @@
 //! `dword_82E2A2` (u 0, a, a, 0; v 0, 0, a, a); `g_polygonVertexCount` 6; `flt_814C02` 1 over
 //! `flt_6241C8`.
 //!
-//! Caller: `sub_4BC0B1` (0x4BC0BF). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables.
+//! Caller: `effects::windscreen_drops_frame` (0x4BC0BF). The x87 run is plain Rust on the x87 model
+//! (`math::x87_float`), in the original's order, over the game's variables.
 
 use crate::effects::windscreen_drop_vars::WindscreenDrops;
 use crate::math::x87;

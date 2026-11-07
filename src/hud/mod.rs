@@ -1,5 +1,5 @@
-//! The race's HUD (`sub_4B1CD0` and under it, entered from `sub_45A893`): 2D polygons in a
-//! virtual screen (`flt_75C02C` by `flt_75C030`) scaled to the real one and gathered into a
+//! The race's HUD (`hud::draw_hud` and under it, entered from `hud::overlay_pass`): 2D polygons in
+//! a virtual screen (`flt_75C02C` by `flt_75C030`) scaled to the real one and gathered into a
 //! batch (`unk_75C324`, 0x400 vertices; `unk_764324`, 0x600 indices) drawn with one indexed
 //! call per texture.
 

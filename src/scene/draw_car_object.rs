@@ -2,13 +2,13 @@
 //! specification screen.
 //!
 //! Only with `dword_755998` (the page shown) at 0: `scene::clear_depth_buffer`,
-//! `scene::assign_kind_textures`, `sub_490238`, `scene::map_texture_places`,
-//! `scene::load_slot_textures`, `sub_4901A3`. The three under it have one caller each
+//! `scene::assign_kind_textures`, 0x490238, `scene::map_texture_places`,
+//! `scene::load_slot_textures`, 0x4901A3. The three under it have one caller each
 //! and are inlined:
-//! - `sub_490238`: with the carousel menu (`g_carouselMenu`) at 0xB, the entry before
+//! - 0x490238: with the carousel menu (`g_carouselMenu`) at 0xB, the entry before
 //!   `dword_755990` (the car shown) and the three after it, wrapping at
 //!   `g_carouselCount`, to `dword_75AAA8` .., then `scene::update_carousel_pictures`;
-//! - `sub_4901A3` -> `sub_4901B3` -> `sub_49040D`: `dword_6365C4` = 0; the turn about y
+//! - 0x4901A3 -> 0x4901B3 -> 0x49040D: `dword_6365C4` = 0; the turn about y
 //!   from the clock (times 8, sixteen bits), the place's z `dword_75A66C`, the kind
 //!   `dword_75A674[dword_755990]` to `dword_75A658`, its object to `g_objectNumber`,
 //!   `scene::draw_menu_object` with eax = it.
@@ -34,7 +34,7 @@ use crate::session::write_all;
 
 // ---- Rust version ----
 
-/// `sub_490238`'s four entries around the car shown.
+/// 0x490238's four entries around the car shown.
 pub fn picked(car: u32, count: u32) -> [u32; 4] {
     let mut entry = if car == 0 { count } else { car }.wrapping_sub(1);
     let mut entries = [entry; 4];
@@ -48,7 +48,7 @@ pub fn picked(car: u32, count: u32) -> [u32; 4] {
     entries
 }
 
-/// `sub_490238`.
+/// 0x490238.
 pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     if screens.state.carousel.menu.get() != 0xB {
@@ -63,7 +63,7 @@ pub fn pick_pictures(menus: &Menus) -> Result<(), Refused> {
     Ok(())
 }
 
-/// `sub_49040D`: the car shown's object set up and drawn by `draw`.
+/// 0x49040D: the car shown's object set up and drawn by `draw`.
 pub fn draw_shown_car(
     shared: &Shared,
     screens: &Screens,
@@ -88,7 +88,7 @@ pub fn draw_shown_car(
 /// The Rust version the typed tables run: nothing on a page other than the first, else
 /// its six calls in order. It reads no register of its caller's (register liveness,
 /// 2026-10-23), and the drawing reads none of what the calls before it leave (the eax and
-/// ebx `sub_49040D` gives it included).
+/// ebx 0x49040D gives it included).
 pub fn run() -> Result<(), crate::errors::Refused> {
     let scene = crate::scene::owner::scene();
     let race = race();

@@ -7,7 +7,8 @@
 //! the frame's time (`rdtsc` over `dword_765114`, times `flt_93C8C4` / `C8` / `CC`) into
 //! `flt_765134` (the draw), `flt_76511C` (the ring) and `flt_765120` (the whole).
 //!
-//! Caller: the race's frame (0x456464 ..). Its calls the Rust versions, in the order above.
+//! Caller: the race's frame (`race::run_view_marks`, 0x456464 ..). Its calls the Rust versions, in
+//! the order above.
 
 use crate::errors::Refused;
 use crate::math::x87;

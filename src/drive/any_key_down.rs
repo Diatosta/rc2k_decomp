@@ -1,9 +1,7 @@
 //! `drive::any_key_down` (0x444F55): whether any of the 0x80 key bytes (`g_keysPressed`)
 //! is set: their or into eax, CF set when not 0.
 //!
-//! Out: CF; eax the bytes' or
-//!
-//! Caller: `drive::race_frame` (`sub_444D46`, `jb`).
+//! Caller: `drive::race_frame` (0x444D46, `jb`).
 
 use rc2k_core::drive::inputs::{KEY_COUNT, keys_or};
 

@@ -9,7 +9,7 @@
 //! (`scene::rotate_point`, inlined) and back to its place. d stays unrounded between its uses.
 //! Plain Rust since 2026-10-24 (the x87's arithmetic in `X`, `math/x87_float.rs`); the
 //! original's instructions are `asm_reference` in the tests.
-//! One caller, `sub_45198C` (the reflection's texture coordinates).
+//! One caller, `scene::reflection_coordinates` (the reflection's texture coordinates).
 use crate::scene::x87_mem::{Base, cells, fld, fstp};
 
 // ---- Rust version ----

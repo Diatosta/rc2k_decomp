@@ -4,9 +4,9 @@
 //!
 //! The ground picture's name is the `dword_934CC8`-th of six (`files\m\snow1.pcx`, `mud1`,
 //! `dust1`, `mud1`, `mud1`, `gumbo0`); it is read twice and never used (section 16). The
-//! surface's lock and unlock are the game's (`sub_41AA4B` / `sub_41AB02`, DirectDraw). One
-//! caller, `effects::init_marks`. Refuses a ground past the six names (before anything), a
-//! surface wider than 256 (after the lock, unlocked again; the three blocks are left
+//! surface's lock and unlock are the game's (`d3d::lock_texture` / `d3d::unlock_texture`,
+//! DirectDraw). One caller, `effects::init_marks`. Refuses a ground past the six names (before
+//! anything), a surface wider than 256 (after the lock, unlocked again; the three blocks are left
 //! taken), memory or a picture not had, as its steps do.
 
 use crate::effects::mask_store::{KIND_PICTURES, MASK_PIXELS, Mask, Masks};

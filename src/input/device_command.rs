@@ -9,8 +9,6 @@
 //!   effects begun (`input::begin_effects`), a tick, `dword_518090` 1;
 //! - others: nothing.
 //!
-//! Takes: the command, ah = the device (for 1)
-//!
 //! Caller: `input::input_tick` (when `g_inputCommand` was set). Refuses (before
 //! anything) a device past 1 for command 1.
 //!

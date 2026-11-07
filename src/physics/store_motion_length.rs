@@ -3,8 +3,8 @@
 //! Both are the work copy's (+0x198, +0x1C4); that the vector is the car's motion is a
 //! reading (it sits next to `g_carSpeed`), not seen.
 //!
-//! Callers (2): `sub_43B635` (0x43B644, 0x43B94D), the car's physics step under
-//! `sub_4454D2`.
+//! Callers (2): `physics::car_physics_step` (0x43B644, 0x43B94D), the car's physics step under
+//! `drive::race_step`.
 
 use crate::physics::vector_length::vector_length;
 use crate::race::owner::Race;

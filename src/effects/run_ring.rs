@@ -16,7 +16,6 @@
 //! to just before the cursor (or that moved on past it).
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: nothing (its one caller reads no register after it)
 //!
 //! Caller: `effects::run_frame` (0x4D163B, after `run_ribbons`' set-up). The longer x87 runs
 //! are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the entries and the game's variables. Refuses,

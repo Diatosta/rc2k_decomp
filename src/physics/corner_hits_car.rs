@@ -6,8 +6,6 @@
 //! `physics::restore_saved_car`, `physics::bump_cars`.
 //!
 //! Takes: the other car's block (passed to `bump_cars`)
-//! Out: outside, every register kept; inside, as `bump_cars` leaves them; no flags read
-//!      (the caller goes on)
 //!
 //! Caller: `physics::car_collisions` (eight corners a car). Refuses what
 //! `restore_saved_car` and `bump_cars` refuse (what was written put back).

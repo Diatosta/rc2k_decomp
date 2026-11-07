@@ -2,8 +2,6 @@
 //! drawn glowing (the sky's sun, the views' backdrop): 7 = 1 (the depth test on), 0xE = 1
 //! (depth writing on), 0x17 = 8 (the comparison: always), each by `scene::set_render_state`.
 //!
-//! Out: eax = 8, ebx = 0x17 (the last state's); the rest kept; no flags read
-//!
 //! Callers: `race::draw_sky`, `race::draw_view_backdrop`.
 
 /// The Rust version (see the header): the registers it leaves on `r`.

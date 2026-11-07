@@ -4,8 +4,6 @@
 //! texture is smaller); then `race::mud_pixel` (0 outside the surface).
 //!
 //! Takes: x, y (0 .. 0xFF)
-//! Out: eax = the components, 0 outside, or as it came when the place is skipped; the
-//!      rest kept; no flags read (the callers test eax's top bit)
 //!
 //! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`.
 

@@ -2,7 +2,6 @@
 //! screen's size.
 //!
 //! Takes: path, which may be written to (see `files::swap_missing_extension`)
-//! Out: carry = the file could not be read; every register preserved
 //! Sets the picture's size to 800 x 600 with rows that follow one another (row length
 //! 0xFFFFFFFD), clears the buffer and calls `read_picture_file`. Whatever that says, the
 //! picture's size then becomes the screen's (`dword_4F494C` x `dword_4F4950`) and its row

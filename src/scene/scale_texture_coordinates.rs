@@ -1,9 +1,6 @@
 //! `scene::scale_texture_coordinates` (0x44E2FB): the polygon's texture coordinates
 //! from whole numbers to floats.
 //!
-//! Out: eax = the last value worked on, ecx = the number of vertices, esi = the last
-//!      entry; nothing changed for a polygon of no vertices; everything else preserved
-//!
 //! For each entry of the polygon, with the switch `dword_6240E0` its first pair of
 //! coordinates (+8, +0xC) and with `dword_6240E4` its second (+0x10, +0x14): a value
 //! that is not 0 becomes a float (`fild`, `fstp`) whose bits then lose 0x0C000000: the

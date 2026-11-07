@@ -4,11 +4,10 @@
 //! past the count when none is.
 //!
 //! Takes: the gear
-//! Out: ecx, eax `gear_bit`'s (ecx + 1 of the last tested), CF; ZF not read by the
-//!      caller (`jb`); the rest kept
 //!
 //! A loop target (0x43C5A3) is inside the first five bytes: `.private_copy`, its call
-//! relocated. Caller: `sub_43C2AE` (0x43C365), the gearbox under `sub_4454D2`. Refuses what
+//! relocated. Caller: `physics::manual_gearbox` (0x43C365), the gearbox under `drive::race_step`.
+//! Refuses what
 //! `gear_bit` refuses (a bit past the dword: a count of 31 or more lets the search run
 //! there), nothing written.
 //!

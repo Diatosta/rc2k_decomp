@@ -3,10 +3,6 @@
 //! (`menu::replay_slot_loop`, eax as given: the caller's 1), the stage loaded again
 //! (`race::viewer_load_stage`).
 //!
-//! In:  eax 1 (the saving screen)
-//! Out: eax the slot chosen or -1 (the screen's; the loading keeps it); the rest as the
-//!      screen leaves them
-//!
 //! Caller: `race::viewer_action` (0x16).
 
 use crate::errors::Refused;

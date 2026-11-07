@@ -3,8 +3,8 @@
 //! table's titles it stores their string ids in items 0 and 1 of the current menu, and it
 //! builds the heading text (string 0x482) in its own buffer without drawing it.
 //!
-//! Reached through the draw lists at 0x758CF6 (screen loop `sub_48EC30`, a menu entry) and
-//! 0x758E9E (screen loop `sub_482099`, six callers).
+//! Reached through the draw lists at 0x758CF6 (screen loop `menu::view_courses_loop`, a menu entry)
+//! and 0x758E9E (screen loop `menu::select_stage_loop`, six callers).
 //!
 //! Screen: confirmed by the owner on 2026-10-10 with `blank on
 //! screens::draw_selected_stage_menu`: the stage selection screen in the menu ("Escolha

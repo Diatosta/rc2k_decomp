@@ -7,8 +7,8 @@
 //! After the last piece the file must have "####", else fatal error 0x80ACFF01 "ral.dat out of
 //! date" (the pieces have been copied by then). Then `saves::rebuild_car_lists`, and
 //! `g_optionsLoaded` = 1. A file shorter than that is not noticed as such: what the scratch block
-//! held decides. One caller, `sub_411239`. `sub_4AAE57` writes the file, the same pieces the other
-//! way.
+//! held decides. One caller, `system::load_game_data`. `saves::save_options` writes the file, the
+//! same pieces the other way.
 
 use crate::audio::owner::audio;
 use crate::errors::{BadInput, FatalError, Refused};

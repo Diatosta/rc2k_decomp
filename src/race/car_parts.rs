@@ -1,5 +1,5 @@
-//! The cars' parts made ready to draw (`sub_460D5C` -> `sub_460E7C`, part R3, IDA
-//! 2026-10-18): each car's marks' switches (+0xAB4 .. +0xAD0) from its state, and its four
+//! The cars' parts made ready to draw (`race::ready_car_parts` -> `race::car_part_matrices`, part
+//! R3, IDA 2026-10-18): each car's marks' switches (+0xAB4 .. +0xAD0) from its state, and its four
 //! parts' matrices (the wheels: turned about their axles' places) into `flt_6417E0` .., then
 //! kept in the block (+0x740 .. +0x8FF) for `race::draw_car`.
 

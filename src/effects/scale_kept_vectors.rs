@@ -3,7 +3,7 @@
 //! `dword_76926A`, `flt_7692CE` .. = `dword_7692C2` .. by `dword_7692BE`, `flt_7692B2` ..
 //! = `dword_7692A6` .. by `dword_7692A2`.
 //!
-//! Caller: `sub_4C1270`.
+//! Caller: `effects::view_frame`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 

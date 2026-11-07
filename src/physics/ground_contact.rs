@@ -9,8 +9,8 @@
 //! into `dword_6D3018` ..; with the depth below 0, `physics::restore_saved_car` and
 //! `physics::feel_ground`.
 //!
-//! Caller: `sub_43B635`, every physics step. Refuses a point past 0x3F on the long path
-//! (the tables' room), and what its calls refuse; what was written is put back. Not
+//! Caller: `physics::car_physics_step`, every physics step. Refuses a point past 0x3F on the long
+//! path (the tables' room), and what its calls refuse; what was written is put back. Not
 //! reached: a depth below 0 (`restore_saved_car` and `feel_ground` need the stage; their
 //! own tests cover them).
 //!

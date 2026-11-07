@@ -1,4 +1,4 @@
-//! The race's shell (`sub_4843EC`, `single_rally`'s race, and `sub_443F0B`, IDA
+//! The race's shell (`race::single_rally_race`, `single_rally`'s race, and `race::run_race`, IDA
 //! 2026-10-17): what runs round a stage's loading and its run. Here its small leaves.
 use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;

@@ -2,17 +2,13 @@
 //! behind a table of results kept.
 //!
 //! In:  nothing; the two numbers in `dword_6399A8` and `dword_6399AC`
-//! Out: the coordinates in `dword_6399B0`, `dword_6399B4`. With the table in use:
-//!      ebx = the place in it, eax = the second coordinate, and after a working out
-//!      edx and esi as that leaves them. Without it: as
-//!      `scene::reflection_coordinates`
 //!
 //! With `dword_63D9B8` at 0 the original jumps straight on into the working out.
 //! Else the normal's number & 0x3FF is a place in four tables of 0x400 dwords
 //! (`dword_6399B8` the normal's number, `dword_63A9B8` the point's, `dword_63B9B8` and
 //! `dword_63C9B8` the coordinates): if both numbers there are the ones asked for,
 //! the coordinates come from the table; else they are worked out and all four kept.
-//! One caller, `sub_45188C`.
+//! One caller, 0x45188C.
 
 use crate::errors::Refused;
 use crate::scene::reflection_coordinates::reflection_coordinates;

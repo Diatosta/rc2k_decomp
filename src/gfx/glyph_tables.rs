@@ -1,6 +1,7 @@
-//! `begin_glyph_tables` is `sub_412014` (0x412014), `begin_glyph_table` `sub_411FEC`
-//! (0x411FEC), `end_glyph_tables` `sub_412077` (0x412077), `palette_to_pixels`
-//! `sub_411FC8` (0x411FC8) with `sub_405E02` under it, `alpha_palette` `sub_412528`
+//! `begin_glyph_tables` is `gfx::begin_glyph_tables` (0x412014), `begin_glyph_table`
+//! `gfx::begin_glyph_table` (0x411FEC), `end_glyph_tables` `gfx::end_glyph_tables` (0x412077),
+//! `palette_to_pixels`
+//! `gfx::palette_to_pixels` (0x411FC8) with 0x405E02 under it, `alpha_palette` `gfx::alpha_palette`
 //! (0x412528).
 
 use crate::errors::{BadInput, Refused};

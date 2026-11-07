@@ -4,8 +4,6 @@
 //! through `files::numbered_path`.
 //!
 //! Takes: the number
-//! Out: eax the path; ebx less 100 for the game's own; ZF set for 222 (from `cmp`), else
-//!      clear (`test eax, eax` of the path); carry clear
 //!
 //! Callers: `race::open_viewed_replay` (reads ZF), `race::save_viewed_replay`. Refuses what
 //! `numbered_path` refuses.

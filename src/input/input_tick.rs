@@ -4,7 +4,7 @@
 //! effects told (`input::device_effects`), and with one player on two devices
 //! (`dword_4F68FC`) the second's readings added to the first's (its bits: those of 0x70FF).
 //!
-//! Callers: the input thread (`sub_4078DA`, every 20 ms), `input::device_command`
+//! Callers: the input thread (`input::input_thread`, every 20 ms), `input::device_command`
 //! (twice).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

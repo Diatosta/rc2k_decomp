@@ -8,9 +8,6 @@
 //! (`dword_71A10C` / `dword_71A114`). A reading: the car moved by a point's speed about
 //! its spin.
 //!
-//! Out: eax the z push; ebx 0x614B44, ecx 0x614B64, edx and esi 0x614B54; the rest kept;
-//!      no flags read
-//!
 //! Caller: `physics::lever_pushes` (twice).
 
 use crate::math::x87_run::mul2_to_int;

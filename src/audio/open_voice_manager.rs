@@ -2,7 +2,6 @@
 //! through a 3D buffer.
 //!
 //! Takes: where the 3D buffer is (a voice's `buffer_3d`)
-//! Out: carry = not opened; every register preserved
 //!
 //! See `audio/property_sets.rs`: nothing with `g_ignoreDsvSetting` or the set already
 //! there (`g_voiceManager`); its mode set to

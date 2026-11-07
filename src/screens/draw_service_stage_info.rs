@@ -3,9 +3,10 @@
 //! is drawn only in mode 2 with `dword_755968` at 0, and a second heading text (string 0x482)
 //! is built in its own buffer without being drawn here.
 //!
-//! Reached through the draw list at 0x758D86 of the screen loop `sub_47FD37`, which the menu
-//! action `sub_47037E` starts when the event type `dword_755954` is not 3. That action is the
-//! last of 22 items (all at 747, 551) of the service area's menu at 0x74D24C.
+//! Reached through the draw list at 0x758D86 of the screen loop `menu::view_stage_loop`, which the
+//! menu
+//! action `menu::view_stage_details` starts when the event type `dword_755954` is not 3. That
+//! action is the last of 22 items (all at 747, 551) of the service area's menu at 0x74D24C.
 //!
 //! Screen: confirmed by the owner on 2026-10-10: the stage details that can be opened from the
 //! service area of a championship, the screen after the first stage details where the car is set up

@@ -1,5 +1,5 @@
-//! `race::loadlevel_init`'s "locacurrcourse" (`sub_4394CB`, IDA 2026-10-16): the course's
-//! data (`cdat00c`) read into the course memory, its first 0x100 bytes the header
+//! `race::loadlevel_init`'s "locacurrcourse" (`race::locate_current_course`, IDA 2026-10-16): the
+//! course's data (`cdat00c`) read into the course memory, its first 0x100 bytes the header
 //! (`g_courseHeader`, 0x5CCD14: the counts of `race/norms.rs`' layout), the 0x20-byte
 //! records grouped by kind, the faces' lights reset, then the best line. Here the small
 //! steps.

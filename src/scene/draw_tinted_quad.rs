@@ -9,7 +9,6 @@
 //! colour back to white.
 //!
 //! In:  nothing (`dword_623DE8` .. `dword_623E24`, set by the caller)
-//! Out: eax 0xFF, ecx 4, esi the record pool going into the calls; then as they leave them
 //!
 //! The calls as `draw_flat_quad`'s (the clip, the depth buffer, the draw), their Rust
 //! versions.

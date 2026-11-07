@@ -5,11 +5,13 @@
 //! It empties the key buffer (six `take_key`), then:
 //!
 //! Set-up (again after every action that does not leave the screen): the highlight comes
-//! back from `dword_74777C`, the scene is prepared (`sub_46F7FD`, a few of its variables,
-//! `sub_40F7A4`), the screen's menu `off_74D24C` and its four function lists are put in place
-//! (the list at 0x759436 is run once, here), the background is loaded (`sub_470F55`), one
-//! frame is drawn (`menu::draw_frame`, then `screens::run_frame` with the callback
-//! `sub_474D4B`), and the time is noted in `dword_5189A0`.
+//! back from `dword_74777C`, the scene is prepared (`scene::prepare_menu_scene`, a few of its
+//! variables,
+//! `sound::play_tune_9`), the screen's menu `off_74D24C` and its four function lists are put in
+//! place
+//! (the list at 0x759436 is run once, here), the background is loaded (`service::load_background`),
+//! one frame is drawn (`menu::draw_frame`, then `screens::run_frame` with the callback
+//! `menu::frame_callback`), and the time is noted in `dword_5189A0`.
 //!
 //! Every frame: `menu::update_blink`; leave if the game is quitting; `screens::run_frame`;
 //! `dword_613830` = milliseconds since set-up; then `menu::handle_keys`:
@@ -23,9 +25,9 @@
 //!   else leave
 //! The same action check is made at the top of a frame whose `dword_7556A4` is 0x14D.
 //!
-//! Leaving: if `dword_758806` is 1, `sub_46FA90` asks whether to; unless the answer
+//! Leaving: if `dword_758806` is 1, `menu::confirm_leaving` asks whether to; unless the answer
 //! (`g_yesNoAnswer`) is 1, the background is loaded again and the screen is set up again.
-//! Otherwise the highlight is saved, `dword_7554E4` = 1, `sub_40F826`, `dword_75AAE0` = 0.
+//! Otherwise the highlight is saved, `dword_7554E4` = 1, `sound::stop_music`, `dword_75AAE0` = 0.
 //!
 //! Wherever the highlight is saved or taken back, `dword_755A3C` and `dword_755561` are
 //! cleared if `dword_7558D8` and `dword_755A3C` are both 1.
@@ -33,8 +35,9 @@
 //! The registers are carried through as the original has them, because the functions it
 //! calls get them: `handle_keys` reads ah on Enter, which here is a byte of the elapsed time.
 //!
-//! Callers: `sub_48E093` (time trial) and `sub_4A15E3` (championship). Seven of its callees are not
-//! ported and are called by address: the four named under "game data" below, and
+//! Callers: `menu::time_trial_service` (time trial) and `menu::service_pass` (championship). Seven
+//! of its callees are not ported and are called by address: the four named under "game data" below,
+//! and
 //! `menu::draw_frame`, `screens::run_frame` and `menu::confirm_leaving` in the shared loop.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};

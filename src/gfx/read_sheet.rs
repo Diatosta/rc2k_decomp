@@ -1,7 +1,8 @@
 //! Two of the game's picture readers as Rust functions, for the sprite and font builder.
-//! `read_sheet` is `sub_4119B7` (0x4119B7): it zeroes the PCX header, reads the file's first
+//! `read_sheet` is `gfx::read_sheet` (0x4119B7): it zeroes the PCX header, reads the file's first
 //! 0x80 bytes and goes by the planes: one to `read_pcx_indexed`, three to
-//! `gfx::read_pcx_24bit`, anything else fails. `read_pcx_indexed` is `sub_411B93` (0x411B93):
+//! `gfx::read_pcx_24bit`, anything else fails. `read_pcx_indexed` is `gfx::read_pcx_indexed`
+//! (0x411B93):
 //! `gfx::read_pcx_8bit` but for two things: `g_pictureFlags` becomes 0x100, so that the layout
 //! is of one byte a pixel, and what is stored is the palette number itself.
 

@@ -1,7 +1,5 @@
 //! `audio::thread` (0x409CCE): the audio thread's routine, from its start to `ExitThread`.
 //!
-//! In:  ebx, ecx, edx, edi, ebp = as the thread starter leaves them (carried into the
-//!      commands: `audio::take_commands`)
 //! Out: does not return (`ExitThread(0)`)
 //!
 //! Its slot (`stru_518604`, +0xC running): already running goes straight to the end. Else

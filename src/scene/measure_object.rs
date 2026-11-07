@@ -2,8 +2,6 @@
 //! and moves its points so that the middle is at 0.
 //!
 //! In:  nothing (`dword_634FEC` the object's slot)
-//! Out: ebx = the slot, ecx = 0, esi = past the object's points, eax = the middle's z;
-//!      for an object of no points: ebx = the slot, ecx = 0, esi = its points' place
 //!
 //! The middle (`dword_634B70` ..) = 0; the lowest of each of x, y, z (`dword_634B88` ..) from
 //! 0x640000 down and the highest (`dword_634B94` ..) from -0x640000 up over the slot's points;

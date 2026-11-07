@@ -1,10 +1,6 @@
 //! `scene::draw_carousel` (0x490649): the entries of the main menu's carousel that
 //! can be seen.
 //!
-//! In:  ecx, passed on for a carousel of one entry
-//! Out: ebx = the last entry drawn, ecx = its place in the row (for one entry: ebx = 0,
-//!      edx = 0, ecx as it came); nothing changed but ebx for a carousel of none
-//!
 //! With one entry (`g_carouselCount` = 1): entry 0, the place whatever ecx holds. With none or
 //! fewer: nothing. Else the entry before the front one (`g_carouselFront`, going round) at
 //! place -1, the front one at 0, the next at 1, and while the carousel turns (`g_carouselAngle`

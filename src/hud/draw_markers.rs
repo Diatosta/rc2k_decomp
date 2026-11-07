@@ -1,6 +1,6 @@
 //! The two players' markers along the top of a split layout: for each player the rectangle
-//! 0x5C of the sprite sheet (`hud.block`'s rectangles) at the record's field 0x6C (the
-//! second: 0x70) over the field 0x68 times the first marker constant plus the second,
+//! 0x5C of the sprite sheet (`hud.block`'s rectangles) at the player's distance shown
+//! (`Panel::distance`) over the stage's miles times the first marker constant plus the second,
 //! coloured by the player's marker colour, at the player's row, scaled 0x100 by 0x78 over
 //! the horizontal texture scale (`hud::add_scaled_sprite`, the scales taken off after).
 //!
@@ -10,7 +10,6 @@
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
 use crate::hud::store::rect_place;
-use crate::pointers::GamePtr;
 use crate::race::owner_frame::Frame;
 use rc2k_core::hud::quads;
 use rc2k_core::math::extended::{from_f64, to_f64};
@@ -35,21 +34,14 @@ pub fn taken_off(v: [u8; 10]) -> u32 {
 
 /// The two players' markers at `rows` (see the header).
 // Converted: `rc2k_core::hud::quads::{marker_x, int_over}`
-pub fn draw_markers(
-    frame: &Frame,
-    hud: &Hud,
-    record: GamePtr,
-    rows: [u32; 2],
-) -> Result<(), Refused> {
+pub fn draw_markers(frame: &Frame, hud: &Hud, rows: [u32; 2]) -> Result<(), Refused> {
     {
-        // A field of the record by an offset from a table or the caller, as the original walks it.
-        let get = |o: u32| record.offset(o).read::<u32>("a hud record's field");
         let k = hud.block.uv_scale_x.bits();
-        for (n, field) in [0x6Cu32, 0x70].into_iter().enumerate() {
+        for (n, distance) in frame.panel_and_overlay.panel.distance.iter().enumerate() {
             hud.block.quad[5].set(hud.block.marker_colours[n].get());
             let f = f32::from_bits;
             let x = quads::marker_x(
-                f(get(field)?),
+                f(distance.get()),
                 f(frame.panel_and_overlay.panel.overlay_miles.get()),
                 hud.block.marker_k[0].get(),
                 hud.block.marker_k[1].get(),

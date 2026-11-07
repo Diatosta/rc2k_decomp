@@ -1,9 +1,6 @@
 //! `scene::load_front_end_objects` (0x425CA9): loads the shapes of all 0x100 object
 //! slots.
 //!
-//! Out: eax = the faces' memory used, ecx = 0x100, edi = the end of the kinds' table,
-//!      ebx = the last slot that had a kind (unchanged if none had)
-//!
 //! `scene::reset_objects`; `dword_631B68` and `dword_631F6C` = 0; for each slot its kind from
 //! `dword_5CCE7C` to `dword_634FE8`, the slot to `dword_634FEC`, and `scene::load_object`; then
 //! `dword_634FA4` = the points used, in bytes, and `dword_634FA8` = the faces' memory used. Two

@@ -1,15 +1,12 @@
 //! `scene::set_object_material` (0x45170E): what an object's drawing needs from its
 //! kind's record, and for a kind that moves between two shapes, how far it has moved.
 //!
-//! Out: the original leaves eax, ecx, esi (and for a moving kind ebx, edx) changed; its
-//!      caller goes on without them, and the Rust version keeps them
-//!
 //! `dword_623DD0` = 0 and the polygon's colour white; the object's kind
 //! (`g_objectKinds[object]`) picks a record of 0x80 bytes at `unk_97DF30`, whose byte +0x20
 //! goes to `dword_6214DC`; then the object's first face and number of faces (`dword_632B70`,
 //! `dword_632F70`) to `g_objectFirstFace` and `g_objectFaceCount`. With that byte at 4 the
 //! object has two shapes, the second right after the first: `dword_623DD0` = the bytes between
-//! them (the next object's first point less this one's, times 12), and `sub_45079A` works out
+//! them (the next object's first point less this one's, times 12), and 0x45079A works out
 //! the fraction `flt_623DD4` from a state of four dwords (+0x30 .. +0x3C of the record
 //! `dword_5CCCD0` of 0x40 bytes at `dword_5CCCBC`: the clock when last here, the time into the
 //! phase, the phase's length, the phase): the time since last here (the clock `dword_613830`,
@@ -18,8 +15,8 @@
 //! random part of 400 (`math::next_random`, its top half times 400). The fraction: 0 in phase
 //! 0, time over length in phase 1, 1 in phase 2, 1 less that in phase 3. The original has a
 //! second way for when the four random parts are all 0, which they never are (it sets them
-//! itself just before): left out. One caller, `sub_45045D`. Refuses an object's number past the
-//! tables and, for a moving kind, no state.
+//! itself just before): left out. One caller, `scene::draw_object`. Refuses an object's number past
+//! the tables and, for a moving kind, no state.
 //!
 //! Converted 2026-10-21: the Rust version is `set_object_material_plain`, through
 //! `rc2k_core::scene::materials` (the fraction a plain float; the x87 version stays for the
@@ -50,7 +47,7 @@ fn state(course: &crate::race::owner_course::Course) -> Option<u32> {
 /// The state's four dwords from +0x30 of the face.
 const STATE: u32 = 0x30;
 
-/// `sub_45079A`, on the state of face `face`.
+/// 0x45079A, on the state of face `face`.
 fn step_shape(
     shared: &Shared,
     face: u32,

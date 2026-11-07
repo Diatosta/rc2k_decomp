@@ -1,8 +1,6 @@
 //! `gfx::decode_png` (0x4D3040): decodes a PNG file held in memory.
 //!
 //! In (on the stack, a C function): the file, where the pixels go, the `PngInfo` to fill
-//! Out: eax = 0, or 3 if the info block lies inside the pixels, 1 if an argument is null, 2
-//!      if the file does not begin as a PNG; ecx, edx whatever; the rest preserved
 //! The original walks the chunks to IEND, trusting every length. IHDR gives the width, the
 //! height and the colour type; an IDAT chunk is inflated (zlib 1.1.3) straight into the
 //! pixel area, `(bytes a pixel * width + 1) * height` bytes at most, and its rows are then

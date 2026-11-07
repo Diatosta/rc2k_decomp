@@ -1,6 +1,6 @@
 //! `race::load_stage` (0x444040, IDA 2026-10-17): "SHAUNINITEVERYTHING": the loading
 //! picture (unless `dword_71C3E0`), the cars' sounds woken, `race::loadlevel_init`, the
-//! in-game music, the controls, race init (`sub_4462B9`, the game's until ported), the
+//! in-game music, the controls, race init (`drive::race_init`, the game's until ported), the
 //! clock restarted and the race's starting values; each step logged and indented.
 
 use crate::errors::Refused;

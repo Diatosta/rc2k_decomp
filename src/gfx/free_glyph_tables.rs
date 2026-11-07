@@ -1,9 +1,6 @@
 //! `gfx::free_glyph_tables` (0x474D12): `memory::free_list` on `g_glyphTablesMemory`
 //! (0x51B984): the fonts' glyph tables given back.
 //!
-//! Out: ebx = the list; the flags as `free_list` leaves them (carry clear): neither caller
-//!      reads them (0x4703D4, 0x474D1F), the Rust version leaves nothing
-//!
 //! Caller: `menu::apply_screen_mode` (between `gfx::free_fonts` and `gfx::build_fonts`).
 //! Called directly (2026-10-23).
 

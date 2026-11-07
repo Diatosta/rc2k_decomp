@@ -1,9 +1,6 @@
 //! `scene::set_object_light` (0x45143A): the light that falls on the object as a whole,
 //! to be added to each of its vertices.
 //!
-//! Out: the original leaves eax, ebx, ecx and esi changed where it gathers the lamps;
-//!      its caller goes on without them, and the Rust version keeps them
-//!
 //! `dword_635068` (what `scene::vertex_light` adds) = 0, then by `g_lightKind`:
 //! - 5: plain white;
 //! - 1: `g_lightStrength` = 0; the lamps gathered; `g_lightColour` plus
@@ -17,7 +14,7 @@
 //! "The lamps gathered" (`scene::gather_lights`, 0x451425, inlined): the object's place
 //! `dword_63501C` .. to `g_litPlace`, `g_lightColour` = 0, `scene::add_car_lights`,
 //! `scene::add_point_lights`. "Plus" is byte by byte without overflow, as in
-//! `scene::vertex_light`. One caller, `sub_45045D`.
+//! `scene::vertex_light`. One caller, `scene::draw_object`.
 //!
 //! Converted 2026-10-21: the kind's way through `rc2k_core::scene::lamps::object_light`.
 

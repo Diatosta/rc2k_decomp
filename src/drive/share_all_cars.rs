@@ -5,12 +5,8 @@
 //! when `dword_70F410` is not 0x21 and the first record's +0x258 is 10 or more (else 0);
 //! then `drive::put_back_lead_car_values`.
 //!
-//! Out: ecx 0, esi the last block, edi the first record, ebp the last sound object, and
-//!      eax, ebx, edx as `set_listener` left them (eax the record's +0x258 when
-//!      `dword_70F410` is not 0x21); no flags read (its callers go on with `mov`)
-//!
-//! Callers: race init's loop (`sub_4462B9`, 0x4463F4) and `sub_456336` (0x4563C8). Refuses
-//! (before anything) what `set_listener` refuses, a car whose file number is above 0x21,
+//! Callers: race init's loop (`drive::race_init`, 0x4463F4) and `race::run_view_marks` (0x4563C8).
+//! Refuses (before anything) what `set_listener` refuses, a car whose file number is above 0x21,
 //! and a null record or block. Its pieces have their own tests on test memory.
 
 use crate::drive::keep_lead_car_values::keep_lead_car_values;

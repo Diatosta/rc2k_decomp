@@ -15,10 +15,8 @@
 //! `emit_particle_22`.
 //!
 //! Works on `g_marksSettings`.
-//! Out: ebp the settings when nothing is done, else as the last car leaves it (see
-//!      `cars`); the rest as the last car leaves them
 //!
-//! Caller: `sub_4C3EEE` (0x4C4006). Refuses null settings, more than 8 cars, a car's null
+//! Caller: `effects::draw_frame` (0x4C4006). Refuses null settings, more than 8 cars, a car's null
 //! matrix or vector, a car model (+4) of 34 or more, and the emitters' refusals; on a
 //! refusal nothing stays written (all it may write is put back).
 

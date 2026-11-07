@@ -1,8 +1,6 @@
 //! `input::append_key_name` (0x407F39): a key's name, as the keyboard pages show it.
 //!
 //! Takes: the key (its low seven bits), the cursor
-//! Out: ebx moved on; eax as `append_string_by_id` leaves it, or the key's low seven bits;
-//!      everything else preserved (ecx is pushed and popped)
 //!
 //! The current keyboard layout (`input::layouts`; `g_keyboardLayout`, 0x4F07D4, in the
 //! original) has a table of one string id a key (words); a key with an id gets that string,

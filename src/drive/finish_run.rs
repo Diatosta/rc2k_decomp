@@ -6,7 +6,7 @@
 //! `dword_75B108`) or Esc or key 0x1C is down: the car's view 6 (+0x684), the first car
 //! loaded (`race::load_first_car`), the camera (`drive::finish_camera`,
 //! `physics::camera_frame`), the car stored (`drive::store_first_car`), the race's frame
-//! (`sub_4541BF`, stream A's: through the game).
+//! (`drive::race_frame`, stream A's: through the game).
 //!
 //! Caller: `drive::finish_race`. Refuses a length index past 1 (the table's two), and what
 //! its calls refuse.

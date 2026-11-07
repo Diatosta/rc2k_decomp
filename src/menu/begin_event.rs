@@ -7,7 +7,7 @@
 //! `field_8c` and `field_84` 0, +0xD0 1, `service::repair_car`, and unless the event mode
 //! `dword_7556D0` is 3 the setup's defaults: gear ratio 2, brake balance 0x32, tyre 3, ride height
 //! 0x46, suspension 0x1E, steering sensitivity = the controller's (+0x280). Callers: the event
-//! loops' starts (`sub_482382` and nine more). Refuses drivers without their end entry, a
+//! loops' starts (`menu::single_rally` and nine more). Refuses drivers without their end entry, a
 //! missing player.
 
 use crate::errors::Refused;

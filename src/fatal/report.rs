@@ -2,9 +2,6 @@
 //! jump here, each from a small stub that has stored a code in `g_fatalCode` (0x4F52A4) and a message
 //! pointer in `g_fatalMessage` (0x4F52A8).
 //!
-//! In:  entered by `jmp`, with the registers and flags of the place that failed
-//! Out: for a code without bit 31, returns (to whoever called the function that jumped here),
-//!      with every register as it was; for a code with bit 31, does not return
 //! Only the first report of a run is written (`g_fatalReported`, 0x4F67BC). It builds this text in `Text`
 //! (0x9526F8, 0x400 bytes):
 //!   unless the code has bit 28: "Error code [XXXXXXXX]" (bit 31) or "Breakpoint [XXXXXXXX]";

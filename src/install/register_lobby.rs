@@ -7,7 +7,7 @@
 //! closed (`RegCloseKey`).
 //!
 //! Caller `install::install_files`. The registry calls through `api`; the GUID formatting
-//! (`sub_40171A`) done here.
+//! (0x40171A) done here.
 //!
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 

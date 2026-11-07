@@ -2,9 +2,8 @@
 //! number is the byte at esi+1, eax kept (`push eax` / `pop eax`).
 //!
 //! Takes: the record (its byte +1 the object)
-//! Out: CF as `kind_is_hidden` leaves it; every register kept
 //!
-//! Caller: `sub_45E3BF` (0x45E3D0, `jb`).
+//! Caller: `physics::face_contact` (0x45E3D0, `jb`).
 
 use crate::errors::BadInput;
 use crate::race::owner::Race;

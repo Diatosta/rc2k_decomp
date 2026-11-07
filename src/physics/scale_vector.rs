@@ -1,11 +1,9 @@
 //! `physics::scale_vector` (0x421297): the three floats at esi each times st(0)
 //! (`fld; fmul st, st(1); fstp`, x, y, z), st(0) left as it was.
 //!
-//! In:  esi the vector, st(0) the factor
-//! Out: the vector scaled; st(0) the factor still; every register kept
-//! Callers (12): the cars' physics under `sub_4454D2` (`sub_43BDD1`, `sub_43DEF4`,
-//! `sub_43F7AC`, `sub_45F17E`, `sub_45F7B1`, `sub_45FAE1`, two in unowned code at 0x43F5A0,
-//! 0x43F647).
+//! Callers (12): the cars' physics under `drive::race_step` (0x43BDD1, `physics::lever_push`,
+//! `physics::limit_motion`, `physics::contact_force`, `physics::bump_cars`, `physics::apply_force`,
+//! two in unowned code at 0x43F5A0, 0x43F647).
 
 use crate::math::cells::{Cells, load};
 use crate::math::x87_run::scale_by_80;

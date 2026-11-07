@@ -3,7 +3,7 @@
 //!
 //! Returns: the count, the first record
 //!
-//! Caller: `sub_43B635` (0x43B822, after `physics::apply_wheel_forces`, before
+//! Caller: `physics::car_physics_step` (0x43B822, after `physics::apply_wheel_forces`, before
 //! `physics::move_car`), every physics step.
 
 use crate::errors::Refused;

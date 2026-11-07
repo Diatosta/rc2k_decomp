@@ -3,11 +3,9 @@
 //! `physics::set_flag_51659C` (0x45D151, `dword_51659C`), `physics::set_flag_5165A0`
 //! (0x45D16D, `dword_5165A0`), `physics::set_flag_5165A4` (0x45D189, `dword_5165A4`).
 //!
-//! Out: eax the entry; the rest kept; no flags read (callers go on with other
-//!      instructions)
-//!
-//! Callers: `sub_436833`, `sub_436AFB`, `sub_436A4B` (under `sub_436790`). Refuses (before
-//! anything) a current car past 7 (the table's size not worked out).
+//! Callers: `physics::take_split_counted`, `physics::count_down_start`, `physics::start_go_notice`
+//! (under `physics::race_timers`). Refuses (before anything) a current car past 7 (the table's size
+//! not worked out).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

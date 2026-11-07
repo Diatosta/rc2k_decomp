@@ -1,7 +1,6 @@
 //! `text::draw_text_keep_regs` (0x402303): `draw_text`.
 //!
 //! Takes: font, text, x, y
-//! Out: carry as `draw_text` leaves it; every register preserved
 
 use crate::errors::Refused;
 use crate::text::draw_text::{Canvas, draw_text};

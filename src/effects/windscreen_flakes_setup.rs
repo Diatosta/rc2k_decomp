@@ -5,7 +5,7 @@
 //! `dword_8BC212` .. (u a, c, c, a; v b, b, d, d); `g_polygonVertexCount` 4; `flt_89CEEA` 1
 //! over `flt_6241C8`.
 //!
-//! Caller: `sub_4BFFEC` (0x4C000F).
+//! Caller: `effects::run_windscreen_flakes` (0x4C000F).
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::effects::windscreen_flakes_store::WindscreenFlakes;

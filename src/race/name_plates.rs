@@ -1,8 +1,9 @@
-//! The name plates: texts drawn into the views' plate textures (`sub_45B3B9` ->
-//! `sub_45B695` / `sub_41B2D4` / `sub_45B70A`, part R3, IDA 2026-10-18). A plate's surface
-//! is locked (the platform's `sub_41AA4B`, carry when it failed), cleared and written with
-//! `text::draw_text_keep_regs`, then unlocked (`sub_41AB02`). Parts: 1 lock (eax the slot),
-//! 2 unlock (eax the slot), 3 a text (eax font, ebx text, ecx x, edx y).
+//! The name plates: texts drawn into the views' plate textures (`race::update_name_plates` ->
+//! `race::draw_name_plate` / `race::draw_plate_by_id` / `race::draw_time_plate`, part R3, IDA
+//! 2026-10-18). A plate's surface is locked (the platform's `d3d::lock_texture`, carry when it
+//! failed), cleared and written with
+//! `text::draw_text_keep_regs`, then unlocked (`d3d::unlock_texture`). Parts: 1 lock (eax the
+//! slot), 2 unlock (eax the slot), 3 a text (eax font, ebx text, ecx x, edx y).
 
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;

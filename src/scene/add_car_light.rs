@@ -16,8 +16,8 @@
 //! The third times twice the first over 256, times the block's dword +0xABC over 256, held to
 //! 255, picks a colour from the table `dword_635D18`, which is added to `g_lightColour` byte by
 //! byte without overflow. The x87's arithmetic in `X` (plain Rust since 2026-10-24; the
-//! original's instructions are `asm_reference` in the tests). Callers: `sub_44F1FE`, twice.
-//! Takes the car's block as a typed reference.
+//! original's instructions are `asm_reference` in the tests). Callers: `scene::add_car_lights`,
+//! twice. Takes the car's block as a typed reference.
 
 use crate::physics::car_store::Car;
 use crate::scene::vertex_light::plus;

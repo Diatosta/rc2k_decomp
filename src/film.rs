@@ -3,8 +3,8 @@
 //! surface), here an AVI reader of its own and FFmpeg's decoder (`libavcodec`, built by
 //! `tools/build_ffmpeg.sh` with the Indeo 4 decoder only; owner, 2026-10-19).
 //!
-//! What the original does (`sub_41AE39`, its three helpers `sub_41AE92` open,
-//! `sub_41B0A4` a frame, `sub_41B0DF` close):
+//! What the original does (0x41AE39, its three helpers 0x41AE92 open,
+//! 0x41B0A4 a frame, 0x41B0DF close):
 //! - with `g_noFmv` set: nothing (the flags of `cmp g_noFmv, 0`);
 //! - the reports (`dword_4F52AC`) off while it plays, a pending key thrown away
 //!   (`input::take_key`);

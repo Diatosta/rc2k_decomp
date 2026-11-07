@@ -1,4 +1,4 @@
-//! The players' input devices, as the input thread (`sub_4078DA`, "INPUTTDB") keeps them:
+//! The players' input devices, as the input thread (`input::input_thread`, "INPUTTDB") keeps them:
 //! two records of 0x4F8 bytes (`unk_4F6EF0`, `unk_4F73E8`; `g_inputDevices` 0x4F6EE8 points
 //! at them). What is known of a record (a reading from the code that uses it):
 //! - +0 the controller's number, +4 its DirectInput device (0: none), +8 its kind (1

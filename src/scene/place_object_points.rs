@@ -2,25 +2,22 @@
 //! view, the points onto the screen.
 //!
 //! Takes: only matter for an object with normals and no points (refused)
-//! Out: esi = the matrix, ebx = the object's number, ebp = 0 (or the number of normals
-//!      if that is not above 0); eax = the number after the last one placed, ecx = the
-//!      address after the last one read (both as they came if nothing was placed);
-//!      everything else preserved
 //!
 //! The object `g_objectNumber` has `dword_632370[n]` points and then
 //! `dword_632770[n]` normals, numbered from `dword_631F70[n]`, twelve bytes each at
 //! `dword_5C6FA4` + number * 12: a point three whole numbers, a normal three floats.
 //! Each gets the record 0x1000 + (number & 0xFFF) of `g_pointRecords` (its +0 = the
-//! number). A point goes through the matrix `off_5EA40C` points at (`sub_45C18E`, the
+//! number). A point goes through the matrix `off_5EA40C` points at (0x45C18E, the
 //! same arithmetic as `scene::rotate_point`) and onto the screen as
-//! `scene::project_point` does it (`sub_45C237`: not if it is nearer than 4096). With
-//! `dword_623DD0` not 0 the point is first moved (`sub_45C29B`) towards the one that
+//! `scene::project_point` does it (0x45C237: not if it is nearer than 4096). With
+//! `dword_623DD0` not 0 the point is first moved (0x45C29B) towards the one that
 //! many bytes further on in the table, by `flt_623DD4` of the way, rounded to whole
 //! numbers in `unk_5CCE18`; `dword_62400C` = that fraction. A normal goes through
-//! the matrix without its fourth row (`sub_45C1E7`).
-//! One caller, `sub_45BDE1`, which takes this way unless `dword_621A5C` (3DNow) or
-//! `g_useSse` is set: `place_object_points_sse` is the SSE way (`sub_45C04E`); the 3DNow way
-//! (`sub_45BF89`) is not ported.
+//! the matrix without its fourth row (0x45C1E7).
+//! One caller, `scene::place_object_points_any`, which takes this way unless `dword_621A5C` (3DNow)
+//! or
+//! `g_useSse` is set: `place_object_points_sse` is the SSE way (0x45C04E); the 3DNow way
+//! (0x45BF89) is not ported.
 //! Refuses an object's number of 0x100 or more, no records, no points' table, no
 //! matrix, and normals without points (the original goes on from whatever eax and
 //! ecx hold).
@@ -40,7 +37,7 @@ const OBJECTS: u32 = 0x100;
 
 // ---- Rust version ----
 
-/// `sub_45C29B`: the point at `from` moved towards the one `by` bytes on, into
+/// 0x45C29B: the point at `from` moved towards the one `by` bytes on, into
 /// `unk_5CCE18`.
 fn moved(race: &crate::race::owner::Race, from: usize, by: u32) -> Result<(), BadInput> {
     let course = &race.course;
@@ -96,7 +93,7 @@ fn moved_at(w: impl Base) {
     fstp(w, 0x28, t0);
 }
 
-/// `sub_45C1E7`: a normal's three floats through the matrix's first three rows, into
+/// 0x45C1E7: a normal's three floats through the matrix's first three rows, into
 /// the record's +0x10, +0x14, +0x18.
 fn turn(normal: &[u32], matrix: &[u32], record: &mut [u32]) {
     turn_normal(normal, matrix, cells(record));
@@ -237,10 +234,10 @@ fn sse_lanes(p: [f32; 3], m: &[f32; 16], place: bool) -> [u32; 4] {
     })
 }
 
-/// `sub_45C04E`: the SSE way, reached only with the developers' extensions switch (the debug
+/// 0x45C04E: the SSE way, reached only with the developers' extensions switch (the debug
 /// UI's Switches tab). Not as the x87 way: the matrix is always `g_madeObjectMatrix`, the
 /// points are never moved, a record's +0x1C holds the fourth lane until the screen's two are
-/// worked out (`sub_45C237`), and the table's point 0 ends as a normal in record 0x1000.
+/// worked out (0x45C237), and the table's point 0 ends as a normal in record 0x1000.
 pub fn place_object_points_sse(
     race: &crate::race::owner::Race,
     scene: &crate::scene::owner::Scene,
@@ -258,7 +255,7 @@ pub fn place_object_points_sse(
         // `cvtsi2ss`: the whole numbers rounded to floats.
         let lanes = sse_lanes(point.map(|v| v as i32 as f32), &m, true);
         r[4..8].copy_from_slice(&lanes);
-        // `sub_45C237`.
+        // 0x45C237.
         r[3] = 0;
         r[7] = 0;
         if f32::from_bits(r[6]) >= NEAR {

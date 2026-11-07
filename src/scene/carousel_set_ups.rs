@@ -4,7 +4,7 @@
 use crate::scene::owner::scene;
 use crate::scene::set_up_carousel::Op::{self, Fill, Run, Set};
 
-/// `sub_48F481`.
+/// 0x48F481.
 const MENU_00: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -78,7 +78,7 @@ const MENU_00: &[Op] = &[
     ),
 ];
 
-/// `sub_48F566`.
+/// 0x48F566.
 const MENU_01: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -152,7 +152,7 @@ const MENU_01: &[Op] = &[
     ),
 ];
 
-/// `sub_48F64B`.
+/// 0x48F64B.
 const MENU_02: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -214,7 +214,7 @@ const MENU_02: &[Op] = &[
     ),
 ];
 
-/// `sub_48F712`.
+/// 0x48F712.
 const MENU_03: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -268,7 +268,7 @@ const MENU_03: &[Op] = &[
     ),
 ];
 
-/// `sub_48F7C5`.
+/// 0x48F7C5.
 const MENU_04: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -318,7 +318,7 @@ const MENU_04: &[Op] = &[
     ),
 ];
 
-/// `sub_48F86E`.
+/// 0x48F86E.
 const MENU_05: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -392,7 +392,7 @@ const MENU_05: &[Op] = &[
     ),
 ];
 
-/// `sub_48F953`.
+/// 0x48F953.
 const MENU_06: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -458,7 +458,7 @@ const MENU_06: &[Op] = &[
     ),
 ];
 
-/// `sub_48FA24`.
+/// 0x48FA24.
 const MENU_07: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -548,7 +548,7 @@ const MENU_07: &[Op] = &[
     ),
 ];
 
-/// `sub_48FB31`.
+/// 0x48FB31.
 const MENU_08: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -606,7 +606,7 @@ const MENU_08: &[Op] = &[
     ),
 ];
 
-/// `sub_48FBEE`.
+/// 0x48FBEE.
 const MENU_09: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -676,7 +676,7 @@ const MENU_09: &[Op] = &[
     ),
 ];
 
-/// `sub_48FCC9`.
+/// 0x48FCC9.
 const MENU_0A: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -766,7 +766,7 @@ const MENU_0A: &[Op] = &[
     ),
 ];
 
-/// `sub_4A0A19`.
+/// 0x4A0A19.
 const MENU_0F: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -832,7 +832,7 @@ const MENU_0F: &[Op] = &[
     ),
 ];
 
-/// `sub_4A0AEA`.
+/// 0x4A0AEA.
 const MENU_10: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -898,7 +898,7 @@ const MENU_10: &[Op] = &[
     ),
 ];
 
-/// `sub_4A0BBB`.
+/// 0x4A0BBB.
 const MENU_11: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -972,7 +972,7 @@ const MENU_11: &[Op] = &[
     ),
 ];
 
-/// `sub_4A0CA0`.
+/// 0x4A0CA0.
 const MENU_12: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -1034,7 +1034,7 @@ const MENU_12: &[Op] = &[
     ),
 ];
 
-/// `sub_48FDD6`.
+/// 0x48FDD6.
 const MENU_13: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,
@@ -1120,7 +1120,7 @@ const MENU_13: &[Op] = &[
     ),
 ];
 
-/// `sub_4A0D67`.
+/// 0x4A0D67.
 const MENU_14: &[Op] = &[
     Set(
         &crate::menu::owner::MENUS.screens.state.carousel.set_up,

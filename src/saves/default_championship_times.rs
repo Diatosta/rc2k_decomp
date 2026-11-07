@@ -8,7 +8,7 @@
 //! (`saves/default_times.rs`). Then, going through the records once more: a stage adds
 //! its +0x18 + 0xB6 to `dword_7559B0`; a record with tag 3 or 4 (a rally's end) gives the
 //! twenty entries of the next of the six tables of `off_742C98` that sum and 0xB2 more
-//! each at +0x18, and a driver (`sub_47CB0A`), and the sum starts again from 0.
+//! each at +0x18, and a driver (0x47CB0A), and the sum starts again from 0.
 //! One caller, `menu::set_up_front_end`, when `var\hst.dat` was not loaded.
 //! Refuses missing tables, a record table without stages or without its end, and more
 //! rallies than the six tables. Converted: `rc2k_core::saves::defaults::championship_times`

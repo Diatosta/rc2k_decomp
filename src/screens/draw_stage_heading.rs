@@ -8,7 +8,7 @@
 //!
 //! Screen: it is part of the panel `draw_stage_info` draws, which the owner confirmed on
 //! 2026-10-10 as the stage details screen shown before each stage of a championship. Its other
-//! caller, `sub_480064`, has not been seen in the game.
+//! caller, `screens::draw_service_stage_info`, has not been seen in the game.
 
 use crate::errors::Refused;
 use crate::records::stages_store::RecordRef;

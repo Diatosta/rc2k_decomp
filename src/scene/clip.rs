@@ -1,8 +1,8 @@
 //! What the two clipping functions share: one pass of a polygon against one edge, and the
 //! making of a vertex where a side crosses it.
 //!
-//! A pass (`sub_44D9AF`, `sub_44DA78`, `sub_44D81D`, `sub_44D8E6` for the screen's
-//! left, right, top and bottom; `sub_44DB93` and `sub_44DEAA` for the nearest and
+//! A pass (0x44D9AF, 0x44DA78, 0x44D81D, 0x44D8E6 for the screen's
+//! left, right, top and bottom; 0x44DB93 and 0x44DEAA for the nearest and
 //! farthest depth; all six one routine): the polygon's list is copied to
 //! `dword_977810` with its first number once more at the end; then for each vertex A
 //! and the one after it, B: A goes to the new list if it is inside, and if one of the
@@ -10,7 +10,7 @@
 //! there too. "Inside" is one x87 compare of the edge with the vertex's coordinate
 //! (the record's +0xC, +0x1C or +0x18), read as "edge below coordinate" or as its
 //! opposite, with "no number" counting as below.
-//! The new vertex (`sub_44D247` for x, `sub_44D532` for y, in line for the depth) takes
+//! The new vertex (0x44D247 for x, 0x44D532 for y, in line for the depth) takes
 //! the next entry of the work table (`dword_624114`) and the next record of the pool
 //! `dword_6240A4`: place in the view, on the screen, the record's first three dwords
 //! (screen edges only), the entry's four texture coordinates and five bytes, each

@@ -3,13 +3,12 @@
 //! clear with ecx that gear, or CF set when ecx reaches 0 (neutral) first.
 //!
 //! Takes: the gear
-//! Out: ecx the gear found (or 0), eax `gear_bit`'s (ecx + 1; kept when none was
-//!      tested), CF; ZF not read by the callers (`jb`); the rest kept
 //!
 //! A loop target (0x43C590) is inside the first five bytes: `.private_copy`, its call
-//! relocated. Callers (2): `sub_43C2AE` (0x43C397), `sub_43C521` (in `sub_43C2AE`), the
-//! gearbox under `sub_4454D2`. Refuses what `gear_bit` refuses (a bit past the dword: from
-//! ebx 0 or above 32 the search would run there), nothing written.
+//! relocated. Callers (2): `physics::manual_gearbox` (0x43C397), 0x43C521 (in
+//! `physics::manual_gearbox`), the gearbox under `drive::race_step`. Refuses what `gear_bit`
+//! refuses (a bit past the dword: from ebx 0 or above 32 the search would run there), nothing
+//! written.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

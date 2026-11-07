@@ -7,8 +7,6 @@
 //! `flt_62409C`, `flt_6240A0`), and `scene::draw_fan`. The vertices' rhw and texture places
 //! are left as they are (`effects::set_quad_uvs` sets the places once a frame).
 //!
-//! In:  st(0) .. st(2) the place (popped), ecx the colour, edx the size
-//!
 //! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC).
 
 use crate::d3d::vertices_store::VERTICES;

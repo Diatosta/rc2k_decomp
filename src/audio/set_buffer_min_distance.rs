@@ -1,7 +1,6 @@
 //! `audio::set_buffer_min_distance` (0x40C69A): a voice's 3D buffer's minimum distance.
 //!
 //! Takes: the voice
-//! Out: eax = the result; ecx, edx as the method leaves them
 //!
 //! `SetMinDistance` (+0x44) of its `buffer_3d` with its `min_distance` (an f32),
 //! deferred (1). One caller, `audio::make_buffer`. Refuses a voice without its 3D buffer

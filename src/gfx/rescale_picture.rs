@@ -13,7 +13,7 @@
 //! The right neighbour of a row's last pixel is the next row's first, and for the last row
 //! four bytes past the copy: the Rust version reads the same bytes, from memory it takes
 //! from the same allocator.
-//! One caller, the picture loader `sub_411863`, when the decoded width is not the screen's.
+//! One caller, the picture loader `gfx::load_picture`, when the decoded width is not the screen's.
 //! Leaves the steps in `dword_4F509C` .. `dword_4F50A8`, the last weights in `dword_4F50AC`
 //! and `dword_4F50B0`, and 0 in the two counters `dword_4F50B4` and `dword_4F50B8`.
 //! Refuses sizes of 0 (the original divides by them or counts through all 32 bits), a

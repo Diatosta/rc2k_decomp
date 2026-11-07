@@ -4,7 +4,7 @@
 //!
 //! Returns: the step
 //!
-//! Caller: `sub_43907F` (0x4392F3).
+//! Caller: `physics::camera_avoid_ground` (0x4392F3).
 
 use crate::race::owner::Race;
 use crate::session::Cell32;

@@ -3,10 +3,6 @@
 //! `gfx::fade_colour`, each low byte s of ebx becoming s + ((t - s) x ebp >> 8), held to
 //! 0 .. 0xFF, with t the dword (blue for the lowest byte); the top byte kept.
 //!
-//! In:  the colour (ebx), how far (ebp; 0x100 all the way)
-//! Out: the colour (eax = ebx); its one caller reads nothing else (conversion phase 3,
-//!      2026-10-24: esi, edx dropped)
-//!
 //! See `race/mud.rs`. One caller, `race::muddy_texel`.
 use crate::race::owner_course::Course;
 

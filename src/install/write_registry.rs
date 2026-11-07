@@ -5,8 +5,9 @@
 //! (`RegCloseKey`).
 //!
 //! A failed create, or a failed set of either value, is fatal error 0x80108420, 0x80108421
-//! or 0x80108425. Three callers (`install::install_files`, `uninstall`, and `sub_412DE0`).
-//! The registry calls through `api` (`installer::game_api` in the game: `windows-sys`
+//! or 0x80108425. Three callers (`install::install_files`, `uninstall`, and
+//! `install::run_installer`). The registry calls through `api` (`installer::game_api` in the game:
+//! `windows-sys`
 //! `Win32_System_Registry`); the standalone makes them too .
 //!
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.

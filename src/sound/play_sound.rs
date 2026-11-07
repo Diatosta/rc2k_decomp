@@ -1,8 +1,8 @@
 //! `sound::play_sound` (0x409B36): sends the audio thread a sound to play (command 1).
 //!
 //! Takes: sound, volume, ;, the sound's place when the mode is 3D
-//! Nothing while sounds are held back (`dword_506C84` is 1; `sub_409B6B` sets it,
-//! `sub_409B76` clears it). Unless the sound mode in use (`dword_4F82BC`) has bit
+//! Nothing while sounds are held back (`dword_506C84` is 1; `sound::hold_sounds_back` sets it,
+//! `sound::let_sounds_play` clears it). Unless the sound mode in use (`dword_4F82BC`) has bit
 //! 0x100000 (the 3D modes), the command goes with esi, edi and ebp = 0xFF800000; with
 //! it, with esi = ecx and ecx = 0.
 //! 14 callers.

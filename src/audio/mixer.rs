@@ -15,7 +15,7 @@ pub const MIX_BUFFER_LEN: u32 = 0x3C00;
 static MIX: std::sync::Mutex<[i32; MIX_BUFFER_LEN as usize / 4]> =
     std::sync::Mutex::new([0; MIX_BUFFER_LEN as usize / 4]);
 
-/// `audio::mix_channels` (`sub_40BECC`): `bytes` of the primary buffer's worth, `>> shift`
+/// `audio::mix_channels` (0x40BECC): `bytes` of the primary buffer's worth, `>> shift`
 /// frames, of every used channel (`count` from `channels`) added into `MIX` (zeroed
 /// first, two dwords a frame: the sample times the channel's left and its right volume).
 /// A channel's 32.32 position steps by its step after each frame; at its length a looping
@@ -105,7 +105,7 @@ pub fn mix_channels(
     Ok(())
 }
 
-/// `audio::write_mix` (`sub_40C03A`, with `sub_40C087`, `sub_40C0E0`, `sub_40C153`): the
+/// `audio::write_mix` (0x40C03A, with 0x40C087, 0x40C0E0, 0x40C153): the
 /// mix clipped into the two locked parts of buffer `primary` (`parts`: `platform_sound::
 /// lock`'s; the second used if it has a place) in the primary buffer's format: eight
 /// bits (mode bit 0x10) mono (0x100: left + right `>> 15`, held to -0x80 .. 0x7F, + 0x80),

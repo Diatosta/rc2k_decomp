@@ -2,14 +2,14 @@
 //! handler at 0x43AE87; `debug::draw_pages` calls their drawers), as the debug UI's tab. In
 //! RAL.EXE a mode's keys edited one thing at a time; here each is a section. IDA, 2026-10-30:
 //! - 5: the car's faces by group (`g_groupTable`, `scene::car_face_hidden`); the game's own.
-//! - 6: the camera's record (`sub_43B177`, the texts in `sub_427DB4`).
+//! - 6: the camera's record (0x43B177, the texts in 0x427DB4).
 //! - 7: the "error list", places kept (`g_errorList`, 0x20 bytes each; the stage's file loads it).
 //! - 8: a car's light places (`g_lightsData`), a flare at the light (`race::car_light_flares`).
 //!   One place a pair: the left is the right's x negated (`light_pair`). The car's real lights
 //!   are copies made at the load (`race::copy_lights_data`), hence "Apply".
-//! - 0xC: the road's height around the car (`sub_42985B`).
-//! - 0x11: the sun's point on the screen (`sub_428D75`).
-//! - 0x12: the course from above (`sub_42935E`; here the checkpoints' line, not its bitmap).
+//! - 0xC: the road's height around the car (0x42985B).
+//! - 0x11: the sun's point on the screen (0x428D75).
+//! - 0x12: the course from above (0x42935E; here the checkpoints' line, not its bitmap).
 //!
 //! Not here: 0xB is the "Probe points" box; 3, 9, 0xA draw nothing; 4 reads lists at 0x5EE6B8
 //! nothing writes; 0x10 has only 8's keys. What this tab writes is the game's memory until
@@ -54,7 +54,7 @@ const LIGHT_NAMES: [&str; 12] = [
     "null",
 ];
 
-/// The camera record's figures, as `sub_43B177`: name, offset; the last is whole.
+/// The camera record's figures, as 0x43B177: name, offset; the last is whole.
 /// The record's figures the page edits, by the developers' labels.
 fn camera_figures(r: &ViewRecord) -> [(&'static str, &Dword); 12] {
     [
@@ -297,7 +297,7 @@ fn lights(race: &Race, ui: &Ui) {
     }
 }
 
-/// A checkpoint's place: the first point of its face (`sub_42985B`).
+/// A checkpoint's place: the first point of its face (0x42985B).
 fn checkpoint_place(n: usize) -> Option<[i32; 3]> {
     let face = value_at(CHECKPOINT_FACES + 4 * n)?;
     let point =

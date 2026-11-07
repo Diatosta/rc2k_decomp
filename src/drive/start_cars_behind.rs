@@ -1,4 +1,4 @@
-//! `drive::start_cars_behind` (0x43703E): with `dword_62389C` 2 (by `sub_436758`), two
+//! `drive::start_cars_behind` (0x43703E): with `dword_62389C` 2 (by `drive::race_mode_cars`), two
 //! computer cars kept near the lead car (car block 0), put back on the line behind or
 //! ahead of it as it passes them (`dword_70FA44` counts the moves; `dword_70FA48` and
 //! `dword_70FA4C` are their cars, `dword_70FA50` / `54` their start numbers):

@@ -7,8 +7,8 @@
 //!
 //! Returns: in gear, `g_carGear` (`revs_from_wheels`)
 //!
-//! Caller: `sub_43B635` (0x43B7AD, before `sub_43EA54`), every physics step. Refuses
-//! (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
+//! Caller: `physics::car_physics_step` (0x43B7AD, before `physics::free_rev_in_neutral`), every
+//! physics step. Refuses (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;

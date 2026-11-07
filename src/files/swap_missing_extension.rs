@@ -3,7 +3,7 @@
 //!
 //! Takes path, which is written to. Paths of fewer than five characters are left alone, and so is
 //! every other ending (also `.pcx` and `.mpg`, and upper case). Whether the file is there is asked
-//! of `files::file_exists`. Two callers: the picture loader and the film player `sub_4161CD`.
+//! of `files::file_exists`. Two callers: the picture loader and the film player `menu::play_films`.
 //! Refuses what `text_length` and `file_exists` refuse. The name is a reading.
 
 use crate::errors::BadInput;

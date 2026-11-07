@@ -1,8 +1,6 @@
 //! `scene::reset_objects` (0x425CFF): empties the objects' tables before they are
 //! loaded.
 //!
-//! Out: eax = 0xFFFFFFFF, ecx = 0, edi = the end of the kinds' table
-//!
 //! The points' memory zeroed (its room `dword_5C6FAC`, in dwords); the slots' first points,
 //! numbers of points and normals, first faces and numbers of faces zeroed; `g_objectPointCount`
 //! = 1 (point 0 is never an object's), the faces' number and the faces' memory used = 0; every

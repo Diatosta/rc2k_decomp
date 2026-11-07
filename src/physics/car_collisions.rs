@@ -10,9 +10,9 @@
 //!
 //! Returns: the cars' count (at least 1) in modes 0 and 2
 //!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) more
-//! than eight cars or a null block among them (the original reads past `g_carBlocks` or
-//! through null), and what `corner_hits_car` refuses (what was written put back).
+//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
+//! (before anything) more than eight cars or a null block among them (the original reads past
+//! `g_carBlocks` or through null), and what `corner_hits_car` refuses (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

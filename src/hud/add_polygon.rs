@@ -8,12 +8,10 @@
 //! making a quad).
 //!
 //! In:  nothing (`g_polygonVertices`, `g_polygonVertexCount`)
-//! Out: eax the count, ecx 0, esi past the vertices, edi the triangle's indices; ebx and
-//!      the rest as the flush leaves them
 //!
-//! Callers: `sub_4B5A86`, `hud::add_triangle`, `sub_4B7058`, `hud::add_quad`. Refuses a count
-//! of 0 (the original's loop would run on) or past 0x10, and a batch it would write past,
-//! before anything.
+//! Callers: `hud::draw_stage_bar`, `hud::add_triangle`, `hud::turned_vertex`, `hud::add_quad`.
+//! Refuses a count of 0 (the original's loop would run on) or past 0x10, and a batch it would write
+//! past, before anything.
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;

@@ -2,12 +2,6 @@
 //! (a course face record of kind 0xFF, part R1 of stream A; also `scene::draw_scene_object`'s
 //! modes 1 and 2).
 //!
-//! In:  esi = the description: +1 the object (`g_objectNumber`), +4 its scene point
-//!      (`g_objectPlace`), +0x30 .. +0x38 the offset from it, +8 / +0xC / +0x10 its turns
-//!      (<< 8; the first & 0xFFFF), with +0x11 the second turns +9 / +0x12 / +0x13, +0x14 ..
-//!      +0x17 its light, +0x18 its size, +0x22 / +0x23 its light's slant, +0x24 the sun's
-//!      light, +0x25 bits 1 .. 2, +0x2C its shine
-//!
 //! Nothing for an object above 0x64 or a point past `g_scenePointCount`, nor in a race for
 //! object 0x3F. Objects 0x38 and 0x3A .. 0x3F are signs: upright (0x2000), full light, 0x3D /
 //! 0x3E half bright when any of +0x19 .. +0x1B, +0x20, +0x28 .. +0x2B is set. Then
@@ -38,7 +32,7 @@ fn check_object(race: &crate::race::owner::Race, object: u32) -> Result<(), Refu
 /// The Rust version for the description at `d` (esi at the original's entry). Its calls:
 /// `race::place_object_matrix` and `scene::draw_scene_object`. What it leaves in the
 /// registers (ebx the object) no caller reads (register liveness, 2026-10-23: only the
-/// unreached `sub_49081A`), nor do its two calls read what it had in them: the matrix's
+/// unreached 0x49081A), nor do its two calls read what it had in them: the matrix's
 /// placing reads no register, and the drawing only esi, which it is given.
 pub fn draw_described_object(
     race: &crate::race::owner::Race,

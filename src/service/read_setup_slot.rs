@@ -6,7 +6,7 @@
 //! first dword is "CRSU" and the dword at +8 is 0x50000; the 0x20 bytes at +0x10 then go to
 //! `byte_527880[slot * 0x20]`. A file shorter than 0x48 bytes is not noticed as such: what the
 //! buffer held before decides (reproduced). Refuses a slot past the table's 100 entries. Called for
-//! all 100 slots at start-up (`sub_411239`) and by `load_setup_slot`.
+//! all 100 slots at start-up (`system::load_game_data`) and by `load_setup_slot`.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;

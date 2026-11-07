@@ -1,9 +1,6 @@
 //! `scene::vertex_light` (0x450F17): the colour the light gives a vertex of an object.
 //!
 //! Takes: the vertex's fourth dword, the number of its normal
-//! Out: eax = the colour; ebp = the number given. On the one way that blends
-//!      (kind 3) the original also leaves ebx, ecx and edx changed; its one caller
-//!      keeps all three, and the Rust version does not change them
 //!
 //! By the kind of lighting `dword_62DAF4`:
 //! - with neither `dword_621480` nor `dword_60931C` set, or kind 0 (and not kind 4):
@@ -15,17 +12,17 @@
 //! - anything else: eax as it came.
 //!
 //! "Plus" is byte by byte without overflow: with MMX (`g_hasMmx`) all four bytes (`paddusb`),
-//! without it the low three. The lit colour (`sub_45112D` and its twin `sub_451170`, with
-//! `sub_4511F1`): the normal's place in the view (the record 0x1000 + (number & 0xFFF) of
+//! without it the low three. The lit colour (0x45112D and its twin 0x451170, with
+//! 0x4511F1): the normal's place in the view (the record 0x1000 + (number & 0xFFF) of
 //! `g_pointRecords`, its +0x10 .. +0x18) goes to `dword_62DAA8` ..; if the light's strength
 //! `dword_635090` is not 0, the light's direction `dword_6240A8` .. goes to `dword_62DAB4` ..,
 //! the strength as a float to `flt_62DAC0`, and `scene::light_dot` gives a number; that plus
 //! `dword_63508C`, held to `dword_635084` .. `dword_635088`, picks a colour from the table
-//! `dword_635118` (0x100 entries), kept in `dword_62DAC4`. The blend (`sub_4511B3` for the
-//! normal, `sub_451296`): the same number without the table, held to -255 .. 255; each of the
+//! `dword_635118` (0x100 entries), kept in `dword_62DAC4`. The blend (0x4511B3 for the
+//! normal, 0x451296): the same number without the table, held to -255 .. 255; each of the
 //! colour's three bytes moves that many 256ths of the way to `dword_6092C0`, `C4`, `C8` (red,
 //! green, blue by the byte's place) for a number of 0 or more, and by its size towards
-//! `dword_6092B4`, `B8`, `BC` for one below. One caller, `sub_450E37`. Refuses when there are
+//! `dword_6092B4`, `B8`, `BC` for one below. One caller, 0x450E37. Refuses when there are
 //! no records and when the table's place is outside it.
 
 use crate::errors::BadInput;
@@ -70,7 +67,7 @@ fn set_normal(number: u32, scene: &crate::scene::owner::Scene) -> Result<(), Bad
     Ok(())
 }
 
-/// The start of `sub_4511F1` and of `sub_451296`: the light on the normal as a number.
+/// The start of 0x4511F1 and of 0x451296: the light on the normal as a number.
 fn light(scene: &crate::scene::owner::Scene) -> i32 {
     let strength = scene.drawing.object_work.light_strength.bits() as i32;
     if strength == 0 {
@@ -88,7 +85,7 @@ fn light(scene: &crate::scene::owner::Scene) -> i32 {
     light_dot(scene)
 }
 
-/// Where `sub_4511F1` would look in the table, checked.
+/// Where 0x4511F1 would look in the table, checked.
 fn table_place(scene: &crate::scene::owner::Scene) -> Result<usize, BadInput> {
     let drawing = &scene.drawing;
     let place = held(
@@ -102,7 +99,7 @@ fn table_place(scene: &crate::scene::owner::Scene) -> Result<usize, BadInput> {
     Ok(place as usize)
 }
 
-/// `sub_45112D` / `sub_451170` with `sub_4511F1`: the lit colour, left in `dword_62DAC4`.
+/// 0x45112D / 0x451170 with 0x4511F1: the lit colour, left in `dword_62DAC4`.
 fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
     let scene = scene();
     // The checks first, on a copy of what they would write.
@@ -117,7 +114,7 @@ fn lit(number: u32, mmx: bool) -> Result<u32, BadInput> {
     Ok(colour)
 }
 
-/// `sub_451296`: the colour in `dword_62DAC4` blended by the light.
+/// 0x451296: the colour in `dword_62DAC4` blended by the light.
 fn blend(course: &crate::race::owner_course::Course) {
     let scene = crate::scene::owner::scene();
     let lights = &scene.lights;

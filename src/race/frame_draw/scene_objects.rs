@@ -276,7 +276,7 @@ pub fn add_car_depth_entry(
 /// and the last past its end; flares past the tables are not added.
 pub const FLARES_MAX: u32 = 0x100;
 
-/// `sub_457332`: a flare at `OBJECT_WORK.place` .. (object `g_objectNumber`, size
+/// 0x457332: a flare at `OBJECT_WORK.place` .. (object `g_objectNumber`, size
 /// `OBJECT_WORK.size`, colour `OBJECT_WORK.other_light`) into the six flare tables (0x100 dwords each, from
 /// `LEVEL_GRID.flare_place_x`) and, turned by `g_viewMatrix` (x and y back as floats, z rounded into
 /// the key), a depth entry with the flare's number + 0x1000000; none past `FLARES_MAX`.
@@ -327,7 +327,7 @@ pub(super) fn add_flare(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
     Ok(())
 }
 
-/// `sub_4572B0`: a flare at `point` in the frame of the car block at `car` (its matrix +0xB4,
+/// 0x4572B0: a flare at `point` in the frame of the car block at `car` (its matrix +0xB4,
 /// each part rounded, plus its place +0x134 ..), object 0x39, by `add_flare`.
 pub(super) fn place_flare(
     race: &Race,
@@ -353,7 +353,7 @@ pub(super) fn place_flare(
 /// count.
 pub(super) const PART_SWITCHES: u32 = 0xAC0;
 
-/// `sub_457241`: a pair of lights at the light record's +`at` (three dwords: none
+/// 0x457241: a pair of lights at the light record's +`at` (three dwords: none
 /// when all are 0) for the car block at `car`: the right one (x as it is) when the block's byte
 /// +`right` is set, the left (x negated) when +`left` is (-1: no byte), each by
 /// `place_flare`; `race().frame.frame_work.light_left` / `race().frame.frame_work.light_right` the two bytes.
@@ -451,7 +451,7 @@ pub fn car_light_flares(
         // A second test of the same kind follows; its error branch (a log line) is
         // never reached.
     }
-    // `sub_41F4E1`: the kind held to 0 ..= 0x21 (by sign), through `KIND_TABLES.kind_light_records`.
+    // 0x41F4E1: the kind held to 0 ..= 0x21 (by sign), through `KIND_TABLES.kind_light_records`.
     let index = KIND_TABLES.kind_light_records[(kind as i32).clamp(0, 0x21) as usize].bits();
     let record = LIGHT_RECORDS.record_ptr(index);
     scene.lights.state.view_kind.set(1u32);
@@ -468,11 +468,11 @@ pub fn car_light_flares(
         pair(0xBC, 0xACC, 0xACD)?;
         pair(0xC8, 0xACE, 0xACF)?;
     }
-    // `sub_45721A`: no left light for kind 0xD.
+    // 0x45721A: no left light for kind 0xD.
     let left = if kind == 0xD { u32::MAX } else { 0xAC6 };
     pair(0xF8, left, 0xAC7)?;
     scene.drawing.object_work.other_light.set(0x00C0_0000u32);
-    // `sub_457229`: none for kinds 0xD and 0xE.
+    // 0x457229: none for kinds 0xD and 0xE.
     let left = if kind == 0xD || kind == 0xE {
         u32::MAX
     } else {

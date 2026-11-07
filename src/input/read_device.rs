@@ -1,5 +1,5 @@
 //! `input::read_device` (0x408E38): a device's four readings from its bindings (see
-//! `input/devices.rs`). The device polled (`sub_408869`: its state copied into +0x2C ..
+//! `input/devices.rs`). The device polled (`input::poll_device`: its state copied into +0x2C ..
 //! +0x38); while it is read (+0x414 1):
 //! - the bits: the hat's angle (`input::hat_reading`) in the top byte, its direction
 //!   (`input::hat_direction`) in the second;
@@ -18,7 +18,7 @@
 //!
 //! Takes: the device's record
 //!
-//! Callers: `sub_408A56` (both devices, each tick of the input thread). Refuses (before
+//! Callers: `input::input_tick` (both devices, each tick of the input thread). Refuses (before
 //! anything) a bound key past 0xFF and an axis's place past the record.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

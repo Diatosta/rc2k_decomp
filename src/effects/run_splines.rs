@@ -8,7 +8,7 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4C1270`. Refuses null settings and more than 8 splines (before anything),
+//! Caller: `effects::view_frame`. Refuses null settings and more than 8 splines (before anything),
 //! and `place_spline`'s refusals (all it may write is put back first).
 
 use crate::effects::paths::Paths;

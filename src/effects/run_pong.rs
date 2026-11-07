@@ -4,7 +4,7 @@
 //! for the ball and for the bat (st(0) height, st(1) width, st(2) y, st(3) x), then
 //! `effects::pong_score`.
 //!
-//! Caller: `sub_4BF60F` (0x4BF7CB). The moves are their Rust versions.
+//! Caller: `effects::windscreen_flakes_frame` (0x4BF7CB). The moves are their Rust versions.
 
 use crate::effects::move_pong_ball::move_pong_ball;
 use crate::effects::move_pong_bat::move_pong_bat;

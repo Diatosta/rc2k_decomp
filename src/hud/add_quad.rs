@@ -3,10 +3,8 @@
 //! four vertices of `g_polygonVertices` (the places over `flt_75C00C` and over
 //! `flt_75C010`; the colour's low 24 bits under the alpha) and `hud::add_polygon`.
 //!
-//! Out: eax the colour going in, then as `add_polygon` leaves them
-//!
-//! Callers: `sub_4B716A`, `sub_4B7216`, `sub_4B70EE` (reached through code at 0x4B7163,
-//! 0x4B720F, 0x4B7266).
+//! Callers: `hud::add_scaled_sprite`, `hud::add_solid_quad`, `hud::add_sprite` (reached through
+//! code at 0x4B7163, 0x4B720F, 0x4B7266).
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;

@@ -2,9 +2,6 @@
 //! after the other.
 //!
 //! Takes: the car's sound object
-//! Out: (from a `play_sound`) eax the sound, ebx and edx -0x6F, ecx, edi, ebp 0; (the
-//!      queue run out) eax 0, ebx the place, ecx `drop_cue`'s, edi the queue; (not due)
-//!      eax the clock, edi the queue; esi preserved
 //! Only for an object in use (+8 is 1) with cues queued (+0x298 +0xC, the queue of
 //! `physics::queue_sound_cue`): the queue's +4 is the place in the first cue (-1: none
 //! begun), +8 the time the next sound is due. Unless none is begun, nothing until then

@@ -4,21 +4,18 @@
 //! its carry: the frame lost), drawn (`race::draw_race_scene`) and ended (`scene::end_scene`), the
 //! race's sounds (`sound::race_sound_tick`, eax 0x12), the replay's screenshot
 //! (`race::replay_screenshot`), the frame shown (`race::show_frame`, carry: lost); made: carry clear. Lost (or
-//! not drawn): unless quitting, the surfaces restored (`sub_405B10`, ebx `dword_518380`)
+//! not drawn): unless quitting, the surfaces restored (0x405B10, ebx `dword_518380`)
 //! and the flags of `cmp (ebx ^ 1) | dword_518380, 1`.
 //!
-//! Out: carry clear when the frame was made; otherwise the flags above (quitting: those
-//!      of `cmp g_quitting, 1`); the registers as the calls leave them, ebx on the lost way
-//!
 //! Callers: `drive::race_loop`, `quit_question`, `pause_until_key`, `finish_run`,
-//! `sub_4607A5`. The drawing, the sound tick, the screenshot and the showing are their Rust
-//! versions; the window, the scene's begin and end and the restore through the game.
+//! `race::play_movie_loop`. The drawing, the sound tick, the screenshot and the showing are their
+//! Rust versions; the window, the scene's begin and end and the restore through the game.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
 use crate::system::owner::system;
 
-const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
+const RESTORE: usize = 0x405B10; // 0x405B10: the surfaces restored (the platform's)
 
 /// The Rust version (see the header): `eax` in, the eax its calls leave out (`mov eax,
 /// 12h` and `race::show_frame` when the frame is drawn, else what the window's messages
@@ -31,7 +28,7 @@ pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
 
     let frame = &race.frame;
     // The calls below read no register at entry (liveness: `pump_messages`,
-    // `race_sound_tick`, `replay_screenshot`, `show_frame`, `sub_405B10`): only eax runs
+    // `race_sound_tick`, `replay_screenshot`, `show_frame`, 0x405B10): only eax runs
     // from call to call, and only `show_frame`'s carry is read.
     let mut eax = eax;
     crate::platform::pump_messages_now();

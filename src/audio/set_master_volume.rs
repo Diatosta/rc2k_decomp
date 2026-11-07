@@ -1,10 +1,8 @@
 //! `audio::set_master_volume` (0x40A740): the primary buffer's volume.
 //!
-//! In:  eax = the volume, 0 .. 0x40
-//!
 //! Nothing with A3D (`g_useA3d` 1: `nullsub_46`) or without a primary buffer
 //! (`g_primaryBuffer`); else its `SetVolume` (+0x3C) with `g_volumeTable` at the volume,
-//! held to 0x40 (unsigned). Callers: `sub_40A54B` (the mode's set-up) and
+//! held to 0x40 (unsigned). Callers: `audio::make_primary` (the mode's set-up) and
 //! `audio::volume_command`.
 
 use crate::audio::store::AudioState;

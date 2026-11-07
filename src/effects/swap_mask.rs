@@ -1,13 +1,11 @@
 //! `effects::swap_mask` (0x4C95F5): when the settings' +0x2704 differs from the last seen
 //! (`dword_934D6E`, then it), the marks' mask texture is refilled from `g_marksMaskBlock`
 //! (or `g_marksBMaskBlock` when it is set; the choice into `dword_934D72`): the texture slot
-//! `dword_5D0E10` locked (`sub_41AA4B`, the platform's), rows 0 .. 0x7D of 0x100 pixels
+//! `dword_5D0E10` locked (`d3d::lock_texture`, the platform's), rows 0 .. 0x7D of 0x100 pixels
 //! (`g_surface`'s width each) put at y + 0x80 by `gfx::put_surface_pixel`, unlocked
-//! (`sub_41AB02`), and slot `dword_5D1E10` forgotten (`scene::forget_slot_texture`).
+//! (`d3d::unlock_texture`), and slot `dword_5D1E10` forgotten (`scene::forget_slot_texture`).
 //!
 //! Works on `g_marksSettings`.
-//! Out: unchanged when nothing changed; else eax `dword_5D1E10`, ecx the width, edx 0x7E,
-//!      ebp and esi as the last pixel left them
 //!
 //! Caller: `effects::run_frame` (0x4D1549). in the game the platform's two through the game,
 //! the others their Rust versions. Refuses null settings (before anything) and a locked

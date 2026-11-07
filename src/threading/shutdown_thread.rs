@@ -5,7 +5,6 @@
 //! close (`PostMessageA` WM_CLOSE), +0xC 0, "SHUTDOWN:DONE" logged and the thread ended
 //! (`ExitThread(0)`).
 //!
-//! In:  nothing (a thread's start; `esi` is set to the slot)
 //! Out: does not return
 //!
 //! No callers: `CreateThread`'s (`start_slot_thread`, through `routes.rs`: the slot holds

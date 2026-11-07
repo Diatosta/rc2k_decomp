@@ -2,7 +2,7 @@
 //! `dword_764F94` .. by `dword_764F90`, `flt_764FBC` .. = `dword_764FB0` .. by
 //! `dword_764FAC` (`fld; fmul`, three on the stack, stored last first).
 //!
-//! Caller: `sub_4D14B4`.
+//! Caller: `effects::frame_marks`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 

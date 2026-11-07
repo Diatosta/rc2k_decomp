@@ -1,8 +1,6 @@
 //! `math::turn_scratch_xz` (0x41FEF8): the scratch point's x and z (floats at
 //! `dword_5C5F50` and `dword_5C5F4C`) turned by an angle.
 //!
-//! In:  edx = the angle (a dword's turn is 2^32: `g_sines`/`g_cosines` entry (edx +
-//!      0x80000) >> 20)
 //! Returns: the entry
 //!
 //! x' = x cos + z sin, z' = z cos - x sin, on the x87 as the original (`math::x87::

@@ -9,7 +9,7 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4C1148`. Refuses null settings, a +0x2748 of 9 or more when it is read
+//! Caller: `effects::shapes_frame`. Refuses null settings, a +0x2748 of 9 or more when it is read
 //! (`dword_844E34` holds 9), and its steps' refusals; on a refusal nothing stays written
 //! (all it may write is put back).
 

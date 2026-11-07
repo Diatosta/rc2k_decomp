@@ -25,7 +25,7 @@ fn buffer(v: &Voice) -> Result<u32, Refused> {
 /// `SetVolume` with `g_volumeTable[volume * volume_factor >> 6]` (signed). Returns eax.
 pub fn set_buffer_volume(state: &AudioState, v: &Voice) -> Result<i32, Refused> {
     if a3d(state) {
-        return Err(BadInput("A3D (`sub_40CEFE`)").into());
+        return Err(BadInput("A3D (0x40CEFE)").into());
     }
     // Converted: `rc2k_core::audio::levels::buffer_volume`.
     let level =
@@ -52,7 +52,7 @@ pub fn set_buffer_pan(state: &AudioState, v: &Voice) -> Result<Option<i32>, Refu
 /// `SetFrequency` with the frequency shifted right by the format's halvings.
 pub fn set_buffer_frequency(state: &AudioState, v: &Voice) -> Result<i32, Refused> {
     if a3d(state) {
-        return Err(BadInput("A3D (`sub_40CEC5`)").into());
+        return Err(BadInput("A3D (0x40CEC5)").into());
     }
     let b = buffer(v)?;
     // Converted: `rc2k_core::audio::levels::buffer_frequency`.

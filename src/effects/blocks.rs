@@ -21,7 +21,7 @@ pub const SETTINGS_BLOCKS: u32 = 8;
 
 /// `effects::allocate_places` (0x4C38B1), step 6: 0x7024 bytes on `stru_8DB570` into
 /// `g_marksPlaces`, its first three floats `flt_8DB5B4` ... Only code no reference
-/// reaches reads the block (0x4C3908, 0x4C396A, `sub_4C39D5`: `notes/reference.md`), so
+/// reaches reads the block (0x4C3908, 0x4C396A, 0x4C39D5: `notes/reference.md`), so
 /// since phase 12 it is only counted on its list (the memory figures) and not kept.
 pub fn allocate_places(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     crate::memory::owned::count_on(&effects.blocks.places.list, PLACES_LEN)
@@ -93,7 +93,7 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
 /// `effects::allocate_links` (0x4C5398), in step 3: 0x71020 bytes on `stru_9206F0` into
 /// `g_marksLinks`, its +0x7100C 0, at +8 and +0x4008 the 0x1000 entries' before and after
 /// (round), then `effects::scale_corners`. Only code no reference reaches reads the block
-/// (0x4C5446 .. 0x4C5DEA, `sub_4C6242`: `notes/reference.md`), so since phase 12 it is
+/// (0x4C5446 .. 0x4C5DEA, 0x4C6242: `notes/reference.md`), so since phase 12 it is
 /// only counted on its list (the memory figures) and not kept.
 pub fn allocate_links(effects: &crate::effects::owner::Effects) -> Result<(), Refused> {
     crate::memory::owned::count_on(&effects.blocks.links.list, LINKS_LEN)?;

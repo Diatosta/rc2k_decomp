@@ -5,7 +5,7 @@
 //!
 //! Returns: the second's turn
 //!
-//! Caller: `sub_43B635` (0x43B90A), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B90A), every physics step.
 
 use crate::math::x87_run::div_mul3_to_int;
 use crate::race::owner::Race;

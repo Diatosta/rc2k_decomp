@@ -7,8 +7,9 @@
 //! fraction times `flt_8BC24E`. (After the compare the original frees st(0) and moves the
 //! stack's top on, with the stack already empty: kept.)
 //!
-//! Caller: `sub_4BFFEC` (0x4C0052). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables; the picks their Rust versions (under the same rounding).
+//! Caller: `effects::run_windscreen_flakes` (0x4C0052). The x87 run is plain Rust on the x87 model
+//! (`math::x87_float`), in the original's order, over the game's variables; the picks their Rust
+//! versions (under the same rounding).
 
 use crate::effects::pick_windscreen_flake::pick_windscreen_flake;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;

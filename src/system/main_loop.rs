@@ -9,15 +9,16 @@
 //! - It sleeps a second at a time until the window is the active one (`dword_518374`)
 //!   and the key thread has run (`dword_518998`); the quit switch (`dword_51837C`) at 1
 //!   ends the wait and the loop, without `request_quit`.
-//! - `dword_51838C` and `dword_518080` = 0; `sub_404823`, `sub_40EFF3`, `sub_4075F3`,
-//!   `sub_4165F1` (not ported).
+//! - `dword_51838C` and `dword_518080` = 0; 0x404823, `sound::apply_settings`, `gfx::load_jade`,
+//!   `menu::build_notice` (not ported).
 //! - If the installer's script is set up (`word_51D752` is 0xBD): the installer
-//!   `sub_412DE0`, then the way out. Else, unless installing, `install::runs_from_source`
-//!   (its answer is not used); `g_installing`, `dword_51B9CC` and `dword_51B9D0` = 0.
-//! - `sub_40FCAA`; `files::is_cd_drive` (0x403310) on the base directory's first
+//!   `install::run_installer`, then the way out. Else, unless installing,
+//!   `install::runs_from_source` (its answer is not used); `g_installing`, `dword_51B9CC` and
+//!   `dword_51B9D0` = 0.
+//! - `sound::stop_cd_audio`; `files::is_cd_drive` (0x403310) on the base directory's first
 //!   character, whose answer this build's nine `nop`s throw away.
 //! - If `g_lobbyLaunched` (dword_5AB290) is 1: `net::lobby_launched_game` (0x418DF4), then
-//!   the way out. Else `menu::run_front_end`, `sub_40F826`, `saves::save_game_data`, and
+//!   the way out. Else `menu::run_front_end`, `sound::stop_music`, `saves::save_game_data`, and
 //!   unless the quit switch is 1 by then (which leaves at once) `saves::free_best_times`
 //!   (the original also skips the save then: fixed, section 16).
 //! - The way out: `request_quit` and "Leaving main loop...".

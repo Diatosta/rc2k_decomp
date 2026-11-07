@@ -1,7 +1,7 @@
 //! `race::loadlevel_init` (0x44426F, IDA 2026-10-17): the stage's loading proper, step by step,
 //! each step's word logged ("LOADLEVEL_INIT : ...") with the log indented round it and the
 //! loading bar moved on (`dword_623700` the step's mark, then the callback in `dword_623704`,
-//! `sub_4467C7`, called with esi it). The pace notes are `race::init_pace_notes` since
+//! `race::loading_bar_frame`, called with esi it). The pace notes are `race::init_pace_notes` since
 //! 2026-10-19. A step's refusal is the function's (2026-10-23: no longer handed to the step's
 //! address).
 
@@ -11,7 +11,7 @@ use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::scene::file_numbers_store::texts;
-const BAR: u32 = 0x4467C7; // sub_4467C7: the loading bar's 3D frame
+const BAR: u32 = 0x4467C7; // `race::loading_bar_frame`: the loading bar's 3D frame
 const BAR_DONE: u32 = 0x4467C6; // nullsub_8
 
 /// The step words ("LOADLEVEL_INIT : start" .. "finis"), in order.
@@ -112,8 +112,8 @@ impl Steps<'_> {
 
 /// `race::loadlevel_init` (0x44426F): "start"; `g_usePackedMaps` 1, `dword_5BE9B9` 1 but
 /// with `dword_621514`; `g_stageDirection` `dword_623854` (flipped for stages 0x1F, 0x22,
-/// 0x51); `g_inRace` 1; the loading bar's callback `sub_4467C7` (mark 0); then the steps
-/// (`CALLEES` in order, each with its word and mark: objects, course memory (2, 4),
+/// 0x51); `g_inRace` 1; the loading bar's callback `race::loading_bar_frame` (mark 0); then the
+/// steps (`CALLEES` in order, each with its word and mark: objects, course memory (2, 4),
 /// texture info and the course number (6), prefs (7), error list (8), ed textures (0xA),
 /// textures (0xE), texture infos (0xF), the course (0x13), plates cleared (0x14), objects
 /// (0x1E; `dword_623634`/`38` 0x1E/0x50), plates (0x50), the map (0x5A), fonts (0x5C),

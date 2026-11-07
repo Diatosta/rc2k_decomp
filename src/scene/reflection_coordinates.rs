@@ -3,10 +3,6 @@
 //!
 //! In:  nothing; `dword_6399A8` = the number of the vertex's normal, `dword_6399AC` =
 //!      the number of its point
-//! Out: `dword_6399B0`, `dword_6399B4` = the two texture coordinates as whole numbers;
-//!      eax, edx and esi as its parts leave them (eax of the second
-//!      `math::normalise_vector`, edx = the point's record, esi = the matrix of
-//!      `scene::reflect_vector`); everything else preserved
 //!
 //! The normal's place in the view (record 0x1000 + (number & 0xFFF), +0x10 .. +0x18)
 //! goes to `dword_5EA428` ..; the point's, negated, to the work vector, which is made

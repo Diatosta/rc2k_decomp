@@ -13,8 +13,8 @@
 //! mode: the quality's mode, 0x400000 channels, DS3D 0x101000 (+ 0x800000 with free
 //! hardware 3D buffers and `g_voiceManagerOn`), A3D 0x102000, EAX 0x1000000, Dolby 0x2040000; no
 //! way bit: 0x10000; no device bit: 0x1000. The menu mode is 0x11221. "AUD: New modes" and
-//! both logged. Callers: `audio::start`, the advanced audio screen (0x4707A3).
-//! Refuses a quality past `g_qualityModes` (the original reads past it).
+//! both logged. Callers: `audio::start`, the advanced audio screen (`menu::apply_audio_choices`,
+//! 0x4707A3). Refuses a quality past `g_qualityModes` (the original reads past it).
 
 use crate::audio::owner::audio;
 use crate::audio::store::AudioState;

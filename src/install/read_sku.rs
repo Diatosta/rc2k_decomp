@@ -4,7 +4,7 @@
 //! `dvd:`, in any order and number, each setting a switch to 1 (`dword_5190F8`,
 //! `dword_5190FC`); then a number (`dword_5190F4`), after the next `:` a second
 //! (`byte_519101`) and after the next `.` within 254 characters a third (`byte_519100`).
-//! What is not there keeps its value. One caller, `sub_411239`.
+//! What is not there keeps its value. One caller, `system::load_game_data`.
 
 use crate::errors::BadInput;
 use crate::session::{Byte, Bytes, Dword, with_runs};

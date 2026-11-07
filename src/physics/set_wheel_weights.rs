@@ -6,9 +6,7 @@
 //! vector (+0xC ..) set to (-1 / 1, 0, ±1) by its corner and turned the same way. A
 //! reading: the weight on each wheel, the corners' places.
 //!
-//! Out: esi 0x6147DC (the last turned); the rest kept; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B723), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B723), every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

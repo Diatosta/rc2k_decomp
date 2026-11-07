@@ -5,8 +5,8 @@
 //!
 //! Returns: the time, k
 //!
-//! Caller: `sub_436833`. Refuses (before anything) a k past the table's 0x40 entries (the
-//! original writes past it; race init clears 0x40).
+//! Caller: `physics::take_split_counted`. Refuses (before anything) a k past the table's 0x40
+//! entries (the original writes past it; race init clears 0x40).
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

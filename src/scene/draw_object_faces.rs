@@ -8,7 +8,8 @@
 //! with the top bit set), its kind (byte +6, `g_faceKind`) and byte +0xB (`dword_6D18D0`); the
 //! polygon's colour is white, or with a byte +0xA not 0 that byte in all three places;
 //! `scene::draw_object_face`; the colour white again. At the end `dword_624204` = 0. One
-//! caller, `sub_45045D`. Refuses a face's number past the table and a face that is not there.
+//! caller, `scene::draw_object`. Refuses a face's number past the table and a face that is not
+//! there.
 
 use crate::errors::{BadInput, Refused};
 

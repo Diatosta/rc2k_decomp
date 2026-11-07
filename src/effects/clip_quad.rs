@@ -10,10 +10,6 @@
 //! the quad; `g_polygonVertexCount` and `dword_93CC94` their number; CF clear. Other
 //! settings: CF clear, nothing changed.
 //!
-//! In:  the quad (the original's ebp: `g_polygonVertices` at every call; `g_marksSettings`)
-//! Out: the result: true when all is outside (the original's CF); no caller reads a
-//!      register it leaves
-//!
 //! Eight callers, each `jb` after it. Refuses null settings (a null quad, refused before,
 //! cannot come: the quad is the vertices' own).
 

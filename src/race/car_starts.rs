@@ -3,7 +3,7 @@
 //! (`race::start_car`: its checkpoint, its place on the line and to the side, the nearest
 //! checkpoint, then `race::reset_car_motion`: settled on the ground by
 //! `race::settle_car`, its matrix undone, its motion cleared), two blocks cleared, stored
-//! back. `sub_43EB5D` and `sub_45D305` are stream B's `physics::set_handling` and
+//! back. 0x43EB5D and `physics::probe_ground` are stream B's `physics::set_handling` and
 //! `physics::probe_ground` (since 2026-10-17).
 
 use crate::errors::{BadInput, Refused};
@@ -49,10 +49,10 @@ fn matrix_and_wheels(race: &Race) -> Result<[u32; 4], Refused> {
     Ok(wheels(&race.physics))
 }
 
-/// `race::settle_car` (0x43FC32): `sub_43EB5D` (`physics::set_handling`); the work car's
+/// `race::settle_car` (0x43FC32): 0x43EB5D (`physics::set_handling`); the work car's
 /// pitch and roll (+0x9C4, +0x9C8) 0, both steps 0x20000000, `dword_620470` 0x80; eight
-/// times the matrix (`get_mat_crash`) and the wheels (`sub_45D305`), the roll moved by the
-/// step towards wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each
+/// times the matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`), the roll moved by
+/// the step towards wheels 0 + 2 against 1 + 3, the pitch towards 0 + 1 against 2 + 3, each
 /// step halved; once more the matrix and the wheels, then the car's y, the four wheels and
 /// the four at 0x6D1F14 lowered by the lowest wheel (from 0x640000). The registers it
 /// leaves are read by no caller (conversion phase 3, 2026-10-24).
@@ -88,7 +88,7 @@ pub fn settle_car(race: &Race) -> Result<(), Refused> {
         }
     }
     shared.car.position[1].set(shared.car.position[1].get().wrapping_sub(lowest));
-    // dword_6D2514 .. 20: the four wheels' heights (made by `sub_45D305`).
+    // dword_6D2514 .. 20: the four wheels' heights (made by `physics::probe_ground`).
     for (k, h) in w.iter().enumerate() {
         physics.contact.probe_height[k].set(h.wrapping_sub(lowest));
     }

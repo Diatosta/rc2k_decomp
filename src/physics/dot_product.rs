@@ -4,8 +4,8 @@
 //!
 //! Takes: the two vectors (three floats)
 //!
-//! Callers (5): the cars' physics under `sub_4454D2` (`sub_440B9D`, `sub_45EDB5`,
-//! `sub_45F17E` three times).
+//! Callers (5): the cars' physics under `drive::race_step` (0x440B9D, `physics::crash_contact`,
+//! `physics::contact_force` three times).
 
 use crate::math::cells::{Cells, load};
 use crate::scene::vector3::*;

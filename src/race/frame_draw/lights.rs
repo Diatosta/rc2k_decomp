@@ -186,7 +186,7 @@ pub fn add_colours(a: u32, b: u32) -> u32 {
     rc2k_core::race::lights::add_colours(a, b, has_mmx(system))
 }
 
-/// `sub_44F691`: a car's headlights on the lit place, added to `g_lightColour` (see
+/// 0x44F691: a car's headlights on the lit place, added to `g_lightColour` (see
 /// `light_colour_at`). Called.
 pub(super) fn car_light_on_point(
     course: &Course,
@@ -229,7 +229,8 @@ pub(super) fn car_light_on_point(
     Ok(())
 }
 
-/// `sub_44F601`: the cars' headlights on the lit place: with `crate::net::owner::net().vars.session` the chosen car
+/// 0x44F601: the cars' headlights on the lit place: with `crate::net::owner::net().vars.session`
+/// the chosen car
 /// (`crate::net::owner::net().vars.player`) or all with `crate::race::owner::race().shared.vars.settings_words[4]` 1; else the players' cars (all with
 /// `crate::race::owner::race().shared.vars.settings_words[4]` 1), only the drawn view's car outside one player and modes 0 and 2.
 pub(super) fn car_lights_on_point(
@@ -268,7 +269,7 @@ pub(super) fn car_lights_on_point(
     Ok(())
 }
 
-/// `sub_44F863`: the lamps' light on the lit place: each lamp with a strength (+4,
+/// 0x44F863: the lamps' light on the lit place: each lamp with a strength (+4,
 /// `GROUND_WORK.point_light_strength`) gives ((0x200000 - its approximate distance) x strength) >> 17 (held to
 /// 0 .. 0xFF) as a grey, times its colour (+8, `LIGHT_WORK.lamp_tint`) byte by byte, added to
 /// `g_lightColour`.
@@ -323,7 +324,7 @@ pub fn check_light_colour(shared: &Shared) -> Result<(), Refused> {
 }
 
 /// `race::light_colour_at` (0x4537CE): `g_lightColour` 0, then the cars' headlights
-/// (`sub_44F601`) and the lamps (`sub_44F863`) on the lit place (`g_litPlace`,
+/// (0x44F601) and the lamps (0x44F863) on the lit place (`g_litPlace`,
 /// `LIGHT_STATE.lit_place[1]`, `LIGHT_STATE.lit_place[2]`), added up. Refuses as
 /// `check_light_colour`.
 pub fn light_colour_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {

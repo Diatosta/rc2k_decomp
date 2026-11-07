@@ -1,4 +1,4 @@
-//! The race's drawing (`sub_4541BF`'s tree, IDA 2026-10-17): its leaves that are game logic,
+//! The race's drawing (`drive::race_frame`'s tree, IDA 2026-10-17): its leaves that are game logic,
 //! not platform. The panel's fields at 0x6D14xx are a reading.
 
 use crate::errors::BadInput;

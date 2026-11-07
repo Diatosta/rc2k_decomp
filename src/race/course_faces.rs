@@ -1,7 +1,7 @@
-//! The course's faces drawn (`sub_44F9F3` -> `sub_4537E3` -> `sub_45232A`, part R1, IDA
-//! 2026-10-18). A face record is 0x40 bytes at `g_courseFaces` (+0 the kind and flags, +1
+//! The course's faces drawn (`race::draw_tinted_face` -> 0x4537E3 -> `race::draw_course_face`, part
+//! R1, IDA 2026-10-18). A face record is 0x40 bytes at `g_courseFaces` (+0 the kind and flags, +1
 //! the object, +4 .. +0x10 four scene points, +0x18 / +0x30 / +0x38 and +0x1C / +0x34 /
-//! +0x3C its two triangles' normals, by the reading of `sub_4525F8`, +0x20 / +0x21 the
+//! +0x3C its two triangles' normals, by the reading of 0x4525F8, +0x20 / +0x21 the
 //! second's flags and object). Here its leaves.
 
 use crate::errors::{BadInput, Refused};
@@ -71,7 +71,7 @@ pub fn face_corners(shared: &Shared, face: &Face) -> u32 {
     corners[3]
 }
 
-/// `sub_4525F8`: 1 when the face's triangle at `face + half` (half 0 or 4) faces the view
+/// 0x4525F8: 1 when the face's triangle at `face + half` (half 0 or 4) faces the view
 /// (its point +8 less the view's place, `flt_6062A4` .., dotted with its normal +0x18,
 /// +0x30, +0x38 above 0, or not a number; the original's x87 run), 0 outside a race.
 #[cfg(all(test, target_arch = "x86"))]
@@ -80,7 +80,7 @@ fn face_turned_to_view(race: &Race, face: u32, half: u32) -> Result<u32, BadInpu
     turned_to_view(race, &Face(bytes), (half / 4) as usize)
 }
 
-/// `sub_4525F8` on a read face, its triangle 0 or 1.
+/// 0x4525F8 on a read face, its triangle 0 or 1.
 fn turned_to_view(race: &Race, f: &Face, triangle: usize) -> Result<u32, BadInput> {
     let frame = &race.frame;
     use crate::math::x87_float::{X, compare, int, ld};
@@ -105,7 +105,7 @@ fn turned_to_view(race: &Race, f: &Face, triangle: usize) -> Result<u32, BadInpu
 }
 
 /// `race::face_sides` (0x4525BE): which of face `face`'s (esi) triangles face the view:
-/// `dword_63D9E4` the first's (`sub_4525F8`), `dword_63D9E8` 1, or the second's when it
+/// `dword_63D9E4` the first's (0x4525F8), `dword_63D9E8` 1, or the second's when it
 /// has one (`dword_63D9F8` not -1). The registers the original leaves (eax the last
 /// answer, ebx the last triangle's point, ebp the face) are read by no one: its one
 /// caller's parts take only esi, the face.
@@ -210,7 +210,7 @@ pub fn face_switches(shared: &Shared, scene: &crate::scene::owner::Scene) {
     }
 }
 
-/// `sub_453786`: the light at scene point `n` (`race::light_colour_at`, through
+/// 0x453786: the light at scene point `n` (`race::light_colour_at`, through
 /// `dword_62400C`), 0 for -1.
 fn point_light(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Result<u32, Refused> {
     if n == u32::MAX {
@@ -282,7 +282,7 @@ pub fn clip_and_draw_face(race: &Race, scene: &crate::scene::owner::Scene) -> Re
 /// face's corners (`dword_63D9EC` ..; the fourth when there is one) is in sight: a corner
 /// is in sight when its scene record's depth (+0x18) is not negative and |x| (+0x10) is
 /// below `flt_63DA00` (|x| then left in `dword_62400C`) or |x| times `flt_63D9FC` is below
-/// the depth. The records are made when not there (as `sub_44CF33`). The eax and edx the
+/// the depth. The records are made when not there (as 0x44CF33). The eax and edx the
 /// original leaves are read by no one. Refuses (before anything) no point records or
 /// points.
 pub fn face_out_of_view(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
@@ -317,7 +317,7 @@ pub fn face_out_of_view(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
 }
 
 /// Where one of the face's two triangles keeps its texture's working values
-/// (`sub_453267` for the first, `sub_45349F` for the second: the same code on other
+/// (`race::face_texture_coordinates` for the first, 0x45349F for the second: the same code on other
 /// variables).
 pub struct TextureSet<'a> {
     /// The texture (`dword_63DA2C` / `dword_63DA38`).
@@ -646,7 +646,7 @@ pub fn draw_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
     Ok(())
 }
 
-/// `sub_4537E9`'s new vertex between two entries' vertices `a` and `b` into `v`: the
+/// `race::draw_lit_triangle`'s new vertex between two entries' vertices `a` and `b` into `v`: the
 /// view floats (+0x10 .. +0x18) halfway (b - a) x `flt_5C5E40` + a, the screen place
 /// (+0xC, +0x1C) 0, or when the depth is not below `flt_5C5E18` projected (by
 /// `flt_624088` over the depth, or over `dword_5CCD80` + 1 when `dword_60932C` is set,
@@ -686,8 +686,8 @@ fn halfway_record(
     crate::race::skidmarks::project_record(course, v, scene);
 }
 
-/// `sub_4537E9`'s new entry between entries `first` and `second` into `to`: the texture
-/// floats (+8 .. +0x14) (second + first) x `flt_5C5E40`, the bytes +0x20, +0x21, +0x18 ..
+/// `race::draw_lit_triangle`'s new entry between entries `first` and `second` into `to`: the
+/// texture floats (+8 .. +0x14) (second + first) x `flt_5C5E40`, the bytes +0x20, +0x21, +0x18 ..
 /// +0x1A the halves of their sums (+0x1B left).
 fn halfway_entry(course: &Course, first: &PolygonEntry, second: &PolygonEntry, to: &PolygonEntry) {
     use crate::math::x87_float::{ld, st};
@@ -836,7 +836,7 @@ pub fn face_colours(
 }
 
 /// The corners turned over (0 with 1, and 2 with 3 when there is a fourth) and the first
-/// texture's order by `byte_63DA7C` (its bit 3 kept): `sub_452B58`'s step, done twice.
+/// texture's order by `byte_63DA7C` (its bit 3 kept): `race::draw_back_face`'s step, done twice.
 fn turn_over(shared: &Shared) -> Result<(), BadInput> {
     {
         let swap = |a: usize, b: usize| {
@@ -971,7 +971,7 @@ pub fn draw_course_face(
     Ok(())
 }
 
-/// `race::draw_tinted_face` (0x44F9F3): face `face` (esi) drawn (`sub_4537E3`, that is
+/// `race::draw_tinted_face` (0x44F9F3): face `face` (esi) drawn (0x4537E3, that is
 /// `race::draw_course_face`) with `g_polygonColour` times its object's tint
 /// (`dword_60A880[+1]`, when not 0; byte by byte (a x b) >> 8, all four with MMX, the low
 /// three without), the colour put back after. Of the registers its one caller

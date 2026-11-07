@@ -1,4 +1,4 @@
-//! `race::loadlevel_init`'s locacurrcourse, its "best line" (`sub_445772`, IDA
+//! `race::loadlevel_init`'s locacurrcourse, its "best line" (`race::build_best_line`, IDA
 //! 2026-10-16): the checkpoint faces (first byte 0xFF, kind `g_lineFaceKind`) listed in
 //! `g_checkpointFaces` (0x9E3738) and chained in order, `g_checkpointCount` of them
 //! (0x623640, "numsorted"); then their angles, checks, distances, the map, the replay
@@ -127,7 +127,7 @@ pub struct Cameras {
     pub nearest: fn() -> &'static Dword,
 }
 
-/// `sub_445BB2` ("replaycam1") and `sub_445CF1` ("replaycam2").
+/// 0x445BB2 ("replaycam1") and 0x445CF1 ("replaycam2").
 pub fn cameras() -> [Cameras; 2] {
     [
         Cameras {

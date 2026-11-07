@@ -6,7 +6,7 @@
 //! place (turned again) kept as the last; then `flt_8EB951` .. each over
 //! `g_marksFrameTicks` (`fidiv`).
 //!
-//! Caller: `sub_4C3EEE`.
+//! Caller: `effects::draw_frame`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 

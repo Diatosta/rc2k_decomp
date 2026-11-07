@@ -1,5 +1,5 @@
-//! Race init's first step (`sub_446463` -> `sub_4464AD`, IDA 2026-10-17): the current car
-//! (the work copy `g_car`, 0x719FD8) set at its start on the best line. Here its steps:
+//! Race init's first step (`race::start_cars` -> `race::start_car`, IDA 2026-10-17): the current
+//! car (the work copy `g_car`, 0x719FD8) set at its start on the best line. Here its steps:
 //! the place on the line between two checkpoints (`race::place_car_on_line`), the nearest
 //! checkpoint to the car (`race::nearest_checkpoint` and its two helpers), and the car's
 //! matrix undone (`race::invert_car_matrix`).

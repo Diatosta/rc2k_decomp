@@ -5,9 +5,7 @@
 //! entry k + 1, entry k + 2 wrapping past 0x10) from `hud::disc_vertex` and drawn by
 //! `hud::add_triangle`.
 //!
-//! Out: eax the last texture angle, ebx 0x10, ecx 0x10, edx 0x10; the rest kept
-//!
-//! Callers: `sub_4B6B0A`, `sub_4B6B5B`, `sub_4B6BAC`, `sub_4B6BFD`.
+//! Callers: 0x4B6B0A, 0x4B6B5B, 0x4B6BAC, 0x4B6BFD.
 //!
 //! Converted 2026-10-21: the ring's angles and the triangles' entries through
 //! `rc2k_core::hud::disc` (whole numbers; the sines are copied); the texture's turn stays

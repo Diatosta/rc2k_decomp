@@ -1,5 +1,5 @@
-//! The stage's unloading (`sub_444940`, under `sub_444AC7`, IDA 2026-10-17): its lists
-//! given back. Each `race::free_*` here: the list's total taken off the course's byte
+//! The stage's unloading (`race::tidy_stage`, under `race::tidy_everything`, IDA 2026-10-17): its
+//! lists given back. Each `race::free_*` here: the list's total taken off the course's byte
 //! count (`dword_5C6F90`) but for the fonts', the list freed (`memory::free_list`), its
 //! pointers 0.
 

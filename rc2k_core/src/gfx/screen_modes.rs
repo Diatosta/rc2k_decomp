@@ -136,7 +136,7 @@ pub const MENU_CHOICES: [u32; 4] = [0x32_2202, 0x32_1202, 0x32_2802, 0x32_1802];
 
 /// `gfx::choose_screen_modes` (0x404481): the (menu, race) modes. The kept ones when both
 /// work (`works`: `gfx::try_screen_mode`), the menu's tried first; else, when a 3D mode
-/// of size 2 is listed and one with both 3D bits (`listed`: `sub_404AD9`, a table entry
+/// of size 2 is listed and one with both 3D bits (`listed`: 0x404AD9, a table entry
 /// with all the bits), the first race choice that works and the first menu mode that
 /// does: the race's card and kind at size 2, then `MENU_CHOICES`. None where the
 /// original fails (its carry).

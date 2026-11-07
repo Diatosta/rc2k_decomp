@@ -1,6 +1,6 @@
-//! `init_marks`' step 1 (IDA, 2026-10-16): the splines. `sub_4B96CD` reads
-//! `files\m\spline.dat` once and, for each of the settings' objects, `sub_4B9A32` fills the
-//! next of 8 places in four tables of `MarkSpline` records (0xE90 bytes): the points of the
+//! `init_marks`' step 1 (IDA, 2026-10-16): the splines. `effects::load_splines` reads
+//! `files\m\spline.dat` once and, for each of the settings' objects, `effects::make_spline` fills
+//! the next of 8 places in four tables of `MarkSpline` records (0xE90 bytes): the points of the
 //! object's faces of one kind, centred, turned, graded by height and ordered. These are the
 //! leaves; every function takes the record in ebp.
 
@@ -410,7 +410,7 @@ pub fn turnable_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<()
 
 /// The turns about X, Y, Z by the record's floats at `offsets` (not negated) into
 /// `g_marksTurnX` .. `Z`, X x Y into `g_marksTurnXY`, that x Z into `g_marksTurn`, as
-/// `sub_4BA0AE` and `sub_4BA16C` do.
+/// `effects::place_shape_points` and `effects::place_graded_points` do.
 pub fn turn_record(paths: &Paths, s: Spline, offsets: [u32; 3]) -> Result<(), Refused> {
     use crate::scene::matrix3::{Axis, extended, turn_matrix3};
     for ((axis, to), o) in [

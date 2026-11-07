@@ -2,7 +2,7 @@
 //!
 //! Takes the path. Returns the size, or fails (0xFFFFFFFF in the original, unless only the close
 //! failed). `open_by_mode` with mode 0, `files::handle_size` (0x402EA9, `GetFileSize`), `close`.
-//! Two callers, the PNG reader and `sub_4C6625`. Refuses what `resolve_path` refuses. The name is a
+//! Two callers, the PNG reader and 0x4C6625. Refuses what `resolve_path` refuses. The name is a
 //! reading.
 
 use crate::errors::BadInput;

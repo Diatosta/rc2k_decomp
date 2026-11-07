@@ -1,18 +1,17 @@
 //! The icons of the three layouts: a scale (one of the three icon scales), then one or two
-//! `hud::draw_icon` calls, each with the horizontal shift, the row and the record entry
-//! offset it needs. Between the two the texture number goes up by one.
+//! `hud::draw_icon` calls, each with the horizontal shift, the row and the view whose
+//! start lights it shows. Between the two the texture number goes up by one.
 
 use crate::errors::Refused;
 use crate::hud::draw_icon::draw_icon;
 use crate::hud::owner::Hud;
-use crate::pointers::GamePtr;
 use crate::race::owner_frame::Frame;
 
-/// One icon: the shift, the row and the record entry's offset.
+/// One icon: the shift, the row and the view (`Panel::lights`).
 pub struct IconDraw {
     pub shift: u32,
     pub row: u32,
-    pub entry: u32,
+    pub view: usize,
 }
 
 /// A layout's icons.
@@ -27,7 +26,7 @@ pub static LAYOUT_0: IconStyle = IconStyle {
     draws: &[IconDraw {
         shift: 0,
         row: 0xC8,
-        entry: 0,
+        view: 0,
     }],
 };
 pub static LAYOUT_1: IconStyle = IconStyle {
@@ -36,12 +35,12 @@ pub static LAYOUT_1: IconStyle = IconStyle {
         IconDraw {
             shift: 0xFFFF_FF38,
             row: 0xC8,
-            entry: 0,
+            view: 0,
         },
         IconDraw {
             shift: 0xC8,
             row: 0xC8,
-            entry: 0x10,
+            view: 1,
         },
     ],
 };
@@ -51,18 +50,18 @@ pub static LAYOUT_2: IconStyle = IconStyle {
         IconDraw {
             shift: 0,
             row: 0x3C,
-            entry: 0,
+            view: 0,
         },
         IconDraw {
             shift: 0,
             row: 0x177,
-            entry: 0x10,
+            view: 1,
         },
     ],
 };
 
-/// Draws `style`'s icons of the HUD record.
-pub fn icons(frame: &Frame, hud: &Hud, record: GamePtr, style: &IconStyle) -> Result<(), Refused> {
+/// Draws `style`'s icons.
+pub fn icons(frame: &Frame, hud: &Hud, style: &IconStyle) -> Result<(), Refused> {
     hud.block
         .icon_scale
         .set_bits(hud.block.icon_scales[style.scale].bits());
@@ -73,7 +72,8 @@ pub fn icons(frame: &Frame, hud: &Hud, record: GamePtr, style: &IconStyle) -> Re
                 .set(hud.block.texture.get().wrapping_add(1));
         }
         hud.block.icon_shift.set(d.shift);
-        draw_icon(frame, hud, record, d.row, d.entry)?;
+        let lights = &frame.panel_and_overlay.panel.lights[d.view];
+        draw_icon(frame, hud, lights, d.row)?;
     }
     Ok(())
 }

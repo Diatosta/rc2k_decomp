@@ -18,8 +18,6 @@
 //!   (8) into block +0xA3C, record +0x3F4 (0x11) into block +0xA5C.
 //!
 //! Takes: the block, the record, the sound object
-//! Out: eax block +0x1A0 (with +0xA34 set) or +0x1BC; ebx +0x1A4, ecx +0x1AC, edx +0x92C;
-//!      the rest kept (the copies are); no flags read
 //!
 //! Caller: `drive::share_all_cars` (0x456484), for each of the eight cars, inside `pusha` /
 //! `popa`. Refuses (before anything) a car file number above 0x21 (past `g_lightRecords`).

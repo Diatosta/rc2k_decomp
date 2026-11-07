@@ -4,9 +4,6 @@
 //! unpacked.
 //!
 //! Takes: the file, the buffer, the count (below 0: packed)
-//! Out: eax the bytes read or unpacked, CF set when the read failed (ZF from `test eax`
-//!      after an unpacking); a plain read keeps ebx, ecx, edx, a packed one every register
-//!      but eax
 //!
 //! Caller: `drive::read_replay_frame`. Refuses what `unpack_rle` refuses (nothing written
 //! then but the packed bytes).

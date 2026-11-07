@@ -1,6 +1,7 @@
 //! What a picture goes through on its way into a texture (read 2026-10-14 from
-//! `gfx::load_picture_to_texture`'s upload `sub_41A68B` and `scene::upload_car_icon`).
-//! Pixels are 32-bit components: byte 0, 1, 2 the colour, byte 3 the alpha.
+//! `gfx::load_picture_to_texture`'s upload `gfx::upload_texture_picture` and
+//! `scene::upload_car_icon`). Pixels are 32-bit components: byte 0, 1, 2 the colour, byte 3 the
+//! alpha.
 //!
 //! - `gfx::alpha_from_kept` (0x405443): each pixel's alpha = the first byte of the
 //!   pixel at the same place 0x40000 bytes on (a second picture kept there), inverted.

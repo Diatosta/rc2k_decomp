@@ -1,6 +1,6 @@
-//! The race's end and tidying (`sub_444AC7` "SHAUNTIDYEVERYTHING", `sub_444940`
-//! "LOADLEVEL_TIDY", IDA 2026-10-17), and the replay header's record (`sub_460246`). Here
-//! their steps.
+//! The race's end and tidying (`race::tidy_everything` "SHAUNTIDYEVERYTHING", `race::tidy_stage`
+//! "LOADLEVEL_TIDY", IDA 2026-10-17), and the replay header's record
+//! (`race::record_replay_header`). Here their steps.
 
 use crate::effects::owner::effects;
 use crate::errors::Refused;

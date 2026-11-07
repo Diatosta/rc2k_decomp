@@ -1,9 +1,6 @@
 //! `scene::try_allocate_textures` (0x4224C4): asks for the texture memory every needed
 //! texture takes, at the levels they are needed at.
 //!
-//! Out: carry clear = all of it was had; carry set = not. The original leaves the
-//!      registers changed; its callers keep them all. The Rust version keeps them.
-//!
 //! - Each kind's first slot and first texture (`g_kindFirstSlots`,
 //!   `g_kindFirstTextures`) = -1.
 //! - The memory asked for is added up for the log: `dword_5D0AE0` over the textures

@@ -8,8 +8,6 @@
 //! `hud::add_polygon` on four. (The holds by the compares' C0, an unordered compare
 //! counting as below.)
 //!
-//! Out: edx the turn, then as `add_polygon` leaves them
-//!
 //! Callers: the needles' set-ups (`hud::needle_*`).
 //!
 //! Converted 2026-10-21: the holds, the choice of the angle's way, the turn's register and

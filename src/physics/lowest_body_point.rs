@@ -4,11 +4,8 @@
 //! `dword_6D3068` and its number into `dword_6D306C` (-1 for none); then `flt_6D3070` =
 //! `dword_6D3068` / 65536 (with four or fewer, of what it held).
 //!
-//! Out: eax the last depth looked at, ebx the count (when there are more than four); the
-//!      rest kept; no flags read (callers go on with `mov`, `cmp`)
-//!
-//! Callers: `physics::feel_ground`, `sub_43BDD1` (twice), `sub_45EDB5`, `sub_45EFF3`.
-//! Refuses (before anything) a count above 0x40 (the depths' room).
+//! Callers: `physics::feel_ground`, `physics::find_clear_place` (twice), `physics::crash_contact`,
+//! `physics::ground_contact`. Refuses (before anything) a count above 0x40 (the depths' room).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

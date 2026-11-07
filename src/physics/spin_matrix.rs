@@ -7,10 +7,7 @@
 //! `g_crashMatrix` times it into `g_turnedMatrix` (`scene::multiply_matrices`) and copied
 //! back (16 dwords, `rep movsd`). Then `g_crashMatrix` squared.
 //!
-//! Out: esi `g_crashMatrix`; when the spin is not 0, also ecx and edx 0 (`multiply_
-//!      matrices`), edi `flt_5C7010`, ebp `g_turnedMatrix`; the rest kept; no flags read
-//!
-//! Callers: `sub_43B635` (0x43B82C, 0x43B8A5), every physics step.
+//! Callers: `physics::car_physics_step` (0x43B82C, 0x43B8A5), every physics step.
 
 use crate::math::x87;
 use crate::physics::axis_turn_matrix::axis_turn_matrix;

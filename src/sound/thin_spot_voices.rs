@@ -2,8 +2,6 @@
 //! two found and one of them, by a random bit, kept heard; unless one is playing.
 //!
 //! Takes: the sound
-//! Out: ebp the sound; the others as the original leaves them (see the code); esi, edi
-//!      preserved
 //! The pickers' work cleared. For each voice heard with the sound: one already playing
 //! ends it at once (nothing more changes). Else its distance x 1000 (`fistp`) against
 //! the nearest's and the next's (unsigned): a new nearest moves the old one to next and

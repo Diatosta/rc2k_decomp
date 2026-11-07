@@ -1,4 +1,4 @@
-//! Race init's last step (`sub_43FDFE`, IDA 2026-10-17): each car block's values (floats,
+//! Race init's last step (`race::grade_all_cars`, IDA 2026-10-17): each car block's values (floats,
 //! 0 .. 100 by their use) graded against thresholds into whole numbers: `race::grade_car_values`
 //! for one block, `race::grade_all_cars` for the eight.
 

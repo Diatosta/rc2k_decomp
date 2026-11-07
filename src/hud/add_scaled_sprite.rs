@@ -2,8 +2,6 @@
 //! and the height times st(1) (`fistp`ed through `dword_75C060`) before they are made
 //! positive; st(0) and st(1) are read, not popped.
 //!
-//! In:  esi the rectangle, ebx x, ecx y, st(0) / st(1) the scales (kept)
-//!
 //! Callers: the HUD's drawers (code at 0x4B28B0, ...).
 
 use crate::errors::Refused;

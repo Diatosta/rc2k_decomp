@@ -8,7 +8,6 @@
 //! (texture `dword_6240BC` 0xC4).
 //!
 //! Takes: the view (0 .. 5)
-//! Out: eax / ebx / ebp / ecx / edx as the last quad's set-up leaves them (see the code)
 //!
 //! Callers: `hud::draw_view_strips` (twice). Each quad's inputs (`dword_623DE8` ..
 //! `dword_623E24`, `g_polygonAlpha` 0xFF, colour -1, `dword_6240E0` 1, `dword_6240E4` 0) then

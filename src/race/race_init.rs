@@ -1,7 +1,8 @@
-//! `race::load_stage`'s "race init" (`sub_4462B9`, IDA 2026-10-17): after the best line,
-//! the camera's start (`sub_446463`), the face lights, the cars (`sub_43603C`), each car's
-//! race state, the race slots, the cars' starts and randoms, then fifty settling steps
-//! (`sub_4608BB`, `sub_456484`, the marks) and `sub_43FDFE`. Here its small steps.
+//! `race::load_stage`'s "race init" (`drive::race_init`, IDA 2026-10-17): after the best line,
+//! the camera's start (`race::start_cars`), the face lights, the cars (`race::set_up_cars`), each
+//! car's race state, the race slots, the cars' starts and randoms, then fifty settling steps
+//! (`drive::race_cars_step`, `drive::share_all_cars`, the marks) and `race::grade_all_cars`. Here
+//! its small steps.
 
 use crate::errors::BadInput;
 use crate::errors::Refused;

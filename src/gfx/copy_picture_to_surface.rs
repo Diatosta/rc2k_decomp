@@ -5,7 +5,7 @@
 //! copied if that fails; it is then unlocked again afterwards. The copy takes
 //! `dword_4F49A4` rows of `dword_4F49B4` dwords from the buffer, which it reads without
 //! gaps, and after each row moves on `dword_4F49C4` more bytes on the surface. All of these
-//! are read after the lock, which sets them (`sub_405726`).
+//! are read after the lock, which sets them (0x405726).
 //! Callers: `menu::frame_callback`, `menu::draw_frame` and a dozen more.
 //! The lock and the unlock are the game's (`gfx::lock_surface` 0x4058AD,
 //! `gfx::unlock_surface` 0x405949, DirectDraw calls); the Rust version reaches them through

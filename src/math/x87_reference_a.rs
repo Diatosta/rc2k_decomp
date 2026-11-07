@@ -310,8 +310,8 @@ pub(super) fn mul_div_div_to_int(a: u32, b: u32, c: u32, d: u32) -> i32 {
     out
 }
 
-/// `sub_41FC4D`'s sequence: x, y, z squared and summed (`faddp` twice), `fsqrt`, `fcom`
-/// with `zero`; unless equal, each of the three divided by the root still on the stack
+/// `race::normalise_work_vector`'s sequence: x, y, z squared and summed (`faddp` twice), `fsqrt`,
+/// `fcom` with `zero`; unless equal, each of the three divided by the root still on the stack
 /// (80 bits, not rounded first: `fdiv st, st(1)`) and stored back; then the root stored.
 /// Returns the root's bits and whether it compared equal.
 pub(super) unsafe fn normalise_in_place(v: *mut u32, zero: u32) -> (u32, bool) {

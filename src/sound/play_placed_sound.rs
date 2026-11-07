@@ -1,10 +1,6 @@
 //! `sound::play_placed_sound` (0x40F11C): plays a sound that has a place around the
 //! listener.
 //!
-//! In:  esi = the request, ten dwords: +0 the sound (bit 0x8000: none), +4 float (a
-//!      pitch, by its place in the command; a reading), +8 float volume, +0xC, +0x10,
-//!      +0x14 floats: where it is, +0x20 float factor for +4, +0x24 float factor for
-//!      the volume
 //! Nothing for a sound with bit 0x8000.
 //! Without bit 0x100000 in `g_soundMode` (no 3D): the volume = request's volume x the
 //! sample record's float +0x24 x the request's +0x24, as a whole number held to 0 ..

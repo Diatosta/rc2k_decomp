@@ -3,7 +3,7 @@
 //! frame, stored (rounded to floats) at `dword_71A17C`, `dword_71A180`, `g_carSpeed`
 //! (+0x1A4 .. +0x1AC). The tail of `physics::apply_force` on the work car.
 //!
-//! Caller: `sub_43BD8B` (its tail).
+//! Caller: `physics::put_back_motion_vectors` (its tail).
 
 use crate::math::cells::Cells;
 use crate::scene::matrix3::{extended, rounded};

@@ -11,10 +11,7 @@
 //! variables (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
 //! `asm_reference` in the tests.
 //!
-//! Out: ecx the last part's exponent bits, esi +0x198 (+0x1A4 after a scaling); no
-//!      flags read
-//!
-//! Callers: `sub_43B635` (twice), `sub_43BDD1`.
+//! Callers: `physics::car_physics_step` (twice), `physics::find_clear_place`.
 
 use crate::logfile::log_float::log_float;
 use crate::math::x87_float::compare;

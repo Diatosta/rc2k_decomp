@@ -12,8 +12,8 @@
 //!
 //! Returns: the gap's step, the sound object (`gear_change_sound`)
 //!
-//! Caller: `sub_43B635` (0x43B905), every physics step. Refuses (before anything) what the
-//! two calls refuse.
+//! Caller: `physics::car_physics_step` (0x43B905), every physics step. Refuses (before anything)
+//! what the two calls refuse.
 
 use crate::errors::Refused;
 use crate::math::x87;

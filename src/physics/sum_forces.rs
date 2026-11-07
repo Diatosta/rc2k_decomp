@@ -4,7 +4,7 @@
 //! 0x614834 + 0x20 k, `flt_614C3C` = the five at 0x614774 + 0x20 k (the records
 //! `physics::clear_forces` clears). By the look of it the step's forces in g (a reading).
 //!
-//! Caller: `sub_43B635` (0x43B995), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B995), every physics step.
 
 use crate::math::x87_run::sum_over;
 use crate::race::owner::Race;

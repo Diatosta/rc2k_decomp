@@ -17,7 +17,7 @@
 //! Rust over `X` (`math/x87_float.rs`) in the named helpers below, the original's
 //! instructions being `asm_reference` in the tests.
 //!
-//! Caller: `sub_43B635` (0x43B7A3), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B7A3), every physics step.
 
 use crate::math::x87;
 use crate::math::x87_float::X;

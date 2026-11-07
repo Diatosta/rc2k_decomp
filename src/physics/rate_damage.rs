@@ -18,10 +18,6 @@
 //! - `dword_71A274` = 0 when five figures are all below `flt_75B34C`, else 1, and then
 //!   `dword_71A3CC` = 0 unless `flt_71A2E8` is below it.
 //!
-//! Out: eax `g_carGearBits`, ecx 9, esi 0x75B568 (the last table); the rest kept; no
-//!      flags read (`sub_4AB5D0` returns, `sub_43BA8E` returns, `sub_43EB5D` goes on with
-//!      `fild`)
-//!
 //! Caller: `physics::rate_current_car` (0x4AB5D0), its only one.
 
 use crate::math::x87;

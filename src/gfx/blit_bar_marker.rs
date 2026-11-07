@@ -1,8 +1,6 @@
 //! `gfx::blit_bar_marker` (0x46B5FC): draws one sprite at the point of a bar that a percentage
 //! reaches, and moves the bar's x there.
 //!
-//! In:  nothing in registers except ebx, which is passed on as the palette at 0 percent or
-//!      less; the bar is described by the bar globals (see `blit_bar::Bar`)
 //! Above 0 percent, a width * percent of 0 is fatal error 0x80701010 in the original, and the
 //! palette given to the blitter is the marker's x. These sprites do not use a palette.
 

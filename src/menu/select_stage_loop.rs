@@ -1,5 +1,5 @@
 //! `menu::select_stage_loop` (0x482099): the stage selection "ESCOLHA ETAPA" of the start menus
-//! under sub_482382.
+//! under `menu::single_rally`.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; left without the question, the

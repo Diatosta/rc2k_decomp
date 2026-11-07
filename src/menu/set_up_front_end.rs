@@ -2,7 +2,7 @@
 //!
 //! In this order:
 //! - `menu::add_clio_car` if `g_hasClio` is 1; `menu::link_player_names`; the loading
-//!   picture (`sub_47CEA8`, not ported); `gfx::build_menu_sprites`;
+//!   picture (`menu::show_loading_picture`, not ported); `gfx::build_menu_sprites`;
 //!   `menu::fit_player_names` (with the ecx the loading picture left);
 //! - `dword_5180FC` = `dword_755688` and `dword_518100` = `dword_75568C`;
 //! - `saves::allocate_best_times` (the original then copies the nine tables' addresses to

@@ -1,9 +1,6 @@
 //! `math::turn_point_xz` (0x41FD12): a point of whole numbers turned in x and z.
 //!
 //! Takes: x, y, z, the angle
-//! Out: eax = x', ecx = z' (as `math::turn_scratch_xz` makes them, rounded as the x87
-//!      rounds), edx as `turn_scratch_xz` leaves it; the rest preserved (ebx too: the
-//!      original loads y into it, then its `pop ebx` puts the caller's back)
 //!
 //! The three go through the scratch point (`dword_5C5F50` x, `dword_5C5F54` y,
 //! `dword_5C5F4C` z; a local since 2026-10-24: `turn_scratch_xz::Scratch`), left there as

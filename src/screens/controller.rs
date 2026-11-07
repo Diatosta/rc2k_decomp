@@ -1,5 +1,6 @@
-//! The controller page's axis learning (`sub_46B131` -> `sub_46B4AE`, `sub_46B27A`; stream
-//! A, part F1, 2026-10-18): while `dword_7551F4` is 1 (for at most 3 s from
+//! The controller page's axis learning (`screens::learn_axis` -> 0x46B4AE,
+//! `screens::classify_controller`; stream A, part F1, 2026-10-18): while `dword_7551F4` is 1 (for
+//! at most 3 s from
 //! `dword_7551F8`), the player's control `dword_7551FC` (1 .. ) learns the axis or the
 //! direction the player moves, into the player's +0x50 table.
 

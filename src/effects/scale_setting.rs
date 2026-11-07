@@ -3,7 +3,7 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4C1148`. Refuses null settings (the original reads through 0).
+//! Caller: `effects::shapes_frame`. Refuses null settings (the original reads through 0).
 //!
 //! the x87 version stays for the Rust callers in unconverted code).
 

@@ -3,12 +3,12 @@
 //! times 0.5 (`flt_5C5E40`) over it. Nothing in neutral.
 //!
 //! In:  nothing (the current car's work copy, `drive/car.rs`)
-//! Out: ebx = `g_carGear` when not 0 (else kept); the rest kept
 //!
-//! See `physics/gearing.rs`. Callers (8): the gearbox under `sub_4454D2` (`sub_43BF6F`,
-//! `sub_43C20D`, `sub_43C2AE`, `sub_43C5C2`, `sub_43DFB1`), `sub_421848` (the car
-//! specification's run, under `sub_4541BF`), `sub_428F42`, `sub_4291C9`. Refuses a gear
-//! outside -1 ..= 7 (the ratio table), before writing.
+//! See `physics/gearing.rs`. Callers (8): the gearbox under `drive::race_step` (0x43BF6F,
+//! `physics::change_gear`, `physics::manual_gearbox`, `physics::auto_gearbox`,
+//! `physics::drive_wheels_step`), `physics::test_drive_run` (the car specification's run, under
+//! `drive::race_frame`), 0x428F42, 0x4291C9. Refuses a gear outside -1 ..= 7 (the ratio table),
+//! before writing.
 
 use crate::errors::Refused;
 use crate::physics::gearing::*;

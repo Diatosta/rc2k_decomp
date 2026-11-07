@@ -116,7 +116,7 @@ pub fn note_view(frame: &Frame) {
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(view);
 }
 
-/// In the spirit of `sub_4295AD` (0x4295AD), the developers' mode 0xB, which drew the probe
+/// In the spirit of 0x4295AD, the developers' mode 0xB, which drew the probe
 /// lists as one pixel each: the physics' probe points as last worked out
 /// (`physics::probe_ground`: 0x6D1E14 .. in the world, whole numbers), through the view
 /// noted, each with a line down to the ground found under it. Green the first four (the

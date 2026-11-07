@@ -1,7 +1,5 @@
 //! `math::next_random` (0x4018B4): the game's random numbers.
 //!
-//! Out: eax = the next number, ZF set when it is 0 (read by `race::nonzero_random`);
-//!      everything else preserved
 //! One step of the generator on its state `dword_4E0140` (`math::random_step`, 0x4018C8,
 //! with 0 mixed in): the low byte is changed by three bits of the number (bit 22, then
 //! bit 2 and bit 1 of the byte as it then is, each flipping bit 0), the whole is turned

@@ -9,7 +9,7 @@
 //! held to 0 .. 255, in all three colour places, each times the lamp's colour's
 //! over 256; and that added to `g_lightColour` byte by byte without overflow (all
 //! four bytes with MMX, the low three without, as in `scene::vertex_light`).
-//! One caller, `sub_451425`.
+//! One caller, 0x451425.
 //! Refuses more than 0x100 lamps and lamps without the scene's points.
 
 use crate::errors::{BadInput, Refused};

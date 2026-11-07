@@ -1,7 +1,5 @@
 //! `gfx::build_glyphs` (0x412085): makes a glyph table from numbered sheets of pictures.
 //!
-//! In:  eax = the sheets' path with `00` or `!!` where the number goes, ebx = the list
-//!      (`MemoryList`) the table's memory is taken from
 //! The sprite and font builder ("Extracting:" and "Appending:" in the game's log). For
 //! number 0, 1, .. while such a file exists: the sheet is read (`gfx/read_sheet.rs`: a PCX
 //! of one plane stays palette numbers, one of three becomes components), its backdrop is
@@ -11,9 +9,9 @@
 //! in ebx piece by piece. The builder's flags (`dword_519118`): 1 = glyphs are run-length
 //! coded, 0x10 = the path is one file's and not numbered, 0x20 = every sheet has a second
 //! one with its alpha; bits 2 and 4 are set here for a sheet of components. The callers
-//! (`sub_47C4A1` for the menus' sprites, `sub_415563` for the fonts, `sub_41B178`) set the
-//! flags, take the work memory `g_lexiconMemory` and point `dword_5195A4` at where the list
-//! stands.
+//! (`gfx::build_menu_sprites` for the menus' sprites, `gfx::build_fonts` for the fonts,
+//! `gfx::build_game_fonts`) set the flags, take the work memory `g_lexiconMemory` and point
+//! `dword_5195A4` at where the list stands.
 //! Errors: a sheet that does not read is fatal error 0x80E4F010; no room for a glyph, a
 //! sheet's table or the table's growth 0x80E48001, 0x80E48011, 0x80E48012; a table to
 //! append to that is nowhere 0x80E48077.
@@ -119,7 +117,7 @@ fn text(text: &[u8], newline: bool) {
     crate::logfile::log_write::log_nul(text, newline, 1);
 }
 
-/// `sub_41299B` with eax = 1: the two lines about a sheet.
+/// 0x41299B with eax = 1: the two lines about a sheet.
 fn log_sheet(
     path: &[u8],
     image: bool,
@@ -144,7 +142,7 @@ fn log_sheet(
     log_hex8(transparent, true, 1);
 }
 
-/// `sub_412A86`: the line about a glyph, the `number`th of its sheet.
+/// 0x412A86: the line about a glyph, the `number`th of its sheet.
 fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
     let padded = |value: u32| log_int_fmt(value as i32, 0x13, false, 1);
     text(b"\0", false);
@@ -193,7 +191,7 @@ fn log_glyph(glyph: &Glyph, number: u32, flags: u32, pixel_size: u32) {
     }
 }
 
-/// `sub_412C92` on the table being built: the sheet's table of `size` bytes at `sheet`
+/// 0x412C92 on the table being built: the sheet's table of `size` bytes at `sheet`
 /// becomes part of it.
 fn append_to_table(vars: &SheetVars, sheet: u32, more: &[u8]) -> Result<(), Refused> {
     let size = more.len() as u32;
@@ -219,8 +217,8 @@ fn append_to_table(vars: &SheetVars, sheet: u32, more: &[u8]) -> Result<(), Refu
     Ok(())
 }
 
-/// `sub_412446`: the sheet with the next number, if it is there and reads, is kept in the
-/// picture buffer's second half as the alpha of the one after it. The number moves on
+/// `gfx::read_alpha_sheet`: the sheet with the next number, if it is there and reads, is kept in
+/// the picture buffer's second half as the alpha of the one after it. The number moves on
 /// either way.
 /// The path's text, up to its NUL.
 fn read_alpha_sheet(
@@ -376,7 +374,7 @@ pub fn build_glyphs(
             log_sheet(&path, true, backdrop, transparent, gfx);
         }
         if flags & WITH_ALPHA != 0 && vars.alpha_loaded.get() == 1 {
-            // `sub_4124E9`: the kept sheet's low four bits become the top four here.
+            // 0x4124E9: the kept sheet's low four bits become the top four here.
             if flags & DIRECT_COLOUR != 0 {
                 return Err(fatal(
                     0x80E4_F422,

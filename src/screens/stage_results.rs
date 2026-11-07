@@ -1,4 +1,5 @@
-//! The time trial stage results page (`sub_48E740`; stream A, part F1, 2026-10-18).
+//! The time trial stage results page (`screens::draw_stage_results`; stream A, part F1,
+//! 2026-10-18).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;

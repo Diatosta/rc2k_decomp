@@ -1,7 +1,7 @@
 //! `scene::full_view_window` (0x44570A): `scene::choose_view_window` with `word_636526` 2
 //! (800 x 600 when framed), the word back to 0 after.
 //!
-//! Callers: `sub_45A893` (0x45A906), code at 0x4435B8.
+//! Callers: `hud::overlay_pass` (0x45A906), code at 0x4435B8.
 
 use crate::scene::choose_view_window::choose_view_window;
 

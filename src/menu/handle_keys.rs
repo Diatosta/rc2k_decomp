@@ -10,7 +10,7 @@
 //!   `g_enterSkipsNameEntry` 1 if ah (what the caller had in eax) is 4, else 0, the sound
 //!   2; eax 3;
 //! - any other: the last-key time the clock, then 0x66, 0x6B, 0x69, 0x68 the four
-//!   `move_highlight_*`, 0x52 a screenshot (`sub_407897`), 0x20 flips `dword_755575`,
+//!   `move_highlight_*`, 0x52 a screenshot (`gfx::take_screenshot`), 0x20 flips `dword_755575`,
 //!   0x14 adds 60 to the service time budget `dword_75593C` if bit 14 of `dword_75870C` is
 //!   set; eax 1.
 //!

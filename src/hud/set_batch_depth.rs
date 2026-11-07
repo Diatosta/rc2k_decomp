@@ -1,7 +1,7 @@
 //! `hud::set_batch_depth` (0x4B726C): the four vertices of `g_polygonVertices` given the
 //! HUD's rhw (`flt_75BFEC`), depth (`flt_75BFE8`) and specular 0.
 //!
-//! Caller: `sub_4B1CD0` (the HUD's start).
+//! Caller: `hud::draw_hud` (the HUD's start).
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::hud::owner::Hud;

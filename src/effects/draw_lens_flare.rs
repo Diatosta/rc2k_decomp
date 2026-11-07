@@ -10,7 +10,7 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4C4EA2`. Refuses null settings and a part's corner past `g_marksCorners`,
+//! Caller: `effects::flare_frame`. Refuses null settings and a part's corner past `g_marksCorners`,
 //! before anything.
 
 use crate::effects::draw_flare_part::draw_flare_part;

@@ -1,5 +1,5 @@
 //! An object's polygon drawn whole or as a fan of triangles (converted 2026-10-21 from
-//! `scene::draw_object_polygon` 0x451F69 and its test `sub_451EED`): the work list
+//! `scene::draw_object_polygon` 0x451F69 and its test `scene::needs_clipping`): the work list
 //! started, whether a vertex is off the screen or too near, and the fan's triangles.
 
 /// The kept entries' room (`unk_976610`, up to the list): the most vertices.
@@ -15,7 +15,7 @@ pub fn first_list(count: u32) -> Vec<u32> {
     (0..count).chain([0]).collect()
 }
 
-/// The edges `sub_451EED` tests against: the least (`flt_5C5D90`, for the depth, x and
+/// The edges `scene::needs_clipping` tests against: the least (`flt_5C5D90`, for the depth, x and
 /// y), the screen's right and bottom (`g_clipScreenRight`, `g_clipScreenBottom`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Edges {
@@ -37,7 +37,7 @@ fn below(a: f32, b: f32) -> bool {
     a.partial_cmp(&b).is_none_or(std::cmp::Ordering::is_lt)
 }
 
-/// `sub_451EED`: whether some vertex of a polygon of three or more is nearer than the
+/// `scene::needs_clipping`: whether some vertex of a polygon of three or more is nearer than the
 /// least, left of or above it, or at or past the right or bottom edge. `vertex(n)` is
 /// asked for each in turn until one is.
 pub fn needs_clipping<E>(

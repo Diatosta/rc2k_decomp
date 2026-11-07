@@ -4,7 +4,7 @@
 //! its z plus `dword_8BC43D` into `dword_8BDD85` (each rounded); the matrix's nine
 //! dwords copied to `dword_8BDD89`; the point put back to (0, 0, 0x20000).
 //!
-//! One caller, `sub_4C16F9` (the marks' frame).
+//! One caller, `effects::run_rain` (the marks' frame).
 
 use crate::effects::rain::Weather;
 use crate::errors::Refused;

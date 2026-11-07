@@ -2,10 +2,9 @@
 //! set, it is cleared and `physics::place_car_sound` runs.
 //!
 //! Takes: the bit
-//! Out: eax 1 << cl; the rest kept; no flags read (the callers load floats next)
 //!
-//! Callers: `sub_4411EC` (four). Refuses what `place_car_sound` refuses (before anything:
-//! the bit is cleared after the check).
+//! Callers: `physics::sound_hit_parts` (four). Refuses what `place_car_sound` refuses (before
+//! anything: the bit is cleared after the check).
 
 use crate::errors::Refused;
 use crate::physics::place_car_sound::place_car_sound;

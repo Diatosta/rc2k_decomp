@@ -1,6 +1,6 @@
 //! The ground's search: which course face lies under the point (`dword_639824`,
 //! `dword_63982C`, whole-number x and z), and the shares and height there (IDA,
-//! 2026-10-17). `sub_441E2F` tries the last face found (`physics::try_last_face`), then
+//! 2026-10-17). `physics::ground_search` tries the last face found (`physics::try_last_face`), then
 //! the nine grid cells around the point (`physics::search_cell`: the cell's course record,
 //! `physics::find_course_record`, then its faces, `physics::search_record_faces`), each
 //! face by `physics::face_under_point` (its edges by `physics::edge_side`; when inside,

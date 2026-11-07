@@ -1,7 +1,5 @@
 //! `scene::reset_texture_tables` (0x42247B): forgets which textures the kinds need and where they are.
 //!
-//! Out: eax = 0xffffffff, ecx = 0, edi = the end of the last table
-//!
 //! `dword_5DC978` = 0; -1 throughout the kinds' two tables of textures needed (`dword_5CFAE0`,
 //! `dword_5CEAE0`) and their first slots and first textures (`g_kindFirstSlots`,
 //! `g_kindFirstTextures`), 0x400 dwords each. Four callers.

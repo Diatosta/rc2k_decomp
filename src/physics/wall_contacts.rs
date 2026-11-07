@@ -10,9 +10,9 @@
 //! into `unk_71A1FC` .., `physics::wall_push_back`, the same two words,
 //! `restore_saved_car`, `feel_ground`.
 //!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) a
-//! count of 0 or past 0x40 (the original's loop runs on, or past the tables), and what its
-//! calls refuse (what was written put back).
+//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
+//! (before anything) a count of 0 or past 0x40 (the original's loop runs on, or past the tables),
+//! and what its calls refuse (what was written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

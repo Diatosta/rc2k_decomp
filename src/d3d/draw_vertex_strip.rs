@@ -1,7 +1,5 @@
 //! `d3d::draw_vertex_strip` (0x41ADE1): draws a triangle strip of the vertices at ebx.
 //!
-//! In:  eax = the vertices' number, ebx = the vertices (transformed and lit, 0x20 bytes each)
-//! Out: eax = Direct3D's result (0: drawn); ecx, edx as Direct3D leaves them
 //! The device's (`g_d3dDevice`, an `IDirect3DDevice2`) DrawPrimitive (+0x74) with a
 //! triangle strip (5: `D3DPT_TRIANGLESTRIP`; the fan is 6), transformed and lit vertices (3) and the flags 0x1C (not clipped,
 //! no lighting, no extents). Callers: `drive::tyre_turned_quad`, `drive::tyre_quad` (the

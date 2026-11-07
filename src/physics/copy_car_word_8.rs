@@ -4,7 +4,7 @@
 //!
 //! Returns: the word
 //!
-//! Caller: `sub_43C8AC`.
+//! Caller: `physics::pick_start_gear`.
 
 use crate::race::owner_shared::Shared;
 use crate::session::Cell32;

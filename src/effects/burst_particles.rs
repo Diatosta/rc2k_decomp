@@ -10,8 +10,8 @@
 //!
 //! Takes: the record
 //!
-//! Callers: `sub_4CFB49` and code at 0x4D032B. Refuses a null record or ring (when an entry
-//! is to be taken), before anything.
+//! Callers: `effects::run_particles` and code at 0x4D032B. Refuses a null record or ring (when an
+//! entry is to be taken), before anything.
 
 use crate::effects::blocks::{particle, set_particle};
 use crate::effects::ring_store::Ring;

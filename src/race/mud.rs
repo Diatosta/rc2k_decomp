@@ -2,7 +2,7 @@
 //! `stru_5C6F50` for the mud (`dword_623D50`), the car's mud file
 //! (`files\b\mudfile.0xx`, xx the car's file number) read into it, the mud's state
 //! cleared, and 256 colours sampled from a picture surface (`dword_5D0DEC`, locked and
-//! unlocked through DirectDraw: the game's, `sub_41AA4B` / `sub_41AB02`).
+//! unlocked through DirectDraw: the game's, `d3d::lock_texture` / `d3d::unlock_texture`).
 
 use crate::errors::BadInput;
 use crate::errors::Refused;

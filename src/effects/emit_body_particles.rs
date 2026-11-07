@@ -7,8 +7,8 @@
 //!
 //! Takes: the record, the car object
 //!
-//! Caller: `sub_4C9E2E`'s end. Refuses a null record or object and the emitters' refusals;
-//! on a refusal nothing stays written (all it may write is put back).
+//! Caller: `effects::emit_car_particles`'s end. Refuses a null record or object and the emitters'
+//! refusals; on a refusal nothing stays written (all it may write is put back).
 
 use crate::effects::emit_wheel_particles::{Table, emit};
 use crate::effects::emitters::*;

@@ -9,12 +9,8 @@
 //! stuck count) less 100, and it returns. Else `race::place_car_on_line`,
 //! `physics::reset_car_on_line`, and +0xFAC (`dword_71AF84`) 10.
 //!
-//! In:  nothing (the registers are passed on to the calls)
-//! Out: as the last call leaves them (eax the last try's checkpoint and esi the last
-//!      block when none was free); no flags read (every caller returns next)
-//!
-//! Callers: `physics::reset_when_stuck`, `sub_43A0D3`, `sub_43BDD1`. Refuses what the calls
-//! refuse.
+//! Callers: `physics::reset_when_stuck`, `drive::reset_request`, `physics::find_clear_place`.
+//! Refuses what the calls refuse.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

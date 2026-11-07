@@ -3,7 +3,6 @@
 //! In:  nothing: the vertices at `off_764F2C` (`g_hudVertices`), their number in
 //!      `g_hudVertexCount` (0x764F24), the indices (16 bits) at `off_764F30`
 //!      (`g_hudIndices`), their number in `g_hudIndexCount` (0x764F28)
-//! Out: eax = Direct3D's result (0: drawn); ecx, edx as Direct3D leaves them
 //! The device's DrawIndexedPrimitive with a triangle list (4) of transformed and lit
 //! vertices (3) and the flags 0x1C. One caller, `hud::flush_batch`.
 //! Platform: the original always runs. In the standalone program the rasteriser draws

@@ -5,7 +5,7 @@
 //!
 //! Returns: the timer less 0x320 when it got that far
 //!
-//! Caller: `sub_436790` (four calls).
+//! Caller: `physics::race_timers` (four calls).
 
 use crate::race::owner_shared::Shared;
 use crate::session::Cell32;

@@ -1,7 +1,6 @@
 //! `gfx::read_png` (0x41CB50): reads a PNG file into the picture buffer as 32-bit pixels.
 //!
 //! Takes: path
-//! Out: carry = failed; every register preserved
 //! Reads the file's first 0x80 bytes into `buf` (0x93E8B0) and gives up unless they are
 //! all there and are a PNG signature and an IHDR chunk of 13 bytes, with a width of at most
 //! 800, a height of at most 600 and no interlacing. Then the file's size (`file_size`),
@@ -12,7 +11,7 @@
 //! (`palette_pixels_to_dwords` if the file had a palette, else `rgb_pixels_to_dwords`).
 //! The memory is given back (`memory::free_list`) on every way out. Once the decoder has been
 //! called the carry flag is clear, whatever it returned.
-//! One caller, the picture loader `sub_4119F4`, which falls back on the PCX reader.
+//! One caller, the picture loader `gfx::read_picture_file`, which falls back on the PCX reader.
 //! The file is read and decoded twice, and its memory counted twice in the game's memory
 //! figures. Refuses what `read_file`, `file_size` and `decode_png` refuse. The name is a
 //! reading.

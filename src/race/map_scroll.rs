@@ -1,6 +1,6 @@
 //! The map's scroll: where the views' cars are on the course map and the map picture
-//! redrawn around them (`sub_45B4E6` -> `sub_45B527` -> `sub_45B663` -> `sub_45B68F`, part
-//! R3, IDA 2026-10-18). The work copy `g_car` holds +0x98 the car's last checkpoint, +0x134 /
+//! redrawn around them (`race::scroll_maps` -> `race::scroll_map` -> `race::map_tiles` -> 0x45B68F,
+//! part R3, IDA 2026-10-18). The work copy `g_car` holds +0x98 the car's last checkpoint, +0x134 /
 //! +0x13C its place, +0xAD4 / +0xAD8 the map picture's corner (16-pixel steps), +0xADC 1 when
 //! it was redrawn, +0xAE0 / +0xAE4 the car on the map (16.16), +0xAE8 / +0xAEC its place in
 //! the picture.
@@ -12,7 +12,7 @@ use crate::race::owner::Race;
 
 /// `race::map_tiles` (0x45B663): the map picture's slot `dword_5D0E00` (+ `g_currentCar`
 /// unless `dword_52A910`) drawn from tile (corner x >> 4, corner y >> 4)
-/// (`sub_45B68F` -> `race::blit_map_tiles`, ecx / edx the tile, eax the slot).
+/// (0x45B68F -> `race::blit_map_tiles`, ecx / edx the tile, eax the slot).
 pub fn map_tiles(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let frame = &race.frame;
     let shared = &race.shared;

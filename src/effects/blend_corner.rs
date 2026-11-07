@@ -2,9 +2,6 @@
 //! +0x90 + 4 x (the source point's three sign bits, x the highest; kept in
 //! `flt_93C6C8`), each of x, y, z base + (source - base) by it, rounded (`fistp`).
 //!
-//! In:  the record (a car's +0x29C), where the result goes, the source point, the base
-//!      point (the original's ebp, esi, edi, edx)
-//!
 //! Caller: `effects::morph_object_points`.
 
 #[cfg(test)]

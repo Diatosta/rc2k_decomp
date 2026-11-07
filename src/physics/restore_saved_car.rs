@@ -4,13 +4,11 @@
 //! `dword_71A238` dwords from `dword_6D2814` into `dword_71ADC8` (the copy's +0xDF0).
 //! What the pieces are (a place, the car's matrix, a list) is a reading.
 //!
-//! Out: eax = `dword_6141E8`, ecx = 0, esi = 0x6D2814 + 4 n, edi = 0x71ADC8 + 4 n (n the
-//!      count); flags the `add`'s (no caller reads them)
-//!
-//! Callers (7): `sub_43BDD1`, `sub_45D737`, `sub_45D7B6` (twice), `sub_45E3BF`,
-//! `sub_45EFF3`, `sub_45F703`, under `sub_4454D2` (most followed by `sub_43F1A8`). Refuses
-//! a count above 0x7C (unsigned: the list would run past the work copy's end, 0x71AFB8),
-//! before writing.
+//! Callers (7): `physics::find_clear_place`, `physics::crossed_edge`, `physics::wall_contacts`
+//! (twice), `physics::face_contact`,
+//! `physics::ground_contact`, `physics::corner_hits_car`, under `drive::race_step` (most followed
+//! by `physics::feel_ground`). Refuses a count above 0x7C (unsigned: the list would run past the
+//! work copy's end, 0x71AFB8), before writing.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

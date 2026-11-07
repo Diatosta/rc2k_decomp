@@ -10,9 +10,10 @@
 //! +0x50), the flags' low 6 bits (+0x58), a size by the marks' random (+0x60, then
 //! replaced), a life from `dword_939B76` by the flags' bits 6 and 7 (+0x84; +0x78
 //! `flt_7651A4` over it), +0x74 `dword_76519C`, the object (+0x68) and its +0x88, +0x90.
-//! Callers: `effects::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC (after `sub_4CD21A` or
-//! `sub_4CD747`). Refuses (before anything) a null wheel, object or matrix where read, and
-//! flags of 0x100 or more when an entry is made (the life read past `dword_939B76`'s four).
+//! Callers: `effects::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC (after
+//! `effects::emit_bursts` or
+//! `effects::emit_bursts_2`). Refuses (before anything) a null wheel, object or matrix where read,
+//! and flags of 0x100 or more when an entry is made (the life read past `dword_939B76`'s four).
 
 use crate::effects::emitters::car_with_matrix;
 use crate::effects::emitters::emitting_car;

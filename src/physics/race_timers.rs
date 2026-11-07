@@ -6,8 +6,8 @@
 //! `count_start_second`, `physics::take_split`, `count_stop_timers`, `mark_car_started`;
 //! else nothing.
 //!
-//! Caller: `sub_43B635` (0x43B64E). Refuses what the steps refuse; what was written is put
-//! back.
+//! Caller: `physics::car_physics_step` (0x43B64E). Refuses what the steps refuse; what was written
+//! is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

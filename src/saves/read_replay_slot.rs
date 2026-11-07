@@ -6,7 +6,7 @@
 //! is "REPL" and the dword at +8 is 0x50400; the 0x20 bytes at +0x10 then go to
 //! `byte_528934[slot * 0x20]`. A short file is not noticed as such: what the buffer held
 //! before decides (as in `saves::read_savegame_slot`).
-//! One caller, `sub_411239`, for all 100 slots at start-up. Refuses a slot past 99.
+//! One caller, `system::load_game_data`, for all 100 slots at start-up. Refuses a slot past 99.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;

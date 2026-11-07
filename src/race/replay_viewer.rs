@@ -11,7 +11,7 @@
 //! (`race::find_snapshot_number`), the stage loaded (`race::viewer_load_stage`), the list
 //! set up (`unk_5C255C`: no sound, shown, not leaving, the clocks, item 6), the pending key
 //! dropped, the items marked (`race::mark_viewer_items`). Each frame after (shown by
-//! `screens::run_frame` with `sub_41D5FB`, `race::viewer_frame`): the clocks, a key
+//! `screens::run_frame` with 0x41D5FB, `race::viewer_frame`): the clocks, a key
 //! (`menu::list_take_key`); the game quitting ends it; keys
 //! held after a play (`dword_5C2554`, until `byte_4F6ADD` and `byte_4F6AF8` are up) do
 //! nothing; Escape twice in a row ends it. Playing (`dword_5BEC98` 0): a frame on

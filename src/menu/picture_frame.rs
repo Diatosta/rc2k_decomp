@@ -1,8 +1,8 @@
 //! `menu::picture_frame` (0x46F3FA): a frame of a still picture: the surface locked, the picture copied to it, unlocked, the frame shown.
 //!
-//! The frame callback of `sub_47F314` and `sub_47F3C7` (handed to `screens::run_frame`). The steps
-//! are the game's (the surface, the 3D scene and the showing are the platform's), through an `Env`
-//! (`picture_frame` and `fade_frame` alike).
+//! The frame callback of `menu::championship_welcome` and `menu::a8_welcome` (handed to
+//! `screens::run_frame`). The steps are the game's (the surface, the 3D scene and the showing are
+//! the platform's), through an `Env` (`picture_frame` and `fade_frame` alike).
 
 use crate::errors::Refused;
 

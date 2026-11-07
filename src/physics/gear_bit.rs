@@ -1,15 +1,14 @@
 //! `physics::gear_bit` (0x43C5B7): eax = ecx + 1, CF = bit eax of `g_carGearBits`
 //! (0x71A40C, the work copy's +0x434; `bt` on memory, so a bit string). The callers pass
 //! a gear (-1 .. 7, so bits 0 .. 8) and test CF (`jb`/`jnb`): a gear that cannot be
-//! taken, by the look of `sub_43C20D` (a reading).
+//! taken, by the look of `physics::change_gear` (a reading).
 //!
 //! Takes: the gear
-//! Out: eax = ecx + 1, CF the bit; ZF as before (no caller reads it); the rest kept
 //!
-//! Callers (10): the gearbox under `sub_4454D2` (`sub_43C20D`, `sub_43C2AE` twice,
-//! `sub_43C58E`, `sub_43C5A0`, `sub_43C5C2` twice, `sub_43C8AC`, `sub_4651B5`, unowned code
-//! at 0x43C9AE). Refuses a bit outside 0 ..= 31 (past the dword; the original reads on
-//! along the copy).
+//! Callers (10): the gearbox under `drive::race_step` (0x43C20D, `physics::manual_gearbox` twice,
+//! `physics::lower_free_gear`, `physics::higher_free_gear`, `physics::auto_gearbox` twice,
+//! `physics::pick_start_gear`, `physics::allowed_gear`, unowned code at 0x43C9AE). Refuses a bit
+//! outside 0 ..= 31 (past the dword; the original reads on along the copy).
 
 use crate::errors::Refused;
 use crate::physics::flag_result::FlagResult;

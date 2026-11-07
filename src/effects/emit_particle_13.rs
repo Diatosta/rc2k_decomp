@@ -12,8 +12,8 @@
 //! spin and turn (+0x54, +0x50); +0x58 0x3F; a life of 250 (+0x78 the strength by
 //! `flt_7651A4` over it); +0x74 the strength by `dword_7651A0`; +0x68 `g_marksCar` and its
 //! +0x88; +0x70 `flt_93A47E` by the strength plus `flt_93A482`, rounded, and +0x60 that by
-//! `flt_93A486`. Caller: `sub_4C9AF6` (the cars' loop). Refuses (before anything) a null
-//! object, a null `g_marksCar` or matrix, and a model (+4) past the table's 34 entries,
+//! `flt_93A486`. Caller: `effects::cars_particles` (the cars' loop). Refuses (before anything) a
+//! null object, a null `g_marksCar` or matrix, and a model (+4) past the table's 34 entries,
 //! when an entry is made.
 
 use crate::effects::emitters::car_with_matrix;

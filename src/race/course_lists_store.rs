@@ -27,7 +27,8 @@ pub struct CourseLists {
     pub point_records_list: [Dword; 4],
     /// +0x514 (0x5C6E60): not named.
     pub unknown_514: [Dword; 28],
-    /// +0x584 (0x5C6ED0): `stru_5C6ED0`, a MemoryList used by `sub_459764`, `sub_4599D4` (not used by Rust; a reading).
+    /// +0x584 (0x5C6ED0): `stru_5C6ED0`, a MemoryList used by 0x459764, 0x4599D4 (not used by Rust;
+    /// a reading).
     pub list_6ed0: [Dword; 4],
     /// +0x594 (0x5C6EE0): not named.
     pub unknown_594: [Dword; 28],

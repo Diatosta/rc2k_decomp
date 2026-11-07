@@ -3,8 +3,6 @@
 //! that is nearest the listener; all the others silenced.
 //!
 //! Takes: the sound
-//! Out: ebp the sound, ecx 0; ebx the nearest (or the end of the voices), eax and edx
-//!      as the original leaves them (see the code); esi, edi preserved
 //! The pickers' work (`dword_517F40` .. `dword_517F50`) cleared (distances to -1). For
 //! each voice heard with the sound: a playing one noted in `dword_517F40`; its distance
 //! x 1000 as a whole number (`fistp` through `g_soundScratch`) compared (unsigned) with

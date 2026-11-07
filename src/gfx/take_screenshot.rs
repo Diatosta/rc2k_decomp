@@ -5,8 +5,9 @@
 //! (`gfx::unlock_surface`), `dword_4F52B8` 0.
 //!
 //! Callers: `race::replay_viewer` (key 0x52, Numpad 0), `gfx::screenshot_if_key`,
-//! `menu::handle_keys`, `sub_4146E4`, `sub_4168CF`, `sub_4174C5`, `sub_417726`,
-//! `sub_417A0D`, 0x471CA6. The lock and unlock (the platform's) and the writer are
+//! `menu::handle_keys`, `install::page_key`, `net::settings_loop`, `net::choose_connection`,
+//! `net::choose_session`,
+//! `net::lobby_loop`, 0x471CA6. The lock and unlock (the platform's) and the writer are
 //! called directly (2026-10-23).
 
 use crate::errors::Refused;

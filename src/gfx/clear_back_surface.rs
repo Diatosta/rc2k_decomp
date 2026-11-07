@@ -4,7 +4,7 @@
 //! zeroed and unlocked (`gfx::unlock_surface`).
 //!
 //! Callers: `race::viewer_frame` (at the replay's end), `gfx::set_screen_mode`,
-//! `sub_405B10`. The lock and unlock (the platform's) are called directly (2026-10-23). A
+//! 0x405B10. The lock and unlock (the platform's) are called directly (2026-10-23). A
 //! height of 0 is refused (the original goes round 2^32 times), before anything.
 
 use crate::errors::{BadInput, Refused};

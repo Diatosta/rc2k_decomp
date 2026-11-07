@@ -3,10 +3,7 @@
 //! sign of the `cmp`; `physics/camera_ground.rs`): CF clear when found and so high, else
 //! CF.
 //!
-//! Out: CF; eax as the steps leave it, the rest as `count_ground_probe` leaves them (the
-//!      caller reads CF)
-//!
-//! Caller: `sub_43907F` (three). Refuses what `count_ground_probe` refuses.
+//! Caller: `physics::camera_avoid_ground` (three). Refuses what `count_ground_probe` refuses.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

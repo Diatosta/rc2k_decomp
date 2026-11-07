@@ -4,7 +4,8 @@
 //! Takes path (`srclvls\...`), buffer, its bytes.
 //!
 //! Refuses (since the conversion, 2026-10-21) a path too short for the packed copy's prefix (the
-//! original's text then runs on past it). One caller, `sub_4455FC` (loadlevel, the course data).
+//! original's text then runs on past it). One caller, `race::load_level` (loadlevel, the course
+//! data).
 
 use crate::errors::Refused;
 use crate::files::read_packed_file::{Outcome, read, read_packed_file};

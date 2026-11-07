@@ -7,7 +7,7 @@
 //!
 //! Takes: the matrix (0x40 bytes)
 //!
-//! Callers: `physics::move_slot` (0x4624D6) and `sub_43DD54` (0x43DD97).
+//! Callers: `physics::move_slot` (0x4624D6) and `physics::spin_matrix` (0x43DD97).
 
 use crate::math::cells::Cells;
 use crate::math::x87;

@@ -3,7 +3,7 @@
 //!
 //! Returns: the band
 //!
-//! Caller: `sub_45CD60`.
+//! Caller: `physics::place_sound_object`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

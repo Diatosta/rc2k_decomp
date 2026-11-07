@@ -1,8 +1,6 @@
 //! `scene::set_up_front_end_scene` (0x474E04): the front end's 3D set-up: which
 //! textures and objects the menus need, and everything loaded.
 //!
-//! In:  nothing (the registers go on to the first call as they come)
-//!
 //! One list of stores and 50 calls, in this order:
 //! - the loading bar's range `dword_623634` = 0, `dword_623638` = 100; the loading
 //!   picture; `scene::reset_texture_tables`;
@@ -17,12 +15,13 @@
 //!   .. 0x2C kinds 0x28B .. 0x28E, slots 0x2D .. 0x4E the 0x22 known kinds
 //!   (`scene::known_kind`);
 //! - `scene::load_front_end_objects` and nine lines in the game's log with the points
-//!   and faces loaded (the stub `sub_4433DA`, inlined); `scene::reset_texture_places`;
+//!   and faces loaded (the stub `scene::load_front_end_objects_logged`, inlined);
+//!   `scene::reset_texture_places`;
 //! - the kinds' pictures (`g_kindPictures`): kind 0x87 picture 0x82A, kinds 0x258 ..
 //!   0x271 the 26 of `MENU_PICTURES`, and eight in a row from kind 0x2BC + 8 * place for
 //!   each of 33 known kinds (`scene::known_kind_picture` of places 0 .. 0x1D, 0x1F,
 //!   0x20, 0x21, and the seven numbers after it; place 0x1E's eight are left alone);
-//! - the loading bar's function `dword_623704` = `sub_4467C7`,
+//! - the loading bar's function `dword_623704` = `race::loading_bar_frame`,
 //!   `scene::reload_system_textures`, `scene::allocate_point_records`;
 //! - the colours again, `scene::fill_scene_light_tables`, `scene::set_view_matrices`,
 //!   `scene::reload_slot_textures`;
@@ -50,7 +49,7 @@ use crate::scene::view_matrix::set_view_matrices;
 use crate::session::Dword;
 
 // ---- game data ----
-const SHOW_BAR: u32 = 0x4467C7; // sub_4467C7
+const SHOW_BAR: u32 = 0x4467C7; // `race::loading_bar_frame`
 fn system_levels() -> &'static [Dword; 1024] {
     &scene().objects.tables.system_levels
 }
@@ -91,7 +90,7 @@ fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
 /// The Rust version. The original keeps every register, and its
 /// registers at entry (edx, esi) reach only the game's own code (`liveness`: the readers
 /// are `fill_light_tables`, `fill_scene_light_tables`, `race::textures_alloc` and
-/// `sub_443478`), none of the Rust versions it calls.
+/// 0x443478), none of the Rust versions it calls.
 pub fn set_up_front_end_scene() -> Result<(), Refused> {
     let race = race();
     let shared = &race.shared;

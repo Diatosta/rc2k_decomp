@@ -1,5 +1,6 @@
-//! The sound spots of the course around the view (`sub_45C605` -> `sub_45C6B8` ->
-//! `sub_45C6ED`, part R3, IDA 2026-10-18): course faces of kind 0xFF with object 0x3F
+//! The sound spots of the course around the view (`race::find_sound_spots` ->
+//! `race::cell_sound_spots` ->
+//! `race::face_sound_spot`, part R3, IDA 2026-10-18): course faces of kind 0xFF with object 0x3F
 //! (sound objects) in the 5 x 5 cells of `g_courseGrid` around the view, at most 0x24, into
 //! `g_soundSpots` (0x14 bytes: +0 the point, +4 .. +0xC its place turned by the view and
 //! scaled by `flt_5C5DA0`, +0x10 the sound, the face's +8, 1 .. 0x15).

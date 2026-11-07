@@ -3,10 +3,8 @@
 //! delay (esi 0).
 //!
 //! Takes: the event's number
-//! Out: ebx the table's entry (when below 0x20); the rest kept; no flags read (the
-//!      caller's next is an `inc`)
 //!
-//! Caller: `sub_4418B3`. Refuses what `queue_car_event` refuses.
+//! Caller: `physics::queue_pace_note`. Refuses what `queue_car_event` refuses.
 
 use crate::errors::Refused;
 use crate::physics::queue_car_event::queue_car_event;

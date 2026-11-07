@@ -1,12 +1,12 @@
 //! A point's place in the view and on the screen (converted 2026-10-21 from
-//! `scene::project_point` 0x44D004, its matrix step `sub_44D110` and its screen step, and
+//! `scene::project_point` 0x44D004, its matrix step `scene::rotate_point` and its screen step, and
 //! from `scene::project_polygon` 0x44E1F7). The records are 0x20 bytes: +0 the point's
 //! number, +0xC the x on the screen, +0x10 .. +0x18 the point in the view, +0x1C the y on
 //! the screen; a point n of the scene has record n & 0xFFF, a point -n of an object record
 //! 0x1000 + (n & 0xFFF). As in `math::geometry`, what the x87 keeps on its stack is an
 //! `f64`, rounded to `f32` where the original stores it: the same bits at the game's double
 //! precision. Also an object's points and normals (from `scene::place_object_points`
-//! 0x45BE05, its normal step `sub_45C1E7`).
+//! 0x45BE05, its normal step 0x45C1E7).
 
 /// A point nearer than this (`flt_5C5E18`) is not put on the screen, and counts as outside
 /// a polygon's depths.
@@ -38,8 +38,8 @@ pub fn record_offset(point: u32, object_points: u32, scene_points: u32) -> Resul
     }
 }
 
-/// `sub_44D110`: a point's three whole numbers through the view's matrix (`flt_5EA2CC`, 4 x 4:
-/// row c of the result is factors c, 4 + c, 8 + c on x, y, z, the y and z products added
+/// `scene::rotate_point`: a point's three whole numbers through the view's matrix (`flt_5EA2CC`, 4
+/// x 4: row c of the result is factors c, 4 + c, 8 + c on x, y, z, the y and z products added
 /// first, then 12 + c).
 pub fn rotate(point: [i32; 3], m: &[f32; 16]) -> [f32; 3] {
     let [x, y, z] = point.map(|v| v as f64);
@@ -49,7 +49,7 @@ pub fn rotate(point: [i32; 3], m: &[f32; 16]) -> [f32; 3] {
     })
 }
 
-/// `sub_45C1E7`: a normal's three floats through the matrix's first three rows (as
+/// 0x45C1E7: a normal's three floats through the matrix's first three rows (as
 /// `rotate`, without the fourth).
 pub fn turn_normal(normal: [f32; 3], m: &[f32; 16]) -> [f32; 3] {
     let [x, y, z] = normal.map(|v| v as f64);
@@ -93,7 +93,7 @@ pub struct Made {
     pub checked: Option<f32>,
 }
 
-/// A scene point's record made (`project_point`, `sub_44CF4E`): through the matrix, onto
+/// A scene point's record made (`project_point`, 0x44CF4E): through the matrix, onto
 /// the screen (`screen()`, asked only then) unless nearer than `NEAR` (or no number), and,
 /// `lowered` (`dword_6365C4` 1), the depth less `LOWERED_BY`.
 pub fn make_record(

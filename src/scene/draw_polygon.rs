@@ -11,23 +11,23 @@
 //! this function fills.
 //!
 //! What it does, in order:
-//! 1. `sub_450147`: while `dword_6415C4` is set and the polygon has three vertices or
+//! 1. 0x450147: while `dword_6415C4` is set and the polygon has three vertices or
 //!    more, tests whether the point `dword_6415C8`, `dword_6415CC` lies inside it
 //!    (each edge by a 64-bit cross product of whole numbers) and clears the switch if
 //!    it does.
-//! 2. `sub_44B9BE`: keeps the two material switches and the mode, put back at the end.
+//! 2. 0x44B9BE: keeps the two material switches and the mode, put back at the end.
 //! 3. With `dword_63993C` set (a mirrored view, by what it does): the list's entries
 //!    after the first are reversed, and after 4 every x is mirrored.
-//! 4. `sub_44C9A9`: the positions into the vertex buffer: x and y plus an offset, the
+//! 4. 0x44C9A9: the positions into the vertex buffer: x and y plus an offset, the
 //!    depth times a factor, and 1/w as 0.01 / that, or with `dword_621A58` set (SSE)
 //!    `rcpss` of the depth times 65536.
 //! 5. With `dword_63660C` set: a first pass in a colour faded from `dword_5AB964`
-//!    towards 0x10 by each entry's byte +0x20 (`sub_44A4C5`), with texture 0xC0.
+//!    towards 0x10 by each entry's byte +0x20 (`gfx::fade_colour`), with texture 0xC0.
 //! 6. The pass or two of the mode `dword_63DAB4` (0, 2 .. 6, 8, 9, 0xA; anything else
 //!    draws nothing): the entries' colours (`Shade`), which texture and coordinates,
 //!    five or six render states, `scene::submit_polygon`. `PASSES` has the table.
 //!    Modes 3, 4 and 5 fall back to 2, and to 8, 9 and 0xA, when one of the switches
-//!    `dword_6240E0`, `dword_6240E4` is 0; mode 3 first lets `sub_44B94F` clear a
+//!    `dword_6240E0`, `dword_6240E4` is 0; mode 3 first lets 0x44B94F clear a
 //!    switch by the entries' bytes +0x21.
 //!
 //! The x87 and `rcpss` are used with the original's own instructions. Refuses a polygon of no
@@ -181,7 +181,7 @@ fn times(a: u32, b: u32) -> u32 {
     })
 }
 
-/// `sub_44A4C5`: the three low bytes of `from` each moved towards the same byte of
+/// `gfx::fade_colour`: the three low bytes of `from` each moved towards the same byte of
 /// `to` by `by` over 256, held to a byte; the top byte is `from`'s.
 fn faded(from: u32, to: u32, by: u32) -> u32 {
     [0, 8, 16].into_iter().fold(from, |out, at| {
@@ -208,7 +208,7 @@ fn entries(count: u32) -> Result<smallvec::SmallVec<[Listed; 32]>, BadInput> {
         .collect()
 }
 
-/// `sub_450147` with `sub_4501B6`: the hit test.
+/// 0x450147 with 0x4501B6: the hit test.
 fn hit_test(
     frame: &crate::race::owner_frame::Frame,
     entries: &[Listed],
@@ -246,7 +246,7 @@ fn hit_test(
     frame.frame_work.sun_on_screen.set_bits(0u32);
 }
 
-/// `sub_44C9A9`, and `sub_44E6F4` for a mirrored view: the positions.
+/// 0x44C9A9, and 0x44E6F4 for a mirrored view: the positions.
 fn place(race: &crate::race::owner::Race, entries: &[Listed], mirrored: bool) {
     let scene = scene();
     let (x_offset, y_offset): (u32, u32) = (
@@ -284,7 +284,7 @@ fn place(race: &crate::race::owner::Race, entries: &[Listed], mirrored: bool) {
     }
 }
 
-/// `sub_44CA7A`: a set's texture coordinates, colour and specular into the buffer.
+/// 0x44CA7A: a set's texture coordinates, colour and specular into the buffer.
 fn copy_set(entries: &[Listed], set: Set) {
     let (uv, colour) = match set {
         Set::A => (0x08, 0x24),
@@ -299,8 +299,8 @@ fn copy_set(entries: &[Listed], set: Set) {
     }
 }
 
-/// `sub_44CC8D` with `sub_44E668`: the texture filter's state, and the polygon's
-/// texture from the number in `dword_6240C4`.
+/// `scene::choose_texture` with `scene::look_up_texture`: the texture filter's state, and the
+/// polygon's texture from the number in `dword_6240C4`.
 fn choose_texture(
     course: &crate::race::owner_course::Course,
     outside: &mut dyn Outside,
@@ -326,7 +326,7 @@ fn choose_texture(
         .set_bits(texture.unwrap_or(NO_TEXTURE));
 }
 
-/// `sub_44B94F`: clears a switch by what the entries' bytes +0x21 hold.
+/// 0x44B94F: clears a switch by what the entries' bytes +0x21 hold.
 fn clear_a_switch(
     shared: &crate::race::owner_shared::Shared,
     entries: &[Listed],
@@ -415,7 +415,7 @@ pub fn draw_polygon(
     crate::session::write_bits(&scene.drawing.scene.polygon_kept, kept);
     let mirrored = race.physics.ground.view_mirrored.bits() != 0;
     if mirrored && count > 2 {
-        // `sub_44E6B9`: the list's entries after the first, turned round.
+        // 0x44E6B9: the list's entries after the first, turned round.
         entries[1..].reverse();
         for (n, &(number, _)) in entries.iter().enumerate().skip(1) {
             crate::scene::polygon::list_cell(n).set(number);
@@ -428,7 +428,7 @@ pub fn draw_polygon(
             race.shared.view.polygon_mode.bits(),
             scene.drawing.scene.texture_page.bits(),
         );
-        // `sub_44CAD5`.
+        // 0x44CAD5.
         let (from, alpha): (u32, u32) = (
             d3d().cards.fade_from.get(),
             race.frame.view_and_records.view_vars.fade_alpha.bits(),
@@ -510,7 +510,7 @@ pub fn draw_polygon(
             }
         }
     }
-    // `sub_44B9DD`.
+    // 0x44B9DD.
     scene.drawing.scene.polygon_sides[0].set_bits(kept[0]);
     scene.drawing.scene.polygon_sides[1].set_bits(kept[1]);
     race.shared.view.polygon_mode.set_bits(kept[2]);

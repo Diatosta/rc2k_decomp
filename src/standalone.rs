@@ -303,7 +303,7 @@ fn start() {
     if let Err(why) = crate::logfile::start_log::start_log() {
         refused("logfile::start_log", why.into(), &r);
     }
-    // The folders the game saves into but never makes (`notes`: `sub_413A97` makes
+    // The folders the game saves into but never makes (`notes`: `install::make_folders` makes
     // them only from the installer's script): made here when missing, in the game's
     // folder, as the path templates at 0x5296FB .. 0x52974B name them; not in the
     // download folder, where the program is the installer.

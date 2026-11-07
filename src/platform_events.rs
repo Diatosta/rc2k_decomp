@@ -264,7 +264,7 @@ fn menu_action(action: crate::input::menu_pad::MenuAction) {
 }
 
 /// SDL's scan code (USB's numbering) as the game's key code: DirectInput's for
-/// 1 .. 0x58, and the key thread's (`sub_407AC2`) own numbers for the extended keys it
+/// 1 .. 0x58, and the key thread's (0x407AC2) own numbers for the extended keys it
 /// looks at (0x9C .. 0xDD become 0x60 .. 0x7A). 0: a key the game does not know.
 fn game_key(scancode: i32) -> u8 {
     const LETTERS: [u8; 26] = [

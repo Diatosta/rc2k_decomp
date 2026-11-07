@@ -1,7 +1,7 @@
 //! `drive::finish_race_0` (0x4278C7): `dword_621870` 0 and `drive::finish_race`.
 //!
-//! Callers: `sub_488155`, `sub_4A14CB`, `sub_4A9439` (the championship's flow). Refuses
-//! what `finish_race` refuses.
+//! Callers: `menu::arcade_finale`, `menu::championship_finish`, `menu::section_finish` (the
+//! championship's flow). Refuses what `finish_race` refuses.
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

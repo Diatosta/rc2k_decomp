@@ -6,12 +6,9 @@
 //! `effects::emit_particle_6`; 3 `effects::emit_bursts_2` and `emit_particle_6`; 5
 //! `effects::emit_particle_5`; 0xB `effects::emit_particle_11`; 0 and the rest nothing.
 //!
-//! In:  edi the wheel record (the car object's +0xD4, +0x11C, +0x164, +0x1AC), esi the car
-//!      object (`dword_935416` the wheel's number, set by the caller)
-//!
-//! Callers: `sub_4C9E2E`, four times. The original EXE the owner had patched turned this
-//! into a `ret` (section 16, the burst loops' ring-full slip). Refuses a null wheel and the
-//! emitters' refusals; on a refusal nothing stays written (all it may write is put back).
+//! Callers: `effects::emit_car_particles`, four times. The original EXE the owner had patched
+//! turned this into a `ret` (section 16, the burst loops' ring-full slip). Refuses a null wheel and
+//! the emitters' refusals; on a refusal nothing stays written (all it may write is put back).
 
 use crate::effects::emitters::*;
 use crate::effects::owner::Effects;

@@ -1,9 +1,9 @@
 //! `gfx::describe_format` (0x405BB6): works a pixel format's layout out from its masks.
 //!
 //! Takes: the format (`PixelFormat`: +0 layout, +4 four masks, +0x14 number)
-//! If each of the four masks is empty or one run of bits (`sub_405C79`): the layout is
+//! If each of the four masks is empty or one run of bits (0x405C79): the layout is
 //! four bytes, lowest first the masks' top bits' numbers less 7, 15, 23 and 31 (an empty
-//! mask counts as 0xFF; `sub_405C65`), with the sign bit set: the rotation counts the
+//! mask counts as 0xFF; `gfx::top_bit`), with the sign bit set: the rotation counts the
 //! colour conversions use. If the four masks together are one run as well, the format's
 //! number is looked up by that layout in the table of six at `dword_4F3F78` (number,
 //! layout: 1 .. 4 the 16-bit formats, 5 and 6 the 32-bit ones); else, and when it is

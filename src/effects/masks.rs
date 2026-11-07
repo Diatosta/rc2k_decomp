@@ -1,5 +1,5 @@
-//! `sub_4C0F2E`'s `sub_4BDE9A` (IDA, 2026-10-17): the marks' masks. In a work block of
-//! 0x80000 bytes it gathers the points of faces and makes shapes of them; each shape's
+//! `effects::load_edges`'s `effects::make_masks` (IDA, 2026-10-17): the marks' masks. In a work
+//! block of 0x80000 bytes it gathers the points of faces and makes shapes of them; each shape's
 //! rows of spans are filled into a mask of 0x8000 bytes (rows of 0x100) with the shape's
 //! number, 0xFF elsewhere. These are the leaves.
 
@@ -168,7 +168,7 @@ pub fn work_put(masks: &Masks, at: u32, v: u32) -> Result<(), BadInput> {
         .ok_or(BadInput("a mask span past the work block"))
 }
 
-/// `effects::make_masks` (0x4BDE9A), in `sub_4C0F2E`: the 0x80000-byte work block taken on
+/// `effects::make_masks` (0x4BDE9A), in `effects::load_edges`: the 0x80000-byte work block taken on
 /// its list (`memory::allocate`); `make_shape_sets`, `make_corners`, `reset_mask_cursor`;
 /// each shape's ring (`span_ring`, its corner table in `g_marksRingCorners`), mask
 /// (`draw_mask`) and pixels (`map_shapes`); the list freed (`memory::free_list`). Refuses

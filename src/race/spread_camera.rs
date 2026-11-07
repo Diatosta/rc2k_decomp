@@ -3,10 +3,6 @@
 //! while they held the old one, for the blocks after the one shown
 //! (`dword_5BECD0 - dword_5C2530` less one at most).
 //!
-//! Takes: the byte, dh its old value
-//! Out: dl the new value, eax the blocks gone over (from 1), ecx what was left of the
-//!      count; no flags read
-//!
 //! Callers: `race::viewer_action` (four), `race::next_camera`, `race::previous_camera`, with
 //! the block shown not the last. The count is not checked: 0 (or less) is limited only by the
 //! bytes met; refused when the walk would pass the 0x708 blocks of the table, before anything

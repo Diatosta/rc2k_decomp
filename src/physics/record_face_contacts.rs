@@ -3,8 +3,6 @@
 //! first is -1 or past the last), esi and ebx kept around each call.
 //!
 //! Takes: the record
-//! Out: esi the record, ebx the last face + 1 (or the first, when none), the rest as the
-//!      calls leave them; no flags read (the caller returns)
 //!
 //! Caller: `physics::cell_face_contacts`. Refuses (before anything) a record whose faces
 //! (the first not -1) run to -1 or past `g_courseFaceCount` (the original loops on or reads

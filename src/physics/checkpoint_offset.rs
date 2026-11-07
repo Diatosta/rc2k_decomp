@@ -5,12 +5,8 @@
 //! turned by minus the checkpoint's angle (`dword_9ED808`, `math::turn_point_xz`) into
 //! +0x620 and +0x624. Else both 0.
 //!
-//! Out: eax: x' (or +0x98 + 1); with a checkpoint after it also ebx the point's number,
-//!      ecx z', edx as `turn_point_xz` leaves it, esi the point; the rest kept; no flags
-//!      read (the caller returns)
-//!
-//! Caller: `sub_44157B`. Refuses (before anything) a checkpoint below 0 or past 0x1418, or
-//! no faces or points.
+//! Caller: `physics::track_checkpoints`. Refuses (before anything) a checkpoint below 0 or past
+//! 0x1418, or no faces or points.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::turn_point_xz::turn_point_xz;

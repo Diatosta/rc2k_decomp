@@ -6,9 +6,10 @@
 //!
 //! Takes the font, text, its end, x and y.
 //!
-//! Callers: the players' standings pages (0x4836CF, 0x48D32E; eight calls). Refuses (before
-//! anything) a length below 3 (the original's loop then runs on: with 0 its copy, with 1 or 2 its
-//! drawing loop) and one whose copies pass the 0x100 bytes of `byte_A8BC54`.
+//! Callers: the players' standings pages (`screens::draw_players_results_points`, 0x4836CF,
+//! 0x48D32E; eight calls). Refuses (before anything) a length below 3 (the original's loop then
+//! runs on: with 0 its copy, with 1 or 2 its drawing loop) and one whose copies pass the 0x100
+//! bytes of `byte_A8BC54`.
 
 use crate::errors::Refused;
 use crate::menu::owner::Screens;

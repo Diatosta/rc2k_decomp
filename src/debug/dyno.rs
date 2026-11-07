@@ -1,7 +1,7 @@
 //! The dyno graph (the "Dyno" tab; RAL.EXE 0x428DB3 .. 0x4291C9, no references to it, IDA
 //! 2026-10-30). For each forward gear, speeds from 0 to 71 (`flt_5F36C8`): the driven speeds set,
 //! `physics::revs_from_wheels`, and below the engine's limit full throttle's
-//! `sub_43CAAB` (`torque`, `physics::drive_force` but for the cut's own check); the colours say
+//! 0x43CAAB (`torque`, `physics::drive_force` but for the cut's own check); the colours say
 //! where each point lies against the gearbox's shift points. Then the drag at each speed, the
 //! best gear's drive less it, and the acceleration test's samples
 //! (`physics::test_drive_run`). The original drew pixels on the race's picture on every frame;
@@ -109,7 +109,7 @@ fn kept<T>(shared: &Shared, f: impl FnOnce() -> T) -> T {
     result
 }
 
-/// `sub_43CAAB`: the drive at the engine's speed and the car's throttle.
+/// 0x43CAAB: the drive at the engine's speed and the car's throttle.
 fn torque(race: &Race) {
     let shared = &race.shared;
     let course = &race.course;
@@ -157,7 +157,7 @@ fn drive_at(race: &Race, speed: f32) -> Option<(f32, f32)> {
     ))
 }
 
-/// `sub_428F42`, without its drawing.
+/// 0x428F42, without its drawing.
 fn measure(race: &Race) -> Option<Measured> {
     let shared = &race.shared;
     let course = &race.course;
@@ -218,7 +218,7 @@ fn measure(race: &Race) -> Option<Measured> {
     }))
 }
 
-/// The car's speed and its drive right now, full throttle (`sub_4291C9`), in a forward gear
+/// The car's speed and its drive right now, full throttle (0x4291C9), in a forward gear
 /// below the limit.
 fn cursor(race: &Race) -> Option<(f32, f32, f32, i32)> {
     let shared = &race.shared;

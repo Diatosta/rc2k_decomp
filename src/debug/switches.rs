@@ -48,7 +48,7 @@ pub fn tab(race: &Race, ui: &Ui) {
         let v = u32::from(on);
         write_at(EXTENSIONS, v);
         write_at(USE_SSE, v & session.machine.has_sse.get());
-        // Not the original's: its 3DNow way (`sub_45BF89`) is not ported and would end the
+        // Not the original's: its 3DNow way (0x45BF89) is not ported and would end the
         // program, so it stays off on a processor that has it.
         write_at(USE_3DNOW, 0);
         write_at(USE_MMX, v & session.machine.has_mmx.get());

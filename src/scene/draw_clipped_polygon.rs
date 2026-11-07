@@ -10,9 +10,10 @@
 //! if some point is outside, `scene::clip_polygon_by_depth`, and nothing more with fewer than
 //! three vertices left; `scene::clip_polygon_to_screen`, and the same;
 //! `scene::draw_marked_polygon`; `dword_624134` = 1 (the polygon was drawn). Four callers
-//! (`sub_451F69` and three more: the objects' polygons). Refuses a polygon of no vertices (the
-//! original goes through 2^32) or of more than 256, and what its parts refuse. A refusal after
-//! the texture coordinates were scaled hands the original a polygon it scales once more.
+//! (`scene::draw_object_polygon` and three more: the objects' polygons). Refuses a polygon of no
+//! vertices (the original goes through 2^32) or of more than 256, and what its parts refuse. A
+//! refusal after the texture coordinates were scaled hands the original a polygon it scales once
+//! more.
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;

@@ -5,7 +5,7 @@
 //! entries in `var\ral.dat`; the rest of what is filled is whatever lies after it); then
 //! for each entry of `off_75A042` up to its -1 the first dword of what it points at goes
 //! to the first, and likewise from `off_75A12E` to the second.
-//! Callers: `sub_47486C` after the main menu is left, and `sub_486BD3`.
+//! Callers: `menu::run_front_end` after the main menu is left, and `menu::add_shown_car`.
 //! Refuses a list of pointers without its -1 within the numbers' room, and a null entry.
 
 use crate::errors::BadInput;

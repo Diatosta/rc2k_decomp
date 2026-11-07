@@ -14,8 +14,8 @@
 //! (from IDA) being `asm_reference` in the tests; the compares and the integer
 //! steps in Rust.
 //!
-//! Callers: `sub_43B635` (0x43B63A), `sub_4217E4`. Refuses (before anything) a drive kind
-//! past 3 (`flt_613FB8`'s size not worked out).
+//! Callers: `physics::car_physics_step` (0x43B63A), `physics::test_drive`. Refuses (before
+//! anything) a drive kind past 3 (`flt_613FB8`'s size not worked out).
 
 use crate::errors::Refused;
 use crate::math::x87;

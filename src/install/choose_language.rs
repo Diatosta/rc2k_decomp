@@ -5,7 +5,7 @@
 //! Nothing if the number is above the count of languages (`dword_51BEEA`). A language is a
 //! slot of 0x80 bytes at 0x51BEEE holding two texts, each ended by a NUL (`name:directory`
 //! in the file); the second becomes what `%` stands for in a path (`byte_518AA8`).
-//! Callers: `install::read_languages`, `sub_412F34`, `sub_414199`.
+//! Callers: `install::read_languages`, `install::install_from_command`, `install::language_page`.
 //! Refuses number 0 (the original takes the slot before the first) and a slot whose two
 //! texts do not end inside it.
 //!

@@ -144,7 +144,7 @@ impl Machine {
         tables(physics).write_bytes(&self.image, "the pace notes' tables")
     }
 
-    /// `sub_441A66` (`race::init_pace_notes`).
+    /// 0x441A66 (`race::init_pace_notes`).
     pub fn init(&mut self) -> Result<(), Refused> {
         let done = self.0.init();
         if let Ok(mut held) = REFUSED.lock()

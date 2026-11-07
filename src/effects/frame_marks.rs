@@ -8,8 +8,8 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Callers: race init (0x446403) and 0x456464. Refuses null settings before anything, and
-//! its steps' refusals (all it may write is put back first).
+//! Callers: race init (`drive::race_init`, 0x446403) and `race::run_view_marks` (0x456464). Refuses
+//! null settings before anything, and its steps' refusals (all it may write is put back first).
 
 use crate::effects::owner::Effects;
 use crate::effects::owner::effects;

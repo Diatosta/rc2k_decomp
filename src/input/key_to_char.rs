@@ -2,9 +2,6 @@
 //! with the current keyboard layout, shift state and pending dead key.
 //!
 //! Takes: key
-//! Out: al = the character, 0 if the key types none; carry = (al == 0), zero = (al == 1);
-//!      ebx, ecx, edx, esi, edi, ebp preserved. The rest of eax: untouched for a key release
-//!      (bit 7 set); else zero, except ah = the dead key that was stored or used.
 //! The layout (`input::layouts`; `dword_4F07D4` pointed at the current one in the original)
 //! has a list of dead keys {key, plain, shifted} ended by a 0 key, a plain table, a shifted
 //! one and one used while `byte_4F6B40` is down (read as AltGr). A dead key is

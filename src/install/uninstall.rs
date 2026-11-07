@@ -3,8 +3,8 @@
 //! (`install::write_registry`); a "removing" frame is shown; the source is made current and
 //! the install script run (`install::run_script`) to rebuild the file and folder lists; each
 //! listed file is deleted (`files::delete_file`) and each folder removed in reverse
-//! (`sub_403123`); the parent is entered and the install folder removed; after a second the
-//! status and source are cleared, written again, the DirectPlay key removed
+//! (`files::remove_directory`); the parent is entered and the install folder removed; after a
+//! second the status and source are cleared, written again, the DirectPlay key removed
 //! (`install::unregister_lobby`), the Start-menu removal asked (`g_removeStartItems`) and
 //! `g_installing` cleared. Each path is built in `byte_95E9F8` from `byte_95E7F8` plus the
 //! listed name.

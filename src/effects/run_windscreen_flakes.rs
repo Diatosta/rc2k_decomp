@@ -7,7 +7,7 @@
 //! less its z; colour `g_viewLight`'s low 24 bits under the alpha: not (age over
 //! `dword_8BC232`), shifted left 24). Last `scene::depth_buffer_on`.
 //!
-//! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version.
+//! Caller: `effects::windscreen_flakes_frame` (0x4BF7E9). The spawning is its Rust version.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::windscreen_drop_vars::WindscreenDrops;

@@ -3,7 +3,6 @@
 //!
 //! In:  nothing: the vertices at `unk_625A44`, their number in `dword_625A40`, the indices
 //!      (16 bits) at `g_marksWindscreenDropFans`, their number in `dword_62423C`
-//! Out: eax = Direct3D's result (0: drawn); ecx, edx as Direct3D leaves them
 //! The device's (`g_d3dDevice`, an `IDirect3DDevice2`) DrawIndexedPrimitive (+0x78) with
 //! a triangle list (4) of transformed and lit vertices (3) and no flags. Callers:
 //! `effects::windscreen_drops_top`, `effects::windscreen_drops_frame`.

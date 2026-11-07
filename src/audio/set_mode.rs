@@ -1,9 +1,5 @@
 //! `audio::set_mode` (0x40A426): command 5, the sound mode changed (menus <-> a race).
 //!
-//! In:  eax = the new mode; ebx, ecx = handed to `audio::stop_streams`, with action 0 (the
-//!      original hands on edx: section 16, fixed 2026-10-20)
-//! Out: carry = failed ("SAM: FAIL"); every register preserved
-//!
 //! "SAM:" and the mode logged; `audio::stop_streams`, `audio::free_voices`,
 //! `audio::close_way`, `audio::release_primary`; `g_soundMode` the new mode; the channels:
 //! 8 (0x10 with bit 0x400000), held to the free hardware buffers of the mode's kind (2D or

@@ -2,30 +2,28 @@
 //! and lists it if so.
 //!
 //! Takes: the face; its number within the object is in `dword_623620`
-//! Out: the original leaves registers changed; its one caller keeps them all, and
-//!      the Rust version does not change any
 //!
 //! `g_objectSeeThrough` = 0x100, then five tests, each of which can drop the face
 //! ("its group" is the low five bits of the face's byte +7):
-//! 1. `sub_452292`, only outside a race (`dword_5C5CEC` at 0): the object's kind
+//! 1. 0x452292, only outside a race (`dword_5C5CEC` at 0): the object's kind
 //!    `dword_5CD27C[object]` is looked for in the 0x22 entries of `dword_5C5790`, as
-//!    an entry or as an entry plus 1 (`sub_41F4BD`); if it is there, two group numbers
+//!    an entry or as an entry plus 1 (`scene::find_object_kind`); if it is there, two group numbers
 //!    of that place (`dword_5C90DC`, `dword_5C90E0` + place * 0x134) go to
 //!    `dword_5CCE50` and `dword_5CCE54`, and a face of either group is dropped.
-//! 2. `sub_4505BD`, only for objects from 0x50 up whose number divides by 0x14: dropped
+//! 2. 0x4505BD, only for objects from 0x50 up whose number divides by 0x14: dropped
 //!    unless the group's bit is set in `dword_62150C`; with `dword_621870` at 5,
 //!    dropped if `dword_621934[group]` is 0; else, with `dword_71A66C` at 0, dropped
 //!    unless the group's bit is set in `dword_606280`; then by which group it is: the
 //!    group `dword_5CCE60` is dropped while `dword_62DAD0` is 0; the groups
 //!    `dword_5CCE50` and `dword_5CCE54` are dropped while `dword_6D18D4` is 1; the
 //!    groups `dword_5CCE58` and `dword_5CCE5C` while it is 0.
-//! 3. `sub_450688`: a face with bits 2 or 3 of its byte +8 set, while `dword_63996C`
+//! 3. 0x450688: a face with bits 2 or 3 of its byte +8 set, while `dword_63996C`
 //!    is not 0: dropped if `dword_639974` is 0, else that is its see-through value.
-//! 4. `sub_4506B7`: a face of kind (byte +6) 0x1C is dropped outside a race, or if its
+//! 4. 0x4506B7: a face of kind (byte +6) 0x1C is dropped outside a race, or if its
 //!    byte +0xB is 0 or above 6, or if the dword that byte picks at +0x6FC of the
 //!    block `off_71B3B8[dword_60627C]` is 0x80000000 or under 10; a face of another
 //!    kind than 0 is dropped unless its byte +0xB is `dword_5CD688[kind]`.
-//! 5. `sub_45071B`: dropped if `scene::face_faces_away`.
+//! 5. 0x45071B: dropped if `scene::face_faces_away`.
 //!
 //! A face that is left and has a vertex gets its key (`scene::face_sort_key`) and the next
 //! entry of the list: its number, the key plus bit 30 unless bit 0 of its byte +8 is set,

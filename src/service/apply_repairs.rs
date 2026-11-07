@@ -19,10 +19,11 @@
 //!     other bits and zeroes eight dwords at +0x24C;
 //!   - `sleep(1000)`.
 //!
-//! A frame is the game's frame function `sub_405A71` with the service area's draw callback
-//! `sub_46CFD7`; neither is ported, so the Rust version calls them through `Driver`. The clock is
+//! A frame is the game's frame function 0x405A71 with the service area's draw callback
+//! `screens::service_area_frame`; neither is ported, so the Rust version calls them through
+//! `Driver`. The clock is
 //! `tick_count`. They come in through `Driver`, so that the logic can be run and compared without
-//! real frames. Called from `sub_48E0FD` and `sub_4A16AB`. Refuses a missing player.
+//! real frames. Called from 0x48E0FD and 0x4A16AB. Refuses a missing player.
 
 use crate::errors::{BadInput, Refused};
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};

@@ -1,5 +1,5 @@
-//! Solid rectangles and lines straight on the surface (`sub_406869`, `sub_4066DF`,
-//! `sub_406710`, `sub_4067AF`; stream A, part F1, 2026-10-18): the message box's fill and
+//! Solid rectangles and lines straight on the surface (`gfx::fill_rect`, `gfx::frame_rect`,
+//! `gfx::draw_hline`, 0x4067AF; stream A, part F1, 2026-10-18): the message box's fill and
 //! frame. Colour eax: the byte itself on an 8-bit surface, else `palette[eax]` (esi a table
 //! of 256 dwords). Clipped to the clip rectangle; the work in `g_blitLeftSkip`,
 //! `g_blitVisibleWidth`, `g_blitTopSkip`, `g_blitRowsLeft`.

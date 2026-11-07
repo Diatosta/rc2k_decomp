@@ -1,7 +1,6 @@
 //! `audio::open_eax` (0x40D27F): EAX 1's reverb opened through a 3D buffer.
 //!
 //! Takes: where the 3D buffer is (a voice's `buffer_3d`)
-//! Out: carry = not opened; every register preserved
 //!
 //! See `audio/property_sets.rs`: nothing with `g_ignoreEaxSetting` or the set already there
 //! (`g_eaxProperties`); "AUD: Using EAX" logged, `g_hasEax` 1. One caller,

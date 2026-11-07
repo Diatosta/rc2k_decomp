@@ -4,10 +4,10 @@
 //! Takes: the slot
 //!
 //! Nothing if the slot wants none (`dword_5DA968[slot]` is -1) or holds what it wants
-//! (`dword_5DB968[slot]`). Else `scene::load_texture` (0x44E778, which is only `sub_41A8F9` of
-//! the Direct3D layer: not ported) with eax = the texture and ebx = the slot, `dword_6415F8` +
-//! 1, and the slot holds it. One caller, `scene::load_slot_textures`. Refuses a slot past the
-//! table.
+//! (`dword_5DB968[slot]`). Else `scene::load_texture` (0x44E778, which is only
+//! `d3d::copy_to_device_texture` of the Direct3D layer: not ported) with eax = the texture and ebx
+//! = the slot, `dword_6415F8` + 1, and the slot holds it. One caller, `scene::load_slot_textures`.
+//! Refuses a slot past the table.
 
 use crate::errors::BadInput;
 

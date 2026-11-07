@@ -5,8 +5,8 @@
 //! set, or in gear; kept in other modes); `dword_71A244` on by one unless 0, -1 or 1;
 //! `flt_71A5D4` raised to `flt_71AEE0` (the highest so far). Readings, all.
 //!
-//!
-//! Callers: `sub_43B635` (0x43B70A) and `sub_421848` (the car specification's run).
+//! Callers: `physics::car_physics_step` (0x43B70A) and `physics::test_drive_run` (the car
+//! specification's run).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

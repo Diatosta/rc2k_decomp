@@ -1,4 +1,4 @@
-//! `drive::replay_step` (0x460B2F): the two-player / replay race's step (`sub_4455A9`'s).
+//! `drive::replay_step` (0x460B2F): the two-player / replay race's step (`drive::race_tick`'s).
 //! `drive::choose_shown_cars`; the replay's frame kept (`drive::keep_replay_frame`) and,
 //! playing, read (`drive::play_replay_frame`); the skid marks begun again
 //! (`race::init_skidmarks`) unless the first block's clock (+8) is one past +0xF0C, which
@@ -11,7 +11,7 @@
 //! race-mode cars, the duel's sound levels, the count down's beeps, the two cars' order,
 //! the hold count, the replay written at its last tenth, the replay's clock.
 //!
-//! Caller: `drive::race_step`'s `sub_4455A9`. Refuses (before anything) a cars' count of 0
+//! Caller: `drive::race_step`'s `drive::race_tick`. Refuses (before anything) a cars' count of 0
 //! or past 8, and what its calls refuse (the cars' blocks, the work car and the physics'
 //! variables put back).
 

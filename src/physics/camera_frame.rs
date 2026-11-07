@@ -5,8 +5,8 @@
 //! (`math::next_random`) / 65536 / `flt_5C5E28` x `flt_5C5D40` x it; both 0 again with
 //! `dword_601024` set. Then `physics::update_camera`.
 //!
-//! Callers: `sub_43B635`, `sub_459360`, `sub_46062E`. Refuses what `update_camera` refuses
-//! (everything written put back).
+//! Callers: `physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`. Refuses
+//! what `update_camera` refuses (everything written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

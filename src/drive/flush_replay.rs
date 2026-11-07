@@ -2,8 +2,6 @@
 //! `unk_7172EC`) copied into the frame `dword_9613A4` and the frames written
 //! (`drive::write_replay_frames`).
 //!
-//! Out: ecx 0, esi and edi past the copy; the rest kept; no flags read
-//!
 //! Caller: `drive::flush_replay_if`. Refuses what `write_replay_frames` refuses.
 
 use crate::errors::Refused;

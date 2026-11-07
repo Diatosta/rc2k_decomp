@@ -2,7 +2,6 @@
 //! pages share this file's code: `draw_player2_details` (0x4677B5) is the same code,
 //! `draw_player34_details` (0x467975) the page without the second view (`Layout`).
 //!
-//!
 //! - The controller's item (9) of the current menu greyed out when there is no
 //!   controller (`g_controllerCount`), else made choosable (`menu::disable_item`,
 //!   `menu::enable_item`).
@@ -40,9 +39,9 @@ use crate::text::draw_text::Canvas;
 const NATIONALITIES_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.nationalities; // dword_758816
 const VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.views; // dword_7589BA
 const SECOND_VIEWS_RVA: &[Dword] = &crate::menu::owner::MENUS.tables.captions.second_views; // dword_7589DA
-/// What differs between the players' pages: players 1 and 2 (`sub_46F894`,
-/// `sub_4677B5`) have the controller's item at 9 and the second view's line; players 3
-/// and 4 (`sub_467975`) have it at 8 and no second view, the lines below moving up one.
+/// What differs between the players' pages: players 1 and 2 (`screens::draw_player_details`,
+/// 0x4677B5) have the controller's item at 9 and the second view's line; players 3
+/// and 4 (0x467975) have it at 8 and no second view, the lines below moving up one.
 #[derive(Clone, Copy, Debug)]
 pub struct Layout {
     pub controller_item: u32,

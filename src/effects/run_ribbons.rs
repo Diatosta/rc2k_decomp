@@ -12,9 +12,9 @@
 //! the cursor (or that moved on past it).
 //!
 //! In:  nothing (`g_marksSettings`)
-//! Out: nothing (its caller reads no register after it)
 //!
-//! Caller: `effects::run_frame` (0x4D1640 .., after `sub_4CB64D`). The x87 blocks are plain Rust on the x87 model
+//! Caller: `effects::run_frame` (0x4D1640 .., after `effects::run_ring`). The x87 blocks are plain
+//! Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the entries and the game's variables; the fog its Rust
 //! version. Refuses, before anything (the walk simulated), null settings, a null entry or
 //! link on the way, and a colour index out of its table.

@@ -4,7 +4,7 @@
 //! Up to 0x1400 bytes of the file to `unk_4F52C4` (the glyph table of the four font
 //! objects at 0x51DE30 on); a file that cannot be read is fatal error 0x80F0B0D1, one
 //! that fills all 0x1400 bytes 0x80F0B0D2. Then `dword_4F66C4` (those fonts' palette) =
-//! white in the surface's format (`sub_407629`: `gfx::components_to_pixel` of 0xFFFFFF).
+//! white in the surface's format (0x407629: `gfx::components_to_pixel` of 0xFFFFFF).
 //! One caller, `system::main_loop`.
 //! Refuses what `read_file` refuses.
 //! The registers above are the original's, for reference; a call by address goes through

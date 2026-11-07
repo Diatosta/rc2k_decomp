@@ -1,4 +1,4 @@
-//! The car's damage and wear model under `sub_4AB5D6` (stream B, 2026-10-18):
+//! The car's damage and wear model under `physics::damage_step` (stream B, 2026-10-18):
 //! `physics::damage_factors` (0x4AB5E6), `physics::damage_wear` (0x4ABEDF),
 //! `physics::damage_gauges` (0x4AC817). Their figures: the work car's (`g_car`,
 //! 0x719FD8 ..: the damage gauges `unk_71A284` .. `unk_71A33C`, the handling factors

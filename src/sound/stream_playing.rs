@@ -1,8 +1,7 @@
 //! `sound::stream_playing` (0x40C4D5): the music stream's playing flag (`dword_506960`,
 //! `g_soundStream.playing`) compared with 1: zero set when it plays, carry when it is 0.
 //!
-//!
-//! Callers: `sub_46F7AD` (`jz`), `sub_47F314` (`jnz`); `sound::step_car_stream` has it
+//! Callers: 0x46F7AD (`jz`), `menu::championship_welcome` (`jnz`); `sound::step_car_stream` has it
 //! inlined.
 
 use crate::audio::owner::audio;

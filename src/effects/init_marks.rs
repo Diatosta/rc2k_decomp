@@ -2,9 +2,6 @@
 //! seed kept, then the fifteen steps (each after `nullsub_1` with its number in eax), the
 //! screen's middle and the kind's float.
 //!
-//! In:  the seed (eax; the original also took the settings in esi, here always the race's
-//!      one; its ecx and edi are read by no step)
-//!
 //! One caller, init mark's end (0x457030). Refuses a kind (the settings'
 //! +0x26A8, which step 1 makes `g_marksKind`) of 0x22 or more (the kinds' tables); both
 //! before anything. Kinds 0x17 .. 0x21 are past `g_marksKindFloatTable`'s 0x17 entries:

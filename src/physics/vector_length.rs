@@ -3,10 +3,12 @@
 //!
 //! Takes: the vector
 //!
-//! Callers (17): the cars' physics under `sub_4454D2` (`sub_43B635`, `sub_43BD2D`,
-//! `sub_43DD54`, `sub_43F7AC`, `sub_440B9D`, `sub_437A53`, `sub_45D8FB`, `sub_45E3BF`,
-//! `sub_45E800`, `sub_45F17E`, `sub_45F7B1`, `sub_462485`, and three in unowned code at
-//! 0x43AD63 ..).
+//! Callers (17): the cars' physics under `drive::race_step` (0x43B635,
+//! `physics::store_motion_length`,
+//! `physics::spin_matrix`, `physics::limit_motion`, `physics::stall_when_still`,
+//! `physics::update_camera`, `physics::wall_push_back`, `physics::face_contact`,
+//! `physics::point_hits_car`, `physics::contact_force`, `physics::bump_cars`, `physics::move_slot`,
+//! and three in unowned code at 0x43AD63 ..).
 
 use crate::math::cells::{Cells, load};
 use crate::math::x87_run::length_80;

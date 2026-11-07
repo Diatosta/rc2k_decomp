@@ -6,8 +6,6 @@
 //! `dword_63DB94` not 1). Other wishes: nothing.
 //!
 //! Takes: the wish
-//! Out: edx the mode; eax the last draw's product, ebx its record; the rest kept; no flags
-//!      read
 //!
 //! Caller: `drive::replay_cameras`. Refuses (before anything) a wish no mode stops (the
 //! original draws for ever).

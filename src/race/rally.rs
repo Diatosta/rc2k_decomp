@@ -1,4 +1,4 @@
-//! `single_rally`'s race (`sub_4843EC`, IDA 2026-10-17) and its rally's times
+//! `single_rally`'s race (`race::single_rally_race`, IDA 2026-10-17) and its rally's times
 //! (`race::copy_rally_times`).
 
 use crate::errors::{BadInput, Refused};

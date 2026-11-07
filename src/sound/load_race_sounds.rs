@@ -1,7 +1,6 @@
 //! `sound::load_race_sounds` (0x40EED8): names the co-driver's speech files and tells the
 //! audio thread which sets of sounds a race needs.
 //!
-//! In:  ebp goes into the commands as it is
 //! The two cars' sound objects are `off_512A10[dword_514F70]` and
 //! `off_512A10[dword_514F74]`. The first's dword +0x298 says whose voice it has: 0 the
 //! list of 95 file names at 0x507C1A (`files\%speech\m\..`), else the list at 0x508914

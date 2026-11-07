@@ -3,7 +3,7 @@
 //!
 //! Takes: the two vectors, where the result goes (may be either)
 //!
-//! Caller: `sub_45F17E` (0x45F256).
+//! Caller: `physics::contact_force` (0x45F256).
 
 use crate::math::cells::Cells;
 use crate::math::x87;

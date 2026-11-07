@@ -3,9 +3,6 @@
 //! (`lDistanceToMove`) into `unk_96E488` and their cameras (`unk_963BB4`) into
 //! `unk_971CC8`. Nothing when the marks are not in order (`jle`, signed).
 //!
-//! Out: eax the first mark, ebx the second; copied: edx the count, ecx 0, esi and edi past
-//!      the cameras' copy; no flags read
-//!
 //! Callers: `race::viewer_action` (action 0x1B, and in 0x11 before the cut). Refused, before
 //! anything is written: a first mark below 0 or a second past 0x708 (the original copies from
 //! outside the tables).

@@ -6,8 +6,8 @@
 //! `physics::manual_gearbox_call`). Then, after a change (+0x238 1), the engine speed x
 //! `flt_613E9C`; `physics::wheels_from_revs`.
 //!
-//! Callers: `sub_43CB14` (under `sub_43B635`), `sub_421848`. Refuses what the steps refuse;
-//! what was written is put back.
+//! Callers: `physics::drive_force` (under `physics::car_physics_step`), `physics::test_drive_run`.
+//! Refuses what the steps refuse; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

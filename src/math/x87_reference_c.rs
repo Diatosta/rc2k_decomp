@@ -112,7 +112,7 @@ pub(super) mod load {
 
     /// `scene::project_point::rotate` with its third store a `fistp`: the point (three whole
     /// numbers) through `matrix`, x and y stored as floats at `out[0]`, `out[1]`, z rounded
-    /// into `out[2]` from the x87's precision (`sub_4573FA`).
+    /// into `out[2]` from the x87's precision (0x4573FA).
     pub(super) fn rotate_rounding_z(point: *const i32, matrix: *const u32, out: *mut u32) {
         x87!(
             "fild dword ptr [{p} + 8]", "fild dword ptr [{p} + 4]", "fild dword ptr [{p}]",
@@ -274,7 +274,7 @@ pub(super) mod load {
     }
 
     /// `fild i; fdiv a; fdiv a; fdiv b; fmul v; fmul c; fsub m; fmul h; fadd m; fstp`: the
-    /// camera's roll eased towards a target (`sub_4386A4`), rounded once.
+    /// camera's roll eased towards a target (`race::view_matrices`), rounded once.
     pub(super) fn eased_roll(i: i32, a: u32, b: u32, v: u32, c: u32, m: u32, h: u32) -> u32 {
         let (x, mut out) = ([i as u32, a, b, v, c, m, h], 0u32);
         x87!(
@@ -307,7 +307,7 @@ pub(super) mod load {
         out
     }
 
-    /// The sun's direction in `sub_455540`: `fild a; fchs; fadd k; fmul s; fsincos; fild b;
+    /// The sun's direction in `race::draw_sky`: `fild a; fchs; fadd k; fmul s; fsincos; fild b;
     /// fmul s; fsincos; fmul st(2), st; fmulp st(3), st; fxch st(1)`, then each of the three
     /// times `m` and stored: cos a cos b, sin b, sin a cos b (each x `m`).
     pub(super) fn sun_direction(a: i32, k: u32, s: u32, b: i32, m: u32) -> [u32; 3] {
@@ -339,7 +339,7 @@ pub(super) mod load {
         out
     }
 
-    /// A point of whole numbers onto the screen as in `sub_455540` (the original's
+    /// A point of whole numbers onto the screen as in `race::draw_sky` (the original's
     /// instructions; `.byte 0xDE, 0xF1` its `fdivrp st(1), st`): `v` = x, y, z, the flat
     /// depth, the scale, the centre's y and x. Flat: z dropped (into `scratch`) for the flat
     /// depth + 1. Gives x as a float and rounded, y as a float and rounded.

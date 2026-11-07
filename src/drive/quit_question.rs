@@ -2,7 +2,7 @@
 //! stopped, `dword_6235E8` 1; the best whole frame less 7 (the first block's +8 / 100)
 //! kept in `dword_70F3E8` when not below it (by the sign); the eight blocks' notice 0xC2
 //! (with `dword_6238C0`) or 0xC1, +0x730 0, +0x72C -1. Then until answered
-//! (`input::yes_no_key`, the race's frame drawn each turn, `sub_4541BF` through the game):
+//! (`input::yes_no_key`, the race's frame drawn each turn, `drive::race_frame` through the game):
 //! yes -1, no 0, and outside mode 2 with `dword_6238C0` the third answer -2. The notices
 //! cleared, `dword_6235E8` 0 and the sounds woken, the eight blocks' +0x468 0.
 //!

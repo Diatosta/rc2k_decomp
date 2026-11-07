@@ -7,8 +7,8 @@
 //!
 //! Takes: `s` a spline record
 //!
-//! Caller: `sub_4BA16C`. Refuses (before anything) a point number of 0x80 or more and a
-//! count above 0x80.
+//! Caller: `effects::place_graded_points`. Refuses (before anything) a point number of 0x80 or more
+//! and a count above 0x80.
 
 use crate::effects::blend_points::blend_points;
 use crate::effects::paths::Paths;

@@ -1,5 +1,5 @@
 //! The game registered as a DirectPlay lobby program (converted 2026-10-21 from
-//! `install::register_lobby` 0x419030 and its GUID text, `sub_40171A`).
+//! `install::register_lobby` 0x419030 and its GUID text, 0x40171A).
 
 use crate::strings::format::hex;
 

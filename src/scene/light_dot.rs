@@ -4,7 +4,7 @@
 //!
 //! The three floats at `dword_62DAA8` times the three at `dword_62DAB4`, added (the second and
 //! third products first), times `flt_62DAC0`, rounded as the x87 is set to (`fistp`); also left
-//! in `dword_62400C`. Callers: the two lighting functions `sub_4511F1` and `sub_451296`, which
+//! in `dword_62400C`. Callers: the two lighting functions 0x4511F1 and 0x451296, which
 //! put a point's place in the first three, a light's direction in the second and its strength
 //! in the factor.
 //!

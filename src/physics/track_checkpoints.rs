@@ -5,7 +5,7 @@
 //! below `g_splitColourCount` and when `physics::passed_split_point` gives CF, +0x94 and
 //! +0x98 the split's checkpoint (`dword_601030[+0x90]`) and +0x90 up by one.
 //!
-//! Caller: `sub_43B635` (0x43B90F), every physics step. Refuses (before writing) a
+//! Caller: `physics::car_physics_step` (0x43B90F), every physics step. Refuses (before writing) a
 //! checkpoint past 0x1418 or a split past 0x40, and what the calls refuse.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

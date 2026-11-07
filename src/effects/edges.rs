@@ -1,4 +1,4 @@
-//! `init_marks`' step 1, its second half (`sub_4C0F2E`; IDA, 2026-10-17): the kinds'
+//! `init_marks`' step 1, its second half (`effects::load_edges`; IDA, 2026-10-17): the kinds'
 //! records scaled once, the kind's edge picture (`files\m\edgeNN.pcx`, 256 x 128) packed to
 //! a byte a pixel, the shape tilt of the kind, then the masks and the two item kinds.
 

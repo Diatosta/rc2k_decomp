@@ -2,7 +2,6 @@
 //! buffer as 32-bit pixels.
 //!
 //! Takes: path, which may be written to (see `files::swap_missing_extension`)
-//! Out: carry = failed; every register preserved
 //! A path ending in `.pcx` goes to `gfx::read_pcx`. Any other first has its ending swapped
 //! if the file is missing, and then goes to `gfx::read_png` and, if that fails, to
 //! `read_pcx` (which is how a `.png` path whose file is missing ends up read as PCX).

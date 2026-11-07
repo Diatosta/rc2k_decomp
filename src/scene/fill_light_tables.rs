@@ -1,9 +1,6 @@
 //! `scene::fill_light_tables` (0x44F0AB): the five tables of colours the lighting
 //! picks from.
 //!
-//! Out: eax, ebx, ecx, edx, ebp as `scene::fill_light_scale` leaves them, esi = the
-//!      last colour, edi = the last table
-//!
 //! With `dword_621480` and `dword_60931C` both 0 (the plain way): `g_lightTable` a ramp between
 //! the two colours at `unk_62DB10`, and the four lamp tables (`dword_635518`, `dword_635918`,
 //! `g_carLightTable`, `unk_636118`) that first colour scaled. Else: `g_lightTable` a ramp

@@ -1,5 +1,5 @@
 //! `menu::car_specs_47af4c_loop` (0x47AF4C): a screen over the car specification background,
-//! called from sub_46FD31 and sub_48AD73.
+//! called from `menu::show_car_specs` and `menu::arcade_level_end`.
 //!
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `cspecs.png`; leaving is not asked about; the

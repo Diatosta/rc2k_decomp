@@ -5,10 +5,7 @@
 //! +0x28, `unk_71A000`) / n (`fild` / `fidiv`) into `dword_624020`; `flt_614758` = d +
 //! (1 - d) s, and `flt_614750` times it.
 //!
-//! Out: eax n less the word (no `pusha`); the rest kept; no flags read (the callers return
-//!      or load floats next)
-//!
-//! Callers: `sub_421848`, `sub_43CAAB`, `sub_43CB14`.
+//! Callers: `physics::test_drive_run`, 0x43CAAB, `physics::drive_force`.
 
 use crate::math::x87;
 use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};

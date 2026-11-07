@@ -3,10 +3,8 @@
 //! `dword_71BA2C` + 4k, `physics::fill_slot_on_bit` with bit 9, 0xD, 0xE, 0x10, 0x11, 0xC,
 //! 0xF (the first only with `dword_62DAD0` set). A reading: damaged parts falling off.
 //!
-//! Out: as the last `fill_slot_on_bit` leaves them; no flags read
-//!
-//! Caller: `sub_43B635` (0x43B98B), every physics step. Refuses what `fill_slot_on_bit`
-//! refuses; what was written is put back.
+//! Caller: `physics::car_physics_step` (0x43B98B), every physics step. Refuses what
+//! `fill_slot_on_bit` refuses; what was written is put back.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

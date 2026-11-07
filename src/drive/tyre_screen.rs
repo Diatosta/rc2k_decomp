@@ -7,8 +7,6 @@
 //! wheel turned by the car's input device (place 3), the fixed parts (place 4). All in
 //! `pusha` / `popa`.
 //!
-//! In:  eax the mode, esi the car (0, 1)
-//!
 //! Caller: `drive::tyre_change_screen`.
 //! Refuses a car past 7 (`g_inputDevices`).
 

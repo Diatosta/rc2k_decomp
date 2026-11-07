@@ -6,10 +6,7 @@
 //! `unk_71A060`, the notice cleared and `physics::reset_car`. Else a count under way is
 //! cleared with the notice.
 //!
-//! Out: ebx `unk_71A440` past the first test; at the reset as `physics::reset_car` leaves
-//!      the registers (eax the penalty); the rest kept; no flags read
-//!
-//! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`. Refuses what
+//! Callers: `drive::car_controls`, `race::step_replay_cars`, `drive::replay_step`. Refuses what
 //! `physics::reset_car` refuses.
 
 use crate::errors::Refused;

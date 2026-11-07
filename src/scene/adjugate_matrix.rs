@@ -6,8 +6,9 @@
 //!
 //! Each of the nine a product less a product (`x87::product_difference`), written in the
 //! original's order and read from memory as it then is (in place, later ones see earlier
-//! results). +0xC, +0x1C, +0x2C, +0x3C are not written. One caller, `sub_4C9AF6`. Refuses a
-//! null matrix or result. The Rust version is `adjugate_matrix_plain`; the x87's stays for
+//! results). +0xC, +0x1C, +0x2C, +0x3C are not written. One caller, `effects::cars_particles`.
+//! Refuses a null matrix or result. The Rust version is `adjugate_matrix_plain`; the x87's stays
+//! for
 //! `effects::cars_particles`.
 
 use crate::math::cells::Cells;

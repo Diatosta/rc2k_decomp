@@ -2,9 +2,6 @@
 //! clipped to the global clip rectangle.
 //!
 //! Takes: glyph index, x, y, palette (256 dwords), glyph table
-//! Out: esi, edi and ebp preserved. eax, ebx, ecx and edx hold leftovers of the drawing loops;
-//!      only the lobby passes one on (ebx, as the next sprite's palette, which the direct-colour
-//!      sprites never read), so the Rust version returns none of them.
 //! No surface, a null table and a glyph index past the table are fatal errors in the original:
 //! `glyph_record` returns them as errors.
 //!

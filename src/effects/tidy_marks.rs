@@ -1,14 +1,14 @@
 //! `effects::tidy_marks` (0x4D146D): the marks' memory given back at a stage's unload. Its
-//! steps, each a call (the nullsubs left out): `sub_4D06F3` (for each of the settings'
+//! steps, each a call (the nullsubs left out): 0x4D06F3 (for each of the settings'
 //! +0x5C cars from the first, its list at +0x2E8 freed and its +0x328 made `g_marksTaken`),
-//! then `memory::free_list` of `g_marksRingList` (`sub_4CFB3D`), `stru_935620`
-//! (`sub_4CB5A8`), `g_marksBMaskList` and `stru_934D76` (`sub_4C8F4D`), `g_marksPlacesList`
-//! (`sub_4C38F5`) and `g_marksLinksList` (`sub_4C4E22` -> `sub_4C3EE3` -> `sub_4C5409`).
+//! then `memory::free_list` of `g_marksRingList` (0x4CFB3D), `stru_935620`
+//! (0x4CB5A8), `g_marksBMaskList` and `stru_934D76` (0x4C8F4D), `g_marksPlacesList`
+//! (0x4C38F5) and `g_marksLinksList` (0x4C4E22 -> 0x4C3EE3 -> 0x4C5409).
 //! Each of those steps is a `lea ebx` and a call.
 //!
 //! Works on `g_marksSettings`.
 //!
-//! `sub_4D06F3` tests `memory::free_list`'s carry (`jb`), which is always clear (its last
+//! 0x4D06F3 tests `memory::free_list`'s carry (`jb`), which is always clear (its last
 //! flag-setting instruction is a `test`), so its other path (a `push` left on the stack and
 //! a count of 0x1FFFFFFF: section 16) is never taken. Caller: the stage's unload
 //! (0x4449AE). Refuses (before anything) null settings, a cars' count below 0 or above 8
@@ -24,7 +24,7 @@ use crate::memory::MemoryList;
 use crate::memory::free_list::{free_list, free_list_at};
 use crate::pointers::{GamePtr, Store, load_value};
 
-// `sub_4D06F3`'s ebp: the settings' +0x29C for car 0.
+// 0x4D06F3's ebp: the settings' +0x29C for car 0.
 const CAR_PART: u32 = crate::race::marks_settings_store::CAR_BLOCK;
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.

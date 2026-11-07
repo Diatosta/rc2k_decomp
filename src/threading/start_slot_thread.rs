@@ -4,7 +4,7 @@
 //! It clears the slot's flag byte at +0xC, creates a thread running the routine at +0 (no
 //! parameter, default stack), which stores the thread's id at +4, and stores the handle at
 //! +8. If no thread can be created the original reports fatal error 0x80108601.
-//! Four callers: three in `sub_410B84` and `request_quit`.
+//! Four callers: three in `threading::start_threads` and `request_quit`.
 
 use crate::errors::FatalError;
 use crate::framework::log;

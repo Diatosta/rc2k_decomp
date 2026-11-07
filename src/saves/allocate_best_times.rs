@@ -8,10 +8,10 @@
 //! -1 in their last dword. "Stages" is the number of records of the championship's table
 //! (`g_recordTable`) whose tag is 0 (`saves::count_stages`, 0x47C95D, a plain function
 //! here). Six of the nine are what `saves::load_best_times` reads `var\hst.dat` into.
-//! Callers: `saves::load_best_times` and `sub_47C63F`. The original has a fatal error for each
-//! block that cannot be taken (0x807010F1, 0x807010FB, 0x80701000 .. 0x80701005, 0x8070100A); none
-//! can come, the allocator reporting its own first. Refuses a record table without its end, and
-//! what the allocator refuses.
+//! Callers: `saves::load_best_times` and `menu::set_up_front_end`. The original has a fatal error
+//! for each block that cannot be taken (0x807010F1, 0x807010FB, 0x80701000 .. 0x80701005,
+//! 0x8070100A); none can come, the allocator reporting its own first. Refuses a record table
+//! without its end, and what the allocator refuses.
 
 use crate::errors::{BadInput, Refused};
 use crate::records::stages_store::{RecordRef, RecordTable};

@@ -1,11 +1,10 @@
 //! `physics::note_time_mark` (0x440C38): when `flt_71AEE0` is not below `flt_5C5D5C`
 //! (60.0; `fcomp`, C0 clear: also not unordered) and `dword_6140EC` is 0:
-//! `dword_6140EC` = `dword_719FE0` (the work copy's +8, a step count by `sub_460835`'s
+//! `dword_6140EC` = `dword_719FE0` (the work copy's +8, a step count by `race::step_replay_cars`'s
 //! `inc`) less `dword_6140F0`. By the look of it the step at which a figure first
 //! reached 60 (a reading).
 //!
-//!
-//! Caller: `sub_43B635` (0x43B9A4), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B9A4), every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

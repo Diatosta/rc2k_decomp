@@ -2,8 +2,8 @@
 //! (+0x88) sealed (`records::seal_time`) with bl its +8, cl `dword_75ACD8` and dl eax's low
 //! byte; the result also into `dword_7559EC` and `hhmm`.
 //!
-//! Callers: `sub_48C8B6`, `menu::enter_record_entry`. The seal is its Rust version.
-//! Refuses a current player past 3 or missing, before anything.
+//! Callers: `menu::enter_time_trial_best`, `menu::enter_record_entry`. The seal is its Rust
+//! version. Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;

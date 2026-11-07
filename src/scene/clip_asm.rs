@@ -26,12 +26,12 @@ pub const OUT_2: usize = 0x128;
 pub const CHECKED: usize = 0x13C;
 pub const PLANE: usize = 0x140;
 
-/// `sub_44D247` from after its `fstp flt_623F80` (the edge is in the block already) to its `call`.
+/// 0x44D247 from after its `fstp flt_623F80` (the edge is in the block already) to its `call`.
 pub fn cut_at_x(w: &mut Work) {
     cut_axis(cells(w), X_AXIS);
 }
 
-/// `sub_44D532`, likewise with `flt_623F84`.
+/// 0x44D532, likewise with `flt_623F84`.
 pub fn cut_at_y(w: &mut Work) {
     cut_axis(cells(w), Y_AXIS);
 }
@@ -140,7 +140,7 @@ fn interpolate_cut(w: impl Base, fraction: X) {
     fistp(w, 0x13C, fraction);
 }
 
-/// `sub_44DB93` from 0x44DC37 to 0x44DD9A (`sub_44DEAA` has the same there).
+/// 0x44DB93 from 0x44DC37 to 0x44DD9A (0x44DEAA has the same there).
 pub fn cut_at_depth(w: &mut Work) {
     cut_depth(cells(w));
 }

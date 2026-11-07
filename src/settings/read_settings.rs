@@ -1,11 +1,12 @@
 //! `settings::read_settings` (0x4114A6): reads `var\ral.cfg` into the game's settings.
 //!
-//! `read_text` on `var\ral.cfg`; if it reads, `sub_4114FF` (0x4114FF, one caller, here as
+//! `read_text` on `var\ral.cfg`; if it reads, `settings::apply_settings` (0x4114FF, one caller,
+//! here as
 //! `apply_settings`): for each of the 77 entries of the table at 0x518C09 (a key, then the address
 //! of its variable), if `find_key` finds the key, the variable becomes `parse_number` of its value.
 //! A key that is not in the file leaves its variable alone; a key without a number makes it 0. Two
 //! keys share a variable twice (`noaudio` and `nosound`, `allsecretcars` and `secretcar`): the
-//! later one in the table wins. Callers: `start` and `sub_411239`.
+//! later one in the table wins. Callers: `start` and `system::load_game_data`.
 
 use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
@@ -443,7 +444,8 @@ fn table_bytes() -> Vec<u8> {
 
 // ---- Rust version ----
 
-/// `sub_4114FF`: the settings a text names. Converted: `rc2k_core::files::settings::table` and
+/// `settings::apply_settings`: the settings a text names. Converted:
+/// `rc2k_core::files::settings::table` and
 /// `apply`; here the variables (the table's dwords are their addresses) are stored.
 fn settings() -> Result<Vec<(Vec<u8>, u32)>, BadInput> {
     // The empty key that ends it (0x5190F1 in the image).

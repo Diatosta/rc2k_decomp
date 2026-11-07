@@ -3,10 +3,7 @@
 //! `g_crashMatrix` (0x40 bytes) into `unk_6141EC`; `dword_71A238` dwords of
 //! `dword_71ADC8` (the probe points' faces) into `dword_6D2814`.
 //!
-//! Out: eax = `dword_71A114`, ecx 0, esi = 0x71ADC8 + 4 n, edi = 0x6D2814 + 4 n; no flags
-//!      read
-//!
-//! Caller: `sub_43B635` (0x43B719), every physics step. Refuses a count above 0x40
+//! Caller: `physics::car_physics_step` (0x43B719), every physics step. Refuses a count above 0x40
 //! (unsigned; `dword_6D2814` has 0x40 before `dword_6D2914`), before writing.
 
 use crate::errors::Refused;

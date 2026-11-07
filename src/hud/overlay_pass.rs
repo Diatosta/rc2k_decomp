@@ -9,7 +9,7 @@
 //!
 //! Out: as the last call leaves them
 //!
-//! Caller: `sub_4547AE` (0x454786). The registers above are the original's, for reference; a
+//! Caller: `race::show_frame` (0x454786). The registers above are the original's, for reference; a
 //! call by address goes through `routes.rs`.
 
 use crate::errors::Refused;
@@ -52,7 +52,7 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
             if CAR_BLOCKS.cars[n].view_covered.get() != 0 {
                 race.frame.panel_and_overlay.panel.hud_flags[n]
                     .set(race.frame.panel_and_overlay.panel.hud_flags[n].get() & 0x40);
-                race.frame.panel_and_overlay.panel.lights[n].fade.set(0);
+                race.frame.panel_and_overlay.panel.lights[n].width.set(0);
             }
         }
     }

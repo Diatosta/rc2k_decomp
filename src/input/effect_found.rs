@@ -7,7 +7,6 @@
 //! goes on (eax 1).
 //!
 //! In:  (stdcall) the `DIEFFECTINFOA`, the context (the device's record)
-//! Out: eax = 1; ebx, esi, edi, ebp kept; `ret 8`
 //!
 //! Caller: DirectInput, from `input::begin_force`.
 

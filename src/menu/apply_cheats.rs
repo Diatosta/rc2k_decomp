@@ -5,8 +5,8 @@
 //! - bits 0, 1, 13 .. 16 stay set and do nothing more here (unlock arcade, unlock cars, no
 //!   damage, damage timer, 16, arcade timer): other code looks at them;
 //! - bits 2 .. 9, 11 and 12 are cleared and each adds one secret car to the list of cars
-//!   at `off_75A042`, unless it is there already (the ten functions `sub_470FE9` ..
-//!   `sub_471332`, plain functions here). Bit 6, "Max Power", also adds its car to the
+//!   at `off_75A042`, unless it is there already (the ten functions 0x470FE9 ..
+//!   0x471332, plain functions here). Bit 6, "Max Power", also adds its car to the
 //!   list at `off_759D16`, but only when it was not in the first. The other nine have
 //!   the same code for the second list, which is never reached;
 //! - bit 10 is cleared and does nothing;
@@ -14,8 +14,8 @@
 //!   tracks).
 //!
 //! Callers: `system::load_game_data` with the bits 0x1FBC (when the setting `allsecretcars` is 1)
-//! and `sub_480CBF`, which finds a cheat's name typed as the fourth player's name. Refuses a list
-//! without its end, or without room for a car more.
+//! and `menu::check_cheat_name`, which finds a cheat's name typed as the fourth player's name.
+//! Refuses a list without its end, or without room for a car more.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;

@@ -10,7 +10,7 @@
 //! priority, volume, the pan's low byte (signed), pan sign 0, the frequency (or the
 //! voice's own for `OWN_FREQUENCY`), the place, the minimum distance from its own, the volume
 //! factor (0x40, or what the record's points at); state 0, dirty bits 0xF more, no
-//! channel, no list link. One caller, command 3 (`sub_40AEB9`).
+//! channel, no list link. One caller, command 3 (`audio::load_sounds`).
 //! Refuses a shared voice for a record without voices, a chain without its end.
 
 use crate::audio::owner::Audio;

@@ -1,9 +1,10 @@
 //! `files::drive_type` (0x4031D8): what kind of drive a letter is.
 //!
-//! The letter is lowered through `g_lowerCase` and asked about as `x:\` (`sub_4031EE` makes that
-//! text in a dword). Three callers: the search for the game's CD, the installer, and `sub_403310`,
-//! the main loop's "is the base directory on a CD" check (whose answer this build no longer looks
-//! at: nine `nop`s follow its call at 0x415448).
+//! The letter is lowered through `g_lowerCase` and asked about as `x:\` (`files::drive_root` makes
+//! that
+//! text in a dword). Three callers: the search for the game's CD, the installer, and
+//! `files::is_cd_drive`, the main loop's "is the base directory on a CD" check (whose answer this
+//! build no longer looks at: nine `nop`s follow its call at 0x415448).
 
 // ---- Rust version ----
 

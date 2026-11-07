@@ -13,8 +13,8 @@
 //!
 //! Takes: the car object
 //!
-//! Caller: 0x4C9E0C. Refuses a null object or matrix and the emitters' refusals; on a
-//! refusal nothing stays written (all it may write is put back).
+//! Caller: `effects::cars_particles` (0x4C9E0C). Refuses a null object or matrix and the emitters'
+//! refusals; on a refusal nothing stays written (all it may write is put back).
 
 use crate::effects::emit_body_particles::emit_body_particles;
 use crate::effects::emit_wheel_particles::emit_wheel_particles;

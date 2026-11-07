@@ -22,9 +22,9 @@
 //! Other changes do nothing.
 //!
 //! In:  as above
-//! The DirectInput calls (`sub_409AEE` the effect's Download and Start, `sub_409B1F` its
-//! SetParameters with eax the flags, `sub_409B0D` its Stop; each only with an effect at
-//! +0x30) are the Rust versions (`effect_objects`). Refuses
+//! The DirectInput calls (`input::start_effect` the effect's Download and Start,
+//! `input::set_effect_parameters` its SetParameters with eax the flags, `input::stop_effect` its
+//! Stop; each only with an effect at +0x30) are the Rust versions (`effect_objects`). Refuses
 //! (before anything) for effect 1 a row past the table's 14 and a blend of 0 (the
 //! original's `idiv` traps).
 //!
@@ -35,9 +35,9 @@ use crate::errors::{BadInput, Refused};
 use crate::input::store::Devices;
 use crate::input::types::{ForceEffect, InputDevice};
 
-// sub_409AEE
-// sub_409B1F
-// sub_409B0D
+// `input::start_effect`
+// `input::set_effect_parameters`
+// `input::stop_effect`
 
 /// The change `what` (with `a`, `b`) of the effect `effect` of the device `record`, by
 /// the effect's function `number` (`input::effect_N_change`).

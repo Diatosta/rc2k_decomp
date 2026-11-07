@@ -9,7 +9,7 @@
 //!
 //! Takes: `n` the spline (`g_marksSettings`)
 //!
-//! Caller: `sub_4B978A`. Refuses null settings, a spline number of 8 or more (before
+//! Caller: `effects::run_splines`. Refuses null settings, a spline number of 8 or more (before
 //! anything), and its steps' refusals (all it may write is put back first).
 
 use crate::effects::paths::Paths;

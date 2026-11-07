@@ -3,7 +3,7 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4C1270`. Refuses null settings before anything, and its steps' refusals
+//! Caller: `effects::view_frame`. Refuses null settings before anything, and its steps' refusals
 //! (all it may write is put back first).
 
 use crate::effects::mask_store::Masks;

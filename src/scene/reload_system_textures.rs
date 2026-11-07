@@ -42,7 +42,7 @@ const TEXTS: [&std::ffi::CStr; 4] = [
 
 /// The Rust version. The registers the original leaves (those of `load_hud_car_icons`) are
 /// read by no caller (taint at the site in `race::set_all_plates`: 0 read points; the other
-/// is the game's own code, `sub_443478`, not Rust). It reads no register at entry but edi,
+/// is the game's own code, 0x443478, not Rust). It reads no register at entry but edi,
 /// esi (for `load_changed_texture_picture` and `step_loading_bar`, which set them
 /// themselves).
 // Converted: `rc2k_core::scene::pictures::{kind_picture, read_size}`

@@ -3,7 +3,7 @@
 //! Takes: a car block
 //! Returns: the difference plus one
 //!
-//! See `drive/note_gaps.rs`. Caller: `sub_43703E` (0x43736B, 0x437397).
+//! See `drive/note_gaps.rs`. Caller: `drive::start_cars_behind` (0x43736B, 0x437397).
 
 use crate::drive::note_gaps::note_gap_at;
 use crate::physics::car_store::Car;

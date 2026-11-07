@@ -4,8 +4,6 @@
 //! made +0x90; at `g_splitColourCount` the car is finished: +0xA8 1, +0xA0 0, the notice
 //! 0xC8 (+0x72C -1, +0x730 0).
 //!
-//! Out: eax, ebx and what `split_by_mode` leaves; no flags read
-//!
 //! Caller: `physics::race_timers`. Refuses (before anything) a split past 0x3F, and what
 //! `split_by_mode` refuses.
 //!

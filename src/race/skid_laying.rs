@@ -1,7 +1,8 @@
-//! The skidmarks laid (`sub_4585F3` -> `sub_4588DE` -> `sub_45860C`, part R3, IDA
-//! 2026-10-18): each car's skidding wheels add a point to the ring of 0x400 skid points
-//! (`g_skidPoints`, 0x18 bytes: the mark's left and right edges) linked in strips
-//! (`g_skidLinks`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's bit).
+//! The skidmarks laid (`race::lay_skidmarks_if_on` -> `race::lay_skidmarks` ->
+//! `race::add_skid_point`, part R3, IDA 2026-10-18): each car's skidding wheels add a point to the
+//! ring of 0x400 skid points (`g_skidPoints`, 0x18 bytes: the mark's left and right edges) linked
+//! in strips (`g_skidLinks`, 8 bytes: +0 the next, +2 the previous, +4 the angle, +6 the car's
+//! bit).
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;

@@ -7,9 +7,6 @@
 //! faces, the EAX environment, the lamps gathered and wanted; the sort entries sorted and
 //! drawn, the race's slots; the cars' shadows, the skidmarks, the car lights; the depth
 //! entries sorted and drawn, the batch flushed, the view's value stored.
-//!
-//! In:  nothing (no step reads a register its caller gives: register liveness and the Rust
-//!      steps, 2026-10-23; edx's "read" is `fog_table`'s `imul`)
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

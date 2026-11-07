@@ -10,9 +10,10 @@
 //!
 //! Works on `g_marksSettings`.
 //!
-//! Caller: `sub_4C74DA` (0x4C7534). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
-//! game's variables; the vector helpers, `scale_axes` and `windscreen_flakes_step` their Rust
-//! versions. Refuses null settings and `windscreen_flakes_step`'s refusals.
+//! Caller: `effects::draw_overlays` (0x4C7534). The x87 runs are plain Rust on the x87 model
+//! (`math::x87_float`), in the original's order, over the game's variables; the vector helpers,
+//! `scale_axes` and `windscreen_flakes_step` their Rust versions. Refuses null settings and
+//! `windscreen_flakes_step`'s refusals.
 
 use crate::effects::mask_store::Masks;
 use crate::effects::plain::ldi_cell;

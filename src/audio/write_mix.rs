@@ -2,9 +2,8 @@
 //! locked parts.
 //!
 //! In:  nothing (`g_lockedParts`, `g_soundMode`)
-//! Out: eax .. ebp as its loops leave them (the one caller, `audio::mix`, keeps its own)
 //!
-//! See `audio/mixer.rs`; `sub_40C087`, `sub_40C0E0`, `sub_40C153` (the three formats)
+//! See `audio/mixer.rs`; 0x40C087, 0x40C0E0, 0x40C153 (the three formats)
 //! inlined. Refuses sixteen bits with a right sample that clips (the original loops for
 //! ever there: section 16).
 

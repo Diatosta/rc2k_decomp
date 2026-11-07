@@ -3,10 +3,7 @@
 //! bit 16 of `g_cheats` clear (`bt`): `physics::set_flag_5165a4`, then +0xA4 1, the
 //! notice +0x71C 0xC7, +0x730 0x32 and +0x72C -1.
 //!
-//! Out: when it ran, eax as `set_flag_5165a4` leaves it; the rest kept; no flags read
-//!      (the caller's next is a call)
-//!
-//! Caller: `sub_436790` (0x4367E3). Refuses what `set_flag_5165a4` refuses.
+//! Caller: `physics::race_timers` (0x4367E3). Refuses what `set_flag_5165a4` refuses.
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;

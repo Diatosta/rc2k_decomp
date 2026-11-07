@@ -23,8 +23,8 @@
 //! The checkpoint tables' indices are held to `g_checkpointCount` - 1 (unsigned) as the
 //! original holds them. What each value is, is a reading at best.
 //!
-//! Callers: `sub_43A35A` (0x43A497, 0x43A4F7). Refuses (before anything) no checkpoints
-//! when the tables are to be read.
+//! Callers: `drive::read_car_controls` (0x43A497, 0x43A4F7). Refuses (before anything) no
+//! checkpoints when the tables are to be read.
 
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
@@ -59,7 +59,7 @@ fn face_point(face: u32) -> Result<(u32, u32), BadInput> {
     ))
 }
 
-/// `sub_463296` then `sub_4632AE`: (to - from) in x and z, y 0, as floats, into `out`
+/// 0x463296 then 0x4632AE: (to - from) in x and z, y 0, as floats, into `out`
 /// (the whole numbers written first, then each turned into a float in place).
 fn flat_way(from: &[Dword], to: &[Dword], out: &[Float]) {
     let x = to[0].get().wrapping_sub(from[0].get());

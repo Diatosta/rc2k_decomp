@@ -3,9 +3,8 @@
 //! (`physics::fill_race_slot`).
 //!
 //! Takes: the bit (passed on)
-//! Out: eax 1 << cl, or as `fill_race_slot` leaves them; no flags read
 //!
-//! Callers: `physics::drop_broken_parts` (seven), `sub_4410C8` (four). Refuses what
+//! Callers: `physics::drop_broken_parts` (seven), `physics::drop_hit_parts` (four). Refuses what
 //! `fill_race_slot` refuses (before anything: the bit is cleared after).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

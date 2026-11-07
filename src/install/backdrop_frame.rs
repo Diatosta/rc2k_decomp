@@ -1,4 +1,5 @@
-//! `install::backdrop_frame` (0x415273, `loc_415273`, inside `sub_41525D`): the frame of
+//! `install::backdrop_frame` (0x415273, `loc_415273`, inside `install::show_backdrop`): the frame
+//! of
 //! `install::show_backdrop`: the surface locked (`gfx::lock_surface`; failing: carry set,
 //! nothing more), the backdrop picture copied to it, unlocked and shown.
 //!

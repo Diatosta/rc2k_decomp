@@ -99,10 +99,10 @@ fn set_up_race(race: &Race) -> Result<(), Refused> {
 }
 
 /// `f` between what the menus' own route does round a race (`race::single_rally`): the
-/// game's mode changes of `sub_44326D` are the menus' here.
+/// game's mode changes of 0x44326D are the menus' here.
 fn round_a_race(race: &Race, f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> {
     let shared = &race.shared;
-    // `sub_44326D`'s, which the race's sound objects are made from (without them, a race
+    // 0x44326D's, which the race's sound objects are made from (without them, a race
     // with no engine heard); the menus' own put back after.
     let s = &SETTINGS;
     let car = s.car.load(Relaxed);
@@ -178,7 +178,7 @@ fn test_course(race: &Race) -> Result<(), Refused> {
     })
 }
 
-/// `sub_442FEF`: the finish sequence, for the course's index (0 .. 5) and the car.
+/// 0x442FEF: the finish sequence, for the course's index (0 .. 5) and the car.
 fn finish_sequence(race: &Race) -> Result<(), Refused> {
     round_a_race(race, || {
         let s = &SETTINGS;
@@ -198,7 +198,7 @@ fn finish_sequence(race: &Race) -> Result<(), Refused> {
     })
 }
 
-/// `sub_443104`, without its fonts (the menus' are up): the credits' race.
+/// 0x443104, without its fonts (the menus' are up): the credits' race.
 fn credits(race: &Race) -> Result<(), Refused> {
     let sound = crate::sound::owner::sound();
     round_a_race(race, || {
@@ -207,7 +207,7 @@ fn credits(race: &Race) -> Result<(), Refused> {
     })
 }
 
-/// `sub_4430C0`: the last race's replay (nothing happens without one).
+/// 0x4430C0: the last race's replay (nothing happens without one).
 fn last_replay(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let course = &race.course;

@@ -4,10 +4,7 @@
 //! `flt_608B28` and `flt_608B2C`, x `flt_5C5D98`, negated, `fistp`ed into
 //! `dword_608B38`.
 //!
-//! Out: esi the mode's record; eax the time held when it ran; the rest kept; no flags
-//!      read
-//!
-//! Caller: `sub_437A53`.
+//! Caller: `physics::update_camera`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

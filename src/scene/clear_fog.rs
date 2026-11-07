@@ -1,7 +1,5 @@
 //! `scene::clear_fog` (0x44FC19): no fog.
 //!
-//! Out: eax = 0x0, ecx = 0, edi = the end of the last table
-//!
 //! `dword_636610` = 0 and the 0x1000 bytes of `g_fogTable` = 0. (The original clears the table
 //! first; the result is the same.) One caller.
 

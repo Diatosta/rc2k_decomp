@@ -13,7 +13,6 @@
 //! in the end, whatever happened. With 16 the listing stops (eax 0), else it goes on (1).
 //!
 //! In:  (stdcall) the `DIDEVICEINSTANCEA`, the context (not read)
-//! Out: eax = 1 go on, 0 stop; ebx, esi, edi, ebp kept; `ret 8`
 //!
 //! Caller: DirectInput, from `input::list_joysticks`. The methods the objects' own.
 

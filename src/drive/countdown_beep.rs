@@ -5,8 +5,6 @@
 //! sound (`dword_6D1818[s]`, into `dword_614114`) cued (`drive::countdown_cue`).
 //!
 //! Takes: the car's block, where its second goes
-//! Out: eax the second, edx the remainder, ebx 100 or the sound; the rest kept; no flags
-//!      read
 //!
 //! Caller: `drive::countdown_beeps`. Refuses what `countdown_cue` refuses.
 

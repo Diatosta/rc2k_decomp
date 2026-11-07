@@ -3,8 +3,7 @@
 //! screens), by `scene::draw_tinted_quad`; the quad's inputs `dword_623E10` ..
 //! `dword_623E24` (`screens::service_boxes::quad`).
 //!
-//!
-//! Caller: `sub_4A1E60` (the fades' frame).
+//! Caller: `menu::fade_frame` (the fades' frame).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

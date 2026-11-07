@@ -5,8 +5,8 @@
 //!
 //! Returns: the sound object
 //!
-//! Caller: `sub_43DC72` (its tail). Refuses (before anything) a null sound object when it
-//! would be written (the original writes near address 0).
+//! Caller: `physics::engine_sound` (its tail). Refuses (before anything) a null sound object when
+//! it would be written (the original writes near address 0).
 
 use crate::errors::Refused;
 use crate::race::owner_shared::Shared;

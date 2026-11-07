@@ -1,5 +1,5 @@
 //! `physics::reset_point_blocked` (0x43F0DF): whether the checkpoint `dword_614C50` is no
-//! place to put a reset car, as `sub_43EFEF` ("cant reset car anywhere - waiting a
+//! place to put a reset car, as `physics::reset_car` ("cant reset car anywhere - waiting a
 //! second") asks it of the other cars' blocks (esi 0x7103CC, 0x7113AC, 0x71238C, ...).
 //! Only when the block's +0x25C is 2 (by the look of it, a car in the stage; a reading):
 //! CF when the checkpoint is within 8 of the start or the end (`g_checkpointCount` - 8),
@@ -7,10 +7,8 @@
 //! of the difference (`js`/`jns`), as here.
 //!
 //! Takes: the block
-//! Out: CF; eax and ebx as the path leaves them (see `reset_point_blocked_at`); the rest
-//!      kept. ZF is not read (`jb`).
 //!
-//! Caller: `sub_43EFEF` (six calls), when a car is reset onto the line: not every frame.
+//! Caller: `physics::reset_car` (six calls), when a car is reset onto the line: not every frame.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

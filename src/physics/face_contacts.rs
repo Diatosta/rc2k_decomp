@@ -1,7 +1,8 @@
 //! `physics::face_contacts` (0x45E190): `physics::face_contacts_around` (its only code,
 //! `call` and `retn`): the course faces about the work car tried against it.
 //!
-//! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses what
+//! Callers: `physics::car_physics_step` (every physics step), `physics::find_clear_place`. Refuses
+//! what
 //! `face_contacts_around` refuses (everything written put back).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

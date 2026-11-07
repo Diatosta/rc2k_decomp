@@ -4,9 +4,6 @@
 //! the effect's +0x2C (effect eax at +0x3C + eax * 0xA4), where the input thread takes it
 //! (`input::device_effects`).
 //!
-//! In:  eax = the effect (0 .. 5), ebx = what to do (2 start, 3 set, 4 stop; not masked),
-//!      ecx, edx = two numbers (their low 12 bits), esi = the device's record
-//!
 //! See `input/effects.rs`. 21 callers (`start_device_effects`, `stop_device_effects`,
 //! `update_car_effects`). Refuses (before anything) an effect past 5 (the original writes
 //! wherever eax * 0xA4 lands).

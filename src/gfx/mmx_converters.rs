@@ -17,14 +17,6 @@
 //!
 //! The masks are the game's constants (read from it, so a change there would show).
 //!
-//! In:  esi = the pixels of four components, edi = where the 16-bit ones go, ecx = the
-//!      pixels a row (a quarter of it, rounded down, is done: the rest of a row is not),
-//!      edx = the rows, ebp = added to edi (format 1, MMX) or taken from it (the others)
-//!      after each row
-//! Out: esi, edi past what was done, edx 0, ecx a row's steps (ecx / 4); the MMX ones ebx
-//!      a row's steps too, the 3DNow ones ebx the source past what was done and esi a
-//!      row's steps; the zero flag set (`dec edx`)
-//!
 //! Callers: `gfx::convert_picture` (one row of width x height pixels, ebp 0). Refuses (before
 //! anything) fewer than four pixels a row and no rows (the original's `dec` counts on through
 //! 2^32).

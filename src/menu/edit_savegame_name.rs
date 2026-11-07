@@ -9,8 +9,8 @@
 //! `key_to_char`; a character is appended unless the length is already above the maximum, and taken
 //! off again if the name then measures 0xEC pixels or more. After anything but Escape and Enter the
 //! cursor (string 4) is written after the name if `dword_7559A8` is 1, then a NUL. Called from the
-//! screen loop `sub_47F034` while `dword_7556A8` is 1. Refuses, before the key is taken: a name
-//! past the list, a length outside 0 .. 0x1F, no keyboard layout.
+//! screen loop `menu::save_championship_loop` while `dword_7556A8` is 1. Refuses, before the key is
+//! taken: a name past the list, a length outside 0 .. 0x1F, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::{has_layout, key_to_char};

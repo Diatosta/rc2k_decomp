@@ -1,8 +1,6 @@
 //! `scene::draw_main_menu_objects` (0x490106): the 3D part of a frame of the menus
 //! with a carousel.
 //!
-//! In:  ecx, passed on to the carousel
-//!
 //! `scene::clear_depth_buffer`; `scene::assign_kind_textures`;
 //! `scene::choose_carousel_pictures`; `scene::assign_menu_textures`;
 //! `scene::map_texture_places`; `scene::load_slot_textures`; `scene::draw_main_menu_carousel`.

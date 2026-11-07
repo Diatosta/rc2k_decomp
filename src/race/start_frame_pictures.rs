@@ -1,7 +1,7 @@
 //! `race::start_frame_pictures` (0x41F35E): the replay's frames to be saved as pictures
 //! (`race::replay_screenshot` does it each frame): the rate `dword_5C2CEF` held to 1 ..
 //! 100 (signed); the time a picture (`dword_5C2CF3`) eax, or for eax 0 1000 / the rate;
-//! the folder `rpl` made (`sub_403113`: `CreateDirectoryA`, edx the name);
+//! the folder `rpl` made (`files::make_directory`: `CreateDirectoryA`, edx the name);
 //! `g_replayRecording` 1, `dword_5C2CD4` and `dword_5C2CD0` 0.
 //!
 //! Takes: the ms a picture, or 0 for the rate's

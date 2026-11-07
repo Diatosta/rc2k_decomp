@@ -1,9 +1,5 @@
 //! `sound::drop_cue` (0x40EE32): one cue taken out of a sound object's queue.
 //!
-//! In:  eax the cue's place, edi the queue (the object +0x298: +0xC the count, cues of
-//!      0x20 bytes from +0x10; `physics::queue_sound_cue`)
-//! Out: cues moved: eax the place x 0x20, ecx 0; else ecx the count (less one when it
-//!      dropped); everything else preserved
 //! Nothing for a place at or past the count; else the count goes down by one and the
 //! cues after the place move up (`rep movsd`). One caller, `sound::play_cue_queue`
 //! (place 0: the cue played out).

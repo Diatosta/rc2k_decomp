@@ -2,9 +2,7 @@
 //! under way (the first block's +0x26C, `g_carBlockStore`, not 0 or -1):
 //! `drive::tyre_screen` for the mode `dword_6238A4`, car 0.
 //!
-//! Out: eax the mode, esi 0 when drawn; the rest kept; no flags read
-//!
-//! Caller: `sub_45429B` (the race's frame, stream A's).
+//! Caller: `race::draw_race_scene` (the race's frame, stream A's).
 
 use crate::errors::Refused;
 use crate::race::blocks_store::CAR_BLOCKS;

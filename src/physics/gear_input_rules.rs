@@ -10,8 +10,9 @@
 //!
 //! Returns: the joined input when they were joined
 //!
-//! Callers: race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F` (each calls
-//! `sub_43B635` or `sub_439DB1` next).
+//! Callers: race init's loop (`drive::race_cars_step`), `race::step_replay_cars`,
+//! `drive::replay_step` (each calls
+//! `physics::car_physics_step` or `drive::steer_inputs` next).
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

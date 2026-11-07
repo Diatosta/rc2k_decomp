@@ -5,11 +5,8 @@
 //! set, `physics::revs_from_wheels`. Every change sets `g_car` +0x238 and +0x23C
 //! (`unk_71A210`, `unk_71A214`) to 1.
 //!
-//! Out: eax the gear (or the new one; gear + 1 after a refusing `gear_bit`), ecx the new
-//!      gear when `gear_bit` ran, ebx as the gearing calls leave it; the rest kept; no flags
-//!      read (the caller returns)
-//!
-//! Caller: `sub_43C1E3` (its tail). Refuses (before anything) a gear or a new gear outside
+//! Caller: `physics::take_asked_gear` (its tail). Refuses (before anything) a gear or a new gear
+//! outside
 //! -1 ..= 7 where the gearing reads its ratio, and what `gear_bit` refuses.
 
 use crate::errors::{BadInput, Refused};

@@ -4,11 +4,10 @@
 //! near it (blocks 0x70F3EC, 0x7103CC, 0x7113AC, 0x71238C). Inside `pusha` / `popa`.
 //!
 //! Takes: the checkpoint
-//! Out: CF; every register kept (ZF not read: `jb`)
 //!
 //! A `js` is in its first five bytes: `.private_copy` (its four calls relocated) with
 //! `.manual_patch`.
-//! Caller: `sub_43703E` (0x4371A1, 0x437284).
+//! Caller: `drive::start_cars_behind` (0x4371A1, 0x437284).
 
 use crate::drive::car_near_checkpoint::near_at;
 use crate::physics::car_store::Car;

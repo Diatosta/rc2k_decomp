@@ -5,9 +5,9 @@
 //! there is one (`byte_4E0077`), then what `start` has found out by then: the processor
 //! (`cpu=`, `clk=`, `fpu=`, `mmx=`, `amdk3d=`, `katmai=`), the keyboard type
 //! (`machinetype=`), the Windows version (`platform=`), the memory (`GlobalMemoryStatus`
-//! into `Buffer`, 0x4E0558) and the free space of the current drive in Kb (`sub_403175`
-//! and `sub_40317D` with no drive given, here as `free_space_kb`; kept in `dword_4E073A`).
-//! One caller, `start`, which calls it directly (2026-10-23).
+//! into `Buffer`, 0x4E0558) and the free space of the current drive in Kb (0x403175
+//! and `files::drive_free_space_kb` with no drive given, here as `free_space_kb`; kept in
+//! `dword_4E073A`). One caller, `start`, which calls it directly (2026-10-23).
 
 use crate::errors::BadInput;
 use crate::logfile::date_text::write_date_text;
@@ -28,10 +28,10 @@ pub static FREE_SPACE_KB: crate::session::Dword = crate::session::Dword::new(0);
 
 // ---- Rust version ----
 
-/// `sub_40317D` with eax = 0: the free space of the current drive in Kb, or 0xFFFFFFFF if
-/// it cannot be asked or is 2^42 bytes or more. The original asks for the four numbers in
-/// the scratch block at 0x93E8B0 (`g_pngInfo`, written before read by each of its users):
-/// here locals.
+/// `files::drive_free_space_kb` with eax = 0: the free space of the current drive in Kb, or
+/// 0xFFFFFFFF if it cannot be asked or is 2^42 bytes or more. The original asks for the four
+/// numbers in the scratch block at 0x93E8B0 (`g_pngInfo`, written before read by each of its
+/// users): here locals.
 pub fn free_space_kb() -> u32 {
     let Some([cluster_sectors, sector_bytes, free, _]) = crate::os::disk_free(None) else {
         return u32::MAX;

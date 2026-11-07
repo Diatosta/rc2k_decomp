@@ -7,8 +7,6 @@
 //!   `DIEFFECT` (+0x34) and eax the flags;
 //! - `input::stop_effect` (0x409B0D): `Stop`.
 //!
-//! In:  edi = the effect, eax = the flags (`set_effect_parameters`)
-//!
 //! Callers: the effects' functions (`input::effect_N_change`, through
 //! `effect_changes::game_part`), `input::make_effect` and `input::end_force`
 //! (`release_effect`). The methods are the object's own (DirectInput's in the game, Rust's

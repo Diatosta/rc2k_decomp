@@ -3,7 +3,7 @@
 //! `physics::apply_patches`), `flt_6147F4` its negative, `flt_614804` = -1. By the look
 //! of it the car's weight with downforce growing with the speed's square (a reading).
 //!
-//! Caller: `sub_43B635` (0x43B728), every physics step.
+//! Caller: `physics::car_physics_step` (0x43B728), every physics step.
 
 use crate::math::x87_run::{minus_one, square_times_plus_times};
 use crate::race::owner::Race;

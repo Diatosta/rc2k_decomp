@@ -2,7 +2,7 @@
 //! `dword_71A234` (the grades' mode, `physics::grade_or_reset`), `dword_71A070`,
 //! `dword_71AA88`, `flt_71A650`, `flt_71A658`, `dword_71A01C`.
 //!
-//! Caller: `sub_43703E` (0x4371BC, 0x43729B).
+//! Caller: `drive::start_cars_behind` (0x4371BC, 0x43729B).
 
 use crate::race::owner_shared::Shared;
 use crate::session::Cell32;

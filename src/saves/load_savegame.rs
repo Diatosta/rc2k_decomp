@@ -37,7 +37,7 @@ use rc2k_core::saves::savegame::{A8_MODE, CORRUPT, Resume, resume};
 
 const PAYLOAD_OFFSET: usize = 0x30; // 0x51EBE4: what `gather_savegame` wrote
 
-/// The menu sound of a slot that cannot be read (`sub_40F059`'s eax).
+/// The menu sound of a slot that cannot be read (`sound::play_menu_sound`'s eax).
 const UNREADABLE_SOUND: u32 = 8;
 
 /// The slot the highlighted menu item stands for.

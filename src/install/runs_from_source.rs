@@ -4,7 +4,7 @@
 //! `read_registry`; then, only if the status is 1 and a source is named and the current
 //! directory can be had (`files::current_directory` into `byte_94E8B0`), the two are
 //! compared with `strings::same_text`. Everything else is "no" (zero and carry clear).
-//! Callers: the main loop `sub_415383` on every start, and `install::check_clio_disc`.
+//! Callers: the main loop `system::main_loop` on every start, and `install::check_clio_disc`.
 
 use crate::errors::BadInput;
 use crate::install::outside::Outside;

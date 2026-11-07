@@ -3,8 +3,6 @@
 //! closed (`race::close_viewed_replay`).
 //!
 //! Takes: the slot
-//! Out: carry set when the opening or the saving failed (the saving's flags kept round
-//!      the closing)
 //!
 //! Caller: `race::replay_viewer` (mode 3, the slot from `menu::save_replay_loop`; no flags
 //! read).
