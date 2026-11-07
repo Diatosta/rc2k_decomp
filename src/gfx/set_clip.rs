@@ -1,8 +1,7 @@
 //! `gfx::set_clip` (0x406988): sets the clip rectangle from a rectangle given as a corner
 //! and a size.
 //!
-//! In:  ebx = four dwords: x, y, width, height
-//! Out: every register preserved
+//! Takes: four dwords: x, y, width, height
 //! `g_clipLeft` = x, `g_clipTop` = y, `g_clipRight` = x + width - 1, `g_clipBottom` = y +
 //! height - 1. Three callers, each with the surface's own rectangle (`g_surface`).
 //! Refuses a null rectangle. The name is a reading.

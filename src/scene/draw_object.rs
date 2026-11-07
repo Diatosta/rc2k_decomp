@@ -1,8 +1,6 @@
 //! `scene::draw_object` (0x45045D): draws one object, in seven steps.
 //!
 //! In:  nothing (`g_objectNumber` the object)
-//! Out: the registers as the seven steps leave them, the last being
-//!      `scene::draw_object_faces`
 //!
 //! eax = `g_objectNumber`; `scene::set_object_light`; `scene::set_object_material`;
 //! `scene::set_object_fade` (which may make `g_objectNumber` another object); ebx =

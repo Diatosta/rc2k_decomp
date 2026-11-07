@@ -3,8 +3,7 @@
 //! measured with (`dword_52A4C0`) noted, and the text's 64 bytes kept (`byte_95EAF8`) for
 //! Escape.
 //!
-//! In:  `item` (eax), `text` (ebx), `width` (ecx), `font` (edx)
-//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Takes `item`, `text`, `width`, `font`.
 //! Callers: `net::begin_setting_edit`, `net::begin_chat`.
 
 use crate::net::store::NetVars;

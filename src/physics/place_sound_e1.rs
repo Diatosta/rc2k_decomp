@@ -2,9 +2,6 @@
 //! a band not 0 goes to its sound object with +0x238 0xE1, +0x23C the band, the place at
 //! +0x240 .. and +0x10 1 (see `physics/car_sounds.rs`).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `sub_45D8FB`, `sub_45DA14`, `sub_45DC3E`, `sub_45EFF3`. Refuses (before
 //! anything) a car number past 7, a null sound object when it is written.
 

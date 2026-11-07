@@ -25,11 +25,11 @@ pub fn draw_name_plate(slot: u32, text: impl Into<crate::place::Place>) -> Resul
     }
     // Converted: `rc2k_core::race::plates::{name_rows, NAME_BOX, name_places}`.
     use rc2k_core::race::plates::{NAME_BOX, name_places, name_rows};
-    let line = fonts.menu_fonts.game_fonts[0].get().line_height as u32; // a line's height
+    let line = fonts.font_block.game_fonts[0].get().line_height as u32; // a line's height
     crate::gfx::rows::clear_surface_rows(0, name_rows(line), gfx)?;
-    fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = NAME_BOX);
+    fonts.font_block.game_fonts[2].update(|f| f.box_width = NAME_BOX);
     for (x, y) in name_places(line) {
-        draw_text_in_game(&fonts.menu_fonts.game_fonts[2], text, x, y)?;
+        draw_text_in_game(&fonts.font_block.game_fonts[2], text, x, y)?;
     }
     unlock_texture(slot)?;
     Ok(())
@@ -64,7 +64,7 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::plates::{time_start, time_rows, TIME_BOX,
     // time_places}`.
     use rc2k_core::race::plates::{TIME_BOX, time_places, time_rows, time_start};
-    let line = gfx.fonts.menu_fonts.game_fonts[0].get().line_height as u32;
+    let line = gfx.fonts.font_block.game_fonts[0].get().line_height as u32;
     let start = time_start(line, gfx.drawing.draw_surface.pitch.get());
     crate::gfx::rows::clear_surface_rows(start, time_rows(line), gfx)?;
     // A label is eight bytes (spaces after each split, no NUL): its text runs on into the
@@ -79,8 +79,8 @@ pub fn draw_time_plate(frame: &Frame, slot: u32) -> Result<(), Refused> {
     .zip(time_places(line))
     {
         let text = GamePtr::to(&frame.panel_and_overlay.overlay).offset(label as u32);
-        gfx.fonts.menu_fonts.game_fonts[3].update(|f| f.box_width = TIME_BOX);
-        draw_text_in_game(&gfx.fonts.menu_fonts.game_fonts[3], text, x, y)?;
+        gfx.fonts.font_block.game_fonts[3].update(|f| f.box_width = TIME_BOX);
+        draw_text_in_game(&gfx.fonts.font_block.game_fonts[3], text, x, y)?;
     }
     unlock_texture(slot)?;
     Ok(())

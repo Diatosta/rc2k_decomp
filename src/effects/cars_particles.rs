@@ -14,7 +14,7 @@
 //! (unless +0x30 counts down, by one) and `effects::emit_particle_13`, `emit_particle_19`,
 //! `emit_particle_22`.
 //!
-//! In:  nothing (`g_marksSettings`)
+//! Works on `g_marksSettings`.
 //! Out: ebp the settings when nothing is done, else as the last car leaves it (see
 //!      `cars`); the rest as the last car leaves them
 //!

@@ -1,8 +1,6 @@
 //! `gfx::install_converters` (0x407062): fills the table of picture converters, one for each
 //! pixel format number.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The table `dword_4F5288` has seven entries; a format without one is converted pixel by pixel
 //! through `components_to_pixel`. Number 0 never has one. Numbers 5 and 6 get
 //! `gfx::copy_pixel_rows`. Number 4 gets `gfx::components_to_4444_rows`, and numbers 1 to 3

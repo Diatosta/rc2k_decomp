@@ -5,7 +5,7 @@
 //! kind (+0x24, `g_carBlockStore`) is past 0x16 (the second car's only with two cars,
 //! `dword_63DB94` not 1). Other wishes: nothing.
 //!
-//! In:  eax the wish
+//! Takes: the wish
 //! Out: edx the mode; eax the last draw's product, ebx its record; the rest kept; no flags
 //!      read
 //!

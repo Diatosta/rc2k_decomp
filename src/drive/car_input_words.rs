@@ -4,7 +4,6 @@
 //! (`g_carBlocks[g_currentCar]`) +0xFD0 .. gives them, or, for the car recorded
 //! (`dword_52A920`), takes them.
 //!
-//! In:  nothing
 //! Out: eax .. edx the readings (eax the car with a replay on), esi the device or the
 //!      block; the rest kept; no flags read
 //!

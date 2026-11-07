@@ -2,20 +2,18 @@
 //! glyph, palette) blitted, each at (dx + x, dy + y) with its palette (`gfx::blit_glyph`).
 //! The x and y come in ecx and edx.
 //!
-//! In:  eax the count, ebx the table, ecx x, edx y
-//! Out: every register kept (`pusha` / `popa`)
+//! Takes the count, table, x, y.
 //! Caller the copy-progress frame (the install bar). Refuses a count of 0
 //! (the original's loop is a do-while: it
 //! would blit 2^32 records).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{rd, rl};
 use rc2k_core::install::layout;
 
-/// `count` records of `table` blitted at (x, y) on, from the glyph table `glyphs` (esi).
+/// `count` records of `table` blitted at (x, y) on, from the glyph table `glyphs`.
 pub fn blit_glyph_list(
     count: u32,
     table: impl Into<crate::place::Place>,

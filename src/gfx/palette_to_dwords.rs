@@ -1,8 +1,7 @@
 //! `gfx::palette_to_dwords` (0x405DDE): turns a palette of 256 entries of three bytes into
 //! 256 dwords.
 //!
-//! In:  esi = the three-byte palette, edi = the dwords
-//! Out: every register preserved
+//! Takes: the three-byte palette, the dwords
 //! A dword is the entry's first byte shifted up 16, its second shifted up 8, and its third;
 //! the top byte is 0. Entry 255 is done first. Four callers, the picture readers.
 //! A palette or dwords field too short is refused. The name is a reading.

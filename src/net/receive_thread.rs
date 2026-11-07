@@ -2,8 +2,6 @@
 //! routine of the third slot `threading::start_threads` starts (`stru_518714`), from its
 //! start to `ExitThread`.
 //!
-//! In:  nothing (the thread starter's registers; none is read)
-//! Out: does not return (`ExitThread(0)`)
 //! Its slot's byte +0xC (running) 1 already: straight to the end. Else running;
 //! "NETRXTDB:START" (log level 2); `dword_52A4B0` (done) not 0: the end. Else round and
 //! round: `threading::wait_for_object` on the event `dword_52AB68` (`net::set_up`'s) for

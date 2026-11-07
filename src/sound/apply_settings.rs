@@ -1,7 +1,6 @@
 //! `sound::apply_settings` (0x40EFF3): sends the kept sound settings to the audio thread.
 //!
 //! In:  nothing (the other registers go into the commands as they are)
-//! Out: every register preserved
 //! `dword_518080` = 1; `sound::stop_music`; command 5 with `dword_4F82C4`; command 3 with the
 //! menus' list (`unk_511AE4`, by handle); command 8 with `dword_755684`; `sound::wait_for_commands`;
 //! `dword_506C84` = 0 (`sub_409B76`).

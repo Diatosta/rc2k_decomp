@@ -4,9 +4,7 @@
 //! `dword_5CCC74`) `dword_608C44` too. A reading: the camera's (or a test drive's) ground
 //! statistics.
 //!
-//! In:  the point (`dword_639824`, `dword_63982C`; the callers set it)
-//! Out: as `find_ground` leaves them, eax `dword_5CCC78` when found; no flags read (the
-//!      callers compare `g_groundFound`)
+//! Takes: the point (`dword_639824`, `dword_63982C`; the callers set it)
 //!
 //! Callers: `sub_438BF4`, `sub_438CEC` (three). Refuses what `find_ground` refuses.
 //!

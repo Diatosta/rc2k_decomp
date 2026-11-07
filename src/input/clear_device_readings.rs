@@ -1,8 +1,7 @@
 //! `input::clear_device_readings` (0x40883C): a device's state copies (+0x2C .. +0x38) and
 //! readings (+0x4DC .. +0x4E4) 0, its bits reading +0x4E8 0xE00 (the hat centred).
 //!
-//! In:  esi = the device's record (`input/devices.rs`)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record (`input/devices.rs`)
 //!
 //! Callers: `sub_408473` (an acquiring that failed), `sub_4087F3` (the release).
 

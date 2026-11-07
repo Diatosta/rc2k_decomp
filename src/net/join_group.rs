@@ -2,9 +2,7 @@
 //! `net::group_found`, which finds the host's "susanivanovafanclub" into `g_netSendTo`), and
 //! this machine's player added to that group (`AddPlayerToGroup`).
 //!
-//! In:  nothing
-//! Out: true when joined (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Returns true when joined.
 //! Callers: `net::join_session`, `net::open_lobby`. DirectPlay's calls from Rust
 //! (`net::dplay`).
 

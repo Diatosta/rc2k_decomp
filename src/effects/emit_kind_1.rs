@@ -3,8 +3,7 @@
 //! not 0, else (after `pusha`) the body at 0x4CCF71, `emit_particle_1`: one ring entry of
 //! kind 1.
 //!
-//! In:  edi the wheel record, esi the car object
-//! Out: every register kept
+//! Takes: the wheel record, the car object
 //!
 //! `emit_particle_1`: `g_marksWheelFlags` the wheel's +0x20; the wheel's +4 (a float here)
 //! grows by |+0x18| + |+0x10| + |+0x18 - +0xC|; when that rounded (`fist`) is 0x18 or more

@@ -4,9 +4,6 @@
 //! bytes to +0x54); it stops at the first that does not. `dword_75598C` the player looked
 //! at last.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Callers: the event drivers. `records::find_record`'s Rust version. Refuses a record past the
 //! table, a player count of 0 or past 4, a missing player or name, before anything.
 use crate::errors::{BadInput, Refused};
@@ -28,7 +25,7 @@ fn current_record() -> Result<RecordRef, BadInput> {
     }
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn keep_record_best(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let players = counted_players(screens)?;

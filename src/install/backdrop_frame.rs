@@ -2,12 +2,9 @@
 //! `install::show_backdrop`: the surface locked (`gfx::lock_surface`; failing: carry set,
 //! nothing more), the backdrop picture copied to it, unlocked and shown.
 //!
-//! In:  nothing
-//! Out: as `gfx::show_frame` leaves them, or the lock's carry
 //! Caller `screens::run_frame` (eax this address).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{copy_picture, lock, show, unlock};

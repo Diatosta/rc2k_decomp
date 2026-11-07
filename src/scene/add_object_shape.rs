@@ -2,9 +2,7 @@
 //! belong to the part being loaded, with their points and normals, into the objects'
 //! tables as the slot `dword_634FEC`.
 //!
-//! In:  esi = the file (`byte_A2BB54`)
-//! Out: the original leaves every register changed; its caller reads none. The Rust
-//!      version keeps them.
+//! Takes: the file (`byte_A2BB54`)
 //!
 //! The file: +4 the number of points, +8 of faces, +0xC of normals; from +0x2C the
 //! points (three whole numbers each); then the faces, each 0x10 bytes (+0 its

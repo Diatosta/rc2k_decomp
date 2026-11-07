@@ -2,8 +2,7 @@
 //! menu and draw-list tables):
 //! - the current player's (`g_players`[`g_currentPlayer`]) settings, every register kept
 //!   unless said: `menu::keep_player_keys` (0x46AEFC): the 0x2C bytes at `unk_7555B1` to
-//!   +0x50; `menu::lower_player_40` (0x46B386, `lower_dead_zone_1`; no `pusha`, but no
-//!   caller reads edi or eax after it): the first dead zone (+0x40) one less while above 0
+//!   +0x50; `menu::lower_player_40` (0x46B386, `lower_dead_zone_1`): the first dead zone (+0x40) one less while above 0
 //!   (signed); `menu::lower_player_44` (0x46B3CB, `lower_dead_zone_2`): the second one less
 //!   unless 0; `menu::raise_player_48` (0x46B528) / `lower_player_48` (0x46B54C): the
 //!   strength (+0x48) ten more unless 100 / ten less unless 0; `menu::toggle_player_3c`

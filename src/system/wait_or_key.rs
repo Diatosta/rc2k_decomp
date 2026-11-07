@@ -2,17 +2,10 @@
 //! (`system::sleep`) a key taken (`input::take_key`), the clock (`system::tick_count`)
 //! read until it reaches the start plus eax (a signed difference).
 //!
-//! In:  eax the milliseconds
-//! Out: eax the key (0 when the time ran out), zero = no key, carry clear; ebx kept (its
-//!      `push` / `pop`); the rest as the calls leave them
+//! Takes the milliseconds. Returns the key (0 when the time ran out).
 //!
-//! Caller: `sub_47F314` (the welcome's speech). A private copy (a call at +3). Ungated (it waits). Shadow mode
-//! runs the original alone (it takes keys). Self-test:
-//! `menu::scripted::test_loop`, keys and clocks by script.
+//! Caller: `sub_47F314` (the welcome's speech).
 //!
-//! Hook removed 2026-10-23 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use rc2k_core::system::time::{time_up, wait_end};
 

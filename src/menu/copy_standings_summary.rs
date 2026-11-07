@@ -3,17 +3,14 @@
 //! entry's +0xC / +8 / +0x10 / +0x14): with `dword_75AB40` 2 the entries with a group
 //! (+0x1C not 0), else those without.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Caller: `sub_473126`. Refuses null tables and a table A that runs out (the original walks on
+//! Refuses null tables and a table A that runs out (the original walks on
 //! past its end), before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 use crate::saves::best_times::SUMMARY;
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn copy_standings_summary(screens: &Screens) -> Result<(), Refused> {
     if !SUMMARY.is_taken() {
         return Err(BadInput("no standings summary").into());

@@ -15,10 +15,7 @@
 //! (the move's `rep movsd`): a message stored between others keeps no length or bytes
 //! (the game's slip, section 16).
 //!
-//! In:  `sequence` (al), `block` (edi: the player's block, a `PlayerBlock`), `time` (edx), `bytes` (ebx) and
-//!      `length` (ecx)
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags not read: the one
-//!      caller calls `net::unlock_received` next)
+//! Takes `sequence`, `block`, `time`, `bytes` and `length`.
 //! Caller: `net::take_messages` (under the lock). Refuses (before anything) a count above
 //! 0x40 and a length above 0xFE (the original writes past the block or the record; its
 //! caller sends neither).

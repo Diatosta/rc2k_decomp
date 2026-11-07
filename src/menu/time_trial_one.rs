@@ -12,9 +12,6 @@
 //! `enter_time_trial_best` and the best times page (`time_trial_best_times_loop`; a yes
 //! ends it); the review (`rc2k_core::menu::rounds::review`, eax 1, a yes asked). The end: `rc2k_core::menu::rounds::end`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through the time trial's start menu (0x48BCDC's items). Refuses a missing player before
 //! anything, and what the callees and the stage's record (`Hand::Stage`) refuse when they are
 //! reached.

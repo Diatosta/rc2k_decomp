@@ -2,12 +2,8 @@
 //! (`dword_75AA9C == 1`), passes the keys to the edit page in `dword_75AAA0`: 1 gear ratio,
 //! 2 tyre, 3 steering sensitivity, 4 brake balance, 5 ride height, 6 suspension stiffness.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! Any other page number is fatal error 0x80709A9A, "Incorrect Locked Box", in the original.
-//! It is not called directly: its address is in the service area's list at 0x758D6E.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Any other page number is fatal error 0x80709A9A, "Incorrect Locked Box", in the original. It is
+//! not called directly: its address is in the service area's list at 0x758D6E.
 
 use crate::errors::FatalError;
 use crate::errors::Refused;

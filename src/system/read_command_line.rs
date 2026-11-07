@@ -1,7 +1,5 @@
 //! `system::read_command_line` (0x410684): takes the switches off the command line.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The first word is the program (its length to `COMMAND_LINE`; the original also kept its
 //! place, `dword_518BA8`, which nothing reads).
 //! Of the words after it only those of two characters or more count, by their first two:
@@ -18,11 +16,9 @@
 //! - `-c`: the next word's first character: `1` sets `dword_5AB954` (`ignoresecondary`),
 //!   `2` sets `dword_5AB950` (`ignoreprimary`).
 //!
-//! The line ends at a word of no length that starts where the reading stands.
-//! One caller, `start`. Refuses a word for `-i` of 0x100 bytes or more.
-//! The `-v` part cannot be run in a test: it was looked at by the owner.
-//! `start` calls it directly (2026-10-23); the registers above are the original's, for
-//! reference.
+//! The line ends at a word of no length that starts where the reading stands. One caller, `start`.
+//! Refuses a word for `-i` of 0x100 bytes or more. The `-v` part cannot be run in a test: it was
+//! looked at by the owner. `start` calls it directly (2026-10-23).
 
 use crate::audio::owner::audio;
 use crate::d3d::owner::d3d;

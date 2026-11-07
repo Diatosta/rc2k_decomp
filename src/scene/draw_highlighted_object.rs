@@ -1,9 +1,6 @@
 //! `scene::draw_highlighted_object` (0x49004E): the 3D part of a frame of the menus
 //! that show one object, the highlighted item's.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! `scene::clear_depth_buffer`, `scene::assign_kind_textures`,
 //! `scene::assign_menu_textures`, `scene::map_texture_places`,
 //! `scene::load_slot_textures`, then `sub_49006F` (one caller): `dword_6365C4` = 0 and

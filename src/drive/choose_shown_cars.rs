@@ -6,7 +6,6 @@
 //! `dword_641680` .. -1 but the shown ones' 0 (the first, and the second when there are
 //! two views). By the look of it the split screen's set-up (a reading).
 //!
-//! In:  nothing
 //! Out: eax `dword_63DBA0` (with `dword_52A910` set) or the second view's block; the
 //!      rest kept; no flags read (callers go on with `mov`, `lea`, calls)
 //!

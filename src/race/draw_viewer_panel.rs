@@ -10,9 +10,6 @@
 //! texture's and the screen's rectangles `dword_5C2A1C`, `dword_5C2A0C`), the switch lights
 //! dimmed (0x555555) by the block's camera byte 5 (0: the second, 1: the first).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Caller: `race::viewer_frame`.
 
 use crate::errors::Refused;

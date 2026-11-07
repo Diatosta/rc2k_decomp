@@ -6,7 +6,6 @@
 //! and both drive speeds 0. By the look of it the engine stalling when the car turns
 //! back on itself (a reading).
 //!
-//! In:  nothing
 //! Out: esi 0x71A17C and edi 0x61409C when the dot was taken, else esi 0x61409C; the rest
 //!      kept; no flags read
 //!

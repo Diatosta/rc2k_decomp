@@ -1,10 +1,7 @@
 //! `net::find_saved_connection` (0x4185DF): the connection listed whose service provider's
 //! GUID (record +0x40) is the one saved (`unk_52AC94`, `system::same_guid`).
 //!
-//! In:  nothing
-//! Out: the connection's number (the original: eax, carry clear); None (eax -1, carry set)
-//!      when none is listed or none matches. ebx, ecx kept; edx not changed by the Rust
-//!      versions of its calls.
+//! Returns the connection's number; None when none is listed or none matches.
 //! Callers: `net::start_link`, `net::settings_done`.
 
 use crate::errors::Refused;

@@ -7,8 +7,7 @@
 //! `flt_89C9A0`, or by `flt_89C99C` when the settings' +0x274C is 1 and the index >> 3 is
 //! not 0), its bits 16 .. 23, and `pick_shapes` again.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads a register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4C1148`. Refuses null settings, a +0x2748 of 9 or more when it is read
 //! (`dword_844E34` holds 9), and its steps' refusals; on a refusal nothing stays written

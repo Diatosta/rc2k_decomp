@@ -9,9 +9,6 @@
 //! into `text`) into `dword_6D1844` ..; but for last place the gap to the one behind into
 //! +0xA14, its car +0xA1C, name id +0xA24 and name into `dword_6D1838` ...
 //!
-//! In:  nothing
-//! Out: the registers as left (ebx the cursor after a name, ebp 1000); no flags read
-//!
 //! Caller: `physics::split_by_mode`. Refuses a split or a split count past 0x40, a divisor
 //! of 0 or a quotient past a dword (the original's `div` would fault); what was written is
 //! put back.

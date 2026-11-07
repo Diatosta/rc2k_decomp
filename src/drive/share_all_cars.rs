@@ -1,11 +1,10 @@
 //! `drive::share_all_cars` (0x456484): `drive::keep_lead_car_values`,
 //! `drive::set_listener`, then for each of the eight cars (`g_currentCar` = n)
 //! `drive::share_car_state` with its block, its record (`off_71B3D8[n]`) and its sound
-//! object (`g_raceSoundObjects[n]`) inside `pusha` / `popa`; then `dword_5C5688` = 1
+//! object (`g_raceSoundObjects[n]`); then `dword_5C5688` = 1
 //! when `dword_70F410` is not 0x21 and the first record's +0x258 is 10 or more (else 0);
 //! then `drive::put_back_lead_car_values`.
 //!
-//! In:  nothing
 //! Out: ecx 0, esi the last block, edi the first record, ebp the last sound object, and
 //!      eax, ebx, edx as `set_listener` left them (eax the record's +0x258 when
 //!      `dword_70F410` is not 0x21); no flags read (its callers go on with `mov`)

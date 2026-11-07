@@ -1,14 +1,11 @@
 //! `menu::car_specs_47af4c_loop` (0x47AF4C): a screen over the car specification background,
 //! called from sub_46FD31 and sub_48AD73.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `cspecs.png`; leaving is not asked about; the
 //! steps that are more than a call or a store are the functions below, generated from the
 //! listing.
 //! The name is a reading from its background and callers, not yet a visit.
-//! Callers: `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_46FD31`, `sub_48AD73`.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

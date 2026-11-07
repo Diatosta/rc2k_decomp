@@ -8,8 +8,7 @@
 //! spin. All in `pusha` / `popa` (eax pushed besides). A reading: the force's twist on
 //! the car, `flt_613FA8` the inverse inertia.
 //!
-//! In:  esi the record, edi the car block
-//! Out: every register kept; no flags read
+//! Takes: the record, the car block
 //!
 //! Caller: `physics::apply_torques` (in a loop over records).
 

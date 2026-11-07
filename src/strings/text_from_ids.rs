@@ -1,14 +1,10 @@
 //! `strings::text_from_ids` (0x40229B): builds the text of `count` consecutive string ids in
 //! the shared text buffer and NUL-terminates it.
 //!
-//! In:  eax = first id, ecx = count (at least 1)
-//! Out: ebx = the text buffer; everything else preserved
-//! The next id is whatever `append_string_by_id` leaves in eax, plus 1. That is the previous id
-//! for string-table ids, but a string pointer for the pointer-table branches, so a run only
-//! makes sense over string-table ids. A count of 0 wraps and never ends: refused, as is a text
-//! longer than the buffer (the callers pass the refusal on).
-//! Hook removed 2026-10-21 (conversion phase 4): Rust callers call this directly; the
-//! register use above is the original's, for reference.
+//! Returns the text buffer. The next id is whatever `append_string_by_id` leaves in eax, plus 1.
+//! That is the previous id for string-table ids, but a string pointer for the pointer-table
+//! branches, so a run only makes sense over string-table ids. A count of 0 wraps and never ends:
+//! refused, as is a text longer than the buffer (the callers pass the refusal on).
 
 use crate::errors::BadInput;
 use crate::strings::append_string_by_id::append_string_by_id;

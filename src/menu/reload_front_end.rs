@@ -2,15 +2,12 @@
 //! a race), the front end's scene set up again: `scene::set_up_engine`,
 //! `scene::set_up_front_end_scene`, `scene::set_up_engine`.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! 36 callers (the menus after their races).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 
-/// The Rust version (see the header).
+/// The Rust version.
 pub fn reload_front_end(menus: &Menus) -> Result<(), Refused> {
     if { menus.play.arcade.scene_let_go.get() } == 1 {
         crate::scene::set_up_engine::set_up_engine()?;

@@ -1,8 +1,6 @@
 //! `sound::merge_spot_voices_all` (0x40E7CA): `sound::merge_spot_voices` for the six
 //! sounds whose voices are merged into one: 0x1B7, 0x1B8, 0x1BB, 0x1BC, 0x1C1, 0x1BF.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! Each call with eax the sound and the other registers the one before left. One caller,
 //! `sound::spot_sounds`.
 //!

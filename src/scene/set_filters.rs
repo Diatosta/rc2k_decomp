@@ -1,6 +1,5 @@
 //! `scene::set_filters` (0x44E8FB): the textures' filters, by the setting.
 //!
-//! In:  nothing
 //! Out: eax = 1, ebx = 0x31; everything else preserved
 //!
 //! With `dword_623898` at 0 render states 0x11 and 0x12 (the filters for a texture made larger

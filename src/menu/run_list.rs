@@ -1,8 +1,6 @@
 //! `menu::run_list` (0x468202): calls every function of a list of function addresses that
 //! ends with -1. A screen has four such lists, which its loop and its frame callback run.
 //!
-//! In:  esi = the list
-//! Out: every register preserved
 //! Each function is called with the registers the one before left, esi being the place in the list;
 //! after each call the original goes on from the esi it got back. Refuses a list without an end in
 //! its first 256 entries.

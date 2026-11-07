@@ -1,7 +1,7 @@
 //! `gfx::load_picture` (0x411863): loads a picture file into the picture buffer at the
 //! screen's size.
 //!
-//! In:  eax = path, which may be written to (see `files::swap_missing_extension`)
+//! Takes: path, which may be written to (see `files::swap_missing_extension`)
 //! Out: carry = the file could not be read; every register preserved
 //! Sets the picture's size to 800 x 600 with rows that follow one another (row length
 //! 0xFFFFFFFD), clears the buffer and calls `read_picture_file`. Whatever that says, the

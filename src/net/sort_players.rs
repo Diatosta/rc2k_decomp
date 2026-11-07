@@ -3,8 +3,6 @@
 //! the race's time (+0x2C), then the DirectPlay id (+0x20), unsigned, the smaller first; a
 //! player whose time is -1 (no time) goes after one who has a time.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! `g_netPlayers` - 1 passes (signed: none for one player or none). More than eight players
 //! would sort past the copy: refused (DirectPlay's listing keeps eight at most). Caller:
 //! `net::lobby_frame`.

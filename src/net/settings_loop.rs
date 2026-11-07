@@ -11,8 +11,6 @@
 //! (`strings::maybe_compile_lexicon`). It ends too when the game is closing; then
 //! `g_listChoice` -1.
 //!
-//! In:  nothing
-//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 
 use crate::errors::Refused;
 use crate::net::lobby::{list_key, other_key, run_frame};

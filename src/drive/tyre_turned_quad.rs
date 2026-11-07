@@ -2,10 +2,9 @@
 //! steering wheel): the device's turn (esi +0x4EC, x `TyreChange::gauge_unit` x 2 pi, `fsincos` into
 //! `turn_cos`, `turn_sin`) turning the half-sizes of the rectangle at ebx
 //! (floats: x, y, w, h) round its place plus `TyreChange::wheel`'s place, the colour ecx, the
-//! texture rectangle at eax (`quad_tail`), drawn (place 5). All in `pusha` / `popa`.
+//! texture rectangle at eax (`quad_tail`), drawn (place 5).
 //!
-//! In:  eax the texture rectangle, ebx the rectangle, ecx the colour, esi the input device
-//! Out: every register kept; no flags read
+//! Takes: the texture rectangle, the rectangle, the colour, the input device
 //!
 //! Caller: `drive::tyre_screen`.
 

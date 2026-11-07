@@ -2,14 +2,11 @@
 //! championship, by its title "VER ETAPA" and its draw list, which is that of
 //! `screens::draw_service_stage_info` (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; it has a step of its own once a
 //! frame; the steps that are more than a call or a store are the functions below, generated
 //! from the listing.
 //! The name is a reading from the title string of its menu, "VER ETAPA", not yet a visit.
-//! Callers: `sub_47037E`.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

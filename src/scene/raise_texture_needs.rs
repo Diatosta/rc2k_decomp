@@ -1,7 +1,7 @@
 //! `scene::raise_texture_needs` (0x423F97): the textures of one tag are needed at a
 //! level at least.
 //!
-//! In:  eax = the level, ebx = the tag
+//! Takes: the level, the tag
 //! Out: ecx = 0x400, edx = 1 if any entry changed, else 0; zero set if any changed,
 //!      carry set if none; everything else preserved
 //!

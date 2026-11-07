@@ -1,8 +1,6 @@
 //! `menu::build_notice` (0x4165F1): for the edition whose notice kind is 2, makes one
 //! copyright line of the two.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Only when `g_noticeKind` (the byte at 0x4E07A0, from the language's `.loc` file) is 2. The first
 //! line (`unk_52A263`, "Copyright (c) Magnetic Fields (Software Design) Ltd, 1999. All rights
 //! reserved.") becomes "(c) 2000 Actualize Ltd and Magnetic Fields (Software Design) Ltd, " and the
@@ -11,7 +9,7 @@
 //! second line's eleventh on, "2000", fourteen from its twelfth on, " and", 0x26 from the first
 //! line's twelfth on, a space and a NUL; then copied over the first line. One caller,
 //! `system::main_loop`. Calling it twice builds from the changed lines, as the original would. Rust
-//! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
+//! callers run its `entry` (`routes.rs`).
 
 // ---- game data ----
 

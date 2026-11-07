@@ -2,9 +2,9 @@
 //! (`race::open_viewed_replay`, 222), saved (`race::save_viewed_replay`, ebx the slot) and
 //! closed (`race::close_viewed_replay`).
 //!
-//! In:  eax the slot
+//! Takes: the slot
 //! Out: carry set when the opening or the saving failed (the saving's flags kept round
-//!      the closing); every register kept (`pusha` / `popa`)
+//!      the closing)
 //!
 //! Caller: `race::replay_viewer` (mode 3, the slot from `menu::save_replay_loop`; no flags
 //! read).

@@ -7,8 +7,7 @@
 //! `dword_75AE24`: the co-driver, the race number, the view, the HUD's switches, the
 //! steering), the HUD's bits (`dword_75B00C`) -1, `dword_75B108` 0.
 //!
-//! In:  `name` (eax: the player's name)
-//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Takes `name`.
 //! Callers: `net::start_link`, `net::open_lobby`.
 
 use crate::errors::Refused;

@@ -6,8 +6,7 @@
 //! (`sub_4C38F5`) and `g_marksLinksList` (`sub_4C4E22` -> `sub_4C3EE3` -> `sub_4C5409`).
 //! Each of those steps is a `lea ebx` and a call.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (the stage's unload reads no register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! `sub_4D06F3` tests `memory::free_list`'s carry (`jb`), which is always clear (its last
 //! flag-setting instruction is a `test`), so its other path (a `push` left on the stack and

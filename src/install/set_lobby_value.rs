@@ -2,13 +2,11 @@
 //! key (`register_lobby`): its data's length found (`strings::text_length`) and one more
 //! (the NUL), and `RegSetValueExA(phkResult, name, 0, REG_SZ, data, len + 1)`.
 //!
-//! In:  eax the value's name, ebx the data (NUL-terminated)
-//! Out: eax `RegSetValueExA`'s result; ebx, edx kept, ecx the length plus one
+//! Takes the value's name and the data (NUL-terminated). Returns `RegSetValueExA`'s result.
 //! Caller `install::register_lobby` (five times). The call through `api`
 //! (`installer::game_api`: `RegSetValueExA`).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::read_registry::Registry;

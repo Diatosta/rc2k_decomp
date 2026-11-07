@@ -3,8 +3,7 @@
 //! place (eax, ebx as floats at +0x14, +0x18), its kind ecx (+4) and the rest 0; the cursor
 //! the item after it. With none free, the cursor moves on 32.
 //!
-//! In:  eax x, ebx z, ecx the kind
-//! Out: every register kept
+//! Takes: x, z, the kind
 //!
 //! Caller: `effects::pick_windscreen_drop`.
 //!

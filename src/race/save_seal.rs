@@ -35,7 +35,7 @@ pub fn pack_runs(
 /// subkeys (turns by `byte_4E01C7`, PC2) into `dword_4E04AC` ..; the block's initial
 /// permutation, sixteen rounds (expansion, the subkey, eight S-boxes, the permutation,
 /// the halves swapped), the final permutation into `value` (0x4E053C) and `dword_4E0540`.
-/// Every register kept (`pusha` / `popa`).
+/// Every register kept.
 pub fn seal_block(w: &SealWork) {
     // Converted: `rc2k_core::race::seal::seal_block`.
     {

@@ -1,20 +1,17 @@
 //! `strings::compile_lexicon` (0x40356E): makes the string table from the language file.
 //!
-//! The original ("Compiling lexicon..." in the game's log) is a compiler of 25 functions on
-//! memory of its own; what they do is in `strings/lexicon.rs`. Around that: it zeroes its
-//! 0xC44 bytes of work variables (`dword_94EAB4` on), takes `dword_519554` * 0x400 bytes on
-//! the list `stru_519558`, reads the first file matching `files\%locale\*.txt` (at most
-//! 0x40000 bytes), compiles, writes the table at 0x4E07F8 and points `g_stringTable` at it,
-//! logs its counts when the log level is 3 or more, and gives the memory back. There must
-//! be 0x757 messages, or it is fatal error 0x80E18052; an error in the file is logged with
-//! its line and ends in fatal error 0x80E18051 (the original's error paths jump back to its
-//! own start with `dword_94EAB0` set, and it ends there).
-//! The Rust version leaves the work variables that are pointers into the given-back memory
-//! 0 (the original leaves them dangling), and raises the fatal errors itself (`compiled`).
+//! The original ("Compiling lexicon..." in the game's log) is a compiler of 25 functions on memory
+//! of its own; what they do is in `strings/lexicon.rs`. Around that: it zeroes its 0xC44 bytes of
+//! work variables (`dword_94EAB4` on), takes `dword_519554` * 0x400 bytes on the list
+//! `stru_519558`, reads the first file matching `files\%locale\*.txt` (at most 0x40000 bytes),
+//! compiles, writes the table at 0x4E07F8 and points `g_stringTable` at it, logs its counts when
+//! the log level is 3 or more, and gives the memory back. There must be 0x757 messages, or it is
+//! fatal error 0x80E18052; an error in the file is logged with its line and ends in fatal error
+//! 0x80E18051 (the original's error paths jump back to its own start with `dword_94EAB0` set, and
+//! it ends there). The Rust version leaves the work variables that are pointers into the given-back
+//! memory 0 (the original leaves them dangling), and raises the fatal errors itself (`compiled`).
 //! Callers: `strings::load_language` (from `start` and the installer) and
 //! `strings::maybe_compile_lexicon`.
-//! Hook removed 2026-10-21 (conversion phase 4); the original's registers: none in, every
-//! register preserved.
 
 use crate::errors::{FatalError, Refused};
 use crate::files::read_first_match::read_first_match;

@@ -1,8 +1,6 @@
 //! `screens::draw_highlighted_caption` (0x4695C6): the name of the highlighted entry of a
 //! menu whose entries are turning objects, on a button at the bottom of the screen.
 //!
-//! In:  ecx (the x the caption is measured with)
-//! Out: every register preserved; carry of the text drawn
 //! `dword_75AA74` says which menu (0 .. 6; anything else: nothing is drawn) and so which list of
 //! string numbers; the highlighted item picks the string, which is put at `byte_A8BE54`, where
 //! string 0x1004 is read from. The button is as wide as the caption measured with the font at
@@ -15,7 +13,7 @@
 //! main menu's among them: its menu is number 0). Refuses an item of 0 or above 32, a caption of
 //! 0x100 bytes or more, and a caption narrower than 20 (the original then draws 2^32 middle
 //! pieces). Screen: not confirmed; the name is a reading of the code. The menus and draw lists run
-//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

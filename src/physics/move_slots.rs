@@ -1,8 +1,7 @@
 //! `physics::move_slots` (0x462206): `dword_71BE88` = the number of the eight
 //! `g_raceSlots` (0x78 bytes each) in use (+0 not 0), each moved by
-//! `physics::move_slot` (inside `pusha` / `popa`).
+//! `physics::move_slot`.
 //!
-//! In:  nothing
 //! Out: esi past the slots, ecx 8; the rest kept; no flags read (`retn`, then `sub_45E9CA`
 //!      returns)
 //!

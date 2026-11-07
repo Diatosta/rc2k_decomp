@@ -1,6 +1,6 @@
 //! `sound::surface_sound` (0x40E068): one of a car's sounds of what its wheels run on.
 //!
-//! In:  ebx the car's sound object, ebp the surface's sound set, esi the request
+//! Takes: the car's sound object, the surface's sound set, the request
 //! Out: eax the place's last dword (+0x34), ecx and edx the volume and rate
 //!      (`sound::sample_settings` of the sample's own); everything else preserved
 //! The set: +0 1 for a set of eight (+4 ..; the sound by the object's +0 & 3 and, 4

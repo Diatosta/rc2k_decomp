@@ -10,8 +10,7 @@
 //! made (`CreateEffect` of the record's device (+4) with the GUID found (+0x10), into
 //! +0x30; its result not looked at).
 //!
-//! In:  esi = the device's record, edi = the effect, ecx = its number (for its function)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record, the effect, its number (for its function)
 //!
 //! Caller: `input::begin_force` (each of the six). The effect's function is
 //! one of `input::effect_N_change` (eax 1, the other registers as here), the methods the

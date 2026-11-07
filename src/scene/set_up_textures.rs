@@ -1,7 +1,6 @@
 //! `scene::set_up_textures` (0x44E7A5): the texture memory for everything that is
 //! needed, and one texture more for the game's own use.
 //!
-//! In:  nothing
 //! Out: carry clear; eax and ebx as `gfx::allocate_textures` leaves them
 //!
 //! `scene::build_texture_catalogue`; `dword_624234` = 0; then one system texture of size code 3

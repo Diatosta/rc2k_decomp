@@ -1,12 +1,10 @@
 //! `install::item_action` (0x414A4B): Enter on an action item (kind 6): its action
 //! (`[esi+8]`), if it has one.
 //!
-//! In:  esi the item (edi the list, for the action)
-//! Out: with an action as it leaves them; else the flags of `cmp [esi+8], 1` (carry set)
+//! Takes the item.
 //! Caller `install::item_enter`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;

@@ -3,9 +3,6 @@
 //! blue's: `shl eax, 10h; mov ah, bl; mov al, cl`), `dword_62390C` into `dword_623910` and
 //! `dword_623918` into `dword_62391C`, both 0, and `race::update_mud_texture`.
 //!
-//! In:  nothing
-//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
-//!
 //! See `race/mud.rs`. One caller, `race::mud_frame`. Refuses what `update_mud_texture` refuses,
 //! before anything (its checks first).
 

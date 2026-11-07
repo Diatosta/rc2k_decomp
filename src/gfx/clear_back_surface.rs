@@ -3,9 +3,6 @@
 //! `g_screenRowDwords` dwords from `dword_4F4988`, `dword_4F498C` bytes between them)
 //! zeroed and unlocked (`gfx::unlock_surface`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Callers: `race::viewer_frame` (at the replay's end), `gfx::set_screen_mode`,
 //! `sub_405B10`. The lock and unlock (the platform's) are called directly (2026-10-23). A
 //! height of 0 is refused (the original goes round 2^32 times), before anything.

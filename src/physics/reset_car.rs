@@ -5,7 +5,7 @@
 //! try failing when `physics::reset_point_blocked` gives CF for any of the blocks at
 //! 0x7103CC, 0x7113AC, 0x71238C (tried in that order, the first CF ends it). The first
 //! free one goes into `dword_6365E4`; with none, "cant reset car anywhere - waiting a sec"
-//! is logged (`log_write_l1_nl`, inside `pusha` / `popa`), +0x1E8 (`dword_71A1C0`, the
+//! is logged (`log_write_l1_nl`), +0x1E8 (`dword_71A1C0`, the
 //! stuck count) less 100, and it returns. Else `race::place_car_on_line`,
 //! `physics::reset_car_on_line`, and +0xFAC (`dword_71AF84`) 10.
 //!

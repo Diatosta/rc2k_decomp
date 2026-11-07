@@ -1,7 +1,7 @@
 //! `scene::load_texture_picture` (0x42578E): loads a numbered picture into a system
 //! texture.
 //!
-//! In:  eax = the picture's number, ebx = the texture
+//! Takes: the picture's number, the texture
 //! Out: the original leaves eax, ebx, ecx, edx and ebp changed; its one caller keeps
 //!      them all. The Rust version keeps them.
 //!

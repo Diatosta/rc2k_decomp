@@ -1,15 +1,11 @@
 //! `service::write_setup_slot` (0x4AB378): builds the 0x48-byte car setup file in the buffer at
 //! 0x527838 and writes it to `savedata\carsetup\carsetNN`.
 //!
-//! In:  ebx = slot, 0 .. 99
-//! Out: carry = failed (zero flag = succeeded); every register preserved
-//! The file: "CRSU", 0, version 0x50000, `packed_local_time`, the slot's 0x20-byte name from
-//! `byte_527880[slot * 0x20]`, then the chosen tyre, the car's brake balance, the chosen ride
-//! height and suspension stiffness, the car's steering sensitivity and the chosen gear ratio.
-//! The name is taken from the slot list, so the caller puts it there first; nothing takes it
-//! out again if the write fails. Refuses a slot past 99 and a missing player.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Takes slot, 0 .. 99. The file: "CRSU", 0, version 0x50000, `packed_local_time`, the slot's
+//! 0x20-byte name from `byte_527880[slot * 0x20]`, then the chosen tyre, the car's brake balance,
+//! the chosen ride height and suspension stiffness, the car's steering sensitivity and the chosen
+//! gear ratio. The name is taken from the slot list, so the caller puts it there first; nothing
+//! takes it out again if the write fails. Refuses a slot past 99 and a missing player.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;

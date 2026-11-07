@@ -1,8 +1,6 @@
 //! `screens::draw_service_time` (0x4A5DE7): draws the two time readouts at the top of the
 //! service area, from the time budget and the time of the repairs chosen.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry as the last `draw_text` leaves it
 //! While `budget - repairs` is at least 900: "<string 0x48D>:  <budget - 900>" on the left
 //! and "<string 0x48E>:  <budget - 900 - repairs>" on the right. Below that:
 //! "<string 0x490>:  <overrun>" and "<string 0x491>:  <penalty>", where the overrun is

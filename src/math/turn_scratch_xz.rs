@@ -3,12 +3,10 @@
 //!
 //! In:  edx = the angle (a dword's turn is 2^32: `g_sines`/`g_cosines` entry (edx +
 //!      0x80000) >> 20)
-//! Out: edx = the entry; the rest preserved
+//! Returns: the entry
 //!
 //! x' = x cos + z sin, z' = z cos - x sin, on the x87 as the original (`math::x87::
 //! turn_in_place`). Six callers, `math::turn_point_xz` and its three siblings.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 /// The scratch point (`g_scratchZ`, `X`, `Y`: 0x5C5F4C .. in the image until 2026-10-24):
 /// written and read back by each of the four that turn a point (their other users,

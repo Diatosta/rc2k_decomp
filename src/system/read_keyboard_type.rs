@@ -2,12 +2,8 @@
 //! keyboard's subtype (`GetKeyboardType(1)`) is 0xD01 .. 0xD06 (a Japanese keyboard's);
 //! otherwise it is left as it is.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//! One caller, `start` (0x40101F); in the game this never gets a call (the hook DLL is loaded
-//! later). The Win32 call is made from Rust (the same in both programs).
-//! `start` calls it directly (2026-10-23); the registers above are the original's, for
-//! reference.
+//! One caller, `start` (0x40101F); The Win32 call is made from Rust. `start` calls it directly
+//! (2026-10-23).
 
 // ---- game data ----
 

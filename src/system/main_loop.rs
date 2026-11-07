@@ -1,8 +1,6 @@
 //! `system::main_loop` (0x415383): what `start` calls once everything is set up: it waits
 //! for the window, runs the game (or the installer) and saves on the way out.
 //!
-//! In:  nothing
-//! Out: nothing (its one caller looks at no register)
 //! - If `dword_518390` is not 0 the loop is being entered a second time, by the way out
 //!   at 0x4154B5 (`mov esp, dword_518390; jmp` here, taken by two fatal stubs about the
 //!   CD-ROM): `threading::request_quit`, the log line "Leaving main loop...", and back to

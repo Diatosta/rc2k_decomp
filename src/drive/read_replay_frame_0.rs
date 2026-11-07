@@ -1,7 +1,7 @@
 //! `drive::read_replay_frame_0` (0x41EBA1): `drive::read_replay_frame` of frame eax at
 //! tenth 0 (ebx kept round it).
 //!
-//! In:  eax the frame
+//! Takes: the frame
 //! Out: CF as `read_replay_frame` leaves it; every register kept
 //!
 //! Callers: `drive::load_replay_frame`, `sub_41DE81` (six).

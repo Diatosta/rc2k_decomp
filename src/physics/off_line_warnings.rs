@@ -7,7 +7,6 @@
 //! each counter at or past its time (by the sign) moves the time on 3000 and cues a sound
 //! (`physics::cue_listed_car_sound`, ebx 0x50 turned, 0x52 off the line).
 //!
-//! In:  nothing
 //! Out: eax, ebx and what the cue leaves; no flags read
 //!
 //! Caller: `sub_44157B`. Refuses (before anything) a checkpoint (+0x98) past 0x1418.

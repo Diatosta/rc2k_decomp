@@ -1,14 +1,9 @@
 //! `system::keep_start_time` (0x410F29): keeps the date and time the game was started at.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! `GetLocalTime` into the game's `SystemTime` (0x518988), and from it the weekday to
-//! `byte_51839F`, day, month and year (a word) to `dword_5183A0`, hour, minute, second
-//! and hundredths to `dword_5183A4`: what `logfile::date_text` and `math::seed_random`
-//! read. One caller, `start`, as its first call: the hook DLL is not loaded then, so in the
-//! game this never gets a call; the standalone program needs it.
-//! `start` calls it directly (2026-10-23); the registers above are the original's, for
-//! reference.
+//! `byte_51839F`, day, month and year (a word) to `dword_5183A0`, hour, minute, second and
+//! hundredths to `dword_5183A4`: what `logfile::date_text` and `math::seed_random` read. One
+//! caller, `start`, as its first call (directly since 2026-10-23).
 
 // ---- game data ----
 

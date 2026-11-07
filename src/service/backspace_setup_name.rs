@@ -2,12 +2,8 @@
 //! highlighted setup slot: if the text entry's length is not 0, it is lowered by one and a
 //! NUL is written there.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! Refuses a slot past the table and a length outside 0 .. 0x1F (the original writes
-//! wherever the length points).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Refuses a slot past the table and a length outside 0 .. 0x1F (the original writes wherever the
+//! length points).
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;

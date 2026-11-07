@@ -1,8 +1,7 @@
 //! `input::start_device_effects` (0x409672): the six effects of the record in esi asked to
 //! start (`input::set_effect` with ebx 2, eax 0 .. 5).
 //!
-//! In:  esi = the device's record
-//! Out: eax 6, ebx 2, the rest as `set_effect` keeps them (all)
+//! Takes: the device's record
 //!
 //! See `input/effects.rs`. Two callers, both in `input::start_effects`.
 //!

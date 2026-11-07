@@ -6,8 +6,6 @@
 //! item's frame, right to left from 0x311 at y 0x21D (sprites 0x13, 0x12 once per 32 pixels
 //! of string 0x16F's width, 0x11) and its string (`net::draw_centred_item`); unlocked, shown.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! The width's tiles are counted down with `dec` / `jnz`: a string of width 0 would go round
 //! 2^32 times (refused). Called by `screens::run_frame` for `net::settings_loop`.
 

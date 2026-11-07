@@ -14,10 +14,6 @@
 //! - `menu::start_arcade` (0x487CAA): the arcade's level and stage (`g_arcadeLevel`,
 //!   `g_arcadeStage`) 0, the first player's units taken (`menu::take_player1_units`) and the
 //!   arcade event run (`menu::arcade_event`).
-//!
-//! In:  nothing (eax, the item's dword, is not read but by `show_intro`, which sets it)
-//! Out: the pure ones and those in `pusha` / `popa` every register kept; the others the
-//! registers their last call leaves
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

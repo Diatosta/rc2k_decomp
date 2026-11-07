@@ -231,7 +231,7 @@ pub fn search_cell_at(
 }
 
 /// `physics::try_last_face` (0x441E0C): ebx = `dword_5CCC78`; when it is a face (not -1,
-/// below the count) `face_under_point` on it inside `pusha`/`popa`. The carry when found.
+/// below the count) `face_under_point` on it. The carry when found.
 // Converted: `rc2k_core::physics::ground_search::last_face`.
 pub fn try_last_face_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
     let last = race.course.course.ground_face_last.get();

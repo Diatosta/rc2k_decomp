@@ -5,8 +5,6 @@
 //! (case aside). Found: the bit set in `g_cheats`, the menu's sound 8, `menu::apply_cheats`,
 //! and the player's name made string 0x18F.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! Called by `menu::player4_details_loop` once the name's editing ends. Refuses (before anything) a
 //! missing fourth player or name, a list without its end in 64 entries, a bit past 31 (the
 //! original's `bts` would reach past `g_cheats`), and what the coding refuses.
@@ -34,8 +32,8 @@ fn find(play: &Play, coded: &[u8]) -> Result<Option<(u32, u32)>, Refused> {
     Ok(found.map(|f| (f.at as u32, f.bit as u32)))
 }
 
-/// The Rust version. Every register is kept (the original's `pusha` .. `popa`); the
-/// calls get theirs as noted, of which only the sound reads one (eax 8).
+/// The Rust version. The original's calls get their registers as noted, of which only the
+/// sound reads one (eax 8).
 pub fn check_cheat_name(menus: &Menus) -> Result<(), Refused> {
     let race = crate::race::owner::race();
     let play = &menus.play;

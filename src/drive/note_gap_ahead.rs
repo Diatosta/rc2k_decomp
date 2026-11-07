@@ -1,7 +1,7 @@
 //! `drive::note_gap_ahead` (0x4373A4): this car's checkpoint (esi +0x98) less the lead car's, plus one, into `dword_70FA14` when below it (unsigned): by the look of it the nearest car ahead (a reading).
 //!
-//! In:  esi a car block
-//! Out: edx the difference plus one; the rest kept; no flags read
+//! Takes: a car block
+//! Returns: the difference plus one
 //!
 //! See `drive/note_gaps.rs`. Caller: `sub_43703E` (0x43736B, 0x437397).
 

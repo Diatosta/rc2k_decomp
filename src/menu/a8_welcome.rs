@@ -4,9 +4,6 @@
 //! `menu::picture_frame`) until a key (`input::take_key`). Escape (1) asks about leaving
 //! (`menu::confirm_leaving`): a no starts over. Then one more key taken (dropped).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Caller: `menu::run_a8_championship` (whose `g_eventMode` 0x13 picks it). The calls through
 //! `event_flow::Call`.
 

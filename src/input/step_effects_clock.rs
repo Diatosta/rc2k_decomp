@@ -1,8 +1,6 @@
 //! `input::step_effects_clock` (0x40F257): the force feedback's clock: every 40 ms the
 //! effects brought up to date.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! `system::tick_count` less the last time (`dword_518084`); under 40 ms (`js`)
 //! nothing. Else the last time = now, `dword_518088` = 1000 / now held to 1000 (unsigned
 //! `div`, as a float: the original divides by the clock, not by the time passed, so it

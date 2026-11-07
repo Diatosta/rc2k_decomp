@@ -2,7 +2,6 @@
 //! the screen.
 //!
 //! In:  nothing; the polygon's entries are the work table's first, in order
-//! Out: the original leaves every register changed; the Rust version keeps them
 //!
 //! `dword_624120`, `dword_624124`, `dword_624134` = 0; the pool of records for new vertices
 //! (`dword_6240A4`) = `unk_977F10`; the list = 0, 1, 2 .. and a 0 after it; the next free entry

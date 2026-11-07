@@ -3,7 +3,6 @@
 //! (`dword_623D5C`, kept to 0 .. 3: `race::mud_texture_turn`, then one more, `and 3`).
 //!
 //! In:  nothing (the original reads no register at entry)
-//! Out: nothing its one caller, `race::draw_race_scene`, reads
 //!
 //! See `race/mud.rs`. Refuses what `mud_texture_turn` refuses.
 

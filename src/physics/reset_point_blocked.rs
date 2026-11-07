@@ -6,7 +6,7 @@
 //! or within -8 .. 7 of the block's +0x94 (its checkpoint). The comparisons take the sign
 //! of the difference (`js`/`jns`), as here.
 //!
-//! In:  esi the block
+//! Takes: the block
 //! Out: CF; eax and ebx as the path leaves them (see `reset_point_blocked_at`); the rest
 //!      kept. ZF is not read (`jb`).
 //!

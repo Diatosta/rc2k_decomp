@@ -2,8 +2,7 @@
 //! `effects::scale_kept_vectors`, `effects::view_step`, `effects::aim_vector`,
 //! `effects::shapes_frame`, `effects::run_splines`.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads a register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4D14B4`. Refuses null settings before anything, and its steps' refusals
 //! (all it may write is put back first).

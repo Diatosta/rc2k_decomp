@@ -1,6 +1,6 @@
 //! `scene::vertex_light` (0x450F17): the colour the light gives a vertex of an object.
 //!
-//! In:  eax = the vertex's fourth dword, the number of its normal
+//! Takes: the vertex's fourth dword, the number of its normal
 //! Out: eax = the colour; ebp = the number given. On the one way that blends
 //!      (kind 3) the original also leaves ebx, ecx and edx changed; its one caller
 //!      keeps all three, and the Rust version does not change them

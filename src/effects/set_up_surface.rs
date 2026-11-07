@@ -3,9 +3,6 @@
 //! drawn into a 256 x 256 texture surface; a ring of 0x400 records of 0x94 bytes; two
 //! tables of texture places (0x40 cells of an 8 x 8 grid, and 0x40 of 4 x 4 sub-cells).
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! The surface's lock and unlock are the game's (`sub_41AA4B` / `sub_41AB02`, DirectDraw).
 //! Callers: `effects::init_marks` and code at 0x4D1BC8 (not in a function). Refuses memory
 //! not had; a surface under 256 x 256 or a picture not read, after the lock (unlocked

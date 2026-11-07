@@ -15,7 +15,7 @@ use crate::gfx::converters::Converters;
 use crate::gfx::decoder::Decoder;
 use crate::gfx::fill_row_table::ROW_TABLE_ROOM;
 use crate::gfx::fill_thirds_table::TABLE_LEN;
-use crate::gfx::fonts_store::Fonts as MenuFonts;
+use crate::gfx::fonts_store::FontBlock;
 use crate::gfx::formats::Formats;
 use crate::gfx::front::Surfaces;
 use crate::gfx::glyph_tables::GlyphTables;
@@ -34,7 +34,7 @@ use crate::gfx::shots::Shots;
 use crate::gfx::strips::Strips;
 use crate::gfx::texture_pixels::Grading;
 use crate::gfx::texture_upload::Textures;
-use crate::gfx::typefaces::Fonts as Typefaces;
+use crate::gfx::typefaces::FontObjects;
 use crate::gfx::upload::Upload;
 use crate::gfx::windscreen_drop_batch::WindscreenDrops;
 use crate::session::{Bytes, Dword};
@@ -121,20 +121,20 @@ impl Pictures {
 /// The fonts: the menu fonts, the font objects, the jade font, the game fonts' memory and
 /// the glyph tables.
 pub struct FontStores {
-    pub menu_fonts: MenuFonts,
-    pub typefaces: Typefaces,
+    pub font_block: FontBlock,
+    pub typefaces: FontObjects,
     pub jade: JadeFont,
-    pub game_fonts: GameFontsMemory,
+    pub game_fonts_memory: GameFontsMemory,
     pub glyph_tables: GlyphTables,
 }
 
 impl FontStores {
     pub const fn new() -> Self {
         FontStores {
-            menu_fonts: MenuFonts::new(),
-            typefaces: Typefaces::new(),
+            font_block: FontBlock::new(),
+            typefaces: FontObjects::new(),
             jade: JadeFont::new(),
-            game_fonts: GameFontsMemory::new(),
+            game_fonts_memory: GameFontsMemory::new(),
             glyph_tables: GlyphTables::new(),
         }
     }

@@ -5,8 +5,8 @@
 //! plus `dword_75C044` / `dword_75C048`); colour white under the quad record's alpha,
 //! specular 0.
 //!
-//! In:  ecx the ring entry (0 the centre .. 0x10), edi the vertex
-//! Out: eax the colour; the rest kept
+//! Takes: the ring entry (0 the centre .. 0x10), the vertex
+//! Returns: the colour
 //!
 //! Caller: `hud::draw_disc` (three a triangle). Refuses an entry past 0x10, before anything.
 //!
@@ -16,7 +16,7 @@
 use crate::d3d::vertices_store::Vertex;
 use crate::errors::{BadInput, Refused};
 use crate::hud::owner::Hud;
-use crate::hud::store::Hud as HudBlock;
+use crate::hud::store::HudBlock;
 use crate::math::x87_float::ld;
 use crate::scene::x87_mem::{Base, fstp};
 

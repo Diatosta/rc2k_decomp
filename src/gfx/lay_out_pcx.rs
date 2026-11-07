@@ -1,8 +1,6 @@
 //! `gfx::lay_out_pcx` (0x411A82): works out from a PCX header how the picture is to be
 //! decoded, and converts its palette.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! From the header at `dword_51B5F4`: the planes and the bytes of a plane's row; the
 //! picture's width and height (right - left + 1, bottom - top + 1, as words), and those cut
 //! to the picture buffer's size (`g_pictureWidth`, `g_pictureHeight`) and to the limits

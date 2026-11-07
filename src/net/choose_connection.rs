@@ -5,10 +5,7 @@
 //! (sixteen rows), Enter (0x1C) chooses, Escape (1) or the game closing gives -1; 'R' takes a
 //! screenshot (with screenshots on), any other key may compile the lexicon again.
 //!
-//! In:  nothing (the registers it is given reach only its frame, `net::connections_frame`,
-//!      which reads none, and `menu::list_take_key`, which reads none)
-//! Out: the connection chosen (`g_listChoice`; negative: none, the original's carry); the
-//!      original keeps the rest (`pusha` .. `popa`)
+//! Returns the connection chosen.
 //! Callers: `net::settings_link`, `net::start_link`.
 
 use crate::errors::Refused;

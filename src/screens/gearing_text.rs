@@ -1,13 +1,11 @@
 //! `screens::gearing_text` (0x4699E0): string 0x21F + the current player's `gearing`, as
 //! a text of the car choice.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //!
 //! `dword_7554F0` = the current player's (`dword_75598C`) `gearing`; the string and a NUL into
 //! `byte_A8BF54`. In two entry lists (0x7593FE, 0x75941A). Refuses a current player past four, a
 //! text longer than its place (0x100). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

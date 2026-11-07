@@ -1,8 +1,6 @@
 //! `service::apply_repairs` (0x46C14D): carries out the work chosen in the service area, on
 //! leaving it: each chosen repair is shown being done, then the chosen setup is installed.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! What it does, in order (a "chosen" item is one whose flag in `dword_759B6E` is exactly 1):
 //!   - `dword_75AB38` = 1;
 //!   - runs of the car's dwords are zeroed for five chosen items: gearbox (0xE) ten at +0x17C,
@@ -22,12 +20,9 @@
 //!   - `sleep(1000)`.
 //!
 //! A frame is the game's frame function `sub_405A71` with the service area's draw callback
-//! `sub_46CFD7`; neither is ported, so the Rust version calls them with `call_game`. The
-//! clock is `tick_count`. They come in through `Driver`, so that the logic can be run and
-//! compared without real frames.
-//! Called from `sub_48E0FD` and `sub_4A16AB`. Refuses a missing player.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! `sub_46CFD7`; neither is ported, so the Rust version calls them through `Driver`. The clock is
+//! `tick_count`. They come in through `Driver`, so that the logic can be run and compared without
+//! real frames. Called from `sub_48E0FD` and `sub_4A16AB`. Refuses a missing player.
 
 use crate::errors::{BadInput, Refused};
 use crate::service::pages::{GEAR_RATIO, RIDE_HEIGHT, SUSPENSION_STIFFNESS, TYRE};

@@ -3,7 +3,7 @@
 //! c's weight, then b's, then a's): each of x, y, z a ka + (b kb + c kc), left unrounded in
 //! st(2) .. st(0) (x deepest).
 //!
-//! In:  `a`, `b`, `c` the points, `entry` the entry
+//! Takes: `a`, `b`, `c` the points, `entry` the entry
 //! Out: x, y, z (the original's st(2) .. st(0))
 //!
 //! Caller: `sub_4BA646`.

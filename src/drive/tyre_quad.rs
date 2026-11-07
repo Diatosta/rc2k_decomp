@@ -2,10 +2,9 @@
 //! rectangle at ebx (x, y, w, h, whole numbers) as the four vertices' places
 //! (`g_polygonVertices`), z 0, rhw 1, the colour ecx, the texture rectangle at eax
 //! (`drive::tyre_parts`' `quad_tail`, scaled to the screen), drawn (place 5, the device's
-//! DrawPrimitive: a call into the game). All in `pusha` / `popa`.
+//! DrawPrimitive: a call into the game).
 //!
-//! In:  eax the texture rectangle, ebx the screen rectangle, ecx the colour
-//! Out: every register kept; no flags read
+//! Takes: the texture rectangle, the screen rectangle, the colour
 //!
 //! Callers: `drive::tyre_screen` (two), `drive::tyre_screen_parts` (ten).
 

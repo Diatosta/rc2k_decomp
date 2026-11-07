@@ -1,6 +1,6 @@
 //! `scene::find_object_of_kind` (0x422298): the first object (1 .. 0xFF) of a kind.
 //!
-//! In:  eax = the kind
+//! Takes: the kind
 //! Out: eax = the object, 0 if none; the rest preserved
 //!
 //! `g_objectKinds` (0x5CD27C, 0x100 dwords; object 0 is never looked at). 16 call sites

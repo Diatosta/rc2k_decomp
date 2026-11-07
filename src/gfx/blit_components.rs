@@ -4,7 +4,6 @@
 //! In:  eax = the picture's bytes from one row to the next, ebx = the piece (x, y,
 //!      width, height in the picture), ecx, edx = where on the surface, esi = the
 //!      picture's pixels
-//! Out: every register preserved
 //!
 //! The surface's place = its pixels (`g_surface.pixels`) + y times its pitch + x times its
 //! bytes a pixel; the picture's = esi + the piece's y times eax + its x times 4. Each row: the

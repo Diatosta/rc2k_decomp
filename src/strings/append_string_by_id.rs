@@ -1,8 +1,7 @@
 //! `strings::append_string_by_id` (0x401FA3): appends the text for a string id.
 //!
-//! In:  eax = id, ebx = cursor
-//! Out: ebx = new cursor; eax = the string pointer (pointer-table branches) or the id itself
-//!      (string-table branch)
+//! Takes the id and the cursor. Returns the new cursor and the string pointer (pointer-table
+//! branches) or the id itself (string-table branch).
 //! Part of the original lives in a separate chunk at 0x402010.
 
 use crate::errors::BadInput;

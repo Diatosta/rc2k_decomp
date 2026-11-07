@@ -1,7 +1,7 @@
 //! `scene::project_point` (0x44D004): a point's place in the view and on the screen,
 //! worked out once and kept.
 //!
-//! In:  eax = the point's number
+//! Takes: the point's number
 //! Out: edx = its record (Rust: `scene::point_records`' number, phase 13); a point of the scene: eax unchanged, ecx = the point's address
 //!      (or the number of points + 0x40 if the record was already made); a point of an
 //!      object (a negative number): eax = the record's offset; everything else preserved

@@ -1,8 +1,5 @@
 //! `audio::mix` (0x40BDC5): a turn of the game's mixer into the primary buffer.
 //!
-//! In:  nothing
-//! Out: every register preserved (the carry of a failure is not read by its caller)
-//!
 //! `GetCurrentPosition` (+0x10) of `g_primaryBuffer` into `g_playCursor`; the bytes the
 //! play cursor moved since the last turn (round the buffer's `g_primarySize`); nothing
 //! for none; more than `g_mixMost` (40 ms) are cut to it and the write cursor put that far

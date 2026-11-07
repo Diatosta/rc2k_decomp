@@ -10,8 +10,7 @@
 //! plus 0x100 with bit 0x10); the second and third made positive; into +0x2C, +0x30, +0x34;
 //! the 32 buttons (state +0x30 .., bit 7) as bits into +0x38.
 //!
-//! In:  esi = the device's record (`input/devices.rs`)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record (`input/devices.rs`)
 //!
 //! Caller: `input::read_device`. Its DirectInput calls: `Poll`, `GetDeviceState`
 //! (eax its result), `Acquire` (platform).

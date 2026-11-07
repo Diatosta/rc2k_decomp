@@ -1,7 +1,5 @@
 //! `screens::draw_name_cursor` (0x467D6C): the cursor after a player's name being typed.
 //!
-//! In:  edi = the player's player (`Player`)
-//! Out: every register preserved; carry of the last text
 //!
 //! The name (`Player::name`) measured with the font at 0x51E824 (its line count and widest line are
 //! left in it); not drawn, the carry is that of `cmp dword_7559A8, 1`; with the text cursor's blink

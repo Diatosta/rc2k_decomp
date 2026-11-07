@@ -2,17 +2,14 @@
 //! the first edit item (kind 4) from it, which begins to be edited (`install::start_edit`);
 //! none before the list's end: the highlight back to 0. Any other ebx: nothing.
 //!
-//! In:  ebx 0 (a list action's start), edi the list
-//! Out: every register kept (`pusha` / `popa`); the flags of what it did last (no caller
-//!      reads them)
+//! Takes 0 (a list action's start), list.
 //! Callers `install::folder_page` (the folder page's action), `install::mark_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::menu::list_handle::ListMenu;
 
-/// `state` the list action's (ebx): only the start (0) does anything.
+/// `state` which call of the list action this is (0 the start, negative the end): only the start (0) does anything.
 pub fn next_edit(install: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
     if state != 0 {
         return;

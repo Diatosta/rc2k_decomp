@@ -1,5 +1,4 @@
-//! The game's threads, events and waits: no hooks left (conversion phase 4, 2026-10-22);
-//! Rust callers call these directly.
+//! The game's threads, events and waits.
 
 pub mod create_event;
 pub mod create_mutex;

@@ -1,5 +1,5 @@
-//! The game's strings: no hooks left (conversion phase 4, 2026-10-21); Rust callers call
-//! these directly.
+//! The game's strings, called directly by Rust callers (hooks removed in conversion phase 4,
+//! 2026-10-21).
 
 pub mod append_percent;
 pub mod append_speed;

@@ -5,8 +5,7 @@
 //! row's gap, the format (the kind's description + 8); then the clip (`gfx::set_clip`
 //! on `g_surface`).
 //!
-//! In:  esi the record
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the record
 //!
 //! Caller: `d3d::lock_texture`.
 

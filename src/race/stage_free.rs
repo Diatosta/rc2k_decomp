@@ -95,11 +95,11 @@ pub const MUD: Freeing = Freeing {
 /// `race::free_game_fonts` (0x41B2BC; `pusha` / `popa`, not counted).
 pub const FONTS: Freeing = Freeing {
     // g_gameFontMemory
-    list: |_| &gfx().fonts.game_fonts.memory,
+    list: |_| &gfx().fonts.game_fonts_memory.memory,
     counted: false,
     // g_gameFontGlyphs
     cleared: &[|_| {
-        gfx().fonts.menu_fonts.game_fonts[0].update(|f| f.glyph_table = 0);
+        gfx().fonts.font_block.game_fonts[0].update(|f| f.glyph_table = 0);
     }],
     given_back: || {},
 };

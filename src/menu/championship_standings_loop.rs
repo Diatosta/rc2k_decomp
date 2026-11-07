@@ -8,14 +8,12 @@
 //! the owner's screenshot of the fixed build (Rust version running, 2026-10-11) shows the table
 //! without them. Named `screen_4670df_loop` until then.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
 //! nothing happens before the loop (its set-up starts at the function's second byte); its
 //! background comes from `menu::load_background`, after which a set carry flag is fatal error
 //! 0x80712345; leaving is asked about, and a "no" sets the screen up again. If `dword_75AB34` is 1
 //! when the screen is left, nothing more is done: no question, and the highlight is not saved. One
-//! caller, `sub_4A5A47`.
+//! caller.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

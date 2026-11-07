@@ -5,10 +5,6 @@
 //! four read (`g_readBytes`), the flag 1; else the same with
 //! `files\levels\levelNN\cdat00c.sq` (0x60B07A).
 //!
-//! In:  nothing
-//! Out: nothing its callers read (conversion phase 3, 2026-10-24: `scene::set_up_lit_engine`
-//!      works on a copy of its registers; the code at 0x442BF3 is not reached in Rust)
-//!
 //! Callers: `scene::set_up_lit_engine`, and code at 0x442BF3 (not a function in IDA). Refuses
 //! what `files::read_whole_file` refuses (nothing written then).
 

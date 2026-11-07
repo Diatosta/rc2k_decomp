@@ -1,7 +1,6 @@
 //! `audio::new_voice` (0x40B04C): the next voice of the pool.
 //!
-//! In:  nothing
-//! Out: esi = the voice; everything else preserved
+//! Returns: the voice
 //!
 //! `g_voices[g_voiceCount]`, and the count + 1; with 0x200 in use fatal error 0x80A28501.
 //! One caller, command 3 (`sub_40AEB9`).

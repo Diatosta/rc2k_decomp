@@ -2,8 +2,7 @@
 //! and its time `dword_71A704` is not 0, the time less 1; at 0 the notice is cleared
 //! (`dword_71A700` 0). `physics::take_notice` sets them.
 //!
-//! In:  nothing
-//! Out: eax the time before (when `dword_71A700` is set); the rest kept; no flags read
+//! Returns: the time before (when `dword_71A700` is set)
 //!
 //! Caller: `sub_43B635` (0x43B919), every physics step.
 //!

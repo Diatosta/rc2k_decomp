@@ -1,7 +1,5 @@
 //! `menu::step_carousel` (0x46989B): moves a menu's turning objects on by the time passed.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The time since the last call (the clock `dword_613830` less `dword_75AA84`, which becomes the
 //! clock) is kept, held to 100, in `dword_75AA88`. Then the turn (`sub_49044F`, inlined): while
 //! `dword_75A660` is not 0 the angle `dword_75AA80` is moved by ((angle / 8) + 0x4000000) x the
@@ -11,7 +9,7 @@
 //! `menu::move_highlight_left` and `_right` start a turn. In 17 lists of the screens with turning
 //! objects (the main menu's among them). Refuses a time kept above 0x71C71C6, with which the
 //! division would trap; it cannot come, the time being held to 100. The menus and draw lists run
-//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! its `entry` (`menu::table_calls`).
 
 use crate::errors::BadInput;
 use crate::menu::owner::Screens;

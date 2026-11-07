@@ -1,7 +1,6 @@
 //! `sound::free_spot_voices` (0x40E6F4): the voices not heard this turn freed.
 //!
-//! In:  esi the request
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the request
 //! For each voice not heard (+4 not 1): a playing one (+0x28 1) whose id is not free has
 //! its sound stopped (`sound::stop_sound`, the request's sound = +0x14) and is freed; a
 //! playing free one is left; one not playing is freed. Freed: id 0x1888FFFF, sound -2

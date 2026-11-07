@@ -7,9 +7,6 @@
 //! `menu::ready_players` and without the fourth player's time: four races, eax 4 for the
 //! review. The end: `rc2k_core::menu::rounds::end`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through the start menu's table. Refuses a missing player before anything, and what the
 //! callees refuse when they are reached.
 

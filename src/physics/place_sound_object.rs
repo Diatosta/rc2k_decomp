@@ -5,9 +5,6 @@
 //! `dword_6D3B4C` .. at +0x240 .. and +0x10 1 (see `physics/car_sounds.rs`). A reading:
 //! the sound of a roadside object hit.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `sub_45E9E0`. Refuses (before anything) a car number past 7, a null sound object
 //! when it is written, an object past 0x100 or a kind past the 0x4B0 records.
 

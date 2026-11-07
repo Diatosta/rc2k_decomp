@@ -1,16 +1,13 @@
 //! `menu::standings_from_drivers` (0x4A9605): standings table A emptied (`menu::init_standings_a`) and filled from the drivers in order: +0x14 / +0x1C / +0x18 / +8 / +0x10 / +0 / +0x4C from the driver's +0xC / +8 / +0x10 / +0x14 / +0x18 / +0 / +0x24, +4 0, +0xC the driver's name string (`g_driverNames`, 0x14 each, by its +0) and +0x20 its text.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Caller: `sub_473126`. `strings::append_string_by_id`'s Rust version. Refuses no table, more
+//! `strings::append_string_by_id`'s Rust version. Refuses no table, more
 //! drivers than its 200 entries, a name past the entry, before anything.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn standings_from_drivers(menus: &Menus) -> Result<(), Refused> {
     let drivers = walked_drivers()?;
     if drivers.len() > 200 {

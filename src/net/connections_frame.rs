@@ -5,9 +5,6 @@
 //! (`net::connection_entry`, `text::draw_text` at 0x190, each the font's line height lower);
 //! unlocked and shown.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`; its caller, `screens::run_frame`,
-//!      passes the frame's carry on, which no list screen reads)
 //! Called by `screens::run_frame` for `net::choose_connection` (`routes.rs`).
 //! Called by `screens::run_frame` for `net::choose_connection`.
 

@@ -9,14 +9,11 @@
 //! `dword_7588D2[dword_758768 - 1]` / `[dword_75876C - 1]`, and two columns of six numbers
 //! (`dword_758778` .. at x 0x1C4, `dword_75877C` .. at 0x2C8).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758E86). The sprites' palettes are ebx as the original leaves it.
 //! Refuses (before anything) players 1 or 2 missing or without a name, no stage records, a stage
 //! line past the line buffer, and a string index past `dword_7588D2`'s 21 (the original reads the
-//! -1 ends or past them). The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! -1 ends or past them). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

@@ -8,7 +8,6 @@
 //! start read (`drive::read_replay_frame`, eax the block, ebx the frame; its carry not
 //! looked at), the play (`race::play_replay_range`), `dword_5C253C` 0.
 //!
-//! In:  nothing
 //! Out: eax the block played from, ebx and ecx its frame; no flags read. Their one caller
 //!      (`sub_41DE81`) reads only eax after them (taint at 0x41E1FF, 0x41E215, 0x41E25F:
 //!      0x41DE7D), which the Rust `viewer_action` does not need (its ZF is whether the

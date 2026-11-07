@@ -2,8 +2,7 @@
 //! apart) into edi's: each entry a difference of two products (`fsubp`), rounded as written
 //! (so an output over the input is read back as the original does).
 //!
-//! In:  esi the matrix, edi the result (here two arrays of nine floats)
-//! Out: every register kept
+//! Takes: the matrix, the result (here two arrays of nine floats)
 //!
 //! Caller: `sub_4BCB1D` (0x4BCD63). The arithmetic is plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order.

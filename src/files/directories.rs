@@ -1,4 +1,4 @@
-//! The game's folder primitives as Rust functions, not hooked (as `handle.rs`'s): each is
+//! The game's folder primitives as Rust functions (as `handle.rs`'s): each is
 //! `push ecx; push edx; push <path>; call <Win32>; cmp eax, 1; pop edx; pop ecx; retn`, so
 //! eax the BOOL, carry set when it failed, zero set when it is 1, everything else kept:
 //! - `files::set_current_directory` (0x403105, edx the path): `SetCurrentDirectoryA`;

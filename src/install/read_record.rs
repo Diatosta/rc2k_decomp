@@ -1,16 +1,11 @@
 //! `install::read_record` (0x4110C9): reads the installation's record `var\ral.zog`.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! A settings text with three keys, each taken if it is there: `cdrom` becomes base
-//! directory A (`byte_5189A8`), `installation` becomes `g_mediaMode` (0x5189A4), held to
-//! 0 .. 3, and `language` becomes what `%` stands for in a path (`byte_518AA8`). The two
-//! texts get a `\` after them unless they are empty or end in `\` or `/`. Without the
-//! file nothing changes.
-//! Callers: `start`, `sub_412DE0`, `sub_416653`.
-//! Refuses a text of 0xFE bytes or more (the original writes past the 0x100 bytes).
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! A settings text with three keys, each taken if it is there: `cdrom` becomes base directory A
+//! (`byte_5189A8`), `installation` becomes `g_mediaMode` (0x5189A4), held to 0 .. 3, and `language`
+//! becomes what `%` stands for in a path (`byte_518AA8`). The two texts get a `\` after them unless
+//! they are empty or end in `\` or `/`. Without the file nothing changes. Callers: `start`,
+//! `sub_412DE0`, `sub_416653`. Refuses a text of 0xFE bytes or more (the original writes past the
+//! 0x100 bytes). Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::BadInput;
 use crate::settings::read_text::read_text;

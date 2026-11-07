@@ -5,11 +5,9 @@
 //! `g_netPosting` 1 posted to the receiving thread (`net::post_call`, the code at 0x418A43);
 //! then the window restored (`system::restore_window`).
 //!
-//! In:  nothing
-//! Out: true for the carry clear (done, or DPERR_CONNECTING); false for the carry: no object,
-//!      the user cancelled (DPERR_USERCANCEL) or it failed. The original keeps every
-//!      register; its callers (the original through `net::find_sessions_regs`, 0x41771E,
-//!      this inside `pusha` .. `popa`, folded in) read the carry only (`lq -s 0x41771E`).
+//! Returns true when done (or DPERR_CONNECTING); false when there is no object, the user
+//! cancelled (DPERR_USERCANCEL) or it failed. The original's callers read only the carry (`lq
+//! -s 0x41771E`).
 //! Caller: `net::find_sessions_regs`.
 
 use crate::errors::Refused;

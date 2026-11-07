@@ -3,10 +3,6 @@
 //! tables (`race::keep_undo`'s), the undo emptied and the marks reset
 //! (`race::reset_marks`).
 //!
-//! In:  nothing
-//! Out: nothing kept: every register kept. Else eax the count, ecx 0, esi and edi past the
-//!      cameras' copy; no flags read
-//!
 //! Callers: `race::viewer_action` (action 0x13, and 0x20). Refuses what `reset_marks` refuses
 //! (everything put back).
 

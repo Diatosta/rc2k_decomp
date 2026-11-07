@@ -2,8 +2,6 @@
 //! `dword_52AC38`) and 0x100 sessions (0x6800 bytes, to `dword_52ACF8`) on the network's
 //! memory list (`g_netMemory`, `memory::allocate`), and both counts 0.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! `memory::allocate` coming back with carry: fatal error 0x80E68021 for the first, 0x80E68022
 //! for the second. Caller: `net::find_connections`.
 

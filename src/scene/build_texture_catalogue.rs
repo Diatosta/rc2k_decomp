@@ -1,7 +1,6 @@
 //! `scene::build_texture_catalogue` (0x42274B): gets memory for every texture that is
 //! needed, making the textures smaller group by group until it is had.
 //!
-//! In:  nothing
 //! Out: carry clear. The original leaves eax, ecx and edi changed; its caller sets
 //!      them anew. The Rust version keeps them.
 //!

@@ -1,8 +1,6 @@
 //! `menu::results_482e9b_loop` (0x482E9B): a screen titled "RESULTADOS" called by sub_4828B0
 //! and sub_482B7A.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `results1.png`; leaving is asked about; left
 //! without the question, the highlight is not saved; its own 3D list goes to `g_sceneList`
@@ -12,7 +10,6 @@
 //! original's slip); the keys are handled with another menu, 0x750ACC, in `dword_731BBB` (the
 //! original's slip).
 //! The name is a reading from the title string of its menu, "RESULTADOS", not yet a visit.
-//! Callers: `sub_4828B0`, `sub_482B7A`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

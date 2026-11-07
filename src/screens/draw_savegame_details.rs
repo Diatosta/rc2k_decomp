@@ -1,8 +1,6 @@
 //! `screens::draw_savegame_details` (0x46D907): the load-game screen's preview of the saved
 //! game that was read into the buffer at 0x51EBB4.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry as the last text drawn leaves it
 //! After the headings and row numbers it copies the saved game's seven dwords into its own
 //! variables (`dword_755150` .. `dword_755168`) and points `dword_75516C` at the saved cars.
 //! Then:

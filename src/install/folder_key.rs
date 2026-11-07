@@ -3,12 +3,10 @@
 //! answer to 0 and leaves, Escape (0x1C) sets it to 1 and leaves. Any other key does
 //! nothing.
 //!
-//! In:  al the key, ah its bits, edi the list
-//! Out: every register kept; the flags of its last test (no caller reads them read back)
+//! Takes the key, its bits, list.
 //! Caller `install::run_page` (the folder page).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::items::FolderKey;

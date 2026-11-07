@@ -4,10 +4,7 @@
 //! (`settings::parse_number`), held to 2 .. 8 (signed), and to 4 with `g_noticeKind` 2, into
 //! `dword_52ABD0`.
 //!
-//! In:  the key
-//! Out: as `net::edit_key` leaves them while editing goes on; after it, eax = the item (or
-//!      the number), the copy's esi, edi, ecx; no `pusha`; the flags of the last test (no
-//!      caller reads them)
+//! Takes the key.
 //! Caller: `net::settings_loop`.
 
 use crate::errors::Refused;

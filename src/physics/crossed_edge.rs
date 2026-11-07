@@ -4,9 +4,6 @@
 //! raised to |`flt_6D3108`|, `unk_71A20C` = 1, `unk_71A1CC` = 0x32;
 //! `physics::feel_ground`.
 //!
-//! In:  nothing
-//! Out: the registers as the calls leave them; no flags read (callers go on)
-//!
 //! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) a
 //! probe point past 0x3F (the tables' room), and what its calls refuse (what was written
 //! put back).

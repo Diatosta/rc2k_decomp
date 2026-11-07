@@ -1,8 +1,8 @@
 //! `physics::queue_listed_event` (0x44194D): for ebx below 0x20, the event
 //! `dword_614C7C[ebx]` (into ebx); unless it is -1, `physics::queue_car_event` with no
-//! delay (esi 0), inside `pusha` / `popa`.
+//! delay (esi 0).
 //!
-//! In:  ebx the event's number
+//! Takes: the event's number
 //! Out: ebx the table's entry (when below 0x20); the rest kept; no flags read (the
 //!      caller's next is an `inc`)
 //!

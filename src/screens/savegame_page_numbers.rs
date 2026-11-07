@@ -1,15 +1,12 @@
 //! `screens::savegame_page_numbers` (0x46D262): the numbers of the saved games' list
 //! for the page shown.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //!
 //! With n = the page (`dword_75523C`) times 10: the caption (`g_captionText`) is n and n + 9 with a
 //! dash between, and the ten texts of four bytes from `byte_A8C158` on are n .. n + 9; each number
 //! at least two digits (a 0 before one under 10), each text ended by a NUL. In four draw lists (the
 //! load and save screens). Refuses a page whose numbers would not fit their four bytes (100 or
-//! more). The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are
-//! the original's, for reference.
+//! more). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

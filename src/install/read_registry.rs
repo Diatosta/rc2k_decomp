@@ -1,7 +1,5 @@
 //! `install::read_registry` (0x413D14): what the installer left in the registry.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Under `HKEY_LOCAL_MACHINE\SOFTWARE\Magnetic Fields\RC99`: the value `status` into
 //! `byte_51BB8C` (kept only if it is one byte of binary data, else 0) and the value
 //! `source` into `byte_51BB8D` (up to 0xFF bytes; emptied unless it is a text). Without
@@ -9,8 +7,7 @@
 //! registry's own answers are left in `Type` (0x51BC94) and `dword_51BC90` (the size).
 //! Three callers: the two installation checks and the installer.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 // ---- game data ----
 

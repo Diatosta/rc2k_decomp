@@ -1,8 +1,5 @@
 //! `menu::single_rally` (0x482382): the single rally's event, from the player choice on.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! `menu::begin_event`, `clear_players_284`, `take_player1_units`; `dword_755984` 1, `dword_755988`
 //! 0x18, `dword_75555D` 0; `clear_event_state`; the current player 0; the car list in esi
 //! (`off_759DCA` with `dword_7554D8` 1, else `off_75A042`; `off_75A412` with cheat bit 1);
@@ -13,9 +10,8 @@
 //! (ended by a "yes"); eax 1, `hide_in_game_options`, `menu::review_options_485f5e_loop` (ended by
 //! `dword_755A3C`, `dword_755569` or `dword_75555D` 1), and the next. The end: `dword_755980` 1,
 //! `dword_75555D`, `dword_755569`, `dword_755565` 0, `show_in_game_options`. Reached from the start
-//! menu's table (0x748A8C). The registers each callee gets are the original's (one set carried
-//! through, as `pusha` keeps them). Refuses a current player past four. The menus and draw lists
-//! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! menu's table (0x748A8C). Refuses a current player past four. The menus and draw lists
+//! run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::flow_game::Game;

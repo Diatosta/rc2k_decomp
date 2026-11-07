@@ -3,9 +3,6 @@
 //! `effects::pick_shapes` and `effects::expire_windscreen_flakes`, `dword_84460C` on one (low byte); then
 //! `dword_814714` it.
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Caller: `sub_4BF60F` (0x4BF809). The calls are their Rust versions. Refuses
 //! `pick_shapes`' refusals (all it may write put back first).
 

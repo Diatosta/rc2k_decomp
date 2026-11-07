@@ -2,7 +2,7 @@
 //! minus the work car's heading (`g_car` +0x9C0, `unk_71A998`) with
 //! `math::turn_float_point_xz` (ebx passed through as y) and stored back.
 //!
-//! In:  esi the point, ebx passed on
+//! Takes: the point, passed on
 //! Out: eax x', ecx z', edx as `turn_scratch_xz` leaves it; the rest kept; no flags read
 //!
 //! Caller: `sub_45E800` (0x45E8A9).

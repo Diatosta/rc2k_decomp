@@ -131,16 +131,16 @@ impl FontObject {
 /// The font objects.
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Fonts {
+pub struct FontObjects {
     pub objects: [FontObject; COUNT],
 }
 
-impl Fonts {
+impl FontObjects {
     /// The font objects; the first values are the image's (the glyph tables and palettes come
     /// with `gfx::build_fonts`; the loading font's palette is the image's `unk_51DEC4`, made a
     /// home at start).
     pub const fn new() -> Self {
-        Fonts {
+        FontObjects {
             objects: [
                 FontObject::new(4, 10, 0),
                 FontObject::new(3, 10, 0),

@@ -4,7 +4,7 @@
 //! (`g_raceSoundObjects[g_currentCar & 7]`) and its place: the car's place (`g_car`
 //! +0x134 .. +0x13C, with an offset for one) less the listener's (+0x6A4 ..), `fild` /
 //! `fiadd` / `fisub` (exact), turned by `g_viewTurnMatrix`, each part x `flt_5C5DA0`
-//! (1/65536); then +0x10 1. All in `pusha` / `popa`.
+//! (1/65536); then +0x10 1.
 //!
 //! This file: the shared steps and the test of the four. `place` is the exact x87 one, for
 //! `place_sound_e1`'s exact version (its Rust callers).

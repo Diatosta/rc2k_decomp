@@ -3,8 +3,7 @@
 //! 0x320 is not below 0 (by its sign) and +0xA8 (`unk_71A080`) is 0. A reading: time
 //! counted once the start is behind (`physics::false_start`'s fields).
 //!
-//! In:  nothing
-//! Out: eax the timer less 0x320 when it got that far; the rest kept; no flags read
+//! Returns: the timer less 0x320 when it got that far
 //!
 //! Caller: `sub_436790` (four calls).
 

@@ -2,7 +2,6 @@
 //! `physics::apply_torques` on the 7 records at `unk_614A50` (the ones
 //! `physics::apply_contact_forces` pushes with); else nothing.
 //!
-//! In:  nothing
 //! Out: `dword_614148` 0: ebx the count, edi the first record; else nothing changed;
 //!      the rest kept; no flags read (the caller's next instruction is a `cmp`)
 //!

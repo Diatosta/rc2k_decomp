@@ -5,9 +5,6 @@
 //! name bytes at +0x20 (through `g_keptPlayerName`, which keeps the last swap's upper
 //! name). The pass does not stop at the first entry in order.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Caller: `menu::enter_time_trial_best`. Refuses (before anything) what `event_flow::stage_times`
 //! refuses.
 

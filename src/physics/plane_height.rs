@@ -4,9 +4,6 @@
 //! of a course face's plane under a point, from its corners' heights and the point's
 //! shares (a reading; set by `sub_442006`).
 //!
-//! In:  nothing
-//! Out: every register kept
-//!
 //! Callers (2): `sub_442006` (the face under a point, the ground's search) and
 //! `sub_457B86`.
 

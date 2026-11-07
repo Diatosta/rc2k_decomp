@@ -6,7 +6,6 @@
 //! `dword_6043F8` the time; for car 0 or 1 the time kept in `unk_75B02C` / `unk_75B09C`
 //! [split].
 //!
-//! In:  nothing
 //! Out: eax, ebx (split x 0x28), ecx, esi, edi as left; no flags read (the caller
 //!      returns)
 //!

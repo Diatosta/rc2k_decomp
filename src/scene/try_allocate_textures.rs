@@ -1,7 +1,6 @@
 //! `scene::try_allocate_textures` (0x4224C4): asks for the texture memory every needed
 //! texture takes, at the levels they are needed at.
 //!
-//! In:  nothing
 //! Out: carry clear = all of it was had; carry set = not. The original leaves the
 //!      registers changed; its callers keep them all. The Rust version keeps them.
 //!

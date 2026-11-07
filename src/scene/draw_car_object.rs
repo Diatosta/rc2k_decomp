@@ -1,10 +1,6 @@
 //! `scene::draw_car_object` (0x49017B): the 3D part of a frame of the car
 //! specification screen.
 //!
-//! In:  nothing
-//! Out: the registers as its parts leave them (the scene lists' caller keeps them all);
-//!      nothing at all on a page other than the first
-//!
 //! Only with `dword_755998` (the page shown) at 0: `scene::clear_depth_buffer`,
 //! `scene::assign_kind_textures`, `sub_490238`, `scene::map_texture_places`,
 //! `scene::load_slot_textures`, `sub_4901A3`. The three under it have one caller each
@@ -15,7 +11,7 @@
 //! - `sub_4901A3` -> `sub_4901B3` -> `sub_49040D`: `dword_6365C4` = 0; the turn about y
 //!   from the clock (times 8, sixteen bits), the place's z `dword_75A66C`, the kind
 //!   `dword_75A674[dword_755990]` to `dword_75A658`, its object to `g_objectNumber`,
-//!   `scene::draw_menu_object` with eax = it (between `pusha` and `popa`).
+//!   `scene::draw_menu_object` with eax = it.
 //!
 //! In the scene list at 0x758F76; IDA had not made it a function. Refuses an entry past the
 //! 0x100 kinds, and what its parts refuse. The menus and draw lists run its `run`

@@ -1,7 +1,6 @@
 //! `audio::describe_wave_format` (0x40A6A5): the `WAVEFORMATEX` for a sample's buffer.
 //!
-//! In:  eax = the format word, ebx = the frequency
-//! Out: every register preserved
+//! Takes: the format word, the frequency
 //!
 //! `g_waveFormat` (0x506B30, 0x12 bytes) zeroed, then: tag 1 (PCM); samples a second the
 //! frequency shifted right by the format's four low bits; channels from

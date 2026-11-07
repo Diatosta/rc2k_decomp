@@ -8,7 +8,6 @@
 //! `pusha` / `popa`.
 //!
 //! In:  eax the mode, esi the car (0, 1)
-//! Out: every register kept; no flags read
 //!
 //! Caller: `drive::tyre_change_screen`.
 //! Refuses a car past 7 (`g_inputDevices`).

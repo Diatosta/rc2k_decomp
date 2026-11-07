@@ -4,7 +4,6 @@
 //! look of them, times to show it), the count less 1, and the three lists moved down one
 //! (0x1F dwords each, `rep movsd`).
 //!
-//! In:  nothing
 //! Out: when one is taken: eax the id, ecx 0, esi 0x71A5D4, edi 0x71A5D0 (the last
 //!      `rep movsd`'s ends); else every register kept
 //!

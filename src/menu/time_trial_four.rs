@@ -8,9 +8,6 @@
 //! ends it, no stage record put in edi, and before the review `menu::show_in_game_options`
 //! where the others hide them. The end: `rc2k_core::menu::rounds::end`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through the time trial's start menu. Refuses a missing player before anything, and what
 //! the callees refuse when they are reached.
 

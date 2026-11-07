@@ -1,11 +1,11 @@
 //! Raising a fatal error from Rust: what the original's stubs do before they jump to the
 //! reporter (store the code and the message), followed by the reporter itself.
 //!
-//! This is not a hook: nothing in the original corresponds to it one to one. It calls the
-//! reporter's Rust version directly (`fatal::report::report_now`).
+//! Nothing in the original corresponds to it one to one. It calls the reporter's Rust
+//! version directly (`fatal::report::report_now`).
 //!
 //! It is not identical to an original error in one respect: the registers in the report are
-//! the ones given here (those at the entry of the hooked function that failed), not those at
+//! the ones given here (those at the entry of the function that failed), not those at
 //! the instruction inside it where the original would have noticed.
 
 use crate::errors::{FatalError, Refused};

@@ -2,17 +2,14 @@
 //! (`dword_759C76` ..) cleared, then each 1 for its inspected part of the current player
 //! (`dword_75598C`) at or past its limit (`menu::standings::INSPECTED`, in order).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`. Refuses a current player past 3 or missing,
+//! Refuses a current player past 3 or missing,
 //! before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::session::write_prefix;
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn inspection_faults(menus: &Menus) -> Result<(), Refused> {
     let n: u32 = menus.screens.event.current_player.get();
     if n >= 4 {

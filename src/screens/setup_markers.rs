@@ -73,7 +73,7 @@ fn place(
     Ok(())
 }
 
-/// `player` (edi) is the player for the upper bars. What the original
+/// `player` is the player for the upper bars. What the original
 /// leaves in eax and esi its one caller, `screens::draw_service_area`, does not read.
 pub fn draw_marker(
     menus: &Menus,

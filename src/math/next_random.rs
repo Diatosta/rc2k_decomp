@@ -1,6 +1,5 @@
 //! `math::next_random` (0x4018B4): the game's random numbers.
 //!
-//! In:  nothing
 //! Out: eax = the next number, ZF set when it is 0 (read by `race::nonzero_random`);
 //!      everything else preserved
 //! One step of the generator on its state `dword_4E0140` (`math::random_step`, 0x4018C8,
@@ -8,8 +7,6 @@
 //! bit 2 and bit 1 of the byte as it then is, each flipping bit 0), the whole is turned
 //! right by one, and what is mixed in is `xor`ed on. 23 callers, and
 //! `math::random_below` (73 more).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 // ---- Rust version ----
 
@@ -25,9 +22,8 @@ pub fn with_random<R>(f: impl FnOnce(&mut rc2k_core::math::random::Random) -> R)
     value
 }
 
-/// The thread that owns the generator during a self-test that draws (0: none). Another
-/// thread asking for a number meanwhile waits: a thread let through the pause (the log
-/// writer, a pause timeout) would put the test's two sides on different numbers.
+/// The thread that owns the generator while it draws a sequence that must stay together
+/// (0: none). Another thread asking for a number meanwhile waits.
 static OWNER: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
 fn this_thread() -> u32 {

@@ -5,9 +5,6 @@
 //! `flt_82E2AE`: its whole part (held to 0x80) of `effects::pick_windscreen_drop`s, and one more when
 //! the marks' random's bits 8 .. 23 are at most its fraction times `flt_82E2B2`.
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! Caller: `sub_4BC0B1` (0x4BC225). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables; the picks their Rust versions (under the same rounding).
 

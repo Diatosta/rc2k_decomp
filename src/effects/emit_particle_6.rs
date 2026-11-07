@@ -2,8 +2,7 @@
 //! flags (+0x20, kept in `dword_939BAE`) have 0xC0 and the rate gate passes
 //! (`marks/emitters.rs`, the wheel's +0xC less +0x18 by `flt_93A41A` ..).
 //!
-//! In:  edi the wheel record, esi the car object
-//! Out: every register kept
+//! Takes: the wheel record, the car object
 //!
 //! The entry: its place the wheel's (+0x3C ..) plus a random side (-1 or 0 times the
 //! object's matrix's first row, 0 or 1 times its third) less 0x93A42E in y at +0x28; its

@@ -11,8 +11,7 @@
 //! `flt_8EB96D`) and rhw (1 over the depth times `flt_934F6C` ..), `scene::draw_fan`,
 //! `scene::depth_test_on`.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (its caller reads no register after it)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4C74DA` (0x4C752F). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables; the vector helpers and `scale_axes` their Rust versions. Refuses null

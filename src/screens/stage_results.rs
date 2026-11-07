@@ -77,9 +77,9 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 /// ten rows the fastest line (string 0x1A2; from the stage record found again by
 /// `records::find_stage_record` when both switches are 0, else the record's own, its second
 /// fastest with `dword_7556FC` 1). The sprites' palettes are ebx as the original leaves it.
-/// Every register kept. Refuses (before anything) no current menu, no stage records or times
+/// Refuses (before anything) no current menu, no stage records or times
 /// table, a stage line past its buffer, a times table whose end (-1) comes within the ten rows
-/// (the original's early exit leaves two dwords on the stack and returns through a `pusha`
+/// (the original's early exit leaves two dwords on the stack and returns through a wrong
 /// slot), and what the strings refuse.
 pub fn draw_stage_results(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;

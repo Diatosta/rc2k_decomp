@@ -1,20 +1,13 @@
 //! `memory::free_list` (0x4028F5): gives back every block of a list.
 //!
-//! In:  ebx = the list (`MemoryList`), or 0
-//! Out: every register preserved; CF clear (read by `sub_4D06F3`'s `jb`)
+//! Takes: the list (`MemoryList`), or 0
 //! Nothing happens without a list. The bytes held now are counted down by the list's total
 //! (also when it has no block). Then, if it has one: the list is emptied (head, total, and
 //! through `sub_402941` the cursor and what remains, all 0) and each block is given back
 //! with `VirtualFree`, or, with the setting `altmemenable`, to the game's own heap
 //! (`sub_402A92`). No block is put on a list any more (the own heap and the system's
 //! blocks removed 2026-11-07): a list holding one is refused.
-//! 38 callers. Shadow mode runs the original alone and checks that it left the list empty.
-//! Manual patch with a private copy (0x4C bytes, three calls relocated): a conditional
-//! jump sits in the first bytes.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! 38 callers.
 
 use crate::errors::BadInput;
 use crate::memory::{MemoryList, with_figures};

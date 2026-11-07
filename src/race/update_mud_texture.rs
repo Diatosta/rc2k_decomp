@@ -13,9 +13,6 @@
 //!
 //! Then the texture is unlocked (`d3d::unlock_texture`).
 //!
-//! In:  nothing
-//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
-//!
 //! See `race/mud.rs`. One caller, `race::mud_texture_turn`. Refuses (before anything) a texture
 //! past 3 and no mud, and its callees' refusals (what the counts, the throws and the random
 //! state were put back).

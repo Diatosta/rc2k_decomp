@@ -2,9 +2,9 @@
 //! (none when its +0x84 is -1): its width (+0x88) and drop (+0x90) times `dword_75C06C`
 //! (`fistp` into `dword_75C064` / `dword_75C068`), centred on 0x320 / 2 plus
 //! `dword_75C070`, its top ebx plus the drop, as tall as wide; texture places 0 / 1;
-//! colour white under its +0x8C; `hud::add_polygon` on four (inside `pusha` .. `popa`).
+//! colour white under its +0x8C; `hud::add_polygon` on four.
 //!
-//! In:  ebp the record, edi the entry's offset, ebx the top
+//! Takes: the record, the entry's offset, the top
 //! Out: ebx the bottom, edx the colour, esi the left, edi the right (kept when none)
 //!
 //! Callers: `hud::icons`.

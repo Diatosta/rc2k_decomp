@@ -7,12 +7,10 @@
 //! behind its parent, a file to the files table (`dword_51BB58`); the folders table is the
 //! queue. Overflow of either table is fatal error 0x80AF2201 or 0x80AF2202.
 //!
-//! In:  eax the folder
-//! Out: every register kept (`pusha` / `popa`)
+//! Takes the folder.
 //! Caller `install::run_script` (opcode 4).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{
@@ -130,7 +128,7 @@ fn walk(
     Ok(())
 }
 
-/// `folder` (eax) and every folder under it added to the folders' table, their files to
+/// `folder` and every folder under it added to the folders' table, their files to
 /// the files'.
 pub fn list_folder_tree(folder: impl Into<crate::place::Place>) -> Result<(), Refused> {
     let install = crate::install::owner::install();

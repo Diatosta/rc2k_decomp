@@ -8,11 +8,6 @@
 //! surfaces lost) instead, unless quitting, restores the surfaces (`sub_405B10`, the
 //! platform's) and leaves carry set when they were neither lost before nor after.
 //!
-//! In:  nothing
-//! Out: nothing its callers read (conversion phase 3, 2026-10-24: the flags and registers
-//!      it left went; its callers, `race::loadlevel_init`'s progress inside `pusha` and
-//!      `scene::step_loading_bar`'s `show`, discard them)
-//!
 //! Caller: the stage's loading (through `dword_623704`). Its calls are the Rust versions (the
 //! restore the platform's call). The registers above are the original's, for reference; a call
 //! by address goes through `routes.rs`.

@@ -1,11 +1,6 @@
 //! `scene::clip_polygon_by_depth` (0x44DB4F): cuts the polygon to the depths that can
 //! be drawn.
 //!
-//! In:  nothing
-//! Out: the original leaves every register changed (ebx the count left, as its passes end);
-//!      its callers go on by the number of vertices alone; the Rust version gives ebx the
-//!      count and keeps the rest
-//!
 //! `dword_624124` = 1; `dword_62411C` = 0x1000 and one pass of `scene/clip.rs` that
 //! keeps what is deeper than that (`sub_44DB93`); then, with `dword_621510` at 0,
 //! `dword_621900` not 0 and three vertices or more left, `dword_62411C` =

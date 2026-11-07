@@ -11,7 +11,7 @@
 //! (`sub_40809E`, `sub_407A84`, `sub_4079FE`), "INPUTTDB:QUIT" logged, the priority 0, the
 //! flag 0, `ExitThread`.
 //!
-//! In:  the thread's parameter (not read)
+//! Takes: the thread's parameter (not read)
 //! Out: does not return
 //!
 //! Started by `threading::start_threads` (a slot's routine). In

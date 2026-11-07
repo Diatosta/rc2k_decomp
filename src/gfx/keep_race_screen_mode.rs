@@ -3,8 +3,7 @@
 //! its size bits, the menus' other bits) tried (`gfx::try_screen_mode`): if that works it
 //! becomes the menus' mode (`g_menuScreenMode`).
 //!
-//! In:  eax = the mode
-//! Out: every register kept (`pusha` .. `popa`); the flags as `try_screen_mode` leaves them
+//! Takes: the mode
 //!
 //! One caller, `gfx::screen_mode_choices`, which calls it directly, as it calls
 //! `try_screen_mode` (2026-10-23).

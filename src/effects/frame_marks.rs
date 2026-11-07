@@ -6,8 +6,7 @@
 //! `effects::view_frame`; the settings' +0x18 0, `dword_76513C` plus 1; `flt_765128` the
 //! cycles this step took over the frame's, by `flt_93C8C0`.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads the registers it leaves: none after 0x446403, 0x456464)
+//! Works on `g_marksSettings`.
 //!
 //! Callers: race init (0x446403) and 0x456464. Refuses null settings before anything, and
 //! its steps' refusals (all it may write is put back first).

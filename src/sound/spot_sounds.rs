@@ -1,7 +1,5 @@
 //! `sound::spot_sounds` (0x40E611): the shared spots' sounds for the turn.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! esi the request; then `sound::match_spot_voices`, `free_spot_voices`,
 //! `spot_voice_distances`, `merge_spot_voices_all`, `thin_spot_voices_all`,
 //! `exclusive_spot_voices`, `repeat_spot_voices`, `play_spot_voices`, each getting the

@@ -2,8 +2,6 @@
 //! the distance's change and the pitch and volume factors, as `sound::car_engine_state`
 //! does for a car.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! For each voice heard (+4 1): +0x40 the root of +8 .. +0x10 squared, +0x44 its change
 //! x the turns a second (`dword_5124EC`); +0x4C 0 and +0x48 1.0, then unless the voice
 //! is new (+0x20 1) +0x48 eased from 1.0 toward (+0x44 + 337.52) x 0.00296; +0x4C 1.0,

@@ -6,7 +6,6 @@
 //!
 //! In:  eax = the controller, ebx = its sensitivity, ecx = its mode, edx, ebp (0 from the
 //!      menus)
-//! Out: every register kept (`pusha` .. `popa`)
 //! Not DirectInput itself: the request is the input thread's to act on. Caller:
 //! `menu::apply_controller`. Refuses (before anything) no first record (null pointer).
 

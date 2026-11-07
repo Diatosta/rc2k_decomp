@@ -3,11 +3,10 @@
 //! them. In five of the installer's tables (0x51D7B4 ..); the installer's Rust driver does it
 //! inline (`installer.rs`).
 //!
-//! In:  ebx = the cursor
-//! Out: ebx + 2, the rest kept
+//! Takes the cursor.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's. Texts as values (2026-11-07): the two bytes pushed on the text built.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments. Texts as values (2026-11-07):
+//! the two bytes pushed on the text built.
 
 /// The Rust version: the two bytes added to `out`.
 pub fn end_text_line(out: &mut Vec<u8>) {

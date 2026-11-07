@@ -1,8 +1,6 @@
 //! `menu::load_championship_46e899_loop` (0x46E899): a second screen titled "CARREGAR
 //! CAMPEONATO", reached through a table.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is not asked about; on leaving the highlight is
 //! saved in `dword_747678`, not in the variable it is taken from (the original's slip); the
@@ -11,7 +9,7 @@
 //! The name is a reading from the title string of its menu, "CARREGAR CAMPEONATO", not yet a
 //! visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

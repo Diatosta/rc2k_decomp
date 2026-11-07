@@ -3,10 +3,7 @@
 //! its name pointer (+0x18) and +0x20 the name's 0x20 bytes, +8 / +0x10 its +4 / +8, +0x4C
 //! its +0xD0.
 //!
-//! In:  edi the entry, esi the record, ebx its index
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: `sub_4A2B75` and two of the game's. Refuses a null entry, record or name, before
+//! Callers: two of the game's. Refuses a null entry, record or name, before
 //! anything.
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

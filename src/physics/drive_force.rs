@@ -3,7 +3,6 @@
 //! `flt_614744`; `flt_614750` = it x `flt_5CB968` / the gear's ratio / 10000, or 0 with
 //! +0x1D0 (`unk_71A1A8`) set; `physics::drive_torque_share`.
 //!
-//! In:  nothing
 //! Out: ebx the gear, and what the calls leave; no flags read (the caller goes on with a
 //!      call)
 //!

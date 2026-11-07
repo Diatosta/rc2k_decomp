@@ -3,7 +3,6 @@
 //! `flt_5C5D98` x `flt_60628C` (`fistp`) into `dword_606288` and added to the camera's
 //! height `unk_71A680`.
 //!
-//! In:  nothing
 //! Out: esi the mode's record; eax the height added when it ran; the rest kept; no
 //!      flags read
 //!

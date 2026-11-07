@@ -1,7 +1,5 @@
 //! `menu::edit_replay_name` (0x46F4E7): one step of typing the name of a replay.
 //!
-//! In:  nothing
-//! Out: carry (the caller skips its end-of-entry checks on it); every register preserved
 //! The name is the highlighted entry of the replay list. One pending key is taken:
 //! none          the cursor is written again;
 //! 1 (Escape)    the name from before comes back, the entry ends, `dword_758806` = 1;

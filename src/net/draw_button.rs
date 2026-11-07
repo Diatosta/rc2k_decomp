@@ -6,9 +6,8 @@
 //! being edited (`dword_52A4B8`) or in the blink's lit half (bit 3 of `dword_51D41F` -
 //! `dword_51D423` clear), or `stru_51E7C4` with flag 2.
 //!
-//! In:  the string, the flags (1: the frame centred on x, else ending half its width left of
-//!      x and the text centred too; 2: the dim font), x, y, the item
-//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
+//! Takes the string, the flags (1: the frame centred on x, else ending half its width left of x
+//! and the text centred too; 2: the dim font), x, y and the item.
 //! The arguments are kept in `dword_5AB490` .., the width in `dword_5AB4A0`, the frame's
 //! tiles in `dword_5AB4A4`. The blits get ebx as the measuring and the blits before leave
 //! it (the sprites are drawn as they are). Callers: `net::setting_label`,

@@ -3,9 +3,6 @@
 //! that vector made of length 1 into `unk_7692FA` .., its length (`fst`) in
 //! `dword_7692F6` (`x87::unit_and_length`).
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Caller: `sub_4C1270`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).

@@ -1,6 +1,6 @@
 //! `physics::object_hits_car` (0x45E755): whether any point of the object hit
 //! (`dword_6D321C`) lies inside the work car's box. `dword_61410C` + 1;
-//! `physics::object_turn_matrix` (in `pusha` / `popa`); then for each of the object's
+//! `physics::object_turn_matrix`; then for each of the object's
 //! points (`g_objectFirstPoint[n]` on, `g_objectPointCount2[n]` of them, in
 //! `g_objectPoints`, three whole numbers each): `fild`ed, turned by `flt_5EA444`
 //! (`scene::rotate_point`) and `fistp`ed into the offset `dword_6D3B40` .., then

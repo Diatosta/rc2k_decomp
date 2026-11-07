@@ -1,12 +1,6 @@
 //! `threading::find_thread_slot` (0x410CC5): finds the `ThreadSlot` of the current thread.
 //!
-//! In:  nothing
-//! Out: esi = slot pointer or NULL, ZF = (esi == 0); callers branch on ZF right after the call
-//! No self-test: the result depends on which thread calls it.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! Returns the slot, or none; the result depends on which thread calls it.
 
 use crate::threading::thread_slot::ThreadSlot;
 

@@ -2,7 +2,7 @@
 //! cleared and part 0x50 + 0x14 x `g_currentCar` + cl goes into a race slot
 //! (`physics::fill_race_slot`).
 //!
-//! In:  cl the bit (ecx passed on)
+//! Takes: the bit (passed on)
 //! Out: eax 1 << cl, or as `fill_race_slot` leaves them; no flags read
 //!
 //! Callers: `physics::drop_broken_parts` (seven), `sub_4410C8` (four). Refuses what

@@ -13,9 +13,6 @@
 //! palettes (`race::viewer_palettes`), `dword_5BECC0` 1. Then (always) the pending key
 //! taken (`input::take_key`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Callers: `race::replay_viewer`, `race::viewer_action` (0x14, after another replay is
 //! opened), `race::choose_save_slot`. The only register it reads at entry is esi, which
 //! goes to `release_textures` and `set_race_screen_mode` (attrib), whose Rust versions
@@ -94,7 +91,7 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
 
         sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game(), sound)?;
         crate::sound::set_up_race_sounds::set_up_race_sounds(sound)?;
-        if gfx.fonts.menu_fonts.palettes.get() == 0 {
+        if gfx.fonts.font_block.palettes.get() == 0 {
             { crate::gfx::build_fonts::build_fonts(gfx) }?;
             shared.replay_file.viewer_fonts_built.set(1);
         }

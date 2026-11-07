@@ -5,11 +5,8 @@
 //! (`budget - (total + time)`, signed, at least 0), the value at the edit's start is the
 //! chosen one, edit mode flips (`xor 1`) and the edit page is the item's. Else nothing.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! Refuses (before anything) a highlighted item past the flag table (the original reads
-//! past it). Self-test: the original and the Rust version on the variables, each flag,
-//! budgets around the boundary, edit mode 0 and 1, put back.
+//! past it).
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;

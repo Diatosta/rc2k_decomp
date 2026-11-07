@@ -6,7 +6,6 @@
 //! Callers: the network's list screens (`net::settings_loop`, `net::choose_connection`,
 //! `net::choose_session`, `net::lobby_loop`), for a key they do not know, through `part`
 //! (`net::lobby_calls`).
-//! Hook removed 2026-10-21 (conversion phase 4); the original keeps every register.
 
 use crate::errors::Refused;
 use crate::input::owner::input;

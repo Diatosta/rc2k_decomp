@@ -1,8 +1,6 @@
 //! `menu::remove_secret_cars` (0x471BC7): takes the secret cars out of the two lists of
 //! cars that can be chosen, and clears the cheats.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! For the list at `off_75A042` and then the one at `off_759D16` (`sub_471BEC`): the
 //! entries that are not in the list of secret cars `off_759F4A` (`sub_471BAC`) are copied
 //! to the scratch list `unk_759F7A` and from there back to the list's start, a -1 put

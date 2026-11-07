@@ -3,8 +3,7 @@
 //! and `flt_71A03C[slot]` moved towards 1 by `flt_71A208` / `flt_5C5D60` held to 0 .. 1
 //! (through `dword_62400C`): a + (1 - a) share. What the eight are is a reading at best.
 //!
-//! In:  nothing
-//! Out: edx the slot (when reached); the rest kept; no flags read
+//! Returns: the slot (when reached)
 //!
 //! Caller: `sub_43B635` (0x43B99A), every physics step.
 //!

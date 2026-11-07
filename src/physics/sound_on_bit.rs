@@ -1,7 +1,7 @@
 //! `physics::sound_on_bit` (0x441324): when bit cl of `g_car` +0x298 (`unk_71A270`) is
 //! set, it is cleared and `physics::place_car_sound` runs.
 //!
-//! In:  cl the bit
+//! Takes: the bit
 //! Out: eax 1 << cl; the rest kept; no flags read (the callers load floats next)
 //!
 //! Callers: `sub_4411EC` (four). Refuses what `place_car_sound` refuses (before anything:

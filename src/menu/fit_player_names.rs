@@ -1,8 +1,6 @@
 //! `menu::fit_player_names` (0x411445): cuts each player's name until it is no wider than
 //! 350 pixels.
 //!
-//! In:  ecx (the x the first measuring is done with)
-//! Out: every register preserved
 //! For each of the four names in `g_playerNames` (`menu::fit_name`, 0x411474, a plain
 //! function here): the name is measured with the font at 0x51E824 (`text::measure_text`)
 //! and, while it is wider than 0x15E, loses its last character and is measured again.

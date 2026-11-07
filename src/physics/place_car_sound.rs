@@ -2,11 +2,8 @@
 //! (`g_raceSoundObjects[g_currentCar & 7]`) placed: +0x224 1; the car's place (`g_car`
 //! +0x134 x, +0x138 y, +0x13C z) less +0x6A4 .. +0x6AC (`fild` / `fisub`, exact), turned
 //! by `g_viewTurnMatrix` (`scene::rotate_point`), each part times `flt_5C5DA0` (1/65536)
-//! into +0x214, +0x218, +0x21C; +0x10 1. All in `pusha` / `popa`. A reading: the car's
+//! into +0x214, +0x218, +0x21C; +0x10 1. A reading: the car's
 //! sound placed against the view (+0x6A4 .. the listener's place).
-//!
-//! In:  nothing
-//! Out: every register kept; no flags read (the caller returns)
 //!
 //! Caller: `sub_441324` (its tail). Refuses (before anything) a null sound object.
 

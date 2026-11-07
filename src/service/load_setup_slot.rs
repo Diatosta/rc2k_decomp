@@ -1,22 +1,16 @@
 //! `service::load_setup_slot` (0x46EECC): the action of a slot on the "load setup" menu:
 //! reads the slot's saved car setup and makes it the chosen setup.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! The slot is `dword_755244 * 30 + item - 1`, and one less from item 0x11 on (`dword_755244`
-//! is read as the page of the slot list). If `read_setup_slot` fails, nothing more happens.
-//! Otherwise: all repair choices are cleared; the file's six values go to the chosen tyre
-//! (+0x30), the car's brake balance (+0x34), the chosen ride height (+0x38) and suspension
-//! stiffness (+0x3C), the car's steering sensitivity (+0x40) and the chosen gear ratio
-//! (+0x44); both flag tables are cleared; then, for gear ratio, tyre, ride height and
-//! stiffness in that order, if the chosen value differs from the installed one, its edit page
-//! is run as if confirmed, with its menu item highlighted (so the change is selected if the
-//! service time allows); the highlighted item is put back, and `menu::go_back` leaves the
-//! menu.
-//! Refuses, before anything is written: no player, a slot past 99, a flag table without
-//! its end mark.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! The slot is `dword_755244 * 30 + item - 1`, and one less from item 0x11 on (`dword_755244` is
+//! read as the page of the slot list). If `read_setup_slot` fails, nothing more happens. Otherwise:
+//! all repair choices are cleared; the file's six values go to the chosen tyre (+0x30), the car's
+//! brake balance (+0x34), the chosen ride height (+0x38) and suspension stiffness (+0x3C), the
+//! car's steering sensitivity (+0x40) and the chosen gear ratio (+0x44); both flag tables are
+//! cleared; then, for gear ratio, tyre, ride height and stiffness in that order, if the chosen
+//! value differs from the installed one, its edit page is run as if confirmed, with its menu item
+//! highlighted (so the change is selected if the service time allows); the highlighted item is put
+//! back, and `menu::go_back` leaves the menu. Refuses, before anything is written: no player, a
+//! slot past 99, a flag table without its end mark.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::go_back;

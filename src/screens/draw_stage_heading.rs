@@ -2,8 +2,7 @@
 //! string 0x481, a space, "<record +0x40>/6", ": " and the name of the record's track pack
 //! entry, at (747, 145) with the font at 0x51E9A4.
 //!
-//! In:  edi = record
-//! Out: carry as `draw_text` leaves it; every register preserved
+//! Takes record.
 //! The line reads like "es 1/6: Clocaenog centro" in the Portuguese build: string 0x481 is the
 //! short stage label.
 //!

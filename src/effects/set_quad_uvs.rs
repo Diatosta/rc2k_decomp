@@ -3,10 +3,6 @@
 //! texture places at `flt_9605B8` (0x20 bytes apart: +0x18 of Direct3D vertices from
 //! 0x9605A0, a reading).
 //!
-//! In:  nothing
-//! Out: nothing (ebp, the last place's v, is read only by the original `jitter_point`
-//!      under `trail_particles`; the Rust version reads no register)
-//!
 //! One caller, `sub_4CFB49` (the marks' frame).
 
 use crate::d3d::vertices_store::VERTICES;

@@ -6,8 +6,6 @@
 //! 0x14B hosting, 0x14C joining or launched; 0x15A once the session is on), copied to the
 //! surface (`gfx::copy_picture_to_surface`) and shown (`gfx::show_frame`).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags read by no caller)
 //! Callers: `net::settings_loop`, `net::start_link`, `net::stopping`, `net::lobby_loop`,
 //! `net::choose_car`, `net::choose_stage`.
 

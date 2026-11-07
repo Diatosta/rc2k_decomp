@@ -2,7 +2,7 @@
 //! one of eight ways (eax & 7: 1 flips ebx, 2 flips edx, 3 both; 4 .. 7 swap the two
 //! first, then 4 flips edx, 5 both, 6 none, 7 ebx), then edx = 2 edx + ebx.
 //!
-//! In:  eax the way, ebx and edx the cell
+//! Takes: the way, and the cell
 //! Out: eax & 7, ebx and edx as worked out; the rest kept; no flags read (callers store
 //!      edx)
 //!

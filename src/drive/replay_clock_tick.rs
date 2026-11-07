@@ -1,9 +1,6 @@
 //! `drive::replay_clock_tick` (0x460C20): the replay's clock: `dword_5C2534` + 1, at 100
 //! back to 0 with the frame `dword_5C2530` + 1.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `drive::replay_step`.
 
 use crate::race::owner_replay::Replay;

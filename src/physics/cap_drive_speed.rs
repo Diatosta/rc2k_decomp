@@ -3,9 +3,6 @@
 //! unordered one counts as below); `g_carDriveSpeed` held to at most the speed plus it
 //! (through `dword_62400C`; a drive speed below that, or unordered, is left).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (the caller's next is a `mov`)
-//!
 //! Caller: `sub_43DFB1` (0x43E0DD).
 
 use crate::math::x87;

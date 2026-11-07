@@ -5,16 +5,12 @@
 //! (`files::make_directory`) and entered. The path's bytes are cut with a NUL and put back
 //! as the walk goes. A failed change or make ends it.
 //!
-//! In:  edx the path (normalised: ending in `\\`)
-//! Out: every register kept (`pusha` / `popa`); carry set when a folder could not be gone
-//!      into or made (the failing call's flags), else zero set and carry clear
 //! A path without its closing `\\` (as `install_files` gives every folder) is scanned on
 //! past its NUL to the next `\\`, as the original does. Refuses (as met) a scan of 0x400
 //! bytes from the path's start, and a UNC path without its share's `\\`.
 //! Callers `install::install_files`, `install::install_clio`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{make_dir, rb, rw, set_cd, wb};
@@ -26,7 +22,7 @@ const LIMIT: u32 = 0x400;
 const PAST_END: BadInput =
     BadInput("a path that does not end in \\ (the original reads past its end)");
 
-/// The folders of `path` (edx) gone into, made where missing; whether it worked (the
+/// The folders of `path` gone into, made where missing; whether it worked (the
 /// original's carry clear).
 pub fn make_folders(path: impl Into<Place>) -> Result<bool, Refused> {
     use crate::install::folders::{Folders, Native};

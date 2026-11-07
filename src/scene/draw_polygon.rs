@@ -2,8 +2,6 @@
 //! passes by its material.
 //!
 //! In:  nothing, all in variables (below)
-//! Out: the original leaves every register changed; its eleven callers go on without
-//!      reading them, and the Rust version keeps them
 //!
 //! The polygon is `g_polygonVertexCount` entries of the work table `dword_975510` (0x44
 //! bytes each), picked through the list `dword_977710`. An entry: +4 the projected

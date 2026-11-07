@@ -8,8 +8,6 @@
 //! `asc_5C2F84`.
 //!
 //! In:  nothing (the original reads none of its registers; it keeps edi)
-//! Out: nothing (no caller reads the registers it leaves: `race::loadlevel_init` reads
-//!      none after 0x444670)
 //!
 //! Caller: `race::loadlevel_init` (0x444670, with the log off round it). The file number is
 //! its Rust version, also `init_marks`' seed; then `init_marks`. Refuses a car count of 0

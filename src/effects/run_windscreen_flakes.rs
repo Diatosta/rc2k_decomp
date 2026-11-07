@@ -7,9 +7,6 @@
 //! less its z; colour `g_viewLight`'s low 24 bits under the alpha: not (age over
 //! `dword_8BC232`), shifted left 24). Last `scene::depth_buffer_on`.
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! Caller: `sub_4BF60F` (0x4BF7E9). The spawning is its Rust version.
 
 use crate::effects::mask_store::Masks;

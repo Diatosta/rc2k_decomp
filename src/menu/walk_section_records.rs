@@ -6,10 +6,7 @@
 //! reset (`menu::reset_player_totals`). Tag 4 ends the walk, tag 3 too with
 //! `dword_755928` 1; then the drivers' condition reset.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: `sub_4A0E60`, `sub_4AA4D7`. The steps are their Rust versions. Refuses what they refuse
+//! The steps are their Rust versions. Refuses what they refuse
 //! for any record of the walk, and a walk past 64 records, before anything.
 use crate::errors::Refused;
 use crate::menu::event_flow::Fault;
@@ -44,7 +41,7 @@ fn walk(screens: &Screens) -> Result<Vec<(u32, Step)>, Refused> {
     walked
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn walk_section_records(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};

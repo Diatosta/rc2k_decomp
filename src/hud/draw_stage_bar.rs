@@ -7,7 +7,7 @@
 //! four quads, the part's colour inside under alpha 0x78, and between parts a 0x212463
 //! line.
 //!
-//! In:  ebp the HUD's record
+//! Takes: the HUD's record
 //! Out: ebx the parts drawn (kept with none: the original zeroes it after the test), ecx 0;
 //!      the rest kept
 //!

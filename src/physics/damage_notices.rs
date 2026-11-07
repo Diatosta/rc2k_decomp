@@ -7,7 +7,6 @@
 //! `to` and queue a notice (`physics::queue_notice`: esi the notice, eax the gauge, ebx
 //! the rank); falling steps (the hysteresis of some gauges), below, set it back.
 //!
-//! In:  nothing
 //! Out: eax, ebx, esi the last notice's, edx as `queue_notice` leaves it (kept when none);
 //!      the rest kept; no flags read (the caller goes on)
 //!

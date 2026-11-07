@@ -3,7 +3,6 @@
 //! In:  esi = first palette, edx = second palette, edi = where the result goes,
 //!      ecx = number of entries, eax = how far towards the second (0 .. 256),
 //!      ebx = pixel format
-//! Out: every register preserved
 //! For each entry both colours are taken apart with `pixel_to_components`; each of the three
 //! low components becomes first + ((second - first) * eax >> 8), as a byte; and the result
 //! goes back through `components_to_pixel`. The fourth component is not computed: it is

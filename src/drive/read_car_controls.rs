@@ -11,7 +11,6 @@
 //!
 //! The bytes after its `retn` (0x43A4E5 ..) are another entry that nothing calls.
 //!
-//! In:  nothing
 //! Out: eax as the path leaves it (the last bit's, `next_camera_view`'s, or
 //!      `start_blend`'s count); esi `g_car` when the view changed; the rest kept; no
 //!      flags read (callers go on with calls)

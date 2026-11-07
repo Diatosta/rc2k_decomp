@@ -6,7 +6,6 @@
 //! vector (+0xC ..) set to (-1 / 1, 0, ±1) by its corner and turned the same way. A
 //! reading: the weight on each wheel, the corners' places.
 //!
-//! In:  nothing
 //! Out: esi 0x6147DC (the last turned); the rest kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B723), every physics step.

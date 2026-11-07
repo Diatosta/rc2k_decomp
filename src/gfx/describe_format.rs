@@ -1,7 +1,6 @@
 //! `gfx::describe_format` (0x405BB6): works a pixel format's layout out from its masks.
 //!
-//! In:  ebx = the format (`PixelFormat`: +0 layout, +4 four masks, +0x14 number)
-//! Out: every register preserved; +0 and +0x14 written
+//! Takes: the format (`PixelFormat`: +0 layout, +4 four masks, +0x14 number)
 //! If each of the four masks is empty or one run of bits (`sub_405C79`): the layout is
 //! four bytes, lowest first the masks' top bits' numbers less 7, 15, 23 and 31 (an empty
 //! mask counts as 0xFF; `sub_405C65`), with the sign bit set: the rotation counts the

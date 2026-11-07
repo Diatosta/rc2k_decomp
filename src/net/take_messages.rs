@@ -17,9 +17,6 @@
 //!   lock (`net::lock_received` .. `net::unlock_received`);
 //! - others dropped.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags of the end's compare are
-//!      read by no caller: the receiving thread goes on to its own stores and compares)
 //! Caller: `net::receive_thread` (with a network session, when its event is signalled).
 //! Refuses (before anything) more than 16 players (the blocks' room).
 

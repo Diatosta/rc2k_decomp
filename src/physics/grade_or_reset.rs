@@ -2,7 +2,6 @@
 //! (the work copy's grades reset); else `physics::rate_current_car` (its damage made into
 //! grades and failures).
 //!
-//! In:  nothing
 //! Out: as the branch taken leaves them; no flags read
 //!
 //! Caller: `physics::set_handling` (0x43EB5D), first.

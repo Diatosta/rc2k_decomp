@@ -1,17 +1,10 @@
 //! `threading::create_event` (0x41103C): an event without a name,
 //! `CreateEventA(0, eax, ebx, 0)`.
 //!
-//! In:  eax = manual reset (0 or 1), ebx = signalled at first (0 or 1)
-//! Out: eax = the handle; `cmp eax, 1`: carry set (and zero clear) if there is none; ecx,
-//!      edx pushed and popped, the rest kept by Win32
+//! Takes: manual reset (0 or 1), signalled at first (0 or 1)
+//! Returns the handle, or none (the original's carry flag).
 //! One caller, `net::set_up` (0x4184AF: eax 0, ebx 0), which raises fatal error 0x80168501
-//! on the carry. The Win32 call is made from Rust (the same in both programs). Shadow mode
-//! runs the original alone (an event cannot be made twice). Self-test: both make events of
-//! each kind, the handles' state read (`WaitForSingleObject` with 0 ms), then closed.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
+//! on the carry. The Win32 call is made from Rust.
 
 // ---- Rust version ----
 

@@ -3,7 +3,6 @@
 //! `physics::set_flag_51659C` (0x45D151, `dword_51659C`), `physics::set_flag_5165A0`
 //! (0x45D16D, `dword_5165A0`), `physics::set_flag_5165A4` (0x45D189, `dword_5165A4`).
 //!
-//! In:  nothing
 //! Out: eax the entry; the rest kept; no flags read (callers go on with other
 //!      instructions)
 //!

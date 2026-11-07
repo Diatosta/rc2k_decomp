@@ -2,7 +2,6 @@
 //! with a carousel.
 //!
 //! In:  ecx, passed on to the carousel
-//! Out: every register preserved
 //!
 //! `scene::clear_depth_buffer`; `scene::assign_kind_textures`;
 //! `scene::choose_carousel_pictures`; `scene::assign_menu_textures`;

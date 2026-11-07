@@ -1,9 +1,6 @@
 //! `menu::start_a8_two` (0x4A9E3D): the A8 championship for two players in turn (event mode 0xB);
 //! then `menu::run_a8_championship`. The shape is `menu::start_event`'s.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through a start menu's table. Refuses a missing player before anything, and what the
 //! callees refuse when they are reached.
 

@@ -5,7 +5,6 @@
 //! In:  eax, ecx = the icon sheet's two pictures (the second for the alpha), ebx = the
 //!      system texture, edx, esi = where on the sheet the icon is, edi, ebp = where on
 //!      the texture it goes
-//! Out: every register preserved
 //!
 //! - ebx, edi, ebp, edx, esi to `dword_5BE8F1`, `_8F5`, `_8F9`, `_8FD`, `_901`, the
 //!   icon's size 0x52 x 0x2A to `dword_5BE905`, `_909`.
@@ -126,7 +125,7 @@ pub struct CarIcon {
 
 // ---- Rust version ----
 
-/// The Rust version. The original keeps every register (`pusha` .. `popa`).
+/// The Rust version. The original keeps every register.
 pub fn upload_car_icon(upload: &IconUploadCell, icon: &CarIcon) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
     let texture = icon.texture;

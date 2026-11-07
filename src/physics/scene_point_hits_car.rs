@@ -2,7 +2,7 @@
 //! point whose number is the dword at esi+4 (`g_scenePoints` + 12 n), with no offset:
 //! `dword_614108` + 1, `dword_6D3B40` .. = 0.
 //!
-//! In:  esi the record (+4 the point's number), ebp the object
+//! Takes: the record (+4 the point's number), the object
 //! Out: CF as `point_hits_car` leaves it; ebx the number, esi the point; the rest kept
 //!
 //! Caller: `sub_45E3BF` (0x45E48C, `jb`).

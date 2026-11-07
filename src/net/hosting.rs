@@ -1,9 +1,7 @@
 //! `net::hosting` (0x4176D5): "hosting" shown (string 0x151, as `net::connecting` shows
 //! its), then the session made (`net::host_session`).
 //!
-//! In:  nothing
-//! Out: whether `net::host_session` worked (the original: its flags, carry when it failed;
-//!      every register kept)
+//! Returns whether `net::host_session` worked.
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;

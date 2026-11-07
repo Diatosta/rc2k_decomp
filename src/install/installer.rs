@@ -435,7 +435,7 @@ pub fn page_action(
     Ok(())
 }
 
-/// A list's key action (+0x14): `key` (eax: al the key, ah its bits); whether it took the
+/// A list's key action (+0x14): `key`; whether it took the
 /// key (the original's zero). The game's lists hold only the folder page's.
 pub fn key_action(
     install: &'static crate::install::owner::Install,

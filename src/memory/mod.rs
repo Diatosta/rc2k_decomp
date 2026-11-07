@@ -1,6 +1,4 @@
-//! The game's memory allocator: blocks on lists, and the figures it keeps about them. No
-//! hooks left (conversion phase 4, 2026-10-22): Rust callers call these directly; the
-//! game's own code (hooked DLL) runs the originals, on the same lists.
+//! The game's memory allocator: blocks on lists, and the figures it keeps about them.
 
 pub mod free_list;
 pub mod owned;

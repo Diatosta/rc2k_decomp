@@ -1,9 +1,6 @@
 //! `menu::load_slideshow_picture` (0x4684F5): the slideshow's picture of the car shown,
 //! the next one that is there.
 //!
-//! In:  eax = the way to look (below 0: back, else on)
-//! Out: every register preserved
-//!
 //! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17); its pictures are
 //! `off_759B0E[car]` (`;3files\g\slides\mgnslNN.png` and so on) with the number `dword_755994`.
 //! Starting from that number: the path made (`files::numbered_path`); if the file is there it is

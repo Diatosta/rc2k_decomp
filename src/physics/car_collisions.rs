@@ -8,8 +8,7 @@
 //! `dword_6D3C00[k]`, `dword_6D3C20[k]` into `dword_6D3BD4` ..) `physics::corner_hits_car`.
 //! Every step in `pusha` / `popa`: only ebx, the count, is left.
 //!
-//! In:  nothing
-//! Out: ebx the cars' count (at least 1) in modes 0 and 2; the rest kept; no flags read
+//! Returns: the cars' count (at least 1) in modes 0 and 2
 //!
 //! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) more
 //! than eight cars or a null block among them (the original reads past `g_carBlocks` or

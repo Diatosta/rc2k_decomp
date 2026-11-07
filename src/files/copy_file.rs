@@ -5,19 +5,13 @@
 //! the destination as its last access and last write time (`sub_402F4D`:
 //! `DosDateTimeToFileTime`, `SetFileTime`; so to two seconds). A failed read, a short or
 //! failed write or a failed time ends it; both files are closed (the destination first).
-//! `sub_402F1C` and `sub_402F4D` are not hooked (each a Win32 call or two, as
+//! `sub_402F1C` and `sub_402F4D` are not separate functions (each a Win32 call or two, as
 //! `files/handle.rs`'s): `files::handle::{file_time, set_file_time}`, through std and
 //! `rc2k_core::files::dos_time`.
 //!
-//! In:  eax = the source's path, ebx = the destination's (both through `resolve_path`)
-//! Out: every register kept (`pusha` .. `popa`); carry clear if it was all done, set if
-//!      not (zero set if done)
 //!
-//! Five callers: `install::run_after_exit`, `sub_4139E5`, `sub_41EA1F`, `sub_421B42`,
-//! `sub_4599AD`. Refuses (before anything) what `open_by_mode` refuses (a resolved path
-//! past its buffer).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Five callers: `install::run_after_exit`, `sub_4139E5`, `sub_41EA1F`, `sub_421B42`, `sub_4599AD`.
+//! Refuses (before anything) what `open_by_mode` refuses (a resolved path past its buffer).
 
 use crate::errors::BadInput;
 use crate::system::owner::system;

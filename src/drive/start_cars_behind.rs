@@ -19,9 +19,6 @@
 //!
 //! By the look of it a time trial's pace cars (a reading).
 //!
-//! In:  nothing
-//! Out: the registers as the path leaves them (through its calls); no flags read
-//!
 //! Caller: `drive::race_mode_cars` (0x436758). Refuses a start count (`dword_6051B4`) above
 //! 0x58 (the start tables' room) or a start table car past the eight blocks, before
 //! anything; the calls' refusals mid-way (the cars, the starts' variables and the work car

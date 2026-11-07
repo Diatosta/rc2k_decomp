@@ -1,7 +1,7 @@
 //! `sound::thin_spot_voices` (0x40E9F8): of the voices heard with one sound, the nearest
 //! two found and one of them, by a random bit, kept heard; unless one is playing.
 //!
-//! In:  eax the sound
+//! Takes: the sound
 //! Out: ebp the sound; the others as the original leaves them (see the code); esi, edi
 //!      preserved
 //! The pickers' work cleared. For each voice heard with the sound: one already playing

@@ -3,7 +3,6 @@
 //! bit 16 of `g_cheats` clear (`bt`): `physics::set_flag_5165a4`, then +0xA4 1, the
 //! notice +0x71C 0xC7, +0x730 0x32 and +0x72C -1.
 //!
-//! In:  nothing
 //! Out: when it ran, eax as `set_flag_5165a4` leaves it; the rest kept; no flags read
 //!      (the caller's next is a call)
 //!

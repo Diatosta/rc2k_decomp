@@ -8,8 +8,7 @@
 //! `effects::draw_flare_part` with corner `dword_92052A`[k], size `dword_9205B2`[k] times
 //! `flt_9206DA` (`fistp`), angle 0, colour 0xFFFFFF, that alpha.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads the registers it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4C4EA2`. Refuses null settings and a part's corner past `g_marksCorners`,
 //! before anything.

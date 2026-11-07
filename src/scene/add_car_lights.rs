@@ -1,7 +1,6 @@
 //! `scene::add_car_lights` (0x44F1FE): which cars' lamps light an object.
 //!
-//! In:  nothing
-//! Out: ecx = the number of cars, esi = the last car's block; everything else preserved
+//! Returns: the number of cars, the last car's block
 //!
 //! Goes through the `dword_63DB90` blocks of `g_carBlocks` and calls
 //! `scene::add_car_light` for:

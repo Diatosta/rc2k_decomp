@@ -6,12 +6,10 @@
 //! key or any other key: 0x52 a screenshot (`gfx::take_screenshot`) with screenshots on.
 //! Then a key that did something (zero set) sets `byte_51D414` and gives zero set.
 //!
-//! In:  eax the key (al; ah its bits), esi the item, edi the list
-//! Out: zero set when the key did something; ebx (and what the callees leave) changed
+//! Takes the key, item, list.
 //! Caller `install::run_page`, reading zero.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::menu::list_handle::{ListItem, ListMenu};

@@ -5,7 +5,7 @@
 //! (`g_surface`'s width each) put at y + 0x80 by `gfx::put_surface_pixel`, unlocked
 //! (`sub_41AB02`), and slot `dword_5D1E10` forgotten (`scene::forget_slot_texture`).
 //!
-//! In:  nothing (`g_marksSettings`)
+//! Works on `g_marksSettings`.
 //! Out: unchanged when nothing changed; else eax `dword_5D1E10`, ecx the width, edx 0x7E,
 //!      ebp and esi as the last pixel left them
 //!

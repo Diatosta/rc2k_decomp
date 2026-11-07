@@ -1,12 +1,10 @@
 //! `text::measure_string_by_id` (0x40232C): builds the text of a string id in the shared text
 //! buffer, NUL-terminates it and measures it with `measure_text`.
 //!
-//! In:  eax = string id, ebx = font (one in measure mode), ecx = x
+//! Takes: string id, font (one in measure mode), x
 //! Out: as `measure_text`: ebx = lines, ecx = the widest line, edx = y, eax = 0, carry;
 //!      esi, edi, ebp preserved
 //! 13 callers. A text longer than the buffer is refused: the original writes past it.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::gfx::typefaces::FontRef;

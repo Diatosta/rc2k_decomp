@@ -5,8 +5,6 @@
 //! `dword_7559A4` is 1) also a yellow (0xFFFF00) border and one a pixel outside it. Each a
 //! `scene::draw_tinted_quad`.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Caller: `screens::draw_two_column_panel`.
 

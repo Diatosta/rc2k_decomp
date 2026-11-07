@@ -1,8 +1,7 @@
 //! `scene::load_slot_texture` (0x425ADE): gives a texture slot the texture it wants,
 //! if it holds another.
 //!
-//! In:  ecx = the slot
-//! Out: every register preserved
+//! Takes: the slot
 //!
 //! Nothing if the slot wants none (`dword_5DA968[slot]` is -1) or holds what it wants
 //! (`dword_5DB968[slot]`). Else `scene::load_texture` (0x44E778, which is only `sub_41A8F9` of

@@ -186,7 +186,7 @@ fn write(handle: u32, bytes: &[u8]) -> (u32, bool) {
 /// `handle`; unless `dword_5BEC80` is 1 they are packed (`race::pack_runs` into
 /// `g_pngInfo`, rounded up to a dword) and the packing written when smaller (eax then the
 /// bytes written negated). Gives eax and the carry (a failed write); the original keeps
-/// the rest (`pusha` / `popa`), and its zero flag is read by no caller. Both callers write
+/// the rest, and its zero flag is read by no caller. Both callers write
 /// the whole replay block (`dword_9613A4`, 0x2810 bytes): here it is that block.
 pub fn write_replay_chunk(shared: &Shared, handle: u32) -> Result<(u32, bool), Refused> {
     let system = crate::system::owner::system();

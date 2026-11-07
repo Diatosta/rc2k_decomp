@@ -3,8 +3,7 @@
 //! revs), +0x1DC (armed by its countdown at low throttle) and +0x1F8 (armed with a gear
 //! change; its pitch +0x210). Names by those readings.
 //!
-//! In:  ebx the car's sound object, esi the request
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the car's sound object, the request
 //! Nothing in state 3 (+0x10C). The request's place = +0x2C .. +0x34 less +0x38 ..
 //! +0x40; the slots at +0x1C4 and +0x1DC (`sound::play_timed_slot`); then, the
 //! request's pitch factor (+0x20) times the object's +0x210 for it and put back after,

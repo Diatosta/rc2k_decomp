@@ -1,17 +1,13 @@
 //! `menu::select_stage_loop` (0x482099): the stage selection "ESCOLHA ETAPA" of the start menus
 //! under sub_482382.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; left without the question, the
 //! highlight is not saved; the next frame begins with the steps after the first frame; the
 //! question is not put while `dword_52A910` is 1; the steps that are more than a call or a
 //! store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "ESCOLHA ETAPA", not yet a visit.
-//! Callers: `sub_418347`, `sub_482382`, `sub_4824C1`, `sub_4826A2`, `sub_4828B0`, `sub_482B7A`.
-//! Rust callers run its `entry` (`routes.rs`); the registers above are the original's, for
-//! reference.
+//! Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

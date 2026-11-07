@@ -4,7 +4,6 @@
 //! `g_carBlockStore`) kept in slot frame & 7 of `unk_6EF7E8`, and while recording
 //! (`dword_5C5CE0` 1) `drive::save_replay_cars`.
 //!
-//! In:  nothing
 //! Out: eax / edx / ebx as the `div` leaves them (not playing), at a whole frame eax the
 //!      slot's offset (`imul`), ecx 0, esi / edi past the copy, or as `save_replay_cars` leaves them; the rest kept; no
 //!      flags read

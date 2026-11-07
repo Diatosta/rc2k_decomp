@@ -5,19 +5,17 @@
 //! and loaded (`strings::load_language`). Then the items past the languages
 //! (`g_languageCount` of them, up to 9) get 0x40 (hidden).
 //!
-//! In:  ebx the state, edi the list
-//! Out: eax and what the callees leave; the flags of the hide loop (no caller reads them)
+//! Takes the state, list.
 //! A page action. Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::load_language;
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
-/// `state` the list action's (ebx), `list` the page's.
+/// `state` which call of the list action this is (0 the start, negative the end), `list` the page's.
 pub fn language_page(
     install: &'static crate::install::owner::Install,
     state: u32,

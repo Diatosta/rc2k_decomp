@@ -4,14 +4,10 @@
 //! of them) loaded (`gfx::load_picture`) and converted (`gfx::convert_picture`); a failed
 //! conversion (carry) is fatal error 0x80712435.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
-//! Callers: the service area's screens (0x47296A, 0x472B53, 0x4A1C0F). Its calls: the
-//! Rust versions. Refuses (before anything) a current player past the four or missing, and a car
-//! past the table.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Callers: the service area's screens (0x47296A, 0x472B53, 0x4A1C0F). Its calls: the Rust
+//! versions. Refuses (before anything) a current player past the four or missing, and a car past
+//! the table.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;

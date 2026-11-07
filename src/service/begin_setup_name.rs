@@ -2,12 +2,8 @@
 //! slot: the name is copied to the text entry's backup and cleared, the entry's length is 0
 //! and `dword_7556A8` (an entry is going on) is 1.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! The action of the slots on the "save setup" menu (six menu tables point at it); from then
-//! on the screen loop runs `edit_setup_name`. Refuses a slot past 99.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! The action of the slots on the "save setup" menu (six menu tables point at it); from then on the
+//! screen loop runs `edit_setup_name`. Refuses a slot past 99.
 
 use crate::errors::BadInput;
 use crate::menu::backup_text::backup_text;

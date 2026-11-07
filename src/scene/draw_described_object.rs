@@ -7,7 +7,6 @@
 //!      (<< 8; the first & 0xFFFF), with +0x11 the second turns +9 / +0x12 / +0x13, +0x14 ..
 //!      +0x17 its light, +0x18 its size, +0x22 / +0x23 its light's slant, +0x24 the sun's
 //!      light, +0x25 bits 1 .. 2, +0x2C its shine
-//! Out: the registers as the drawing leaves them (callers return, or `popa`)
 //!
 //! Nothing for an object above 0x64 or a point past `g_scenePointCount`, nor in a race for
 //! object 0x3F. Objects 0x38 and 0x3A .. 0x3F are signs: upright (0x2000), full light, 0x3D /

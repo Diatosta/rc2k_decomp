@@ -2,12 +2,10 @@
 //! (`install::item_link`), 4 an edit begun (`install::start_edit`), 6 an action
 //! (`install::item_action`).
 //!
-//! In:  esi the item, edi the list
-//! Out: bl the kind; as the callee leaves them, else the flags of `cmp bl, 6`
+//! Takes the item, list. Returns the kind.
 //! Caller `install::page_key`, reading zero.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::menu::list_handle::ListItem;

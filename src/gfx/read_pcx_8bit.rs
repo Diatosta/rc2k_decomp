@@ -1,7 +1,7 @@
 //! `gfx::read_pcx_8bit` (0x411C6B): decodes a PCX file of one plane, 8 bits a pixel with a
 //! palette, into the picture buffer as 32-bit pixels.
 //!
-//! In:  eax = path
+//! Takes: path
 //! Out: carry = failed; every register preserved
 //! Opens the file as the stream `dword_5195E4`; reads the palette, the last 0x300 bytes of
 //! the file, with a seek and a plain read on the stream's handle, and seeks back to the

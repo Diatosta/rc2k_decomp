@@ -2,15 +2,11 @@
 //! with the font's fixed width (+0x1C) set to 6 for ':' and '.', 0x10 for the others, so
 //! that the digits keep their columns; at most 11 characters, up to the NUL.
 //!
-//! In:  eax = font, ebx = text, ecx = x, edx = y
-//! Out: every register kept (`pusha` .. `popa`); the flags of the loop's last test (no
-//!      caller reads them)
+//! Takes: font, text, x, y
 //!
 //! Each character is drawn as a text of its own (the original swapped the dword after it
 //! for 0 around `text::draw_text_keep_regs` and put it back: here the character and a NUL
 //! are drawn as a value and the buffer is not touched); x moves on by the width. The font's +0x1C is 0 at the end. Callers: `net::lobby_frame` (twice).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
 

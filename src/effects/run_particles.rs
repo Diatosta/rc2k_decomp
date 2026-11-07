@@ -19,8 +19,7 @@
 //! view (`flt_5EA3CC` + 0x30) from two steps of the marks' random by
 //! `effects::add_drift_particle`.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (its caller reads no register after it)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `effects::run_frame` (0x4D165E). Refuses, before anything, null settings, a null
 //! entry or link on the way, a kind other than 0, 4, 8, 9 (the original's stack goes wrong:

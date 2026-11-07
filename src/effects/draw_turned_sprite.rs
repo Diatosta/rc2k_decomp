@@ -9,7 +9,6 @@
 //! and `g_polygonVertexCount` 4.
 //!
 //! In:  st(0) .. st(2) the place (popped), ebx the angle, ecx the colour, edx the size
-//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Callers: `sub_4D2DED` and its two siblings (0x4D2ECF, 0x4D2F00). Refuses an angle of
 //! 0x1000 or more (the tables' size) and null marks settings (`clip_quad`'s refusal),

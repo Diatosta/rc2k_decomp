@@ -1,7 +1,6 @@
 //! `scene::next_noise` (0x440F3E): the next number of the scene's own generator.
 //!
-//! In:  nothing
-//! Out: eax = the number; everything else preserved
+//! Returns: the number
 //!
 //! One step on the state `dword_614C54` (`scene::noise_step`, 0x440F4E, inlined): bit 22, then
 //! bits 2 and 1 of the low byte as it then is, each flip bit 0; the whole turned right by one;

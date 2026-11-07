@@ -2,7 +2,6 @@
 //! it lies on the screen and as triangles if it has to be clipped.
 //!
 //! In:  nothing; the polygon's entries are the work table's first, in order
-//! Out: the original leaves every register changed; the Rust version keeps them
 //!
 //! The pool of records, the list (0, 1, 2 .. and a 0) and the next free entry are set as
 //! `scene::draw_clipped_polygon` sets them; `scene::project_polygon`; then `sub_451EED` says

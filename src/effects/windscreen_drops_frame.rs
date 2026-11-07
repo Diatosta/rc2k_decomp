@@ -9,8 +9,7 @@
 //! `sub_41ADB9`, the platform's). Then, with fewer live than the settings' +0x273C and the
 //! drift on, `effects::windscreen_drops_spawn`.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (its caller reads no register after it)
+//! Works on `g_marksSettings`.
 //!
 //! The float steps run on the x87 model (`math::x87_float`), in the original's order and
 //! rounding. Refuses, before anything, null settings and a live item of a kind past 7.

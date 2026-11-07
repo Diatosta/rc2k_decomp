@@ -1,14 +1,11 @@
 //! `menu::new_simulation_loop` (0x4A99AA): the loop of the screen that starts a new simulation.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `sral.png`; leaving is not asked about; the
 //! steps that are more than a call or a store are the functions below, generated from the
 //! listing.
 //! The name is a reading from the title string of its menu, "NOVA SIMULAÇÃO", not yet a visit.
-//! Callers: `sub_4A96BF`. The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

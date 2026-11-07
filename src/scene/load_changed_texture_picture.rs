@@ -1,8 +1,7 @@
 //! `scene::load_changed_texture_picture` (0x42574B): a system texture gets the picture
 //! it should have, if it has another.
 //!
-//! In:  ecx = the texture
-//! Out: every register preserved
+//! Takes: the texture
 //!
 //! Nothing if the texture wants no picture (`dword_5D8968[texture]` is -1 or 0) or has the one
 //! it wants (`dword_5D9968[texture]`). Else `scene::load_texture_picture` and the picture is

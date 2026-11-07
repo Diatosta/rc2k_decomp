@@ -1,16 +1,13 @@
 //! `menu::leave_question_loop` (0x47FA94): the loop of the "leave?" question that
 //! `menu::confirm_leaving` puts.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `mainscr.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is not asked
 //! about; its own 3D list goes to `g_sceneList` before the first frame only.
 //! A reading, not yet a visit: its one caller is `menu::confirm_leaving`, and it sets
 //! `g_askingYesNo` to 1 while it is up, which is what makes `handle_yes_no` listen.
-//! Callers: `menu::confirm_leaving`. Rust callers run its `entry` (`routes.rs`); the registers
-//! above are the original's, for reference.
+//! Callers: `menu::confirm_leaving`. Rust callers run its `entry` (`routes.rs`).
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

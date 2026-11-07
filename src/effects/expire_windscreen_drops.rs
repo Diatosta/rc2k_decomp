@@ -5,9 +5,6 @@
 //! `dword_814720`, >> 3) is the low byte of one of the last `dword_81622E` steps' values
 //! (`dword_844A10`[(`dword_84460C` + k) & 0xFF], the latest first).
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! Caller: `effects::windscreen_drops_step` (0x4BCAF1).
 
 use crate::effects::mask_store::Masks;

@@ -3,9 +3,7 @@
 //! text with string 4 (the cursor) after it, built in the game's text buffer; an empty text
 //! as string 0x16E; any other as it is.
 //!
-//! In:  eax = the text, esi = the item, ebp = y
-//! Out: as `text::draw_text` leaves them (eax 0, ebx past the text, ecx, edx); ebp + 0x1E;
-//!      no `pusha`
+//! Takes the text, the item and y.
 //! Callers: `net::settings_frame`, `net::draw_number_value` (which goes on into it).
 
 use crate::errors::Refused;

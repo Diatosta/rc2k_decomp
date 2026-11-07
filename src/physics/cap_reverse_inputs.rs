@@ -3,9 +3,6 @@
 //! floats `flt_614234` and `flt_614238` held to at most `flt_5C5D3C` (2.0; one that is
 //! below it, or unordered, is left).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (the caller's next is a call)
-//!
 //! Caller: `sub_43DFB1` (0x43E519).
 
 use crate::race::owner::Race;

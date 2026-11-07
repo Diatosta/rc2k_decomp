@@ -334,7 +334,7 @@ pub fn set_up_mode_4_cars(race: &Race) -> Result<(), BadInput> {
 
 /// `race::clear_race_tables` (0x4632D4): entries 9 .. 0 of the thirteen tables 0 (four
 /// of them overlap, one dword apart: the points' tables from entries 0 .. 3). Every
-/// register kept (`pusha` / `popa`).
+/// register kept.
 pub fn clear_race_tables(shared: &Shared) {
     let w = &shared.work;
     let tables: [(&[Dword], usize); 13] = [

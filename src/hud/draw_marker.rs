@@ -2,7 +2,7 @@
 //! the top at the share +0x6C over +0x68 of the HUD's record, times `flt_75C0A8` plus
 //! `flt_75C0AC` (`fistp` through `dword_75C060`), coloured `dword_75BF50`.
 //!
-//! In:  ebp the HUD's record
+//! Takes: the HUD's record
 //! Out: eax 0x5C0, ebx the x, ecx 0, esi the rectangle (as `add_sprite` keeps them)
 //!
 //! Caller: layout 0's drawer (0x4B1F0C).

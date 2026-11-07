@@ -1,8 +1,7 @@
 //! `gfx::load_picture_with_overlay` (0x4118D1): a picture loaded, and a second laid
 //! over it but for its magenta.
 //!
-//! In:  eax = the picture's path, ebx = the overlay's
-//! Out: every register preserved; carry = the picture could not be read
+//! Takes: the picture's path, the overlay's
 //!
 //! `gfx::load_picture` of the first; if it was read, memory of 0x1D4C00 + 0xC80 bytes from the
 //! work list (`g_lexiconMemory`; Rust's since phase 12, `gfx::picture::Buffer::Overlay`),

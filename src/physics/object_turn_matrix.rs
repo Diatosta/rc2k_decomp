@@ -6,10 +6,6 @@
 //! `flt_5EA444`. Then each of its 16 floats times `dword_635038` / 16 (`fild`, `fld1`
 //! doubled four times, `fdivp`; the share through `dword_62400C`).
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them (eax, ebx `dword_635038`, ecx 0, edx, esi
-//!      past the matrix, edi, ebp); no flags read (the caller returns)
-//!
 //! Caller: `sub_45E755`. Refuses (before anything) an object past 0xFF.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

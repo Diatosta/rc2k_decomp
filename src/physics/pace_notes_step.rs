@@ -6,10 +6,9 @@
 //! not negative, 0 when at or past the count (by the sign); past the last called
 //! (`unk_71A074`, unsigned): more than 16 past moves it up to ebx first, then every
 //! checkpoint after it up to ebx (at least one) has its group called
-//! (`physics::queue_pace_note`, edx the checkpoint, inside `pusha` / `popa`), and
+//! (`physics::queue_pace_note`, edx the checkpoint), and
 //! `unk_71A074` = ebx. Then (unless it left at the start) `physics::expire_car_events`.
 //!
-//! In:  nothing
 //! Out: the start's gates closed: every register kept; else ebx and edx as above (edx not
 //!      set when nothing was called) and what `expire_car_events` leaves; no flags read
 //!

@@ -2,8 +2,7 @@
 //! by `jnz` from 0x4CCCDE when `dword_93A1D6` is not 0, left by `popa; retn`): one ring
 //! entry of kind 0x15 for the wheel kind 1, when the rate gate passes.
 //!
-//! In:  edi the wheel record, esi the car object
-//! Out: every register kept
+//! Takes: the wheel record, the car object
 //!
 //! The rate (`dword_9356B0`): (1 - 1 / (the wheel's +0xC by `flt_93A312`, `flt_93A316`,
 //! plus `flt_93A31A`)) by `flt_93A31E`; then `marks/emitters.rs`' gate. The entry: its

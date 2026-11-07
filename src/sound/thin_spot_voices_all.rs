@@ -2,8 +2,6 @@
 //! sounds of which only one voice is heard: 0x1B1 .. 0x1B6, 0x1B9, 0x1BA, 0x1B0, 0x1BE,
 //! 0x1C0, 0x1C3.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! Each call with eax the sound and the other registers the one before left. One caller,
 //! `sound::spot_sounds`.
 //!

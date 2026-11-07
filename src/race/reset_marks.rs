@@ -3,9 +3,6 @@
 //! replay (`dword_96E478` 0, `dword_96E47C` the count) and the block shown read again
 //! (`drive::read_replay_frame_0`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Callers: `race::viewer_action` (the cut and the paste), `race::undo_edit`. Refuses what
 //! `read_replay_frame_0` refuses (what it wrote put back).
 

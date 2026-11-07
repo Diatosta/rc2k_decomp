@@ -1,9 +1,6 @@
 //! `menu::begin_event` (0x472BAA): the drivers and the four players made ready for a new
 //! event.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! `dword_755254` and `dword_755950` 0; every driver of `g_drivers` (`standings::drivers`'s walk)
 //! gets +0x10, +0xC, +0x20 = 0 and +0x24 = 1 (`Driver::begin`); `dword_75592C` 1,
 //! `dword_755978` 0; then for each player n (the current player `dword_75598C` = n, left at 3):

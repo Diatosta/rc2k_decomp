@@ -3,7 +3,6 @@
 //! positive; st(0) and st(1) are read, not popped.
 //!
 //! In:  esi the rectangle, ebx x, ecx y, st(0) / st(1) the scales (kept)
-//! Out: all kept (`pusha` .. `popa`)
 //!
 //! Callers: the HUD's drawers (code at 0x4B28B0, ...).
 

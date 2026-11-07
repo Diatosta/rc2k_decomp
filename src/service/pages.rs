@@ -57,7 +57,7 @@ pub struct ChangePage {
     pub entry: &'static Dword,
     /// The car's value, for the pages that compare with it.
     pub in_car: Option<SetupField>,
-    /// The page's menu item (the self-tests highlight it).
+    /// The page's menu item (the one to highlight).
     pub item: u32,
 }
 

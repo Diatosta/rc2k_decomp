@@ -1,8 +1,7 @@
 //! `gfx::blit_marker_pair` (0x46D098): draws glyphs 0x9C and 0x9D of the sprite table at the
 //! two points stored in a stage record (`Record::markers`: the stage's two ends on the map).
 //!
-//! In:  edi = the record (first point at +0x44/+0x48, second at +0x4C/+0x50), ebx = palette
-//! Out: every register preserved
+//! Takes: the record (first point at +0x44/+0x48, second at +0x4C/+0x50), palette
 //! Each point is also stored in the globals `g_markerX`/`g_markerY`, which are left holding
 //! the second one.
 

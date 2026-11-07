@@ -21,9 +21,6 @@
 //!
 //! Then the players' +0x288 cleared (`menu::clear_players_288`).
 //!
-//! In:  nothing
-//! Out: no `pusha`, but nothing after it reads the registers it leaves
-//!
 //! Callers: the event drivers. The steps are their Rust versions. Refuses fewer than 0xB2 drivers
 //! or fewer than four still running among them (the drop-out loop would run on), a missing player
 //! for the mode, and what the steps refuse, before anything.
@@ -173,7 +170,7 @@ impl races::EventRaces for Game {
     }
 }
 
-/// The Rust version (see the header).
+/// The Rust version.
 pub fn run_event_races(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let drivers = drivers()?;

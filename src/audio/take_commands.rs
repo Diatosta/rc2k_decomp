@@ -1,7 +1,6 @@
 //! `audio::take_commands` (0x40A8A4): the audio thread takes the commands the game queued.
 //!
-//! In:  ebx, ecx, edx, edi, ebp = carried into the commands (see below)
-//! Out: every register preserved
+//! Takes: carried into the commands (see below)
 //!
 //! While `g_soundCommandCount` is not 0: the record at `g_soundCommandRead` (0x20 bytes in
 //! `g_soundCommands`: the number, then the sender's eax, ebx, ecx, edx, esi, edi, ebp; see

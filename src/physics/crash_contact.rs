@@ -12,10 +12,6 @@
 //! `flt_5C5D60`) / `flt_5C5D60` held at most 1, times `unk_71A160`; `unk_71AA10` =
 //! `dword_6D310C`.
 //!
-//! In:  nothing
-//! Out: the registers as `lowest_body_point` and, on the long path, `contact_force` leave
-//!      them, eax the depth on the short; no flags read (the caller calls on)
-//!
 //! Caller: `sub_43B635`, every physics step. Refuses a point past 0x3F on the long path
 //! (the tables' room), and what its calls refuse; what was written is put back.
 //!

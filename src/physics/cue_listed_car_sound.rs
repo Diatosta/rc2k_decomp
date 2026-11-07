@@ -1,8 +1,8 @@
 //! `physics::cue_listed_car_sound` (0x45D1BC): eax the current car's entry in
 //! `dword_641680`; unless -1, `physics::cue_car_sound` with it.
 //!
-//! In:  ebx the cue
-//! Out: eax the entry; the rest kept; no flags read
+//! Takes: the cue
+//! Returns: the entry
 //!
 //! Caller: `physics::off_line_warnings` (twice). Refuses (before anything) a current car
 //! past 7.

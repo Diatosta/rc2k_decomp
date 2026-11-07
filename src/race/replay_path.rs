@@ -3,7 +3,7 @@
 //! one of the game's own (`files\replay\replay00` numbered by the number less 100), both
 //! through `files::numbered_path`.
 //!
-//! In:  ebx the number
+//! Takes: the number
 //! Out: eax the path; ebx less 100 for the game's own; ZF set for 222 (from `cmp`), else
 //!      clear (`test eax, eax` of the path); carry clear
 //!

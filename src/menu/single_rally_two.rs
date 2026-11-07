@@ -8,9 +8,6 @@
 //! results page (`menu::results_48584b_loop`; a yes ends it); the review (`rc2k_core::menu::rounds::review`,
 //! eax 2, a yes asked). The end: `rc2k_core::menu::rounds::end`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through the start menu's table. Refuses a missing player before anything, and what the
 //! callees refuse when they are reached.
 

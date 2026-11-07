@@ -1,16 +1,12 @@
 //! `settings::apply_feature_switches` (0x4114BB): which of the processor's extensions the
 //! game will use.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! Three times the same: a feature is used if the processor has it (bit 0 of what the
-//! processor test left) and the setting that says to ignore it is 0. MMX: `g_hasMmx`
-//! (0x5183A8) from `dword_5183F8` and `ignoremmx` (0x5183AC); the second, by its setting
-//! `ignorekatmai` SSE: `dword_5183B0` from `dword_5183FC` and 0x5183B4; 3DNow:
-//! `g_has3dNow` (0x5183B8) from `dword_518400` and `ignoreamdk3d` (0x5183BC).
-//! One caller, `start`, right after the settings are read.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Three times the same: a feature is used if the processor has it (bit 0 of what the processor
+//! test left) and the setting that says to ignore it is 0. MMX: `g_hasMmx` (0x5183A8) from
+//! `dword_5183F8` and `ignoremmx` (0x5183AC); the second, by its setting `ignorekatmai` SSE:
+//! `dword_5183B0` from `dword_5183FC` and 0x5183B4; 3DNow: `g_has3dNow` (0x5183B8) from
+//! `dword_518400` and `ignoreamdk3d` (0x5183BC). One caller, `start`, right after the settings are
+//! read.
 
 use crate::session::Dword;
 

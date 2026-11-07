@@ -4,9 +4,6 @@
 //! the object released (`sub_41864E`) and the lobby's (`sub_41900F`); either way the
 //! network's memory given back (`net::free_messages`).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags of `test eax, eax` are
-//!      read by no caller: `lq -s 0x4187EE`)
 //!
 //! See `net/mod.rs`. Two callers: `net::stop` and `net::system_message` (0x31). DirectPlay's
 //! four from Rust . Refuses what `net::free_messages` refuses.

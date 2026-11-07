@@ -1,8 +1,6 @@
 //! `menu::simple_select_players_loop` (0x481771): a screen titled "ESCOLHA NÚMERO DE
 //! JOGADORES", the mode menu's first entry (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `arcade1.png`; leaving is not asked about; the
 //! next frame begins with the steps after the first frame; the steps that are more than a call
@@ -13,7 +11,7 @@
 //! Named `select_players_481771_loop`, then by mistake `championship_select_players_loop`
 //! and `arcade_select_players_loop`.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

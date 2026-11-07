@@ -1,30 +1,22 @@
 //! `system::test_processor` (0x410883): what the processor is and has, and its clock.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//! `dword_5183D0` 3; if the flags' AC bit (0x40000) cannot be changed, the FPU test below.
-//! Else 4; if the ID bit (0x200000) cannot be changed, or `cpuid` 0's highest leaf is 0,
-//! the FPU test. Else the vendor's text (ebx, edx, ecx) to 0x5183D8 .. 0x5183E0; leaf 1's
-//! eax to `dword_5183D4` and its family ((eax >> 8) & 0xF) to `dword_5183D0`; from its
-//! edx: bit 0 (FPU) `g_hasFpu` (0x5183EC, which `start`
-//! requires) 1; bit 4 (TSC) `dword_5183F0` 1; bit 15 (CMOV) `dword_5183F4` 1; bit 23 (MMX)
-//! `dword_5183F8` 1; bit 25 (SSE) `dword_5183FC` 1; "AuthenticAMD" with an extended leaf
-//! 0x80000001 whose edx has bit 31 (3DNow!) `dword_518400` 1 ("CyrixInstead" is asked the
-//! same and nothing is kept). The FPU test (no `cpuid`): `fninit`, the status word (0x5A5A
-//! there before) and, if its low byte is 0, the control word through the word at 0x93E8B0
-//! (`g_pngInfo`'s, a scratch place here); `& 0x103F` = 0x3F: `g_hasFpu` 1. Then, if
-//! `dword_5183F0` is 1: from the next change of `GetTickCount` 250 ms are timed by `rdtsc`,
-//! and the cycles / 250000 (the clock in MHz) go to `dword_5183E8`.
-//! The original executes `rdtsc`, `emms` and `xorps` once each to see that they do not
-//! fault, with `dword_51849C` the place its exception filter goes on at (0 after each); the
-//! Rust version does not execute them (a processor that says it has them has them) and
-//! leaves `dword_51849C` 0 where the original does. Refuses (with the processor's variables
-//! already written) a clock whose quotient does not fit in 32 bits (the original's `div`
-//! traps there). One caller, `start` (0x40101A); in the game this never gets a call (the
-//! hook DLL is loaded later); the standalone program needs it (it used a stand-in for
-//! `g_hasFpu`).
-//! `start` calls it directly (2026-10-23); the registers above are the original's, for
-//! reference.
+//! `dword_5183D0` 3; if the flags' AC bit (0x40000) cannot be changed, the FPU test below. Else 4;
+//! if the ID bit (0x200000) cannot be changed, or `cpuid` 0's highest leaf is 0, the FPU test. Else
+//! the vendor's text (ebx, edx, ecx) to 0x5183D8 .. 0x5183E0; leaf 1's eax to `dword_5183D4` and
+//! its family ((eax >> 8) & 0xF) to `dword_5183D0`; from its edx: bit 0 (FPU) `g_hasFpu` (0x5183EC,
+//! which `start` requires) 1; bit 4 (TSC) `dword_5183F0` 1; bit 15 (CMOV) `dword_5183F4` 1; bit 23
+//! (MMX) `dword_5183F8` 1; bit 25 (SSE) `dword_5183FC` 1; "AuthenticAMD" with an extended leaf
+//! 0x80000001 whose edx has bit 31 (3DNow!) `dword_518400` 1 ("CyrixInstead" is asked the same and
+//! nothing is kept). The FPU test (no `cpuid`): `fninit`, the status word (0x5A5A there before)
+//! and, if its low byte is 0, the control word through the word at 0x93E8B0 (`g_pngInfo`'s, a
+//! scratch place here); `& 0x103F` = 0x3F: `g_hasFpu` 1. Then, if `dword_5183F0` is 1: from the
+//! next change of `GetTickCount` 250 ms are timed by `rdtsc`, and the cycles / 250000 (the clock in
+//! MHz) go to `dword_5183E8`. The original executes `rdtsc`, `emms` and `xorps` once each to see
+//! that they do not fault, with `dword_51849C` the place its exception filter goes on at (0 after
+//! each); the Rust version does not execute them (a processor that says it has them has them) and
+//! leaves `dword_51849C` 0 where the original does. Refuses (with the processor's variables already
+//! written) a clock whose quotient does not fit in 32 bits (the original's `div` traps there). One
+//! caller, `start` (0x40101A), directly since 2026-10-23.
 
 use crate::errors::{BadInput, Refused};
 use crate::session::{Dword, Machine};

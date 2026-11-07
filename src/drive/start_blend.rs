@@ -4,8 +4,7 @@
 //! that + `flt_71A64C`, held to `flt_5C5D90` .. `flt_5C5D38` (0 .. 1). By the look of
 //! it a share used at a start (a reading).
 //!
-//! In:  nothing
-//! Out: eax the held count; the rest kept; no flags read (`fld` next)
+//! Returns: the held count
 //!
 //! Caller: `sub_43A35A` (0x43A486).
 

@@ -1,15 +1,12 @@
 //! `records::trakpak_entry` (0x473027): returns the entry of the loaded track pack that a
 //! record refers to.
 //!
-//! In:  edi = record (dword +4 = entry index, dword +8 = track pack id)
-//! Out: edi = esi = entry pointer, ebx = index * 0x40, ecx = the record's pack id,
-//!      edx = the loaded pack's id; eax and ebp preserved
-//! The entries are 0x40 bytes each and start 0x34 bytes into the pack header. If the record's
-//! pack id is not the loaded pack's, the original reports "Invalid TrakPak Header" or, when the
-//! header's first dword is non-zero, loops forever (it reloads the header address on every
-//! pass instead of following the link): that case is left to the original.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Takes the record (dword +4 = entry index, dword +8 = track pack id). Returns the entry, the
+//! index * 0x40, the record's pack id and the loaded pack's id. The entries are 0x40 bytes each and
+//! start 0x34 bytes into the pack header. If the record's pack id is not the loaded pack's, the
+//! original reports "Invalid TrakPak Header" or, when the header's first dword is non-zero, loops
+//! forever (it reloads the header address on every pass instead of following the link): that case
+//! is left to the original.
 
 use crate::errors::BadInput;
 use crate::errors::{FatalError, Refused};

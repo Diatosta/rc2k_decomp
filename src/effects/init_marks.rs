@@ -4,7 +4,6 @@
 //!
 //! In:  the seed (eax; the original also took the settings in esi, here always the race's
 //!      one; its ecx and edi are read by no step)
-//! Out: nothing (no caller reads the registers it leaves)
 //!
 //! One caller, init mark's end (0x457030). Refuses a kind (the settings'
 //! +0x26A8, which step 1 makes `g_marksKind`) of 0x22 or more (the kinds' tables); both

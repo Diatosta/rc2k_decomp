@@ -5,13 +5,10 @@
 //! `dword_7556A0` as 0x40ths: percent v * 100 / 0x40), the knob sprite 0x1B at (0x1E6, y - 1)
 //! and strings 0x547 / 0x548 at x 0x203 / 0x2B7, y + 3, in the font at 0x51E3C4.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758C8E). A volume whose v * 100 wraps to 0 is the original's fatal
 //! 0x80701010 (`loc_4D9612`), raised from Rust where the original does. The sprites' palettes are
-//! ebx as the original leaves it. The menus and draw lists run its `entry` (`menu::table_calls`);
-//! the registers above are the original's, for reference.
+//! ebx as the original leaves it. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

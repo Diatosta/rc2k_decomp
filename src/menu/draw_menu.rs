@@ -1,12 +1,8 @@
 //! `menu::draw_menu` (0x4746B7): draws a menu, its fixed labels and then its items.
 //!
-//! In:  edi = the menu; ebx, ecx as they come (`draw_menu_items` hands them on as a sprite's
-//!      palette and a measuring's x, neither of which is looked at)
-//! Out: every register preserved
-//! `pusha`, `screens::draw_menu_labels`, `screens::draw_menu_items`, `popa`. Called by
+//! `screens::draw_menu_labels`, then `screens::draw_menu_items`. Called by
 //! `menu::draw_frame` and `menu::frame_callback`, and by the screens with a frame callback of their
-//! own. Refuses what the two functions refuse. Rust callers run its `entry` (`routes.rs`); the
-//! registers above are the original's, for reference.
+//! own. Refuses what the two functions refuse. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

@@ -2,16 +2,14 @@
 //! highlight (`g_listChoice`) is `g_mediaMode` (or 2 when it is 0) and `dword_51BA00` is 0.
 //! At the end (ebx negative) `g_mediaMode` becomes the chosen answer (`byte_51D415`).
 //!
-//! In:  ebx the state, edi the list
-//! Out: eax as the original leaves it; the flags of `test ebx, ebx` last
+//! Takes the state, list.
 //! Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::install::installer::{media_mode, set_media_mode};
 
-/// `state` the list action's (ebx).
+/// `state` which call of the list action this is (0 the start, negative the end).
 pub fn mode_page(install: &'static crate::install::owner::Install, state: u32) {
     if state == 0 {
         // Converted: `rc2k_core::install::pages::mode_highlight`.

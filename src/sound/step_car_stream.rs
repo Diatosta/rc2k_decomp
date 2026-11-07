@@ -1,9 +1,6 @@
 //! `sound::step_car_stream` (0x46F7AD): the car's sound stream goes on to its next part
 //! when one has ended.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! Only with `dword_7556D0` at 2 and `dword_A8C188` at 1, and while the stream is not
 //! playing (`sub_40C4D5`: `dword_506960` is not 1; one other caller): `dword_A8C180` + 1
 //! and the part at that place of the list `dword_A8C184`; -1 ends it

@@ -1,7 +1,6 @@
 //! `scene::fill_light_tables` (0x44F0AB): the five tables of colours the lighting
 //! picks from.
 //!
-//! In:  nothing
 //! Out: eax, ebx, ecx, edx, ebp as `scene::fill_light_scale` leaves them, esi = the
 //!      last colour, edi = the last table
 //!

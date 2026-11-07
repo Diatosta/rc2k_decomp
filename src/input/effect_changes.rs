@@ -22,7 +22,6 @@
 //! Other changes do nothing.
 //!
 //! In:  as above
-//! Out: every register kept (`pusha` .. `popa`)
 //! The DirectInput calls (`sub_409AEE` the effect's Download and Start, `sub_409B1F` its
 //! SetParameters with eax the flags, `sub_409B0D` its Stop; each only with an effect at
 //! +0x30) are the Rust versions (`effect_objects`). Refuses

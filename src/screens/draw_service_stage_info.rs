@@ -3,8 +3,6 @@
 //! is drawn only in mode 2 with `dword_755968` at 0, and a second heading text (string 0x482)
 //! is built in its own buffer without being drawn here.
 //!
-//! In:  nothing in registers; it works from the section and index of the event's stage
-//! Out: carry as `draw_stage_records` leaves it; every register preserved
 //! Reached through the draw list at 0x758D86 of the screen loop `sub_47FD37`, which the menu
 //! action `sub_47037E` starts when the event type `dword_755954` is not 3. That action is the
 //! last of 22 items (all at 747, 551) of the service area's menu at 0x74D24C.
@@ -12,7 +10,7 @@
 //! Screen: confirmed by the owner on 2026-10-10: the stage details that can be opened from the
 //! service area of a championship, the screen after the first stage details where the car is set up
 //! and repaired before the stage. Named `draw_stage_info_alt` until then. The menus and draw lists
-//! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

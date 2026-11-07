@@ -2,8 +2,6 @@
 //! the text entry's length. Its callers use it with the length at 0, to set it to the length
 //! of a text just restored.
 //!
-//! In:  edi = text
-//! Out: ecx = ecx + 1 (an `inc ecx` after the `popa`); everything else preserved
 //! Refuses a text with no NUL in its first 0x1000 bytes.
 
 use crate::errors::BadInput;

@@ -6,18 +6,16 @@
 //! (`g_listChoice - 2`, if not below 0, times 0x10 into the texts), `byte_95EBF9` ':' and
 //! `dword_51BA00` 0.
 //!
-//! In:  ebx the state, edi the list
-//! Out: eax, ecx, edx as the original leaves them; esi kept; the flags of the end's `jb`
+//! Takes the state, list.
 //! Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::install::installer::rb;
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
-/// `state` the list action's (ebx), `list` the page's.
+/// `state` which call of the list action this is (0 the start, negative the end), `list` the page's.
 pub fn drive_page(install: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
     let letters = crate::place::Place::from(&install.drive_rows.drive_rows);
     if state == 0 {

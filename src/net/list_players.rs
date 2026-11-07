@@ -6,10 +6,8 @@
 //! DirectPlay ids (+0x20, unsigned); this machine's player found among them by its id
 //! (`g_netPlayerId`) into `g_netPlayer`.
 //!
-//! In:  nothing
-//! Out: true when this machine's player was found (the original: carry clear, the flags of
-//!      `test eax, eax` on its id; every register kept); false for the carry: no object,
-//!      the listing failed or the player is not among them
+//! Returns true when this machine's player was found; false when there is no object, the
+//! listing failed or the player is not among them.
 //! The search looks at block 0 even with no player listed. More than eight players
 //! (possible only with the race on) would sort past the blocks: refused. Caller:
 //! `net::list_players_regs`, `net::open_lobby`. DirectPlay's calls from Rust (`net::dplay`).
@@ -74,7 +72,7 @@ pub fn list_players(vars: &NetVars) -> Result<bool, Refused> {
 }
 
 /// `net::list_players_regs` (0x417A03): `net::list_players`, then `test eax, eax` on the
-/// eax it keeps, inside `pusha` .. `popa`: the carry it gives is lost, so its callers'
+/// eax it keeps, inside a `pusha` .. `popa`: the carry it gives is lost, so its callers'
 /// `jb` after it are never taken (section 16). Callers: `net::lets_rally`,
 /// `net::race_wait`, `net::race_over`, `net::lobby_loop`.
 pub fn list_players_regs(vars: &NetVars) -> Result<(), Refused> {

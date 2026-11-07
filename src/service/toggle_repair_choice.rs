@@ -6,13 +6,9 @@
 //!   below 0:       the flag flipped back and the status 1.
 //! Then the total is added up and stored again.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//! Refuses (before anything) a highlighted item past the flag table and what
-//! `chosen_repairs_time` refuses (an item without a time chosen: the original reads
-//! through null), and a mark table without its end.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Refuses (before anything) a highlighted item past the flag table and what `chosen_repairs_time`
+//! refuses (an item without a time chosen: the original reads through null), and a mark table
+//! without its end.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

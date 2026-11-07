@@ -7,7 +7,7 @@
 //! scratch buffer and ebx the byte after the text's NUL. With `g_logLevel` 0 only eax
 //! changes, to the address after that function's call to the lock function.
 //! Each of the six has four entries before it that set edx (`_l1`, `_l1_nl`, `_l2`,
-//! `_l2_nl`) and jump to it, so they go through its hook.
+//! `_l2_nl`) and jump to it, so they go through it.
 
 use crate::errors::BadInput;
 

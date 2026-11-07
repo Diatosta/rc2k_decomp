@@ -1,8 +1,7 @@
 //! `physics::vector_length` (0x421282): the length of the three floats at esi, left in
 //! st(0): `fsqrt` of x x + (y y + z z), not rounded to a float.
 //!
-//! In:  esi the vector
-//! Out: st(0) the length (80 bits), every register kept
+//! Takes: the vector
 //!
 //! Callers (17): the cars' physics under `sub_4454D2` (`sub_43B635`, `sub_43BD2D`,
 //! `sub_43DD54`, `sub_43F7AC`, `sub_440B9D`, `sub_437A53`, `sub_45D8FB`, `sub_45E3BF`,

@@ -1,8 +1,7 @@
 //! `effects::emit_particle_13` (0x4CE05E): one ring entry of kind 0xD for a car each frame,
 //! at its model's point (`flt_769312` .., 12 bytes by the car's +4).
 //!
-//! In:  esi the car object
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the car object
 //!
 //! The entry: its place the point (x negated; y less `flt_7651E4`; by `flt_7651D4`) turned
 //! by `g_marksCar`'s matrix (placed and the place taken off again, on the x87 stack:

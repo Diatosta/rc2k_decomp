@@ -1,7 +1,6 @@
 //! `sound::surface_sounds` (0x40DE9B): a car's two sounds of what its wheels run on.
 //!
-//! In:  ebx the car's sound object, esi the request
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the car's sound object, the request
 //! The four wheels are records of five dwords at +0x44, +0x58, +0x6C, +0x80 (+8 and +0xC
 //! floats, +0x10 the surface). From the floats at +8: `flt_51638C` (front less back,
 //! by the signs), `flt_516394` (left less right), +0x284 = the sum of the four +0

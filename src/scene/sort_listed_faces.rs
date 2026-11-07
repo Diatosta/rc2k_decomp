@@ -1,7 +1,6 @@
 //! `scene::sort_listed_faces` (0x45098C): puts an object's listed faces in the order
 //! they are drawn in, the largest key first.
 //!
-//! In:  nothing
 //! Out: the original leaves eax, ebx, ecx, edx, esi, edi and ebp changed when it
 //!      sorts; its caller goes on without them, and the Rust version keeps them
 //!

@@ -16,8 +16,7 @@
 //!   `flt_9353A6`, the four vertices around it, their z (times `flt_8EB96D`) and rhw (1 /
 //!   z times `flt_935402`), and `scene::draw_fan` (the vertex count as it is).
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads a register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `effects::run_frame` (0x4D1659). Refuses (before anything) null settings and a
 //! live slot with a null matrix.

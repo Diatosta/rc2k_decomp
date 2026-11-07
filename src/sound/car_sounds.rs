@@ -1,7 +1,6 @@
 //! `sound::car_sounds` (0x40D893): one car's sounds for the turn.
 //!
-//! In:  eax the car's number (`g_raceSoundObjects[eax]`)
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the car's number (`g_raceSoundObjects[]`)
 //! ebx the object, esi the request (`unk_5124BC`); `sound::car_engine_state`, then the
 //! request's +0x20 and +0x24 (the pitch and volume factors) = the object's +0x13C and
 //! +0x140 (eax left at +0x140), then `sound::revs_sound`, `sound::throttle_sound`,

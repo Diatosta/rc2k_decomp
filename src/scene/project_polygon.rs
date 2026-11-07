@@ -1,7 +1,6 @@
 //! `scene::project_polygon` (0x44E1F7): finds or makes the record of each of the
 //! polygon's points and counts those outside the depths that can be drawn.
 //!
-//! In:  nothing
 //! Out: eax, ecx, edx, esi as the last point's work leaves them (eax and edx as
 //!      `scene::project_point`, ecx = the number of vertices, esi = the last entry);
 //!      everything else preserved

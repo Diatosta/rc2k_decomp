@@ -30,8 +30,6 @@
 //! swapped, + 0x44) at 0x1AE, each with the palette the last text left (ebx). Each
 //! drawer's y is edx as the text drawers leave it.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! In the results screens' draw lists (0x758E12 .., 0x758E2A ..). The rows are found before
 //! anything is drawn: a position not there is the look-ups' fatal error, raised then. Refuses

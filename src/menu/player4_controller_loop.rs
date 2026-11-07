@@ -1,7 +1,5 @@
 //! `menu::player4_controller_loop` (0x479166): player 4's controller set-up page (CONFIGURAÇÃO DO COMANDO, background `control.png`; Options > Player details > Player 4 details > "configurar comando": the controller, force feedback, axis mode).
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `control.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is not asked
@@ -9,7 +7,7 @@
 //! Which screen it is has not been confirmed, hence the name. One of eight such loops in a row
 //! (0x47814C .. 0x479410), by the picture the pages of the controls set-up.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step, screen_entry};
 

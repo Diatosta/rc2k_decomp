@@ -3,7 +3,6 @@
 //! four vertices of `g_polygonVertices` (the places over `flt_75C00C` and over
 //! `flt_75C010`; the colour's low 24 bits under the alpha) and `hud::add_polygon`.
 //!
-//! In:  nothing
 //! Out: eax the colour going in, then as `add_polygon` leaves them
 //!
 //! Callers: `sub_4B716A`, `sub_4B7216`, `sub_4B70EE` (reached through code at 0x4B7163,

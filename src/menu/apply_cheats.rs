@@ -1,7 +1,5 @@
 //! `menu::apply_cheats` (0x480AC1): acts on the cheats that are switched on.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The cheats are the bits of `g_cheats` (0x75870C); each that is set writes "Cheat n
 //! (...)" to the game's log (`CHEATS` below, in this order):
 //! - bits 0, 1, 13 .. 16 stay set and do nothing more here (unlock arcade, unlock cars, no

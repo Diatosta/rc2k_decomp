@@ -2,9 +2,8 @@
 //! short name is "susanivanovafanclub" (`strings::same_text`) is the one to send to
 //! (`g_netSendTo`), and the enumeration stops; any other: it goes on.
 //!
-//! In:  (stdcall) the group's id, its type, its name (a DPNAME: +8 the short name), the
-//!      flags, the context
-//! Out: eax = 0 found (stop), 1 go on; ebx, esi, edi, ebp kept; `ret 14h`
+//! Takes (stdcall) the group's id, its type, its name (a DPNAME: +8 the short name), the flags
+//! and the context. Returns 0 when found (stop), 1 to go on.
 //! Caller: DirectPlay, from `net::join_group` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;

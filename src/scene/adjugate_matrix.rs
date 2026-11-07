@@ -2,8 +2,7 @@
 //! 3 x 3 part's cofactors, transposed (rows 0x10 bytes apart), and its place (+0x30 ..
 //! +0x38) negated, not turned.
 //!
-//! In:  esi the matrix, edi where the result goes (the matrix itself allowed)
-//! Out: every register kept
+//! Takes: the matrix, where the result goes (the matrix itself allowed)
 //!
 //! Each of the nine a product less a product (`x87::product_difference`), written in the
 //! original's order and read from memory as it then is (in place, later ones see earlier

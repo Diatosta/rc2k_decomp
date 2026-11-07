@@ -5,7 +5,6 @@
 //! set, `physics::revs_from_wheels`. Every change sets `g_car` +0x238 and +0x23C
 //! (`unk_71A210`, `unk_71A214`) to 1.
 //!
-//! In:  nothing
 //! Out: eax the gear (or the new one; gear + 1 after a refusing `gear_bit`), ecx the new
 //!      gear when `gear_bit` ran, ebx as the gearing calls leave it; the rest kept; no flags
 //!      read (the caller returns)

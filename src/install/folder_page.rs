@@ -3,17 +3,15 @@
 //! is 0. Then by `dword_51BA00`: not 1, the items at +0x38 and +0x48 get 0x40 (hidden);
 //! not 2, +0x58 and +0x68 get 0x40.
 //!
-//! In:  ebx the state, edi the list
-//! Out: every register kept but what `next_edit` leaves; the flags of the last `cmp`
+//! Takes the state, list.
 //! A page action. Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::menu::list_handle::ListMenu;
 use rc2k_core::install::pages;
 
-/// `state` the list action's (ebx), `list` the page's.
+/// `state` which call of the list action this is (0 the start, negative the end), `list` the page's.
 pub fn folder_page(install: &'static crate::install::owner::Install, state: u32, list: ListMenu) {
     if state == 0 {
         crate::install::next_edit::next_edit(install, 0, list);

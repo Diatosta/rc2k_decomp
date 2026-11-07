@@ -3,8 +3,7 @@
 //! is the same instruction for instruction, the ring-full slip included (0x4CDC6E's
 //! exit; section 16).
 //!
-//! In:  edi the wheel record, esi the car object
-//! Out: every register kept
+//! Takes: the wheel record, the car object
 //!
 //! See `marks/emit_bursts.rs`; no variable of its own shared but the entries' and the
 //! scratch ones. Caller: `effects::emit_wheel_particles`' kind 3. Refuses as `emit_bursts`.

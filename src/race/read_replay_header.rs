@@ -4,9 +4,6 @@
 //! car blocks too), the two game-over flags (`targets`); then twelve of them logged, each
 //! as its name and its value (`NAMES`).
 //!
-//! In:  nothing
-//! Out: every register kept (the logs in `pusha` / `popa`, the copies by `push` / `pop`)
-//!
 //! Callers: `race::viewer_load_stage`, 0x44401B (the replay run of `sub_443FxF`).
 
 use crate::race::owner_shared::Shared;

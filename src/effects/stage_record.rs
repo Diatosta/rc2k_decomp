@@ -2,7 +2,6 @@
 //! `dword_64165C` among `off_606320`'s 0x34 (0x5C bytes each; by their count and
 //! `sub_4616AA`'s clamp to 0x33, the stages: a reading).
 //!
-//! In:  nothing
 //! Out: the record (the original's esi; returned, read by no caller)
 //!
 //! One caller, `effects::run_frame`. Refuses a number past the table (unsigned).

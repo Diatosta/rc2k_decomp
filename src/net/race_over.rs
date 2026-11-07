@@ -3,8 +3,7 @@
 //! "raced" (bits 0 and 1 off, bit 2 on), "after a race" (`dword_52AD80` 1), and the players
 //! listed (`net::list_players_regs`: the record sent).
 //!
-//! In:  `time` (eax: the race's time)
-//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Takes `time`.
 //! Caller: `net::lets_rally`.
 
 use crate::errors::Refused;

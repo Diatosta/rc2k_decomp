@@ -1,8 +1,6 @@
 //! `gfx::build_fonts` (0x415563): builds the fonts' glyph tables and palettes and hangs
 //! them on the font objects.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Fatal error 0x80A48020 if it has been done (`dword_51DEB0`, the palettes, is not 0).
 //! Takes `dword_51B980` * 0x400 * `dword_4F4958` bytes on the list `stru_51B984`
 //! (0x80E48023 if there are none), `begin_glyph_tables`, the builder's flags = 1, 0x400
@@ -48,11 +46,11 @@ impl Source {
     fn cell(self) -> &'static Dword {
         let fonts = &gfx().fonts;
         match self {
-            Source::Palettes => &fonts.menu_fonts.palettes,
-            Source::Font13 => &fonts.menu_fonts.font13_glyphs,
-            Source::Font21 => &fonts.menu_fonts.font21_glyphs,
-            Source::Font23 => &fonts.menu_fonts.font23_glyphs,
-            Source::Font27 => &fonts.menu_fonts.font27_glyphs,
+            Source::Palettes => &fonts.font_block.palettes,
+            Source::Font13 => &fonts.font_block.font13_glyphs,
+            Source::Font21 => &fonts.font_block.font21_glyphs,
+            Source::Font23 => &fonts.font_block.font23_glyphs,
+            Source::Font27 => &fonts.font_block.font27_glyphs,
         }
     }
 }
@@ -62,10 +60,10 @@ fn font_sheets() -> [(&'static [u8], &'static Dword); 4] {
     let fonts = &gfx().fonts;
     use crate::gfx::texts::{FNT13, FNT21, FNT23, FNT27};
     [
-        (&FNT13, &fonts.menu_fonts.font13_glyphs), // fnt13_00.pcx
-        (&FNT21, &fonts.menu_fonts.font21_glyphs), // fnt21_00.pcx
-        (&FNT23, &fonts.menu_fonts.font23_glyphs), // fnt23_00.pcx
-        (&FNT27, &fonts.menu_fonts.font27_glyphs), // fnt27_00.pcx
+        (&FNT13, &fonts.font_block.font13_glyphs), // fnt13_00.pcx
+        (&FNT21, &fonts.font_block.font21_glyphs), // fnt21_00.pcx
+        (&FNT23, &fonts.font_block.font23_glyphs), // fnt23_00.pcx
+        (&FNT27, &fonts.font_block.font27_glyphs), // fnt27_00.pcx
     ]
 }
 
@@ -237,12 +235,12 @@ fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
     palettes.set(palette_place(list)?);
     begin_glyph_table(vars, list)?;
     build_glyphs(vars, &crate::gfx::texts::PAL_00, list, gfx)?;
-    gfx.fonts.menu_fonts.font27_glyphs.set(vars.table.get());
+    gfx.fonts.font_block.font27_glyphs.set(vars.table.get());
     palette_to_pixels(palettes.get(), gfx)?;
     // The palette sheet is a copy of the decoder's palette (256 dwords).
     let mut palette = [0u8; PALETTE_BYTES];
     gfx.pictures.decoder.palette.load(0, &mut palette)?;
-    gfx.fonts.menu_fonts.palette_sheet.store(0, &palette)?;
+    gfx.fonts.font_block.palette_sheet.store(0, &palette)?;
     for (sheet, kept) in font_sheets() {
         begin_glyph_table(vars, list)?;
         build_glyphs(vars, sheet, list, gfx)?;
@@ -267,14 +265,14 @@ fn hung_value(variable: Source, plus: u32) -> u32 {
 }
 
 pub fn build_fonts(gfx: &crate::gfx::owner::Gfx) -> Result<(), Refused> {
-    if gfx.fonts.menu_fonts.palettes.get() != 0 {
+    if gfx.fonts.font_block.palettes.get() != 0 {
         return Err(FatalError {
             code: 0x80A4_8020,
             message: "",
         }
         .into());
     }
-    tables(&gfx.sheet, &gfx.fonts.menu_fonts.palettes)?;
+    tables(&gfx.sheet, &gfx.fonts.font_block.palettes)?;
     for (font, field, variable, plus) in HUNG {
         let object = &gfx.fonts.typefaces.objects[font];
         let value = hung_value(variable, plus);

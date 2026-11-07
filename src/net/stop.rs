@@ -3,8 +3,6 @@
 //! messages, until it is done, or the game is closing (`g_quitting` 1) and the thread has
 //! ended (`dword_52A4B0` 1); then `net::destroy_connection`.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //!
 //! See `net/mod.rs`. Four callers: `net::shut_down` and three of the network's menus
 //! (`net::settings_link`, `net::settings_done`, `net::stopping`). It waits on another

@@ -2,7 +2,6 @@
 //! (0xF8 << 16, 8 << 16: a solid colour), then `hud::add_quad`.
 //!
 //! In:  nothing (the record's corners and colour set by the caller)
-//! Out: as `add_quad` leaves them
 //!
 //! Callers: the HUD's drawers (code at 0x4B27E1, 0x4B3BF8, 0x4B5AD0, ...).
 

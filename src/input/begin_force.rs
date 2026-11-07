@@ -8,8 +8,7 @@
 //! six made (`input::make_effect`, ecx the number, edi the effect) and +0x28 1 (effects
 //! on).
 //!
-//! In:  esi = the device's record (+4 its DirectInput device)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record (+4 its DirectInput device)
 //!
 //! Caller: `input::acquire_device`. The controller's number is not checked (as the
 //! original's). The effects' functions through `make_effect`'s `part`; the methods the

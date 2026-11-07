@@ -5,7 +5,6 @@
 //!
 //! In:  eax = 1 when the loading picture is not to be shown after, ebx = the kind (3:
 //!      the rally's times copied first)
-//! Out: every register preserved (`pusha` / `popa`)
 //!
 //! About 50 callers (the menus' races; each `cmp`s after, reading no flags). Raises fatal
 //! 0x80739281 "Unknown Shaun TrakNum" (a track not in `g_trakPakHeader`) from Rust; refuses a

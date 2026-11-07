@@ -1,8 +1,5 @@
 //! `sound::play_car_stream` (0x469AA1): the car shown's sound stream started.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! The car (as `menu::load_car_background` finds it, 0x21 counting as 0x17):
 //! `dword_A8C188` = 1, `dword_A8C184` = `off_75A31E[car]`, `dword_A8C180` = 0, and
 //! `sound::start_stream` with eax = the first dword there and ecx = `dword_755698`.

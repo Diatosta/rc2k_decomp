@@ -2,13 +2,10 @@
 //! kind 2 that choice (`install::choice_by_number`), kind 3 that eighth of the value's
 //! span (`install::value_by_number`); ecx the key less 2.
 //!
-//! In:  al the key, esi the item
-//! Out: ecx the key less 2, bl the kind; as the helper leaves them (zero set), else the
-//!      flags of `cmp bl, 3`
+//! Takes the key, item. Returns the key less 2, kind.
 //! Caller `install::page_key`, reading zero.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;

@@ -7,7 +7,6 @@
 //! player (`g_onePlayer` 1), for player B's car on the second device with the second view
 //! block. Each only if that device has effects (+0x28 1).
 //!
-//! In:  nothing
 //! Out: eax, ebx, esi, edi as last loaded (the car's number, the view block, the device,
 //!      the car's sound object), or as `update_car_effects` leaves them after a call;
 //!      flags not read (the caller's `test eax, eax` is inside its `pusha`)

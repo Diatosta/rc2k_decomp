@@ -1,8 +1,6 @@
 //! `install::runs_from_source` (0x412DA3): whether the game was started from the
 //! directory the registry names as its installation's source.
 //!
-//! In:  nothing
-//! Out: zero set if so; every register preserved
 //! `read_registry`; then, only if the status is 1 and a source is named and the current
 //! directory can be had (`files::current_directory` into `byte_94E8B0`), the two are
 //! compared with `strings::same_text`. Everything else is "no" (zero and carry clear).

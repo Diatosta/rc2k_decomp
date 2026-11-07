@@ -6,13 +6,10 @@
 //! bit 1; a text its string and the item's appended text in `text`; an action its drawing
 //! action (`[item+0xC]`, ecx and edx the place).
 //!
-//! In:  nothing (the pieces at `dword_51C407`)
-//! Out: every register kept (`pusha` / `popa`); no flags read
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page` (the surface
 //! locked).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{

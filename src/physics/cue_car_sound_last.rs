@@ -1,10 +1,9 @@
 //! `physics::cue_car_sound_last` (0x40ECBB): `physics::cue_car_sound`'s twin for the pace
 //! notes: for eax 0 or 1 (unsigned), the sound object of car `g_playerCarA[eax]`
 //! (`g_raceSoundObjects`); when its +8 is 1, `physics::queue_sound_cue` with eax 1 (last),
-//! edi its +0x298, the cue in ebx. All in `pusha` / `popa`.
+//! edi its +0x298, the cue in ebx.
 //!
-//! In:  eax which, ebx the cue
-//! Out: every register kept; no flags read
+//! Takes: which, the cue
 //!
 //! Caller: `physics::cue_listed_car_sound_last`. Refuses (before anything) a car past 7 or
 //! a null sound object.

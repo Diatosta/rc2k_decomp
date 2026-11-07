@@ -1,8 +1,6 @@
 //! `gfx::build_game_fonts` (0x41B178): builds the font with an alpha that a stage's loading
 //! asks for, and hangs it on five font objects.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! ("LOADLEVEL_INIT : loadgamefonts" in the game's log; one caller, `sub_44426F`.)
 //! Takes `dword_5BE894` * 0x400 * `dword_4F4958` bytes on the list `stru_5BE898` (fatal
 //! error 0x80E48061 if there are none), `begin_glyph_tables`, the builder's flags = 0x21
@@ -83,10 +81,10 @@ pub fn build_game_fonts(
     gfx: &crate::gfx::owner::Gfx,
     system: &crate::system::owner::System,
 ) -> Result<(), Refused> {
-    let list = &gfx.fonts.game_fonts.memory;
+    let list = &gfx.fonts.game_fonts_memory.memory;
     let bytes = gfx
         .fonts
-        .game_fonts
+        .game_fonts_memory
         .units
         .get()
         .wrapping_mul(0x400)
@@ -104,26 +102,26 @@ pub fn build_game_fonts(
         .format
         .set(crate::gfx::pixel_format::texture_kind_format(3, gfx));
     let palette_a = crate::gfx::build_fonts::palette_place(list)?;
-    gfx.fonts.menu_fonts.game_fonts[0].update(|f| f.palette = palette_a);
+    gfx.fonts.font_block.game_fonts[0].update(|f| f.palette = palette_a);
     let palette_b = crate::gfx::build_fonts::palette_place(list)?;
-    gfx.fonts.menu_fonts.game_fonts[3].update(|f| f.palette = palette_b);
+    gfx.fonts.font_block.game_fonts[3].update(|f| f.palette = palette_b);
     begin_glyph_table(vars, list)?;
     build_glyphs(vars, &crate::gfx::texts::FNT22, list, gfx)?;
     let table = vars.table.get();
-    gfx.fonts.menu_fonts.game_fonts[0].update(|f| f.glyph_table = table);
+    gfx.fonts.font_block.game_fonts[0].update(|f| f.glyph_table = table);
     if vars.table_size.get() == 0 {
         return Err(fatal(0x80E4_8062));
     }
     alpha_palette(gfx);
-    palette_to_pixels(gfx.fonts.menu_fonts.game_fonts[0].get().palette, gfx)?;
+    palette_to_pixels(gfx.fonts.font_block.game_fonts[0].get().palette, gfx)?;
     end_glyph_tables()?;
 
     let (glyphs, palette_a): (u32, u32) = (
-        gfx.fonts.menu_fonts.game_fonts[0].get().glyph_table,
-        gfx.fonts.menu_fonts.game_fonts[0].get().palette,
+        gfx.fonts.font_block.game_fonts[0].get().glyph_table,
+        gfx.fonts.font_block.game_fonts[0].get().palette,
     );
     for font in 1..3 {
-        gfx.fonts.menu_fonts.game_fonts[font].update(|f| {
+        gfx.fonts.font_block.game_fonts[font].update(|f| {
             f.glyph_table = glyphs;
             f.palette = palette_a;
         });
@@ -145,10 +143,10 @@ pub fn build_game_fonts(
     }
     crate::gfx::glyph_store::write_bytes(to, 0, &pixels, "the second palette's pixels")?;
 
-    let palette_b: u32 = gfx.fonts.menu_fonts.game_fonts[3].get().palette;
-    gfx.fonts.menu_fonts.game_fonts[3].update(|f| f.glyph_table = glyphs);
+    let palette_b: u32 = gfx.fonts.font_block.game_fonts[3].get().palette;
+    gfx.fonts.font_block.game_fonts[3].update(|f| f.glyph_table = glyphs);
     for font in 4..6 {
-        gfx.fonts.menu_fonts.game_fonts[font].update(|f| {
+        gfx.fonts.font_block.game_fonts[font].update(|f| {
             f.glyph_table = glyphs;
             f.palette = palette_b;
         });
@@ -163,7 +161,7 @@ pub fn build_game_fonts_in_game(
 ) -> Result<(), Refused> {
     build_game_fonts(
         &gfx.sheet,
-        &gfx.fonts.menu_fonts.game_fonts[3].palette,
+        &gfx.fonts.font_block.game_fonts[3].palette,
         gfx,
         system,
     )
@@ -175,7 +173,7 @@ mod block_tests {
 
     #[test]
     fn first_values_are_the_games() {
-        crate::gfx::first_values_are_the_games(&gfx().fonts.game_fonts, START, START + LEN);
+        crate::gfx::first_values_are_the_games(&gfx().fonts.game_fonts_memory, START, START + LEN);
     }
 
     #[test]
@@ -183,11 +181,11 @@ mod block_tests {
         let fonts = &gfx().fonts;
         assert_eq!(
             crate::moved::place(START),
-            fonts.game_fonts.units.addr() as usize
+            fonts.game_fonts_memory.units.addr() as usize
         );
         assert_eq!(
             crate::moved::place(0x5BE898),
-            fonts.game_fonts.memory.addr() as usize
+            fonts.game_fonts_memory.memory.addr() as usize
         );
     }
 }

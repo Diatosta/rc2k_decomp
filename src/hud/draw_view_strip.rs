@@ -7,12 +7,12 @@
 //! `dword_6D14F6` bit 0x40 and `dword_6238A4` 0, two more quads at the top corners
 //! (texture `dword_6240BC` 0xC4).
 //!
-//! In:  ebp the view (0 .. 5)
+//! Takes: the view (0 .. 5)
 //! Out: eax / ebx / ebp / ecx / edx as the last quad's set-up leaves them (see the code)
 //!
 //! Callers: `hud::draw_view_strips` (twice). Each quad's inputs (`dword_623DE8` ..
 //! `dword_623E24`, `g_polygonAlpha` 0xFF, colour -1, `dword_6240E0` 1, `dword_6240E4` 0) then
-//! `scene::draw_flat_quad` (inside `pusha` .. `popa`). Refuses a view past 5 (the tables' end),
+//! `scene::draw_flat_quad`. Refuses a view past 5 (the tables' end),
 //! before anything.
 
 use crate::errors::{BadInput, Refused};

@@ -4,11 +4,9 @@
 //! window's messages (`system::pump_messages`) until it has answered or the game is
 //! closing; then eax = `g_netPostedResult` (also without posting).
 //!
-//! In:  `code` (eax: the code to call; here a Rust function, handed over beside the cell,
-//!      which holds 1 while it waits: phase 11, 2026-10-26)
-//! Out: the posted call's result (eax). The original leaves the rest as the sleep and the
-//!      messages leave them, and the flags of its last test: its callers read eax only
-//!      (`lq -s 0x4184F8`).
+//! Takes `code`, the function to call (a Rust function, handed over beside the cell, which
+//! holds 1 while it waits: phase 11, 2026-10-26). Returns the posted call's result. The
+//! original's callers read only that result (`lq -s 0x4184F8`).
 //! DirectPlay's calls that may show a dialog (a modem's, a serial link's) are made on the
 //! receiving thread this way (`net::build_address` sets `g_netPosting`). Callers:
 //! `net::find_sessions`, `net::host_session`, `net::join_session`, each posting its own

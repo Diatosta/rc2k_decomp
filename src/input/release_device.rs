@@ -3,8 +3,7 @@
 //! (`dword_4F78E4` + 0x50 its number, +0x1C) is 1, `Release`, +4 0; then +0x24 (acquired)
 //! and +0x28 (effects on) 0 and its readings cleared (`input::clear_device_readings`).
 //!
-//! In:  esi = the device's record
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record
 //!
 //! Callers: `input::device_command` (three times), the input thread's end. Refuses (before anything)
 //! a controller number past 16 with

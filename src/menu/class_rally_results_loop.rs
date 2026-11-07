@@ -3,13 +3,11 @@
 //!
 //! Named `screen_466858_loop`, then `rally_results_loop`.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`):
 //! before the loop it sets the string of the menu's first item to 0x138 if `dword_75AADC` is 1 and
 //! to 0x139 otherwise, as the stage results screen does; its background comes from
 //! `menu::load_background`, after which a set carry flag is fatal error 0x80712345; leaving is
-//! asked about, and a "no" sets the screen up again. One caller, `sub_4A3317`.
+//! asked about, and a "no" sets the screen up again. One caller.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

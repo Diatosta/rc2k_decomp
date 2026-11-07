@@ -1,6 +1,5 @@
 //! `math::normalise_vector` (0x45C3FE): the work vector made one long.
 //!
-//! In:  nothing
 //! Out: without SSE eax = the squares' sum as a float's bits (the original pops it
 //!      from the slot it kept eax in); everything else preserved
 //!
@@ -20,8 +19,6 @@
 //!   processors: the instructions themselves are used.
 //!
 //! Three callers. In two pieces in the image (the entry lies after the bodies).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::math::x87_float::{ONE, compare, ld, st};

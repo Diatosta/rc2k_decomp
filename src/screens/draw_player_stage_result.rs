@@ -6,12 +6,10 @@
 //! sprites' palette ebx as the original leaves it (the speed line past its NUL, then the
 //! measure's line count).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758E7E). Refuses (before anything) no current player or name, no
 //! stage records, and what `strings::append_speed` refuses. The menus and draw lists run its
-//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

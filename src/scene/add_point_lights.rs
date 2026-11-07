@@ -1,10 +1,6 @@
 //! `scene::add_point_lights` (0x44F471): what the scene's lamps add to the light on an
 //! object.
 //!
-//! In:  nothing
-//! Out: nothing changed with no lamps; else ebx = their number; everything else
-//!      preserved
-//!
 //! For each of the `dword_63DC48` lamps (0x10 bytes each from `dword_63E05C`: a point
 //! of the scene, a strength, a colour; a strength of 0 is skipped): the strength to
 //! `dword_639958` and the colour to `dword_62DA7C`; the lamp's distance from the

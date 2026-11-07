@@ -1,8 +1,6 @@
 //! `menu::time_trial_select_players_loop` (0x48BCDC): the loop of the screen where the number of players
 //! is chosen.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `arcade1.png`; leaving is not asked about; the
 //! steps that are more than a call or a store are the functions below, generated from the
@@ -10,7 +8,7 @@
 //! Screen: the player count of the time trial, "ESCOLHA NÚMERO DE JOGADORES" (the owner
 //! said so after Rust-run visits, 2026-10-11). Named `select_players_loop` until then.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

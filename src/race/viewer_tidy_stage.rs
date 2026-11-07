@@ -6,9 +6,6 @@
 //! them (`dword_5BECC4` 1); `scene::set_up_engine`, `scene::set_up_front_end_scene`,
 //! `scene::set_up_engine`. Then (always) the pending key taken (`input::take_key`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! `dword_5BECC4` is never cleared: where `mov` was meant the original has
 //! `cmp dword_5BECC4, 0` (0x41CEEA). Kept (section 16).
 //! Callers: `race::replay_viewer`, `race::viewer_action` (0x14), `race::choose_save_slot`.
@@ -59,7 +56,7 @@ fn run(race: &Race, step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), 
         TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,
         TidyStep::FreeFonts => crate::gfx::free_fonts::free_fonts(
             &fonts.glyph_tables.memory,
-            &fonts.menu_fonts.palettes,
+            &fonts.font_block.palettes,
         )?,
         TidyStep::SetUpEngine => crate::scene::set_up_engine::set_up_engine()?,
         TidyStep::SetUpFrontEnd => crate::scene::set_up_front_end_scene::set_up_front_end_scene()?,

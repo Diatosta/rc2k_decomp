@@ -2,8 +2,7 @@
 //! service provider's GUID (record +0x40, 16 bytes) to `unk_52AC94`, its name (64 bytes)
 //! to `unk_52ACA4`.
 //!
-//! In:  `connection` (eax: the connection's number)
-//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Takes `connection`.
 //! Callers: `net::start_link`, `net::settings_link`, `net::settings_done`. Refuses what
 //! `net::lobby::connection` refuses (its fatal errors).
 

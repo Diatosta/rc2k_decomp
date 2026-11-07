@@ -1,7 +1,6 @@
 //! `physics::apply_wheel_forces` (0x43F544): `physics::apply_forces` on the 0x17 records at `unk_614770` (`physics::clear_forces`', the wheels' among them).
 //!
-//! In:  nothing
-//! Out: esi the first record, ecx the count; the rest kept; no flags read
+//! Returns: the first record, the count
 //!
 //! Caller: `sub_43B635` (0x43B81D), every physics step.
 

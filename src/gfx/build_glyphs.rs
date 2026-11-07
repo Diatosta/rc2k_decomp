@@ -2,7 +2,6 @@
 //!
 //! In:  eax = the sheets' path with `00` or `!!` where the number goes, ebx = the list
 //!      (`MemoryList`) the table's memory is taken from
-//! Out: every register preserved
 //! The sprite and font builder ("Extracting:" and "Appending:" in the game's log). For
 //! number 0, 1, .. while such a file exists: the sheet is read (`gfx/read_sheet.rs`: a PCX
 //! of one plane stays palette numbers, one of three becomes components), its backdrop is

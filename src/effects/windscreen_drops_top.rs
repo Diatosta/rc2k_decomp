@@ -12,8 +12,7 @@
 //!
 //! Screen: the rain drops on the windscreen in the in-car view (owner, 2026-10-29: gone with `d3d::draw_marks_windscreen_drops` cut). Called the hexagons until then (their shape).
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (its caller reads no register after it)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4C74DA` (0x4C7539). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables; the vector helpers their Rust versions. Refuses null settings, before

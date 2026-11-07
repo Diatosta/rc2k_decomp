@@ -2,13 +2,11 @@
 //! of day: the first five bytes of a text ("09:05") one at a time in fixed columns, at x -
 //! 100 plus 0, 13, 23, 33 and 46.
 //!
-//! In:  eax = font, ebx = text, ecx = x of the right edge, edx = y
+//! Takes: font, text, x of the right edge, y
 //! Out: the flags of the original's last `add ecx, 0Ah` (after the fifth character):
 //!      carry when x - 54 + 10 passes 2^32, zero when it is 0; every register preserved
 //! Each byte is copied to text + 0x40 with a NUL after it and drawn from there. Three
 //! callers (the itinerary pages).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::text::draw_text::Canvas;

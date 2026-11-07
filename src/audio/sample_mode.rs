@@ -1,7 +1,7 @@
 //! `audio::sample_mode` (0x40B398): the sound mode a voice's sample is prepared for.
 //!
-//! In:  eax = the sound mode, esi = the voice
-//! Out: eax = the mode for it; everything else preserved
+//! Takes: the sound mode, the voice
+//! Returns: the mode for it
 //!
 //! For a voice whose sound is not negative, by its sample record: sound 0x1C4 keeps only
 //! the halvings (low four bits); groups 1 and 2 at least one halving, group 3 at least

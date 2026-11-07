@@ -4,8 +4,7 @@
 //! (`dword_63DB94` 2); 7 and above wrap to 0; into +0x688, then
 //! `drive::set_camera_view`. A reading: the change-view key.
 //!
-//! In:  esi the block
-//! Out: eax the step count (when a view was taken), else kept; no flags read
+//! Takes: the block
 //!
 //! Callers: `sub_43A35A` (0x43A454), `sub_43A649` (0x43A66C).
 

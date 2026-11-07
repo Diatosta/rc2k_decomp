@@ -2,7 +2,7 @@
 //! our own, the scene's beginning and end, the depth buffer's clearing. Not ports, as
 //! in `platform.rs`: each takes the place of a function of the game's Direct3D layer,
 //! keeps what that function leaves for the game's own code, and does the rest itself.
-//! No self-tests: there is no original to compare with.
+//! There is no original to compare with.
 //!
 //! The textures. The game keeps two pools of records of 0x78 bytes, up to 0x140 each:
 //! system textures (`unk_5B521C`, count `dword_5B5218`), into which pictures are put,

@@ -2,16 +2,13 @@
 //! driver's +0x10 / +0xC / +0x20 0 and +0x24 1; `dword_75592C` 1, `dword_755978` 0; the
 //! four players' +0x8C / +0x84 0 and +0xD0 1 (a reading: a single event's start).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Caller: `sub_4AA4D7` (twice). Refuses a missing player or a drivers' table without its end
+//! Refuses a missing player or a drivers' table without its end
 //! entry, before anything.
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn reset_single_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = drivers()?;
 

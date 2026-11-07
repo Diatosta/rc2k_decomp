@@ -6,13 +6,10 @@
 //! empty, `Path` and `CurrentDirectory` the installed folder (`byte_95E7F8`); the key
 //! closed (`RegCloseKey`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `install::install_files`. The registry calls through `api`; the GUID formatting
 //! (`sub_40171A`) done here.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::read_registry::Registry;

@@ -2,19 +2,16 @@
 //! `byte_95EAF8` (`[esi]`), byte by byte, until a byte below a space (a control byte or the
 //! end); a NUL written at the end.
 //!
-//! In:  ebx the script cursor, esi where to write
-//! Out: al the stop byte, ebx at it (not past), esi where the NUL went; the flags of
-//!      `cmp al, 20h` (no caller reads them)
+//! Takes the script cursor, where to write.
 //! Caller `install::run_script` (three times).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::wb;
 use rc2k_core::install::script;
 
-/// The name at the script's `cursor` (ebx) written at `to` (esi), NUL-ended. Returns the
+/// The name at the script's `cursor` written at `to`, NUL-ended. Returns the
 /// cursor at the stop byte (not past it) and where the NUL went.
 pub fn script_name(
     cursor: crate::place::Place,

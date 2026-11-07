@@ -3,9 +3,6 @@
 //! and the eight about it (± 0x200000 each way, in the original's order; the place read
 //! back from `dword_639824` .. before each).
 //!
-//! In:  nothing
-//! Out: the registers as the last `cell_face_contacts` leaves them; no flags read
-//!
 //! Caller: `physics::face_contacts` (0x45E190, its only code). Refuses what
 //! `cell_face_contacts` refuses.
 //!

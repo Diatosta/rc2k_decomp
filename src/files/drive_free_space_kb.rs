@@ -1,17 +1,13 @@
 //! `files::drive_free_space_kb` (0x40317D): a drive's free space in KB.
 //!
-//! In:  eax = the drive's letter in its low byte (0: the current drive)
-//! Out: eax = the free KB, or -1 when `GetDiskFreeSpaceA` failed (carry set) or the KB do
-//!      not fit 32 bits (carry clear, as for an answer); else carry clear and zero by eax.
-//!      After an answer ebx = the bytes a sector; ecx, edx, esi kept
-//! The root asked about is `x:\` with the letter lowered (`files::drive_root`), and the
-//! four figures go to the first 16 bytes of `g_pngInfo` (total clusters, free clusters,
-//! bytes a sector, sectors a cluster). The KB are (sectors a cluster x bytes a sector, its
-//! low 32 bits) x free clusters, shifted down 10 bits; past 2^42 bytes it gives -1.
-//! Callers: the installer (`install::install_files`, `install::list_drives`) and
-//! `files::free_space_kb`. The Win32 call is the system's (`os::disk_free`).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Takes the drive's letter in its low byte (0: the current drive). Returns the free KB, or -1 when
+//! `GetDiskFreeSpaceA` failed or the KB do not fit 32 bits. The root asked about is `x:\` with the
+//! letter lowered (`files::drive_root`), and the four figures go to the first 16 bytes of
+//! `g_pngInfo` (total clusters, free clusters, bytes a sector, sectors a cluster). The KB are
+//! (sectors a cluster x bytes a sector, its low 32 bits) x free clusters, shifted down 10 bits;
+//! past 2^42 bytes it gives -1. Callers: the installer (`install::install_files`,
+//! `install::list_drives`) and `files::free_space_kb`. The Win32 call is the system's
+//! (`os::disk_free`).
 
 use crate::system::owner::system;
 

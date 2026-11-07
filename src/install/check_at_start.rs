@@ -1,8 +1,6 @@
 //! `install::check_at_start` (0x416477): finds the game's data when the game is started
 //! from somewhere that is not an installation.
 //!
-//! In:  nothing
-//! Out: every register preserved; or it does not return (fatal error 0x90002103)
 //! Nothing if the installer is running (`g_installing`) or `var\ral.zog` is there: the
 //! usual case. Otherwise `g_noAudio` = 1, and nothing more if `files\d\gfx\jade.bun` is
 //! there. Otherwise:

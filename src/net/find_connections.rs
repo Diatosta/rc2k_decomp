@@ -5,12 +5,8 @@
 //! connections listed (`EnumConnections` for the game's GUID `dword_5AB300` with
 //! `net::connection_found`, flags DPCONNECTION_DIRECTPLAY).
 //!
-//! In:  nothing
-//! Out: true for the carry clear (connections listed); false
-//!      for the carry: the receiving thread ended, something failed or nothing was listed.
-//!      The original keeps every register; its callers (the original through
-//!      `net::find_connections_regs`, 0x4174BD, this inside `pusha` .. `popa`, folded in)
-//!      read the carry only (`lq -s 0x4174BD`).
+//! Returns true when connections were listed; false when the receiving thread ended, something
+//! failed or nothing was listed. The original's callers read only the carry (`lq -s 0x4174BD`).
 //! Caller: `net::find_connections_regs`.
 
 use crate::errors::Refused;

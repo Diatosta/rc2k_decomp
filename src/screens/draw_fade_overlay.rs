@@ -3,8 +3,6 @@
 //! screens), by `scene::draw_tinted_quad`; the quad's inputs `dword_623E10` ..
 //! `dword_623E24` (`screens::service_boxes::quad`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Caller: `sub_4A1E60` (the fades' frame).
 

@@ -5,9 +5,6 @@
 //! (`math::next_random`) / 65536 / `flt_5C5E28` x `flt_5C5D40` x it; both 0 again with
 //! `dword_601024` set. Then `physics::update_camera`.
 //!
-//! In:  nothing
-//! Out: the registers as `update_camera` leaves them; no flags read
-//!
 //! Callers: `sub_43B635`, `sub_459360`, `sub_46062E`. Refuses what `update_camera` refuses
 //! (everything written put back).
 //!

@@ -1,8 +1,6 @@
 //! `menu::edit_savegame_name` (0x46D685): one step of typing the name of a saved game; Enter
 //! saves the game.
 //!
-//! In:  nothing
-//! Out: every register preserved (carry is set on Escape; the caller does not read it)
 //! The name is the highlighted entry of the saved game list. One pending key is taken: none
 //! the cursor is written again; 1 (Escape)    the name from before comes back, the entry ends; 0x1C
 //! (Enter)  an empty name is replaced by the one from before; the entry ends, the name is cut at

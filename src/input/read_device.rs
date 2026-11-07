@@ -16,8 +16,7 @@
 //!
 //! Into +0x4DC (steering), +0x4E0 (brake), +0x4E4 (throttle), +0x4E8 (the bits).
 //!
-//! In:  esi = the device's record
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record
 //!
 //! Callers: `sub_408A56` (both devices, each tick of the input thread). Refuses (before
 //! anything) a bound key past 0xFF and an axis's place past the record.

@@ -16,8 +16,7 @@
 //!
 //! Screen: the falling rain, seen from inside and outside the car (owner, 2026-10-29: gone with `draw_rain_streak`'s draw cut).
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (its caller reads no register after it)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `effects::run_frame` (0x4D1569). The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order,
 //! over the game's variables. Refuses null settings and a view entry past the five (the

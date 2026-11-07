@@ -5,8 +5,6 @@
 //! `menu::car_specs_47af4c_loop`, `add_shown_car`, `remove_shown_car`; then
 //! `saves::save_game_data`.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! The callees get eax the level (from the won level's test on) and esi as above. Refuses (before
 //! anything) a level past 5.
 

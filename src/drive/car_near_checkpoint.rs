@@ -2,7 +2,7 @@
 //! 0) is within 3 checkpoints of eax: CF when |+0x98 - eax| (`neg` of a negative) less 4
 //! has its sign set.
 //!
-//! In:  esi a car block, eax a checkpoint
+//! Takes: a car block, a checkpoint
 //! Out: CF; ebx the distance when +0x25C is not 0; the rest kept (ZF not read: `jb`)
 //!
 //! Caller: `drive::checkpoint_taken` (four cars).

@@ -1,7 +1,6 @@
 //! `scene::step_loading_bar` (0x446786): moves the loading's progress on and shows it.
 //!
-//! In:  eax = how many of the system textures are done
-//! Out: every register preserved
+//! Takes: how many of the system textures are done
 //!
 //! Unless there are no system textures (`dword_5DC974`): the progress `dword_623700` = the low
 //! end `dword_623634` plus eax times (the high end `dword_623638` less the low) over the

@@ -1,13 +1,10 @@
 //! `menu::time_trial_select_stage_loop` (0x48BFCB): the stage selection of the time trial, by
 //! its title "ESCOLHA ETAPA" and its callers (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; left without the question, the
 //! highlight is not saved.
 //! The name is a reading from the title string of its menu, "ESCOLHA ETAPA", not yet a visit.
-//! Callers: `sub_48AE39`, `sub_48AFD0`, `sub_48B23D`, `sub_48B54B`, `sub_48B90F`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

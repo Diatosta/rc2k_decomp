@@ -7,9 +7,6 @@
 //! fraction times `flt_8BC24E`. (After the compare the original frees st(0) and moves the
 //! stack's top on, with the stack already empty: kept.)
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Caller: `sub_4BFFEC` (0x4C0052). The x87 run is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables; the picks their Rust versions (under the same rounding).
 

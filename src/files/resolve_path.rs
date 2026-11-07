@@ -1,12 +1,8 @@
 //! `files::resolve_path` (0x403206): turns a game-relative path into a full path under one of
 //! the two base directories.
 //!
-//! In:  eax = path
-//! Out: eax = resolved path (a buffer), or the input pointer if the path is used as it is;
-//!      everything else preserved
+//! Takes path. Returns resolved path (a buffer), or the input pointer if the path is used as it is.
 //! The output buffer has no bounds check. A result longer than 0x100 bytes is refused, and the
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 

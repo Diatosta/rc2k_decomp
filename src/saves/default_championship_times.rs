@@ -1,9 +1,7 @@
 //! `saves::default_championship_times` (0x47C973): made-up best times for the
 //! championship's stages and rallies.
 //!
-//! In:  ebp (passed on as the stage to `default_time_entry`, which only uses it while
 //! `dword_755A0C` is 1)
-//! Out: every register preserved
 //! For each stage of the championship's record table (its records with tag 0, counted
 //! into `seconds`, 0x7559AC): the ten entries of the stage in the table at
 //! `dword_7556D8` get the record's +0x24 + 24,000 and 0x9F more each, and a driver

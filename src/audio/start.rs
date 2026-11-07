@@ -1,7 +1,6 @@
 //! `audio::start` (0x40A01D): the sound device probed at the audio thread's start, and the
 //! two sound modes chosen.
 //!
-//! In:  nothing
 //! Out: carry = no race mode (no sound); every register preserved
 //!
 //! `audio::open_a3d2` (eax 0), `g_hasA3d2` = `g_useA3d`, `audio::close_a3d2`; the mode

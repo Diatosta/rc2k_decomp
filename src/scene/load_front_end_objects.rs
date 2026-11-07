@@ -1,7 +1,6 @@
 //! `scene::load_front_end_objects` (0x425CA9): loads the shapes of all 0x100 object
 //! slots.
 //!
-//! In:  nothing
 //! Out: eax = the faces' memory used, ecx = 0x100, edi = the end of the kinds' table,
 //!      ebx = the last slot that had a kind (unchanged if none had)
 //!

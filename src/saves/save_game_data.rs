@@ -1,10 +1,7 @@
 //! `saves::save_game_data` (0x411499): writes what the game keeps between runs.
 //!
-//! In:  nothing
-//! Out: every register preserved; the flags as `save_best_times` leaves them
-//! `saves::save_options`, then `saves::save_best_times`.
-//! Callers: the main loop after the front end is left, and `sub_48AD73`. Rust callers run its
-//! `entry` (`routes.rs`); the registers above are the original's, for reference.
+//! `saves::save_options`, then `saves::save_best_times`. Callers: the main loop after the front end
+//! is left, and `sub_48AD73`. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::saves::owner::Saves;

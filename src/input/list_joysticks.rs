@@ -3,9 +3,6 @@
 //! (`EnumDevices` of `dword_4F6904`, DirectInput, for joysticks (4), attached only (1), with
 //! `input::joystick_found`, context 0; its result not looked at).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Caller: `input::input_thread` (its start). The method DirectInput's own (in the
 //! standalone program Rust's, `input::di_objects`).
 

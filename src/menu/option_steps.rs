@@ -5,8 +5,7 @@
 //!   (eax the value); the speech's (`dword_755698`) heard with `sound::start_stream` (eax
 //!   the path ";3files\%speech\rally\st1.wav", ecx the value); two of the menu sounds'
 //!   (`dword_75569C`, `dword_7556A0`) into `dword_7554E8` and `sound::play_menu_sound`
-//!   with eax 0x10 / 0x20 (the first's) or 0x40 (the second's). Not `pusha`'d: they leave
-//!   eax (the value, the path or the sound), ecx (the speech's: the value) as loaded.
+//!   with eax 0x10 / 0x20 (the first's) or 0x40 (the second's).
 //! - `menu::next_screen_mode` (0x46FFEF): `dword_4F50C8` one more, 0 past `dword_4F50E4` -
 //!   1 (signed); `dword_755648` flipped; leaves eax `dword_755648`, ebx the last mode.
 //! - `menu::previous_texture_setting` (0x47012B), `next_texture_setting` (0x47015B):
@@ -151,7 +150,7 @@ const CHOICES: [(&Dword, usize); 6] = [
     (&crate::menu::owner::MENUS.screens.option_work.eax, 3),      // EAX
     (&crate::menu::owner::MENUS.screens.option_work.ds3d, 2),     // DS3D
 ];
-/// `menu::apply_audio_choices`: the registers it leaves (`popa`'s).
+/// `menu::apply_audio_choices`.
 pub fn apply_audio_choices(audio: &crate::audio::owner::Audio) -> Result<(), Refused> {
     for (work, n) in CHOICES {
         let value = work.get();

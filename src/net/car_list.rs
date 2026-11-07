@@ -2,9 +2,7 @@
 //! of the cars won (`g_secretCars`, ended by -1) in the secret cars' list (`off_75A042`,
 //! ended by -1), the list with them (`off_759E52`), else the one without (`off_759DCA`).
 //!
-//! In:  nothing
-//! Out: the list (esi); the original keeps the rest (`pusha` .. `popa`), its flags read by
-//!      no caller
+//! Returns the list.
 //! Each won car is compared with the secret list's first entry before its end is looked
 //! for (so the -1 of an empty secret list's end can match a -1 entry, as in the original).
 //! Lists without their end in 0x100 entries are refused. Caller: `net::choose_car`.

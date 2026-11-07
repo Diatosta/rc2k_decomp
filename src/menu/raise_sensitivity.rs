@@ -1,11 +1,7 @@
 //! `menu::raise_sensitivity` (0x470F05): the player's controller sensitivity up by one.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! `controller_sensitivity` + 1, held at 100 (signed). An action of the four players' details pages
-//! (menu tables 0x74EC00 ..). The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! (menu tables 0x74EC00 ..). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::player::Player;

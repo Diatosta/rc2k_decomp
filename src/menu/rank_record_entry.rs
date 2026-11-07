@@ -1,9 +1,6 @@
 //! `menu::rank_record_entry` (0x4A3D75): the current record's event's tenth record entry
 //! moved up (`menu::rank_record_entry::rank_entries`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Caller: `menu::enter_record_entry`. Refuses a record past the table or no events table, before
 //! anything.
 

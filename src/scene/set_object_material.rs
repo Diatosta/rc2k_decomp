@@ -1,7 +1,6 @@
 //! `scene::set_object_material` (0x45170E): what an object's drawing needs from its
 //! kind's record, and for a kind that moves between two shapes, how far it has moved.
 //!
-//! In:  nothing
 //! Out: the original leaves eax, ecx, esi (and for a moving kind ebx, edx) changed; its
 //!      caller goes on without them, and the Rust version keeps them
 //!

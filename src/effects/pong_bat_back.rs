@@ -2,10 +2,6 @@
 //! (`dword_7686AC`, `dword_7686B0`) when it overlaps the ball (`effects::pong`'s four
 //! compares).
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves: `run_pong` reads none after
-//!      `move_pong_bat`, the Rust versions none at all)
-//!
 //! Caller: `effects::move_pong_bat`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).

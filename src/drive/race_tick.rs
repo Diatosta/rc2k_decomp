@@ -5,9 +5,6 @@
 //! `drive::replay_step` every tick, or with `dword_63DB84` set every second tick, and
 //! past 1 every fourth.
 //!
-//! In:  nothing
-//! Out: the registers as the step leaves them; no flags read
-//!
 //! Caller: `drive::race_step`. Raises 0x80600655 as the original; refuses what the steps
 //! refuse.
 

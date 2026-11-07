@@ -2,7 +2,6 @@
 //!
 //! In:  the list (by handle: `SoundList`, the sender's eax once): sound numbers, -2 passed
 //!      over, ended by -1
-//! Out: every register preserved
 //!
 //! For each sound whose record has a file (`data_key`) and `copies` above 0 (signed), that
 //! many voices while fewer than 0x200 are in use: `audio::find_shared_voice`; none:

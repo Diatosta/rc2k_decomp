@@ -10,10 +10,7 @@
 //! gets that plus the class's time plus the gaps so far into its +0xC and added to its
 //! +0x10; the gap added for each driver of the class.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: `sub_471F0D`, `sub_473126`. The steps are their Rust versions (the random numbers
+//! The steps are their Rust versions (the random numbers
 //! `math::random_below`'s). Fatal error 0x80701010 as the original's checks (a hundredfold of 0, a
 //! half time of 0: the original tests the dividend), before anything; refuses a record past the
 //! table, a class count of 0 or past 0x100, a class's driver count of 0 (the original's `div`
@@ -104,7 +101,7 @@ pub fn check(screens: &Screens, rec: RecordRef) -> Result<(u32, &'_ [Driver], u3
     Ok((classes, drivers, length))
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn calc_cpu_times(screens: &Screens) -> Result<(), Refused> {
     let race = crate::race::owner::race();
     let rec = record(screens)?;

@@ -5,8 +5,7 @@
 //! function (+0) called with eax the change's low byte, ecx bits 8 .. 19 and edx bits 20 ..
 //! 31 (each signed), esi the record and edi the effect.
 //!
-//! In:  esi = the device's record
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record
 //!
 //! Caller: `input::input_tick` (each device, each tick). Refuses (before anything) a controller number past the
 //! table's 16.

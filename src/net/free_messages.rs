@@ -2,8 +2,6 @@
 //! on `stru_52A928`) and four of its counts (`dword_52AC34`, `dword_52AC38`,
 //! `dword_52ACF4`, `dword_52ACF8`) made 0.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //!
 //! See `net/mod.rs`. One caller, `net::destroy_connection`. Refuses what
 //! `memory::free_list` refuses.

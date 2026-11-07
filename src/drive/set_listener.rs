@@ -14,7 +14,6 @@
 //! two floats copied; with `dword_601024` set, `dword_5C5680` and `dword_5C5684` 0. By
 //! the look of it the listener for the 3D sounds (a reading).
 //!
-//! In:  nothing
 //! Out: eax the old `dword_70F628`, ebx 0x10000, ecx 0, edx 0, esi `g_madeObjectMatrix`,
 //!      edi 0x5EA10C, ebp `g_madeObjectMatrix`; no flags read
 //!

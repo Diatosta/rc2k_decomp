@@ -10,9 +10,6 @@
 //! original's jump goes there) player 1's; the best times page when one qualified (a yes
 //! ends it); the review (eax 2, a yes asked). The end: `rc2k_core::menu::rounds::end`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through the time trial's start menu. Refuses a missing player before anything, and what
 //! the callees and the stage's record (`Hand::Stage`) refuse when they are reached.
 

@@ -3,7 +3,6 @@
 //! (`lDistanceToMove`) into `unk_96E488` and their cameras (`unk_963BB4`) into
 //! `unk_971CC8`. Nothing when the marks are not in order (`jle`, signed).
 //!
-//! In:  nothing
 //! Out: eax the first mark, ebx the second; copied: edx the count, ecx 0, esi and edi past
 //!      the cameras' copy; no flags read
 //!

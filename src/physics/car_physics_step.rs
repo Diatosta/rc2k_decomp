@@ -26,10 +26,6 @@
 //!
 //! the holds are `physics/flow.rs`'s.
 //!
-//! In:  nothing
-//! Out: the registers as the steps and calls leave them; no flags read (the callers
-//!      store the car next)
-//!
 //! Callers: `physics::race_cars_step` (0x4608BB), `sub_460835`, `sub_460B2F`. Refuses
 //! (before anything) a current car past 7 (`dword_641680` is read by it), and what its
 //! calls refuse; the work car and the physics' variables (`step_regions`) are put back then

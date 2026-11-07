@@ -8,8 +8,7 @@
 //! step itself rounded into `dword_62400C`); reverse (`flt_6140BC`) the first's negative;
 //! neutral (`g_gearRatios[0]`) `flt_613FE8`.
 //!
-//! In:  nothing
-//! Out: ebx `g_gearCount`; the rest kept; no flags read
+//! Returns: `g_gearCount`
 //!
 //! Callers: `sub_43B635` (0x43B63F) and `sub_4217E4` (the car specification's). Refuses
 //! (before anything) a gear count above 7 (past `g_gearRatios`).

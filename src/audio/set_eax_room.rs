@@ -1,7 +1,6 @@
 //! `audio::set_eax_room` (0x40D26B): the EAX room asked for set.
 //!
-//! In:  nothing
-//! Out: eax = the room's entry in `g_eaxRooms`; every other register preserved
+//! Returns: the room's entry in `g_eaxRooms`
 //!
 //! See `audio/property_sets.rs`: the entry of `g_eaxRoom` (an EAX 1 reverb, 0x10 bytes)
 //! given to `g_eaxProperties`' `Set` when that is there (its result not read). The `Set`

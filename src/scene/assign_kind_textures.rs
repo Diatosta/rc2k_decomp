@@ -1,7 +1,6 @@
 //! `scene::assign_kind_textures` (0x4256D8): every texture slot gets the texture of
 //! the kind it is the first slot of.
 //!
-//! In:  nothing
 //! Out: eax = kind 0's first slot, ebx = kind 0's first texture, ecx = 0xFFFFFFFF,
 //!      edi = the end of the slots' table
 //!

@@ -11,12 +11,9 @@
 //! from a CD a "please wait" frame is shown. Finally the installer is closed
 //! (`install::close_installer`) and the fonts freed (`gfx::free_fonts`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `system::main_loop` (the Rust version calls this directly).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{

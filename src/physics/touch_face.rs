@@ -11,7 +11,6 @@
 //!
 //! Then `physics::place_sound_object` and the count + 1.
 //!
-//! In:  nothing
 //! Out: ebx the face's number, esi its address; when the face was free, edx the count
 //!      before; eax as the kind's path leaves it (the kind, the random number, or
 //!      `dword_6D3B70`); the rest kept; no flags read (callers return)

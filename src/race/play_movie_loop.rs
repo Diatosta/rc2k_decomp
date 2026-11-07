@@ -7,10 +7,6 @@
 //! (`drive::race_frame`), until the block played is the one to stop at; "dpg replay
 //! exit".
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them (eax `dword_5C2530` after a whole play); no
-//!      flags read
-//!
 //! Caller: `race::play_movie`.
 
 use crate::errors::Refused;

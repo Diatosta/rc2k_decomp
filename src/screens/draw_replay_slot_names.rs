@@ -1,15 +1,12 @@
 //! `screens::draw_replay_slot_names` (0x46F41A): draws the names of the 20 replay slots of
 //! the current page in two columns of 10 (the save and load replay pages' drawer).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`); carry clear (the last `cmp` equal)
 //! The page is `dword_755248`; a name is 0x20 bytes of `byte_528934`. Columns at x = 0xC6 and
 //! 0x213, rows from y = 0xB5 in steps of 0x1B, font 0x51E8C4. It keeps its position in
 //! `g_markerX`/`g_markerY` and its row counter in `dword_7559EC`, left at 0x213, 0x183 and 10.
 //! Refuses a page past the fifth: the table has 100 names. Called through the menu tables
 //! (0x758BCE, 0x758BD6). Was not a function in IDA (made 2026-10-19: the standalone's replay pages
-//! showed no names). The menus and draw lists run its `entry` (`menu::table_calls`); the registers
-//! above are the original's, for reference.
+//! showed no names). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::name_lists::{NAME_LEN, REPLAY_PAGE_RVA};

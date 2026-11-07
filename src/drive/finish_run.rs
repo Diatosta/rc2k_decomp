@@ -8,9 +8,6 @@
 //! `physics::camera_frame`), the car stored (`drive::store_first_car`), the race's frame
 //! (`sub_4541BF`, stream A's: through the game).
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them; no flags read
-//!
 //! Caller: `drive::finish_race`. Refuses a length index past 1 (the table's two), and what
 //! its calls refuse.
 

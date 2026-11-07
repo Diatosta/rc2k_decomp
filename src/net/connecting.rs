@@ -3,9 +3,7 @@
 //! 0x6F), shown, a second's sleep (none when the lock fails); then connection eax made
 //! (`net::init_connection`).
 //!
-//! In:  `connection` (eax: the connection's number)
-//! Out: whether `net::init_connection` worked (the original: its flags, carry when it
-//!      failed; every register kept)
+//! Takes `connection`. Returns whether `net::init_connection` worked.
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;

@@ -2,8 +2,6 @@
 //! connections listed (`net::find_connections_regs`), one chosen (`net::choose_connection`)
 //! and kept (`net::keep_connection`); then the network stopped again (`net::stop`).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Caller: `net::settings_loop`. Long-running (a list screen).
 
 use crate::errors::Refused;

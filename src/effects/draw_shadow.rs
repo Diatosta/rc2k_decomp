@@ -12,9 +12,6 @@
 //! corners projected, their depths less `flt_934BC0` .. times `flt_8EB96D`, and
 //! `scene::draw_fan`.
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! Caller: the race's frame (0x456330). The long x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order,
 //! over the game's variables; the vector helpers their Rust versions. Refuses, before
 //! anything, a corner past `g_marksCorners` and an angle `fsincos` cannot take.

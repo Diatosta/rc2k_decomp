@@ -2,9 +2,6 @@
 //! of x, y, z `flt_7692EA` .. = -(`flt_76927A` .. less `flt_769296` ..) (`fld; fsub;
 //! fchs; fstp`), then `flt_769296` .. = `flt_76927A` .. (`push`/`pop`).
 //!
-//! In:  nothing
-//! Out: every register kept
-//!
 //! Caller: `sub_4C1270`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).

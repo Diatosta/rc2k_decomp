@@ -1,14 +1,10 @@
 //! `files::swap_missing_extension` (0x4032DB): if a path ends in `.png` or `.avi` and there
 //! is no such file, changes the ending to `.pcx` or `.mpg`, in place.
 //!
-//! In:  eax = path, which is written to
-//! Out: every register preserved
-//! Paths of fewer than five characters are left alone, and so is every other ending (also
-//! `.pcx` and `.mpg`, and upper case). Whether the file is there is asked of
-//! `files::file_exists`. Two callers: the picture loader and the film player `sub_4161CD`.
+//! Takes path, which is written to. Paths of fewer than five characters are left alone, and so is
+//! every other ending (also `.pcx` and `.mpg`, and upper case). Whether the file is there is asked
+//! of `files::file_exists`. Two callers: the picture loader and the film player `sub_4161CD`.
 //! Refuses what `text_length` and `file_exists` refuse. The name is a reading.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::files::file_exists::file_exists;

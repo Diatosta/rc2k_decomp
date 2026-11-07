@@ -4,9 +4,6 @@
 //! cell from its place +0x20 / +0x24, `fistp`ed through `dword_81471C` / `dword_814720`,
 //! >> 3).
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Caller: `effects::windscreen_flakes_step` (0x4C0682).
 
 use crate::effects::mask_store::Masks;

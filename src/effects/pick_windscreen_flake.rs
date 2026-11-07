@@ -2,9 +2,6 @@
 //! times 0xC5 plus 0x5D) split into a place (bits 0 .. 10, 11 .. 20) and a kind (bits 21 ..
 //! 23) for `effects::spawn_windscreen_flake`.
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Caller: `effects::windscreen_flakes_spawn` (twice). The call is `spawn_windscreen_flake`'s Rust version.
 //!
 //! compared exactly as before (the earlier version stays for the Rust callers in

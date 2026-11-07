@@ -3,9 +3,6 @@
 //! .. +0xE0) and 25 more dwords of its block (speeds, gear, engine, ...) built in
 //! `unk_71C4D0` and sent (`net::send_race_message`).
 //!
-//! In:  nothing
-//! Out: nothing (the original's registers, as the send leaves them, are read by no caller:
-//!      `lq -s` of its one call site, esi only, kept)
 //!
 //! See `net/mod.rs` and `net::send_inputs` (the shared body). One caller, `net::send_turn`
 //! (step 2 of 32).

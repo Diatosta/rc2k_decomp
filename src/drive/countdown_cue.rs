@@ -1,8 +1,8 @@
 //! `drive::countdown_cue` (0x45D1A5): `drive::countdown_sound` for the current car when it
 //! has a sound slot (`dword_641680[g_currentCar]` not -1), ebx the sound.
 //!
-//! In:  ebx the sound
-//! Out: eax the slot; the rest kept; no flags read
+//! Takes: the sound
+//! Returns: the slot
 //!
 //! Caller: `drive::countdown_beep`. Refuses a current car past 7.
 

@@ -5,12 +5,10 @@
 //! NUL, the cursor advanced and `dword_51BB4C` (the count) raised. More than 0x40000 bytes
 //! of names is fatal error 0x80AF2206. The search is closed at the end.
 //!
-//! In:  eax the pattern
-//! Out: every register kept (`pusha` / `popa`)
+//! Takes the pattern.
 //! Caller `install::run_script` (opcode 3).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{close_search, fatal, find_first, find_next, resolve_path};
@@ -22,7 +20,7 @@ fn find_name() -> Vec<u8> {
     crate::files::search::found_name()
 }
 
-/// The files of `pattern` (eax) added to the files' table.
+/// The files of `pattern` added to the files' table.
 pub fn list_files(
     install: &'static crate::install::owner::Install,
     pattern: impl Into<crate::place::Place>,

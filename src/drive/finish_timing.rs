@@ -6,8 +6,7 @@
 //! `flt_64BB74` (t - c) / (d - c); and with `dword_75B108` and t from `flt_64BB70` on,
 //! `dword_5C2F88` 1.
 //!
-//! In:  nothing
-//! Out: eax the clock less the start; the rest kept; no flags read
+//! Returns: the clock less the start
 //!
 //! Caller: `drive::finish_run`.
 

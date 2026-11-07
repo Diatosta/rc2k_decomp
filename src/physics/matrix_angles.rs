@@ -5,8 +5,7 @@
 //! `flt_5C70DC` = `clamped_asin` of E4 over the cosine of D4 (80 bits). A reading: the
 //! car's heading (D8), pitch (D4) and roll (DC).
 //!
-//! In:  esi the matrix
-//! Out: every register kept; the x87 stack as it was; no flags read
+//! Takes: the matrix
 //!
 //! Callers: `physics::car_angles` (`g_crashMatrix`).
 

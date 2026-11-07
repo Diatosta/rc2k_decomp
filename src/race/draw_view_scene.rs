@@ -10,7 +10,6 @@
 //!
 //! In:  nothing (no step reads a register its caller gives: register liveness and the Rust
 //!      steps, 2026-10-23; edx's "read" is `fog_table`'s `imul`)
-//! Out: nothing its callers (`race::draw_race_scene`, `race::draw_mirror_view`) read
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

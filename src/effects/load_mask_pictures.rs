@@ -2,9 +2,6 @@
 //! pictures made 256 x 128 blocks of white with the mask as alpha, and drawn into a
 //! texture surface.
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! The ground picture's name is the `dword_934CC8`-th of six (`files\m\snow1.pcx`, `mud1`,
 //! `dust1`, `mud1`, `mud1`, `gumbo0`); it is read twice and never used (section 16). The
 //! surface's lock and unlock are the game's (`sub_41AA4B` / `sub_41AB02`, DirectDraw). One

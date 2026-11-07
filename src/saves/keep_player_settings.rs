@@ -4,8 +4,6 @@
 //! the four players, the bytes +0x1C .. +0x27 (the keys), the dwords +0x2C .. +0x78 and
 //! +0x178, into the saved car at esi + n x 0x28C.
 //!
-//! In:  esi the saved cars (four of 0x28C bytes)
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! Caller: `saves::load_savegame` (when `dword_755144` is 0). Refuses (before anything) a missing
 //! player or esi 0.

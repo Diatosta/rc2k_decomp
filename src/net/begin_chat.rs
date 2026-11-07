@@ -2,9 +2,7 @@
 //! (`byte_52A4C8`) emptied and edited (`net::begin_edit`, the item `g_listChoice`, width
 //! 0x30C, measured with `dword_51E424`).
 //!
-//! In:  nothing
-//! Out: eax = the item, ebx = the input, ecx = 0x30C, edx = `dword_51E424`'s address; no
-//!      `pusha`
+//! Returns the item, input, 0x30C, `dword_51E424`'s address.
 //! Caller: `net::lobby_loop`.
 
 use crate::net::store::NetVars;

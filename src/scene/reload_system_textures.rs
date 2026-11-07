@@ -1,9 +1,6 @@
 //! `scene::reload_system_textures` (0x4254B4): every system texture gets the picture
 //! it should have ("reload system plates").
 //!
-//! In:  nothing
-//! Out: the registers as `scene::load_hud_car_icons` leaves them
-//!
 //! - Two lines in the game's log (a rule and "Reload system plates - start").
 //! - Each kind's first texture (`g_kindFirstTextures`), where it has one, wants the
 //!   kind's picture (`dword_5D7968`; 0 counts as none, -1).

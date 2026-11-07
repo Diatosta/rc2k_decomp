@@ -1,8 +1,6 @@
 //! `saves::list_car_numbers` (0x470825): two lists of numbers from two lists of pointers,
 //! the other way round from `saves::rebuild_car_lists`.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! 0x28 dwords of -1 at `unk_755258` and 0x28 at `unk_7552F8` (the second list has 0x14
 //! entries in `var\ral.dat`; the rest of what is filled is whatever lies after it); then
 //! for each entry of `off_75A042` up to its -1 the first dword of what it points at goes

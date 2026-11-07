@@ -1,7 +1,5 @@
 //! `saves::gather_savegame` (0x4AB427): copies the state a saved game holds into a buffer.
 //!
-//! In:  edi = where it goes (0x725C bytes)
-//! Out: every register preserved
 //! In this order:
 //! - seven dwords: `dword_755984`, `dword_755950`, the event's stage index and section
 //!   (0x755958, 0x75595C), `dword_755988`, `dword_7556D0`, `dword_75AB40`;

@@ -2,9 +2,7 @@
 //! (`CoCreateInstance` of CLSID_DirectPlay `stru_5AB330`, IID_IDirectPlay4A `stru_5AB310`,
 //! in-process) into `g_dplay`.
 //!
-//! In:  nothing
-//! Out: true when made (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Returns true when made.
 //! Caller: `net::find_connections`.
 
 use crate::net::lobby::{co_create, log};

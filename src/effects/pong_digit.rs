@@ -2,8 +2,7 @@
 //! pattern (`unk_768704`, 0x14 bytes a digit; ebx the column, ecx the row, eax walking
 //! the pattern), then `dword_7687D4` on 0x40.
 //!
-//! In:  eax the digit
-//! Out: nothing (all kept: `pusha` .. `popa`)
+//! Takes: the digit
 //!
 //! Caller: `effects::pong_score` (six times). Refuses a digit past 9 (the patterns' end),
 //! before anything.

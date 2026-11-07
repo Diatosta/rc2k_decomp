@@ -4,7 +4,6 @@
 //! `flt_608B28` and `flt_608B2C`, x `flt_5C5D98`, negated, `fistp`ed into
 //! `dword_608B38`.
 //!
-//! In:  nothing
 //! Out: esi the mode's record; eax the time held when it ran; the rest kept; no flags
 //!      read
 //!

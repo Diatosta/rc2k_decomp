@@ -1,8 +1,6 @@
 //! `menu::review_options_485f5e_loop` (0x485F5E): the menu after the results screens, by its
 //! title "OPÇÕES DE REVISÃO" (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `roptions.png`; leaving is asked about; also
 //! when `dword_755569` is 1; the next frame begins with the steps after the first frame; the
@@ -10,9 +8,8 @@
 //! listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES DE REVISÃO", not yet a
 //! visit.
-//! Callers: `sub_482382`, `sub_4824C1`, `sub_4826A2`, `sub_4828B0`, `sub_482B7A`, `sub_48AE39`,
-//! `sub_48AFD0`, `sub_48B23D`, `sub_48B54B`, `sub_48B90F`. Rust callers run its `entry`
-//! (`routes.rs`); the registers above are the original's, for reference.
+//! Rust callers run its `entry`
+//! (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

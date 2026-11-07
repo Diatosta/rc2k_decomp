@@ -1,6 +1,6 @@
 //! `scene::face_sort_key` (0x450564): the depth a face is sorted by.
 //!
-//! In:  ebp = the face, ecx = the number of its vertices
+//! Takes: the face, the number of its vertices
 //! Out: `dword_62407C` = the key; eax = the last point's record as an offset, ebx = the
 //!      number of vertices as `g_polygonVertexCount` has it, ecx = 0, edx = the last
 //!      point's record, esi = the face's end; everything else preserved

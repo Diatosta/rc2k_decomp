@@ -4,12 +4,9 @@
 //! [`dword_4F50C8`], built in the shared text buffer) at x 0x1D1 from y 0xDC every 0x1B, in
 //! the font at 0x51E8C4.
 //!
-//! In:  nothing
-//! Out: as the last `draw_string_by_id` leaves them (carry, eax 0, ebx, ecx, edx)
 //!
 //! In a menu loop's draw list (0x758CB2). Refuses what `menu::enable_item` refuses (no current
-//! menu), before anything. The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! menu), before anything. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;

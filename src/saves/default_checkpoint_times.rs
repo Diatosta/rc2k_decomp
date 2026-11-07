@@ -1,8 +1,6 @@
 //! `saves::default_checkpoint_times` (0x47CA46): made-up best times with checkpoint times
 //! for the championship's stages.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! For each stage of the championship's record table (counted into `seconds`): the ten entries of
 //! the stage in the table at `dword_7556E8` get the record's +0x18 + 24,000 and 0x9F more each, and
 //! a driver, with the record's +4 as the stage for the checkpoints (`saves/default_times.rs`; its

@@ -28,8 +28,7 @@
 //! (`race::close_viewed_replay`), the front end back (`race::viewer_tidy_stage`),
 //! `dword_5BEC98` and `g_holdCarRevs` 0.
 //!
-//! In:  eax the mode
-//! Out: every register kept (`pusha` / `popa`); no flags read
+//! Takes: the mode
 //!
 //! Callers: `race::replay_mode_1`, `race::replay_mode_3`, `race::replay_mode_2`. Key 0x26
 //! is in `KEYS` twice (0x1D, then 0x14 never reached; kept, section 16).

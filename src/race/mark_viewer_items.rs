@@ -7,8 +7,7 @@
 //! blocks 0 .. 0x11 and 0x15 .. 0x19; 0x18, 0x19 when the block's camera byte 5 is 0, 0xD,
 //! 0xE when it is 1; 0xF for one player's replay (`dword_719B34`).
 //!
-//! In:  edi the list (`unk_5C255C`)
-//! Out: every register kept (`pusha` / `popa`); no flags read
+//! Takes: the list (`unk_5C255C`)
 //!
 //! Callers: `race::replay_viewer` (two).
 

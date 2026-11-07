@@ -3,8 +3,7 @@
 //! `flt_93A4B6` .. `flt_93A4D2`, `dword_93A4D6` (an instruction diff: nothing else
 //! differs).
 //!
-//! In:  esi the car object
-//! Out: every register kept
+//! Takes: the car object
 //!
 //! Refuses as `emit_particle_19`.
 

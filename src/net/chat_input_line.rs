@@ -2,8 +2,7 @@
 //! `stru_51E584` at x 0xA, y ebp; ebp 0x1E lower), with string 4 (the cursor) after it while
 //! it is being edited (`dword_52A4B8` the item), built in the game's text buffer.
 //!
-//! In:  the text, the item, y
-//! Out: as `text::draw_text` leaves them; ebp + 0x1E; no `pusha`
+//! Takes the text, the item and y.
 //! Caller: `net::lobby_frame`.
 
 use crate::errors::Refused;

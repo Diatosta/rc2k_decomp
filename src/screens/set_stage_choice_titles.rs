@@ -1,8 +1,6 @@
 //! `screens::set_stage_choice_titles` (0x469393): the stage choice's two titles and its
 //! heading text, for the stage chosen.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //!
 //! The menu at 0x748620 (the stage choice's): item 0's string (+0x14) = the group's title
 //! (`dword_758718[group]`); then the table's title (its +0x38) is stored at `[0x748620] + 4 + 0x5C
@@ -11,7 +9,7 @@
 //! the heading "<string 0x482> n/6: name" built in `byte_A8BD54`
 //! (`stage_panel::build_second_heading`). In two entry lists. Refuses a choice without its tables
 //! (the original reads through null), and what the heading refuses. The menus and draw lists run
-//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

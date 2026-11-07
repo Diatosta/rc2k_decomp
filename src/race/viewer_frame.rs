@@ -10,7 +10,6 @@
 //! the bar, the two marks and the place shown along it, the four buttons) and the panel
 //! (`race::draw_viewer_panel`); the scene ended and the frame shown (`gfx::show_frame`).
 //!
-//! In:  nothing
 //! Out: carry set when the frame was lost (the scene's begin or end, the showing); every
 //!      register kept (`pusha` / `popa`; `screens::run_frame` reads only carry)
 //!

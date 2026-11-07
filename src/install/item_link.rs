@@ -2,13 +2,10 @@
 //! edx its `[esi+0Ch]`) if it has one; else, unless its next list (`[esi+1]`) is negative,
 //! that number into `byte_51D415` and the page left (`g_listLeave` 1).
 //!
-//! In:  esi the item (edi the list, for the action)
-//! Out: with an action as it leaves them; else bl the next list and the flags of
-//!      `test bl, bl` (zero for list 0, carry clear)
+//! Takes the item.
 //! Caller `install::item_enter`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::item_action_at;

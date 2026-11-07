@@ -2,8 +2,6 @@
 //!
 //! In:  the point (`dword_639824`, `dword_63982C`), the face mask `dword_620470`, the
 //!      last face `dword_5CCC78`
-//! Out: every register kept; `g_groundFound`, `dword_5CCC74`, the face's shares and
-//!      height (`dword_639828`); CF not read by its callers
 //!
 //! See `physics/ground.rs`. Callers (7): `sub_45D305` (the car's ground points),
 //! `sub_462485`, `sub_45EB06`, `sub_458078`, `sub_44ECE4`, `sub_43A1CA`, `sub_438E22`.

@@ -2,9 +2,7 @@
 //! that ends the editing and the message is not empty, it is sent (`net::send_chat_regs`,
 //! this machine's player) and the input emptied.
 //!
-//! In:  al = the key
-//! Out: as `net::edit_key` leaves them while editing goes on; after it eax = the player,
-//!      ebx = the input; no `pusha`
+//! Takes the key.
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;

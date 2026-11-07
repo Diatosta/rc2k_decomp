@@ -9,12 +9,9 @@
 //! `g_installing` cleared. Each path is built in `byte_95E9F8` from `byte_95E7F8` plus the
 //! listed name.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! A list action (`off_51DD30`). Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 //!
 //! "Remove all" (2026-11-03, a decided difference): the original removed only what its
 //! script lists, so files the game made (its log, `rc2k.log`, the program and its

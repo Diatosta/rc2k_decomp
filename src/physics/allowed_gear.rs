@@ -4,7 +4,7 @@
 //! then 0 unless +0x3F4 (`unk_71A3CC`) is set. A reading: the gear asked for, unless the
 //! gearbox refuses it.
 //!
-//! In:  eax the gear
+//! Takes: the gear
 //! Out: eax the gear or 0; the rest kept (ebx and ecx pushed around); no flags read
 //!      (the caller stores eax)
 //!

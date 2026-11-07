@@ -11,19 +11,17 @@
 //! - 9, 6: nothing;
 //! - any other byte (0): the end. An unbalanced stack is fatal error 0x80AF3011.
 //!
-//! In:  ebx the script
-//! Out: every register kept (`pusha` / `popa`)
+//! Takes the script.
 //! Callers `install::install_files`, `uninstall`, `install_clio`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{fatal, media_mode, rb, wb};
 use crate::place::Place;
 use rc2k_core::install::script::{self, Op};
 
-/// The script at `script` (ebx) run.
+/// The script at `script` run.
 pub fn run_script(
     install: &'static crate::install::owner::Install,
     script: impl Into<crate::place::Place>,

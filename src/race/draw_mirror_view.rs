@@ -7,7 +7,6 @@
 //! (`race::full_view_window_2`).
 //!
 //! In:  nothing (its steps read no register it gives them)
-//! Out: nothing its one caller, `race::draw_race_scene`, reads
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

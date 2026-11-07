@@ -14,8 +14,7 @@
 //! focal length each four times into `xmmword_8D2030` ..; `effects::draw_snow`;
 //! `scene::depth_test_on`.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (its caller reads no register after it)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `effects::run_frame` (0x4D166B). The two turns are plain Rust on the x87 model (`math::x87_float`), in the original's order,
 //! over the game's variables. Refuses null settings, before anything.

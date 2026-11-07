@@ -3,7 +3,7 @@
 //! sign of the differences) or `drive::car_near_checkpoint` finds one of the four cars
 //! near it (blocks 0x70F3EC, 0x7103CC, 0x7113AC, 0x71238C). Inside `pusha` / `popa`.
 //!
-//! In:  eax the checkpoint
+//! Takes: the checkpoint
 //! Out: CF; every register kept (ZF not read: `jb`)
 //!
 //! A `js` is in its first five bytes: `.private_copy` (its four calls relocated) with

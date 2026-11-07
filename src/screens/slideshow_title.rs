@@ -1,11 +1,8 @@
 //! `screens::slideshow_title` (0x469A57): the slideshow's title.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //!
 //! String 0x33D and a NUL into `byte_A8BF54`. In two draw lists (the slideshow). Refuses a title
-//! longer than 0x100 bytes. The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! longer than 0x100 bytes. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::screens::car_caption::put_string;

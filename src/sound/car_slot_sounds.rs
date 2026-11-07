@@ -1,8 +1,7 @@
 //! `sound::car_slot_sounds` (0x40E0F6): a player's car's timed sounds (the slots of
 //! `sound::play_timed_slot` in its object).
 //!
-//! In:  ebx the car's sound object, esi the request
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the car's sound object, the request
 //! Nothing for a computer's car (+0 negative). The request's place = +0x2C .. +0x34;
 //! the slots at +0x164, +0x14C, +0x17C, +0x194 (only with +0xC 0), +0x260 and +0x1AC;
 //! then the place = +0x214 .. +0x21C and the slot at +0x220. Each call gets the

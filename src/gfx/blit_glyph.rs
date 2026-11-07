@@ -1,7 +1,7 @@
 //! `gfx::blit_glyph` (0x4069B2): draws one run-length-encoded glyph on the global surface,
 //! clipped to the global clip rectangle.
 //!
-//! In:  eax = glyph index, ecx = x, edx = y, ebx = palette (256 dwords), esi = glyph table
+//! Takes: glyph index, x, y, palette (256 dwords), glyph table
 //! Out: esi, edi and ebp preserved. eax, ebx, ecx and edx hold leftovers of the drawing loops;
 //!      only the lobby passes one on (ebx, as the next sprite's palette, which the direct-colour
 //!      sprites never read), so the Rust version returns none of them.

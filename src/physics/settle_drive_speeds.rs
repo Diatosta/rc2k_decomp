@@ -5,8 +5,7 @@
 //! speed of 0 (or NaN) is left; one that reaches or crosses 0 becomes +0 (a NaN after the
 //! step too). Then, in gear, `physics::revs_from_wheels`.
 //!
-//! In:  nothing
-//! Out: in gear, ebx = `g_carGear` (`revs_from_wheels`); the rest kept; no flags read
+//! Returns: in gear, `g_carGear` (`revs_from_wheels`)
 //!
 //! Caller: `sub_43B635` (0x43B7AD, before `sub_43EA54`), every physics step. Refuses
 //! (before anything) a gear outside -1 ..= 7 (`revs_from_wheels`' table).

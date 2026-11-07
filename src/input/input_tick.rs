@@ -4,9 +4,6 @@
 //! effects told (`input::device_effects`), and with one player on two devices
 //! (`dword_4F68FC`) the second's readings added to the first's (its bits: those of 0x70FF).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Callers: the input thread (`sub_4078DA`, every 20 ms), `input::device_command`
 //! (twice).
 //!

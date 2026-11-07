@@ -1,8 +1,8 @@
 //! `gfx::put_surface_pixel` (0x4065BB): four 8-bit components made a pixel of the surface's
 //! format and put at x, y on `g_surface`.
 //!
-//! In:  eax the components, ecx x, edx y
-//! Out: eax the pixel; everything else kept
+//! Takes: the components, x, y
+//! Returns: the pixel
 //!
 //! The format through `g_surface`'s pointer (0x4F49B8), `gfx::components_to_pixel`; the pixel
 //! 16 bits wide when the surface's bits per pixel are 16, else 32. Five callers (among them the

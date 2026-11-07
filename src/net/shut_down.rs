@@ -3,8 +3,6 @@
 //! (`dword_52AB68`) taken out (`xchg` with 0) and closed (`sub_411092`, `sub_41104F`:
 //! `CloseHandle` if not 0).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //!
 //! See `net/mod.rs`. One caller in the standalone, `start`'s way out (0x4010EE; the
 //! original's other, `sub_4104F2`, is not reached). Refuses what `net::stop` refuses.

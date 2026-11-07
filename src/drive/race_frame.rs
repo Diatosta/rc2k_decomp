@@ -7,7 +7,6 @@
 //! not drawn): unless quitting, the surfaces restored (`sub_405B10`, ebx `dword_518380`)
 //! and the flags of `cmp (ebx ^ 1) | dword_518380, 1`.
 //!
-//! In:  nothing
 //! Out: carry clear when the frame was made; otherwise the flags above (quitting: those
 //!      of `cmp g_quitting, 1`); the registers as the calls leave them, ebx on the lost way
 //!

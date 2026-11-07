@@ -3,9 +3,6 @@
 //! before it; none: the fatal error 0x8070A0AE "Unable to locate player
 //! (find1stplayerinochamp)".
 //!
-//! In:  edi the first entry
-//! Out: edx its +0x70, ecx its player (+4), edi the entry; the rest kept
-//!
 //! Callers: the event code. Refuses a table without its end entry, before anything; raises the
 //! fatal error as the original.
 

@@ -2,8 +2,6 @@
 //! leaving it. The first of the game's 83 screen loops to be ported; the loop itself is
 //! `menu::screen_loop`, and this file says what is the service area's own (`SCREEN`).
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! It empties the key buffer (six `take_key`), then:
 //!
 //! Set-up (again after every action that does not leave the screen): the highlight comes
@@ -35,12 +33,9 @@
 //! The registers are carried through as the original has them, because the functions it
 //! calls get them: `handle_keys` reads ah on Enter, which here is a byte of the elapsed time.
 //!
-//! Callers: `sub_48E093` (time trial) and `sub_4A15E3` (championship).
-//! Seven of its callees are not ported and are called with `call_game`: the four named
-//! under "game data" below, and `menu::draw_frame`, `screens::run_frame` and
-//! `menu::confirm_leaving` in the shared loop.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Callers: `sub_48E093` (time trial) and `sub_4A15E3` (championship). Seven of its callees are not
+//! ported and are called by address: the four named under "game data" below, and
+//! `menu::draw_frame`, `screens::run_frame` and `menu::confirm_leaving` in the shared loop.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

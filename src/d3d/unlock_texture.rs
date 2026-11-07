@@ -2,7 +2,7 @@
 //! that is locked (+0x60 1), its `Unlock` (no rectangle; a failure is fatal error
 //! 0x8021A173) and +0x60 0.
 //!
-//! In:  eax the texture
+//! Takes: the texture
 //! Out: the flags as the original leaves them (unlocked: zero set, carry clear; no
 //!      surface: those of `cmp [+0x14], 0`; not locked: of `cmp [+0x60], 1`); every
 //!      register kept

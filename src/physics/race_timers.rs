@@ -6,10 +6,6 @@
 //! `count_start_second`, `physics::take_split`, `count_stop_timers`, `mark_car_started`;
 //! else nothing.
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them; no flags read (the caller goes on with
-//!      calls)
-//!
 //! Caller: `sub_43B635` (0x43B64E). Refuses what the steps refuse; what was written is put
 //! back.
 //!

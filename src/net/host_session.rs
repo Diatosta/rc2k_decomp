@@ -10,9 +10,7 @@
 //! Since 2026-10-29 the session's name goes to `net::dp_objects` as text (`open`): the
 //! description's name pointer is left 0.
 //!
-//! In:  nothing
-//! Out: true when hosted (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Returns true when hosted.
 //! Caller: `net::hosting`.
 
 use crate::errors::Refused;

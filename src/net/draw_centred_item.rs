@@ -3,9 +3,7 @@
 //! edited or in the blink's lit half (as `net::draw_button`); ebp moves down by the font's
 //! line height (+8).
 //!
-//! In:  eax = the string, ecx = x, esi = the item, ebp = y
-//! Out: ebx = the font, edx = the y, ebp lower; eax .. edx as the drawing leaves them; no
-//!      `pusha`
+//! Takes the string, x, the item and y.
 //! Caller: `net::settings_frame` (its last item).
 
 use crate::errors::Refused;

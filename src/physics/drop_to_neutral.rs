@@ -4,9 +4,6 @@
 //! `dword_71A214` 1 (as the gear changes of `sub_43C20D` set them). By the look of it the
 //! engine stalling into neutral (a reading).
 //!
-//! In:  nothing
-//! Out: every register kept (eax pushed around `fnstsw`)
-//!
 //! Caller: `sub_43B635` (0x43B966), every physics step.
 
 use crate::race::owner_shared::Shared;

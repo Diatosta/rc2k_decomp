@@ -6,9 +6,6 @@
 //! `dword_8BC431`. Then each pace eased toward its target (`x87::ease`, by `flt_8C5FD9`
 //! / `flt_8C5FDD`) and added to its offset (`dword_8BDD7D`, `dword_8BDD85`, rounded).
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! One caller, `sub_4C16F9` (the marks' frame).
 //!
 //! the x87 version stays for the Rust callers in unconverted code; the offsets' `fistp`

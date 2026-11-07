@@ -2,10 +2,10 @@
 //! for the pace notes: eax the current car's entry in `dword_641680`; unless -1,
 //! `physics::cue_car_sound_last` with it.
 //!
-//! In:  ebx the cue
-//! Out: eax the entry; the rest kept; no flags read
+//! Takes: the cue
+//! Returns: the entry
 //!
-//! Caller: `physics::queue_pace_note` (inside `pusha` / `popa`). Refuses (before anything)
+//! Caller: `physics::queue_pace_note`. Refuses (before anything)
 //! a current car past 7.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

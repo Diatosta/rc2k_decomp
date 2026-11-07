@@ -2,8 +2,7 @@
 //! eax is 0, `effects::draw_pong_box` at (ebx times `flt_7691FA` plus `dword_7687D4`, ecx
 //! times `flt_7691FE` plus `dword_7687D8`) sized `flt_769202` by `flt_769206`; eax on one.
 //!
-//! In:  eax the pattern byte, ebx the column, ecx the row
-//! Out: nothing (its caller walks the pattern itself)
+//! Takes: the pattern byte, the column, the row
 //!
 //! Caller: `effects::pong_digit` (twenty times).
 //!

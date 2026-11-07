@@ -1,12 +1,8 @@
 //! `files::read_stream_block` (0x402DA3): reads a number of bytes from a buffered stream.
 //!
-//! In:  ebx = where they go, ecx = how many, esi = the stream
-//! Out: eax = how many were read; carry = a read failed; everything else preserved
-//! One `read_stream_byte` per byte. The end of the file stops it without the carry flag:
-//! the caller has to look at eax. Three callers, the picture readers (0x80 bytes of header).
-//! The name is a reading.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Returns how many were read. One `read_stream_byte` per byte. The end of the file stops it
+//! without the carry flag: the caller has to look at eax. Three callers, the picture readers (0x80
+//! bytes of header). The name is a reading.
 
 use crate::errors::BadInput;
 use crate::files::stream::Stream;

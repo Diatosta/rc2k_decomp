@@ -5,7 +5,6 @@
 //! +0x28, `unk_71A000`) / n (`fild` / `fidiv`) into `dword_624020`; `flt_614758` = d +
 //! (1 - d) s, and `flt_614750` times it.
 //!
-//! In:  nothing
 //! Out: eax n less the word (no `pusha`); the rest kept; no flags read (the callers return
 //!      or load floats next)
 //!

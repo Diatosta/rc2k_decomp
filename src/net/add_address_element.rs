@@ -2,9 +2,7 @@
 //! built (`unk_52AC48`, 0x18 bytes each, `dword_52AC3C` of them: a DPCOMPOUNDADDRESSELEMENT,
 //! the data type's GUID, the data's size, the data).
 //!
-//! In:  `data_type` (eax: the data type's GUID), `size` (ecx: the data's size), `data` (ebx)
-//! Out: nothing (the original leaves edx the element's offset, which its one caller,
-//!      `net::build_address`, does not read in Rust; the rest kept)
+//! Takes `data_type`, `size`, `data`.
 //! No limit on the count. Caller: `net::build_address` (five times; three at most in one
 //! go).
 //!

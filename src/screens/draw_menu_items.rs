@@ -1,8 +1,8 @@
 //! `screens::draw_menu_items` (0x471D0A): draws the items of a menu, each a picture or a
 //! button with a text, the highlighted one with pulsing colours.
 //!
-//! In:  edi = the menu; ebx and ecx are handed on as they come (see below)
-//! Out: every register preserved
+//! Takes the menu; the first and third values the original keeps in registers are handed on as
+//! they come (see below).
 //! Items are 0x5C bytes after a 4-byte head and end with -1; the first is drawn without
 //! being checked for the end. An item is the highlighted one when its type (+0x10) equals
 //! `dword_755525`; `dword_7559D0` is left at 1 or 0 for the last item accordingly.

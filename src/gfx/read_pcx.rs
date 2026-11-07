@@ -1,6 +1,6 @@
 //! `gfx::read_pcx` (0x411A45): decodes a PCX file into the picture buffer.
 //!
-//! In:  eax = path
+//! Takes: path
 //! Out: carry = failed; every register preserved
 //! Zeroes the header (`dword_51B5F4`, 0x80 bytes) and reads the file's first 0x80 bytes
 //! into it with `files::read_file`; then by the header's number of planes: 1 goes to

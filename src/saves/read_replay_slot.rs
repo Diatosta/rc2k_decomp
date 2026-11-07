@@ -1,8 +1,7 @@
 //! `saves::read_replay_slot` (0x41ECAD): reads a replay's head,
 //! `savedata\replay\replayNN`, and copies its name into the replay list.
 //!
-//! In:  ebx = slot, 0 .. 99
-//! Out: carry = failed (zero flag = succeeded); every register preserved
+//! Takes slot, 0 .. 99.
 //! Up to 0x430 bytes to `dword_528504`. Accepted if the read did not fail, the first dword
 //! is "REPL" and the dword at +8 is 0x50400; the 0x20 bytes at +0x10 then go to
 //! `byte_528934[slot * 0x20]`. A short file is not noticed as such: what the buffer held

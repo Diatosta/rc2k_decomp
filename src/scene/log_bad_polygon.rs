@@ -9,8 +9,7 @@
 //! "wv" +0xC, "v" +0x1C (floats, two decimals; the labels are the tails of one string),
 //! "co" +0x10 and "sp" +0x14 (hex8), a line's end; and a last line's end.
 //!
-//! In:  edi = the vertices
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the vertices
 //!
 //! Caller: `scene::show_bad_polygon` (0x443AEC). Refuses (before anything) more than 64
 //! vertices (the original's loop would run through memory).

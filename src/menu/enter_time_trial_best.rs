@@ -6,9 +6,6 @@
 //! (`menu::sealed_player_time` with eax the stage's +0x3C), the 0x40 bytes at the player's
 //! +0x20C at +0x5C, the name's first 31 bytes at +0x20; then `menu::rank_time_trial_best`.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Callers: the time trial's events, when the player qualifies. The two callees are their Rust
 //! versions, `sealed_player_time` with the registers the original has there (eax the stage's +0x3C,
 //! ebx `dword_7558D0`, esi the player, edi the entry). Refuses (before anything) a current player
@@ -23,7 +20,7 @@ use crate::session::Dword;
 const STAGE_SLOT: &Dword = &crate::menu::owner::MENUS.screens.draw_work.figure; // dword_7559EC
 // hhmm
 
-/// The Rust version (see the header).
+/// The Rust version.
 pub fn enter_time_trial_best(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let screens = &menus.screens;

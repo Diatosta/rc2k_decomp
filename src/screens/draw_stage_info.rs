@@ -2,8 +2,6 @@
 //! stage heading, then everything in `stage_panel::draw_stage_body` and the stage's record
 //! rows.
 //!
-//! In:  nothing in registers; it works from the section and index of the event's stage
-//! Out: carry as `draw_stage_records` leaves it; every register preserved
 //! It is not called directly: its address is in the list of draw functions at 0x758D7E, which
 //! belongs to the screen loop `sub_473B21`. That loop is called from `sub_4A0E60` and
 //! `sub_4AA4D7`, which step through the stages of an event (`inc index`) and show another
@@ -14,7 +12,7 @@
 //! Screen: confirmed by the owner on 2026-10-10 with a `blank on` test: the stage details screen
 //! shown before each stage starts during a championship. The stage selection screen in the menu has
 //! the same layout but is drawn by another function. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

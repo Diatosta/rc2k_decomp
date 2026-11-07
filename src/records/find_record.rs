@@ -1,10 +1,7 @@
 //! `records::find_record` (0x47255D): finds a record by index within a section of a record table.
 //!
-//! In:  eax = index, ebx = section (0 = from the table start), edi = table
-//! Out: edi = record pointer; eax, ebx, ecx and edx preserved
+//! Takes the index, the section (0 = from the table start) and the table. Returns the record.
 //! Section N starts after the Nth record whose tag is 4. There is no end-of-table check.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::records::stages_store::{RECORD_LEN, RecordRef, RecordTable};

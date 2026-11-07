@@ -1,8 +1,6 @@
 //! `saves::load_savegame` (0x46E6E1): the action of a slot on the "load game" menu: reads the
 //! saved game, puts its state back into the game and goes on with the event from there.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! In order:
 //! - `menu::ready_players`; `dword_75592C` = 1, `dword_755250` = 0, `dword_755978` = 0;
 //! - `read_savegame_slot` on slot `dword_75523C * 10 + item - 1`. If that fails: menu

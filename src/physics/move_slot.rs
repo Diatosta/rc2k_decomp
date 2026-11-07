@@ -19,10 +19,9 @@
 //!
 //! Refuses (before anything) what `find_ground` would refuse where the slot moves to.
 //!
-//! In:  esi the slot
-//! Out: the registers as the path leaves them (see `move_slot_at`); no flags read
+//! Takes: the slot
 //!
-//! Caller: `physics::move_slots` (inside `pusha` / `popa`).
+//! Caller: `physics::move_slots`.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers
 //! above are the original's, for reference.

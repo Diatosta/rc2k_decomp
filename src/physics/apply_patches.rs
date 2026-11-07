@@ -1,8 +1,6 @@
 //! `physics::apply_patches` (0x4648BD): the physics' constants, with the `patch` settings
 //! worked into them. Once.
 //!
-//! In:  nothing
-//! Out: every register preserved (it uses none)
 //! Nothing if `g_patchesApplied` (0x71C72C) is not 0; else that becomes 1 and:
 //! - twelve settings are held to their ranges (`patches::RANGES`; the comparisons look at
 //!   the sign of the difference only, which is kept);

@@ -3,7 +3,6 @@
 //! (`dword_613840`) brought to within 1000 of it (by the sign of the `cmp`); the tenths
 //! since (`div` by 10) into `dword_613844` and added back (x 10) to `dword_613840`.
 //!
-//! In:  nothing
 //! Out: eax the tenths x 10, ebx 10, edx the product's high dword (0); the rest kept; no
 //!      flags read
 //!

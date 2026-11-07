@@ -4,8 +4,6 @@
 //! is 0, else a text), +0x10 the flag, +0x18 the time, +0x1C the class), ten rows from the
 //! place `dword_7556B4` on.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! `g_firstPlayerTime` the class's first time (`menu::find_class_time`, ebx 1). The rows
 //! before the place are passed over (counting the class's entries from 1 until the place).
@@ -20,10 +18,10 @@
 //!
 //! Refuses (before anything) a list without its end in 0x400 entries, a page that starts past the
 //! list (the original reads past its end), a row drawn just before the end mark (the original then
-//! leaves with a dword still pushed: its `popa` and `retn` take the wrong ones, the original's
+//! leaves with a dword still pushed, so its return takes the wrong ones: the original's
 //! slip), a name past the line buffer. In the draw list 0x758E46, whose address nothing in RAL.EXE
 //! holds (every byte searched, 2026-10-20): unreached. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::find_class_time::find_class_time;

@@ -1,15 +1,11 @@
 //! `files::numbered_path` (0x403292): copies a path template to the buffer at 0x94E8B0 and
 //! writes a number over its last `!!`, or if there is none its last `00`.
 //!
-//! In:  eax = template, ebx = number
-//! Out: eax = the buffer; everything else preserved
-//! The number is written with `format_u32` flags 0x12: two digits, zero-padded (a larger
-//! number's last two). A template with
-//! neither marker is fatal error 0x80F19001 in the original. The search never looks at the
-//! template's first character. Refuses an empty template (the original reads before the
-//! buffer) and anything that does not fit the buffer's 0x100 bytes.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Takes template, number. Returns the buffer. The number is written with `format_u32` flags 0x12:
+//! two digits, zero-padded (a larger number's last two). A template with neither marker is fatal
+//! error 0x80F19001 in the original. The search never looks at the template's first character.
+//! Refuses an empty template (the original reads before the buffer) and anything that does not fit
+//! the buffer's 0x100 bytes.
 
 use crate::errors::{BadInput, FatalError, Refused};
 

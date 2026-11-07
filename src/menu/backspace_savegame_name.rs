@@ -2,8 +2,6 @@
 //! highlighted saved game: if the text entry's length is not 0, it is lowered by one and a
 //! NUL is written there.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Also called by the replay name editor, which is a slip in the original (see
 //! `edit_replay_name`). Refuses a name past the list and a length outside 0 .. 0x1F.
 

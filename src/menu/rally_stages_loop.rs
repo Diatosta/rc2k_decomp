@@ -3,13 +3,11 @@
 //!
 //! The owner: "the screen before the service area in championship that shows that rally's stages".
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`): before the loop it clears the Escape flag `dword_755A3C`;
 //! its background comes from `menu::load_background`, after which a set carry flag is fatal
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
-//! Callers: the event loops `sub_4A0E60` and `sub_4AA4D7`.
+//! Callers: the event loops `sub_4A0E60`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

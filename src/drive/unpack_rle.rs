@@ -2,7 +2,7 @@
 //! byte; below 0, that many bytes copied; above 0, the next byte repeated count + 1
 //! times; 0 ends it.
 //!
-//! In:  esi the packed bytes, edi where they go
+//! Takes: the packed bytes, where they go
 //! Out: ecx the bytes written; eax, esi, edi kept (pushed); no flags read
 //!
 //! Caller: `drive::read_packed`, into the replay block. Refuses (before anything) more

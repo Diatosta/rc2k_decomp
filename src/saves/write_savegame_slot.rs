@@ -1,8 +1,7 @@
 //! `saves::write_savegame_slot` (0x4AB558): builds a saved game in the buffer at 0x51EBB4 and
 //! writes it to `savedata\savegame\svgameNN`.
 //!
-//! In:  ebx = slot, 0 .. 99
-//! Out: carry = failed (zero flag = succeeded); every register preserved
+//! Takes slot, 0 .. 99.
 //! The file is always 0x8000 bytes: "R5SG", 0, version 0x51122, `packed_local_time`, the slot's
 //! 0x20-byte name from the saved game list (`byte_526BB4`), then what `gather_savegame` collects
 //! (0x725C bytes); the rest of the buffer is written as it is. Only caller:

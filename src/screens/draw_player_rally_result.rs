@@ -5,12 +5,10 @@
 //! (`dword_758758` .. `dword_7587B8`), the car's sprite, the name and the flag's sprite (their
 //! palettes ebx as the original leaves it: the last text past its NUL).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758E76). Refuses (before anything) no current player or name, no
 //! rally stage records, and what `strings::append_speed` refuses. The menus and draw lists run its
-//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

@@ -1,8 +1,7 @@
 //! `strings::append_time` (0x401A39): appends a time given in hundredths of a second, as
 //! "MM:SS.cc" or "HH:MM:SS.cc".
 //!
-//! In:  eax = hundredths of a second, ebx = cursor
-//! Out: ebx = new cursor; everything else preserved
+//! Takes hundredths of a second, cursor. Returns new cursor.
 //! The hours field is written from one hour upwards, or always when `g_timeShowHours` is 1.
 
 // ---- game data ----

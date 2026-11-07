@@ -3,9 +3,6 @@
 //! (held to 0 .. 100) over 100, y from 0x24D to 0x258 scaled from 600 to the screen's
 //! height; `dword_6240C4` -1; `race::draw_screen_quad`.
 //!
-//! In:  nothing
-//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
-//!
 //! Caller: `race::loading_bar_frame`. The quad its Rust version.
 
 use crate::errors::Refused;

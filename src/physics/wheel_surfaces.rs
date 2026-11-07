@@ -22,10 +22,6 @@
 //! The x87 runs are plain Rust over `X` (`math/x87_float.rs`), the original's instructions
 //! (from IDA) being `asm_reference` in the tests; the integer steps in Rust.
 //!
-//! In:  nothing
-//! Out: the registers as the last steps leave them (eax the count, ebx, ecx 5, edx, esi,
-//!      edi); no flags read
-//!
 //! Callers: `sub_43B635` (0x43B70F), `sub_43A1CA`. Refuses no faces, a table index (+0x2C)
 //! past 5 (before anything) and a surface past 15 (what was written by then is put back).
 //!

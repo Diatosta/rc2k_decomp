@@ -7,7 +7,6 @@
 //! `hud::draw_view_strips`; an empty function (`nullsub_9`); `scene::depth_buffer_off`;
 //! `scene::set_filters`.
 //!
-//! In:  nothing
 //! Out: as the last call leaves them
 //!
 //! Caller: `sub_4547AE` (0x454786). The registers above are the original's, for reference; a

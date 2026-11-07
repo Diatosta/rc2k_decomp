@@ -1,6 +1,6 @@
 //! `audio::mix_channels` (0x40BECC): the used channels mixed into the work buffer.
 //!
-//! In:  eax = the primary buffer's bytes to fill
+//! Takes: the primary buffer's bytes to fill
 //! Out: eax = the same (ebx the frames, ecx 0, edx, esi, edi, ebp the loops' leftovers:
 //!      the one caller, `audio::mix`, keeps its own around it)
 //!

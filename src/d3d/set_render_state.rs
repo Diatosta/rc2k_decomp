@@ -1,8 +1,7 @@
 //! `d3d::set_render_state` (0x41AB5B): sets one of Direct3D's render states, if it is
 //! not set to that already.
 //!
-//! In:  eax = the value, ebx = the state
-//! Out: every register preserved
+//! Takes: the value, the state
 //! The value last set is kept per state in `dword_5AB6BC`; only a new one is stored and
 //! passed to the device (`g_d3dDevice`, SetRenderState), if there is a device.
 //! 38 callers, and `scene::set_render_state` (0x44EB72, 208 callers) is a call of it.

@@ -10,9 +10,6 @@
 //! the race's scene drawn (`sub_454229`: `race::draw_race_scene`) with `dword_6235E8` 1
 //! (put back after), the three switches 0.
 //!
-//! In:  nothing
-//! Out: the registers as the scene's drawing leaves them; no flags read
-//!
 //! Caller: `race::viewer_frame`. Refuses (before anything) a cars' count of 0 or past 8.
 
 use crate::errors::{BadInput, Refused};

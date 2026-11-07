@@ -1,9 +1,6 @@
 //! `audio::update_mixer_voices` (0x40BC05, a chunk of 0x40AC77 entered by `jnz`): the
 //! turn's update of the voices on the game's own mixer.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! The playing list: a voice with dirty bits gets, on its channel, as marked: the step
 //! (frequency `>>` the halvings, over `g_mixRate`, as 32.32) for 4; the left and right
 //! volumes for 1 or 2 (volume x factor, times 64 - pan and 64 for a pan of 0 and up, 64 and

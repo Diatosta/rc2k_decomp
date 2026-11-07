@@ -4,12 +4,8 @@
 //! (`dword_4E0534`), bl / cl / dl its next three bytes, its eighth byte 0x5A plus the
 //! seven before it each inverted (a byte sum); then `race::seal_block`.
 //!
-//! In:  eax the time, bl, cl, dl three bytes (the car, the stage, ...)
-//! Out: eax `value`, ebx `dword_4E0540` (the sealed block); the rest kept
 //!
 //! Caller: `sub_4A3D38`. The cipher is its Rust version.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::menu::owner::menus;
 use crate::race::owner::race;

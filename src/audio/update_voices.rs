@@ -1,8 +1,5 @@
 //! `audio::update_voices` (0x40AC77): the turn's update of the voices, every 20 ms.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! By the mode: with A3D (`g_useA3d` 1) the chunk at 0x40CB2A; with voices' own buffers
 //! (`g_soundMode` bit 0x10000) the buffers' way, here; else with the game's mixer (bit
 //! 0x40000) the chunk at 0x40BC05; else nothing. The two chunks are called at the game's

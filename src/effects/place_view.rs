@@ -4,9 +4,6 @@
 //! its z plus `dword_8BC43D` into `dword_8BDD85` (each rounded); the matrix's nine
 //! dwords copied to `dword_8BDD89`; the point put back to (0, 0, 0x20000).
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! One caller, `sub_4C16F9` (the marks' frame).
 
 use crate::effects::rain::Weather;

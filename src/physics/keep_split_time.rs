@@ -3,8 +3,7 @@
 //! ..= `g_splitColourCount` (both by the sign of the difference). A reading: a split
 //! time at a checkpoint.
 //!
-//! In:  nothing
-//! Out: eax the time, ebx k; the rest kept; no flags read (the caller `popa`s)
+//! Returns: the time, k
 //!
 //! Caller: `sub_436833`. Refuses (before anything) a k past the table's 0x40 entries (the
 //! original writes past it; race init clears 0x40).

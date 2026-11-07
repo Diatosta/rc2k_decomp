@@ -1,14 +1,11 @@
 //! `menu::time_trial_results_loop` (0x48DB7D): the results screen of the time trial, by its
 //! title "RESULTADOS" and its callers (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `results1.png`; leaving is asked about; left
 //! without the question, the highlight is not saved; its own 3D list goes to `g_sceneList`
 //! before the first frame only.
 //! The name is a reading from the title string of its menu, "RESULTADOS", not yet a visit.
-//! Callers: `sub_48AFD0`, `sub_48B23D`, `sub_48B54B`, `sub_48B90F`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

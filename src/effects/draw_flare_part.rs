@@ -11,7 +11,6 @@
 //!
 //! In:  the corner, the angle << 20, the alpha, the size, the colour (the original's
 //!      eax, ebx, ecx, edx, esi), the centre (st(0), st(1), popped)
-//! Out: nothing (its one caller keeps its registers round it: `pusha` .. `popa`)
 //!
 //! Caller: `effects::draw_lens_flare` (0x4C4FEA). Refuses a corner past `g_marksCorners`
 //! (0x100 or more) and null marks settings (`clip_quad`'s refusal), before anything.

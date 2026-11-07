@@ -1,8 +1,5 @@
 //! `scene::reload_slot_textures` (0x425669): every texture slot is loaded anew ("reload video plates").
 //!
-//! In:  nothing
-//! Out: as `scene::load_wanted_textures` leaves them
-//!
 //! Two lines in the game's log (a rule and "reload video plates - start");
 //! `scene::clear_slot_textures`; `scene::load_wanted_textures`; two lines more ("reload video
 //! plates - finis" and a rule). Two callers (the front end's 3D set-up and a race's).

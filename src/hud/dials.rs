@@ -8,7 +8,7 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
-use crate::hud::store::Hud as HudBlock;
+use crate::hud::store::HudBlock;
 use crate::pointers::GamePtr;
 use crate::race::owner_frame::Frame;
 use crate::session::{Cell32, Float};

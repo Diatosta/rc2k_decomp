@@ -4,15 +4,12 @@
 //! less that into `dword_75AC80`; the player's +0xD0 1 when that is at least 100 (no
 //! penalty), else 2.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Caller: `sub_4A8556`. Refuses a current player past 3 or missing, before anything.
+//! Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn inspection_verdict(menus: &Menus) -> Result<(), Refused> {
     let n: u32 = menus.screens.event.current_player.get();
     if n >= 4 {

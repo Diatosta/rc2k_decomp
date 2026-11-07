@@ -2,9 +2,6 @@
 //! 0x9D plus 0x47) split into a place (bits 0 .. 10, 11 .. 20) and a kind (bits 22 .. 24)
 //! for `effects::spawn_windscreen_drop`.
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! Caller: `effects::windscreen_drops_spawn` (twice). The call is `spawn_windscreen_drop`'s Rust version.
 //!
 //! compared exactly as before (the earlier version stays for the Rust callers in

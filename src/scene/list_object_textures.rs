@@ -2,7 +2,6 @@
 //! file just read use.
 //!
 //! In:  nothing (the file in `byte_A2BB54`, the slot in `dword_634FEC`)
-//! Out: every register preserved
 //!
 //! Goes through the file's faces (after its points; a face is 0x10 bytes and as many again for
 //! each vertex) and lists each face's texture (its word +4) once, in the order met, in

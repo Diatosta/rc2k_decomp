@@ -1,8 +1,6 @@
 //! `saves::allocate_best_times` (0x47C4D8): takes the memory of the best times' tables,
 //! once.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Nothing if `dword_747610` is 1; else that becomes 1 and nine blocks are taken on the
 //! list `stru_7475D0`, each block's size stored before it is asked for and its address
 //! after, in the pairs from `dword_747618` on: 0x1C20, 0xBB8, stages * 0x618, 0x15E0,

@@ -2,8 +2,8 @@
 //! by its place on a 256 x 256 square, the place halved as `race::mud_texel`'s; skipped
 //! when an odd place is halved, or outside the surface; else `gfx::put_surface_pixel`.
 //!
-//! In:  eax = the components, ecx = x, edx = y (0 .. 0xFF)
-//! Out: eax = the pixel put, or as it came; the rest kept; no flags read
+//! Takes: the components, x, y (0 .. 0xFF)
+//! Returns: the pixel put, or as it came
 //!
 //! See `race/mud.rs`. Callers: `race::muddy_texel`, `race::splash_mud`. Refuses what
 //! `put_surface_pixel` refuses (no format, no surface), before anything.

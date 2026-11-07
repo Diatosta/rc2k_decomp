@@ -4,7 +4,6 @@
 //! (`math::next_random`) x 500 has a high dword of 0 (a rare draw); (+0x908 squared, low
 //! dword) >> 12 - 8, held, into `dword_5165C0`.
 //!
-//! In:  nothing
 //! Out: eax the second level, edx the square's high dword, ebx 500 after a draw; the rest
 //!      kept; no flags read
 //!

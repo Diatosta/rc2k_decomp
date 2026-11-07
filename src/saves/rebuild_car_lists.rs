@@ -1,7 +1,5 @@
 //! `saves::rebuild_car_lists` (0x47088C): two lists of pointers from two lists of numbers.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The list at `off_75A042` (0x28 entries) and the one at `off_75A12E` (0x14) are filled
 //! with -1; then, for each number of `unk_755258` up to its -1, the entry of
 //! `off_7564A0` with that number goes to the first list, and likewise from `unk_7552F8`

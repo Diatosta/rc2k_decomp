@@ -3,8 +3,7 @@
 //! buffer (`strings::format_u32`, or string 0x16E for 0); then on into
 //! `net::draw_setting_value`.
 //!
-//! In:  eax = the number, esi = the item, ebp = y
-//! Out: as `net::draw_setting_value` leaves them; no `pusha`
+//! Takes the number, item, y.
 //! Caller: `net::settings_frame` (the most players).
 
 use crate::errors::Refused;

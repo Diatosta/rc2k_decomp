@@ -2,7 +2,6 @@
 //! of +0x298 all set -1; with bits 7, 8, 3, 4 also set 0 (a reading: which parts are
 //! left); then, with +0x26C 0, `physics::drop_hit_parts` and `physics::sound_hit_parts`.
 //!
-//! In:  nothing
 //! Out: as the calls leave them; CF as the last `bt` or the calls leave it (no caller
 //!      reads it: the next is a call)
 //!

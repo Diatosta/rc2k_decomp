@@ -6,8 +6,7 @@
 //!
 //! Screen: the dust and the water splashes (owner, 2026-10-29: both gone with the ring's sprites cut).
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads a register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `effects::run_frame` (0x4D160B). Refuses null settings, before anything.
 

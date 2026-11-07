@@ -2,11 +2,7 @@
 //! `dword_75AC8C` and, if the time budget minus that total is at least 900, clears the second
 //! flag table (`clear_repair_marks`).
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Refuses what `state::chosen_repairs_time` refuses.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

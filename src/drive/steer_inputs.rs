@@ -10,7 +10,6 @@
 //! `unk_71A628` = `unk_71A620` + 4 x it; both 0 unless `unk_71A308` is below
 //! `flt_5C5D14` (or unordered).
 //!
-//! In:  nothing
 //! Out: eax `unk_71A628` before the last test, ebx `unk_71A440` or 0x20000000 (device),
 //!      edx the product's high dword (device); the rest kept; no flags read
 //!

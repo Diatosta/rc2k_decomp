@@ -16,7 +16,7 @@ use rc2k_core::text::Font;
 /// The fonts, their palettes and glyph tables (IDA 0x51DE30 .. 0x51E384, the image's layout).
 #[repr(C, align(16))]
 #[derive(rc2k_derive::Cells)]
-pub struct Fonts {
+pub struct FontBlock {
     /// 0x51DE30: `stru_51DE50` ..: the four fonts the menus and the race's text use (the third is the race's, `race::frame_text`).
     pub menu_fonts: [FontObject; 4],
     /// 0x51DEB0: `g_fontPalettes`: the font palettes (a pointer; `gfx::build_fonts`).
@@ -37,10 +37,10 @@ pub struct Fonts {
     pub _tail: Bytes<12>,
 }
 
-impl Fonts {
+impl FontBlock {
     /// The first values are the image's.
     pub const fn new() -> Self {
-        Fonts {
+        FontBlock {
             menu_fonts: [
                 FontObject::from_font(Font {
                     first_char: 0x20,
@@ -186,13 +186,13 @@ impl Fonts {
     }
 }
 
-impl Fonts {
+impl FontBlock {
     pub const START: usize = 0x51DE30;
     pub const LEN: usize = 0x554;
     /// Where the byte IDA calls `START` is now (`moved::MOVED`'s home).
     #[cfg(test)]
     pub fn home() -> usize {
-        crate::pointers::game_address(&raw const crate::gfx::owner::gfx().fonts.menu_fonts) as usize
+        crate::pointers::game_address(&raw const crate::gfx::owner::gfx().fonts.font_block) as usize
     }
 }
 
@@ -203,13 +203,13 @@ mod tests {
 
     #[test]
     fn fonts_starts_as_the_games() {
-        let size = size_of::<Fonts>();
-        assert!(Fonts::LEN <= size && size <= (Fonts::LEN).next_multiple_of(16));
-        let image = crate::moved::image_bytes(Fonts::START, Fonts::LEN);
+        let size = size_of::<FontBlock>();
+        assert!(FontBlock::LEN <= size && size <= (FontBlock::LEN).next_multiple_of(16));
+        let image = crate::moved::image_bytes(FontBlock::START, FontBlock::LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(
-                crate::pointers::host_at(Fonts::home()).cast_const(),
-                Fonts::LEN,
+                crate::pointers::host_at(FontBlock::home()).cast_const(),
+                FontBlock::LEN,
             )
         };
         assert_eq!(mine, &image[..]);
@@ -219,9 +219,9 @@ mod tests {
     fn menu_fonts_keep_the_images_numbers() {
         // The image's relocated dwords and the first values agree, and name the jade font's block.
         for n in 0..4 {
-            let at = Fonts::START + 0x20 * n;
+            let at = FontBlock::START + 0x20 * n;
             let image = crate::moved::image_bytes(at + 0x14, 8);
-            let font = gfx().fonts.menu_fonts.menu_fonts[n].get();
+            let font = gfx().fonts.font_block.menu_fonts[n].get();
             assert_eq!(
                 (font.palette.to_le_bytes(), font.glyph_table.to_le_bytes()),
                 (

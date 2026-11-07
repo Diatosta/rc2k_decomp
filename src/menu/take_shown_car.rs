@@ -1,12 +1,8 @@
 //! `menu::take_shown_car` (0x47B29D): the car shown on the car choice given to the current
 //! player.
 //!
-//! In:  esi = the car list (the cars' descriptions, by handle; here a `CarList`)
-//! Out: every register preserved
-//!
 //! The current player (`dword_75598C`) gets the entry `dword_755990` of the list: its +0 as
-//! `car_number` (+8), its +8 as `class` (+0x90). Callers: `sub_482382` (after
-//! `menu::select_car_loop`, esi the list it was given) and seven more. Refuses a current player
+//! `car_number` (+8), its +8 as `class` (+0x90). Callers: seven more. Refuses a current player
 //! past the four (the original reads past `g_players`) and no list of cars.
 
 use crate::errors::{BadInput, Refused};

@@ -3,9 +3,7 @@
 //! and DirectPlay set to it (`InitializeConnection`, `dword_52AC40`, flags 0); "NET: Init"
 //! and its result logged.
 //!
-//! In:  `connection` (eax: the connection's number)
-//! Out: true when made (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Takes `connection`. Returns true when made.
 //! Caller: `net::connecting`.
 
 use crate::errors::Refused;

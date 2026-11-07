@@ -2,8 +2,7 @@
 //! numbers) moved by its motion (`dword_71A170` .. `178`, floats) times 65536 and the step
 //! `flt_61388C` (`fistp` through `dword_62400C`), x, z, then y.
 //!
-//! In:  nothing
-//! Out: eax y's move; the rest kept; no flags read
+//! Returns: y's move
 //!
 //! Callers: `sub_43B635` (0x43B827, 0x43B8A0), every physics step.
 

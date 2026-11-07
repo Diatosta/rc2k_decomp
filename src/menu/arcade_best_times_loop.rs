@@ -1,13 +1,10 @@
 //! `menu::arcade_best_times_loop` (0x48A3F4): a best times screen, by its title "MELHORES
 //! TEMPOS" (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`), as
 //! extracted from the disassembly: background `btimes.png`; leaving is asked about; left without
 //! the question, the highlight is not saved; its own 3D list goes to `g_sceneList` before the first
 //! frame only. Named by its address until then.
-//! Callers: `sub_487E2C`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

@@ -6,8 +6,7 @@
 //! at s; else `dword_614B7C[0]`. Then `flt_614744` = engine / top x `flt_613F94` (0.25),
 //! and `flt_614748` times +0x3F4 (`unk_71A3CC`, as a float).
 //!
-//! In:  nothing
-//! Out: ebx i on the curve's path; the rest kept; no flags read
+//! Returns: i on the curve's path
 //!
 //! Callers: `physics::engine_torque_or_cut`, `sub_421848`, `sub_43CAAB`, `sub_43EA80`.
 

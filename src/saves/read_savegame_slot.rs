@@ -1,8 +1,7 @@
 //! `saves::read_savegame_slot` (0x4AB4FE): reads a saved game, `savedata\savegame\svgameNN`,
 //! into the buffer at 0x51EBB4 and copies its name into the saved game list.
 //!
-//! In:  ebx = slot, 0 .. 99 (eax is saved and compared but has no effect)
-//! Out: carry = failed (zero flag = succeeded); every register preserved
+//! Takes slot, 0 .. 99.
 //! It reads up to 0x8000 bytes. The file is accepted if the read did not fail, the first
 //! dword is "R5SG" and the dword at +8 is 0x51122; the 0x20 bytes at +0x10 then go to
 //! `byte_526BB4[slot * 0x20]`. A short file is not noticed as such: what the buffer held

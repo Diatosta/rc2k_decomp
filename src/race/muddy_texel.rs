@@ -7,8 +7,6 @@
 //! (`race::put_mud_texel`).
 //!
 //! In:  the place's number (eax)
-//! Out: nothing its caller reads (conversion phase 3, 2026-10-24: the registers it left
-//!      went; `throw_mud_texel`'s results are read by nobody)
 //!
 //! See `race/mud.rs`. Callers: `race::throw_mud_texel` (twice). Refuses a texture past 3 (the
 //! map would be read past its 64 KB) and no mud, before anything; what `put_mud_texel` refuses

@@ -2,7 +2,7 @@
 //! the course record ebx (`g_courseRecords` + 0x20 n: faces +8 ..= +0xC; none when the
 //! first is -1 or past the last), esi and ebx kept around each call.
 //!
-//! In:  ebx the record
+//! Takes: the record
 //! Out: esi the record, ebx the last face + 1 (or the first, when none), the rest as the
 //!      calls leave them; no flags read (the caller returns)
 //!

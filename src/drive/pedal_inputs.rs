@@ -5,8 +5,7 @@
 //! `dword_613898`. The handbrake `unk_71A618` = `dword_61389C`, 0 when that is 0x100 or
 //! less and `unk_71A400` is set.
 //!
-//! In:  nothing
-//! Out: eax `dword_61389C`, ebx `unk_71A440`; the rest kept; no flags read
+//! Returns: `dword_61389C`, `unk_71A440`
 //!
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 

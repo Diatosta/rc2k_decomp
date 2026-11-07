@@ -3,7 +3,7 @@
 //! rally's, +0x1C the class, +0x44 the position), each ending in the original's fatal error
 //! when it finds nothing:
 //! - `menu::find_ranked_entry` (0x4A2547): from edi on, the entry of class ebx at position
-//!   eax; none: (ebx 1, `sub_4A1F66`, which does nothing) fatal error 0x8070A7F9 "Position in
+//!   eax; none: (ebx 1, which does nothing) fatal error 0x8070A7F9 "Position in
 //!   GB_TimedHST Not Found (see Log)";
 //! - `menu::find_ranked_position` (0x4A2584): from edi on, the entry at position eax; none:
 //!   fatal error 0x8070A7FF "Position in GB_TimedHST Not Found";
@@ -13,12 +13,6 @@
 //! - `menu::first_overall_time` (0x4A327A): for eax 2 the first entry from edi on with a
 //!   class (+0x1C not 0; none: fatal error 0x8070A982 "Seriously buggered"), else the entry
 //!   at edi; its rally time (ebx 1) or its stage time.
-//!
-//! In:  edi = the entry to start from, eax = the position (the kind for `first_overall_time`),
-//! ebx = the class (`find_ranked_entry`) or 1 for the rally's time
-//! Out: the two finds: edi = the entry, the rest kept, zero set and carry clear (the last
-//! compare's); `first_overall_time`: eax = the time, the rest kept (edi pushed and
-//! popped), the flags of `cmp ebx, 1`
 //!
 //! Callers: the results pages (`screens::results_pages`). Every entry is compared before the end
 //! mark is looked at (the first one too, as the original). Refuses (before anything) a search that

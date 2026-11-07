@@ -1,12 +1,10 @@
 //! `strings::copy_printable` (0x4017F2): copies a name, leaving out what cannot be shown.
 //!
-//! In:  eax = the text (0: none), ebx = where to write, ecx = the room, NUL included
-//! Out: every register preserved
+//! Takes the text (0: none), where to write, room, NUL included.
 //! At most room - 1 characters are looked at, up to the text's end. One whose low seven
 //! bits are under 0x20 is left out; the others are written, in lower case through
 //! `g_lowerCase` unless `dword_4E0144` is 1. A NUL ends what was written. Nine callers.
 //! A room of 0 lets the original look at 2^32 - 1 characters: refused.
-//! Manual patch with a private copy (0x37 bytes): short jumps in the first bytes.
 
 use crate::errors::BadInput;
 use crate::strings::same_text::case_table;

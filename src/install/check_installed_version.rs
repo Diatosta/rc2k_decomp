@@ -7,12 +7,9 @@
 //! against the copyright line (`byte_4E001C`, up to its first `.`); a full match sets
 //! `dword_51B9C8`. The file is closed and the current directory set to `byte_95E6F8`.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `install::run_installer`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::set_cd;

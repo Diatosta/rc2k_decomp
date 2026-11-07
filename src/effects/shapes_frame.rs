@@ -1,8 +1,7 @@
 //! `effects::shapes_frame` (0x4C1148): `effects::copy_first_point`, `effects::tilt_shape`,
 //! `effects::scale_setting`, `effects::run_shapes` (then `nullsub_19`).
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads a register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4C1270`. Refuses null settings before anything, and its steps' refusals
 //! (all it may write is put back first).

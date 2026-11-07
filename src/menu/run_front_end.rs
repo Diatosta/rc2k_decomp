@@ -1,15 +1,12 @@
 //! `menu::run_front_end` (0x47486C): the game between its start and its end: the films
 //! and the main menu, with everything that is reached from it.
 //!
-//! In:  nothing
-//! Out: eax = 0; everything else preserved
 //! `dword_755684` = `dword_4F82D8`; `menu::drop_missing_controllers`; `gfx::build_fonts`;
 //! the films at the start (`sub_4161CD` with eax = 0, not ported); the log line "BEV:
 //! Starting GB_Front"; `menu::main_menu_loop`; "BEV: Finished GB_Front";
 //! `menu::store_player_names`; `gfx::free_fonts`; `saves::list_car_numbers`.
 //! Callers: `system::main_loop` and 0x443260. Refuses what its parts refuse; such a refusal comes
-//! with the work half done. Rust callers run its `entry` (`routes.rs`); the registers above are the
-//! original's, for reference.
+//! with the work half done. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::framework::log;
@@ -45,7 +42,7 @@ pub fn run_front_end(menus: &Menus, audio: &crate::audio::owner::Audio) -> Resul
     crate::menu::store_player_names::store_player_names(menus, play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);
     })?;
-    crate::gfx::free_fonts::free_fonts(&fonts.glyph_tables.memory, &fonts.menu_fonts.palettes)?;
+    crate::gfx::free_fonts::free_fonts(&fonts.glyph_tables.memory, &fonts.font_block.palettes)?;
     crate::saves::list_car_numbers::list_car_numbers()?;
     log("menu::run_front_end: the Rust version has come back");
     Ok(())

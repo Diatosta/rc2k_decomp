@@ -6,9 +6,8 @@
 //! +0x50 the data, +0x40 the service provider's GUID, +0 the name
 //! (`strings::copy_printable`, 0x40 room).
 //!
-//! In:  (stdcall) the service provider's GUID, the connection, its size, its name (a
-//!      DPNAME: +8 the short name), the flags, the context
-//! Out: eax = 1 to go on, 0 to stop; ebx, esi, edi, ebp kept; `ret 18h`
+//! Takes (stdcall) the service provider's GUID, the connection, its size, its name (a DPNAME:
+//! +8 the short name), the flags and the context. Returns 1 to go on, 0 to stop.
 //! A full list stops the enumeration after the memory is taken (it stays on the list).
 //! Caller: DirectPlay, from `net::find_connections` (`callback`, a `stdcall` Rust function).
 

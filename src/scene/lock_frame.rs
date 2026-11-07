@@ -2,7 +2,6 @@
 //! platform's) and its pitch and pixels kept for the drawing (`dword_4F4988` into
 //! `dword_5C5FB4`, `dword_4F4984` into `dword_5C5FB0`).
 //!
-//! In:  nothing
 //! Out: CF as the lock leaves it; eax the pixels; the rest as the lock leaves them
 //!
 //! Callers: `race::loading_bar_frame` and three of the game's (0x442675, 0x4435A0, 0x4435C2).

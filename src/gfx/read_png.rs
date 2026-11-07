@@ -1,6 +1,6 @@
 //! `gfx::read_png` (0x41CB50): reads a PNG file into the picture buffer as 32-bit pixels.
 //!
-//! In:  eax = path
+//! Takes: path
 //! Out: carry = failed; every register preserved
 //! Reads the file's first 0x80 bytes into `buf` (0x93E8B0) and gives up unless they are
 //! all there and are a PNG signature and an IHDR chunk of 13 bytes, with a width of at most

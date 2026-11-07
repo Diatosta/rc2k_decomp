@@ -3,7 +3,7 @@
 //! while they held the old one, for the blocks after the one shown
 //! (`dword_5BECD0 - dword_5C2530` less one at most).
 //!
-//! In:  ebx the byte, dh its old value
+//! Takes: the byte, dh its old value
 //! Out: dl the new value, eax the blocks gone over (from 1), ecx what was left of the
 //!      count; no flags read
 //!

@@ -1,7 +1,6 @@
 //! `scene::fog_polygon` (0x44E286): each of the polygon's points gets its fog by its
 //! depth.
 //!
-//! In:  nothing
 //! Out: eax = the last byte stored, ecx = the number of vertices, edx = the last
 //!      point's record, esi = the last entry; everything else preserved
 //!

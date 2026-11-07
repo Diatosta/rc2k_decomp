@@ -8,7 +8,6 @@
 //! are left as they are (`effects::set_quad_uvs` sets the places once a frame).
 //!
 //! In:  st(0) .. st(2) the place (popped), ecx the colour, edx the size
-//! Out: nothing (no caller reads a register it leaves but esi, which it keeps)
 //!
 //! Callers: the ring's update (code at 0x4D03E7, 0x4D04BE, 0x4D05AC).
 

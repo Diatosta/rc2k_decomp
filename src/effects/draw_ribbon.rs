@@ -8,8 +8,7 @@
 //! the depths times `flt_8EB96D`; `effects::clip_quad`, and unless all is outside
 //! `scene::draw_fan` and `g_polygonVertexCount` 4.
 //!
-//! In:  eax the cell, ecx the alpha, edx the width, esi the colour (and the two places)
-//! Out: nothing (its caller reads no register after it)
+//! Takes: the cell, the alpha, the width, the colour (and the two places)
 //!
 //! Callers: the marks' lines (0x4C5D65) and 0x4CFAA3. The x87 block is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables. Refuses, before anything, a cell past 0x40 and
 //! null marks settings (the clip's refusal).

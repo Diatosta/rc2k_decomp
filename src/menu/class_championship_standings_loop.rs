@@ -1,14 +1,11 @@
 //! `menu::class_championship_standings_loop` (0x4A4B6B): the loop of the championship table for
 //! the player's class.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `champoc.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
 //! returns at once on leaving if `dword_75AB34` is 1.
 //! A reading from the title string of its menu, not yet a visit: "CAMPEONATO DE CLASSE".
-//! Callers: `sub_4A4AD5`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

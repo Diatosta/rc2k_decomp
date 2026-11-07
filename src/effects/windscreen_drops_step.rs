@@ -3,9 +3,6 @@
 //! clock `dword_814714`; `effects::expire_windscreen_drops`; then `dword_84460C` moved on by those
 //! steps (low byte) and back into `dword_814714`.
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! Caller: `sub_4BAC87` (0x4BAF7D). The call is `expire_windscreen_drops`' Rust version.
 
 use crate::effects::expire_windscreen_drops::expire_windscreen_drops;

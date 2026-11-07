@@ -3,7 +3,6 @@
 //! `g_crashMatrix` (0x40 bytes) into `unk_6141EC`; `dword_71A238` dwords of
 //! `dword_71ADC8` (the probe points' faces) into `dword_6D2814`.
 //!
-//! In:  nothing
 //! Out: eax = `dword_71A114`, ecx 0, esi = 0x71ADC8 + 4 n, edi = 0x6D2814 + 4 n; no flags
 //!      read
 //!

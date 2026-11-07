@@ -7,10 +7,7 @@
 //! when it is gone; a failed listing gives -2. With no session listed only Escape, 'R' and
 //! the lexicon's key work.
 //!
-//! In:  nothing (the registers it is given reach only its frame, `net::sessions_frame`, and
-//!      `menu::list_take_key`, which read none)
-//! Out: the session chosen (`g_listChoice`: -1 Escape, -2 the listing failed; negative the
-//!      original's carry); the original keeps the rest
+//! Returns the session chosen.
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;

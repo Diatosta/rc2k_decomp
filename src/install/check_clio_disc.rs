@@ -1,7 +1,5 @@
 //! `install::check_clio_disc` (0x416653): the Clio update.
 //!
-//! In:  nothing
-//! Out: every register preserved; or it does not return (fatal error 0x90002105)
 //! `g_hasClio` (0x529DB4) = 1 if `files\b\obj0570.ro3` is there (`sub_47C63F` reads it:
 //! the extra car), and nothing at all if not. The rest is for a start from the update's
 //! disc: only if the installer is not running, there is no `var\ral.zog` here, the

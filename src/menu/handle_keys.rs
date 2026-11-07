@@ -16,10 +16,6 @@
 //!
 //! The code after the Escape branch that could return 0 is never reached.
 //!
-//! In:  bits 8 .. 15 of eax, read on Enter
-//! Out: eax as above (edx the frame clock and edi `dword_731BBB` on some paths: nothing
-//! reads them)
-//!
 //! 89 callers: every screen loop. Refuses, on a yes/no screen, a missing keyboard layout
 //! (before the key is taken).
 

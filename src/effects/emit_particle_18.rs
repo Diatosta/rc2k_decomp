@@ -1,8 +1,7 @@
 //! `effects::emit_particle_18` (0x4CDF3A, a chunk of `sub_4CA13B` entered by `jz` from
 //! 0x4CA1C5 for the record's kind 1, left by `popa; retn`): ring entries of kind 0x12.
 //!
-//! In:  edi the record (the car object's +0x1F4), esi the car object
-//! Out: every register kept
+//! Takes: the record (the car object's +0x1F4), the car object
 //!
 //! `g_marksWheelFlags` the record's +0x20; the count (`dword_9356C0`): the record's +0x38
 //! by `flt_7651D0` (held to 1, `fld1`, unless under `flt_76516C`) times four times the

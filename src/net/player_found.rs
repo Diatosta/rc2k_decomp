@@ -3,9 +3,8 @@
 //! its short name (+0, `strings::copy_printable`, 0x1F room), and the enumeration goes on;
 //! with eight it stops.
 //!
-//! In:  (stdcall) the player's id, its type, its name (a DPNAME: +8 the short name), the
-//!      flags, the context
-//! Out: eax = 1 go on, 0 stop; ebx, esi, edi, ebp kept; `ret 14h`
+//! Takes (stdcall) the player's id, its type, its name (a DPNAME: +8 the short name), the flags
+//! and the context. Returns 1 to go on, 0 to stop.
 //! Caller: DirectPlay, from `net::list_players` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;

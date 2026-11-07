@@ -6,8 +6,7 @@
 //! yes -1, no 0, and outside mode 2 with `dword_6238C0` the third answer -2. The notices
 //! cleared, `dword_6235E8` 0 and the sounds woken, the eight blocks' +0x468 0.
 //!
-//! In:  nothing
-//! Out: eax the answer; the rest as the steps leave them; no flags read
+//! Returns: the answer
 //!
 //! Caller: `drive::race_loop`. Refuses what its calls refuse.
 

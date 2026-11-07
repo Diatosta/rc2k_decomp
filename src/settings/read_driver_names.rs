@@ -1,20 +1,15 @@
 //! `settings::read_driver_names` (0x4162DB): other names for the game's drivers, from
 //! `var\name.cfg`.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! A settings text with the keys `name000` .. `name179` (the key is made in place: the
-//! number goes over the digits of `aName000`), each followed by up to three words as
-//! `system::next_argument` cuts them: a name, of which at most 30 characters are kept in
-//! the pool at `unk_95EFC8` (one after another, each with a NUL) and pointed at by
-//! `dword_95ECF8[n]` (here the name's byte offset in `NAMES`, not its address); a number under 0x28 for the driver's record at `dword_73B688` and a
-//! number under 0x22 for `dword_73B68C` (records of 0x94 bytes). A number that is too
-//! large is left out; a missing third word ends the entry. Without the file nothing
-//! changes. One caller, `sub_411239`. The owner's install has no such file.
-//! Refuses names that together pass the pool's end at `unk_960000` (the original writes
-//! on; 180 names of 30 characters would).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! A settings text with the keys `name000` .. `name179` (the key is made in place: the number goes
+//! over the digits of `aName000`), each followed by up to three words as `system::next_argument`
+//! cuts them: a name, of which at most 30 characters are kept in the pool at `unk_95EFC8` (one
+//! after another, each with a NUL) and pointed at by `dword_95ECF8[n]` (here the name's byte offset
+//! in `NAMES`, not its address); a number under 0x28 for the driver's record at `dword_73B688` and
+//! a number under 0x22 for `dword_73B68C` (records of 0x94 bytes). A number that is too large is
+//! left out; a missing third word ends the entry. Without the file nothing changes. One caller,
+//! `sub_411239`. The owner's install has no such file. Refuses names that together pass the pool's
+//! end at `unk_960000` (the original writes on; 180 names of 30 characters would).
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;

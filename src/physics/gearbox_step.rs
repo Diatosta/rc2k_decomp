@@ -6,9 +6,6 @@
 //! `physics::manual_gearbox_call`). Then, after a change (+0x238 1), the engine speed x
 //! `flt_613E9C`; `physics::wheels_from_revs`.
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them; no flags read (the callers return)
-//!
 //! Callers: `sub_43CB14` (under `sub_43B635`), `sub_421848`. Refuses what the steps refuse;
 //! what was written is put back.
 //!

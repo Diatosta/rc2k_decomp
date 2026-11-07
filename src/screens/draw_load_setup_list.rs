@@ -2,12 +2,9 @@
 //! title (string 0x4DD), a label under each column of slots (strings 0x4E3 and 0x4E4) and the
 //! slot names (`draw_setup_slot_names`).
 //!
-//! In:  nothing
-//! Out: every register preserved; carry clear
 //! Its address is in the draw list at 0x75915E. That it is the "load" screen is a reading: by
 //! elimination from `draw_save_setup_list`. IDA had no function here until 2026-10-10. The menus
-//! and draw lists run its `entry` (`menu::table_calls`); the registers above are the original's,
-//! for reference.
+//! and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

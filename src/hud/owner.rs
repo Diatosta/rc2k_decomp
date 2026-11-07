@@ -7,15 +7,15 @@
 
 use crate::hud::store;
 
-/// The HUD's state: the one block (IDA 0x75B940 .. 0x764F2C, `store::Hud`).
+/// The HUD's state: the one block (IDA 0x75B940 .. 0x764F2C, `store::HudBlock`).
 pub struct Hud {
-    pub block: store::Hud,
+    pub block: store::HudBlock,
 }
 
 impl Hud {
     pub const fn new() -> Self {
         Self {
-            block: store::Hud::new(),
+            block: store::HudBlock::new(),
         }
     }
 }

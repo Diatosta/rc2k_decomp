@@ -1,7 +1,7 @@
 //! `drive::load_car` (0x460C40): the current car's block into the work copy:
 //! `g_carBlocks[g_currentCar & 7]` -> `g_car` (0xFE0 bytes, `rep movsd`).
 //!
-//! In:  nothing (`g_currentCar` 0x71B3F8)
+//! Works on `g_currentCar` 0x71B3F8.
 //! Out: eax = `g_currentCar & 7`, ecx = 0, esi = the block + 0xFE0, edi = 0x719FD8 + 0xFE0
 //!      (flags: the `and`'s; no caller reads them)
 //!

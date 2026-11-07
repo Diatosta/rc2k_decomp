@@ -6,8 +6,7 @@
 //! `flt_788F11`, and `flt_7695BA` its sine by `flt_788F15`; then `effects::place_spline` for
 //! each of `g_marksSplinePlace` splines, the last first.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads a register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4C1270`. Refuses null settings and more than 8 splines (before anything),
 //! and `place_spline`'s refusals (all it may write is put back first).

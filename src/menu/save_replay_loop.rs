@@ -1,8 +1,6 @@
 //! `menu::save_replay_loop` (0x47F77B): the replay naming screen "GRAVAR REPETIÇÃO"; returns
 //! the slot the replay goes to.
 //!
-//! In:  nothing
-//! Out: eax = the result; every other register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `loadsv.png`; leaving is not asked about; its
 //! own 3D list goes to `g_sceneList` before the first frame only; the Escape flag is looked at
@@ -11,7 +9,6 @@
 //! listing.
 //! The name is a reading from the title string of its menu, "GRAVAR REPETIÇÃO", not yet a
 //! visit.
-//! Callers: `sub_46F786`.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -46,8 +43,7 @@ fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     Ok(Flow::On)
 }
 
-/// What the loop returns in eax, written by hand from the end of the listing (after the
-/// `popa`): `dword_755A0C`, which the step above leaves at -1 or at the replay's number.
+/// What the loop returns, written by hand from the end of the listing: `dword_755A0C`, which the step above leaves at -1 or at the replay's number.
 fn result(menus: &Menus) -> u32 {
     menus.screens.draw_work.work_0c.get()
 }

@@ -2,8 +2,7 @@
 //! `scene::depth_test_off`, and when the settings' +0x2754 (the flare's strength) is set
 //! `effects::draw_lens_flare`.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads a register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `effects::run_frame` (0x4D1645). Refuses null settings, before anything.
 

@@ -6,7 +6,6 @@
 //! (`scene::restart_clock`) and its time less `dword_63DC38` into `dword_63DC3C`, the frame
 //! rate measured (`race::measure_frame_rate`); carry clear.
 //!
-//! In:  nothing
 //! Out: carry set when the frame was lost (the lock or the showing failed), else clear;
 //!      eax as the last call leaves it (read: `drive::race_frame` hands it on to
 //!      `drive::quit_question`'s `input::yes_no_key`, taint from 0x4541FF); no other

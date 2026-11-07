@@ -2,7 +2,6 @@
 //! (`drive::read_replay_frame_0`), its marks (`drive::replay_frame_marks`), and the frame
 //! (0xA04 dwords at `dword_9613A4`) copied to the replay's starting state `unk_7172EC`.
 //!
-//! In:  nothing
 //! Out: eax the frame, ecx 0, esi and edi past the copy; the rest kept; no flags read
 //!
 //! Caller: `drive::play_replay_frame`. Refuses what `read_replay_frame` refuses.

@@ -4,11 +4,10 @@
 //! `unk_52A968`) through `g_dplay`; the size made 0 if it failed (no message, or one too
 //! big for the buffer).
 //!
-//! In:  nothing
-//! Out: `Received`: the sender (eax; 0 a system message), the bytes (ebx: `unk_52A968`, `crate::net::owner::net().vars.receive_data`; not in `Received`), the
-//!      size (ecx; 0 none). The original keeps edx, esi, edi, ebp and leaves the flags of
-//!      `test eax, eax` on the method's result, which its one caller does not read (it tests
-//!      ecx next).
+//! Returns `Received`: the sender (0 a system message) and the size (0 none); the bytes
+//! (`unk_52A968`, `crate::net::owner::net().vars.receive_data`) are not in `Received`. The
+//! original leaves the flags of `test eax, eax` on the method's result, which its one caller
+//! does not read (it tests the size next).
 //! Caller: `net::take_messages`. `Receive` from Rust (`net::dplay`). Refuses
 //! nothing (no check of `g_dplay`: its caller makes it).
 

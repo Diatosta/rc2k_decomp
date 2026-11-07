@@ -6,11 +6,9 @@
 //! palette the same value) at x 0x190 from y 0x82 every 0x1B (`dword_7559EC`, `hhmm` the
 //! glyph, `g_markerX` 0x190).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x75927E). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

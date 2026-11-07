@@ -8,8 +8,7 @@
 //! `flt_81621E` .. and times `flt_82E336` .. into `flt_811BDF` ..; then the move kept
 //! (`flt_8161E2` ..); and the place kept (`flt_8161D6` ..).
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (its caller reads no register after it)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4BC0B1` (0x4BC0BA). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables (the three values it keeps on the x87 stack across the two calls kept

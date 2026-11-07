@@ -1,7 +1,5 @@
 //! `install::read_sku` (0x411696): reads the edition file `files\d\gfx\sku`.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! A settings text with the key `sku`. Its value may start with the marks `oem:` and
 //! `dvd:`, in any order and number, each setting a switch to 1 (`dword_5190F8`,
 //! `dword_5190FC`); then a number (`dword_5190F4`), after the next `:` a second

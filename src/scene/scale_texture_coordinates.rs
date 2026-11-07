@@ -1,7 +1,6 @@
 //! `scene::scale_texture_coordinates` (0x44E2FB): the polygon's texture coordinates
 //! from whole numbers to floats.
 //!
-//! In:  nothing
 //! Out: eax = the last value worked on, ecx = the number of vertices, esi = the last
 //!      entry; nothing changed for a polygon of no vertices; everything else preserved
 //!

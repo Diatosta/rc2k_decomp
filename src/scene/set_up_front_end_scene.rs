@@ -2,7 +2,6 @@
 //! textures and objects the menus need, and everything loaded.
 //!
 //! In:  nothing (the registers go on to the first call as they come)
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! One list of stores and 50 calls, in this order:
 //! - the loading bar's range `dword_623634` = 0, `dword_623638` = 100; the loading
@@ -89,7 +88,7 @@ fn colours(course: &crate::race::owner_course::Course, dark_third: u32) {
     }
 }
 
-/// The Rust version. The original keeps every register (`pusha` .. `popa`), and its
+/// The Rust version. The original keeps every register, and its
 /// registers at entry (edx, esi) reach only the game's own code (`liveness`: the readers
 /// are `fill_light_tables`, `fill_scene_light_tables`, `race::textures_alloc` and
 /// `sub_443478`), none of the Rust versions it calls.

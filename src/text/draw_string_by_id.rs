@@ -1,12 +1,8 @@
 //! `text::draw_string_by_id` (0x40234A): builds the text of a string id in the shared text
 //! buffer, NUL-terminates it and draws it with `draw_text`.
 //!
-//! In:  eax = string id, ebx = font, ecx = x, edx = y
-//! Out: as `draw_text` leaves it: carry, eax = 0, ebx = position in the text buffer, ecx = x,
-//!      edx = y; esi, edi and ebp preserved
+//! Takes: string id, font, x, y
 //! A text longer than the buffer is refused: the original writes past it.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::typefaces::FontRef;

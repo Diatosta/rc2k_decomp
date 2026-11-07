@@ -9,8 +9,7 @@
 //! (`fistp`), +0x3C 0xFF000000, +0x44 300, +0x40 `flt_93C670` / 300, +0x24 the view's
 //! +0x34.
 //!
-//! In:  esi the particle
-//! Out: nothing (no caller reads a register it leaves but esi, which it keeps)
+//! Takes: the particle
 //!
 //! Caller: the ring's update (code at 0x4D033F, kind 0 particles moving up). Refuses a null
 //! particle or ring (an entry to take), before anything.

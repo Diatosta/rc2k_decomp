@@ -3,11 +3,9 @@
 //! `dword_7556A8` (an entry is going on) is 1.
 //! It first logs "getrepsaveslotname result=<name>".
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! It writes "Backed up name=<the name>" to the game's log (`logfile::log_write`). In six menu
 //! tables. Refuses a name past the list. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::BadInput;
 use crate::menu::name_lists::replay_name;

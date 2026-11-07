@@ -1,7 +1,6 @@
 //! `sound::race_sound_tick` (0x421BA9): the race frame's sound tick: every 20 ms of the
 //! scene clock, `sound::race_turn_if`.
 //!
-//! In:  nothing
 //! Out: eax the scene clock less the last tick (not due) or the clock (due); ebx as
 //!      `race_turn_if` leaves it; everything else preserved
 //! `g_sceneClock` less `dword_5CC3B0` under 0x14 (unsigned): nothing. Else

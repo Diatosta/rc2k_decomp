@@ -1,8 +1,5 @@
 //! `menu::disable_item` (0x46B4F6): an item of the current menu greyed out.
 //!
-//! In:  ebx = the item's number (from 1)
-//! Out: every register preserved
-//!
 //! The item (`menu::item_at`): +0x48 = 0xFFFFFC1C (the moves up and down pass over it) and its font
 //! +0x18 = the grey one at 0x51EA04. Its twin `menu::enable_item` (0x46B50F) puts 0xFFFFFC1B and
 //! the font at 0x51E8E4 back. Eight callers each (the player details screens: the controller's item

@@ -5,8 +5,7 @@
 //! through the record's pointer for it (+0x454); for grade 1 the same with +0x2C for the y
 //! turn, its start +4 and count +0x10, and no bend.
 //!
-//! In:  `s` a spline record (`g_marksSplinesC`)
-//! Out: nothing (no caller reads the registers it leaves)
+//! Takes: `s` a spline record (`g_marksSplinesC`)
 //!
 //! Callers: 0x4B99D4, 0x4B9A2C. Refuses (before anything) a negative count (the loop runs
 //! on), points past the record's 0x80, a null pointer among them, an angle `fsincos` cannot

@@ -4,8 +4,6 @@
 //! `inc`) less `dword_6140F0`. By the look of it the step at which a figure first
 //! reached 60 (a reading).
 //!
-//! In:  nothing
-//! Out: eax the difference when it is stored, else kept; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B9A4), every physics step.
 //!

@@ -1,7 +1,6 @@
 //! `scene::reset_objects` (0x425CFF): empties the objects' tables before they are
 //! loaded.
 //!
-//! In:  nothing
 //! Out: eax = 0xFFFFFFFF, ecx = 0, edi = the end of the kinds' table
 //!
 //! The points' memory zeroed (its room `dword_5C6FAC`, in dwords); the slots' first points,

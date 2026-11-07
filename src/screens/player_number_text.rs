@@ -1,13 +1,10 @@
 //! `screens::player_number_text` (0x46A359): the current player's title, as a text of the
 //! car choice.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //!
 //! String 0x191 + the current player's number (`dword_75598C`), a space, string 0x170, a NUL, into
 //! `byte_A8C054`. In six entry and draw lists (the car choice's). Refuses a text longer than its
-//! place (0x100). The menus and draw lists run its `entry` (`menu::table_calls`); the registers
-//! above are the original's, for reference.
+//! place (0x100). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

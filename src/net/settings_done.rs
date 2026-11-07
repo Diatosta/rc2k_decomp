@@ -4,8 +4,6 @@
 //! if either fails the saved connection forgotten (`unk_52AC94` 16 bytes, `unk_52ACA4` 64,
 //! `system::zero_memory`); then the network stopped (`net::stop`).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Caller: `net::settings_loop` (on entering it).
 
 use crate::errors::Refused;

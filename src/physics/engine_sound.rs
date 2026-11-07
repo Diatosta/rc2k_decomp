@@ -10,8 +10,7 @@
 //! (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
 //! `asm_reference` in the tests.
 //!
-//! In:  nothing
-//! Out: eax the gap's step, edi the sound object (`gear_change_sound`); no flags read
+//! Returns: the gap's step, the sound object (`gear_change_sound`)
 //!
 //! Caller: `sub_43B635` (0x43B905), every physics step. Refuses (before anything) what the
 //! two calls refuse.

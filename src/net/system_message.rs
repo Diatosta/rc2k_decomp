@@ -6,9 +6,7 @@
 //! (DPSYS_HOST) this machine the host (`g_netOwnRecord` bit 0x10 set, bit 1 ready cleared),
 //! `dword_52AD8C` 1 and the stage item open (`dword_52AC2C` 1). Others: nothing.
 //!
-//! In:  `message` (ebx)
-//! Out: nothing (every register kept, `pusha` .. `popa`; its flags are read by no caller:
-//!      the one caller goes on to its loop's test)
+//! Takes `message`.
 //! Caller: `net::take_messages`. `DeletePlayerFromGroup` from Rust (`net::dplay`, section
 //! 15). Refuses nothing but what `net::destroy_connection` refuses.
 

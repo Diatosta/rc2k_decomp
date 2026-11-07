@@ -1,17 +1,13 @@
 //! `files::read_whole_file` (0x421B54): reads a file's start into a buffer and says how
 //! much it got.
 //!
-//! In:  eax = the path, ebx = the buffer, ecx = how many bytes at most
-//! Out: carry set = the file could not be opened, read or closed (zero clear after a
-//!      failed read); `dword_60B2CC` = the bytes read, 0 after a failed open or close;
-//!      eax = what `CloseHandle` gave, or -1 if the file did not open; bl = 1 after a
-//!      good read, 0 after a failed one; everything else preserved
+//! Takes the path, the buffer and how many bytes at most. Sets `dword_60B2CC` to the bytes read
+//! (0 after a failed open or close). Fails if the file could not be opened, read or closed; the
+//! original also leaves what `CloseHandle` gave (-1 if the file did not open) and 1 after a
+//! good read, 0 after a failed one, in registers.
 //!
-//! `files::open_by_mode` with mode 0, `files::read`, `files::close`.
-//! 29 callers: the models, the stage's files.
-//! Refuses what `files::resolve_path` refuses.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! `files::open_by_mode` with mode 0, `files::read`, `files::close`. 29 callers: the models, the
+//! stage's files. Refuses what `files::resolve_path` refuses.
 
 use crate::errors::BadInput;
 use crate::files::state::BYTES_READ;

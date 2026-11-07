@@ -18,9 +18,7 @@
 //! as the normal, the speeds and the point (y 0) taken, no slide limit,
 //! `physics::contact_force` into contact record 0.
 //!
-//! In:  ebx the face
-//! Out: the registers as the steps and calls leave them (eax's low byte from the face's
-//!      bytes where the original loads `al`); no flags read (the caller goes on)
+//! Takes: the face
 //!
 //! Caller: `physics::record_face_contacts`. Refuses a kind past the 0x4B0 material records
 //! (but for an unloaded slot's, `contacts::UNSET_KIND`: stage 22 has such a face),

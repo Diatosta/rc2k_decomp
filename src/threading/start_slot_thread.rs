@@ -1,17 +1,10 @@
 //! `threading::start_slot_thread` (0x410C9C): starts the thread of a thread slot.
 //!
-//! In:  esi = the slot
-//! Out: every register preserved
+//! Takes: the slot
 //! It clears the slot's flag byte at +0xC, creates a thread running the routine at +0 (no
 //! parameter, default stack), which stores the thread's id at +4, and stores the handle at
 //! +8. If no thread can be created the original reports fatal error 0x80108601.
 //! Four callers: three in `sub_410B84` and `request_quit`.
-//! It creates a real thread, so shadow mode runs the original alone. The self-test uses
-//! slots of its own whose routine returns at once.
-//!
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; in the
-//! hooked DLL the game's own code runs the original. What the header says of shadow mode
-//! and the self-test was the hook's.
 
 use crate::errors::FatalError;
 use crate::framework::log;

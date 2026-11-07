@@ -1,9 +1,6 @@
 //! `scene::draw_shown_object` (0x4503A5): draws the object `g_objectNumber` unless a
 //! race's tests hide it.
 //!
-//! In:  nothing
-//! Out: the registers as its parts leave them (after a drawing, `scene::draw_object`'s)
-//!
 //! `dword_62DA44` = 1 for the duration, 0 at the end.
 //! In a race (`g_inRace` not 0) two tests, each of which can hide the object:
 //! - `scene::object_hidden_by_kind` (0x4522EA over 0x452303, inlined): with

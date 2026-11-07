@@ -1,8 +1,8 @@
 //! `gfx::components_to_pixel` (0x405C8A): puts four 8-bit components, one per byte of eax,
 //! together into a pixel. The reverse of `pixel_to_components`.
 //!
-//! In:  eax = components, ebx = pixel format
-//! Out: eax = the pixel; everything else preserved
+//! Takes: components, pixel format
+//! Returns: the pixel
 //! Components of 0 give 0 without looking at the format. With a format that has rotation
 //! counts, the pixel is the four components rotated left by their counts and masked. With
 //! the other kind the pixel is built one bit at a time from the format's top bit down: each

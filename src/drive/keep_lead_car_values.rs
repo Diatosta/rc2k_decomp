@@ -2,9 +2,6 @@
 //! `drive/lead_car_values.rs`) into 0x64165C .. 0x641678 (`push`/`pop`). The marks read
 //! `dword_64165C` (`effects::stage_record`).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `drive::share_all_cars` (0x456484), first.
 
 use crate::drive::lead_car_values::pairs;

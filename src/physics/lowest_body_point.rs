@@ -4,7 +4,6 @@
 //! `dword_6D3068` and its number into `dword_6D306C` (-1 for none); then `flt_6D3070` =
 //! `dword_6D3068` / 65536 (with four or fewer, of what it held).
 //!
-//! In:  nothing
 //! Out: eax the last depth looked at, ebx the count (when there are more than four); the
 //!      rest kept; no flags read (callers go on with `mov`, `cmp`)
 //!

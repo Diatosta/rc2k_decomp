@@ -1,8 +1,6 @@
 //! `system::load_game_data` (0x411239): loads what the game keeps between runs, and gives
 //! every name that is empty a default.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! In this order:
 //! - `saves::load_options`, `saves::load_best_times`, `settings::read_settings` (again:
 //!   the settings file outranks the kept options), `install::read_sku`, `dword_518BB0`
@@ -22,11 +20,8 @@
 //!   that is empty becomes string 0x4E0 and the slot's number in two digits; the same for
 //!   the replays (string 0x4E2) and the car setups (string 0x4E1).
 //!
-//! One caller, `start`.
-//! Refuses a default name that does not fit its place, and what its parts refuse. A refusal
-//! comes with the work half done, and the original then starts from the top.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! One caller, `start`. Refuses a default name that does not fit its place, and what its parts
+//! refuse. A refusal comes with the work half done, and the original then starts from the top.
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::name_lists::NAME_LEN;

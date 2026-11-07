@@ -1,8 +1,6 @@
 //! `menu::update_blink` (0x47E826): once a frame, works out from the clock what blinks and
 //! whether the game has been left alone for a long time.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! After `update_frame_clock`:
 //! - `dword_7559A4` (the highlight's blink, as the service area's markers use it) is 1 while
 //!   bit 8 of `clock - dword_7556C4` is clear, so it is on for 256 ms and off for 256 ms,

@@ -1,10 +1,7 @@
 //! `scene::add_car_light` (0x44F29F): what one car's lamps add to the light on an
 //! object.
 //!
-//! In:  esi = the car's block
-//! Out: nothing changed if the car's lamps are off; else the original leaves eax, ebx,
-//!      ecx and edx changed; both its callers keep every register, and the Rust
-//!      version changes none
+//! Takes: the car's block
 //!
 //! Nothing unless the block's dword +0x84 is set. The place being lit
 //! (`dword_636588` ..) less the car's (+0x134 ..), through the car's matrix (+0x9CC;

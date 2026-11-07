@@ -8,7 +8,6 @@
 //!
 //! In:  nothing (no step reads a register its caller gives; edx's "read" in the liveness is
 //!      the marks' `imul`)
-//! Out: nothing its one caller, `race::draw_race_scene`, reads
 
 use crate::errors::Refused;
 use crate::race::owner::Race;

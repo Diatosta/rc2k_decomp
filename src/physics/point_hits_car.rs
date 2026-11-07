@@ -9,9 +9,9 @@
 //! with the contact kind `dword_6D3624` 10, 1, 5 or 6 also: the point's x, 0, z (/
 //! `flt_5C5D98`) into `unk_71A1FC` .., the car's speed's length (`unk_71A170`,
 //! `physics::vector_length`) into `flt_6D3108`, `unk_71A208` raised to its size,
-//! `unk_71A20C` = 1, `unk_71A1CC` = 0x32. All in `pusha` / `popa`.
+//! `unk_71A20C` = 1, `unk_71A1CC` = 0x32.
 //!
-//! In:  esi the point, ebp the object
+//! Takes: the point, the object
 //! Out: CF set when inside; every register kept
 //!
 //! Callers: `physics::object_hits_car`, `physics::scene_point_hits_car` (both `jb`).

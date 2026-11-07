@@ -9,8 +9,7 @@
 //!   effects begun (`input::begin_effects`), a tick, `dword_518090` 1;
 //! - others: nothing.
 //!
-//! In:  al = the command, ah = the device (for 1)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the command, ah = the device (for 1)
 //!
 //! Caller: `input::input_tick` (when `g_inputCommand` was set). Refuses (before
 //! anything) a device past 1 for command 1.

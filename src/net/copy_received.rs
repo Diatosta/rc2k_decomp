@@ -5,8 +5,6 @@
 //! `net::apply_received`, the count made 0 and the byte at +0x4039 copied to +0x4038.
 //! The loop runs at least once (player 0 with no players).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //!
 //! See `net/mod.rs`. Two callers: `net::apply_received` and `net::lets_rally`. Refuses
 //! (before anything) more than 16 players (the records' room, up to `dword_5AB270`).

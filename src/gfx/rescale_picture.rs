@@ -1,8 +1,6 @@
 //! `gfx::rescale_picture` (0x4061D2): stretches or shrinks the decoded picture to the
 //! picture's size, smoothly, in the picture buffer.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The decoded picture (`g_decodedWidth` x `g_decodedHeight` dwords at `g_decodedPixels`,
 //! rows `g_decodedRowGap` bytes apart) is first copied to memory of its own (the game's
 //! allocator, `memory::allocate`, on the list `dword_4F505C`), and its rows

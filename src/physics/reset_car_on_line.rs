@@ -5,7 +5,6 @@
 //! (`dword_71AF88`, `8C`) 8 and +0xFAC (`dword_71AF84`) 10.
 //!
 //! In:  nothing (the registers are passed on to the calls)
-//! Out: as `reset_car_motion` leaves them; no flags read (the caller's next is a `mov`)
 //!
 //! Caller: `physics::reset_car` (its end). Refuses what the three calls refuse.
 

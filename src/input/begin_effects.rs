@@ -3,9 +3,6 @@
 //! (`input::start_effects`); the clock (`system::tick_count`) kept as the effects' last
 //! step (`g_effectsLastTime`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! See `input/effects.rs`. One caller, `input::device_command` (command 3, the race's
 //! start).
 //!

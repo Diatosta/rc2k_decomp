@@ -8,9 +8,6 @@
 //! 0 and the sounds woken (`race::wake_car_sounds`), a key taken, the first block's +0x468
 //! 0.
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them; no flags read
-//!
 //! Caller: `drive::race_loop`. Refuses what its calls refuse.
 
 use crate::drive::race_parts::{

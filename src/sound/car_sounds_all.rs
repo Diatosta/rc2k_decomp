@@ -1,8 +1,6 @@
 //! `sound::car_sounds_all` (0x40D7AB): the turn's sounds of every car: the players' cars
 //! each, and of the computer's only the two nearest the listener.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! Unless `dword_514F7C` (the objects in use) is 0: for each object whose +8 is 1, a
 //! player's (+0 not negative) gets `sound::car_sounds` (eax its number) at once; of the
 //! others the squared distance (+0x2C .. +0x34 squared and added, through `flt_514F88`)

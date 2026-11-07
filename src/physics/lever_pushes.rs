@@ -7,8 +7,6 @@
 //! `flt_614C48` the share, `physics::lever_push`; `flt_614B4C` = `flt_71ACC8` and
 //! `flt_614C48` 1 less it, `physics::lever_push`. It ends through the `retn` at 0x43DFB0.
 //!
-//! In:  nothing
-//! Out: as the second `lever_push` leaves them when it ran, else all kept; no flags read
 //!
 //! Callers: `sub_43B635` (0x43B831, 0x43B8AA), every physics step.
 

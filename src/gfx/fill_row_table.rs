@@ -1,8 +1,7 @@
 //! `gfx::fill_row_table` (0x40586A): fills the table of row addresses with a start address
 //! and so many steps on from it.
 //!
-//! In:  eax = the first row's address, ebx = the bytes from one row to the next, ecx = rows
-//! Out: every register preserved
+//! Takes: the first row's address, the bytes from one row to the next, rows
 //! The table is `dword_4F3FC4`, which has room for 602 rows. Four callers, the rescalers
 //! and two picture functions not yet read.
 //! Refuses a count of 0 (the original counts through all 32 bits) and one above the table's

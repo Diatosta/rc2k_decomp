@@ -8,8 +8,7 @@
 //! `g_crashMatrix` (`scene::rotate_point`) into 0x71A170 .. 0x71A178 (`g_carSpeed` the
 //! speed). By the look of it a computer car placed at the start of a run (a reading).
 //!
-//! In:  ebx the checkpoints on from the lead's
-//! Out: as `race::reset_car_motion` leaves them; no flags read (`drive::store_car` next)
+//! Takes: the checkpoints on from the lead's
 //!
 //! Caller: `drive::start_cars_behind` (0x43703E; four calls). Refuses (before anything) a
 //! start number (`dword_6051A0`) above 0x400 (not worked out), and what the two calls

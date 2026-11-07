@@ -1,7 +1,6 @@
 //! `audio::release_voice` (0x40B767): a voice's buffers released and the voice made empty.
 //!
-//! In:  esi = the voice
-//! Out: every register preserved
+//! Takes: the voice
 //!
 //! With A3D (`g_useA3d` 1, the chunk at 0x40CD47): its buffer, if any, is stopped (A3D's
 //! +0x38, `sub_40CEBB`) and released. Otherwise a buffer is stopped (`Stop`, +0x48,

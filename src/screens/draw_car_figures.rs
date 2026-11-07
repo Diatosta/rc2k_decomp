@@ -1,8 +1,6 @@
 //! `screens::draw_car_figures` (0x47CEB4): the car specification's figures for the page
 //! shown.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry of the last text drawn
 //!
 //! The page `dword_755998` picks the function from `funcs_47CED1` (at 0x759AE6), which
 //! gets edi = the shown car's record (the entry `dword_755990` through `dword_75A65C`)
@@ -28,7 +26,7 @@
 //!
 //! In two draw lists (the car specification screens). Refuses a page past the four, what the
 //! record's lookup refuses, and a line longer than the line buffer. The menus and draw lists run
-//! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::car_description::{read, shown_description};

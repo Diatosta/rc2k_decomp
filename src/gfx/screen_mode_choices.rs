@@ -23,7 +23,7 @@
 //!
 //! In:  eax = 0 to make the list again, else to try the choice
 //! Out: carry = refused by the original's own checks or the mode does not work; else carry
-//!      clear and the zero flag by the eax left; every register kept (`pusha` .. `popa`)
+//!      clear and the zero flag by the eax left
 //!
 //! Callers: `gfx::choose_screen_modes` (0x4045CA) and the graphics options' actions
 //! (`sub_470017`, `sub_4703C2`). Refuses (before anything is written) a list longer than the

@@ -3,19 +3,17 @@
 //! `dword_51BB54` (the cursor), the cursor and scan pointer advanced, and `dword_51BB48`
 //! (the count) raised. More than 0x10000 bytes of names is fatal error 0x80AF2205.
 //!
-//! In:  eax the folder path
-//! Out: every register kept (`pusha` / `popa`)
+//! Takes the folder path.
 //! Caller `install::run_script` (opcode 1).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{fatal, resolve_path};
 use crate::install::name_tables::FOLDERS;
 use rc2k_core::install::script;
 
-/// The folder `path` (eax) added to the folders' table.
+/// The folder `path` added to the folders' table.
 pub fn list_folder(
     install: &'static crate::install::owner::Install,
     path: impl Into<crate::place::Place>,

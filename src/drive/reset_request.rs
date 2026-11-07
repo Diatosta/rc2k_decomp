@@ -6,7 +6,6 @@
 //! `unk_71A060`, the notice cleared and `physics::reset_car`. Else a count under way is
 //! cleared with the notice.
 //!
-//! In:  nothing
 //! Out: ebx `unk_71A440` past the first test; at the reset as `physics::reset_car` leaves
 //!      the registers (eax the penalty); the rest kept; no flags read
 //!

@@ -5,8 +5,6 @@
 //! `take_shown_car`; 5 `off_759D16` and the screen alone. Another kind is the original's
 //! fatal error 0x80713214, "No GameMode Defined".
 //!
-//! In:  nothing
-//! Out: nothing its callers read (not `pusha`'d)
 //! An item action (a reading: the main menu's "car specifications").
 
 use crate::errors::{FatalError, Refused};

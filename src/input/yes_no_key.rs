@@ -1,6 +1,6 @@
 //! `input::yes_no_key` (0x407D71): says whether a key answers a yes/no question.
 //!
-//! In:  eax = the key, if `dword_4F7FD8` is 1; otherwise it takes the pending key itself
+//! Takes: the key, if `dword_4F7FD8` is 1; otherwise it takes the pending key itself
 //! Out: eax = 1 for yes, 0xFFFFFFFF for no, 2 for the third answer, 0 for anything else or
 //!      no key; everything else preserved
 //! The key becomes a character through `key_to_char_for_text` (the keyboard file's first

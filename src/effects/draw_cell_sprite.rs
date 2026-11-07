@@ -10,7 +10,6 @@
 //!
 //! In:  st(0) .. st(2) the place (popped), eax the cell, ebx the angle, ecx the alpha (top
 //!      byte), edx the size, esi the entry
-//! Out: nothing (the original keeps every register but ebp, which no caller reads after it)
 //!
 //! Callers: the ring's kinds 1, 5, 6, 0xD, 0x13, 0x15, 0x16 (`sub_4CB64D`) and 0x4D0D80.
 //! The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the game's variables. Refuses,

@@ -2,7 +2,6 @@
 //! command.
 //!
 //! In:  nothing (the registers go into the two commands it sends)
-//! Out: every register preserved
 //! Two "end of turn" commands (0xA) are queued; then, while commands are waiting
 //! (`sub_409C01`): a millisecond's sleep, the window's messages (`system::pump_messages`),
 //! and the quit switch at 1 ends the wait.

@@ -5,10 +5,6 @@
 //! (+0x684) from `dword_75AE24`; `dword_623898` from `dword_4F50D0`; five more settings
 //! (`dword_75AD00`, `75AD0C` .. `75AD18`) to `dword_6238A8` ...
 //!
-//! In:  nothing
-//! Out: nothing (the original leaves esi the car's block, eax its HUD bits, ebx the last
-//!      switch read; its one caller, `net::lets_race`, calls `drive::play_race` next, which
-//!      reads no register: `lq 0x444CEE`, live_in empty)
 //! Caller: `net::lets_race`.
 
 use crate::gfx::owner::gfx;

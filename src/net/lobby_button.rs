@@ -4,9 +4,7 @@
 //! moves left past it (its width `dword_5AB4A0` + 0x44, and 8 more). (The code after its
 //! `ret`, 0x41806E .. 0x418082, is reached by nothing.)
 //!
-//! In:  the string, the item, x, y
-//! Out: ebx = the flags, ecx = the width + 0x44, edx = y, edi moved; the rest kept; no
-//!      `pusha`
+//! Takes the string, the item, x and y.
 //! Caller: `net::lobby_frame` (four times).
 
 use crate::errors::Refused;

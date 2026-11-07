@@ -2,8 +2,7 @@
 //! up to `dword_608C20` (unsigned halving, `shr`), kept in `dword_608C24` and added to
 //! +0x6B8. `physics::ease_pitch_down` (0x438CD3) is its twin towards `dword_608C1C`.
 //!
-//! In:  nothing
-//! Out: eax the step; the rest kept; no flags read (the caller compares `dword_608C24`)
+//! Returns: the step
 //!
 //! Caller: `sub_43907F` (0x4392CD).
 

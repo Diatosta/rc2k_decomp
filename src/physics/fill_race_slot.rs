@@ -8,7 +8,7 @@
 //! +0x58 the turned middle x `flt_71BE8C` plus the car's motion (+2.0 for y); +0x68 ..
 //! +0x70 the car's spin. A reading: a part breaking off, flying with the car's motion.
 //!
-//! In:  eax the part
+//! Takes: the part
 //! Out: eax `g_car` +8, ebx the part, ecx the slot's number (8 when none was empty),
 //!      edx -1 or the lowest +0x64, esi the slot, ebp as the search leaves it; no flags read
 //!

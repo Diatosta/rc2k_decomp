@@ -1,9 +1,7 @@
 //! `gfx::show_picture_file` (0x41172B): loads a picture and shows it at once, on every
 //! page of the screen: the loading picture.
 //!
-//! In:  eax = the picture's path
-//! Out: nothing (the original left eax = what `dword_51B9C4` held, or the path when the file
-//!      could not be read; no caller used it)
+//! Takes: the picture's path
 //! The window's messages are passed on (`sub_410535`); `dword_51B9C4` = 1; the picture's
 //! size is set to 800 x 600 with row length 0xFFFFFFFD and the file is read
 //! (`gfx::read_picture_file`); the size then becomes the screen's, the row length the
@@ -65,7 +63,7 @@ pub fn show_picture_file(
     } else {
         let was_showing = gfx.pictures.showing.get();
         gfx.pictures.showing.set(0);
-        if was_showing != 0 && gfx.fonts.menu_fonts.palettes.get() != 0 {
+        if was_showing != 0 && gfx.fonts.font_block.palettes.get() != 0 {
             gfx.pictures.picture.flags.set(0x802u32);
             crate::gfx::picture_as_surface::picture_as_surface(gfx)?;
             crate::text::draw_string_by_id::draw_string_by_id_at(

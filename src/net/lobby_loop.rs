@@ -18,9 +18,7 @@
 //! players' state bit 4 (racing) clear (or no player) ends the "after a race"
 //! (`dword_52AD80` 0). The game closing ends it with -1.
 //!
-//! In:  nothing
-//! Out: 1 (the race), -1 (left); the original also sets the carry if negative (else the
-//!      flags of `test eax, eax`); the rest kept (`pusha` .. `popa`)
+//! Returns 1 (the race) or -1 (left).
 //! A failed listing would give -2, but `net::list_players_regs` never comes back with the
 //! carry (section 16). Caller: `net::start_link`.
 

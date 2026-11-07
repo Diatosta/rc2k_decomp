@@ -11,9 +11,7 @@
 //!   +0xFCC 32, for `net::follow_remote` to glide it;
 //! - others: nothing.
 //!
-//! In:  `player` (ebp), `message` (ebx: its first dword the tag)
-//! Out: nothing (the original leaves eax, ecx, edi as it goes; its one caller has it inside
-//!      `pusha` .. `popa`)
+//! Takes `player`, `message`.
 //!
 //! See `net/mod.rs`. One caller, `net::apply_received`.
 

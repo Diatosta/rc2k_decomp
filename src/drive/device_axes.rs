@@ -3,8 +3,8 @@
 //! `input_device_read` 0x40930D, inlined), with `dword_4F6900` set the first (eax)
 //! squared / 256 with its sign kept.
 //!
-//! In:  esi the device
-//! Out: eax, ebx, ecx, edx the readings; esi kept; no flags read
+//! Takes: the device
+//! Returns: the readings
 //!
 //! Caller: `drive::car_input_words`. Refuses a device past 7 or a null one.
 

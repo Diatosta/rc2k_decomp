@@ -1,7 +1,6 @@
 //! `install::normalise_path` (0x4139EC): a directory's path in the installer's one form.
 //!
-//! In:  esi = the path, edx = where to write it
-//! Out: carry clear if it was written, set if not; every register preserved
+//! Takes the path, where to write it.
 //! The form: lower case (through `g_lowerCase`), `\` for every `/`, and a `\` at the end.
 //! An empty path stands for the current directory (`sub_4030D1`: `GetCurrentDirectoryA`
 //! into the place, a `\` added). Otherwise it must start with `\\` or `//`, or with a

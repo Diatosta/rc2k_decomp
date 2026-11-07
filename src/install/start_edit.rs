@@ -2,12 +2,10 @@
 //! bit 0 set, its text cut at its most bytes (`[record+1]`: a NUL there) and that and two
 //! bytes more kept in `byte_95EAF8` (for Escape, `install::edit_key`).
 //!
-//! In:  esi the item (+8 the text, +0xC the record: +0 flags, +1 the most bytes)
-//! Out: every register kept (`pusha` / `popa`); zero set, carry clear (`cmp eax, eax`)
+//! Takes the item.
 //! Callers `install::item_enter`, `install::next_edit`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::menu::list_handle::ListItem;
 

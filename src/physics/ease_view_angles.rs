@@ -3,7 +3,6 @@
 //! changes (+0x40 .. +0x48) x `flt_5C5D98` (`fistp`) << 16 added to `unk_71A694`,
 //! `unk_71A698`, `unk_71A69C`.
 //!
-//! In:  nothing
 //! Out: esi the mode's record; eax the last change added (or the time held, kept when
 //!      the record has no time); the rest kept; no flags read
 //!

@@ -1,25 +1,16 @@
 //! `service::edit_setup_name` (0x46F1A9): one step of typing the name of a setup slot on the
 //! "save setup" screen; Enter saves the setup.
 //!
-//! In:  nothing
-//! Out: every register preserved (carry is set on Escape; the caller does not read it)
-//! The name is the highlighted slot's entry in the slot list, with the text entry's cursor
-//! (string 4) appended while typing. One pending key is taken:
-//!   none          the cursor is written again;
-//!   1 (Escape)    the name from before comes back, the entry ends;
-//!   0x1C (Enter)  an empty name is replaced by the one from before; the entry ends, the
-//!                 name is cut at its length and `write_setup_slot` saves the slot (whether
-//!                 that worked is not looked at);
-//!   0x6E          the name is cleared;
-//!   0x0E          the last character goes (`backspace_setup_name`);
-//!   any other     `key_to_char`; a character is appended unless the length is already above
-//!                 the maximum (`dword_755571`), and taken off again if the name then
-//!                 measures 0xEC pixels or more in the font at 0x51E824.
-//! Called from the screen loop `sub_46EB7A` while `dword_7556A8` is 1.
-//! Refuses, before the key is taken: a slot past 99, a length outside 0 .. 0x1F, no car
-//! object, no keyboard layout.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! The name is the highlighted slot's entry in the slot list, with the text entry's cursor (string
+//! 4) appended while typing. One pending key is taken: none the cursor is written again; 1 (Escape)
+//! the name from before comes back, the entry ends; 0x1C (Enter) an empty name is replaced by the
+//! one from before; the entry ends, the name is cut at its length and `write_setup_slot` saves the
+//! slot (whether that worked is not looked at); 0x6E the name is cleared; 0x0E the last character
+//! goes (`backspace_setup_name`); any other `key_to_char`; a character is appended unless the
+//! length is already above the maximum (`dword_755571`), and taken off again if the name then
+//! measures 0xEC pixels or more in the font at 0x51E824. Called from the screen loop `sub_46EB7A`
+//! while `dword_7556A8` is 1. Refuses, before the key is taken: a slot past 99, a length outside 0
+//! .. 0x1F, no car object, no keyboard layout.
 
 use crate::errors::{BadInput, Refused};
 use crate::input::key_to_char::{has_layout, key_to_char};

@@ -1,9 +1,6 @@
 //! `menu::best_overall_scores` (0x4A91BF): the overall new best scores: each counted player whose score (+0xCC) is not below group 4's tenth is entered (`menu::enter_best_score_4`); with one entered, the page (`menu::best_overall_scores_loop`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Caller: `sub_4A0E60`. The entries are their Rust versions. Refuses a player count of 0 or past
+//! The entries are their Rust versions. Refuses a player count of 0 or past
 //! 4, a missing player, no table, and what an entry refuses, before anything.
 
 use crate::errors::Refused;
@@ -14,7 +11,7 @@ use crate::menu::standings::*;
 // dword_7558F8
 // g_yesNoAnswer
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn best_overall_scores(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let players = counted_players(screens)?;

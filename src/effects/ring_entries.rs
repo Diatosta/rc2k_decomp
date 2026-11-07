@@ -19,8 +19,12 @@ pub const ENTRY_LEN: u32 = 0x94;
 pub const RING_BYTES: u32 = 0x2_5000;
 
 /// Byte offsets of an entry's fields (the ones whose meaning is certain, used by the emitters and
-/// the ring walks; the rest, and the links at 0 and 4, are read by number).
+/// the ring walks; the rest are read by number).
 pub mod field {
+    /// The link to the entry before it in the ring (an entry number + 1).
+    pub const PREV: u32 = 0x00;
+    /// The link to the entry after it.
+    pub const NEXT: u32 = 0x04;
     /// The particle's kind (1, 5, 6, 0xB, 0xD, 0x10 ..).
     pub const KIND: u32 = 0x0C;
     /// Its place (floats).
@@ -42,9 +46,19 @@ pub mod field {
     pub const ANGLE_RATE: u32 = 0x54;
     /// The sprite's cell in its picture.
     pub const CELL: u32 = 0x58;
+    /// How fast the sprite's cell advances with its life (read by the draw of kinds 0x10, 0x11;
+    /// no emitter writes it, so it is 0 as the ring takes it).
+    pub const CELL_RATE: u32 = 0x5C;
     /// The sprite's size, and the size it is pulled toward.
     pub const SIZE: u32 = 0x60;
     pub const SIZE_GOAL: u32 = 0x70;
+    /// Kind 1's size factor (a float): the size grows by it times `k1_size`; pulled toward
+    /// 65536 while the entry is near the car and faces it.
+    pub const SIZE_FACTOR: u32 = 0x64;
+    /// The limits the object's box extents are tested against (kinds 6, 0x15, 0x10, 0x11);
+    /// no emitter writes them, so they are 0 as the ring takes it.
+    pub const BOX_LIMIT_X: u32 = 0x7C;
+    pub const BOX_LIMIT_Y: u32 = 0x80;
     /// The car it was emitted for (a `marks_settings_store::car_handle`).
     pub const CAR: u32 = 0x68;
     /// The sprite's alpha, and how much of it goes a tick.

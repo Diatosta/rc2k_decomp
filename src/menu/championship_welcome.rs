@@ -11,9 +11,6 @@
 //! asks about leaving (`menu::confirm_leaving`): a yes stops it again and ends, a no
 //! starts over.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Caller: `menu::run_championship` (`g_eventMode` 2).
 
 use crate::errors::Refused;

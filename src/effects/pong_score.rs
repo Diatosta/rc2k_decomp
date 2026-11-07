@@ -3,9 +3,6 @@
 //! kept) as three `effects::pong_digit`s (hundreds, tens, ones), 0x20 on, the best (low
 //! byte, kept) the same.
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! Caller: `effects::run_pong`.
 
 use crate::effects::pong::Pong;

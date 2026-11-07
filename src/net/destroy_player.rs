@@ -3,9 +3,6 @@
 //! (`cmp g_netPlayerId, 0; jnz` past the call: the game's slip, section 16; this machine's
 //! player is never destroyed, `DestroyPlayer(0)` is called instead).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags are read by no caller:
-//!      `lq -s 0x41916B`)
 //! Caller: `net::destroy_connection`. `DestroyPlayer` from Rust (`net::dplay`).
 //! Refuses nothing.
 

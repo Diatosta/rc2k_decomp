@@ -11,7 +11,6 @@
 //! `dword_635918[]` into `dword_62DB00` / `62DB04`, each added to +0x240 byte by byte
 //! with saturation (four bytes with `g_hasMmx`, else the low three).
 //!
-//! In:  nothing
 //! Out: eax, ebx (the texture's record), ecx, edx, esi (the face) as left; no flags read
 //!
 //! Caller: `sub_43B635` (0x43B990), every physics step. Refuses a light index past 0xFF

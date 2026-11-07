@@ -1,7 +1,6 @@
 //! `scene::allocate_object_memory` (0x41F814): takes the memory the objects' points
 //! and faces are loaded into.
 //!
-//! In:  nothing
 //! Out: eax = the memory's end, ebx = the list it is taken on; everything else
 //!      preserved
 //!

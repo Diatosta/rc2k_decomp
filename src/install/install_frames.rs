@@ -1,6 +1,6 @@
 //! The two frames of `install::install_files` (code inside it, given to `screens::run_frame`
 //! in eax; ported 2026-10-20 for the standalone, which has no game code to run them). Each
-//! starts with `call $+5`: its body (`pusha` .. `popa; retn`) runs twice, the second time
+//! starts with `call $+5`: its body runs twice, the second time
 //! from the pushed return, so both buffers of the flip get the frame:
 //! - `install::progress_frame` (0x413295): the surface locked (`gfx::lock_surface`;
 //!   failing: carry, nothing more this time round); the bar's place (`dword_51D4A3`: x, y,
@@ -13,17 +13,13 @@
 //!   two texts (`install::draw_string_list`, `unk_51D433`); a frame (`gfx::frame_rect`,
 //!   colour 0x2A, `unk_51D4B3`); unlocked, shown.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`); the flags of the last call (the show, or
-//!      the lock that failed)
 //!
 //! Every call by `at(..)`: the image is elsewhere in the standalone (a bare IDA address
 //! there faulted, 2026-10-20). Callers: `screens::run_frame` from `install_files` (0x41318D, 0x413248, 0x413255).
 //! Refuses (before anything) no files to copy, and a bar width past 32 bits (the original's
 //! `div` faults).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;

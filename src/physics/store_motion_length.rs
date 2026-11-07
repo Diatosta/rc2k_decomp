@@ -3,9 +3,6 @@
 //! Both are the work copy's (+0x198, +0x1C4); that the vector is the car's motion is a
 //! reading (it sits next to `g_carSpeed`), not seen.
 //!
-//! In:  nothing
-//! Out: every register kept
-//!
 //! Callers (2): `sub_43B635` (0x43B644, 0x43B94D), the car's physics step under
 //! `sub_4454D2`.
 

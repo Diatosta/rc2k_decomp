@@ -1,11 +1,7 @@
 //! `service::step_suspension_stiffness_up` (0x46BEC4): steps the chosen suspension stiffness, `dword_75ACB4`, one
 //! up, stopping at 100.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The exact rule at the limits is in `setup_values.rs` (`Stepper`).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::service::setup_values::{Stepper, Target};
 

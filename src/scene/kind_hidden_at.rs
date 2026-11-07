@@ -1,7 +1,7 @@
 //! `scene::kind_hidden_at` (0x4522F7): `scene::kind_is_hidden` for the object whose
 //! number is the byte at esi+1, eax kept (`push eax` / `pop eax`).
 //!
-//! In:  esi the record (its byte +1 the object)
+//! Takes: the record (its byte +1 the object)
 //! Out: CF as `kind_is_hidden` leaves it; every register kept
 //!
 //! Caller: `sub_45E3BF` (0x45E3D0, `jb`).

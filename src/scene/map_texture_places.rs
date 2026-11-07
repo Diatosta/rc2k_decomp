@@ -1,7 +1,6 @@
 //! `scene::map_texture_places` (0x42570D): for each texture's place, the slot that
 //! shows it.
 //!
-//! In:  nothing
 //! Out: eax = what was last looked at, ecx = 0xFFFFFFFF, edi = the end of the table
 //!
 //! The 0xFA0 dwords of `dword_5D3AE8` = -1; then for the slots from 0x3FF down to 0: the

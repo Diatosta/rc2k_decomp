@@ -8,12 +8,8 @@
 //! `physics::wall_contacts`, `physics::car_collisions`, `physics::face_contacts`; a try
 //! that restored nothing ends it. None: `physics::reset_car`. Found:
 //! `lowest_body_point`, a depth below 0 taken off the height (+0x800); "porky", n, the
-//! first depth and the last logged (level 1, in `pusha` / `popa`); `dword_61473C` + 1;
+//! first depth and the last logged (level 1); `dword_61473C` + 1;
 //! `physics::limit_motion`.
-//!
-//! In:  nothing
-//! Out: the registers as the steps and calls leave them (ebp the try, kept around each
-//!      try's calls); no flags read (the caller returns)
 //!
 //! Caller: `sub_43B635` (0x43B8DB). Refuses (before anything) a probe count of 0 or past
 //! 0x40; what its calls refuse.

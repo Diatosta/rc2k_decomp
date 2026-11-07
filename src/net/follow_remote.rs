@@ -3,9 +3,6 @@
 //! `net::apply_message`), one less, and a 32nd of the way (+0xFC0 .. +0xFC8) added to its
 //! place (+0x134 .. +0x13C).
 //!
-//! In:  nothing
-//! Out: nothing (the original leaves eax +0xFC8 after a glide step; its one caller reads no
-//!      register after it: `lq -s 0x464883`, DF only)
 //!
 //! See `net/mod.rs`. One caller, `net::race_step`. Calls nothing.
 

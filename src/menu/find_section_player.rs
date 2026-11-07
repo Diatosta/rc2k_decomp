@@ -1,11 +1,6 @@
 //! `menu::find_section_player` (0x4A940E): the first of the four players whose entry for
 //! the section (`section`, +0xB4 + 4 * section) is 0x14 (a reading: done with it); none:
 //! ecx -1.
-//!
-//! In:  nothing (`section`)
-//! Out: eax the section, ecx the player (or -1), edi the last player looked at
-//!
-//! Callers: `sub_4A14CB`, `sub_4A9439`.
 
 use crate::errors::Refused;
 use crate::menu::owner::Screens;
@@ -19,7 +14,7 @@ pub struct SectionPlayer {
     pub record: PlayerCell,
 }
 
-/// The Rust version (see the header).
+/// The Rust version.
 pub fn find_section_player(screens: &Screens) -> Result<SectionPlayer, Refused> {
     // Converted: `rc2k_core::menu::points::section_player`.
     let section: u32 = screens.event.section.get();

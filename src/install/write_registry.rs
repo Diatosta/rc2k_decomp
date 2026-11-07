@@ -4,15 +4,12 @@
 //! (`dword_51BC90` bytes, type string). The key opened (`RegCreateKeyA`) and closed
 //! (`RegCloseKey`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! A failed create, or a failed set of either value, is fatal error 0x80108420, 0x80108421
 //! or 0x80108425. Three callers (`install::install_files`, `uninstall`, and `sub_412DE0`).
 //! The registry calls through `api` (`installer::game_api` in the game: `windows-sys`
 //! `Win32_System_Registry`); the standalone makes them too .
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::fatal;

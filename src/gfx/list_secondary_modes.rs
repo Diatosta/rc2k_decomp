@@ -2,8 +2,6 @@
 //! `gfx::find_3d_cards`' "secondary card"), its screen modes listed into the modes' table
 //! and marked for Direct3D; DirectDraw closed in any case.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //! With the card: `sub_4048EC` with eax its GUID (`unk_5AB4B4`), `sub_404A31` with eax
 //! 0x2000, `gfx::mark_3d_modes` with eax 0x2000. Then `sub_404935` (DirectDraw closed).
 //! DirectDraw as in `gfx::list_primary_modes`. One caller, `start` (0x40109D), which calls

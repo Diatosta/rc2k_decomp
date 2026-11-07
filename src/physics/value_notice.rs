@@ -4,10 +4,6 @@
 //! below 300 with 0xCE the last, `dword_71A700` and `dword_71A6FC` 0. What the figure is
 //! is not known.
 //!
-//! In:  nothing
-//! Out: every register kept; flags not read (`sub_43B635` returns next, its callers
-//!      go on with `inc`, calls)
-//!
 //! Caller: `sub_43B635` (0x43B9AE), its last call, every physics step.
 
 use crate::race::owner_shared::Shared;

@@ -15,14 +15,12 @@
 //! 0x66 and 0x68, on for the rest, round the list). Leaving (`g_listLeave`): the backdrop,
 //! the action told the end (ebx -1). At the end the marks cleared and the highlight kept.
 //!
-//! In:  edi the list
-//! Out: eax the answer (`byte_51D415`); esi, edi, ebp kept; ebx, ecx, edx as left
+//! Takes the list. Returns the answer (`byte_51D415`).
 //! A page whose every item cannot be chosen would go round for ever: refused. Caller
 //! `install::run_pages`.
 //! The quitting way is not tested (it would set the game's `g_quitting`).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{

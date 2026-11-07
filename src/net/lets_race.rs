@@ -4,10 +4,7 @@
 //! (`g_carBlocks[dword_63DBA0]`): eax its +0x88 (the race's time, it seems), ebx 0, or -1
 //! when its +0xB0 is -1.
 //!
-//! In:  nothing
-//! Out: the time (eax) and whether the car did not finish (ebx: 0 or -1); the original
-//!      leaves esi the car's block and other registers as the race leaves them (read by
-//!      its one caller, `net::lets_rally`, only as these two)
+//! Returns the time and whether the car did not finish.
 //! Caller: `net::lets_rally`.
 
 use crate::errors::Refused;

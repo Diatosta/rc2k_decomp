@@ -6,8 +6,7 @@
 //! (+4) blended toward from the base list (+0x8C) by `effects::blend_corner`, where the
 //! base and the second object's point differ. Then `effects::measure_lines`.
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads a register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4D14B4`. Refuses (before anything) null settings, more than 8 cars, and for
 //! a car whose factors changed: an object past 0xFF, a null base list or one (`lines::

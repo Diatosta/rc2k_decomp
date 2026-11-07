@@ -1,7 +1,6 @@
 //! `audio::fill_voice` (0x40B06E): a new voice filled for its sample record.
 //!
-//! In:  eax = the voice it shares data with (0: none), ebx = the record, esi = the voice
-//! Out: every register preserved
+//! Takes: the voice it shares data with (0: none), the record, the voice
 //!
 //! Without a shared voice: data, length, format, frames and rate from `g_sampleFile`, no
 //! source, no next copy, the record's `data_key`. With one: the same five from it, it as

@@ -1,8 +1,6 @@
 //! `gfx::copy_picture_to_surface` (0x4060E3): copies the picture buffer onto the surface, row
 //! by row: the background of a menu frame.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! If the surface is not locked (`dword_4F3870` is 0) it is locked first, and nothing is
 //! copied if that fails; it is then unlocked again afterwards. The copy takes
 //! `dword_4F49A4` rows of `dword_4F49B4` dwords from the buffer, which it reads without

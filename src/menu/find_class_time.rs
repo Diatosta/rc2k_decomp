@@ -2,9 +2,6 @@
 //! class (+0x1C) is eax, or the end mark's (-1) when none is: its +0x18 with ebx 1, else
 //! its +0x14.
 //!
-//! In:  eax = the class, ebx = 1 for +0x18, edi = the list
-//! Out: eax = the dword; the rest kept (edi pushed and popped)
-//!
 //! Caller: `screens::draw_class_times` (the first time of the class). Refuses a list without its
 //! end in 0x400 entries.
 
@@ -44,7 +41,7 @@ pub fn class_entry(class: u32) -> Result<BestTime, BadInput> {
     })?
 }
 
-/// The Rust version (see the header): table A's.
+/// The Rust version: table A's.
 pub fn find_class_time(class: u32, second: bool) -> Result<u32, BadInput> {
     let e = class_entry(class)?;
     Ok(if second {

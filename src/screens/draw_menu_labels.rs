@@ -1,7 +1,6 @@
 //! `screens::draw_menu_labels` (0x471EF0): draws the fixed labels of a menu.
 //!
-//! In:  edi = the menu
-//! Out: every register preserved; carry clear
+//! Takes the menu.
 //! The menu's first dword points at a list of labels, 0x10 bytes each: x, y, font, string id. The
 //! list ends with -1, but the first label is drawn without being checked for it. Each is drawn with
 //! `draw_string_by_id`. One caller, the menu's drawing step `sub_4746B7`. Refuses a menu without a

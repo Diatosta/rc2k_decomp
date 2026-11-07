@@ -2,8 +2,7 @@
 //! `dword_6140F0`, and `dword_6140EC` 0 (in the gearbox: by the look of it the moment a
 //! gear change began; a reading).
 //!
-//! In:  nothing
-//! Out: eax the word; the rest kept; no flags read
+//! Returns: the word
 //!
 //! Caller: `sub_43C8AC`.
 

@@ -2,8 +2,6 @@
 //! pages share this file's code: `draw_player2_details` (0x4677B5) is the same code,
 //! `draw_player34_details` (0x467975) the page without the second view (`Layout`).
 //!
-//! In:  nothing
-//! Out: every register preserved
 //!
 //! - The controller's item (9) of the current menu greyed out when there is no
 //!   controller (`g_controllerCount`), else made choosable (`menu::disable_item`,
@@ -26,8 +24,7 @@
 //! In the draw list at 0x758CBA (the four players' details screens). Refuses a player past the
 //! four, a player without its name, an index past its string table, and what its parts refuse;
 //! since the conversion (2026-10-20) before the controller's item is switched (the original
-//! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! switches it first). The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::input;

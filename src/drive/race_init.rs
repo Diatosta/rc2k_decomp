@@ -15,9 +15,6 @@
 //! Not the race's step loop (that runs elsewhere, a step per frame): a run of fifty steps at
 //! the stage's start.
 //!
-//! In:  nothing
-//! Out: the registers as the parts leave them (ecx 0x32 after the steps); no flags read
-//!
 //! Caller: `race::load_stage` (0x44412D). Refuses what its parts refuse; raises 0x80600D1E
 //! as the original.
 
@@ -33,7 +30,7 @@ fn indent_by(by: u32) {
     indent.fetch_add(by, std::sync::atomic::Ordering::Relaxed);
 }
 
-/// A "RACEINIT : ..." line (level 1, a line break; in `pusha` / `popa`).
+/// A "RACEINIT : ..." line (level 1, a line break).
 fn log(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, true, 1);
 }

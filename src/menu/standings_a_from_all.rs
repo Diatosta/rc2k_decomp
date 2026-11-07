@@ -3,10 +3,7 @@
 //! (+0x90, 0 .. 3) counted players into the entries from 89, 139, 169 and 179 down
 //! (`menu::copy_standing_entry`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: the event drivers, `sub_4A94EC`. The steps are their Rust versions. Refuses a player
+//! Callers: the event drivers. The steps are their Rust versions. Refuses a player
 //! count of 0 or past 4, a player missing or without a name, and what the drivers' fill refuses,
 //! before anything.
 use crate::errors::{BadInput, Refused};
@@ -26,7 +23,7 @@ fn players_by_group(menus: &Menus, screens: &Screens, firsts: [usize; 4]) -> Res
     Ok(())
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn standings_a_from_all(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let players = counted_players(screens)?;

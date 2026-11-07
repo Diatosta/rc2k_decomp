@@ -2,8 +2,6 @@
 //! effects and gives both devices back (`input::device_command`). The same store as
 //! `race::release_controls` (0x409425).
 //!
-//! In:  nothing
-//! Out: every register kept
 //! Caller: `menu::release_controller`.
 
 /// The Rust version (see the header).

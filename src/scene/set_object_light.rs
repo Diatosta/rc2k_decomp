@@ -1,7 +1,6 @@
 //! `scene::set_object_light` (0x45143A): the light that falls on the object as a whole,
 //! to be added to each of its vertices.
 //!
-//! In:  nothing
 //! Out: the original leaves eax, ebx, ecx and esi changed where it gathers the lamps;
 //!      its caller goes on without them, and the Rust version keeps them
 //!

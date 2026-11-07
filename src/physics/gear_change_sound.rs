@@ -3,8 +3,7 @@
 //! +0x180 and +0x10 set to 1; at -1 its +0x198 and +0x10 set to 1. A reading: a gear
 //! change up or down heard.
 //!
-//! In:  nothing
-//! Out: edi the sound object; the rest kept; no flags read (the caller returns)
+//! Returns: the sound object
 //!
 //! Caller: `sub_43DC72` (its tail). Refuses (before anything) a null sound object when it
 //! would be written (the original writes near address 0).

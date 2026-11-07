@@ -1,8 +1,6 @@
 //! `saves::default_best_scores` (0x47C923): fills the table of best scores with made-up
 //! entries.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The table at `dword_7556D4` (0xBB8 bytes) is five groups of ten entries of 0x3C bytes.
 //! In each group the entries get 50, 49, .. 41 at +0x38 and a driver each
 //! (`sub_47CDA7`, a plain function here): a random number under 0xB3 is drawn; for the

@@ -17,8 +17,7 @@
 //!   `menu::run_item_action` hands on) is not 0 and +0x34 is below 3 (signed), one more
 //!   and the set-up.
 //! - `menu::raise_dead_zone_a` (0x46B3A3), `raise_dead_zone_b` (0x46B3EA): +0x40 (or +0x44)
-//!   one more if `100 - (+0x40) - (+0x44)` is above 10 (signed). The first is not
-//!   `pusha`'d, but no caller reads the eax, ebx and edi it leaves.
+//!   one more if `100 - (+0x40) - (+0x44)` is above 10 (signed).
 //!
 //! Refusals (before anything): no current player record; a set-up to make without a
 //! first input device record; for `raise_controller_sensitivity` an edi below 0x10000.

@@ -6,9 +6,6 @@
 //! `dword_5C2550`, `dword_5C2554` 1 (keys held), the block shown held to the last
 //! (`dword_5BECD0` at most, unsigned; then frame 0), `dword_5BEC98` 1 (stopped).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Caller: `race::play_marked`.
 
 use crate::errors::Refused;

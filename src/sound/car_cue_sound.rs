@@ -1,8 +1,7 @@
 //! `sound::car_cue_sound` (0x40E1E5): a car's second one-off sound (+0x24C, which the
 //! physics' cues set: `physics::sound_cue_e5`, `physics::place_sound_e5`).
 //!
-//! In:  ebx the car's sound object, esi the request
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the car's sound object, the request
 //! Nothing when +0x24C is -2 (none); else it is taken (+0x24C = -2) into the
 //! request, with its volume +0x250 and the sample's own rate through
 //! `sound::sample_settings`; a volume of 0: `sound::stop_sound`; else the request's +8 and +4 the volume and rate

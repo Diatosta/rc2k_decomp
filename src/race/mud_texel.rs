@@ -3,7 +3,7 @@
 //! an odd one skips), and halved again unless it is 1 (a reading: how many times the
 //! texture is smaller); then `race::mud_pixel` (0 outside the surface).
 //!
-//! In:  ecx = x, edx = y (0 .. 0xFF), eax
+//! Takes: x, y (0 .. 0xFF)
 //! Out: eax = the components, 0 outside, or as it came when the place is skipped; the
 //!      rest kept; no flags read (the callers test eax's top bit)
 //!

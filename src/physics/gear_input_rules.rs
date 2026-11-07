@@ -8,8 +8,7 @@
 //! `dword_62389C` is 1, four cleared; each of three switches clears them and the gear.
 //! What they are is a reading at best (an automatic box's held inputs?).
 //!
-//! In:  nothing
-//! Out: eax the joined input when they were joined; the rest kept; no flags read
+//! Returns: the joined input when they were joined
 //!
 //! Callers: race init's loop (`sub_4608BB`), `sub_460835`, `sub_460B2F` (each calls
 //! `sub_43B635` or `sub_439DB1` next).

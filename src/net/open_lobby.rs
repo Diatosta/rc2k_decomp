@@ -2,9 +2,7 @@
 //! (`CoCreateInstance` of CLSID_DirectPlayLobby `stru_5AB340`, IID_IDirectPlayLobby2A
 //! `stru_5AB320`) into `g_dplayLobby`.
 //!
-//! In:  nothing
-//! Out: true when done (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Returns true when done.
 //! Left out: the original's branch for a game a lobby launched (`g_lobbyLaunched` 1: the
 //! connection settings read, the lobby's `Connect`, the player and the session made from
 //! them): the standalone has no lobbies (its own network protocol), so `net::set_up` leaves out the

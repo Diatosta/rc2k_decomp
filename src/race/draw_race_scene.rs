@@ -27,7 +27,6 @@
 //!
 //! In:  nothing (the original reads no register at entry; nor do its steps read one it
 //!      gives them: each sets what it uses)
-//! Out: nothing its callers (`drive::race_frame`, `race::show_replay_still`) read
 //!
 //! Refuses (before anything) a null view block, and a wanted texture's slot past
 //! `g_slotWantedTextures`' 0x400; then what its steps refuse.

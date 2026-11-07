@@ -1,8 +1,5 @@
 //! `race::init_overlay` (0x45A9DE): the overlay's stage parts (`initoverlay`).
 //!
-//! In:  nothing
-//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
-//!
 //! The parts are the stretches between the checkpoints `race::init_checkpoints` listed
 //! (`dword_60102C`, `dword_601830` of them): each one's length, the difference of its two
 //! checkpoints' `g_checkpointDistances` halved (`shr`, so a negative one comes out huge) /

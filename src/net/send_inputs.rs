@@ -3,9 +3,6 @@
 //! +0xFD0 .. +0xFDC) built in `unk_71C4D0` and sent (`net::send_race_message`, which is
 //! `call net::send_message; retn`: `net::send_message` here).
 //!
-//! In:  nothing
-//! Out: nothing (the original's registers, as the send leaves them, are read by no caller:
-//!      `lq -s 0x464194`, esi only, kept)
 //!
 //! See `net/mod.rs`; `send_position` and `send_extra` are the same with other dwords (this
 //! file has their shared body). One caller, `net::send_turn` (every fourth step).

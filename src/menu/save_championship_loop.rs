@@ -1,8 +1,6 @@
 //! `menu::save_championship_loop` (0x47F034): the loop of the screen where a championship is
 //! saved and its name typed.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `loadsv.png`; leaving is not asked about; its
 //! own 3D list goes to `g_sceneList` before the first frame only; the Escape flag is looked at
@@ -11,7 +9,7 @@
 //! The name is a reading from the title string of its menu, "GRAVAR CAMPEONATO", not yet a
 //! visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

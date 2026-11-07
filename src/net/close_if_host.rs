@@ -1,8 +1,6 @@
 //! `net::close_if_host` (0x41837B): on the host (state bit 0x10 of `byte_52AD64`), no more
 //! players let in (`net::disable_new_players`).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags read by no caller)
 //! Caller: `net::start_link`, before each race.
 
 use crate::net::owner::Net;

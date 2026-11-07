@@ -2,8 +2,6 @@
 //! (`net::show_background`) and "stopping" shown (string 0x157, as `net::connecting` shows
 //! its); then the network stopped (`net::stop`).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;

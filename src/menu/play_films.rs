@@ -1,25 +1,21 @@
 //! `menu::play_films` (0x4161CD): the films: the two logos at the start, then the intro,
 //! over and over with the game's own demonstration between, until a key.
 //!
-//! In:  eax = 0 at the game's start, 1 from the main menu when it has stood idle
-//! Out: every register preserved
-//! - `sub_40F826`, `sub_4059F4`, and a pending key is taken and thrown away.
+//! - `sub_40F826`, and a pending key is taken and thrown away.
 //! - At the start only: nothing at all (straight to the end) with the setting `nofmv`;
 //!   else `allogo.avi` if the screen has 16 bits (its extension swapped by
 //!   `files::swap_missing_extension` if the file is missing), then `mflogo.mpg`, each
 //!   through the player `sub_41AE39` with ebx = 0; then `sub_4059F4`.
-//! - `sub_415515`; from the idle menu also `sub_4433A7`, `sub_44346B`, `nullsub_6`,
-//!   `sub_443396`.
+//! - `sub_415515`; from the idle menu also `sub_4433A7`, `nullsub_6`.
 //! - Then round and round: without `nofmv`, and if `intro.mpg` is there, the intro
 //!   through the player, which ends the round if it comes back with the zero flag
-//!   clear; else `sub_463666` (ebp kept across it), `sub_40F826`, and a key ends the
+//!   clear; else `sub_463666` (ebp kept across it), and a key ends the
 //!   round.
-//! - `sub_409B76`, `sub_4059F4`; from the idle menu also `sub_442AF6`, `sub_474E04`,
-//!   `sub_442AF6`, `sub_40F780`.
+//! - `sub_409B76`, `sub_4059F4`; from the idle menu also `sub_442AF6`.
 //!
 //! What the unnamed ones do has not been read. Callers: `menu::run_front_end` (with 0),
 //! `menu::main_menu_loop`'s idle step (with 1), and 0x470593. Rust callers run its `entry`
-//! (`routes.rs`); the registers above are the original's, for reference.
+//! (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::framework::log;

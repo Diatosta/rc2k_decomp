@@ -23,9 +23,6 @@
 //! The checkpoint tables' indices are held to `g_checkpointCount` - 1 (unsigned) as the
 //! original holds them. What each value is, is a reading at best.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (callers go on with `push`)
-//!
 //! Callers: `sub_43A35A` (0x43A497, 0x43A4F7). Refuses (before anything) no checkpoints
 //! when the tables are to be read.
 

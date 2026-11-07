@@ -9,8 +9,7 @@
 //! A reading: volume or pitch steps for the car's sounds (their callers `sub_45CD60` ..
 //! `sub_45CF95` drive the sound objects).
 //!
-//! In:  nothing
-//! Out: ebx the band; the rest kept; no flags read (the callers compare ebx next)
+//! Returns: the band
 
 use crate::math::x87;
 use crate::race::owner::Race;

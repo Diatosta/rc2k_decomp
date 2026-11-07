@@ -1,7 +1,6 @@
 //! `scene::light_dot` (0x44EC18): how much a light falls on a point, as a whole number.
 //!
-//! In:  nothing
-//! Out: eax = the number; everything else preserved
+//! Returns: the number
 //!
 //! The three floats at `dword_62DAA8` times the three at `dword_62DAB4`, added (the second and
 //! third products first), times `flt_62DAC0`, rounded as the x87 is set to (`fistp`); also left

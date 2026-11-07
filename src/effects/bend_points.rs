@@ -5,8 +5,7 @@
 //! D their blend by `g_marksSplinesMade`'s weights (`effects::blend_points`), rounded
 //! (`fistp`, z first) into `dword_76A1F6` ..; each point less A plus D.
 //!
-//! In:  `s` a spline record
-//! Out: nothing (no caller reads the registers it leaves)
+//! Takes: `s` a spline record
 //!
 //! Caller: `sub_4BA16C`. Refuses (before anything) a point number of 0x80 or more and a
 //! count above 0x80.

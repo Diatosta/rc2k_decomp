@@ -4,7 +4,6 @@
 //!
 //! In:  the record (a car's +0x29C), where the result goes, the source point, the base
 //!      point (the original's ebp, esi, edi, edx)
-//! Out: nothing (no caller reads the registers it leaves)
 //!
 //! Caller: `effects::morph_object_points`.
 

@@ -2,12 +2,11 @@
 //! (`net::add_chat_line`, under the received messages' lock) and sent to everyone
 //! (`g_netSendTo`, DirectPlay's `Send` through `net::dplay_send`) as '"' and the text, no NUL.
 //!
-//! In:  `player` (eax), `message` (ebx). The original reads ecx too, only for
-//!      `net::add_chat_line`'s first measure (see there): dropped.
-//! Out: nothing (every register kept, `pusha` .. `popa`; the flags of `test eax, eax` on
-//!      the send's eax are read by no caller: `lq -s 0x4193C8`)
-//! Callers: `net::chat_key` (the original through `net::send_chat_regs`, 0x41819B: this
-//! inside `pusha` .. `popa`, folded in). Refuses what `net::add_chat_line` refuses.
+//! Takes `player` and `message`. The original reads one more register, only for
+//! `net::add_chat_line`'s first measure (see there): dropped. The flags of the send's result
+//! are read by no caller (`lq -s 0x4193C8`).
+//! Caller: `net::chat_key` (the original through `net::send_chat_regs`, 0x41819B).
+//! Refuses what `net::add_chat_line` refuses.
 
 use crate::errors::Refused;
 use crate::net::add_chat_line::add_chat_line;

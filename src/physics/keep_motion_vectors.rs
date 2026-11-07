@@ -3,9 +3,6 @@
 //! `dword_614BCC` .. `D4`, and those at `dword_71A15C` into `dword_614BDC` .. `E4` (eax
 //! pushed around).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `sub_43B635` (0x43B89B), every physics step.
 
 use crate::race::owner::Race;

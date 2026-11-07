@@ -1,10 +1,6 @@
 //! `gfx::convert_picture` (0x406126): turns the picture in the picture buffer, 32-bit pixels
 //! of four components, into pixels of the surface's format, in place.
 //!
-//! In:  nothing
-//! Out: every register preserved; the carry flag as its last instruction leaves it (no
-//!      result, but `menu::inspection_area_loop` raises a fatal error on it after a failed
-//!      load: `CarryLeft`)
 //! The surface's format (`g_surfaceFormat`, 0x4F496C) has a number at +0x14. If the table
 //! `dword_4F5288` holds a converter for that number, it is called (ebx = the format, esi =
 //! edi = the buffer, eax = the number, ecx = width * height, edx = 1, ebp = 0). Otherwise

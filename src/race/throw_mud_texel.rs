@@ -4,9 +4,6 @@
 //! one more; then `dword_623D30` + 0x10000000, and when that carries (every 16th) a texel
 //! at a random number too (`math::next_random`).
 //!
-//! In:  nothing
-//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
-//!
 //! See `race/mud.rs`. One caller, `race::update_mud_texture`, once per thrown unit. Refuses
 //! what `muddy_texel` refuses (a texture past 3, no mud) before anything, and its later
 //! refusals (the counts and the random state put back).

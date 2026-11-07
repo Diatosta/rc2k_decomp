@@ -11,7 +11,6 @@
 //! and `g_polygonVertexCount` 4. Rain, by the look of it (a reading).
 //!
 //! In:  st(0) .. st(2) the point (popped)
-//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4C16F9` (0x4C1AD0). The arithmetic is plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables. Refuses null marks settings (`clip_quad`'s

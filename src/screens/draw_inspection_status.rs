@@ -2,10 +2,8 @@
 //! from the current car's thirteen damage values and draws it as a bar at the bottom of the
 //! service area, with a sprite to its left and a label at each end.
 //!
-//! In:  ebx, passed on as the palette of the sprite at the bar's left
-//! Out: what the last `draw_string_by_id` leaves (carry, eax = 0, ebx, ecx = 652, edx);
-//! edi = the player; esi = the address of the repair flag of the last damaged part
-//! looked at, or unchanged; ebp preserved
+//! Takes the palette of the sprite at the bar's left. Also reads the player and the repair flag
+//! of the last damaged part looked at.
 //! The percentage is 100 minus the weights of the parts that are damaged and not chosen for
 //! repair. For menu items 2, 3, 4, 5 and 7 .. 15: the part counts if the car's value at
 //! +0xCC + 4 * item is at least `dword_75ABD0[item]` and the item's repair flag is 0; its

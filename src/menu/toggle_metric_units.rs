@@ -1,11 +1,8 @@
 //! `menu::toggle_metric_units` (0x467E92): the player's visual preference "indicador de unidades" the other way.
 //!
-//! In:  nothing
-//! Out: edi = the player; everything else preserved
-//!
-//! `metric_units` xor 1. No `pusha`: edi is left the player. The left and right callbacks of its
+//! `metric_units` xor 1. The left and right callbacks of its
 //! item on the visual preferences page (menu table 0x748280). The menus and draw lists run its
-//! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
+//! `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::player::Player;

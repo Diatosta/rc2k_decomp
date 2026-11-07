@@ -5,9 +5,6 @@
 //! below) it goes up, and on reaching 300 (unsigned) the same. A reading: the car has
 //! stood still too long after a start or a finish.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (the callers go on with calls)
-//!
 //! Caller: `sub_436790` (four calls).
 
 use crate::race::owner::Race;

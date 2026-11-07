@@ -2,7 +2,6 @@
 //! two-car race (`g_currentCar` 0 and 1, the blocks `g_carBlockStore` + 0 and + 0xFE0, the
 //! seconds into `unk_6D1482` and `unk_6D1492`).
 //!
-//! In:  nothing
 //! Out: esi the second block, edi `unk_6D1492`, the rest as the beeps leave them; no flags
 //!      read
 //!

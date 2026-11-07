@@ -1,7 +1,6 @@
 //! `scene::count_texture_needs` (0x423EB1): how many textures are needed and how much
 //! memory they take, for the log.
 //!
-//! In:  nothing
 //! Out: eax = the last number looked at, ecx = 0x400
 //!
 //! Over the 0x400 textures: those needed in system memory (`dword_5CEAE0` not -1) are counted

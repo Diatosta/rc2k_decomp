@@ -5,9 +5,6 @@
 //! `physics::contact_force` into contact record 4 (`g_contactRecords` + 0x80),
 //! `physics::place_sound_e1`; `dword_6141C8` = -1.
 //!
-//! In:  nothing
-//! Out: the registers as `contact_force` leaves them; no flags read (callers go on)
-//!
 //! Callers: `physics::wall_contacts`, `physics::wall_edge_contact`. Refuses what
 //! `place_sound_e1` refuses (what was written put back).
 //!

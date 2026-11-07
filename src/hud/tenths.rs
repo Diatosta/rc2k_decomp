@@ -1,7 +1,7 @@
 //! `hud::tenths` (0x4B1D2B): six times of the HUD's record in tenths (signed `idiv` by
 //! 10): +0x24, +0x2C, +0x20, +0x54, +0x58, +0x50 into `dword_75C074` .. `dword_75C088`.
 //!
-//! In:  ebp the HUD's record
+//! Takes: the HUD's record
 //! Out: eax the last quotient, edx its remainder, ebx 10; the rest kept
 //!
 //! Caller: `hud::draw_hud`.

@@ -5,7 +5,7 @@
 //! esi is: the setup's percentages, by the look of it); +0x408 .. +0x434 and +0x64 ..
 //! +0x80 zeroed; +0x298 = -1. Stream A's reading: the block's grades and values.
 //!
-//! In:  esi the block
+//! Takes: the block
 //! Out: eax 0, ecx 0, edi esi + 0x368; the rest kept; no flags read
 //!
 //! Callers: `physics::reset_current_car` (esi `g_car`), and unreferenced code at 0x43FDDF

@@ -15,14 +15,11 @@
 //! (0x1C + +8) at 0x7E and the flag's (+0xC, 0x18 and 0x19 swapped, + 0x44) at 0x154 with
 //! the palette the last text left. Each drawer's y is edx as the text drawers leave it.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! In the standings screen's draw list (0x758E5E). The rows are found before anything is drawn (a
 //! position not there is the look-up's fatal error, raised then). Refuses (before anything) no
 //! history, a section the record table has not (the look-up runs on), and what the look-up refuses.
-//! The menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
-//! original's, for reference.
+//! The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

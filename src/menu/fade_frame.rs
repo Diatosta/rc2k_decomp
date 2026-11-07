@@ -1,8 +1,5 @@
 //! `menu::fade_frame` (0x4A1E60): a frame of the inspection's fades: the picture copied to the locked surface, then in a 3D scene the fade's see-through quad (`screens::draw_fade_overlay`), the frame shown.
 //!
-//! In:  nothing
-//! Out: carry = the frame could not be made; every register kept (`pusha` .. `popa`)
-//!
 //! The frame callback of `sub_4A1CFA` and `sub_4A1DA5` (handed to `screens::run_frame`). The steps
 //! are the game's (the surface, the 3D scene and the showing are the platform's), through an `Env`
 //! (`picture_frame` and `fade_frame` alike).

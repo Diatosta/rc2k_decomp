@@ -13,9 +13,6 @@
 //! +0x288 then `dword_75ACC0` x 100. When every player is out, `dword_75592C` 0. At the
 //! end `dword_755938` 0.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Callers: the event drivers. Refuses a player count of 0 or past 4, a player missing, a
 //! taking-part player's car without its table, before anything.
 
@@ -25,7 +22,7 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 // service::service_area_loop
 
-/// The Rust version (see the header).
+/// The Rust version.
 pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the

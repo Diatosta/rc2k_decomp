@@ -2,9 +2,7 @@
 //! course record of the grid cell holding (eax x, ecx z): the key ((z >> 21) << 11) +
 //! (x >> 21), `physics::find_course_record`; nothing when it finds none.
 //!
-//! In:  eax x, ecx z
-//! Out: the registers as `find_course_record` and `record_face_contacts` leave them; no
-//!      flags read (the caller goes on)
+//! Takes: x, z
 //!
 //! Callers: `physics::face_contacts_around` (nine). Refuses what `find_course_record`
 //! (before anything) and `record_face_contacts` refuse (what was written put back).

@@ -1,9 +1,7 @@
 //! `net::joining` (0x4179B6): "joining" shown (string 0x153, as `net::connecting` shows
 //! its), then session eax joined (`net::join_session`).
 //!
-//! In:  `session` (eax: the session's number)
-//! Out: whether `net::join_session` worked (the original: its flags, carry when it failed;
-//!      every register kept)
+//! Takes `session`. Returns whether `net::join_session` worked.
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;

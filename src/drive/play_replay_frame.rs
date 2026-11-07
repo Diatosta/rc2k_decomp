@@ -3,7 +3,6 @@
 //! a whole frame the frame read and its state loaded (`drive::load_replay_frame`,
 //! `drive::load_replay_cars`); then the cameras (`drive::replay_cameras`).
 //!
-//! In:  nothing
 //! Out: as the calls leave the registers; no flags read
 //!
 //! Caller: `drive::replay_step`. Refuses what its calls refuse.

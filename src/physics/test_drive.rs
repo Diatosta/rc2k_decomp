@@ -4,9 +4,6 @@
 //! drive's setting `dword_5CC190` into `unk_71A3CC`; `physics::test_drive_run`; the six
 //! put back.
 //!
-//! In:  nothing
-//! Out: as `test_drive_run` leaves the registers, which nothing reads; no flags read
-//!
 //! Caller: `scene::set_up_engine` (0x442AFB, the car's choice). Refuses what its parts refuse
 //! (everything written put back). The registers it leaves nothing reads (2026-11-03: the main
 //! menu writes ebx at 0x474AC7 before reading it).

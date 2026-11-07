@@ -22,9 +22,8 @@
 //! - 0x46FFDB: the screen mode chosen (`dword_4F50C8`) one less, before 0 the last
 //!   (`dword_4F50E4` - 1); eax the new one.
 //!
-//! In:  nothing
-//! Out: eax as above (the volumes: the value, or the sound when one is heard; the switches
-//! with a copy: the value); what a callee leaves after it; no flags read
+//! Result as above (the volumes: the value, or the sound when one is heard; the switches
+//! with a copy: the value).
 //!
 //! Which item each is: the page tables' readings (the owner named the sound page's four volumes:
 //! general, race music, race effects, menu effects).
@@ -98,7 +97,7 @@ fn set(x: Place, v: i32) {
     x.set(v as u32);
 }
 
-/// The Rust version (see the header). What it leaves in registers is read by none of its
+/// The Rust version. What it leaves in registers is read by none of its
 /// callers (the item call sites have nothing live after the call; register liveness,
 /// 2026-10-23).
 pub fn option_item(item: Item) -> Result<(), Refused> {

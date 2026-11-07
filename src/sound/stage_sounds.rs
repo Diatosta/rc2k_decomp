@@ -1,8 +1,6 @@
 //! `sound::stage_sounds` (0x40E2A9): the stage's own sounds for the turn: three one-off
 //! sounds, a timed one, two that play all the time and two at a random pitch and place.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! esi the request, its pitch and volume factors (+0x20, +0x24) 1.0. Each of
 //! `dword_51659C`, `dword_5165A0`, `dword_5165A4` at 1 is cleared and sound 0x1AB,
 //! 0x1AC, 0x1AD played (`sound::play_sound`: ebx and edx -0x6F, ecx and edi 0, ebp

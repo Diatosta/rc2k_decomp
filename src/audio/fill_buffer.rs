@@ -1,6 +1,6 @@
 //! `audio::fill_buffer` (0x40B82B): a voice's sample data copied into its buffer.
 //!
-//! In:  esi = the voice
+//! Takes: the voice
 //! Out: carry = failed; every register preserved
 //!
 //! Only for a voice with a buffer of its own (none shared): `Lock` (+0x2C) from 0 for its

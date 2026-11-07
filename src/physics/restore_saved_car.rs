@@ -4,7 +4,6 @@
 //! `dword_71A238` dwords from `dword_6D2814` into `dword_71ADC8` (the copy's +0xDF0).
 //! What the pieces are (a place, the car's matrix, a list) is a reading.
 //!
-//! In:  nothing
 //! Out: eax = `dword_6141E8`, ecx = 0, esi = 0x6D2814 + 4 n, edi = 0x71ADC8 + 4 n (n the
 //!      count); flags the `add`'s (no caller reads them)
 //!

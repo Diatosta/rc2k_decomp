@@ -2,12 +2,9 @@
 //! row whose items share a box (the item's +4: `{x, y, width, height}`; none: the title's
 //! box `unk_51DD98`) go to `install::place_row` together.
 //!
-//! In:  nothing (the pieces at `dword_51C407`)
-//! Out: every register kept (`pusha` / `popa`); no flags read
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::page_links::PageLink;

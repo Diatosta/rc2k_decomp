@@ -1,7 +1,5 @@
 //! `gfx::clear_front_surface` (0x4059F4): the front (shown) surface made black.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //! Nothing without `g_frontSurface`. The surface locked (`sub_405996`: DirectDraw's `Lock`
 //! into the description at `dword_4F3400`, tried again while the surface is lost; failing,
 //! a log line and the carry): nothing more. Else `g_screenHeight` rows of

@@ -2,8 +2,6 @@
 //! `net::connections_frame`'s: the title string 0x150 (0x152 with no session listed), the
 //! sessions' names (`net::session_entry`).
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Called by `screens::run_frame` for `net::choose_session` (`routes.rs`).
 //! Called by `screens::run_frame` for `net::choose_session`.
 

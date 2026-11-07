@@ -1,10 +1,8 @@
 //! `text::glyph_kerning` (0x402577): updates the kerning row table for one glyph and returns
 //! how far the glyph can move left.
 //!
-//! In:  eax = glyph index, esi = glyph table
-//! Out: eax = kerning (amount to subtract from x); everything else preserved
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Takes: glyph index, glyph table
+//! Returns: kerning (amount to subtract from x)
 
 // ---- game data ----
 

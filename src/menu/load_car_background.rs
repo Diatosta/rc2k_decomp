@@ -1,9 +1,6 @@
 //! `menu::load_car_background` (0x468482): the car specification page's background,
 //! the car's own.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry as `menu::load_background` leaves it
-//!
 //! The car is the first dword of the shown entry's record (`dword_755990` through `dword_75A65C`),
 //! 0x21 counting as 0x17; the path is that car's in the page's table (`off_759AD2[dword_755998]`);
 //! `menu::load_background` with it and ebx = the car (the blit's palette). A carry after it is

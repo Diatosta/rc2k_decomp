@@ -7,8 +7,7 @@
 //! `flt_788F31`, `dword_7695CA` 1, C by `place_graded_points`. Each compare's C0 .. C2 into
 //! `g_fpuStatus`.
 //!
-//! In:  `n` the spline (`g_marksSettings`)
-//! Out: nothing (no caller reads the registers it leaves)
+//! Takes: `n` the spline (`g_marksSettings`)
 //!
 //! Caller: `sub_4B978A`. Refuses null settings, a spline number of 8 or more (before
 //! anything), and its steps' refusals (all it may write is put back first).

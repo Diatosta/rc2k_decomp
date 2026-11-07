@@ -4,7 +4,7 @@
 //! 0 and +0xFA0 0 for the first entry, else +0xF9C less 0x20. A reading: timed events
 //! of the car (under `physics::pace_notes_step`).
 //!
-//! In:  esi a delay, ebx the event
+//! Takes: a delay, the event
 //! Out: eax the time, ecx the count before; the rest kept; no flags read (the caller
 //!      `popa`s)
 //!

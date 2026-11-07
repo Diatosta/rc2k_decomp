@@ -6,9 +6,7 @@
 //! "NET: Open" and its result logged, the window restored; then `dword_52ACFC` 1, the player
 //! made (`net::create_player`), the group joined (`net::join_group`), "NET: Join complete".
 //!
-//! In:  `session` (eax: the session's number)
-//! Out: true when joined (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Takes `session`. Returns true when joined.
 //! Caller: `net::joining`.
 
 use crate::errors::Refused;

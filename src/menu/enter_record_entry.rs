@@ -5,9 +5,6 @@
 //! the event's number), +4 the player + 1, +0x40 1, +0x20 the name's 0x1F bytes; the
 //! event's number into `dword_7559EC` first; then moved up (`menu::rank_record_entry`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Caller: `menu::record_entries_pass`. The steps are their Rust versions. Refuses a record past
 //! the table, no events table, a current player past 3 or missing, or no name, before anything.
 use crate::errors::{BadInput, Refused};
@@ -15,7 +12,7 @@ use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 // hhmm
-/// The Rust version (see the header).
+/// The Rust version.
 pub fn enter_record_entry(menus: &Menus) -> Result<(), Refused> {
     let event = current_event(&menus.screens)?;
     let n: u32 = menus.screens.event.current_player.get();

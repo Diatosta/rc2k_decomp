@@ -2,9 +2,6 @@
 //! repairs first (with the entry's registers), then the common shape; then
 //! `menu::run_championship`. The shape is `menu::start_event`'s.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through a start menu's table. Refuses a missing player before anything, and what the
 //! callees refuse when they are reached.
 

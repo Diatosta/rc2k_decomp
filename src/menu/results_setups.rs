@@ -1,5 +1,4 @@
-//! The set-ups of the players' results screens (agent E, 2026-10-19), all `pusha` ..
-//! `popa` (every register kept), all plain stores:
+//! The set-ups of the players' results screens (agent E, 2026-10-19), all plain stores:
 //! - `menu::rank_stage_times` (0x48340B): the four players' stage times (`g_players`[n] +
 //!   0x88) with their byte offsets (0, 4, 8, 12) in the pairs at `dword_7587C8`, sorted by
 //!   the original's exchange loop (each pair i < j exchanged when j's time is at most i's,

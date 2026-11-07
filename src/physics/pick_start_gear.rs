@@ -7,10 +7,6 @@
 //! ((kept - e) x k + e), `physics::wheels_from_revs`, and the change settled (+0x1D0,
 //! the hold 20, +0x238 and +0x23C 1). None taken: the last tried stays.
 //!
-//! In:  nothing
-//! Out: the registers as the calls leave them (eax, ebx, ecx); no flags read (the
-//!      callers return)
-//!
 //! Callers: `physics::manual_gearbox`, `physics::auto_gearbox`. Refuses what the calls
 //! refuse; what was written is put back.
 //!

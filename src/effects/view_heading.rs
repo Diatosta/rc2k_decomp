@@ -3,9 +3,6 @@
 //! `flt_91FF8A` (`scene::angle_between_vectors`, both normalised in place), into
 //! `flt_8F3975`; 2 pi less it when the level part's x (normalised) is not negative.
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! One caller, `sub_4C3EEE`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).

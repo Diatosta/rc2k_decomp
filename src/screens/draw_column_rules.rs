@@ -2,8 +2,6 @@
 //! rows: in each column (x 0x43 and 0x192) from y 0x5F every 0x1D a line 0x14C wide and 3
 //! high, see-through blue 0x11166A (`dword_75AA94`; `scene::draw_tinted_quad`).
 //!
-//! In:  nothing
-//! Out: ecx -1, edx past the last row; the rest as the last quad leaves them
 //!
 //! Caller: `screens::draw_two_column_panel`.
 

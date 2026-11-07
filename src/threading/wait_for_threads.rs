@@ -5,14 +5,12 @@
 //! (`WaitForMultipleObjects`), and closed (`CloseHandle`, the last pushed first). The
 //! handles are the three pushed as `sub_410D1D`'s arguments, which it leaves on the stack:
 //! they are the array the wait gets.
-//! `sub_410D1D` (`threading::resume_slot_thread`, not hooked: one Win32 call): with a slot
+//! `sub_410D1D` (`threading::resume_slot_thread`: one Win32 call): with a slot
 //! whose +0xC is 0xFF (`neg`: made 1), `ResumeThread` on its +8.
 //!
-//! In:  nothing
-//! Out: eax the wait's result (into `popa`'s saved eax); the rest kept
+//! Returns the wait's result.
 //!
-//! One caller, `threading::shutdown_thread`, which calls it directly (2026-10-23). The
-//! registers above are the original's, for reference.
+//! One caller, `threading::shutdown_thread`, which calls it directly (2026-10-23).
 
 use crate::threading::thread_slot::{ThreadSlot, slot_ref};
 

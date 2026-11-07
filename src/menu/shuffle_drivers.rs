@@ -5,10 +5,7 @@
 //! count (`dword_7559EC`, `hhmm`) and the first entry swapped with itself through
 //! `unk_755398` / `unk_75542C` (both left holding it). Section 16.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: `sub_473126` and one of the game's. The random numbers are `math::random_below`'s.
+//! Callers: one of the game's. The random numbers are `math::random_below`'s.
 //! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
@@ -36,7 +33,7 @@ const TABLES: [(usize, &Dword); 4] = [
         &crate::menu::owner::MENUS.screens.state.menus.class_counts[0],
     ),
 ];
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn shuffle_drivers(menus: &Menus) -> Result<(), Refused> {
     use crate::math::random_below::random_below;
     if TABLES.iter().any(|&(_, c)| c.get() == 0) {

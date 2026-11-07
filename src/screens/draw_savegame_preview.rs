@@ -1,8 +1,6 @@
 //! `screens::draw_savegame_preview` (0x46D88F): draws the preview of the highlighted saved
 //! game on the load-game screen, reading its file when the highlight has moved.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry as the panel drawn leaves it
 //! `dword_755148` is the slot the buffer was last filled for and `dword_75514C` is 1 if there
 //! is nothing to show. A highlighted item above 10 is no slot: the empty panel, and the
 //! remembered slot becomes 999. Otherwise the slot is `dword_75523C * 10 + item - 1`; if it
@@ -12,7 +10,7 @@
 //!
 //! Confirmed by the owner with `blank on screens::draw_savegame_preview` the same day ("worked as
 //! intended": the block under the slot list went away). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

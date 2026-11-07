@@ -5,10 +5,7 @@
 //! then each group's (+0x90, 0 .. 3) counted players into the entries from 89, 119, 169
 //! and 179 down (`menu::player_to_standing_b`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: the event drivers, `sub_4A9583`. The steps are their Rust versions
+//! Callers: the event drivers. The steps are their Rust versions
 //! (`strings::append_string_by_id`'s for the names). Refuses no table, more drivers than its 200
 //! entries, a name past the entry, a player count of 0 or past 4, a player missing or without a
 //! name, before anything.
@@ -31,7 +28,7 @@ fn players_by_group(menus: &Menus, screens: &Screens, firsts: [usize; 4]) -> Res
     Ok(())
 }
 
-/// The Rust version (see the header): the registers it leaves.
+/// The Rust version.
 pub fn standings_b_from_all(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let drivers = walked_drivers()?;

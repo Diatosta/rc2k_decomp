@@ -1,7 +1,6 @@
 //! `scene::set_object_fade` (0x451609): how see-through an object is drawn by how far
 //! off it is, and whether another, simpler object is drawn in its place.
 //!
-//! In:  nothing
 //! Out: the original leaves eax, ebx, ecx, edx and esi changed; its caller goes on
 //!      without them, and the Rust version keeps them
 //!

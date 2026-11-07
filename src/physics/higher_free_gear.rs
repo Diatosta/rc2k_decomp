@@ -3,7 +3,7 @@
 //! `g_gearCount` (0x614C10, unsigned); CF clear with ecx that gear, or CF set with ecx one
 //! past the count when none is.
 //!
-//! In:  ebx the gear
+//! Takes: the gear
 //! Out: ecx, eax `gear_bit`'s (ecx + 1 of the last tested), CF; ZF not read by the
 //!      caller (`jb`); the rest kept
 //!

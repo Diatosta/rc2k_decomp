@@ -17,8 +17,7 @@
 //! Stopping link", the network stopped (`net::stopping`), the menu's tune
 //! (`sound::play_tune_3`).
 //!
-//! In:  the mode
-//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
+//! Takes the mode.
 //! Escape on the sessions' list gives the carry too, so it shows message 0x155 as a failure
 //! does (section 16). Callers: 0x4AAAE1, 0x4AAAEC.
 

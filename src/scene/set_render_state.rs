@@ -1,7 +1,6 @@
 //! `scene::set_render_state` (0x44EB72): one of Direct3D's render states.
 //!
-//! In:  eax = the value, ebx = the state
-//! Out: as `d3d::set_render_state` leaves them: every register preserved
+//! Takes: the value, the state
 //!
 //! A call of `d3d::set_render_state` and nothing more. 208 call sites. The registers above are
 //! the original's; a call by address goes through `routes.rs`, which maps them.

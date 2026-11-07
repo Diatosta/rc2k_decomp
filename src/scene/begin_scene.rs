@@ -1,6 +1,5 @@
 //! `scene::begin_scene` (0x44E8A1): the 3D part of a frame begins.
 //!
-//! In:  nothing
 //! Out: the registers and flags `d3d::begin_scene` leaves (carry = it failed)
 //!
 //! `d3d::begin_scene` (0x41ABC7: Direct3D's BeginScene and the layer's own states, platform),

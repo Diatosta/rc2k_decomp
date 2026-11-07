@@ -1,8 +1,6 @@
 //! `menu::main_menu_loop` (0x4748D9): the loop of the main menu, the screen the game starts
 //! on (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! - background `mainscr.png`, loaded first thing at set-up, and its carry is not looked at;
 //! - `dword_758806` is cleared and the highlight put in place only after the first frame
@@ -15,12 +13,10 @@
 //! - leaving is always asked about, and after a "yes" the loop returns at once
 //!   (`always_asks`); the quit switch leads to the question too.
 //!
-//! The five calls and three stores between the last jump and the final `popa` (0x474CD9 ..
+//! The five calls and three stores between the last jump and the end (0x474CD9 ..
 //! 0x474D0F) are never reached and are not in the Rust version. The name is a reading from the menu
 //! (0x748CB8): its items open `start_rally_loop`, `load_championship_loop`, `network_rally_loop`
-//! and `options_loop`, and the fifth is `menu::go_back`. Screen: the main menu. Caller:
-//! `sub_47486C`. Rust callers run its `entry` (`routes.rs`); the registers above are the
-//! original's, for reference.
+//! and `options_loop`, and the fifth is `menu::go_back`. Screen: the main menu. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::framework::log;

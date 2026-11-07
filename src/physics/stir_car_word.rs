@@ -1,8 +1,7 @@
 //! `physics::stir_car_word` (0x440F2E): `dword_719FE4` (the work copy's +0xC, the word
 //! `physics::test_car_word` tests) = `scene::noise_step` of itself.
 //!
-//! In:  nothing
-//! Out: eax the new word; the rest kept (`noise_step` keeps edx); no flags read
+//! Returns: the new word
 //!
 //! Caller: `sub_43B635`, its first instruction: every physics step.
 //!

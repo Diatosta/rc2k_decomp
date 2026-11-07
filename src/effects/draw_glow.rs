@@ -5,9 +5,6 @@
 //! `dword_93CCA4`, colour -1, size 0x10000. A glow over the scene, by the look of it (a
 //! reading). (Its first lines, a developer's key for the switch, are jumped over.)
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Caller: `effects::run_frame` (0x4D1693).
 
 use crate::errors::Refused;

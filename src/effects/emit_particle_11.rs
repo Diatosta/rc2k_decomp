@@ -4,8 +4,7 @@
 //! `flt_93A286`), a life of 2000, and made only when the wheel's |+0x18| rounded to an
 //! integer (`fist`, the x87's rounding) is over 1 (kind 5: when it is not 0).
 //!
-//! In:  edi the wheel record, esi the car object
-//! Out: every register kept
+//! Takes: the wheel record, the car object
 //!
 //! Refuses as `emit_particle_5`.
 

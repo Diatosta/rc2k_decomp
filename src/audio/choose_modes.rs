@@ -1,9 +1,6 @@
 //! `audio::choose_modes` (0x40A1CA): the two sound modes from the advanced audio screen's
 //! options.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! `g_audioOptions` (`AudioOptions`, 0x40 bytes): +0 kept, +4 .. +0x18 the screen's six
 //! choices (quality, channels, DS3D, EAX, A3D, Dolby), +0x1C .. +0x30 the six as last
 //! applied, +0x34 3D there (`g_has3d`), +0x38 A3D2 there, +0x3C EAX there. The first call

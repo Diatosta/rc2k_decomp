@@ -6,12 +6,10 @@
 //! `dword_7559B8`) at 0x217; rows 0x17 apart from y 0xFE; the sprites' palette ebx after the
 //! last name.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758ECE). Refuses (before anything) a row's player without its
 //! record or name, or without its points. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;

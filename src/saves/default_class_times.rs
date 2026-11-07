@@ -1,8 +1,6 @@
 //! `saves::default_class_times` (0x47C8E3): fills the levels' best scores
 //! (`saves::best_times::LEVEL_SCORES`, the original's `dword_7556DC`) with made-up entries.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The table (0x15E0 bytes) is seven groups of ten entries of 0x50 bytes. In each group
 //! the entries get 100,000 and then 0xAB3 less each time at +0x14, and a random driver
 //! (`sub_47CB2D`, a plain function here: a number under 0xAA): the driver's +8 to the

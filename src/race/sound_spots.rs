@@ -122,7 +122,7 @@ pub fn face_sound_spot(
 
 /// `race::cell_sound_spots` (0x45C6B8): each face of cell `cell`'s (ecx) record (`g_courseGrid[c]`,
 /// none from 0x0FFFFFFF; the record's +8 .. +0xC, none for -1 or a first past the last) by
-/// `face_sound_spot` (inside `pusha` .. `popa`).
+/// `face_sound_spot`.
 pub fn cell_sound_spots(
     race: &Race,
     cell: u32,

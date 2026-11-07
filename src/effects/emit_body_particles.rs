@@ -5,8 +5,7 @@
 //! `dword_935526`) of copying the surface's kind and flags, and its switch, but for kind 1
 //! (`effects::emit_particle_18`) and kind 3 (the bursts of kind 2: section 16).
 //!
-//! In:  edi the record, esi the car object
-//! Out: nothing (no caller reads a register it leaves)
+//! Takes: the record, the car object
 //!
 //! Caller: `sub_4C9E2E`'s end. Refuses a null record or object and the emitters' refusals;
 //! on a refusal nothing stays written (all it may write is put back).

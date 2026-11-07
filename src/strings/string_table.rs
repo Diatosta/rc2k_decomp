@@ -1,4 +1,4 @@
-//! The packed string table and the two string-pointer tables the string hooks read.
+//! The packed string table and the two string-pointer tables the string functions read.
 
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;

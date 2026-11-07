@@ -3,9 +3,9 @@
 //! (`flt_5C5D98`, unrounded) turned by `flt_6D3C40` (`scene::rotate_point`) and / 65536
 //! into `flt_6D3BC8` ... Inside when each part's size is below the box's (`flt_6D3BBC`
 //! ..; unordered counts as below, as `fcomp` / `jnb`): `dword_6D3BB4` = 1,
-//! `physics::restore_saved_car` (in `pusha` / `popa`), `physics::bump_cars`.
+//! `physics::restore_saved_car`, `physics::bump_cars`.
 //!
-//! In:  edi the other car's block (passed to `bump_cars`)
+//! Takes: the other car's block (passed to `bump_cars`)
 //! Out: outside, every register kept; inside, as `bump_cars` leaves them; no flags read
 //!      (the caller goes on)
 //!

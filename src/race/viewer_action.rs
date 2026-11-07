@@ -25,8 +25,8 @@
 //! | 0x1E, 0x1F | the camera edited back / on; 0x21: the edit ended (`dword_96E480` 0) |
 //! | 0x25 .. 0x28 | play between the marks saving pictures (`race::start_frame_pictures` 0, 0xA0, 0x50, 0x28 ms; `race::stop_frame_pictures`) |
 //!
-//! In:  ebx the action
-//! Out: ZF set when it was one; every register kept (`pusha` / `popa`)
+//! Takes: the action
+//! Out: ZF set when it was one
 //!
 //! Callers: `race::replay_viewer` (three). The camera bytes' edits (0xE .. 0x10, 0x18) keep the
 //! undo before they look at the block; nothing is checked of the table's room for a cut or a

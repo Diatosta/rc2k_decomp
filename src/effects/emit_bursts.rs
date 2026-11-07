@@ -8,8 +8,7 @@
 //! +0x4C .. (+0x38 ..), a place at the wheel less the car's matrix's place plus a random
 //! side, a fade (+0x5C), a life of 2000, +0x7C / +0x80 `dword_935476` / `dword_93547A`.
 //!
-//! In:  edi the wheel record, esi the car object
-//! Out: every register kept
+//! Takes: the wheel record, the car object
 //!
 //! Callers: `effects::emit_wheel_particles`' kinds 2 .. 4, 6 .. 9, 0xC. The original's loops
 //! push esi; when the ring is full (0x3FE taken) inside one they leave by 0x4CD741, which

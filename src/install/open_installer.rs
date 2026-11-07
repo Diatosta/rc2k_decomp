@@ -7,12 +7,9 @@
 //! converted and made the surface; three strings are drawn and the frame shown. A failed
 //! allocation or read is fatal error 0x80AF7121/7122/7022/7444/7445.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `install::run_installer`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;

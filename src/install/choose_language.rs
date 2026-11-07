@@ -1,8 +1,7 @@
 //! `install::choose_language` (0x41397A): makes one of the languages of `lang.cfg` the
 //! language of the paths.
 //!
-//! In:  eax = the language's number, from 1
-//! Out: every register preserved
+//! Takes the language's number, from 1.
 //! Nothing if the number is above the count of languages (`dword_51BEEA`). A language is a
 //! slot of 0x80 bytes at 0x51BEEE holding two texts, each ended by a NUL (`name:directory`
 //! in the file); the second becomes what `%` stands for in a path (`byte_518AA8`).
@@ -10,8 +9,7 @@
 //! Refuses number 0 (the original takes the slot before the first) and a slot whose two
 //! texts do not end inside it.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::BadInput;
 use crate::place::Place;

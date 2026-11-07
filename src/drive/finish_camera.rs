@@ -2,9 +2,6 @@
 //! (`flt_64BB68`) and the share (`flt_64BB6C`): `dword_606748`, `606730`, `606734`,
 //! `606744` (each a line in them, `flt_64BB4C` .. `flt_64BB7C`), `dword_60672C` 0.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `drive::finish_run`.
 
 use crate::math::x87_float::ld;

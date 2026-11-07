@@ -7,9 +7,6 @@
 //! unlocked (`gfx::unlock_surface`), `dword_4F49C8` put back; the clock on by `dword_5C2CF3`
 //! (the recording's frame time) for the next.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`); no flags read
-//!
 //! Caller: `drive::race_frame` (each frame drawn).
 
 use crate::errors::Refused;

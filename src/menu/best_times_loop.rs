@@ -1,12 +1,9 @@
 //! `menu::best_times_loop` (0x4A3EF3): the loop of the best times screen.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `btimes.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about.
 //! A reading from the title string of its menu, not yet a visit: "MELHORES TEMPOS".
-//! Callers: `sub_4A0E60`, `sub_4AA4D7`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

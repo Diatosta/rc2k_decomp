@@ -2,8 +2,7 @@
 //! `jz` from it and from 0x4CA20B, left by `popa; retn`): one ring entry of kind 5 from a
 //! wheel whose +0x18 is not 0.
 //!
-//! In:  edi the wheel record, esi the car object
-//! Out: every register kept
+//! Takes: the wheel record, the car object
 //!
 //! The strength `flt_93555E`: |the wheel's +0x18|, then less (bit 0 of `dword_935416`
 //! clear, `dword_935432` -1) or plus (set, 1) its +0x10. The entry: its place the wheel's

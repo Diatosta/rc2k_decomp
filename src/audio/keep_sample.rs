@@ -1,7 +1,6 @@
 //! `audio::keep_sample` (0x40B192): a voice's prepared data copied to the samples' memory.
 //!
-//! In:  esi = the voice
-//! Out: every register preserved
+//! Takes: the voice
 //!
 //! Only for a voice with data, a length and a `data_key`: `length` bytes from the samples'
 //! memory (`sub_409DFB`, inlined: `memory::allocate` on `g_sampleMemory`; its fatal

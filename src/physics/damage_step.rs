@@ -2,9 +2,6 @@
 //! step: `physics::damage_factors`, `physics::damage_wear`, `physics::damage_gauges`
 //! (its only code: three calls and `retn`).
 //!
-//! In:  nothing
-//! Out: the registers as the three leave them (read by no caller); no flags read
-//!
 //! Caller: `sub_43B635` (0x43B952), every physics step.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

@@ -7,9 +7,6 @@
 //! the frame's time (`rdtsc` over `dword_765114`, times `flt_93C8C4` / `C8` / `CC`) into
 //! `flt_765134` (the draw), `flt_76511C` (the ring) and `flt_765120` (the whole).
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads the registers it leaves: none after 0x446408, 0x456472)
-//!
 //! Caller: the race's frame (0x456464 ..). Its calls the Rust versions, in the order above.
 
 use crate::errors::Refused;

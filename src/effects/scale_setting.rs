@@ -1,8 +1,7 @@
 //! `effects::scale_setting` (0x4C08BB): `flt_8BC25E` = the settings' whole number +0x2750 by
 //! `flt_8BC39E` (`fild; fmul; fstp`).
 //!
-//! In:  nothing (`g_marksSettings`)
-//! Out: nothing (no caller reads a register it leaves)
+//! Works on `g_marksSettings`.
 //!
 //! Caller: `sub_4C1148`. Refuses null settings (the original reads through 0).
 //!

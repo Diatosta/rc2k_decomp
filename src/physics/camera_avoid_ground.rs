@@ -13,10 +13,6 @@
 //! or, once clear, down (`ease_pitch_down`, `dword_608C20` the pitch), placed and tried,
 //! until `dword_608C24` is 0.
 //!
-//! In:  nothing
-//! Out: the registers as the steps and calls leave them; no flags read (the caller goes
-//!      on)
-//!
 //! Caller: `physics::update_camera`. Refuses what the ground checks refuse.
 //!
 //! Seen in play (owner, 2026-10-27): the camera checks serve the hood camera; when the car

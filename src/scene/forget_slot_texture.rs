@@ -1,8 +1,7 @@
 //! `scene::forget_slot_texture` (0x44EB66): slot eax's loaded texture forgotten
 //! (`g_slotLoadedTextures[eax]` -1), so that it is loaded again.
 //!
-//! In:  eax the slot
-//! Out: every register kept
+//! Takes: the slot
 //!
 //! 12 callers (among them the marks' snow textures). Refuses a slot past 0x3FF (the table is
 //! 0x400 dwords).

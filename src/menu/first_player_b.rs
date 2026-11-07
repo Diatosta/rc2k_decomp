@@ -2,10 +2,6 @@
 //! 0) in standings table B from edi on (`menu::standings::first_player`); none: the
 //! fatal error 0x8070A0AF "Unable to locate player (find1stplayer)".
 //!
-//! In:  edi the first entry, ebx the group
-//! Out: ecx the group's computer drivers before it, edx its +0x70, edi the entry; the
-//! rest kept
-//!
 //! Callers: the event code. Refuses a table without its end entry, before anything; raises the
 //! fatal error as the original.
 

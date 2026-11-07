@@ -8,7 +8,6 @@
 //! - `input::stop_effect` (0x409B0D): `Stop`.
 //!
 //! In:  edi = the effect, eax = the flags (`set_effect_parameters`)
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Callers: the effects' functions (`input::effect_N_change`, through
 //! `effect_changes::game_part`), `input::make_effect` and `input::end_force`

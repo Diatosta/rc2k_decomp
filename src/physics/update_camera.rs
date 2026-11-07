@@ -21,10 +21,6 @@
 //! `physics::camera_avoid_ground`; the offset's length into `dword_5CCD80`,
 //! `dword_6062BC` into `dword_5CCD40`.
 //!
-//! In:  nothing
-//! Out: the registers as the steps and calls leave them; no flags read (the caller
-//!      returns)
-//!
 //! Caller: `physics::camera_frame`. Refuses a mode past 0x33 on the blending path (the
 //! original reads past `off_606320`), and what the ground checks refuse; everything written
 //! put back.

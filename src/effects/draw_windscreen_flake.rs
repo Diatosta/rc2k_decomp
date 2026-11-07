@@ -10,7 +10,6 @@
 //!
 //! In:  st(0) the along share, st(1) the across share (popped), esi the item, edx the
 //!      colour
-//! Out: nothing (its caller reads no register after it)
 //!
 //! Caller: `sub_4BFFEC` (0x4C00FE). The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables.

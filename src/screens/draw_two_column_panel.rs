@@ -3,11 +3,9 @@
 //! `dword_75AA94`; `scene::draw_tinted_quad`), then the rows' rules
 //! (`screens::draw_column_rules`) and boxes (`screens::draw_column_boxes`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! In two menu loops' draw lists (0x758F12, 0x758F1A). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

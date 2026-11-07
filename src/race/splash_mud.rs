@@ -7,9 +7,6 @@
 //! and put back (`race::mud_texel`, `race::put_mud_texel`; untouched without the top bit).
 //! The columns and rows counted in `dword_623D38`, `dword_623D3C` (4 each after).
 //!
-//! In:  nothing
-//! Out: nothing its caller reads (conversion phase 3, 2026-10-24)
-//!
 //! See `race/mud.rs`. One caller, `race::update_mud_texture`, once per splash. Refuses what
 //! `muddy_texel` refuses before anything, and `put_mud_texel`'s later refusals (the counts, the
 //! counters and the random state put back).

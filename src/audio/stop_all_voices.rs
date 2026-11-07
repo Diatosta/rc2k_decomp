@@ -1,8 +1,5 @@
 //! `audio::stop_all_voices` (0x40AFD9): command 7: every playing voice to the stopping list.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! The playing list, if not empty, is put in front of the stopping list (its last voice's
 //! `next` the stopping list's head) and emptied, and `g_channelsUsed` is 0. The channels
 //! keep their `used` marks: the turn's update frees them as it stops the voices.

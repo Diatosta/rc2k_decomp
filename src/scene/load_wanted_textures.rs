@@ -1,8 +1,5 @@
 //! `scene::load_wanted_textures` (0x4256C8): works out what every texture slot should hold and loads what is missing.
 //!
-//! In:  nothing
-//! Out: as `scene::load_slot_textures` leaves them
-//!
 //! `scene::assign_kind_textures`, `scene::map_texture_places`, `scene::load_slot_textures`. One
 //! caller, `scene::reload_slot_textures`.
 

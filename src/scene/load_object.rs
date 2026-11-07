@@ -2,8 +2,6 @@
 //! kind's file.
 //!
 //! In:  nothing (`dword_634FEC` the slot, `dword_634FE8` its kind)
-//! Out: nothing changed for kind 0; else eax = the kind, ebx = the slot, everything
-//!      else preserved
 //!
 //! For a kind that is not 0: the slot's kind is noted (`g_objectKinds`); the file's
 //! names are made (`scene::set_object_file_names`) and the `.ro3` one read into

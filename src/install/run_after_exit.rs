@@ -15,14 +15,10 @@
 //!
 //! A folder that cannot be made current ends it.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
-//! One caller, `start`'s way out. Refuses (before
-//! anything, where the way could lead there) a game folder too long for "ereg\" in its
-//! 0x100 bytes, and a command line's program of 0x100 bytes or more.
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! One caller, `start`'s way out. Refuses (before anything, where the way could lead there) a game
+//! folder too long for "ereg\" in its 0x100 bytes, and a command line's program of 0x100 bytes or
+//! more. Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::runs_from_source::{scratch_put, scratch_text};

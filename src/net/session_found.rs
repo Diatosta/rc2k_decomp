@@ -5,9 +5,8 @@
 //! (`strings::copy_printable`, 0x40 room), the instance GUID (+0x40), the most players
 //! (+0x50), the players (+0x54), `dwUser1` .. `dwUser4` (+0x58).
 //!
-//! In:  (stdcall) the session's description (a DPSESSIONDESC2), the time-out's address,
-//!      the flags, the context
-//! Out: eax = 1 to go on, 0 to stop; ebx, esi, edi, ebp kept; `ret 10h`
+//! Takes (stdcall) the session's description (a DPSESSIONDESC2), the time-out's address, the
+//! flags and the context. Returns 1 to go on, 0 to stop.
 //! Caller: DirectPlay, from `net::find_sessions` (`callback`, a `stdcall` Rust function).
 
 use crate::errors::Refused;

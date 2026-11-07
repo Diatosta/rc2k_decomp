@@ -1,17 +1,12 @@
 //! `logfile::write_line` (0x40132C): the tail shared by the game's seven log functions. Formats
 //! one message into the line buffer and appends it to `var\logfile.txt`.
 //!
-//! In:  eax = message, dl = newline flag, dh = level - 1; `g_logLock` held by the caller
+//! Takes the message, the newline flag and the level - 1; `g_logLock` held by the caller.
 //! Out, logged:  eax = bytes written (or the path pointer if open or seek failed),
 //!               ebx = line buffer start, ecx = line length, edx = dl
 //! Out, skipped: ecx = level, edx = dl; eax and ebx unchanged
 //! The lock is released on both paths. Entered by `jmp`, so its `retn` returns to the log
 //! function's caller.
-//!
-//! The original writes the real file, so there is no shadow comparison: in shadow mode the
-//! original runs alone, and the self-test is the only check of the Rust version.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 

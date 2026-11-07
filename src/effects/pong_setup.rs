@@ -2,9 +2,6 @@
 //! `effects::windscreen_flakes_setup` with the texture places from `dword_769222` .. (the original
 //! also loads `dword_76921E` into eax and drops it).
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! Caller: `effects::run_pong`.
 
 use crate::effects::pong::Pong;

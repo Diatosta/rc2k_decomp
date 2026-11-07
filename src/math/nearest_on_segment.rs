@@ -1,8 +1,8 @@
 //! `math::nearest_on_segment` (0x4633DE): the point of a segment nearest a point, seen
 //! from above.
 //!
-//! In:  the segment's ends A and B and the point O, each as three floats (bits).
-//! Out: the nearest point, three floats.
+//! Takes: the segment's ends A and B and the point O, each as three floats (bits).
+//! Returns: the nearest point, three floats.
 //! With x and z only: t = (A - O).(A - B) over |A - B|^2 (0 when that is zero), held to
 //! 0 .. 1; the point = A + (B - A) t in all three. The arithmetic is the original's x87
 //! (the sound code's calls by place, whose own comparisons stay exact until `sound` is

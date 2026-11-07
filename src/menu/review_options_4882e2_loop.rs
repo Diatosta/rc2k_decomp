@@ -1,15 +1,12 @@
 //! `menu::review_options_4882e2_loop` (0x4882E2): the menu after the results screens, by its
 //! title "OPÇÕES DE REVISÃO" (a reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `roptions.png`; leaving is asked about; also
 //! when `dword_755569` is 1; the steps that are more than a call or a store are the functions
 //! below, generated from the listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES DE REVISÃO", not yet a
 //! visit.
-//! Callers: `sub_487E2C`.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

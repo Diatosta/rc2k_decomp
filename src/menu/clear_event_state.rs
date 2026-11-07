@@ -1,8 +1,5 @@
 //! `menu::clear_event_state` (0x486C2C): an event's state cleared at its start.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! `dword_755950`, `dword_758714` and the 28 dwords `dword_758758` .. `dword_7587C4` set to 0 (the
 //! results screens and the savegame read them; their meaning is not read). Callers: the event loops
 //! (`sub_482382` and four more).

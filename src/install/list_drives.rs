@@ -9,13 +9,10 @@
 //! up to 16, else `off_51D9E8`) into `off_51D5F8` with its item count set to the number
 //! plus two.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `install::run_installer`. Its two probes: `files::drive_type`,
 //! `files::drive_free_space_kb`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::install::installer::{wb, wd};
 use crate::install::page_links::PageLink;

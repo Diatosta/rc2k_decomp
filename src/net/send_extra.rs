@@ -2,9 +2,6 @@
 //! 'XGSM' (0x4D534758) with nine dwords of the car's block (+0x64 .. +0x84; not read)
 //! built in `unk_71C4D0` and sent (`net::send_race_message`).
 //!
-//! In:  nothing
-//! Out: nothing (the original's registers, as the send leaves them, are read by no caller:
-//!      `lq -s` of its one call site, esi only, kept)
 //!
 //! See `net/mod.rs` and `net::send_inputs` (the shared body). One caller, `net::send_turn`
 //! (step 1 of 256).

@@ -5,8 +5,8 @@
 //! +4), +8 0 and the rest 0; the cursor the item after it. With none free, the cursor
 //! moves on 32.
 //!
-//! In:  eax x, ebx z, ecx the kind
-//! Out: ecx the kind & 7 when one was made; the rest kept
+//! Takes: x, z, the kind
+//! Returns: the kind & 7 when one was made
 //!
 //! Caller: `effects::pick_windscreen_flake`.
 //!

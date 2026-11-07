@@ -3,7 +3,6 @@
 //! 1, `dword_71A66C` 1, `dword_71A674` 0, `dword_71A670` 10, `dword_71A668` the step count
 //! `dword_719FE0`; then `dword_71A664` 0. By the look of it a mark's start (a reading).
 //!
-//! In:  nothing
 //! Out: eax the step count (`dword_71A664` not 0), 0 (it 0), kept (both qwords 0); no
 //!      flags read
 //!

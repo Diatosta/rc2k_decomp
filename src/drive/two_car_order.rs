@@ -4,8 +4,7 @@
 //! one ahead (checkpoint +0x94, then +0x624, each by the sign of the `cmp`), 2 for the
 //! other.
 //!
-//! In:  nothing
-//! Out: ebx the last figure compared; the rest kept; no flags read
+//! Returns: the last figure compared
 //!
 //! Caller: `drive::replay_step`.
 

@@ -10,9 +10,9 @@
 //! (negative when packed) into the new index; then "RCIB" and the count (16 bytes) and the
 //! new index (0x3840 bytes). Both closed; the undo emptied again.
 //!
-//! In:  ebx the slot (`race::replay_path`'s number)
+//! Takes: the slot (`race::replay_path`'s number)
 //! Out: carry set when it failed (nothing to save, an open or a write failing); ZF when it
-//!      worked; every register kept (`pusha` / `popa`)
+//!      worked
 //!
 //! Callers: `race::viewer_action` (0x15 back into a saved slot, 0x16 into a chosen one),
 //! `race::save_last_replay`. Saving into slot 222 would make the file it reads from anew (the

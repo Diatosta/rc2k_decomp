@@ -2,9 +2,6 @@
 //! asked for, bits 8 .. 11 of +0x468 (`unk_71A440`) as a signed nibble, through
 //! `physics::allowed_gear` into `dword_614C40`; then `physics::change_gear`.
 //!
-//! In:  nothing
-//! Out: as `change_gear` leaves them; no flags read (the caller returns)
-//!
 //! Caller: `sub_43C15C`. Refuses what the two calls refuse; what was written by then is put
 //! back.
 

@@ -1,11 +1,7 @@
 //! `service::step_steering_sensitivity_down` (0x46BF15): steps the steering sensitivity, the current car's dword at +0x11C, one
 //! down, stopping at 0.
 //!
-//! In:  nothing
-//! Out: edi = the current player; everything else preserved
-//! The exact rule at the limits is in `setup_values.rs` (`Stepper`).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Returns the current player. The exact rule at the limits is in `setup_values.rs` (`Stepper`).
 
 use crate::service::setup_values::{Stepper, Target};
 

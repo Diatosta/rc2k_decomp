@@ -1,7 +1,5 @@
 //! `menu::car_specification_loop` (0x47A652): the screen titled "ESPECIFICAÇÕES DO CARRO".
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is not asked about; it has a step of its own once
 //! a frame; one call comes after the registers are put back; the steps that are more than a
@@ -9,7 +7,7 @@
 //! The name is a reading from the title string of its menu, "ESPECIFICAÇÕES DO CARRO", not yet
 //! a visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

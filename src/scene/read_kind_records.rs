@@ -1,9 +1,6 @@
 //! `scene::read_kind_records` (0x439975): reads the four files of the object kinds'
 //! records.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! A kind's record is 0x80 bytes at `g_objectMaterials` + kind * 0x80, and the four files fill
 //! the four ranges of kinds, each with `files::read_whole_file`: `files\a\objsinfo` kinds 0 ..
 //! 0x18F, `files\b\carsinfo` 0x190 .. 0x257, `files\g\frnt\frntinfo` 0x258 .. 0x31F,

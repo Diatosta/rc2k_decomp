@@ -3,8 +3,7 @@
 //! These are not ports: each takes the place of a function of the game that is
 //! DirectDraw, the window or the message pump, keeps what that function means to the
 //! game's own code (the variables it leaves, the flags it returns with) and does the
-//! rest with SDL. There is no original to compare them with, so they have no self-test
-//! and are installed by the standalone program only (`HOOKS`).
+//! rest with SDL. There is no original to compare them with.
 //!
 //! The screen: the game draws into a locked surface in the screen mode's own pixel
 //! layout. Here that surface is memory of ours (`Screen::pixels`, rows without a gap),

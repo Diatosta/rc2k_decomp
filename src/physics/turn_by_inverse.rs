@@ -2,8 +2,8 @@
 //! `g_carInverseMatrix` (0x71A9A4, the work copy's +0x9CC, made from `g_crashMatrix` by
 //! `sub_43F16C`) with `scene::rotate_point`, and stored back (rounded to floats).
 //!
-//! In:  esi the point
-//! Out: the point turned; every register kept
+//! Takes: the point
+//! Returns: the point turned
 //!
 //! See `physics/turn_by_car_matrix.rs` (the core and the test). Callers (13): the cars'
 //! physics under `sub_4454D2`.

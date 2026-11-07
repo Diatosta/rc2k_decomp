@@ -1,8 +1,5 @@
 //! `audio::free_voices` (0x40AF4B): command 4: every sound's voices and buffers given back.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! If voices are in use (`g_voiceCount`): `audio::release_eax`, `audio::release_voice_manager`,
 //! `audio::release_voice` on each of them, `g_voiceCount` 0. Then every sample record's
 //! `first_voice` 0, `audio::clear_channels`, `g_soundBufferLost`, `g_commit3d`,

@@ -3,13 +3,11 @@
 //! `math::turn_scratch_xz` by edx, and loaded back. A sibling of `math::turn_point_xz`
 //! without the whole numbers.
 //!
-//! In:  eax x, ebx y, ecx z (floats), edx the angle
+//! Takes: x, y, z (floats), the angle
 //! Out: eax x', ebx y, ecx z' (floats), edx as `turn_scratch_xz` leaves it; the rest kept
 //!      (esi, ebp pushed around); no flags read
 //!
 //! Callers: `sub_43F136`, `sub_45DA14`, `sub_45DC3E`, `sub_4B7058`.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::math::turn_scratch_xz::{Scratch, turn_scratch_xz, turn_scratch_xz_plain};
 

@@ -3,9 +3,6 @@
 //! n is a multiple of ten; n 0 there: the fatal error 0x80701010 (cannot happen past the
 //! first test).
 //!
-//! In:  nothing
-//! Out: unchanged up to ten; else eax the first stage, edx n % 10, ebp 10
-//!
 //! Callers: the event pages' code.
 
 /// The first stage of the last page, stored in `dword_7556B8` (1 for a single page). (What

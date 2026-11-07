@@ -1,11 +1,6 @@
 //! `scene::draw_object_faces` (0x450A4B): draws the faces of an object that were listed
 //! for drawing.
 //!
-//! In:  nothing
-//! Out: nothing changed with an empty list; else eax, ecx, esi and ebp are the loop's
-//!      leftovers (the last face's number in the table, the count, the last list
-//!      entry, the last face); everything else preserved
-//!
 //! The list: `dword_62DB58` entries of 0x10 bytes at `dword_62DB5C`: +0 the face's number
 //! within the object, +0xC how see-through it is (to `g_objectSeeThrough`). For each: the
 //! number to `dword_623620`; the face is entry number + `dword_6350BC` of the table

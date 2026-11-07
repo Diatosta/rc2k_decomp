@@ -3,9 +3,6 @@
 //! counts as below: C0, `jb`; IDA 2026-10-21), while +0x1F0 counts down the torque stays
 //! 0; else `physics::engine_torque`.
 //!
-//! In:  nothing
-//! Out: as `engine_torque` leaves them when it ran; no flags read
-//!
 //! Caller: `physics::drive_force`.
 
 use crate::physics::engine_torque::{below, engine_torque};

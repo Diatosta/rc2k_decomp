@@ -2,9 +2,6 @@
 //! log off (`g_logEnabled` 0) for `drive::race_loop`, back on, "... - FINIS" between
 //! rules.
 //!
-//! In:  nothing
-//! Out: the registers as `race_loop` leaves them; no flags read
-//!
 //! Callers: `race::run_race`, `sub_443F96`, 0x44402F, `race::credits_race`, `sub_4640AA`.
 //! Refuses what `race_loop` refuses.
 

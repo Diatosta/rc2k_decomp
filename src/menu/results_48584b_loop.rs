@@ -1,15 +1,12 @@
 //! `menu::results_48584b_loop` (0x48584B): a results screen, by its title "RESULTADOS" (a
 //! reading)
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `results1.png`; leaving is asked about; left
 //! without the question, the highlight is not saved; its own 3D list goes to `g_sceneList`
 //! before the first frame only; around an action the highlight is kept in `dword_7477D8`; the
 //! action run is that of the item of another menu, 0x750ACC (the original's slip).
 //! The name is a reading from the title string of its menu, "RESULTADOS", not yet a visit.
-//! Callers: `sub_4824C1`, `sub_4826A2`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

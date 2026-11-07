@@ -1,14 +1,12 @@
 //! `menu::options_loop` (0x477106): the loop of the options menu.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `opts.png`; leaving is not asked about; after
 //! an action it is left or set up again, nothing else; the steps that are more than a call or a
 //! store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES", not yet a visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

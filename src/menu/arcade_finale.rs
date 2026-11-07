@@ -8,8 +8,6 @@
 //! stopped, tune 3, and the pending key taken (eax 0). What `finish_race_0` shows is a
 //! reading (the level's ending drive).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! The callees get eax 5 - level, ebx the level and edi player 0's record at first, then what the
 //! one before left. Refuses (before anything) a missing player 0.
 

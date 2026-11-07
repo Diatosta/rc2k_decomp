@@ -3,20 +3,17 @@
 //! `g_localeDirectory` is set, and `installation=<g_mediaMode>`, each line ended CR LF. The
 //! text is built in the shared buffer (`text`) and written (`files::write_file`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! `install::read_record` reads it back. Caller `install::install_files`. The write through
 //! `part` (`files::write_file`).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::media_mode;
 use crate::strings::owner::strings;
 
-/// The record written; whether the write worked (the original leaves `write_file`'s carry
-/// through its `pusha` / `popa`, and `install_files` reads it). Until 2026-10-23 the port
+/// The record written; whether the write worked (the original passes `write_file`'s carry
+/// on, and `install_files` reads it). Until 2026-10-23 the port
 /// dropped it, and the install was judged by the change of folder before it.
 pub fn write_record(install: &'static crate::install::owner::Install) -> Result<bool, Refused> {
     let start = crate::place::Place::from(&strings().text.buffer.text);

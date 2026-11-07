@@ -5,8 +5,6 @@
 //! set, or in gear; kept in other modes); `dword_71A244` on by one unless 0, -1 or 1;
 //! `flt_71A5D4` raised to `flt_71AEE0` (the highest so far). Readings, all.
 //!
-//! In:  nothing
-//! Out: eax `dword_71A270` & 0x1E when that is looked at, else kept; no flags read
 //!
 //! Callers: `sub_43B635` (0x43B70A) and `sub_421848` (the car specification's run).
 //!

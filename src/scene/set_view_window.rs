@@ -1,7 +1,6 @@
 //! `scene::set_view_window` (0x44E47B): the view's window, scale and depths from its
 //! size and the scene's settings.
 //!
-//! In:  nothing
 //! Out: eax = the low half and edx = the high half of `dword_63DC54` times 0x10000,
 //!      ebx = 0x10000; everything else preserved
 //!

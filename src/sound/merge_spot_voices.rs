@@ -2,7 +2,7 @@
 //! nearest kept and (re)started, moved to the point between it and the next nearest
 //! that is nearest the listener; all the others silenced.
 //!
-//! In:  eax the sound
+//! Takes: the sound
 //! Out: ebp the sound, ecx 0; ebx the nearest (or the end of the voices), eax and edx
 //!      as the original leaves them (see the code); esi, edi preserved
 //! The pickers' work (`dword_517F40` .. `dword_517F50`) cleared (distances to -1). For

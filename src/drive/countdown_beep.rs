@@ -4,7 +4,7 @@
 //! in seconds (/ 100), -1 from 6 on, into [edi]; on a whole second not -1 the second's
 //! sound (`dword_6D1818[s]`, into `dword_614114`) cued (`drive::countdown_cue`).
 //!
-//! In:  esi the car's block, edi where its second goes
+//! Takes: the car's block, where its second goes
 //! Out: eax the second, edx the remainder, ebx 100 or the sound; the rest kept; no flags
 //!      read
 //!

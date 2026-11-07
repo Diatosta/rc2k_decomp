@@ -4,8 +4,7 @@
 //! `DC` into `dword_71A9A0` (`g_car` +0x9C4, +0x9C0, +0x9C8): the car's angles in the
 //! game's whole-number units (a reading).
 //!
-//! In:  nothing
-//! Out: esi = `g_crashMatrix`; the rest kept; no flags read
+//! Returns: `g_crashMatrix`
 //!
 //! Caller: `physics::update_car_angles`.
 

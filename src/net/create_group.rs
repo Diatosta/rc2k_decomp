@@ -3,9 +3,7 @@
 //! `CreateGroup` into `g_netSendTo` (no data, flags 0), and this machine's player added to
 //! it (`AddPlayerToGroup`).
 //!
-//! In:  nothing
-//! Out: true when made and joined (the original: carry clear, the flags of `test eax,
-//!      eax`; every register kept), false for the carry
+//! Returns true when made and joined.
 //! Callers: `net::host_session`, `net::open_lobby`.
 //!
 //! Since 2026-10-29 the name goes to `net::dp_objects` as text: the DPNAME is not made.

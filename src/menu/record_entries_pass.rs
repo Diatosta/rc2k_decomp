@@ -4,9 +4,6 @@
 //! (`menu::beat_target_time`, `dword_755918`) entered (`menu::enter_record_entry`),
 //! `dword_755920` 1 once one is (0 first).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Callers: the event drivers. The steps are their Rust versions. Refuses what the steps refuse and
 //! a player count of 0 or past 4 or a player missing, before anything.
 use crate::errors::{BadInput, Refused};
@@ -49,7 +46,7 @@ impl rc2k_core::menu::bests::RecordEntries for Entries<'_> {
     }
 }
 
-/// The Rust version (see the header).
+/// The Rust version.
 pub fn record_entries_pass(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let players = counted_players(screens)?;

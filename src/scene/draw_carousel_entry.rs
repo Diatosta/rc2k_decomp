@@ -3,7 +3,6 @@
 //!
 //! In:  ebx = the entry, ecx = its place in the row (-1 before the front one, 0 the
 //!      front one, 1 and 2 after it)
-//! Out: every register preserved
 //!
 //! The object's variables for `scene::draw_menu_object`:
 //! - x (`dword_63501C`) = the spacing `dword_75A664` times (place - 1), plus the high

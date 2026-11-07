@@ -11,7 +11,6 @@
 //! variables (from IDA), in plain Rust over `X` (`math/x87_float.rs`); the instructions are
 //! `asm_reference` in the tests.
 //!
-//! In:  nothing
 //! Out: ecx the last part's exponent bits, esi +0x198 (+0x1A4 after a scaling); no
 //!      flags read
 //!

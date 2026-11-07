@@ -1,8 +1,7 @@
 //! `sound::car_hit_sound` (0x40E182): a car's sound of a hit, sent once (+0x238, which
 //! the physics' contacts set: `physics::place_sound_object` and the like).
 //!
-//! In:  ebx the car's sound object, esi the request
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the car's sound object, the request
 //! Nothing when +0x238 is -2 (none); else it is taken (+0x238 = -2) into the
 //! request, with its volume +0x23C and the sample's own rate through
 //! `sound::sample_settings`; a volume under 4: nothing; else the request's +8 and +4 the volume and rate

@@ -1,7 +1,7 @@
 //! `scene::set_object_file_names` (0x43964A): the paths of a kind of object's two
 //! files.
 //!
-//! In:  eax = the kind (which folder), `dword_634FE8` = the kind (the number)
+//! Takes: the kind (which folder), `dword_634FE8` = the kind (the number)
 //! Out: eax = the tens digit as a character, ecx = 10, edx = the units digit as a
 //!      character, esi and ebp = where the number is in the two names
 //!

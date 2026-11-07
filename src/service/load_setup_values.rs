@@ -1,16 +1,12 @@
 //! `service::load_setup_values` (0x47070C): copies three setup values of the current car into
 //! the service area's edit variables, unless `dword_75AAE0` is 1.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//! Each value goes into a pair of variables: car +0x10C into 0x75ACA0 and 0x75AC9C, +0x120
-//! into 0x75AC94 and 0x75AC90, +0x118 into 0x75ACB8 and 0x75ACB4. A fourth pair is treated
-//! differently: the function loads car +0x114 but then stores 0x75ACAC, which it does not
-//! change, into 0x75ACA8. The names are a reading: what the three values are (the key handlers
-//! step 0x75AC9C between 0 and 5) has not been worked out.
-//! It is not called directly: its address is in the service area's list at 0x759436.
-//! Hook removed 2026-10-22 (typed tables): the menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! Each value goes into a pair of variables: car +0x10C into 0x75ACA0 and 0x75AC9C, +0x120 into
+//! 0x75AC94 and 0x75AC90, +0x118 into 0x75ACB8 and 0x75ACB4. A fourth pair is treated differently:
+//! the function loads car +0x114 but then stores 0x75ACAC, which it does not change, into 0x75ACA8.
+//! The names are a reading: what the three values are (the key handlers step 0x75AC9C between 0 and
+//! 5) has not been worked out. It is not called directly: its address is in the service area's list
+//! at 0x759436.
 
 use crate::errors::BadInput;
 use crate::menu::owner::Menus;

@@ -4,15 +4,10 @@
 //! `dword_6241E0` and, as floats, `g_clipScreenLeft` / `Right`), the background loaded
 //! (`service::load_background`, 0x470F55; its carry not read), copied to the surface and
 //! the frame shown.
-//!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
-//! Callers: `sub_48E093`, `sub_4A15E3`, `sub_4A8556`.
 
 use crate::errors::Refused;
 
-/// The Rust version (see the header). Whether the copy and the showing worked is not
+/// The Rust version. Whether the copy and the showing worked is not
 /// looked at (the original's carries are not).
 pub fn inspection_screen() -> Result<(), Refused> {
     let scene = crate::scene::owner::scene();

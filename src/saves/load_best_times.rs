@@ -1,7 +1,5 @@
 //! `saves::load_best_times` (0x4AB155): reads the best times and scores, `var\hst.dat`.
 //!
-//! In:  nothing
-//! Out: carry = not loaded (loaded: carry and zero clear); every register preserved
 //! First `saves::allocate_best_times`; the file is opened (mode 0); its head of 0x10 bytes
 //! goes to the scratch block at 0x93E8B0 and must start "R5HS" and have 0x50004 at +8; then
 //! six of the tables are read straight from the file, each to the address and with the size

@@ -5,9 +5,6 @@
 //! (`screens::draw_service_area`), unlocked; `gfx::show_frame`. A lock, the scene's begin
 //! or the show failing: carry set.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`); carry set on a failure, else clear with ZF
-//! from the show's eax
 //!
 //! Callers: through the frame callbacks of `service::apply_repairs` and its kind (stored at
 //! 0x46C33E .. 0x46CF7C).

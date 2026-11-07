@@ -1,8 +1,5 @@
 //! `menu::restore_text` (0x46D5E3): copies the text entry's backup back into a text field and
 //! ends it with a NUL: 0x1F bytes, then a 0 at +0x1F.
-//!
-//! In:  edi = the text field
-//! Out: every register preserved
 
 use crate::menu::text_entry::{TEXT_LEN, entry as text_entry};
 

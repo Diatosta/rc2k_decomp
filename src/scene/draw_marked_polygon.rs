@@ -1,7 +1,6 @@
 //! `scene::draw_marked_polygon` (0x44B9FC): `scene::draw_polygon` with a colour set
 //! for the time of the call when the scene's flags say so.
 //!
-//! In:  nothing
 //! Out: as `scene::draw_polygon` (the original leaves every register changed; the Rust
 //!      version keeps them)
 //!

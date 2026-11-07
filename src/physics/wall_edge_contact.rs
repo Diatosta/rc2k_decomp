@@ -10,7 +10,6 @@
 //! `flt_5C5DD0`), no slide limit; `physics::contact_force` into contact record 4,
 //! `physics::place_sound_e1`.
 //!
-//! In:  nothing
 //! Out: ebp the wall, and the registers as the edge tests and `contact_force` leave them;
 //!      no flags read (the caller goes on)
 //!

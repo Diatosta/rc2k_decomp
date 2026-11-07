@@ -1,11 +1,10 @@
 //! `drive::race_cars_step` (0x4608BB): every car's physics step. `drive::choose_shown_cars`;
-//! for each car n of `g_raceCars` (`g_currentCar` = n, from 0): in `pusha` / `popa`, the
+//! for each car n of `g_raceCars` (`g_currentCar` = n, from 0), the
 //! four `dword_6138C4` .. 0, its block (`g_carBlocks[n & 7]`) into `dword_71B404`,
 //! `drive::load_car`; with the car running (`unk_71A234` set) `drive::read_car_controls`,
 //! `physics::gear_input_rules` and `physics::car_physics_step`; `drive::store_car`. Then
 //! `drive::animate_stage` and `drive::race_mode_cars`.
 //!
-//! In:  nothing
 //! Out: eax the cars' count, then as `animate_stage` and `race_mode_cars` leave the
 //!      registers; no flags read
 //!
@@ -19,7 +18,7 @@ use crate::errors::Refused;
 use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
-/// One car's step (0x4608CA .., inside `pusha` / `popa`).
+/// One car's step (0x4608CA ..).
 fn car_step(race: &Race) -> Result<(), Refused> {
     for word in &race.shared.physics_tables.input_words {
         word.set(0);

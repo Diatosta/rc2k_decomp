@@ -2,11 +2,9 @@
 //! and the bottom bar round its middle, see-through blue 0x11166A (`dword_75AA94`), the
 //! middle's strip dark grey 0x1F1F1F; each a `scene::draw_tinted_quad`.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x7590BA). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

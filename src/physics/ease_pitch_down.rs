@@ -2,8 +2,7 @@
 //! (`unk_71A690`) down to `dword_608C1C` (unsigned halving, `shr`), kept in
 //! `dword_608C24` and taken from +0x6B8. The twin of `physics::ease_pitch_up`.
 //!
-//! In:  nothing
-//! Out: eax the step; the rest kept; no flags read
+//! Returns: the step
 //!
 //! Caller: `sub_43907F` (0x4392F3).
 

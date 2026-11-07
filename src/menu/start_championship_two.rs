@@ -1,9 +1,6 @@
 //! `menu::start_championship_two` (0x4A27B5): the championship for two players in turn (event mode
 //! 0xB); then `menu::run_championship`. The shape is `menu::start_event`'s.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Reached through a start menu's table. Refuses a missing player before anything, and what the
 //! callees refuse when they are reached.
 

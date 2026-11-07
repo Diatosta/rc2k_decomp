@@ -4,9 +4,6 @@
 //! exclamation, task-modal); for a code with bit 28 the caption ("Rally: Guru Meditation")
 //! is first cut to "Rally" (its byte 5, `byte_4F6702`, 0). Then "END PROCESS" logged.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! One caller, `start`'s way out, which calls it directly (2026-10-23). The registers
 //! above are the original's, for reference.
 

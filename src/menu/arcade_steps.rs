@@ -1,5 +1,5 @@
 //! The arcade event's small steps (`menu::arcade_event`, 0x487E2C, and its callers; agent
-//! E, 2026-10-19). Plain stores, all `pusha` .. `popa` unless said. What they share:
+//! E, 2026-10-19). Plain stores. What they share:
 //! `dword_7587EC` the level (1 .. 5), `dword_7587F0` the stage (0 .. 6), the stage's record
 //! `off_73555A[level]` + stage x 0xA4 (its +0x3C the course), the course's ten best times
 //! (`dword_7556E0` + course x 0x618, entries of 0x9C, the tenth at +0x57C), the level's ten
@@ -41,7 +41,7 @@
 //! - `menu::remove_shown_car` (0x486BF5): the entries of `off_75A12E` after the shown one
 //!   moved down one, up to and with the end mark; `saves::list_car_numbers`.
 //! - `menu::secret_car_list` (0x480D35): with cheat bit 1 (`g_cheats`), esi `off_75A412`;
-//!   the carry is the bit. Not `pusha`'d.
+//!   the carry is the bit.
 //!
 //! Converted (2026-10-21): the entries' logic is `rc2k_core::menu::bests` and
 //! `rc2k_core::menu::standings`; this file reads and writes the game's memory for it.

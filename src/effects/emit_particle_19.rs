@@ -2,8 +2,7 @@
 //! car each frame; `effects::emit_particle_22` (0x4CE482) is the same code on its own
 //! variables (`TwinSet`).
 //!
-//! In:  esi the car object
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the car object
 //!
 //! The level (`dword_93A1CE`) the car's +0x4C0 (+0x4C4); a random's bits 16 .. 18 must be
 //! under it (signed). `g_marksWheelFlags` 0x3E (0x33); `dword_93A1C2` .. the car's +0x4C ..

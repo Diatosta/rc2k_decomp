@@ -6,9 +6,6 @@
 //! `flt_7691C2` less its height, its along way turned each time. ("At or" includes an
 //! unordered compare, as the original's tests of C0, C2, C3 together.)
 //!
-//! In:  nothing
-//! Out: nothing (the Rust callers read no register)
-//!
 //! Caller: `effects::run_pong` (`g_pongSteps` times a frame). The calls are their Rust
 //! versions.
 //!

@@ -260,7 +260,7 @@ fn start() {
     // Font 56's palette: the image names the palette sheet (`gfx::build_fonts` hangs the rest).
     gfx.fonts.typefaces.objects[56]
         .palette
-        .set(gfx.fonts.menu_fonts.palette_sheet[0].addr());
+        .set(gfx.fonts.font_block.palette_sheet[0].addr());
     // `g_surface.format` (0x4F49B8): the image points it at the format record; the
     // record is `session::SCREEN`'s, named by its handle (the platform sets it again at
     // every lock).

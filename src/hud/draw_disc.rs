@@ -5,7 +5,6 @@
 //! entry k + 1, entry k + 2 wrapping past 0x10) from `hud::disc_vertex` and drawn by
 //! `hud::add_triangle`.
 //!
-//! In:  nothing
 //! Out: eax the last texture angle, ebx 0x10, ecx 0x10, edx 0x10; the rest kept
 //!
 //! Callers: `sub_4B6B0A`, `sub_4B6B5B`, `sub_4B6BAC`, `sub_4B6BFD`.

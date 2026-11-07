@@ -3,7 +3,6 @@
 //! points' faces (`dword_71ADC8`, 0x40 dwords) to 0x6D2F14 (`rep movsd`): by the look of
 //! it the step's starting points kept (a reading).
 //!
-//! In:  nothing
 //! Out: ecx 0, esi 0x71ADC8 + 0x100, edi 0x6D2F14 + 0x100; eax, ebx, edx as
 //!      `probe_ground` leaves them (with no probe points: kept)
 //!

@@ -4,8 +4,6 @@
 //! labels and sprites, the setup bars' labels and markers, the repair times and the car
 //! condition bar.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry as `draw_inspection_status` leaves it
 //! The order is the original's: the title ("<string 0x190> <car index + 1> <string 0x486>",
 //! built in the shared text buffer), `draw_service_time`, the `STEPS` list, the string
 //! 0x4B0 + `dword_75AC9C`, `draw_repair_times`, the six setup markers, `draw_inspection_status`.
@@ -25,7 +23,7 @@
 //! Screen: confirmed by the owner on 2026-10-10 with `blank on screens::draw_service_area`: the
 //! service area of a championship. All text and icons disappeared; the boxes that hold them stayed,
 //! so those are drawn by something else (not ported). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_bar::{Bar, blit_bar};

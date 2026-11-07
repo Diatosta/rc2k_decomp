@@ -2,7 +2,7 @@
 //! whether the object eax is of kind 0x30 or 0x4E (`g_objectKinds`): CF set when it is,
 //! clear otherwise (and clear without either setting).
 //!
-//! In:  eax the object
+//! Takes: the object
 //! Out: CF; eax its kind when a setting was on, else kept; the rest kept (ZF as the last
 //!      compare leaves it, not read: callers `jb`)
 //!

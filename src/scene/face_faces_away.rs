@@ -1,6 +1,6 @@
 //! `scene::face_faces_away` (0x45205B): whether a face of an object is seen from behind.
 //!
-//! In:  ebp = the face
+//! Takes: the face
 //! Out: eax = 1 if it faces away (or has fewer than three vertices), 0 if not;
 //!      everything else preserved
 //!

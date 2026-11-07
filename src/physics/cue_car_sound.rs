@@ -3,8 +3,7 @@
 //! `physics::queue_sound_cue` with eax 0 (first), edi its +0x298, the cue in ebx. All in
 //! `pusha` / `popa`.
 //!
-//! In:  eax which, ebx the cue
-//! Out: every register kept; no flags read
+//! Takes: which, the cue
 //!
 //! Caller: `physics::cue_listed_car_sound`. Refuses (before anything) a car past 7 or a
 //! null sound object.

@@ -1,6 +1,6 @@
 //! `d3d::set_texture` (0x41ACF5): makes a texture the one polygons are drawn with.
 //!
-//! In:  eax = the texture's number, or 0xFFFFFC43 for none
+//! Takes: the texture's number, or 0xFFFFFC43 for none
 //! Out: ecx = 0; eax, edx as Direct3D leaves them
 //! Nothing if it is the current one (`g_currentTexture`, 0x5AB93C); else that is set
 //! and the device told: render state 1 with the texture's handle from the texture

@@ -1,12 +1,11 @@
 //! `physics::take_split_counted` (0x436833, race mode 2): for car 0 only, when a
 //! checkpoint is past the splits taken (+0xAC below +0x90, unsigned):
-//! `physics::keep_split_time` (inside `pusha` / `popa`), `physics::set_flag_51659c`,
+//! `physics::keep_split_time`, `physics::set_flag_51659c`,
 //! `physics::split_by_mode`, the figure kept at +0x140 [split]; before the last split
 //! the notice 0xC9 (+0x730 0x32, +0x72C 300) and the count-down +0x8C up by
 //! `dword_601434[split]` x 100; +0xA4 0; the splits taken made +0x90; at
 //! `g_splitColourCount` finished: +0xA8 1, the notice 0xC8 (+0x72C -1, +0x730 0).
 //!
-//! In:  nothing
 //! Out: eax, ebx and what the calls leave; no flags read
 //!
 //! Caller: `physics::race_timers`. Refuses (before anything) a split past 0x3F, and what

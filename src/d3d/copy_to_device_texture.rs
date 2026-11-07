@@ -1,8 +1,7 @@
 //! `d3d::copy_to_device_texture` (0x41A8F9): a system texture's levels into a video
 //! texture.
 //!
-//! In:  eax = the system texture, ebx = the video texture (record numbers)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the system texture, the video texture (record numbers)
 //! The video record's +0x64 is set to the system texture; the device's batch is flushed
 //! (`sub_41A971`: SetRenderState 0x32, FLUSHBATCH); then each level of the system record
 //! (+0x10 of them): its surface page-locked (+0x38, `PageLock`), blitted (`Blt`, waiting)

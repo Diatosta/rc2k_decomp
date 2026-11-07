@@ -1,7 +1,5 @@
 //! `saves::save_options` (0x4AAE57): writes the game's kept options, `var\ral.dat`.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry = not written
 //! The file is put together in the scratch block at 0x93E8B0: "R5CI", 0, 0x50004, the time
 //! (`system::packed_local_time`), the 69 pieces of `saves::load_options` in the same order, each
 //! copied from its place, and "####"; then `files::write_file`. One caller,

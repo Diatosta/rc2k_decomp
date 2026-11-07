@@ -1,8 +1,6 @@
 //! `net::clear_chat` (0x419411): the lobby's chat (`byte_52A508`) made eight empty lines:
 //! seven 0x0A and a NUL.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Caller: `net::start_link` (with the received messages' lock held).
 
 /// The Rust version.

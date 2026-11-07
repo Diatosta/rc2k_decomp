@@ -5,7 +5,7 @@
 //! By the look of it the camera views (`drive::next_camera_view` cycles +0x688; a
 //! reading).
 //!
-//! In:  esi the block
+//! Takes: the block
 //! Out: eax the step count; the rest kept; no flags read (callers go on with `mov`,
 //!      `retn`)
 //!

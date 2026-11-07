@@ -6,8 +6,7 @@
 //! (+0x9CC, `scene::rotate_point`) into +0x1A4 .. +0x1AC (the last `g_carSpeed`). All in
 //! `pusha` / `popa`. A reading: a force's push on the car.
 //!
-//! In:  esi the record, edi the car block
-//! Out: every register kept; no flags read
+//! Takes: the record, the car block
 //!
 //! Caller: `physics::apply_forces` (in a loop over records).
 

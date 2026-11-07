@@ -1,13 +1,9 @@
 //! `system::check_developer_machine` (0x416292): whether the computer is called "andrew".
 //!
-//! In:  nothing
-//! Out: ebx = the text buffer; ax = the last two characters looked at, in lower case; the
-//!      rest preserved
-//! `dword_529D94` = 0; the computer's name is asked for into the text buffer
-//! (`GetComputerNameA`, through `sub_410848`; if that fails the buffer is looked at as it
-//! is); if its first six characters are "andrew" in any case, `dword_529D94` = 1.
-//! (`race::tyre_change_gauge` reads it.) One caller, `start`, which calls it directly
-//! (2026-10-23); the registers above are the original's, for reference.
+//! `dword_529D94` = 0; the computer's name is asked for into the text buffer (`GetComputerNameA`,
+//! through `sub_410848`; if that fails the buffer is looked at as it is); if its first six
+//! characters are "andrew" in any case, `dword_529D94` = 1. (`race::tyre_change_gauge` reads it.)
+//! One caller, `start`, which calls it directly (2026-10-23).
 
 /// IDA's address of the switch.
 pub const DEVELOPER_START: usize = 0x529D94;

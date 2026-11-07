@@ -1,7 +1,6 @@
 //! `scene::clip_polygon_to_screen` (0x44D15A): cuts the polygon to the screen's four
 //! edges.
 //!
-//! In:  nothing
 //! Out: the original leaves eax, ecx, edx, esi changed, and after a clipping ebx, edi
 //!      and ebp too; its callers go on by the number of vertices alone (none reads them)
 //!

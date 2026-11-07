@@ -1,8 +1,6 @@
 //! `saves::default_stage_times` (0x47C7FE): made-up best times for the stages of the six record tables
 //! of `off_73555A`.
 //!
-//! In:  ebp (passed on as the stage to `default_time_entry`, which only uses it while `dword_755A0C` is 1)
-//! Out: every register preserved
 //! For each of the six tables and each of its records 1 .. 6: `seconds` (0x7559AC) = the
 //! record's +0x18 + 24,000, and the ten entries the record's +0x3C picks in the table at
 //! `dword_7556E0` get that and 0x8B more each, and a driver (`saves/default_times.rs`).

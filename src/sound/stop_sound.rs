@@ -2,7 +2,6 @@
 //!
 //! In:  esi = the request (its first dword is the sound; bit 0x8000: none); ecx, edx,
 //!      edi, ebp go into the command as they are
-//! Out: every register preserved
 //! Unless the sound has bit 0x8000: `sound::play_sound` with eax the sound and ebx = 0.
 //! That it stops the sound is a reading (a volume of 0).
 //! 14 callers (the race's sounds).

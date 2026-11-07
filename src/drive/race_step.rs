@@ -3,8 +3,6 @@
 //! each tenth gone (`dword_613844`, signed), stopping when the players are all out
 //! (`race::players_all_out`).
 //!
-//! In:  nothing
-//! Out: ecx the tenths left, the rest as the ticks leave them; no flags read
 //!
 //! Callers: `drive::race_loop`, `sub_4607A5`. Refuses what its calls refuse.
 

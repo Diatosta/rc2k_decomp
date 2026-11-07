@@ -1,7 +1,7 @@
 //! `scene::list_object_face` (0x4504CB): decides whether a face of an object is drawn,
 //! and lists it if so.
 //!
-//! In:  ebp = the face; its number within the object is in `dword_623620`
+//! Takes: the face; its number within the object is in `dword_623620`
 //! Out: the original leaves registers changed; its one caller keeps them all, and
 //!      the Rust version does not change any
 //!

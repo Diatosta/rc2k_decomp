@@ -3,9 +3,6 @@
 //! `dword_614BDC` .. into its spin (`dword_71A15C` .., +0x184), eax pushed around; then
 //! `physics::car_frame_motion`. The undoing of `physics::keep_motion_vectors`.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `sub_43B635` (0x43B8F1, before `sub_43F7AC`).
 
 use crate::physics::car_frame_motion::car_frame_motion;

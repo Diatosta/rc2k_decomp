@@ -4,8 +4,6 @@
 //! (`menu::take_shown_car`) and this player's record given it (+1 the car, +2 its colours);
 //! then the background again (`net::show_background`).
 //!
-//! In:  nothing
-//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! Caller: `net::lobby_loop`.
 
 use crate::errors::Refused;

@@ -4,12 +4,10 @@
 //! item's entry, unless negative; without one (ebx 0) 0x66 and 0x6B go round the list
 //! (`[edi+1]` items) and 0x68 and 0x69 do nothing. The item into `dword_51D407`.
 //!
-//! In:  al the key, ebx the table or 0, edi the list
-//! Out: moved: ZF set, carry clear, ecx the item. Not moved: ZF clear; ecx kept for
 //! another key (carry: al below 0x69), else `dword_51D407` with cl the table's entry
 //! (carry clear), or for 0x68 / 0x69 without a table `dword_51D407` (carry set)
 //!
-//! Callers: `race::replay_viewer` (two), `sub_4144CF` (one), reading ZF.
+//! Callers: `race::replay_viewer` (two), reading ZF.
 
 use crate::pointers::GamePtr;
 use rc2k_core::menu::list_menu::{MOVES, Step, step};

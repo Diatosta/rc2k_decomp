@@ -10,9 +10,6 @@
 //! table's titles it stores their string ids in items 0 and 1 of the current menu, and it
 //! builds the heading text (string 0x482) in its own buffer without drawing it.
 //!
-//! In:  nothing in registers; it works from the selection (`draw_stage_records::selection`)
-//! Out: carry as `draw_stage_records` leaves it, or clear if the record rows are skipped;
-//! every register preserved
 //! Reached through the draw lists at 0x758CF6 (screen loop `sub_48EC30`, a menu entry) and
 //! 0x758E9E (screen loop `sub_482099`, six callers).
 //!
@@ -23,7 +20,7 @@
 //!
 //! The record rows come from one of two best-time tables and are skipped while a table is missing
 //! (see `stage_panel::draw_records_for_group`). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;

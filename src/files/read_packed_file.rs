@@ -1,22 +1,19 @@
 //! `files::read_packed_file` (0x41BA71): a file packed by the game's "SQSL" scheme read and
 //! unpacked in place.
 //!
-//! In:  eax = path, ebx = buffer, ecx = its bytes
-//! Out: eax = the bytes unpacked, carry clear, zero flag = none; on a failed read or a
-//!      file not "SQSL", eax = 0, carry set, zero clear; everything else preserved
+//! Takes the path, the buffer and its size. Returns the bytes unpacked; on a failed read or a
+//! file not "SQSL", 0 and a failure.
 //!
-//! The file (up to ecx bytes, `files::read_file`) begins "SQSL", two dwords, and the count
-//! of dwords it unpacks to. Its dwords are moved to the buffer's end (backwards, so a file
-//! filling the buffer stays in place); from +0x10 of them a stream of bits (each dword's
-//! highest first) is read and the dwords written from the buffer's start (both + the
-//! size's odd bytes: the move shifts the file by them), each by a code: 0 a zero; 10 and 8 bits n, the
-//! dword n + 1 back; 1100 and 12 bits, likewise; 1101 and 17 bits, that number; 1110, a
-//! sign bit and 27 bits, that number (28 bits, signed); 1111 and 32 bits, that number. Read
-//! from the course data (`files::read_level_file`). Refuses a count of 0 (the original
-//! counts round), and a stream that reads or writes past the buffer or refers back past its
-//! start (the original would carry on in other memory).
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! The file (up to ecx bytes, `files::read_file`) begins "SQSL", two dwords, and the count of
+//! dwords it unpacks to. Its dwords are moved to the buffer's end (backwards, so a file filling the
+//! buffer stays in place); from +0x10 of them a stream of bits (each dword's highest first) is read
+//! and the dwords written from the buffer's start (both + the size's odd bytes: the move shifts the
+//! file by them), each by a code: 0 a zero; 10 and 8 bits n, the dword n + 1 back; 1100 and 12
+//! bits, likewise; 1101 and 17 bits, that number; 1110, a sign bit and 27 bits, that number (28
+//! bits, signed); 1111 and 32 bits, that number. Read from the course data
+//! (`files::read_level_file`). Refuses a count of 0 (the original counts round), and a stream that
+//! reads or writes past the buffer or refers back past its start (the original would carry on in
+//! other memory).
 
 use crate::errors::Refused;
 use crate::files::read_file::ReadResult;

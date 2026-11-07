@@ -2,7 +2,6 @@
 //! +0x25C) 0 or 2 the stuck count (+0x1E8, `dword_71A1C0`) is set to 0; else it goes up,
 //! and at 700 or more (unsigned) `physics::reset_car` puts the car back on the line.
 //!
-//! In:  nothing
 //! Out: when `reset_car` ran, the registers as it leaves them; else all kept; no flags
 //!      read (the caller's next is a call)
 //!

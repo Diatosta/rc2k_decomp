@@ -1,9 +1,6 @@
 //! `physics::note_surface_mode` (0x43F180): `dword_71A6C8` = 1 when `dword_71A65C` is 2
 //! or 3, else 0. What the mode is is not known.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `physics::feel_ground` (0x43F1A8), first.
 //!
 //! Plain since 2026-10-23 (phase 3): its arguments are what it reads; the registers

@@ -4,8 +4,7 @@
 //! +0xC4 .. +0xD0; always `dword_71A1E0` into +0xD4 and +0x10 = 1. By the look of it the
 //! engine's figures for the sounds (a reading).
 //!
-//! In:  nothing
-//! Out: edi the sound object; the rest kept; no flags read
+//! Returns: the sound object
 //!
 //! Caller: `sub_43B635` (0x43B99F), every physics step. Refuses (before anything) a null
 //! sound object.

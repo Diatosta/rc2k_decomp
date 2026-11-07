@@ -6,8 +6,7 @@
 //! `g_carDriveKind`, then times `dword_614C18`), `flt_614BEC`, `flt_614BF8`, `flt_614C00`,
 //! `flt_614C04` (`dword_71A00C`). What each is, is a reading.
 //!
-//! In:  nothing
-//! Out: ebx `g_carDriveKind`; the rest as `grade_or_reset` leaves them; no flags read
+//! Returns: `g_carDriveKind`
 //!
 //! Callers: `sub_43B635` (every physics step) and `race::settle_car`. Refuses (before
 //! anything) a drive kind above 1 (the cars' records have 0 and 1; the pair tables hold

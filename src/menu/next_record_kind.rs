@@ -2,18 +2,15 @@
 //! current one (`g_recordTable`, section `section`, index `index` + 1), kept in
 //! `dword_7559EC`.
 //!
-//! In:  nothing
-//! Out: eax the kind; the rest kept
-//!
 //! Callers: `saves::load_savegame`, the event drivers. `records::find_record`'s Rust version.
 //! Refuses a section or index past 63 or a section the table does not hold, before anything. Rust
-//! callers run its `entry` (`routes.rs`); the registers above are the original's, for reference.
+//! callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::menu::owner::menus;
 use crate::system::owner::system;
 
-/// The Rust version (see the header): the kind (eax in the original), also kept in
+/// The Rust version: the kind (eax in the original), also kept in
 /// `dword_7559EC`.
 pub fn next_record_kind() -> Result<u32, Refused> {
     let screens = &menus().screens;

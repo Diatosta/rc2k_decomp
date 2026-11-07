@@ -3,8 +3,7 @@
 //! towards it (up when the difference's sign is clear, `jns`). What the values are is
 //! not known.
 //!
-//! In:  nothing
-//! Out: eax `dword_71AF90` << 8 (when `dword_6235E8` is 0); the rest kept; no flags read
+//! Returns: `dword_71AF90` << 8 (when `dword_6235E8` is 0)
 //!
 //! Caller: `sub_43B635` (0x43B705), every physics step.
 //!

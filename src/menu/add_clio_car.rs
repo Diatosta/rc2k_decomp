@@ -1,7 +1,5 @@
 //! `menu::add_clio_car` (0x471C33): puts the Clio into three lists of cars.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! For the lists at `off_759DCA`, `off_75A042` and `off_759E52`: if the car description
 //! `unk_7574E0` is not in the list, it is written over the list's -1. No -1 is written
 //! after it: the list then ends wherever the next -1 happens to be (the original's

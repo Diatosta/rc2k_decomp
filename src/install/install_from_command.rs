@@ -7,12 +7,9 @@
 //! (`install::choose_language`, `strings::load_language`); then the files are installed
 //! (`install::install_files`). Any failing directory change or normalise ends it early.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! Caller `install::run_installer`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{load_language, logged, normalise, set_cd, set_media_mode};

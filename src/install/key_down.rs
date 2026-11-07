@@ -1,13 +1,10 @@
 //! `install::key_down` (0x414794): key 0x6B on an item: for choices shown upright (kind
 //! 0x22 of `[esi] & 0x2F`) the choice after (`install::choice_on`).
 //!
-//! In:  esi the item
-//! Out: bl the kind (`[esi] & 0x2F`); with choices as `choice_on` leaves them (zero set),
-//!      else the flags of `cmp bl, 22h` (zero clear)
+//! Takes the item. Returns the kind (`[item] & 0x2F`).
 //! Caller `install::page_key`, reading zero.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::key_up::item_key;

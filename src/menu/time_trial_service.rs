@@ -9,9 +9,6 @@
 //! (`menu::inspection_area_loop`; a yes ends it all) and counts in `dword_755978`. When
 //! every player is out, `dword_75592C` 0. At the end `dword_755938` 0.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! `menu::service_pass` without its due test, its money and its keys. Callers: the time trial's
 //! events. The calls through `event_flow::Call`. Refuses a player count of 0 or past 4 or a player
 //! missing before anything, a current player past the four when it is read.

@@ -1,8 +1,5 @@
 //! `scene::set_up_object_memory` (0x4433C9): the objects' memory and the kinds' records.
 //!
-//! In:  nothing
-//! Out: as `scene::allocate_object_memory` leaves them
-//!
 //! `scene::allocate_object_memory`, then `scene::read_kind_records`. Two callers (the front
 //! end's 3D set-up and a race's).
 

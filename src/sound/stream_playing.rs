@@ -1,8 +1,6 @@
 //! `sound::stream_playing` (0x40C4D5): the music stream's playing flag (`dword_506960`,
 //! `g_soundStream.playing`) compared with 1: zero set when it plays, carry when it is 0.
 //!
-//! In:  nothing
-//! Out: the flags of `cmp dword_506960, 1`; every register kept
 //!
 //! Callers: `sub_46F7AD` (`jz`), `sub_47F314` (`jnz`); `sound::step_car_stream` has it
 //! inlined.

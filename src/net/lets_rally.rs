@@ -10,12 +10,9 @@
 //! (`net::copy_received`) and the race driven (`net::lets_race`); after it, everything
 //! tidied (`race::tidy_everything`), the music stopped, the menus' screen mode and loading
 //! picture, the race's sounds cleared, the sound settings, the engine and the front end's
-//! scene set up again (inside `pusha` .. `popa`); with ebx not 0 (Escape, or the car not
-//! finished) carry, else the race's time recorded (`net::race_over`).
+//! scene set up again; unless the race was left (Escape, or the car not
+//! finished), the race's time recorded (`net::race_over`).
 //!
-//! In:  nothing
-//! Out: whether the original sets the carry (as above); every register kept (`pusha` ..
-//!      `popa`)
 //! Caller: `net::start_link`.
 
 use crate::errors::Refused;

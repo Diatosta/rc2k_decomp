@@ -1,8 +1,6 @@
 //! `gfx::rgb_pixels_to_dwords` (0x41CC96): turns the picture buffer's decoded pixels of three
 //! bytes into dwords, in place.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! `g_pictureWidth` * `g_pictureHeight` pixels, from the last down: the first byte shifted
 //! up 16, the second up 8, the third; the top byte 0. One caller, `gfx::read_png`, for a
 //! file without a palette: every PNG file of the game.

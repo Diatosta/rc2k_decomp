@@ -1,7 +1,5 @@
 //! `sound::race_turn` (0x40D5F3): the race's sounds, once a frame.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! Quitting (`g_quitting` 1, the game closing): the original's jump (chunk 0x4154B5:
 //! esp = `g_mainLoopStack` and on into `system::main_loop`, or to 0x401116 when that is
 //! 0) was run as it is; in the standalone the program

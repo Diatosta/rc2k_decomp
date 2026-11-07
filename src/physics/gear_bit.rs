@@ -3,7 +3,7 @@
 //! a gear (-1 .. 7, so bits 0 .. 8) and test CF (`jb`/`jnb`): a gear that cannot be
 //! taken, by the look of `sub_43C20D` (a reading).
 //!
-//! In:  ecx the gear
+//! Takes: the gear
 //! Out: eax = ecx + 1, CF the bit; ZF as before (no caller reads it); the rest kept
 //!
 //! Callers (10): the gearbox under `sub_4454D2` (`sub_43C20D`, `sub_43C2AE` twice,

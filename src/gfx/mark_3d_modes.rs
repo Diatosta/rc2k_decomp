@@ -3,7 +3,6 @@
 //!
 //! In:  eax = the kind of card the modes were listed for (0x1000 the primary, 0x2000 the
 //!      secondary: `gfx::list_primary_modes`, `gfx::list_secondary_modes`)
-//! Out: every register preserved (`pusha` .. `popa`)
 //! Nothing unless `g_hasFpu` (0x5183EC, set by `system::test_processor`) is 1.
 //! `sub_419853` (Direct3D's devices looked at, "D3D: detect card", the depth formats into
 //! `dword_4F492C` and `dword_4F4930`; the carry: none fit) the platform's (below). Then over the

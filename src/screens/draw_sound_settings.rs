@@ -4,12 +4,9 @@
 //! 0x56D + DS3D, EAX, A3D, Dolby; each kept in `dword_7559EC`) at x 0x1D1, y 0x10B and on
 //! every 0x1B, in the font at 0x51E8C4.
 //!
-//! In:  nothing
-//! Out: as the last `draw_string_by_id` leaves them (carry, eax 0, ebx, ecx, edx)
 //!
 //! In a menu loop's draw list (0x758C96). Refuses what `menu::enable_item` refuses (no current
-//! menu), before anything. The menus and draw lists run its `entry` (`menu::table_calls`); the
-//! registers above are the original's, for reference.
+//! menu), before anything. The menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::audio::owner::audio;
 use crate::errors::Refused;

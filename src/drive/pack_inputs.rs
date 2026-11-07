@@ -1,8 +1,8 @@
 //! `drive::pack_inputs` (0x409328): four input words packed into one: eax | ((ecx << 9 |
 //! edx) << 9), << 4 (as the original's `shl`s, high bits lost).
 //!
-//! In:  eax, ecx, edx the words (ebx not used)
-//! Out: eax the packed word; the rest kept; no flags read
+//! Takes: the words (not used)
+//! Returns: the packed word
 //!
 //! Caller: `drive::record_inputs`.
 

@@ -4,12 +4,9 @@
 //! follows). The dwords are kept in `value` / `dword_4E0540`. (Stream A, part F1: the stage
 //! results page shows a seal code with it.)
 //!
-//! In:  eax, ebx = the two dwords
-//! Out: every register preserved (`pusha` .. `popa`)
+//! Takes two dwords.
 //!
 //! values by lot.
-//! Hook removed 2026-10-21 (conversion phase 4): Rust callers call this directly; the
-//! register use above is the original's, for reference.
 
 /// `g_sealCodeText`'s room (0x4E0544 .. the `MEMORYSTATUS` at 0x4E0558, whose first byte
 /// was never written by the time the code is read: the text's NUL).

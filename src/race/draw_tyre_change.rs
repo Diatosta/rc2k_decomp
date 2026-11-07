@@ -4,7 +4,7 @@
 //! texture was drawn before (`dword_5BEBE8` 1), strings 0x129 (font `stru_51E304`, its
 //! +0x1C 0xF8, at 4, 0x80), then with the clip's left 0x80 0x12A (`unk_51E2E4`, at 0xFC, 0)
 //! and 0x12B (`unk_51E2C4`, at 0x84, a line down: `dword_51E2CC`), each by
-//! `text::draw_string_by_id` inside `pusha` / `popa`. Then (also after a failed lock:
+//! `text::draw_string_by_id`. Then (also after a failed lock:
 //! section 16) the clip's left 0x80; the rectangle (0x80, 0x32, 0x80, 0x4B) filled with
 //! colour 0 (`gfx::fill_rect`, `dword_5C2A1C`, palette `unk_5BEC2C`); string 0x12E and the
 //! record's time (`g_tyreChangeRecord`) in the text buffer, drawn three times (font +0x1C
@@ -17,7 +17,7 @@
 //! copy to the device (`d3d::copy_to_device_texture` 0x41A8F9: the platform's, called in
 //! the game), `dword_5BEBE8` 1.
 //!
-//! In:  esi the device
+//! Takes: the device
 //! Out: ebp = esi; the rest kept; the flags of the copy (no caller reads them)
 //!
 //! Callers: `race::tyre_change_gauge` (twice), which calls the Rust version directly. The text
@@ -43,12 +43,12 @@ fn set_clip(edge: &Dword, v: u32) {
 
 /// The font the tyre change's texts are drawn in (`FONTS.game_fonts[2]`).
 fn font(gfx: &crate::gfx::owner::Gfx) -> &crate::gfx::typefaces::FontObject {
-    &gfx.fonts.menu_fonts.game_fonts[2]
+    &gfx.fonts.font_block.game_fonts[2]
 }
 
 /// A line's height (`FONTS.game_fonts[0]`'s).
 fn line(gfx: &crate::gfx::owner::Gfx) -> u32 {
-    gfx.fonts.menu_fonts.game_fonts[0].get().line_height as u32
+    gfx.fonts.font_block.game_fonts[0].get().line_height as u32
 }
 
 /// The text buffer: string `id`, then (with `time`) a time, then a NUL.
@@ -105,7 +105,7 @@ fn three_times(
     y: u32,
 ) -> Result<(), Refused> {
     let text_stores = &strings.text;
-    gfx.fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0x168);
+    gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0x168);
     let (mut x, mut y) = (x, y);
     text(font(gfx), &text_stores.buffer.text, x, y)?;
     for _ in 0..2 {
@@ -135,16 +135,16 @@ pub fn draw_tyre_change(
         if !failed && shared.tyre_change.drawn.get() != 1 {
             let mut y = 0u32;
             for (n, (id, font, x)) in [
-                (0x129u32, &gfx.fonts.menu_fonts.game_fonts[2], 4u32),
-                (0x12A, &gfx.fonts.menu_fonts.game_fonts[1], 0xFC),
-                (0x12B, &gfx.fonts.menu_fonts.game_fonts[0], 0x84),
+                (0x129u32, &gfx.fonts.font_block.game_fonts[2], 4u32),
+                (0x12A, &gfx.fonts.font_block.game_fonts[1], 0xFC),
+                (0x12B, &gfx.fonts.font_block.game_fonts[0], 0x84),
             ]
             .into_iter()
             .enumerate()
             {
                 match n {
                     0 => {
-                        gfx.fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0xF8);
+                        gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0xF8);
                         y = 0x80;
                     }
                     1 => y = 0,
@@ -168,7 +168,7 @@ pub fn draw_tyre_change(
         three_times(gfx, strings, 0x84, 0x32)?;
         set_clip(&gfx.drawing.blit.clip.left, 0);
         fill(shared, 0, 0x99, 0x100, 0x19)?;
-        gfx.fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0xF8);
+        gfx.fonts.font_block.game_fonts[2].update(|f| f.box_width = 0xF8);
         text(font(gfx), &race.shared.tyre_change.record_name, 4, 0x99)?;
         let x = if shared.tyre_change.player.get() == 0 {
             set_clip(&gfx.drawing.blit.clip.right, 0x7F);

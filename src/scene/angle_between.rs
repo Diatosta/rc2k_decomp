@@ -1,8 +1,8 @@
 //! `scene::angle_between` (0x450223): the direction from one place to another as an
 //! angle of sixteen bits a turn.
 //!
-//! In:  eax, ebx = the first place, ecx, edx = the second
-//! Out: eax = the angle; ecx, edx = the two differences; everything else preserved
+//! Takes: the first place, the second
+//! Returns: the angle; the two differences
 //!
 //! `fpatan` of (ecx - eax) over (edx - ebx), over pi, times `flt_5C5E40` (0.5) and `flt_5C5D98`
 //! (65536), rounded (`fistp`), its low sixteen bits; the result is also left in `dword_62400C`.

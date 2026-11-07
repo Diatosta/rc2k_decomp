@@ -2,13 +2,11 @@
 //! (`menu::inspection_area_loop`'s later frame callback): `menu::frame_callback`'s steps in
 //! another order and without its notice: lock the surface; the background
 //! (`copy_picture_to_surface`); the draw list (`g_drawList`); unlock; `dword_6365CC` 4;
-//! begin the 3D scene; the scene list (`g_sceneList`, each between `pusha` and `popa`);
+//! begin the 3D scene; the scene list (`g_sceneList`);
 //! end the scene; lock again; `draw_menu`; the overlay list (`g_overlayList`); unlock;
 //! show the frame. A set carry after either lock, the scene's beginning or the showing ends
 //! it there (carry set), with what was locked left locked; else the carry is cleared.
 //!
-//! In:  edi = the menu
-//! Out: carry = the frame could not be made; every register kept (`pusha` .. `popa`)
 //! The draw and overlay lists' functions get the registers as the one before left them.
 //! The surface and the showing are the platform's, as in `frame_callback`.
 

@@ -7,7 +7,6 @@
 //! (`dword_71A060`) + 1000, +0x14 and +0x18 0, +0x730 0, +0x72C 300, +0x724 0, +0x71C
 //! 0xCA, +0x720 0, +0x728 0, and `race::start_car` (the car put back at its start).
 //!
-//! In:  nothing
 //! Out: eax the timer when it was compared; when `start_car` ran, the registers as it
 //!      leaves them; no flags read (the caller's next is a call)
 //!

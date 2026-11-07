@@ -2,15 +2,11 @@
 //! `savedata\carsetup\carsetNN`, into the buffer at 0x527838 and copies its name into the
 //! slot name table.
 //!
-//! In:  ebx = slot, 0 .. 99 (eax is saved and compared but has no effect)
-//! Out: carry = failed (zero flag = succeeded); every register preserved
-//! It reads 0x48 bytes. The file is accepted if the read did not fail, the first dword is
-//! "CRSU" and the dword at +8 is 0x50000; the 0x20 bytes at +0x10 then go to
+//! Takes slot, 0 .. 99. It reads 0x48 bytes. The file is accepted if the read did not fail, the
+//! first dword is "CRSU" and the dword at +8 is 0x50000; the 0x20 bytes at +0x10 then go to
 //! `byte_527880[slot * 0x20]`. A file shorter than 0x48 bytes is not noticed as such: what the
-//! buffer held before decides (reproduced). Refuses a slot past the table's 100 entries.
-//! Called for all 100 slots at start-up (`sub_411239`) and by `load_setup_slot`.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! buffer held before decides (reproduced). Refuses a slot past the table's 100 entries. Called for
+//! all 100 slots at start-up (`sub_411239`) and by `load_setup_slot`.
 
 use crate::errors::{BadInput, Refused};
 use crate::files::numbered_path::numbered_path_bytes;

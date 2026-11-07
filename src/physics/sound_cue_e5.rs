@@ -1,9 +1,6 @@
 //! `physics::sound_cue_e5` (0x45D028): when the current car's entry in `dword_641680` is
 //! not -1, its sound object (`g_raceSoundObjects[g_currentCar & 7]`) gets +0x24C 0xE5,
-//! +0x250 0 and +0x10 1 (a reading: a sound to play). All in `pusha` / `popa`.
-//!
-//! In:  nothing
-//! Out: every register kept; no flags read (the caller returns)
+//! +0x250 0 and +0x10 1 (a reading: a sound to play).
 //!
 //! Caller: `sub_45EDB5` (its tail). Refuses (before anything) a current car past 7, or a
 //! null sound object when written.

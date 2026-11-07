@@ -1,8 +1,5 @@
 //! `menu::clear_text` (0x467DC9): zeroes the 0x1F bytes of a text field and sets the text
 //! entry's length to 0.
-//!
-//! In:  edi = the text field
-//! Out: every register preserved
 
 use crate::menu::owner::Menus;
 use crate::menu::text_entry::{Text, put_field, with_entry};

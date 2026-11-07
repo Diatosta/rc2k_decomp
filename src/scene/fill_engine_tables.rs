@@ -1,6 +1,5 @@
 //! `scene::fill_engine_tables` (0x41F6BA): the tables the 3D code looks things up in.
 //!
-//! In:  nothing
 //! Out: eax = ebx = 0, ecx = 0xFF, edx = ebp = 0x100, edi = the arctangent table's end;
 //!      esi preserved
 //!

@@ -1,16 +1,11 @@
 //! `settings::read_settings` (0x4114A6): reads `var\ral.cfg` into the game's settings.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! `read_text` on `var\ral.cfg`; if it reads, `sub_4114FF` (0x4114FF, one caller, here as
-//! `apply_settings`): for each of the 77 entries of the table at 0x518C09 (a key, then the
-//! address of its variable), if `find_key` finds the key, the variable becomes
-//! `parse_number` of its value. A key that is not in the file leaves its variable alone;
-//! a key without a number makes it 0. Two keys share a variable twice (`noaudio` and
-//! `nosound`, `allsecretcars` and `secretcar`): the later one in the table wins.
-//! Callers: `start` and `sub_411239`.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! `apply_settings`): for each of the 77 entries of the table at 0x518C09 (a key, then the address
+//! of its variable), if `find_key` finds the key, the variable becomes `parse_number` of its value.
+//! A key that is not in the file leaves its variable alone; a key without a number makes it 0. Two
+//! keys share a variable twice (`noaudio` and `nosound`, `allsecretcars` and `secretcar`): the
+//! later one in the table wins. Callers: `start` and `sub_411239`.
 
 use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
@@ -192,7 +187,7 @@ const ENTRIES: [(&[u8], u32, Target); 77] = [
     (
         b"gamegfxheapsize",
         0x5BE894,
-        dword!(gfx().fonts.game_fonts.units),
+        dword!(gfx().fonts.game_fonts_memory.units),
     ),
     (b"forcedx5", 0x5AB958, dword!(d3d().cards.force_dx5)),
     (b"forceno3dcard", 0x5AB94C, dword!(d3d().cards.no_search)),

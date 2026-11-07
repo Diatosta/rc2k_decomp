@@ -8,9 +8,6 @@
 //! `effects::view_motion`, `effects::begin_quads` (its time, `rdtsc`, in `flt_765124`), an
 //! empty time in `flt_765118`, and `scene::depth_test_on`.
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Refuses (before anything) a null `g_courseInfo`, and `cars_particles`' refusals (what it
 //! wrote before is put back first).
 

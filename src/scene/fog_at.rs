@@ -2,8 +2,8 @@
 //! held below `g_fogTableLength` (the last entry past it), its byte of `g_fogTable` in the
 //! top byte, flipped (`xor 0xFF000000`).
 //!
-//! In:  eax the depth (whole)
-//! Out: eax the alpha in its top byte; the rest kept
+//! Takes: the depth (whole)
+//! Returns: the alpha in its top byte
 //!
 //! Callers: the marks' drawers (16). The callers go on with a `mov`: no flags read. Refuses a
 //! table length of 0 or past the table's 0x1000 bytes (the original reads past it).

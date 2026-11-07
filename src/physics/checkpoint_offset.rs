@@ -5,7 +5,6 @@
 //! turned by minus the checkpoint's angle (`dword_9ED808`, `math::turn_point_xz`) into
 //! +0x620 and +0x624. Else both 0.
 //!
-//! In:  nothing
 //! Out: eax: x' (or +0x98 + 1); with a checkpoint after it also ebx the point's number,
 //!      ecx z', edx as `turn_point_xz` leaves it, esi the point; the rest kept; no flags
 //!      read (the caller returns)

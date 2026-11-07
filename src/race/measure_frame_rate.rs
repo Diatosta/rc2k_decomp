@@ -4,8 +4,7 @@
 //! `flt_6214F0` = the CPU's clock `dword_5183E8` x `flt_5C5D18` x `flt_5C5D18` x
 //! `flt_5C5D08` / the cycles (x87, as the original); the time kept for the next.
 //!
-//! In:  nothing
-//! Out: unchanged but on the 16th: eax and edx the counter, ebx the cycles; no flags read
+//! Returns: unchanged but on the 16th: and the counter, the cycles
 //!
 //! Caller: `sub_4547AE` (0x4547FD, `race::show_frame`); `flt_6214F0` is shown by
 //! `race::draw_frame_rate`. The rate is worked out in plain floats. Fixed (2026-10-30,

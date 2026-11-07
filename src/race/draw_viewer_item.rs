@@ -8,8 +8,7 @@
 //! while a camera is edited, else yellow and red by turns (bit 3 of `dword_51D41F -
 //! dword_51D423`).
 //!
-//! In:  esi the item (16 bytes), ecx its number
-//! Out: every register kept (`pusha` / `popa`); no flags read
+//! Takes: the item (16 bytes), its number
 //!
 //! Caller: `race::viewer_frame` (each item).
 

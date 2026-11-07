@@ -12,9 +12,6 @@
 //! the exact x87 one (the runs over the object, plain Rust over `X`) stays
 //! for `physics::engine_sound`.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `physics::engine_sound`. Refuses (before anything) a null sound object, or a
 //! null view block when it is read.
 

@@ -5,9 +5,9 @@
 //! tenth 0. Else the tenth into `dword_5C2534`, `dword_5BEC90` 0, the frame into
 //! `dword_5C2530`, the file (`h`) put at the frame's place (`lDistanceToMove[frame]`,
 //! `files::seek`) and its bytes (`dword_5BECDC[frame]`, packed when below 0) read into
-//! `dword_9613A4` (`drive::read_packed`). All in `pusha` / `popa`.
+//! `dword_9613A4` (`drive::read_packed`).
 //!
-//! In:  eax the frame, ebx the tenth
+//! Takes: the frame, the tenth
 //! Out: CF set when not playing or the seek or read failed; every register kept
 //!
 //! Callers: `drive::read_replay_frame_0`, `sub_41DE81` (four), `sub_41E224`. Refuses what

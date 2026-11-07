@@ -3,7 +3,6 @@
 //! the bonus vehicles, 82 x 42 each, with their masks). The game's log calls every texture a
 //! "plate"; this was `scene::load_number_plates` until 2026-10-24.
 //!
-//! In:  nothing
 //! Out: kind 0xC1 has no first texture: ebx = -1, the rest preserved; else eax, ecx =
 //!      the second icon's two picture names, edx, esi its two numbers, edi = 0xAD,
 //!      ebp = 0x94, ebx = the texture
@@ -16,7 +15,7 @@
 //!   and `tx1825.pcx` (eax, ecx);
 //! - edx, esi = `dword_5DCD9C[number]`, `dword_5DCE2C[number]`, edi = 0xAD, ebp = 0x68
 //!   for the first and 0x94 for the second, ebx = the texture;
-//! - `scene::upload_car_icon` (`pusha` .. `popa`).
+//! - `scene::upload_car_icon`.
 //!
 //! One caller, `scene::reload_system_textures`. Refuses a number of 0x24 or more (the tables'
 //! room) and a car without its block.

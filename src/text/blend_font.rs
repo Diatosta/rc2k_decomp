@@ -1,8 +1,7 @@
 //! `text::blend_font` (0x405E92): makes the font a highlighted menu item is drawn with, whose
 //! colours pulse between those of two fonts.
 //!
-//! In:  ecx = font A, edx = font B, eax = the time, ebx = the length of a half pulse (0x100)
-//! Out: every register preserved
+//! Takes: font A, font B, the time, the length of a half pulse (0x100)
 //! In the half pulses where `eax & ebx` is not 0 the blend goes from A towards B, in the
 //! others from B towards A. The font it starts from is copied (0x20 bytes) to the blended
 //! font `stru_51E384`. Unless `dword_4F3F74` is 0, a 15-entry palette is then made in
@@ -11,8 +10,6 @@
 //! 255 - t), and the blended font is given that palette.
 //! Two callers: the menu items and `sub_4695C6`.
 //! Refuses null fonts, and null palettes when a palette is made.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::gfx::blend_palette::blend_palette;

@@ -1,8 +1,7 @@
 //! `sound::play_spot_voices` (0x40EB9E): each voice heard this turn sent: started when
 //! told to, else kept going while it plays, and stopped once its time is up.
 //!
-//! In:  esi the request
-//! Out: every register preserved (`pusha` / `popa`)
+//! Takes: the request
 //! For each voice heard (+4 1, cleared): the request's sound = +0x14. Told to start
 //! (+0x24 1, cleared): its volume and rate (`sound::sample_settings`, the sample's own)
 //! as floats into +0x3C / +0x38, the end (+0x34) = `sound::sample_duration` plus the

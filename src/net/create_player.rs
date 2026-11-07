@@ -4,9 +4,7 @@
 //! `g_netPlayerId`, the receiving thread's event `g_netEvent`, the player's record
 //! `byte_52AD64` as its data, 0x10 bytes, flags 0).
 //!
-//! In:  nothing
-//! Out: true when made (the original: carry clear, the flags of `test eax, eax`; every
-//!      register kept), false for the carry
+//! Returns true when made.
 //! Callers: `net::host_session`, `net::join_session`, `net::open_lobby`.
 //!
 //! Since 2026-10-29 the name goes to `net::dp_objects` as text: the DPNAME block

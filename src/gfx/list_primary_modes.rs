@@ -2,8 +2,6 @@
 //! modes' table and marked for Direct3D. (`gfx::list_secondary_modes` is the same for the
 //! secondary card; the two share what is here.)
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //! The primary: `sub_4048EC` with eax 0 (DirectDraw made for the card, "VID: Open ddraw";
 //! failing, fatal errors 0x80208511 / 0x80208512, raised there), `sub_404A31` with eax
 //! 0x1000 (DirectDraw's `EnumDisplayModes` with `sub_404A56`, which puts the modes in the

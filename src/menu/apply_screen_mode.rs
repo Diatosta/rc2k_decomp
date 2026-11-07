@@ -7,10 +7,8 @@
 //! set carry): `sub_4045D6` with eax 0 (the mode before, a reading), the 3D tidied, the
 //! front end's scene, tune 4, the item and `dword_74771C` 3, the menu's sound 8.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
 //! An item action of the graphics page (0x7548D4). The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Screens;

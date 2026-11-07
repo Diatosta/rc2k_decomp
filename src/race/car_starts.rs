@@ -246,7 +246,7 @@ pub fn start_car(race: &Race) -> Result<(), Refused> {
 
 /// `race::start_cars` (0x446463): for each car of the race (`g_raceCars`), `g_currentCar`
 /// it, `drive::load_car`, `start_car`, the work car's +0xA3C (8 dwords) and +0xA5C (0x11)
-/// 0, `drive::store_car`; every register kept round each car (`pusha` / `popa`). Refuses
+/// 0, `drive::store_car`; every register kept round each car. Refuses
 /// no cars (the original's `jnz` runs on) or more than 8, before anything.
 pub fn start_cars(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;

@@ -1,8 +1,7 @@
 //! `strings::same_text` (0x401EDE): compares two texts without regard to case.
 //!
-//! In:  eax, ebx = the texts (NUL-terminated)
-//! Out: zero set if they are the same; else zero clear, and carry set if the first's
-//!      differing character is the lower; every register preserved
+//! Takes the texts (NUL-terminated). Returns whether they are the same, and if not whether the
+//! first's differing character is the lower.
 //! Character by character, each through `g_lowerCase`. Five callers.
 
 use crate::errors::BadInput;

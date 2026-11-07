@@ -4,10 +4,9 @@
 //! `dword_51E424`, one character more at a time into `byte_52A808`), each line going in at
 //! the bottom and the top one dropped.
 //!
-//! In:  `player` (eax), `message` (ebx; nothing if empty). The original also reads ecx: the
-//!      x of its first `text::measure_text`, which in measure mode changes only the x the
-//!      measure leaves, not the width it reads (`rc2k_core::text::draw`); dropped.
-//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Takes `player` and `message` (nothing if empty). The original also reads a register that
+//! only sets the x of its first `text::measure_text`, which in measure mode changes only the x
+//! the measure leaves, not the width it reads (`rc2k_core::text::draw`); dropped.
 //! A character wider than a line alone leaves the line empty and the text where it was: the
 //! original never ends then (refused, as is a chat with no line end in its 0x300 bytes).
 //! Callers: `net::send_chat` and `net::chat_line_locked` (each with the received messages'

@@ -3,7 +3,7 @@
 //! bytes read into `g_pngInfo` and unpacked into ebx (`drive::unpack_rle`), eax the bytes
 //! unpacked.
 //!
-//! In:  eax the file, ebx the buffer, ecx the count (below 0: packed)
+//! Takes: the file, the buffer, the count (below 0: packed)
 //! Out: eax the bytes read or unpacked, CF set when the read failed (ZF from `test eax`
 //!      after an unpacking); a plain read keeps ebx, ecx, edx, a packed one every register
 //!      but eax

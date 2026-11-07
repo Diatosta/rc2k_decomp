@@ -1,7 +1,5 @@
 //! `screens::draw_redefined_keys` (0x47CFA7): the keys on a redefine keys page.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry of the last row
 //!
 //! The current player's (`dword_75598C`) keys (`Player::keys`, +0x1C), places 0 .. 7 and 9 .. 11
 //! (place 8 is not drawn), at x = 0x1CC, y = 0xAF and on every 0x1D, in the font at 0x51E8C4: each
@@ -10,8 +8,7 @@
 //! blink (`dword_7559A8`) is 1, else nothing (the carry then that of `cmp dword_7559A8, 1`). The
 //! player's keys, not the page's work copy: a key shows when the redefining ends. In the draw lists
 //! of the four pages (0x758DE6 ..). Refuses no current player and what the key's name refuses. The
-//! menus and draw lists run its `entry` (`menu::table_calls`); the registers above are the
-//! original's, for reference.
+//! menus and draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::input::append_key_name::append_key_name;

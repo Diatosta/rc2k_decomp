@@ -1,7 +1,5 @@
 //! `logfile::start_log` (0x401135): begins the game's log anew.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Nothing if the log is off (`g_logLevel` 0). Else `var\logfile.txt` is deleted and the
 //! head is written: "Log started" with `logfile::date_text`, the version, a second text if
 //! there is one (`byte_4E0077`), then what `start` has found out by then: the processor
@@ -10,10 +8,6 @@
 //! into `Buffer`, 0x4E0558) and the free space of the current drive in Kb (`sub_403175`
 //! and `sub_40317D` with no drive given, here as `free_space_kb`; kept in `dword_4E073A`).
 //! One caller, `start`, which calls it directly (2026-10-23).
-//! Shadow mode runs the original alone (the file can be deleted and begun once).
-//! Self-test, with the game running since it logs: a redirected copy that deletes
-//! nothing; both versions add a head to the log, and what each added is compared but for
-//! the two lines about memory, whose numbers move.
 
 use crate::errors::BadInput;
 use crate::logfile::date_text::write_date_text;

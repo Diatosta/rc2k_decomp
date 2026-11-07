@@ -1,8 +1,7 @@
 //! `physics::multiply_parts` (0x420FD5): the three floats at ebx times those at ecx, part
 //! by part, into edx (`fld; fmul; fstp`, each stored before the next is read).
 //!
-//! In:  ebx, ecx the two vectors, edx where the result goes (may be either)
-//! Out: every register kept; no flags read
+//! Takes: the two vectors, where the result goes (may be either)
 //!
 //! Caller: `sub_45F17E` (0x45F256).
 

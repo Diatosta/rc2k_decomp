@@ -4,9 +4,6 @@
 //! (`gfx::write_screen_pcx`), unlocked again if it was locked here
 //! (`gfx::unlock_surface`), `dword_4F52B8` 0.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Callers: `race::replay_viewer` (key 0x52, Numpad 0), `gfx::screenshot_if_key`,
 //! `menu::handle_keys`, `sub_4146E4`, `sub_4168CF`, `sub_4174C5`, `sub_417726`,
 //! `sub_417A0D`, 0x471CA6. The lock and unlock (the platform's) and the writer are

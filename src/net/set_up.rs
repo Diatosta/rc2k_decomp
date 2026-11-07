@@ -2,8 +2,6 @@
 //! receiving thread's event and the mutex (and in the original whether a lobby launched the
 //! game).
 //!
-//! In:  nothing
-//! Out: nothing (every register preserved, `pusha` .. `popa`)
 //! With `g_noticeKind` (a byte) 2, `dword_52ABD0` (signed) held to 4 at most. An event (auto reset,
 //! not signalled: `threading::create_event` with eax 0, ebx 0) to `dword_52AB68`, none:
 //! fatal error 0x80168501; a mutex (`threading::create_mutex`) to `dword_52AB6C`, none:

@@ -10,7 +10,6 @@
 //! gear into `flt_5CB990[k]`, `dword_5CBD90[k]`; at the end the speed x `flt_5C5D00` into
 //! `dword_5CB984` and the two steps / `flt_5C5D14` (times) back into theirs.
 //!
-//! In:  nothing
 //! Out: ebx 5000, eax the last step / 20, ecx 20, edx its remainder (the gear when 0); the
 //!      rest kept; no flags read
 //!
@@ -31,7 +30,7 @@ use crate::session::Float;
 
 pub const STEPS: u32 = 0x1388;
 
-/// One step (0x42189D .., in `pusha` / `popa`).
+/// One step (0x42189D ..).
 fn step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.shared.car.local_velocity[2].set_bits(crate::math::x87::loaded(
         race.shared.car.drive_speed_a.bits(),

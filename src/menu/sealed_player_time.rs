@@ -2,17 +2,14 @@
 //! (+0x88) sealed (`records::seal_time`) with bl its +8, cl `dword_75ACD8` and dl eax's low
 //! byte; the result also into `dword_7559EC` and `hhmm`.
 //!
-//! In:  eax (its low byte sealed with the time)
-//! Out: eax, ebx the sealed block; the rest kept
-//!
-//! Callers: `sub_489F76`, `sub_48C8B6`, `menu::enter_record_entry`. The seal is its Rust version.
+//! Callers: `sub_48C8B6`, `menu::enter_record_entry`. The seal is its Rust version.
 //! Refuses a current player past 3 or missing, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 use crate::race::owner::race;
 
-/// The Rust version (see the header): `byte` the original's eax (its low byte sealed);
+/// The Rust version: `byte` the original's eax (its low byte sealed);
 /// the sealed block's two dwords (its eax, ebx) out.
 pub fn sealed_player_time(screens: &Screens, byte: u32) -> Result<[u32; 2], Refused> {
     let n: u32 = screens.event.current_player.get();

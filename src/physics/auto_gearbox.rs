@@ -16,9 +16,6 @@
 //!   speed then not below `flt_614104` takes it back up and ends in neutral, else
 //!   settled); in gear 1 with +0x63C set and the speed below `flt_613E94`: into reverse.
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them; no flags read (the caller jumps on)
-//!
 //! Caller: `physics::gearbox_step`. Refuses what the calls refuse, and a gear outside -1
 //! ..= 7 where a ratio is read; what was written is put back.
 //!

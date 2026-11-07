@@ -3,8 +3,7 @@
 //! (`hud::tenths`); by its +0xF4 `hud::layout_1` (1), `hud::layout_2` (2) or
 //! `hud::layout_0`; then `hud::flush_batch`.
 //!
-//! In:  nothing
-//! Out: ebp the record; the rest as the flush leaves them
+//! Returns: the record
 //!
 //! Caller: `sub_45A893` (0x45A8F0).
 

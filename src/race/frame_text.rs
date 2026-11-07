@@ -32,7 +32,7 @@ pub fn draw_frame_rate(
     let bytes = fps_text(rate);
     t.write_bytes(&bytes, "the frame rate's text")?;
     draw_text_at(
-        &gfx().fonts.menu_fonts.menu_fonts[3],
+        &gfx().fonts.font_block.menu_fonts[3],
         &bytes,
         0x190,
         4,

@@ -6,11 +6,10 @@
 //! and is taken off again if the text is then wider (`text::measure_text` with the editing's
 //! font, signed) than allowed.
 //!
-//! In:  `key` (al)
-//! Out: whether no text is edited (any more): the original's zero flag of `cmp
-//!      dword_52A4B8, -1`, which its callers read (`lq -s 0x416E43`: ZF); every register
-//!      kept. `input::key_to_char` and `text::measure_text` see only the key's byte and the
-//!      text (the measure's x changes no width it reads).
+//! Takes `key`. Returns whether no text is edited (any more); the original's callers read this
+//! as the zero flag of `cmp dword_52A4B8, -1` (`lq -s 0x416E43`). `input::key_to_char` and
+//! `text::measure_text` see only the key's byte and the text (the measure's x changes no width
+//! it reads).
 //! Callers: `net::setting_key`, `net::chat_key`.
 
 use crate::errors::Refused;

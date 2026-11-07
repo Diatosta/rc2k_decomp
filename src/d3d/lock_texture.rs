@@ -3,8 +3,7 @@
 //! else its surface's `Lock` (no rectangle, the description `dword_5ABA18`, flags 1): a
 //! failure is fatal error 0x8021A172; +0x60 1 and `d3d::texture_surface_info`.
 //!
-//! In:  eax the texture
-//! Out: the flags of `cmp [record + 0x60], 1` (carry: not locked); every register kept
+//! Takes: the texture
 //!
 //! Callers: the name and time plates, the mud, the mirror, the marks' masks, ... (most
 //! `jb`). The lock is the surface's own method (`d3d::texture_lock`): DirectDraw in the

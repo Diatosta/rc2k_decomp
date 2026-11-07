@@ -2,9 +2,6 @@
 //! `drive::keep_lead_car_values` kept (0x64165C ..) back into car block 0 (0x70FA70 ..,
 //! `drive/lead_car_values.rs`; `push`/`pop`).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (`drive::share_all_cars` returns next)
-//!
 //! Caller: `drive::share_all_cars` (0x456484), last.
 
 use crate::drive::lead_car_values::pairs;

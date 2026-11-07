@@ -8,8 +8,6 @@
 //! blocks; the log ("LOADING NETWORK START", the counts, the cars), the stage loaded
 //! (`race::load_stage`), "LOADING NETWORK COMPLETE".
 //!
-//! In:  nothing
-//! Out: nothing its one caller, `net::lets_rally` (which has a `pusha`), reads
 //! The players' loop ends on `jnz` with the count: none, or more than the tables' eight,
 //! would run past them: refused. Caller: `net::lets_rally`.
 

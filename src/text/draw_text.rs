@@ -1,6 +1,6 @@
 //! `text::draw_text` (0x4023D5): draws NUL-terminated text with a bitmap font, line by line.
 //!
-//! In:  eax = font, ebx = text, ecx = x, edx = y
+//! Takes: font, text, x, y
 //! Out: carry set if a line was wider than the box (`FLAG_FAIL_IF_WIDER`), else clear;
 //!      eax = 0, ebx = text after the NUL (the start of the failed line on carry),
 //!      ecx = x as given, edx = y of the last line; esi, edi and ebp preserved
@@ -15,8 +15,6 @@
 //!   other       x -= code
 //! Except in `MODE_AT_X` each line is measured before it is drawn. In `MODE_MEASURE` nothing
 //! is drawn and the font object is updated instead.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};

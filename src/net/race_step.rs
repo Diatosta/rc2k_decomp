@@ -3,10 +3,6 @@
 //! messages sent (`net::send_turn`) and the others' applied (`net::apply_received`); for
 //! another's, its glide (`net::follow_remote`).
 //!
-//! In:  nothing
-//! Out: nothing (the original leaves eax `g_currentCar`, or as the calls leave it; its
-//!      caller, `drive::replay_step`'s car step, runs it on a copy of its registers and
-//!      reads none of them after it)
 //!
 //! See `net/mod.rs`. One caller, `drive::replay_step` (each car's step, after its
 //! physics).

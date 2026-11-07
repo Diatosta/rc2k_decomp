@@ -3,9 +3,6 @@
 //! `flt_7651C4` (`dword_8DB4A8`, a float), rounded, made a pixel (alpha 0xFF) and added to
 //! the colour (as one dword, carries crossing components), into `dword_8DB464`.
 //!
-//! In:  nothing
-//! Out: nothing (its caller reads no register after it)
-//!
 //! One caller, `sub_4C25F6`.
 
 use crate::effects::rain::Weather;

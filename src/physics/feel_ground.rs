@@ -7,7 +7,6 @@
 //! `dword_6141DC` the word at +0x26 of the face under probe point 4 (`dword_71ADD8`). A
 //! reading: the wheels in the air, the ground's kind.
 //!
-//! In:  nothing
 //! Out: eax the face's word, ebx the face, esi its address; ecx, edx as `probe_ground` /
 //!      `lowest_body_point` leave them; no flags read
 //!

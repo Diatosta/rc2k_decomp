@@ -3,9 +3,6 @@
 //! "total pointmem" `dword_634FA4`, "total faces" `dword_5CD67C`, "total facemem"
 //! `dword_634FA8` (each label without a line's end, its value in hex8 with one), a rule.
 //!
-//! In:  nothing
-//! Out: nothing its caller reads (`load_front_end_objects`' leftovers are read by none)
-//!
 //! Caller: `scene::set_up_front_end_scene`.
 
 use crate::errors::Refused;

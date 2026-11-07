@@ -1,7 +1,5 @@
 //! `sound::match_spot_voices` (0x40E642): each shared spot given its voice.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` / `popa`)
 //! For each of the `g_sharedSoundSpotCount` spots whose kind is 1 .. 0x15: the voice with
 //! its id (the first, searching all 0x48), or else the first free one, made its: id,
 //! new (+0x20) 1, the kind's sound, kind, bit, repeats, playing and restart 0. No voice

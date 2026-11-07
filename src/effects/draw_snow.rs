@@ -12,8 +12,7 @@
 //! `effects::clip_quad`, and unless all is outside `scene::draw_fan`, the drawn count plus 1
 //! and `g_polygonVertexCount` 4.
 //!
-//! In:  nothing (`dword_8D21A4`)
-//! Out: nothing (its caller reads no register after it)
+//! Works on `dword_8D21A4`.
 //!
 //! Caller: `effects::run_snow` (0x4C2A8F). The x87 blocks are plain Rust on the x87 model (`math::x87_float`), in the original's order,
 //! over the game's variables. Refuses, before anything (a dry pass, its scratch put back),

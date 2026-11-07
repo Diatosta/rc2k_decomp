@@ -2,7 +2,6 @@
 //! 0x22), the same four tests as `physics::drop_hit_parts` on the timers +0x354 ..
 //! +0x360 and the bits 1 .. 4 of +0x298, by `physics::sound_on_bit` (the timer 256).
 //!
-//! In:  nothing
 //! Out: as the calls leave them; CF when the kind has no entry (no caller reads it)
 //!
 //! Caller: `physics::hit_part_checks`. Refuses what `sound_on_bit` refuses.

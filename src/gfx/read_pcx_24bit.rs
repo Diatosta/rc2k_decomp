@@ -1,7 +1,7 @@
 //! `gfx::read_pcx_24bit` (0x411D57): decodes a PCX file of three planes, 8 bits each, into
 //! the picture buffer as 32-bit pixels.
 //!
-//! In:  eax = path
+//! Takes: path
 //! Out: carry = failed; every register preserved
 //! Opens the file as the stream `dword_5195E4`, reads the header through it, sets
 //! `g_pictureFlags` to 0x800 and calls `lay_out_pcx`. Then the rows. A row in the file is

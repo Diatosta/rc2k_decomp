@@ -1,7 +1,7 @@
 //! `scene::set_up_carousel` (0x4904DD): the carousel of the menu `g_carouselMenu`: its
 //! entries' kinds, the eight textures of its menu, its size, place and spacing.
 //!
-//! In:  esi = a list of cars (menus 0xD and 0xE only)
+//! Takes: a list of cars (menus 0xD and 0xE only)
 //! Out: by the menu (below); everything else preserved; for a menu outside 0 .. 0x14
 //!      nothing at all
 //!

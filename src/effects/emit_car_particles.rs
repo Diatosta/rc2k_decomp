@@ -11,8 +11,7 @@
 //! negated), the factors set from `flt_93550A` .., and `effects::emit_body_particles` for
 //! the record at +0x1F4.
 //!
-//! In:  esi the car object
-//! Out: nothing (no caller reads a register it leaves)
+//! Takes: the car object
 //!
 //! Caller: 0x4C9E0C. Refuses a null object or matrix and the emitters' refusals; on a
 //! refusal nothing stays written (all it may write is put back).

@@ -8,7 +8,6 @@
 //! both from `dword_63DB7C`, `63DB80`, and the head's bytes 2 .. 5 into `dword_63DB74`,
 //! `63DB78`, `63DB84`, `63DB88`.
 //!
-//! In:  nothing
 //! Out: eax the head's byte 5, esi the first block, ebx and edx as the draws leave them;
 //!      the rest kept; no flags read
 //!

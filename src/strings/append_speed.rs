@@ -2,14 +2,12 @@
 //! one decimal, "Q.R", converted to km/h when the game is set to metric units, optionally
 //! followed by the unit label ("km/h" on a metric game).
 //!
-//! In:  eax = tenths of a mile per hour, ecx = non-zero to append the unit label, ebx = cursor
-//! Out: ebx = new cursor; everything else preserved
+//! Takes tenths of a mile per hour, non-zero to append the unit label, and the cursor. Returns
+//! the new cursor.
 //! In metric mode a value above `miles_to_km::MAX_INPUT` makes the original trap: refused.
 //!
-//! Screen: confirmed on the stage selection screen ("Escolha Etapa"), where
-//! `draw_stage_records` uses it for the top speed, shown as "187.3km/h".
-//! Hook removed 2026-10-21 (conversion phase 4): Rust callers call this directly; the
-//! register use above is the original's, for reference.
+//! Screen: confirmed on the stage selection screen ("Escolha Etapa"), where `draw_stage_records`
+//! uses it for the top speed, shown as "187.3km/h".
 
 use crate::errors::BadInput;
 use crate::strings::units::{figure_bytes, setting};

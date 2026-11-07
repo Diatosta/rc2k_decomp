@@ -22,7 +22,6 @@
 //!
 //! Then the first four of 0x6D1E14, 0x6D2114, 0x6D2014 into 0x71AEE8 .. 0x71AF14.
 //!
-//! In:  nothing
 //! Out: (count not 0) ebx the count; eax, ecx, edx, esi as the last point leaves them
 //!      (see `probe_ground_at`); edi, ebp kept. No caller reads the flags.
 //!

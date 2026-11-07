@@ -10,10 +10,6 @@
 //! into `unk_71A1FC` .., `physics::wall_push_back`, the same two words,
 //! `restore_saved_car`, `feel_ground`.
 //!
-//! In:  nothing
-//! Out: the registers as the steps and calls leave them (ebp the point, or -1 after the
-//!      loop); no flags read (callers go on)
-//!
 //! Callers: `sub_43B635` (every physics step), `sub_43BDD1`. Refuses (before anything) a
 //! count of 0 or past 0x40 (the original's loop runs on, or past the tables), and what its
 //! calls refuse (what was written put back).

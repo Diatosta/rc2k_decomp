@@ -1,6 +1,6 @@
 //! `audio::make_buffer` (0x40B5CF): a voice's DirectSound buffer made.
 //!
-//! In:  esi = the voice
+//! Takes: the voice
 //! Out: carry = not made; every register preserved
 //!
 //! Nothing (carry clear) unless voices have buffers of their own (`g_soundMode` bit

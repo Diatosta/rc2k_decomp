@@ -554,7 +554,7 @@ pub(crate) const MOVED: &[Moved] = &[
     Moved {
         ida: crate::gfx::build_game_fonts::START, // The game fonts' memory (`gamegfxheapsize`, the list)
         len: crate::gfx::build_game_fonts::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.fonts.game_fonts),
+        home: Home::Store(&crate::gfx::owner::GFX.fonts.game_fonts_memory),
     },
     Moved {
         ida: crate::scene::upload_car_icon::START, // The car icon upload's record
@@ -1022,9 +1022,9 @@ pub(crate) const MOVED: &[Moved] = &[
         )),
     },
     Moved {
-        ida: crate::gfx::fonts_store::Fonts::START,
-        len: crate::gfx::fonts_store::Fonts::LEN,
-        home: Home::Store(&crate::gfx::owner::GFX.fonts.menu_fonts),
+        ida: crate::gfx::fonts_store::FontBlock::START,
+        len: crate::gfx::fonts_store::FontBlock::LEN,
+        home: Home::Store(&crate::gfx::owner::GFX.fonts.font_block),
     },
     Moved {
         ida: crate::audio::names_store::SampleNames::START,

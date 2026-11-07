@@ -4,8 +4,7 @@
 //! at) and the six effects' objects given back (`input::release_effect`), each effect's
 //! +0xC (found) 0. (+0x28, effects on, is left: `input::release_device` clears it.)
 //!
-//! In:  esi = the device's record (+4 its DirectInput device)
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record (+4 its DirectInput device)
 //!
 //! Caller: `input::release_device`. The controller's number is not checked (as the
 //! original's).

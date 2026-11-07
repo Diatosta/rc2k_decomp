@@ -3,8 +3,7 @@
 //! the step `flt_61388C`, 65536 and `flt_5C5DC8` (`fistp` through `dword_62400C`). By the
 //! look of it the wheels' angles for the drawing (a reading).
 //!
-//! In:  nothing
-//! Out: eax the second's turn; the rest kept; no flags read
+//! Returns: the second's turn
 //!
 //! Caller: `sub_43B635` (0x43B90A), every physics step.
 

@@ -1,9 +1,6 @@
 //! `menu::edit_player_name` (0x467C63): one step of typing a player's name on the players'
 //! details pages.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! The name is the current player's (`Player::name`, `menu/player_name.rs`). One pending key is
 //! taken: none          nothing; 1 (Escape)    the name kept at the start comes back, the entry
 //! ends; 0x1C (Enter)  an empty name is replaced by the one kept; the entry ends; 0x6E          the

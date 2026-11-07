@@ -1,7 +1,7 @@
 //! `sound::play_cue_queue` (0x40ED4A): a car's queue of spoken cues played, one sound
 //! after the other.
 //!
-//! In:  ebx the car's sound object
+//! Takes: the car's sound object
 //! Out: (from a `play_sound`) eax the sound, ebx and edx -0x6F, ecx, edi, ebp 0; (the
 //!      queue run out) eax 0, ebx the place, ecx `drop_cue`'s, edi the queue; (not due)
 //!      eax the clock, edi the queue; esi preserved

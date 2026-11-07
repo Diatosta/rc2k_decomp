@@ -2,9 +2,8 @@
 //! and y = 531: "best time: <flag> <name> <car> <time>" and
 //! "top speed: <flag> <name> <car> <speed>".
 //!
-//! In:  edi = best-time entry: +0x08 nationality (flag sprite 0x1C + it), +0x10 car number
-//! (see `car_sprite`), +0x14 time in hundredths of a second, +0x20 name
-//! Out: carry as the last `draw_text` leaves it; every register preserved
+//! Takes best-time entry: +0x08 nationality, +0x10 car number (see `car_sprite`), +0x14 time in
+//! hundredths of a second, +0x20 name.
 //! The top-speed row comes from the record the game has selected (see `selection`):
 //! +0x30 speed in tenths of a mile per hour, +0x54 name, +0x74 nationality, +0x78 car number.
 //! The labels are strings 0x34B ("melhor tempo" in the Portuguese build) and 0x34C

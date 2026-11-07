@@ -8,8 +8,7 @@
 //! of the next random (`g_sines` / `g_cosines`) times the radius at +0x28 .. +0x34, +0x38
 //! 0x10000, +0x3C 0xFF000000, +0x44 3000 and +0x40 `flt_93C67C` / 3000.
 //!
-//! In:  esi the record
-//! Out: nothing (its caller reads no register after it)
+//! Takes: the record
 //!
 //! Callers: `sub_4CFB49` and code at 0x4D032B. Refuses a null record or ring (when an entry
 //! is to be taken), before anything.

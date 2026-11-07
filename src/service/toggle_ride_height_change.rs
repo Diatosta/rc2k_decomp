@@ -2,11 +2,7 @@
 //! and, if the flag is then not 1, puts the chosen ride height (`dword_75ACA8`)
 //! back to the installed value (`dword_75ACAC`).
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Refuses a highlighted item past the flag table. "Toggle change" is a reading of that.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
 
 use crate::service::setup_values::Change;
 

@@ -8,7 +8,6 @@
 //!
 //! In:  edi the wheel record (the car object's +0xD4, +0x11C, +0x164, +0x1AC), esi the car
 //!      object (`dword_935416` the wheel's number, set by the caller)
-//! Out: nothing (no caller reads a register it leaves)
 //!
 //! Callers: `sub_4C9E2E`, four times. The original EXE the owner had patched turned this
 //! into a `ret` (section 16, the burst loops' ring-full slip). Refuses a null wheel and the

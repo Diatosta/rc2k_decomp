@@ -1,13 +1,10 @@
 //! `race::step_replay_cars` (0x460835): one step of the replay's cars, for the viewer's
 //! still frame: the cars shown (`drive::choose_shown_cars`); for each car
-//! (`g_currentCar` from 0, in `pusha` / `popa`) its input words (`drive::car_input_words`,
+//! (`g_currentCar` from 0) its input words (`drive::car_input_words`,
 //! `drive::play_inputs`), its block into `dword_71B404`, the work car loaded
 //! (`drive::load_car`); running (`unk_71A234`): controls, gear rules, steering, pedals,
 //! the reset key, `physics::car_physics_step` and the work car's clocks (`unk_719FE0`,
 //! `unk_719FEC`) one more; `drive::store_car`. Then `drive::race_mode_cars`.
-//!
-//! In:  nothing
-//! Out: the registers as `race_mode_cars` leaves them; no flags read
 //!
 //! Caller: `race::show_replay_still` (two). Unlike `drive::replay_step` the clocks count only
 //! for a running car, and nothing is recorded or sent. Refuses (before anything) a cars' count

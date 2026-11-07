@@ -1,14 +1,11 @@
 //! `menu::screen_483163_loop` (0x483163): the loop of a results screen.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `results1.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is not asked
 //! about; its own 3D list goes to `g_sceneList` before the first frame only.
 //! Which screen it is has not been confirmed, hence the name. Its title string: "RESULTADOS
 //! GERAIS".
-//! Callers: `sub_4828B0`, `sub_482B7A`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

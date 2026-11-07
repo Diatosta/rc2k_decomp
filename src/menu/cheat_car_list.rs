@@ -1,9 +1,6 @@
 //! `menu::cheat_car_list` (0x480D35): with cheat bit 1 of `g_cheats` set, esi becomes the
 //! cheat's car list `off_75A412`; else esi stays.
 //!
-//! In:  esi a car list
-//! Out: esi; carry = the bit (`bt`); the rest kept
-//!
 //! Callers: the time trial's events, before each car choice.
 
 use crate::menu::lists_store::CarList;

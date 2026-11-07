@@ -1,10 +1,6 @@
 //! `strings::hex_append` (0x40211D): appends `digits` uppercase hex digits of a value, MSB first.
 //!
-//! In:  eax = value, ecx = digits (0..=8), ebx = cursor
-//! Out: ebx = new cursor
-//! More than 8 digits is refused.
-//! Hook removed 2026-10-21 (conversion phase 4): Rust callers call this directly; the
-//! register use above is the original's, for reference.
+//! Returns new cursor. More than 8 digits is refused.
 
 use crate::errors::BadInput;
 

@@ -1,7 +1,7 @@
 //! `physics::clear_records` (0x43F3A6): ecx records of 0x20 bytes from edi, the first six
 //! dwords of each 0 (`dec ecx; jnz` back to its own first instruction).
 //!
-//! In:  edi the first record, ecx their number
+//! Takes: the first record, their number
 //! Out: edi past the last, ecx 0; the rest kept; ZF set (`dec`), not read (its callers
 //!      return next, theirs go on with calls). Nothing is returned now
 //!

@@ -1,6 +1,5 @@
 //! The stage screens' small set-ups and steps (`menu::view_stage_loop`,
-//! `next_stage_loop`, `welcome_loop` and the stage page items; agent E, 2026-10-19). All
-//! `pusha` .. `popa` (every register kept). `index` (`dword_755958`) and `section`
+//! `next_stage_loop`, `welcome_loop` and the stage page items; agent E, 2026-10-19). `index` (`dword_755958`) and `section`
 //! (`dword_75595C`) pick a record of `g_recordTable` (`records::find_record`, 0xA4 a
 //! record); `g_eventMode` (`dword_7556D0`) 2 is the championship.
 //! - `menu::count_stage_pages` (0x480032): how many records after the stage's have a first

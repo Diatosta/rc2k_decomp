@@ -3,8 +3,7 @@
 //! rounded as it is written (so an output over an input is read back as the original
 //! does).
 //!
-//! In:  esi a, edi b, ebp the result
-//! Out: every register kept
+//! Takes: a, b, the result
 //!
 //! See `scene/vector3.rs`. 16 callers (the marks' tyre marks and their kin).
 //!

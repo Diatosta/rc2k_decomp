@@ -3,8 +3,7 @@
 //! slot's own random (`dword_93540A` times 0xC5 plus 0x5D, its low word, plus
 //! `flt_93540E`). Nothing when none is free.
 //!
-//! In:  eax what the slot holds, esi the matrix (a handle, `mark_slots::VIEW_PLACE_MATRIX`)
-//! Out: every register kept
+//! Takes: what the slot holds, the matrix (a handle, `mark_slots::VIEW_PLACE_MATRIX`)
 //!
 //! One caller, `sub_4C969A` (the marks' frame). The float first gets `flt_935406`, then the
 //! random at once: only the second is kept.

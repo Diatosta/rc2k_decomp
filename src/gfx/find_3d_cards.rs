@@ -1,7 +1,5 @@
 //! `gfx::find_3d_cards` (0x404270): which display cards can draw in 3D.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //! `dword_5AB4AC` (a 3D primary card) and `dword_5AB4B0` (a 3D secondary card) 0; unless
 //! `dword_5AB94C` (a setting) is not 0: "Finding 3d hardware" (log level 1, a line), then
 //! `DirectDrawEnumerateA(Callback, 0)`: the game's `Callback` (0x4042AE) makes DirectDraw

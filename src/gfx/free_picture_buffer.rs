@@ -3,9 +3,6 @@
 //! (`memory::free_list`; the buffer, Rust's, given back). The other half of
 //! `gfx::allocate_picture_buffer`.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! One caller, `start`'s way out, which calls it directly (2026-10-23). Refuses (before
 //! anything) what `free_list` refuses: a list holding a block. The
 //! registers above are the original's, for reference.

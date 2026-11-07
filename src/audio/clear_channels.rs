@@ -1,8 +1,5 @@
 //! `audio::clear_channels` (0x40ACA1): the first 0x10 mixer channels made free.
 //!
-//! In:  nothing
-//! Out: every register preserved (the flags of `test eax, eax`, which no caller reads)
-//!
 //! Each channel's `used`, `voice` and the five dwords from +0x44 on are 0. Five callers
 //! (the mode's set-up, `audio::free_voices`, the mixer's start).
 

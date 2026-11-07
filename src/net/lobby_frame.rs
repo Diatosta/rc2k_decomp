@@ -11,8 +11,6 @@
 //! and the stage 0x15C when they can be chosen, the chat 0x15E); two lines (`gfx::draw_hline`
 //! at y 0x156 and 0x217, 0x320 long, colour 7); unlocked and shown.
 //!
-//! In:  nothing
-//! Out: nothing (the original keeps every register: `pusha` .. `popa`)
 //! More than eight players would read past the sorted copy: refused. Called by
 //! `screens::run_frame` for `net::lobby_loop`.
 
@@ -174,7 +172,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             line_y,
             0x320,
             7,
-            crate::gfx::rect::Palette::Held(gfx().fonts.menu_fonts.palettes.get()),
+            crate::gfx::rect::Palette::Held(gfx().fonts.font_block.palettes.get()),
         );
     }
     crate::platform::unlock_surface();

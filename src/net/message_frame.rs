@@ -2,9 +2,7 @@
 //! (`gfx::lock_surface`; failing, nothing), the background copied, the message (string esi)
 //! drawn with `font_b` at 0x190, 0x12C, unlocked and shown.
 //!
-//! In:  `message` (esi: the message's string id, from `net::show_message` through
-//!      `screens::run_frame`, `routes.rs`)
-//! Out: nothing (every register kept, `pusha` .. `popa`)
+//! Takes `message`.
 //! Called by `screens::run_frame` for `net::show_message`.
 
 use crate::errors::Refused;

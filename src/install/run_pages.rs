@@ -3,13 +3,10 @@
 //! answered 0 or 1 has its highlight put back to 0; an answer of no entry (0) or the game
 //! quitting ends it. (The original calls itself with `jnz` to its start.)
 //!
-//! In:  esi the first entry (`off_51D594`, or `off_51D5D8` for an update)
-//! Out: esi 0 (or the next entry when quitting), edi the last page's list, eax its answer;
-//!      the flags of the last test
+//! Returns 0 (or the next entry when quitting), last page's list, its answer.
 //! Caller `sub_412DE0` (`install::run_installer`, twice).
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::page_records::PageEntry;

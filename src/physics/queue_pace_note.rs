@@ -2,17 +2,17 @@
 //! (see `race/pace_notes.rs`): with groups (`dword_615E14` not 0), the first group whose
 //! checkpoint (`dword_619E18`) is edx; its text (`byte_61BE18` from `dword_61AE18[group]`)
 //! code by code up to a NUL: each below 0x54 cued (`physics::cue_listed_car_sound_last`,
-//! inside `pusha` / `popa`) and queued as a car event (`physics::queue_listed_event`,
+//!) and queued as a car event (`physics::queue_listed_event`,
 //! ebx the code); one of 0x54 or more ends it with "!!! invalid pace data", "data", the
 //! code, "ecx", the group, "pointer", its place logged (level 1, each in `pusha` /
 //! `popa`).
 //!
-//! In:  edx the checkpoint
+//! Takes: the checkpoint
 //! Out: no groups: every register kept; none at edx: ecx the groups' count; else ecx the
 //!      group, esi the text's place where it stopped, ebx that code (0 or 0x54 ..); the
 //!      rest kept; no flags read (the caller's `pusha` / `popa`)
 //!
-//! Caller: `physics::pace_notes_step` (inside `pusha` / `popa`). Its calls by place (this
+//! Caller: `physics::pace_notes_step`. Its calls by place (this
 //! file's `pace_part`): 0 `logfile::log_write_l1`, 1 `logfile::log_int_l1`, 2
 //! `logfile::log_int_l1_nl`, 3 `physics::cue_listed_car_sound_last`, 4
 //! `physics::queue_listed_event`, 5 this function, 6 `physics::expire_car_events`. Refuses

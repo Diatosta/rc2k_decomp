@@ -4,9 +4,6 @@
 //! to `flt_7691E6` .. ) are jumped over by the original's two `jmp short`s: the bat
 //! never moves (section 16).
 //!
-//! In:  nothing
-//! Out: nothing (the Rust callers read no register)
-//!
 //! Caller: `effects::run_pong`. The call is its Rust version.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).

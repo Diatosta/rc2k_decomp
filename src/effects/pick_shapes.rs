@@ -2,9 +2,6 @@
 //! |`dword_844610[dword_84460C]`| (the same entry read twice: section 16), with
 //! `dword_844604` / `dword_844608` 2, or 0 when the entry is negative.
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Callers: 0x4BDF82, 0x4BE09D, 0x4C067D. Refuses (before anything) an index of 0x100 or
 //! more (the table's 256 entries; its writer masks it with 0xFF).
 

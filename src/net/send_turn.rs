@@ -2,9 +2,6 @@
 //! car's block +8, `unk_719FE0`): every fourth step (& 3 = 0) `net::send_inputs`, at & 0x1F
 //! = 2 `net::send_position`, at & 0xFF = 1 `net::send_extra`.
 //!
-//! In:  nothing
-//! Out: nothing (the original leaves eax the count & 0xFF or as the sends leave it; its one
-//!      caller reads esi only after it: `lq -s 0x46415B`)
 //!
 //! See `net/mod.rs`. One caller, `net::race_step`.
 

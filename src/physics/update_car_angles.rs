@@ -1,7 +1,6 @@
 //! `physics::update_car_angles` (0x43BEDC): `physics::car_angles` when `dword_71A6C8` is
 //! set or `dword_71A22C` is 0; else nothing.
 //!
-//! In:  nothing
 //! Out: when run, esi = `g_crashMatrix`; the rest kept; no flags read (the callers' next
 //!      instructions are `lea` and `mov`)
 //!

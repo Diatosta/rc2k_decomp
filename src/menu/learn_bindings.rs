@@ -4,9 +4,6 @@
 //! the clock (`system::tick_count`, the 3 s start), `dword_7551FC` the control (1 .. 11).
 //! The eleventh is in no menu, and nothing refers to it (IDA, 2026-10-24).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` .. `popa`)
-//!
 //! Callers: the actions of the four controller pages' items (0x749C70 ..).
 //! The controller pages' items run `learn_binding(n)` (`menu::table_routes`).
 

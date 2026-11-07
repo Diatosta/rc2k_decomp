@@ -5,7 +5,6 @@
 //! the read failing: `dword_5BEC90` 1 and carry. Else the block and frame stored and ebx
 //! the frame's inputs (`dword_9613A4 + 0x2000 + frame * 16`).
 //!
-//! In:  nothing
 //! Out: carry set when it did not go on; ebx the frame's inputs (on the ways that stop,
 //!      the frame counted so far); ZF set at a block's first frame; eax kept (pushed)
 //!

@@ -5,7 +5,6 @@
 //! timer 256) and it ends there; a bit of +0x298 already clear ends it too. A reading:
 //! hit parts coming off.
 //!
-//! In:  nothing
 //! Out: as the calls leave them; no flags read (the caller calls on)
 //!
 //! Caller: `physics::hit_part_checks`. Refuses what `fill_slot_on_bit` refuses; what was

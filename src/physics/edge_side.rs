@@ -3,7 +3,7 @@
 //! `dword_63982C`) lies: (X - x0)(z1 - z0) - (Z - z0)(x1 - x0) in 64 bits (`imul`, then
 //! `sub`/`sbb`), the second product kept in `qword_620460`.
 //!
-//! In:  ebp, edi the edge's ends
+//! Takes: the edge's ends
 //! Out: eax 1 with ZF and CF clear when the ends have the same x and z (nothing stored);
 //!      else eax 0, ZF set, CF set when the difference is negative. The rest kept (ebx,
 //!      edx pushed and popped). The callers read ZF (`jnz`) then CF (`jb`).

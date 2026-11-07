@@ -7,9 +7,6 @@
 //! highest (0 for none) written back over the `???` (`strings::format_u32`, flags 0x13).
 //! `race::viewer_snapshot` counts on from it.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Caller: `race::replay_viewer`.
 
 use crate::errors::BadInput;

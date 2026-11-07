@@ -2,10 +2,7 @@
 //! (`dword_5BEC88` 1): `dword_5BECD4` + 100, the frame's head (`dword_9613A4`, `9613A8`)
 //! 0, its byte +5 held to 2 ..= 3 (signed) unless `dword_719B34` is 1,
 //! `race::write_replay_block` with `dword_5C252C` 100 round it, and `dword_9613A0` the
-//! frame's address. All in `pusha` / `popa`.
-//!
-//! In:  nothing
-//! Out: every register kept; no flags read
+//! frame's address.
 //!
 //! Caller: `drive::flush_replay`. Refuses what `write_replay_block` refuses.
 

@@ -7,8 +7,7 @@
 //! and button of its word (`input::binding_place` of a dword of [edi+0x24 ..]), in the order
 //! of `BINDINGS`.
 //!
-//! In:  esi = the device's record, edi = the player's controls
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record, the player's controls
 //!
 //! Caller: `input::device_command` (the race's start, both players). The acquiring through
 //! `part` (0, esi and edi as here, eax [edi+8] or 2; in the game

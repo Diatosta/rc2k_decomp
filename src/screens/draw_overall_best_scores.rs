@@ -2,12 +2,9 @@
 //! (the section's name in event mode 0x13, else string 0x362), the player's own scores in
 //! the highlight fonts (see `screens/best_scores.rs`).
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
 //!
 //! In a menu loop's draw list (0x758D42). Refuses (before anything) no table. The menus and draw
-//! lists run its `entry` (`menu::table_calls`); the registers above are the original's, for
-//! reference.
+//! lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

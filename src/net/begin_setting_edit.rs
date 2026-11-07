@@ -3,9 +3,7 @@
 //! (`g_machineName`), item 3 the host's address (`unk_52ABE4`), item 2 the most players as
 //! a text (`strings::format_u32` of `dword_52ABD0` into `byte_95E8F8`); any other nothing.
 //!
-//! In:  nothing (the item is `g_listChoice`)
-//! Out: eax = the item, ebx = the text, ecx = 0x30C, edx = `palette` when an edit starts;
-//!      for other items ebx = `dword_52ABD0`; no `pusha`
+//! Takes nothing (the item is `g_listChoice`).
 //! Caller: `net::settings_loop`.
 
 use crate::net::begin_edit::EditedText;

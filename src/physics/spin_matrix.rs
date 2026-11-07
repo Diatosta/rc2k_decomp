@@ -5,9 +5,8 @@
 //! `flt_5C78F8` = the length times the step `flt_61388C`, the turn's matrix into
 //! `flt_5C7010` (`physics::axis_turn_matrix`) and squared (`scene::square_matrix`),
 //! `g_crashMatrix` times it into `g_turnedMatrix` (`scene::multiply_matrices`) and copied
-//! back (16 dwords, `rep movsd` in `pusha` / `popa`). Then `g_crashMatrix` squared.
+//! back (16 dwords, `rep movsd`). Then `g_crashMatrix` squared.
 //!
-//! In:  nothing
 //! Out: esi `g_crashMatrix`; when the spin is not 0, also ecx and edx 0 (`multiply_
 //!      matrices`), edi `flt_5C7010`, ebp `g_turnedMatrix`; the rest kept; no flags read
 //!

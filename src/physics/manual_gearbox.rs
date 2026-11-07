@@ -20,9 +20,6 @@
 //! gear 2 or more: down when the next free lower gear's share is below `flt_5CB964` and
 //! the engine over its top below `flt_5CB960` / `flt_5CB95C` by +0x63C).
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them; no flags read (the callers jump on)
-//!
 //! Callers: `physics::gearbox_step`, the one-call `physics::manual_gearbox_call`. Refuses
 //! what the calls refuse, and a gear outside -1 ..= 7 where a ratio is read; what was
 //! written is put back.

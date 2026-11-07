@@ -4,8 +4,7 @@
 //! into `byte_A8BC54` (two bytes each) and drawn from there (`text::draw_text_keep_regs`);
 //! the length is kept in `dword_7559B8`.
 //!
-//! In:  eax = font, ebx = text, ebp = its end, ecx = x, edx = y
-//! Out: every register preserved; CF clear (the loop's last `cmp` is equal)
+//! Takes the font, text, its end, x and y.
 //!
 //! Callers: the players' standings pages (0x4836CF, 0x48D32E; eight calls). Refuses (before
 //! anything) a length below 3 (the original's loop then runs on: with 0 its copy, with 1 or 2 its

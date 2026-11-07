@@ -2,10 +2,6 @@
 //! network race: +0xAA8 the car's number + 1, +0x684 4, +0x28 2, +0x34, +0x30, +0x20,
 //! +0x3C 0x80, then `net::clear_car_state`; `dword_6238CC` and `dword_6238D0` 0.
 //!
-//! In:  nothing
-//! Out: nothing (the original leaves ecx 8 and the rest kept; its one caller,
-//!      `net::set_up_race`, still hands its registers on to `race::load_stage`, whose reads
-//!      are not known, so it sets ecx 8 itself)
 //! Caller: `net::set_up_race`.
 
 use crate::net::clear_car_state::clear_car_state;

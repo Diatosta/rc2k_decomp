@@ -6,7 +6,6 @@
 //! `dword_62400C`, / 256 into +0x280 (`unk_71A258`). Then with `dword_60934C` set +0x900
 //! 0, else +0x904 0.
 //!
-//! In:  nothing
 //! Out: eax the second sample (held), ebx its range, ecx and edx as left, esi
 //!      `unk_A2AB04`; no flags read
 //!

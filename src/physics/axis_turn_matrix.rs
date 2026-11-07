@@ -5,8 +5,7 @@
 //! parts and three of one with the sine); the fourth row 0, 0, 0, 1; the fourth column's
 //! three left as they were.
 //!
-//! In:  edi the matrix (0x40 bytes)
-//! Out: every register kept; no flags read (callers go on with `push`, `lea`)
+//! Takes: the matrix (0x40 bytes)
 //!
 //! Callers: `physics::move_slot` (0x4624D6) and `sub_43DD54` (0x43DD97).
 

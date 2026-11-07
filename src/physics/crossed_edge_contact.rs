@@ -11,7 +11,6 @@
 //! `physics::contact_force` into contact record 1 (`g_contactRecords` + 0x20),
 //! `physics::place_sound_e1`.
 //!
-//! In:  nothing
 //! Out: ebp the face, and the registers as the steps and `contact_force` leave them; no
 //!      flags read (the caller goes on)
 //!

@@ -1,14 +1,10 @@
 //! `menu::begin_player_name` (0x467C34): typing a player's name begins.
 //!
-//! In:  nothing
-//! Out: every register preserved
-//!
 //! Unless the Enter came with ah = 4 (`g_enterSkipsNameEntry` at 1): the current player's name kept
 //! (`menu/player_name.rs`), cleared (`menu::clear_text`), and the entry going on (`dword_7556A8` =
 //! 1); then, either way, the length typed (`dword_75556D`) 0. The action of the name's item of the
 //! four players' details pages. Refuses no current player or a player without a name. The menus and
-//! draw lists run its `entry` (`menu::table_calls`); the registers above are the original's, for
-//! reference.
+//! draw lists run its `entry` (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

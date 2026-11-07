@@ -7,7 +7,7 @@
 //! `indices`) read or write it. The image keeps the two pointers (0x764F2C, 0x764F30) the
 //! original's batch drawer followed; nothing reads them now.
 //!
-//! One `#[repr(C)]` struct with the image's layout (`Hud`, the static `HUD`); the first
+//! One `#[repr(C)]` struct with the image's layout (`HudBlock`, the static `HUD`); the first
 //! values are the image's (`tests::first_values_are_the_games`), and `moved::MOVED` points
 //! IDA's addresses of the range at it.
 
@@ -71,7 +71,7 @@ impl Vertex {
 /// The HUD's variables (IDA 0x75B940 .. 0x764F2C, the image's layout).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
-pub struct Hud {
+pub struct HudBlock {
     /// `g_hudRects` (92 rectangles) and `dword_75BF00` (the last five): the texture's rectangles, 16 bytes each (left, top, width, height), picked by number (`hud::layout_*` sprites, markers, signs). Sign `v` is rectangle 0x4C + (v - 1) & 0xF.
     pub rects: [Rect; 0x61],
     /// `dword_75BF50`, `dword_75BF54` (the stage marker's two colours, `draw_markers`) and the six dwords after them (colours too, a reading; nothing ported reads them).
@@ -212,10 +212,10 @@ pub struct Hud {
     pub index_count: Dword,
 }
 
-impl Hud {
+impl HudBlock {
     /// The HUD's variables; first values the image's.
     pub const fn new() -> Self {
-        Hud {
+        HudBlock {
             rects: [
                 Rect::new(0xad, 0x68, 0x52, 0x2a),
                 Rect::new(0xad, 0x94, 0x52, 0x2a),
@@ -530,7 +530,7 @@ pub fn rect_place(hud: &crate::hud::owner::Hud, n: u32) -> crate::pointers::Game
 /// The place `offset` bytes into the rectangles (bounded to the whole block, as `rect_place`).
 pub fn rects_at(hud: &crate::hud::owner::Hud, offset: u32) -> crate::pointers::GamePtr {
     crate::pointers::GamePtr::to(&hud.block)
-        .offset((core::mem::offset_of!(Hud, rects) as u32).wrapping_add(offset))
+        .offset((core::mem::offset_of!(HudBlock, rects) as u32).wrapping_add(offset))
 }
 
 #[cfg(test)]
@@ -540,7 +540,7 @@ mod tests {
     #[test]
     fn first_values_are_the_games() {
         let _g = crate::store::test_lock();
-        assert_eq!(size_of::<Hud>(), LEN);
+        assert_eq!(size_of::<HudBlock>(), LEN);
         let mine = unsafe {
             std::slice::from_raw_parts(crate::pointers::host(hud_addr()).cast_const(), LEN)
         };
@@ -558,8 +558,8 @@ mod tests {
             crate::hud::owner::HUD.block.scratch.addr() as usize
         );
         assert_eq!(crate::moved::place(START), hud_addr() as usize);
-        assert_eq!(core::mem::offset_of!(Hud, vertices), 0x75C324 - START);
-        assert_eq!(core::mem::offset_of!(Hud, indices), 0x764324 - START);
+        assert_eq!(core::mem::offset_of!(HudBlock, vertices), 0x75C324 - START);
+        assert_eq!(core::mem::offset_of!(HudBlock, indices), 0x764324 - START);
         assert_eq!(
             crate::hud::owner::HUD.block.vertex_count.addr(),
             hud_addr() + 0x764F24 - START as u32

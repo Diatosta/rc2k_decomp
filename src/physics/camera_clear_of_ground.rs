@@ -3,7 +3,6 @@
 //! sign of the `cmp`; `physics/camera_ground.rs`): CF clear when found and so high, else
 //! CF.
 //!
-//! In:  nothing
 //! Out: CF; eax as the steps leave it, the rest as `count_ground_probe` leaves them (the
 //!      caller reads CF)
 //!

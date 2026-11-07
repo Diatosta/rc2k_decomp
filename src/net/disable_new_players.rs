@@ -3,9 +3,6 @@
 //! (`dword_5AB2AC`) given DPSESSION_NEWPLAYERSDISABLED and DPSESSION_JOINDISABLED (0x21) and
 //! set (`SetSessionDesc`, flags 0); its result logged.
 //!
-//! In:  nothing
-//! Out: nothing (every register kept, `pusha` .. `popa`; the carry it sets when not the
-//!      host, with no object or on a failure is read by no caller: `lq -s 0x418D8A`)
 //! Caller: `net::close_if_host`.
 
 use crate::net::lobby::{log, log_hex};

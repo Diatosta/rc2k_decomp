@@ -1,8 +1,5 @@
 //! `effects::scale_axes` (0x4BFD73): the two axes at `flt_89CF1A` and `flt_89CF26` scaled: by `flt_89CECA` into `flt_89CF3E` / `flt_89CF4A`, by `flt_89CEEE` / `flt_89CEF2` and the per-part factors `flt_8BC1DE` .. into `flt_89CF6E` / `flt_89CF7A`, and the first two times `flt_8BC1F6` .. into `flt_89CF56` / `flt_89CF62`.
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register after it)
-//!
 //! Callers: 0x4bf75e, 0x4c90b3. The arithmetic is plain Rust on the x87 model
 //! (`math::x87_float`), in the original's order, over the game's variables.
 

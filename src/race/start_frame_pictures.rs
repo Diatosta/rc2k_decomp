@@ -4,8 +4,7 @@
 //! the folder `rpl` made (`sub_403113`: `CreateDirectoryA`, edx the name);
 //! `g_replayRecording` 1, `dword_5C2CD4` and `dword_5C2CD0` 0.
 //!
-//! In:  eax the ms a picture, or 0 for the rate's
-//! Out: every register kept (`pusha` / `popa`); no flags read
+//! Takes: the ms a picture, or 0 for the rate's
 //!
 //! Caller: `race::viewer_action` (actions 0x25 .. 0x28: eax 0, 0xA0, 0x50, 0x28).
 

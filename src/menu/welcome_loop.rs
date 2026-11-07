@@ -1,13 +1,10 @@
 //! `menu::welcome_loop` (0x4721F0): the screen titled "BEM-VINDO" that the championship's event
 //! loops show.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: leaving is asked about; something runs before the
 //! question is put.
 //! The name is a reading from the title string of its menu, "BEM-VINDO", not yet a visit.
-//! Callers: `sub_4A0E60`, `sub_4AA4D7`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

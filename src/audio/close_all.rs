@@ -1,7 +1,6 @@
 //! `audio::close_all` (0x409DD5): everything of the sound closed (the audio thread's end).
 //!
-//! In:  ebx, ecx, edx = handed to `audio::stop_streams` (edx its action)
-//! Out: every register preserved
+//! Takes: handed to `audio::stop_streams` (its action)
 //!
 //! `audio::stop_streams`, `audio::free_voices`, `audio::close_way`,
 //! `audio::release_primary`, `audio::close_sound`, then `g_soundMode` 0. One caller, the

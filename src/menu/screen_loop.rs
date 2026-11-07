@@ -281,7 +281,7 @@ pub fn carousel(cars: Option<CarList>, scene: &Scene) -> Result<(), Refused> {
 }
 
 /// A line for the game's log at level 1 with its line break (`logfile::log_write_l1_nl`,
-/// called between `pusha` and `popa`: no register changes).
+/// changes no register).
 pub fn log_line(text: &std::ffi::CStr) {
     crate::logfile::log_write::log_nul(&text, true, 1);
 }

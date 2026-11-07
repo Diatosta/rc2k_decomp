@@ -3,8 +3,6 @@
 //!
 //! Named `screen_466b21_loop` until then.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`): before the loop it sets the string of the menu's first item to 0x138 if
 //! `dword_75AADC` is 1 and to 0x139 otherwise, as the stage results screen does;
@@ -12,7 +10,6 @@
 //! error 0x80712345; leaving is asked about, and a "no" sets the screen up again.
 //! If `dword_75AB34` is 1 when the screen is left, nothing more is done: no question,
 //! and the highlight is not saved.
-//! Callers: `sub_4A3BA2` and the code at 0x4A9572.
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

@@ -1,8 +1,7 @@
 //! `physics::sound_band_2` (0x45D097): `g_car +0x1C4` x `flt_6D1AE0`, less 10, held to 0 ..= 0x40, in ebx.
 //! See `physics/sound_bands.rs` (the core and the test).
 //!
-//! In:  nothing
-//! Out: ebx the band; the rest kept
+//! Returns: the band
 //!
 //! Caller: `sub_45CD60`.
 //!

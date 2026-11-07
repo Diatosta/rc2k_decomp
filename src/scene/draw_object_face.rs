@@ -5,8 +5,6 @@
 //!      `dword_636608`, +9 a byte for `dword_6240D8` (how much the face reflects),
 //!      +0xC a dword for `dword_6240DC`, from +0x10 a vertex every 0x10 bytes: the
 //!      point's number, two texture coordinates, the normal's number
-//! Out: every register preserved on the usual way; on the other (below) the original
-//!      leaves them changed and the Rust version does not
 //!
 //! Nothing at all unless `dword_6365C4` is 0. Then, per vertex, an entry of the work table
 //! (`sub_450E37`): the point's number negated (an object's point), the point's place in the

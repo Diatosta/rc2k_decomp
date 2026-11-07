@@ -1,8 +1,6 @@
 //! `menu::load_replay_loop` (0x47F48B): the replay list "CARREGAR REPETIÇÃO"; returns the
 //! replay chosen.
 //!
-//! In:  nothing
-//! Out: eax = the result; every other register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `loadsv.png`; leaving is not asked about; its
 //! own 3D list goes to `g_sceneList` before the first frame only; the Escape flag is looked at
@@ -10,7 +8,6 @@
 //! a store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "CARREGAR REPETIÇÃO", not yet a
 //! visit.
-//! Callers: `sub_46F786`.
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
@@ -26,8 +23,7 @@ fn before(entry: &Entry) -> Result<(), Refused> {
     Ok(())
 }
 
-/// What the loop returns in eax, written by hand from the end of the listing (after the
-/// `popa`): -1 if the highlight is on item 0x16 or `dword_758806` is 1, else the replay's
+/// What the loop returns, written by hand from the end of the listing: -1 if the highlight is on item 0x16 or `dword_758806` is 1, else the replay's
 /// number, `dword_755248` * 20 + the highlighted item - 1.
 fn result(menus: &Menus) -> u32 {
     let item: u32 = menus.screens.loop_flags.item.get();

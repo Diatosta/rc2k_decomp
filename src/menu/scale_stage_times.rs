@@ -5,9 +5,6 @@
 //! section, the record's +0x40, "a7x" and the first factor, "a8x" and the second, "times
 //! a8-a5" and the four times).
 //!
-//! In:  edi the record
-//! Out: eax the section held (no `pusha`); the rest kept
-//!
 //! Caller: `menu::calc_cpu_times`. Logs through the `logfile::` Rust versions (level 1).
 use crate::errors::Refused;
 use crate::menu::owner::Screens;

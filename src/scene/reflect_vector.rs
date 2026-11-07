@@ -1,8 +1,7 @@
 //! `scene::reflect_vector` (0x451A9D): a direction mirrored at a surface and turned by
 //! a matrix.
 //!
-//! In:  nothing
-//! Out: esi = the matrix `flt_5EA20C`; everything else preserved
+//! Returns: the matrix `flt_5EA20C`
 //!
 //! v = the three floats at `dword_5EA428`, n = the three at `qword_5EA438`:
 //! d = v . n (the first and second products added first, then the third); v = v * d, each rounded to a

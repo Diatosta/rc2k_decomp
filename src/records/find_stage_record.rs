@@ -2,14 +2,11 @@
 //! tag), past section ebx's start (the ebx-th record of tag 4, none for 0), the eax-th record
 //! of tag 0 (a stage; counted from 1). (Stream A, part F1: the time trial results page.)
 //!
-//! In:  edi = the table, ebx = the section, eax = the stage's number
-//! Out: edi = the record; eax, ebx, ecx kept (the rest untouched)
+//! Takes the table, the section and the stage's number. Returns the record.
 //!
-//! Caller: `screens::draw_stage_results` (0x48EB91). The original has no end test: a number
-//! of 0 (or one past the stages) runs on through memory. Refused, as is a search that finds
-//! nothing within 0x1000 records.
-//! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
-//! registers above are the original's, for reference.
+//! Caller: `screens::draw_stage_results` (0x48EB91). The original has no end test: a number of 0
+//! (or one past the stages) runs on through memory. Refused, as is a search that finds nothing
+//! within 0x1000 records.
 
 use crate::errors::Refused;
 use crate::records::stages_store::{RECORD_LEN, RecordRef, RecordTable};

@@ -3,8 +3,7 @@
 //! `608B54`) by its share (`dword_608BE8`, `608BE4`, `608BEC`; all 1 first when
 //! `dword_6EF7CC` is set): the difference `fild`ed, times the share, `fistp`ed, added.
 //!
-//! In:  nothing
-//! Out: eax the last step; the rest kept; no flags read
+//! Returns: the last step
 //!
 //! Caller: `sub_43907F`.
 //!

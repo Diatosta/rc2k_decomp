@@ -5,8 +5,8 @@
 //! unless the mode before (`unk_71A660`) is 1, 2 or 3, into `dword_608B70`,
 //! `dword_608B6C`.
 //!
-//! In:  esi the view's record
-//! Out: eax, ebx the two; the rest kept; no flags read
+//! Takes: the view's record
+//! Returns: the two
 //!
 //! Caller: `sub_437A53`.
 //!

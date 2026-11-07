@@ -7,9 +7,6 @@
 //! The x87 run is plain Rust over `X` (`math/x87_float.rs`) over the game's variables; the
 //! original's instructions (from IDA) are `asm_reference` in the tests.
 //!
-//! In:  nothing
-//! Out: as `engine_torque` leaves them; no flags read (the callers return or call on)
-//!
 //! Callers: `physics::free_rev_in_neutral`, `physics::free_rev_clutch`.
 
 use crate::math::x87;

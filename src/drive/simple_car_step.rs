@@ -7,9 +7,6 @@
 //! `dword_639828` + `flt_613FC4`'s bits into `dword_5CCDC0` and +0x138; pitch and roll 0;
 //! `race::get_mat_crash`. The first car block (`g_carBlockStore`) throughout.
 //!
-//! In:  nothing
-//! Out: the registers as the steps and calls leave them; no flags read
-//!
 //! Caller: `drive::race_tick`. Refuses what its calls refuse.
 
 use crate::errors::Refused;

@@ -3,10 +3,7 @@
 //! (`net::dplay_send`: to `dword_5AB274`, the bytes and their count, one more than given,
 //! flags 0).
 //!
-//! In:  `bytes` (ebx), `count` (ecx)
-//! Out: nothing (the original leaves eax, ebx, ecx, edx as the send has them and keeps
-//!      esi, edi; its callers, `net::send_race_message`'s, read esi only: `lq -s
-//!      0x46449E`, kept by a Rust function)
+//! Takes `bytes`, `count`.
 //!
 //! See `net/mod.rs`. Callers: `net::send_inputs`, `net::send_position`, `net::send_extra`
 //! (through `net::send_race_message`, `call net::send_message; retn`, folded in). Refuses

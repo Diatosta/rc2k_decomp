@@ -2,9 +2,6 @@
 //! `g_objectNumber` and draws it the way the scene's mode asks for.
 //!
 //! In:  esi, passed on to `scene::draw_described_object`
-//! Out: the registers as its parts leave them; before the drawing eax = what was last
-//!      looked at, ebx = the object's number, edx = the car's remainder if a car was
-//!      looked at
 //!
 //! An object's number of 0x100 or more is fatal error 0x80600A01. `dword_639954` (added to
 //! every face's texture number) = 0; then 0x108 for, outside a race, an object of kind 0x23A,

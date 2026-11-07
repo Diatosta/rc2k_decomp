@@ -6,9 +6,6 @@
 //! from `dword_91FFAA` .. `dword_91FFB6` (u: AA, B2, B2, AA; v: AE, AE, B6, B6);
 //! `g_polygonVertexCount` 4, `flt_8EB96D` 1 / `flt_6241C8`, `dword_91FFBA` 0.
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Caller: `sub_4C3EEE`.
 
 use crate::d3d::vertices_store::VERTICES;

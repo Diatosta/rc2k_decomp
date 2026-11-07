@@ -1,7 +1,5 @@
 //! `menu::set_up_front_end` (0x47C63F): what the main menu's loop does first.
 //!
-//! In:  nothing (ebp and, after the loading picture, ecx are passed on as they are)
-//! Out: every register preserved
 //! In this order:
 //! - `menu::add_clio_car` if `g_hasClio` is 1; `menu::link_player_names`; the loading
 //!   picture (`sub_47CEA8`, not ported); `gfx::build_menu_sprites`;
@@ -17,8 +15,7 @@
 //!   on each of the thirteen record tables.
 //!
 //! One caller, `menu::main_menu_loop`. Refuses what its parts refuse; such a refusal comes with the
-//! work half done. Rust callers run its `entry` (`routes.rs`); the registers above are the
-//! original's, for reference.
+//! work half done. Rust callers run its `entry` (`routes.rs`).
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;

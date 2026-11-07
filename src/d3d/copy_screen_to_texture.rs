@@ -3,7 +3,6 @@
 //! copied into the mirror picture's system texture (`dword_624234`, its record's surface
 //! +0x14) by DirectDraw's `Blt` without rectangles (stretched to the texture).
 //!
-//! In:  nothing
 //! Out: ebx the record's kind's address and eax .. edx as `Blt` leaves them on the copy's
 //!      way; no flags read (its caller goes on with a `mov`)
 //!

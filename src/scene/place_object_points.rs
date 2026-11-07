@@ -1,7 +1,7 @@
 //! `scene::place_object_points` (0x45BE05): an object's points and normals into the
 //! view, the points onto the screen.
 //!
-//! In:  eax, ecx only matter for an object with normals and no points (refused)
+//! Takes: only matter for an object with normals and no points (refused)
 //! Out: esi = the matrix, ebx = the object's number, ebp = 0 (or the number of normals
 //!      if that is not above 0); eax = the number after the last one placed, ecx = the
 //!      address after the last one read (both as they came if nothing was placed);

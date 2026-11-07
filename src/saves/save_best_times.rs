@@ -1,7 +1,5 @@
 //! `saves::save_best_times` (0x4AB236): writes the best times and scores, `var\hst.dat`.
 //!
-//! In:  nothing
-//! Out: every register preserved; carry = not written
 //! Only when the tables' memory is taken and they are filled (`g_bestTimesAllocated` and
 //! `g_bestTimesLoaded` both 1). A head of 0x10 bytes is made in the scratch block at 0x93E8B0
 //! ("R5HS", 0, 0x50004, the time); the file is opened (mode 1: made anew); the head and the six

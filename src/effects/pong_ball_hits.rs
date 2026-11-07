@@ -4,9 +4,6 @@
 //! the ball's (`flt_7686DC` .. `flt_7686F8`; an across of exactly 0 bits less
 //! `flt_7691D6`), made one long times `flt_76516C`, times `flt_7691DA` / `flt_7691DE`.
 //!
-//! In:  nothing
-//! Out: nothing (the Rust callers read no register)
-//!
 //! Caller: `effects::move_pong_ball`. The x87 runs are plain Rust on the x87 model (`math::x87_float`), in the original's order, over the
 //! game's variables.
 //!

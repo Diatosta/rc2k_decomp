@@ -7,12 +7,9 @@
 //! with eax `[item+8]`, if any) in `text`, measured (`text::measure_text`); an action its
 //! box's size; any other what ecx and edx hold.
 //!
-//! In:  nothing (the pieces at `dword_51C407`)
-//! Out: every register kept (`pusha` / `popa`); no flags read
 //! No pieces would go round 2^32 times: refused. Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{

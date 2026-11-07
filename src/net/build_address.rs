@@ -8,10 +8,8 @@
 //! serial link's dialogs, it seems). The size asked (DPERR_BUFFERTOOSMALL), that much memory
 //! taken on the network's list into `dword_52AC40`, the address made there.
 //!
-//! In:  `connection` (eax: the connection's number)
-//! Out: true when built (the original: carry clear and the flags of `test eax, eax`; every
-//!      register kept); false for the carry: no lobby object, the size not asked as
-//!      expected, or `CreateCompoundAddress` failing
+//! Takes `connection`. Returns true when built; false when there is no lobby object, the size
+//! was not asked as expected, or `CreateCompoundAddress` failed.
 //! Caller: `net::init_connection`.
 
 use crate::errors::{BadInput, Refused};

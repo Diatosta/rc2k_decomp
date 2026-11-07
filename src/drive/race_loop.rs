@@ -12,9 +12,6 @@
 //! (`sub_4541BF`, stream A's: through the game). Paused: in a replay its car's +0x468 0,
 //! else `drive::pause_until_key`; unpaused again.
 //!
-//! In:  nothing
-//! Out: the registers as the steps leave them; no flags read
-//!
 //! Caller: `drive::play_race`. Refuses what its calls refuse.
 
 use crate::drive::race_parts::{

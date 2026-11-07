@@ -1,7 +1,5 @@
 //! `gfx::allocate_picture_buffer` (0x40608F): takes the memory pictures are decoded in.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! `dword_4F49E0` = 0x1D4C00 (800 x 600 dwords); that and 0xC80 bytes more from
 //! `memory::allocate` on the list `stru_4F49E4` (Rust's since phase 12: `gfx::picture`); the
 //! address to `g_pictureBuffer` (here the buffer's number)

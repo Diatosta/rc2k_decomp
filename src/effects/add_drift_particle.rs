@@ -6,7 +6,6 @@
 //! 50000, +0x24 the view's +0x34 (`flt_5EA3CC`). With the ring full the six are dropped.
 //!
 //! In:  st(0) .. st(5) as above (all popped), eax the kind
-//! Out: every register kept (`pusha` .. `popa`)
 //!
 //! Caller: `sub_4CFB49` (every eighth marks step, a drift puff by the view). Refuses a null
 //! ring (an entry to take), before anything.

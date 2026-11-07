@@ -1,7 +1,5 @@
 //! `menu::run_item_action` (0x474683): calls the action of the highlighted item of a menu.
 //!
-//! In:  edi = the menu
-//! Out: every register preserved
 //! It goes through the menu's items (0x5C bytes each after a 4-byte head, ended by -1) until one's
 //! type (+0x10) is the highlighted item `dword_755525`. For that one it stores the item's dword at
 //! +0x54 in `dword_755A38`, calls the item's action (+0x44) with that value in eax and the item in

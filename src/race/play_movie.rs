@@ -2,9 +2,6 @@
 //! (`scene::restart_clock`, `g_sceneClock` into `dword_613840`), the replay played
 //! (`race::play_movie_loop`), "shaunplayrendermovie - out" logged.
 //!
-//! In:  nothing
-//! Out: the registers as the play leaves them; no flags read
-//!
 //! Caller: `race::play_replay_range`.
 
 use crate::errors::Refused;

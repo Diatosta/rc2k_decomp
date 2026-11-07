@@ -4,7 +4,7 @@
 //! `g_kindLastRecords[kind]` (`race/course_data.rs`; -1 first: none). The key is a grid
 //! cell by its callers (`sub_441FBA`: (z >> 21) << 11 + (x >> 21)).
 //!
-//! In:  eax the key
+//! Takes: the key
 //! Out: CF clear when found: ebx its number, esi its address; CF set when not: ebx -1
 //!      (no records) or last + 1, esi the last tried (kept when none). Always edx = eax
 //!      = the key, ebp = ((key >> 11) & 0xF) << 4. ZF not read (`jb`).

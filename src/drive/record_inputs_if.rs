@@ -1,7 +1,6 @@
 //! `drive::record_inputs_if` (0x46008D): `drive::record_inputs` while recording a replay
 //! (`dword_5C5CE0` 1) for the cars below `dword_63DB94`.
 //!
-//! In:  nothing
 //! Out: while recording eax `dword_63DB94`, then as `record_inputs` leaves the registers
 //!      when called; no flags read
 //!

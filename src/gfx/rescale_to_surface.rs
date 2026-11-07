@@ -1,8 +1,6 @@
 //! `gfx::rescale_to_surface` (0x4063B7): draws the decoded picture onto the surface at the
 //! surface's size.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! `gfx::rescale_picture`'s arithmetic with other ends: the rows are those of the decoded
 //! picture where it lies (`g_decodedPixels`, `g_decodedStride` apart, listed with
 //! `gfx::fill_row_table`), and every pixel made goes to the surface in the surface's

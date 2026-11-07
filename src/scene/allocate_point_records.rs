@@ -1,8 +1,7 @@
 //! `scene::allocate_point_records` (0x41F976): takes the memory of the points'
 //! records.
 //!
-//! In:  nothing
-//! Out: eax = the memory, ebx = the list it is taken on; everything else preserved
+//! Returns: the memory, the list it is taken on
 //!
 //! 0x40000 bytes (0x2000 records of 0x20 bytes: 0x1000 for a scene's points and 0x1000 for an
 //! object's) on the list `stru_5C6E50`, counted in `dword_5C6F90`, to `g_pointRecords`. Two

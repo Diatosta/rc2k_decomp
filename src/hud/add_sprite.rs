@@ -2,8 +2,7 @@
 //! width, height) put at (ebx, ecx): the quad record's texture places (<< 16), its corners
 //! (the width and height made positive), then `hud::add_quad`.
 //!
-//! In:  esi the rectangle, ebx x, ecx y
-//! Out: all kept (`pusha` .. `popa`)
+//! Takes: the rectangle, x, y
 //!
 //! Callers: the HUD's drawers (code at 0x4B1E42, 0x4B1E62, ...).
 

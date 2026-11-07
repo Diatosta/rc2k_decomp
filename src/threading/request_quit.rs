@@ -3,14 +3,8 @@
 //! at 0x410C17 logs "SHUTDOWN:START", waits for the other threads and posts a close message
 //! to the window.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Two callers: the fatal-error reporter and `sub_415383`.
-//! It cannot be run twice or undone, so shadow mode runs the original alone. The self-test
-//! runs a copy of the original whose switch is a test variable and whose call to
-//! `start_slot_thread` goes to a stand-in.
-//! Hook removed 2026-10-22 (direct calls): Rust callers run its `entry` (`calls::call`,
-//! `routes.rs`); the registers above are the original's, for reference.
+//! It cannot be run twice or undone.
 
 use crate::errors::FatalError;
 use crate::framework::log;

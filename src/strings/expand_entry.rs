@@ -1,11 +1,8 @@
 //! `strings::expand_entry` (0x401FE1): appends entry `id` of the packed string table, expanding
 //! child entries recursively.
 //!
-//! In:  eax = id, edi = cursor
-//! Out: edi = new cursor
-//! The original also clobbers eax, ecx and esi; its callers save those around the call.
-//! Hook removed 2026-10-21 (conversion phase 4): Rust callers call this directly; the
-//! register use above is the original's, for reference.
+//! Takes id, cursor. Returns new cursor. The original also clobbers eax, ecx and esi; its callers
+//! save those around the call.
 
 use crate::strings::string_table::table;
 

@@ -11,12 +11,9 @@
 //! `g_installing` asked, and registration if offered. Failures set `byte_51D415`
 //! (0 bad path, 3 no room / not a CD) or show an error/cancel message.
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`)
 //! A list action (`off_51DD18`). Caller `install::run_page`.
 //!
-//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
 
 use crate::errors::Refused;
 use crate::install::installer::{

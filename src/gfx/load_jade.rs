@@ -1,8 +1,6 @@
 //! `gfx::load_jade` (0x4075F3): loads the glyphs of the fatal error's own font,
 //! `files\d\gfx\jade.bun`, and works out its colour.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! Up to 0x1400 bytes of the file to `unk_4F52C4` (the glyph table of the four font
 //! objects at 0x51DE30 on); a file that cannot be read is fatal error 0x80F0B0D1, one
 //! that fills all 0x1400 bytes 0x80F0B0D2. Then `dword_4F66C4` (those fonts' palette) =

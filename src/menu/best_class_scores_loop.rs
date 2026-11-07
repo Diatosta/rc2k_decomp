@@ -1,15 +1,12 @@
 //! `menu::best_class_scores_loop` (0x4A886B): the loop of the best championship scores screen,
 //! by class.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `bascores.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is asked about;
 //! its own 3D list goes to `g_sceneList` before the first frame only.
 //! A reading from the title string of its menu, not yet a visit: "MELHORES CLASSIFICAÇÕES NO
 //! CAMPEONATO".
-//! Callers: `sub_4A8608`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

@@ -2,7 +2,7 @@
 //! whose `g_carGearBits` bit (`physics::gear_bit`) is clear: ecx = ebx - 1, - 2, ..; CF
 //! clear with ecx that gear, or CF set when ecx reaches 0 (neutral) first.
 //!
-//! In:  ebx the gear
+//! Takes: the gear
 //! Out: ecx the gear found (or 0), eax `gear_bit`'s (ecx + 1; kept when none was
 //!      tested), CF; ZF not read by the callers (`jb`); the rest kept
 //!

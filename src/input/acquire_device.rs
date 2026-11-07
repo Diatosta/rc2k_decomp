@@ -20,8 +20,7 @@
 //! force feedback (the entry's +0x1C 1) `input::begin_force`; `Acquire`; the readings
 //! cleared (`input::clear_device_readings`); +0x24 1 (acquired).
 //!
-//! In:  esi = the device's record
-//! Out: every register kept (`pusha` .. `popa`)
+//! Takes: the device's record
 //!
 //! Callers: `input::set_up_device`, `input::device_command`. The effects' functions through
 //! `begin_force`'s `part`; the methods the objects' own. Refuses nothing: the fatal errors

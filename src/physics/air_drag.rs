@@ -3,9 +3,6 @@
 //! `flt_614810` .. `flt_614818`, made against the motion (|it| when the motion is below 0
 //! or no number, else -|it|). By the look of it the air's drag (a reading).
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read
-//!
 //! Caller: `sub_43B635` (0x43B80E), every physics step.
 
 use crate::math::x87;

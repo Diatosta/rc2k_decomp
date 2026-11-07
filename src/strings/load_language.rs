@@ -1,8 +1,6 @@
 //! `strings::load_language` (0x40331F): makes the language ready: its strings, its units,
 //! its keyboard and its letters' cases.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! In this order:
 //! - `strings::compile_lexicon`; `g_stringTable` is the lexicon; the keyboard layout
 //!   (`dword_4F07D4`) is the built-in one at 0x4F7FDC, with `byte_4F07D1` and `byte_4F07D2` 1;
@@ -31,11 +29,6 @@
 //! Callers: `start` and three in the installer.
 //! Refuses a string 2 of odd length (the original reads on past it) and one of the four
 //! corrections meeting its word where the string is that word alone.
-//! Shadow mode does it all twice (Rust, everything put back, the original) and compares.
-//! Manual patch with a private copy (0x143 bytes; nine calls and the three jumps to the
-//! fatal stubs relocated): a call starts in the first bytes.
-//! Self-test: a redirected copy whose `compile_lexicon` only notes itself, run on a fresh
-//! Rust-compiled lexicon with everything else it writes blotted out first.
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::files::read_first_match::read_first_match;

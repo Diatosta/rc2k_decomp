@@ -5,9 +5,6 @@
 //! screen's format (`gfx::pixel_to_components`, `g_surfaceFormat`), made opaque and put
 //! together in the texture format (`gfx::components_to_pixel`, `[off_5ABAC0 + 0xC] + 8`).
 //!
-//! In:  nothing
-//! Out: every register kept (`pusha` / `popa`); no flags read
-//!
 //! Caller: `race::viewer_load_stage`.
 
 use crate::errors::BadInput;
@@ -61,7 +58,7 @@ pub fn viewer_palettes(
         // Converted: `rc2k_core::race::viewer_flow::{font_colour, FONT_COLOURS}` (colour
         // by colour, as the original).
         use rc2k_core::race::viewer_flow::{FONT_COLOURS, font_colour};
-        let from = gfx.fonts.menu_fonts.palettes.get();
+        let from = gfx.fonts.font_block.palettes.get();
         let to = &crate::race::viewer_buffers_store::VIEWER_BUFFERS.colours;
         for n in 0..FONT_COLOURS as u32 {
             let colour = font_colour(

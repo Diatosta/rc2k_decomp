@@ -5,8 +5,7 @@
 //! (`gfx::frame_rect`), both through `g_fontPalettes`, then the string drawn centred (font
 //! 0x51E904).
 //!
-//! In:  ecx = the x the measuring starts at
-//! Out: every register preserved (`pusha` .. `popa`)
+//! Takes the x the measuring starts at.
 //!
 //! Callers: `screens::cheat_locked_note` .. (0x4AAAD5, 0x48ADF2 and others). Refuses what
 //! `gfx::fill_rect` refuses (a surface of neither 16 nor 32 bits), before anything.
@@ -56,7 +55,7 @@ pub fn draw_message_box(
     BOX[0].set(b.rect[0]);
     BOX[1].set(b.rect[1]);
     let rect = crate::gfx::rect::rect_of(&BOX);
-    let palettes = Palette::Held(gfx.fonts.menu_fonts.palettes.get());
+    let palettes = Palette::Held(gfx.fonts.font_block.palettes.get());
     fill_rect(rect, FILL, palettes)?;
     frame_rect(rect, 0, 0, FRAME, palettes);
     draw_string_by_id_at(STRING, font, b.text_x, b.text_y, canvas)?;

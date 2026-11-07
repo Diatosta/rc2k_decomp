@@ -8,7 +8,6 @@
 //! `hud::add_polygon` on four. (The holds by the compares' C0, an unordered compare
 //! counting as below.)
 //!
-//! In:  nothing
 //! Out: edx the turn, then as `add_polygon` leaves them
 //!
 //! Callers: the needles' set-ups (`hud::needle_*`).

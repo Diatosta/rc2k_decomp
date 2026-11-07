@@ -1,7 +1,7 @@
 //! `gfx::read_picture_file` (0x4119F4): reads a picture file, PNG or PCX, into the picture
 //! buffer as 32-bit pixels.
 //!
-//! In:  eax = path, which may be written to (see `files::swap_missing_extension`)
+//! Takes: path, which may be written to (see `files::swap_missing_extension`)
 //! Out: carry = failed; every register preserved
 //! A path ending in `.pcx` goes to `gfx::read_pcx`. Any other first has its ending swapped
 //! if the file is missing, and then goes to `gfx::read_png` and, if that fails, to

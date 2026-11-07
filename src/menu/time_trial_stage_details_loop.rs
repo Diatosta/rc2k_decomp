@@ -1,13 +1,10 @@
 //! `menu::time_trial_stage_details_loop` (0x48F1F4): the loop of the stage details screen of a
 //! time trial.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: leaving is not asked about.
 //! A reading, not yet a visit: its draw list 0x758CFE is the one of
 //! `screens::draw_time_trial_stage_info`, a confirmed screen; it sets `dword_755700` to 1 first.
-//! Callers: `sub_47037E`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

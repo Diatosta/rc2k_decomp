@@ -1,7 +1,6 @@
 //! `drive::animate_stage` (0x45E9CA): `drive::animate_lit_faces`, then
 //! `physics::move_slots`.
 //!
-//! In:  nothing
 //! Out: esi past the slots, ecx 8 (`move_slots`); eax, ebx, edx as `animate_lit_faces`
 //!      leaves them; no flags read (callers go on with calls)
 //!

@@ -1,7 +1,5 @@
 //! `saves::load_options` (0x4AAB32): reads the game's kept options, `var\ral.dat`.
 //!
-//! In:  nothing
-//! Out: carry = not loaded; every register preserved
 //! `g_optionsLoaded` (0x75557D) = 0. Up to 0x10000 bytes of the file into the scratch block at
 //! 0x93E8B0; it is taken if it starts "R5CI" and has 0x50004 at +8. From +0x10 on it is copied out
 //! piece by piece to the 69 places of `pieces` (0xB656 bytes: the screen modes, the sound's and

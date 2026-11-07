@@ -6,9 +6,6 @@
 //! place (turned again) kept as the last; then `flt_8EB951` .. each over
 //! `g_marksFrameTicks` (`fidiv`).
 //!
-//! In:  nothing
-//! Out: nothing (no caller reads a register it leaves)
-//!
 //! Caller: `sub_4C3EEE`.
 //!
 //! the x87 version stays for the Rust callers in unconverted code).

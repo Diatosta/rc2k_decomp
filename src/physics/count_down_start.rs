@@ -4,7 +4,6 @@
 //! hundreds of 8 or less (`div` by 100, ebx 100) `physics::set_flag_5165a0` (a reading:
 //! the count-down's beeps).
 //!
-//! In:  nothing
 //! Out: eax the timer less 0x320 when it got that far; after the `div` eax the hundreds,
 //!      ebx 100, edx the rest; after the call eax as `set_flag_5165a0` leaves it; the
 //!      rest kept; no flags read (the caller's next is a call)

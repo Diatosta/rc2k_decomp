@@ -5,8 +5,8 @@
 //! `dword_608B5C`; the next two (`unk_71A99C`, `unk_71A9A0`), halved (`sar`) when the
 //! mode's record has +0x4C set, into `dword_608B64`, `dword_608B60`.
 //!
-//! In:  esi the view's record
-//! Out: eax, ebx the two, esi the mode's record; the rest kept; no flags read
+//! Takes: the view's record
+//! Returns: the two, the mode's record
 //!
 //! Caller: `sub_437A53`.
 //!

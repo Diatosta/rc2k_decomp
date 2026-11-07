@@ -3,9 +3,6 @@
 //! (|speed| / `flt_613E64` + `flt_613E68`) x `flt_613E6C` and the two forces
 //! `flt_614248`, `flt_61424C` times it.
 //!
-//! In:  nothing
-//! Out: every register kept; no flags read (the caller's next is an `fld`)
-//!
 //! Caller: `sub_43DFB1` (0x43E523).
 
 use crate::math::x87;

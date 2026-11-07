@@ -1,8 +1,5 @@
 //! `scene::set_up_engine` (0x442AF6): the 3D code's tables, and the cars' figures.
 //!
-//! In:  nothing
-//! Out: as `sub_4217E4` leaves them
-//!
 //! `scene::fill_engine_tables`, then `sub_4217E4` (the cars' physics run for the figures of the
 //! car specification screen, by the look of it; not ported). 22 call sites, among them
 //! `menu::main_menu_loop` (twice) and `menu::play_films`. The registers above are the

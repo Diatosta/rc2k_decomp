@@ -1,8 +1,6 @@
 //! `gfx::picture_as_surface` (0x405FE7): makes the picture buffer the surface that the
 //! blitters draw on, so that sprites can be drawn into a picture.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! From `g_pictureFlags`: the low byte names the size (the table `dword_4F4E50`: 1 = 640 x
 //! 480, 2 = 800 x 600, 4 = 960 x 720, 8 = 1024 x 768, 0x10 = 1152 x 864, 0x20 = 1280 x 1024,
 //! 0x40 = 1600 x 1200, 0x80 = 1920 x 1280; anything else is fatal error 0x80A19091), bits 8

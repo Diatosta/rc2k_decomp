@@ -1,15 +1,13 @@
 //! `menu::in_game_options_loop` (0x47D8F7): the loop of the options menu opened during an
 //! event.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own (`SCREEN`),
 //! as extracted from the disassembly: background `opts.png`; leaving is not asked about; the
 //! Escape flag is looked at at the top of every frame; the steps that are more than a call or a
 //! store are the functions below, generated from the listing.
 //! The name is a reading from the title string of its menu, "OPÇÕES NO JOGO", not yet a visit.
 //! Callers: none in code: it is reached through a table. The menus and draw lists run its `entry`
-//! (`menu::table_calls`); the registers above are the original's, for reference.
+//! (`menu::table_calls`).
 
 use crate::errors::Refused;
 use crate::menu::screen_items_store::slot;

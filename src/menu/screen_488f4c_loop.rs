@@ -1,13 +1,10 @@
 //! `menu::screen_488f4c_loop` (0x488F4C): the loop of a screen with the results background.
 //!
-//! In:  nothing
-//! Out: every register preserved
 //! The loop itself is `menu::screen_loop`; this file says what is this screen's own
 //! (`SCREEN`), as extracted from the disassembly: background `results1.png` through
 //! `menu::load_background` (carry afterwards = fatal error 0x80712345); leaving is not asked
 //! about.
 //! Which screen it is has not been confirmed, hence the name. Its title string: "(empty)".
-//! Callers: `sub_48AD73`.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
 

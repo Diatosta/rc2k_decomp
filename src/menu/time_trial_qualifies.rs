@@ -3,9 +3,6 @@
 //! time); when that is not above (signed) the tenth entry's +0x14, `dword_755918` and
 //! `dword_755920` 1.
 //!
-//! In:  nothing
-//! Out: every register preserved (`pusha` .. `popa`)
-//!
 //! Callers: the time trial's events, after the results. Refuses (before anything) a current player
 //! past the four or missing, a stage kind past the table or a null pointer to the stage's records
 //! or times (`event_flow::stage_times`).

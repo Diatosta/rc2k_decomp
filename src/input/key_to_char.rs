@@ -1,7 +1,7 @@
 //! `input::key_to_char` (0x407E43): turns a key (a scan code) into the character it types
 //! with the current keyboard layout, shift state and pending dead key.
 //!
-//! In:  al = key
+//! Takes: key
 //! Out: al = the character, 0 if the key types none; carry = (al == 0), zero = (al == 1);
 //!      ebx, ecx, edx, esi, edi, ebp preserved. The rest of eax: untouched for a key release
 //!      (bit 7 set); else zero, except ah = the dead key that was stored or used.

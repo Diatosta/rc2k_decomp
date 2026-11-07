@@ -1,7 +1,6 @@
 //! `scene::list_object_faces` (0x45048C): goes through an object's faces and lists the
 //! ones to draw.
 //!
-//! In:  nothing
 //! Out: eax = the last face's number in the table, ecx = the number of faces, ebp = the
 //!      last face; everything else preserved
 //!
