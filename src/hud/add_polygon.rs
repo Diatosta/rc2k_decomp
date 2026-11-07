@@ -60,8 +60,11 @@ pub fn add_polygon(frame: &Frame, hud: &Hud) -> Result<(), Refused> {
             crate::hud::set_batch_texture::set_batch_texture(frame)?;
         }
         let vc = hud.block.vertex_count.get();
-        crate::pointers::GamePtr::to(&VERTICES.vertices).copy_to(
-            crate::pointers::GamePtr::to(&hud.block.vertices).offset(vc * 0x20),
+        crate::pointers::copy_between(
+            &VERTICES.vertices,
+            0,
+            &hud.block.vertices,
+            (vc * 0x20) as usize,
             (count * 0x20) as usize,
             "the hud's vertices",
         )?;

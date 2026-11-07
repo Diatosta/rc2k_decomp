@@ -41,11 +41,10 @@ pub fn index_of_kind(shared: &Shared, kind: u32) -> Result<u32, BadInput> {
     // dword_6051E0: 0x22 kinds, but `unknown_ba4` holds 32: the last two are the two dwords
     // after it (`view_share`, `camera_turn_step`), read as the original does.
     // Bounded by the whole store: the last two entries are past the table.
-    let first = crate::pointers::GamePtr::to(&shared.tables)
-        .offset(core::mem::offset_of!(crate::race::tables_store::RaceTables, unknown_ba4) as u32);
+    let first = core::mem::offset_of!(crate::race::tables_store::RaceTables, unknown_ba4);
     let trap = Trap::new();
     let order =
-        (0..KIND_ORDER_LEN).map(|n| trap.read_at::<u32>(first.offset(4 * n), "the kind order"));
+        (0..KIND_ORDER_LEN).map(|n| trap.load_at::<u32>(&shared.tables, first + 4 * n as usize));
     let place = rc2k_core::race::cars::index_of_kind(kind, order).unwrap_or(0);
     trap.finish()?;
     Ok(place)

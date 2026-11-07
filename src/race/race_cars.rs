@@ -6,7 +6,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::physics::car_store::Car;
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
@@ -122,8 +121,8 @@ pub fn set_player_car_kinds(shared: &Shared) {
 
 /// The cars' data text from its start, as the original reads it (past the buffer's end
 /// too).
-fn text_data(shared: &Shared) -> Result<crate::pointers::GameBytes, BadInput> {
-    GamePtr::to(&shared.tables.car_data_text).bytes("the cars' data text")
+fn text_data(shared: &Shared) -> crate::pointers::StoreBytes<'_> {
+    crate::pointers::StoreBytes(&shared.tables.car_data_text)
 }
 
 /// `race::set_up_race_cars` (0x4364AD): `reset_car_blocks`, `drop_absent_player`,
@@ -185,7 +184,7 @@ pub fn read_stage_car_numbers(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::stage::stage_car_numbers`.
     let len = TEXT_LEN as u32;
     let found = rc2k_core::race::stage::stage_car_numbers(
-        &text_data(&race.shared)?,
+        &text_data(&race.shared),
         len,
         race.shared.vars.stage_number.bits(),
     )?;

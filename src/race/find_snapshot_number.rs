@@ -14,7 +14,6 @@
 
 use crate::errors::BadInput;
 use crate::files::state::{SKIPPED_ATTRIBUTES, set_last_file_path};
-use crate::pointers::GamePtr;
 #[cfg(test)]
 #[cfg(test)]
 use crate::race::owner::race;
@@ -24,12 +23,6 @@ use crate::race::owner_replay::Replay;
 pub const SNAPSHOT_START: usize = 0x529731;
 /// The three digits' place in the name.
 pub const DIGITS_AT: usize = 0x12;
-
-/// Where the name's three digits are.
-pub fn digits_place(replay: &Replay) -> GamePtr {
-    // The name's bytes: a file name.
-    GamePtr::to(&replay.snapshot).offset(DIGITS_AT as u32)
-}
 
 /// `files::find_next_wanted` (0x402FF6): the next name not of the skipped attributes;
 /// false (carry) when there is none.
@@ -48,9 +41,9 @@ pub fn find_first(pattern: &[u8]) -> bool {
 /// The Rust version.
 pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
     // The name's bytes: a file name.
-    GamePtr::to(&replay.snapshot)
-        .offset(DIGITS_AT as u32)
-        .write(u32::from_le_bytes(*b"???."), "the snapshot name")?;
+    replay
+        .snapshot
+        .write_at(DIGITS_AT, b"???.", "the snapshot name")?;
     let mut highest = 0u32;
     // The pattern: the snapshot name's text, read where it is named.
     let found = match crate::files::cstring(&replay.snapshot, "a search pattern") {
@@ -78,9 +71,9 @@ pub fn find_snapshot_number(replay: &Replay) -> Result<(), BadInput> {
     }
     crate::files::search::close();
     let digits = crate::strings::format_u32::format_u32(highest, 0x13);
-    GamePtr::to(&replay.snapshot)
-        .offset(DIGITS_AT as u32)
-        .write_bytes(&digits, "the snapshot name")?;
+    replay
+        .snapshot
+        .write_at(DIGITS_AT, &digits, "the snapshot name")?;
     Ok(())
 }
 

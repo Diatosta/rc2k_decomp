@@ -7,17 +7,17 @@
 //! Callers: `sub_41D5FB`, `sub_41D846`, `sub_46020A`.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::marks_offset`.
 pub fn replay_frame_marks(race: &Race) -> Result<(), BadInput> {
     let replay = &race.replay;
-    let at = GamePtr::to(&crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras).offset(
-        rc2k_core::drive::replay_frames::marks_offset(replay.replay_view.replay_block.get()),
-    );
-    let marks: [u32; 2] = at.read("the replay frame's marks")?;
+    let at = rc2k_core::drive::replay_frames::marks_offset(replay.replay_view.replay_block.get());
+    let marks: [u32; 2] = crate::pointers::load_value(
+        &crate::race::viewer_buffers_store::VIEWER_BUFFERS.block_cameras,
+        at as usize,
+    )?;
     for (k, mark) in marks.into_iter().enumerate() {
         crate::race::viewer_buffers_store::VIEWER_BUFFERS.block[k].set(mark);
     }

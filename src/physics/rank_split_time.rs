@@ -29,13 +29,13 @@ use rc2k_core::physics::splits::{RIVALS, gap, rank, scaled_time, split_scale};
 /// A name into `text` (eight blanks first), its first eight bytes into `to`.
 fn name(id: u32, to: &[Dword; 2]) -> Result<(), crate::errors::BadInput> {
     let strings = strings();
-    let text = crate::pointers::GamePtr::to(&strings.text.buffer.text);
+    let text = &strings.text.buffer.text;
     strings.text.buffer.text.set_u32(0, 0x2020_2020);
     strings.text.buffer.text.set_u32(4, 0x2020_2020);
     let mut written = 0u32;
     let mut refused = None;
     append_string_by_id(id, &mut |bytes| {
-        if let Err(e) = text.offset(written).write_bytes(bytes, "a split name") {
+        if let Err(e) = crate::pointers::Store::store(text, written as usize, bytes) {
             refused.get_or_insert(e);
         }
         written += bytes.len() as u32;

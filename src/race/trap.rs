@@ -37,6 +37,16 @@ impl Trap {
         }
     }
 
+    /// As `read_at`, at byte `offset` of a store.
+    #[track_caller]
+    pub fn load_at<T: crate::pointers::Plain + Default>(
+        &self,
+        store: &dyn crate::pointers::Store,
+        offset: usize,
+    ) -> T {
+        self.keep_read(crate::pointers::load_value(store, offset))
+    }
+
     /// A checked read's answer, or its zero when refused (kept for `finish`).
     pub fn keep_read<T: Default>(&self, read: Result<T, BadInput>) -> T {
         read.unwrap_or_else(|e| {

@@ -73,9 +73,10 @@ pub fn read_driver_names(menus: &Menus, path: &[u8]) -> Result<(), BadInput> {
             return Err(BadInput("more driver names than their pool holds"));
         }
         let last = format_u32(DRIVERS as u32 - 1, 0x13);
-        crate::pointers::GamePtr::to(&strings.drivers.key)
-            .offset(4)
-            .write_bytes(&last, "a driver name's key")?;
+        strings
+            .drivers
+            .key
+            .write_at(4, &last, "a driver name's key")?;
         let mut pool = name_at(NAMES_LEN as u32);
         let mut pool_used = 0u32;
         for (driver, entry) in entries.iter().enumerate() {

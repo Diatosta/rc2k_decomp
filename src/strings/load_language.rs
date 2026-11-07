@@ -42,7 +42,6 @@ use crate::files::read_first_match::read_first_match;
 use crate::gfx::owner::gfx;
 use crate::input::layouts::layouts;
 use crate::menu::owner::menus;
-use crate::pointers::GamePtr;
 use crate::session::Bytes;
 use crate::strings::append_string_by_id::push_string;
 use crate::strings::owner::{Strings, Text, strings};
@@ -115,11 +114,10 @@ fn built(text: &Text, id: u32, with_nul: bool) -> Result<Vec<u8>, BadInput> {
             "a string of the language's set-up longer than expected",
         ));
     }
-    let at = GamePtr::to(&text.buffer.text);
-    at.write_bytes(&bytes, "the text buffer")?;
+    let buffer = &text.buffer.text;
+    buffer.write_at(0, &bytes, "the text buffer")?;
     if with_nul {
-        at.offset(bytes.len() as u32)
-            .write::<u8>(0, "the text buffer")?;
+        buffer.write_at(bytes.len(), &[0], "the text buffer")?;
     }
     Ok(bytes)
 }

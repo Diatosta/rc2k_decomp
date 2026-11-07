@@ -1397,6 +1397,57 @@ impl rc2k_core::strings::bytes::Bytes for GameBytes {
     }
 }
 
+/// A store's bytes as a reader (`rc2k_core::strings::bytes::Bytes`): the field's own bytes, none
+/// past its end.
+pub struct StoreBytes<'a>(pub &'a dyn Store);
+
+impl rc2k_core::strings::bytes::Bytes for StoreBytes<'_> {
+    fn byte(&self, at: usize) -> Option<u8> {
+        let mut byte = [0];
+        self.copy_run(at, &mut byte)?;
+        Some(byte[0])
+    }
+    fn copy_run(&self, at: usize, out: &mut [u8]) -> Option<()> {
+        let end = at.checked_add(out.len())?;
+        (end <= self.0.size() && self.0.load(at, out).is_ok()).then_some(())
+    }
+}
+
+/// The `T` at byte `offset` of `store` (any alignment; a run past the store is refused).
+pub fn load_value<T: Plain>(store: &dyn Store, offset: usize) -> Result<T, BadInput> {
+    let mut value = zeroed::<T>();
+    store.load(offset, bytes_mut(&mut value))?;
+    Ok(value)
+}
+
+/// `value` written at byte `offset` of `store` (a run past the store is refused).
+pub fn store_value<T: Plain>(store: &dyn Store, offset: usize, value: T) -> Result<(), BadInput> {
+    store.store(offset, bytes_of(&value))
+}
+
+/// `len` bytes copied from `from` at `from_at` to `to` at `to_at`: each side inside its own store
+/// (a run past either is refused, naming `what`).
+pub fn copy_between(
+    from: &dyn Store,
+    from_at: usize,
+    to: &dyn Store,
+    to_at: usize,
+    len: usize,
+    what: &str,
+) -> Result<(), BadInput> {
+    let mut bytes = vec![0; len];
+    from.load(from_at, &mut bytes).inspect_err(|_| {
+        log(&format!(
+            "pointers: {what}: {len} bytes read at {from_at:#x}"
+        ));
+    })?;
+    to.store(to_at, &bytes).inspect_err(|_| {
+        log(&format!(
+            "pointers: {what}: {len} bytes written at {to_at:#x}"
+        ));
+    })
+}
+
 /// `len` bytes from `addr` checked to lie in one region; outside, the program ends naming
 /// them (`fatal::raise::end`). For hot paths (the x87 runs' operands).
 #[track_caller]

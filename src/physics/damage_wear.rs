@@ -13,7 +13,6 @@ use crate::math::x87_float::{X, int, ld, st};
 use crate::physics::damage_gauges::raise;
 use crate::physics::flow::{hold_low, table_lerp};
 use crate::physics::store::DamageModel;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 use crate::session::Cell32;
 use core::mem::offset_of;
@@ -188,10 +187,9 @@ pub fn steps(race: &Race) {
     // column, as the original), blended by `dword_75B3F0`, x `flt_75B8BC`.
     let row = race.physics.damage.dword_75b3e8.bits() << 6;
     // The original runs on through the store, whatever the columns hold.
-    let store = GamePtr::to(&race.physics.damage);
-    let at = |field: usize, n: u32| store.offset((field as u32).wrapping_add(n));
-    let read = |at: GamePtr| {
-        at.read::<u32>("a car block's field")
+    let at = |field: usize, n: u32| (field as u32).wrapping_add(n);
+    let read = |at: u32| {
+        crate::pointers::load_value::<u32>(&race.physics.damage, at as usize)
             .unwrap_or_else(|e| crate::fatal::raise::end("a car block's field", e))
     };
     let wear = offset_of!(DamageModel, wear_table);

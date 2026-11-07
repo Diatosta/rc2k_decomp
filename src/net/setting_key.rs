@@ -36,9 +36,7 @@ pub fn setting_key(net: &'static Net, key: u8) -> Result<(), Refused> {
         chat::MOST_PLAYERS => {
             let number = {
                 crate::settings::parse_number::parse_number(
-                    &crate::pointers::GamePtr::to(&crate::install::owner::install().paths.path_a)
-                        .bytes("a settings number")
-                        .unwrap_or_else(|e| crate::fatal::raise::end("settings::parse_number", e)),
+                    &crate::install::owner::install().paths.path_a.read(),
                 )
             };
             net.vars.most_players.set(chat::most_players(

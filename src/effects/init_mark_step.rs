@@ -18,7 +18,6 @@
 
 use crate::effects::owner::Effects;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::Race;
@@ -54,12 +53,14 @@ pub fn init_mark_step(race: &Race, effects: &Effects) -> Result<(), Refused> {
             let kind = crate::physics::car_store::Car::at(block(n)).car_kind.get() as i32;
             // `dword_5C90D8 ..`: rows of 0x134 (`groups[5]` of the kind's record on).
             // Rows of the kind's record on, run on past it as the original does.
-            let row =
-                GamePtr::to(&LIGHT_RECORDS.records).offset((0x6C + race::kind_row(kind)) as u32);
+            let row = (0x6C + race::kind_row(kind)) as u32 as usize;
             let bad = crate::effects::Sticky::default();
             // Each field is a dword at a byte offset of the row, a run-on as the original.
             let fields = race::car_fields(n, |offset| {
-                bad.take(row.offset(offset as u32).read::<u32>("a mark's field"))
+                bad.take(crate::pointers::load_value::<u32>(
+                    &LIGHT_RECORDS.records,
+                    row + offset,
+                ))
             });
             bad.done()?;
             for (field, v) in fields {

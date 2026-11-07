@@ -20,7 +20,6 @@ use crate::errors::BadInput;
 use crate::input::layouts::{Current, layouts};
 use crate::input::owner::{Input, input};
 use crate::input::store::Devices;
-use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -85,11 +84,15 @@ fn typed(input: &Input, eax: u32, for_text: bool) -> Result<u32, BadInput> {
     let layout = layouts
         .layout(which)
         .ok_or(BadInput("no keyboard layout"))?;
+    let silent_keys: Vec<u8> = crate::session::read_all(&input.keyboard.silent_keys)
+        .iter()
+        .flat_map(|dword| dword.to_le_bytes())
+        .collect();
     let typed = keyboard::key_to_char(
         key,
         &layout.tables()?,
-        &GamePtr::to(&input.keyboard.compose).bytes("the compose table")?,
-        &GamePtr::to(&input.keyboard.silent_keys).bytes("the silent keys")?,
+        &input.keyboard.compose.read(),
+        &silent_keys,
         down(LEFT_SHIFT) || down(RIGHT_SHIFT),
         down(ALT_GR),
         input.devices.dead_key.get(),

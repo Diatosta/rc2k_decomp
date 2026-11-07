@@ -122,11 +122,11 @@ const MOVES_B: [(RecordField, BlockField); 9] = [
 /// The dword at `offset` of the block, for the offsets the core's tables give (bounded by the
 /// block).
 fn at(car: &Car, offset: u32) -> Result<u32, BadInput> {
-    GamePtr::to(car).offset(offset).read("a car's block")
+    crate::pointers::load_value(car, offset as usize)
 }
 
 fn put(car: &Car, offset: u32, v: u32) -> Result<(), BadInput> {
-    GamePtr::to(car).offset(offset).write(v, "a car's block")
+    crate::pointers::store_value(car, offset as usize, v)
 }
 
 /// The light record's number for the block, or the refusal.

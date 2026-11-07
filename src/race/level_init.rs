@@ -5,7 +5,7 @@
 //! files are read.
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
@@ -209,8 +209,8 @@ pub fn build_texture_infos(course: &Course) -> Result<(), Refused> {
                 out[4 + k].set(value);
             }
             // The record's byte at +0x1C and three at +0x2C are bytes inside their dwords.
-            GamePtr::to(&out[7]).write(t.byte, "a texture info")?;
-            GamePtr::to(&out[11]).write_bytes(&t.bytes, "a texture info")?;
+            out[7].store(0, &[t.byte])?;
+            out[11].store(0, &t.bytes)?;
             for (k, &value) in t.first.iter().enumerate() {
                 out[k].set(value);
             }

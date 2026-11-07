@@ -12,21 +12,23 @@
 
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
-use crate::race::find_snapshot_number::digits_place;
+use crate::race::find_snapshot_number::DIGITS_AT;
 use crate::race::owner_replay::Replay;
 
 /// The Rust version (see the header).
 pub fn viewer_snapshot(replay: &Replay) -> Result<(), Refused> {
-    let digits = digits_place(replay);
     // Converted: `rc2k_core::race::viewer::next_snapshot`.
     let what = "the snapshot's digits";
-    let (next, _, _) = rc2k_core::race::viewer::next_snapshot(
-        digits
-            .read(what)
-            .unwrap_or_else(|e| crate::fatal::raise::end(what, e)),
-    );
-    digits
-        .write(next, what)
+    let digits: [u8; 3] = replay
+        .snapshot
+        .read_at(DIGITS_AT, 3, what)
+        .unwrap_or_else(|e| crate::fatal::raise::end(what, e))
+        .try_into()
+        .expect("3 bytes");
+    let (next, _, _) = rc2k_core::race::viewer::next_snapshot(digits);
+    replay
+        .snapshot
+        .write_at(DIGITS_AT, &next, what)
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
     // `cmp g_surfaceLocked, 1`'s carry: not locked.
     if crate::platform::lock_surface() >= 1 {

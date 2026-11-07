@@ -4,7 +4,7 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
+use crate::pointers::{GamePtr, Store};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
@@ -118,12 +118,12 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
 pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
-    let records = GamePtr::to(&crate::race::light_records_store::LIGHT_RECORDS.records);
+    let records = &crate::race::light_records_store::LIGHT_RECORDS.records;
     let source = race.course.lights_data.lights.read();
-    let mut laid =
-        records.read_bytes(LIGHT_RECORDS as usize * LIGHT_RECORD, "the light records")?;
+    let mut laid = vec![0; LIGHT_RECORDS as usize * LIGHT_RECORD];
+    Store::load(records, 0, &mut laid)?;
     lay_lights(&source, &mut laid);
-    records.write_bytes(&laid, "the light records")
+    Store::store(records, 0, &laid)
 }
 
 /// `race::load_lights_data` (0x438AE5): `files\s\data\ldata` (0x1320 bytes at most) into

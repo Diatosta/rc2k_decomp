@@ -53,5 +53,9 @@ pub fn layout(handle: u32) -> Result<PixelFormat, BadInput> {
 pub use rc2k_core::gfx::pixels::PixelFormat;
 
 pub fn surface_format() -> Result<PixelFormat, BadInput> {
-    crate::pointers::GamePtr::to(&system().session.screen.format).read("the surface's format")
+    let format = &system().session.screen.format;
+    Ok(PixelFormat {
+        layout: format[0].get(),
+        masks: std::array::from_fn(|n| format[1 + n].get()),
+    })
 }

@@ -107,9 +107,7 @@ fn number_empty_names<const N: usize>(names: &Bytes<N>, id: u32) -> Result<(), B
             let bytes = rc2k_core::system::game_data::slot_name(&string, slot, NAME_LEN)
                 .ok_or(BadInput("a default name longer than its place"))?;
             // The name bytes at their slot in the names buffer.
-            crate::pointers::GamePtr::to(names)
-                .offset(name as u32)
-                .write_bytes(&bytes, "a default slot name")?;
+            names.write_at(name, &bytes, "a default slot name")?;
         }
     }
     Ok(())

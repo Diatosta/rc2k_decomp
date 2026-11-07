@@ -140,13 +140,14 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
         return failed();
     }
     // The file's header is bytes (a byte-level copy of its stage part).
-    GamePtr::to(&shared.replays.header)
-        .offset(0x30) // unk_528534
-        .copy_to(
-            GamePtr::to(&REPLAY_WORK.header_stage).unbounded(),
-            CAR_HEADER_LEN,
-            "the replay header's stage",
-        )?;
+    // unk_528534
+    let stage = shared
+        .replays
+        .header
+        .read_at(0x30, CAR_HEADER_LEN, "the replay header's stage")?;
+    GamePtr::to(&REPLAY_WORK.header_stage)
+        .unbounded()
+        .write_bytes(&stage, "the replay header's stage")?;
     crate::race::replay_patches::apply_replay_patches(race)?;
     Ok(false)
 }

@@ -73,9 +73,8 @@ impl rc2k_core::audio::streams::Player for GamePlayer<'_> {
 impl rc2k_core::audio::streams::Tunes for GamePlayer<'_> {
     fn name(&mut self, n: u32) {
         let d = crate::strings::format_u32::format_u32(n, 0x12);
-        let path = GamePtr::to(&self.state.music_path);
         // The tune's number written as text into the path, after its first 0xE bytes.
-        if let Err(e) = path.offset(0xE).write_bytes(&d, "a tune's path") {
+        if let Err(e) = self.state.music_path.write_at(0xE, &d, "a tune's path") {
             crate::fatal::raise::end("audio::stream_commands", e);
         }
     }

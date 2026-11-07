@@ -25,9 +25,7 @@ pub fn read_level_file(path: &[u8], buffer: GamePtr, room: u32) -> Result<Outcom
         return Ok(Outcome::of_read(&read(path, buffer, room)?));
     }
     let packed = rc2k_core::files::io::packed_level_path(path)?;
-    let at = GamePtr::to(&crate::files::state::PACKED_PATH)
-        .limited(crate::files::state::PACKED_PATH_LEN as u32);
-    at.write_bytes(&packed, "the packed path")?;
+    crate::files::state::PACKED_PATH.write_at(0, &packed, "the packed path")?;
     // The packed path as built (without its NUL).
     let text = &packed[..packed.iter().position(|&b| b == 0).unwrap_or(packed.len())];
     read_packed_file(text, buffer, room)

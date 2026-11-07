@@ -5,7 +5,6 @@
 
 use crate::errors::BadInput;
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 #[cfg(all(test, target_arch = "x86"))]
 use crate::race::owner::race;
@@ -147,7 +146,6 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
     }
     drawing.scene.polygon_textures[0].set(0xC0u32);
     drawing.scene.polygon_textures[1].set(0xC0u32);
-    let links = GamePtr::to(&frame.shadow_skids.skid_links);
     let matrix: [u32; 15] = crate::math::cells::load(&frame.matrices.view_matrix);
     // The last quad's two points (its link's number and the points as turned): a skidmark's
     // next quad has them as its two before, and nothing it is drawn with changes what they
@@ -161,7 +159,7 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
                 Ok(u16::from_le_bytes([table.get(at), table.get(at + 1)]))
             } else {
                 // past the table, by address, as the original reads on
-                links.offset(at as u32).read::<u16>("a skidmark link")
+                crate::pointers::load_value::<u16>(table, at)
             }
         };
         let before = link(8 * n)? as i16 as i32 as u32;

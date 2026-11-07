@@ -16,7 +16,6 @@
 
 use crate::errors::Refused;
 use crate::hud::owner::Hud;
-use crate::pointers::GamePtr;
 use crate::race::owner_frame::Frame;
 use crate::session::Dword;
 
@@ -68,9 +67,7 @@ pub fn bars(
             .iter()
             .map(|&k| {
                 let kind: u32 = k[n as usize].get();
-                GamePtr::to(&hud.block.stage_colours)
-                    .offset(kind)
-                    .read("a stage bar's colour")
+                crate::pointers::load_value(&hud.block.stage_colours, kind as usize)
             })
             .collect::<Result<_, _>>()?;
         for (to, &c) in colour_vars.iter().zip(&colours) {

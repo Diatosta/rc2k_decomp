@@ -16,7 +16,6 @@
 //! refuses (everything written put back).
 
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
@@ -24,10 +23,7 @@ use rc2k_core::drive::replay_views::{WishStep, wish_step};
 
 /// Byte `k` of the frame's head (the first car block's start, `g_carBlockStore`).
 fn head_byte(k: usize) -> Result<u32, BadInput> {
-    GamePtr::to(&CAR_BLOCKS.cars[0].unknown_0)
-        .offset(k as u32)
-        .read::<u8>("a car's block")
-        .map(u32::from)
+    crate::pointers::load_value::<u8>(&CAR_BLOCKS.cars[0].unknown_0, k).map(u32::from)
 }
 
 /// `dword_719F14[head byte]`: the table holds 47; a larger byte reads on into the

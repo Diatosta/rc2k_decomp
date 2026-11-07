@@ -31,5 +31,5 @@ pub fn format_seal_code(a: u32, b: u32) -> Result<(), crate::errors::BadInput> {
     replay.seal_work.sealed[0].set(a);
     replay.seal_work.sealed[1].set(b);
     let code = seal_code(a, b);
-    crate::pointers::GamePtr::to(&SEAL_TEXT).write_bytes(&code, "the seal text")
+    SEAL_TEXT.write_at(0, &code, "the seal text")
 }
