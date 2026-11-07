@@ -3,12 +3,8 @@
 //! game's own code (hooked DLL) runs the originals, on the same lists.
 
 pub mod free_list;
-pub mod free_own_heap;
-pub mod open_own_heap;
 pub mod owned;
-pub mod pages;
 pub mod take_from_list;
-pub mod virtual_alloc;
 
 /// A list of blocks: what `allocate` adds to and `free_list` gives back in one go. Every
 /// user of the allocator has one of its own. (`rc2k_core::memory::List`, laid out as the
@@ -69,7 +65,7 @@ impl ListCells {
 pub const HEADER_LEN: u32 = rc2k_core::memory::HEADER_LEN;
 
 /// The allocator's variables, out of the image since 2026-10-24 (phase 5; they were
-/// `dword_4E0578` .. `dword_4E0590`, 7 dwords). Atomics: any thread allocates. `OWN_HEAP` and
+/// `dword_4E0578` .. `dword_4E0588`, 5 dwords). Atomics: any thread allocates. `OWN_HEAP` and
 /// `OWN_HEAP_KB` are `var\ral.cfg` settings (`altmemenable`, `altmemsize`, through
 /// `crate::moved::place`). Each has its own entry in `moved::MOVED`.
 pub mod state {
@@ -81,15 +77,14 @@ pub mod state {
     /// dword_4E0580: all bytes ever asked for ("MEM: memory turnover= .. maximum load= .."
     /// in the game's log).
     pub static TURNOVER: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E0584, the setting `altmemenable`: 1 = blocks come from a heap of the game's
-    /// own (`sub_402A05`, `sub_402A92`, not ported) and not from `VirtualAlloc`.
+    /// dword_4E0584, the setting `altmemenable`: in the original, 1 = blocks come from a heap
+    /// of the game's own and not from `VirtualAlloc`. Read and not used: the own heap was
+    /// removed (2026-11-07; every block is Rust's memory, nothing the player sees changes).
     pub static OWN_HEAP: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E0588: the heap's Kb (the setting `altmemsize`), 0x10000 in the image.
+    /// dword_4E0588: the heap's Kb (the setting `altmemsize`), 0x10000 in the image. Read and
+    /// not used (see `OWN_HEAP`). (`dword_4E058C` / `dword_4E0590`, the heap's memory, went
+    /// with it.)
     pub static OWN_HEAP_KB: crate::session::Dword = crate::session::Dword::new(0x10000);
-    /// dword_4E058C: the heap's memory.
-    pub static HEAP_BASE: crate::session::Dword = crate::session::Dword::new(0);
-    /// dword_4E0590: the heap's memory (set with `HEAP_BASE`).
-    pub static HEAP_CURSOR: crate::session::Dword = crate::session::Dword::new(0);
 }
 
 /// `bytes` of Rust's memory counted on `list` as `allocate` counts a block it takes (the
@@ -108,11 +103,6 @@ pub fn figures() -> rc2k_core::memory::Figures {
         held: state::HELD.get(),
         turnover: state::TURNOVER.get(),
     }
-}
-
-/// `altmemenable` now (`dword_4E0584`).
-pub fn own_heap() -> u32 {
-    state::OWN_HEAP.get()
 }
 
 /// The three figures loaded from the game, changed by `f`, stored back (only those that
@@ -146,19 +136,11 @@ mod tests {
     #[test]
     fn variables_start_as_the_games() {
         let _lock = crate::store::test_lock();
-        let d = image_bytes(0x4E0578, 28);
+        let d = image_bytes(0x4E0578, 20);
         let word = |n: usize| u32::from_le_bytes(d[n * 4..n * 4 + 4].try_into().unwrap());
-        for (n, v) in [
-            &MOST_HELD,
-            &HELD,
-            &TURNOVER,
-            &OWN_HEAP,
-            &OWN_HEAP_KB,
-            &HEAP_BASE,
-            &HEAP_CURSOR,
-        ]
-        .iter()
-        .enumerate()
+        for (n, v) in [&MOST_HELD, &HELD, &TURNOVER, &OWN_HEAP, &OWN_HEAP_KB]
+            .iter()
+            .enumerate()
         {
             assert_eq!(word(n), v.get(), "dword {n}");
         }

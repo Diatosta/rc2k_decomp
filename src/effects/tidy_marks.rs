@@ -13,16 +13,16 @@
 //! flag-setting instruction is a `test`), so its other path (a `push` left on the stack and
 //! a count of 0x1FFFFFFF: section 16) is never taken. Caller: the stage's unload
 //! (0x4449AE). Refuses (before anything) null settings, a cars' count below 0 or above 8
-//! (the original's loop runs until it meets the count), and the game's own heap with a list
-//! that holds blocks (`free_list`'s refusal).
+//! (the original's loop runs until it meets the count), and a list that holds a block
+//! (`free_list`'s refusal; none is put on a list since the own heap's removal, 2026-11-07).
 
 use crate::effects::mask_store::Masks;
 use crate::effects::owner::Effects;
 use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
+use crate::memory::MemoryList;
 use crate::memory::free_list::{free_list, free_list_at};
-use crate::memory::{MemoryList, own_heap};
 use crate::pointers::{GamePtr, Store, load_value};
 
 // `sub_4D06F3`'s ebp: the settings' +0x29C for car 0.
@@ -67,8 +67,8 @@ pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
     if !(0..=MOST_CARS).contains(&count) {
         return Err(BadInput("a cars' count below 0 or above 8").into());
     }
-    if own_heap() == 1 && any_holds_blocks(ring, masks)? {
-        return Err(BadInput("the game's own heap is in use with a list holding blocks").into());
+    if any_holds_blocks(ring, masks)? {
+        return Err(BadInput("a memory list holding a block").into());
     }
     for n in 0..count as u32 {
         let car = &marks.cars[n as usize];

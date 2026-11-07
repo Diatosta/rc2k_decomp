@@ -207,16 +207,6 @@ pub(crate) const MOVED: &[Moved] = &[
         len: 4,
         home: Home::Store(&crate::memory::state::OWN_HEAP_KB),
     },
-    Moved {
-        ida: 0x4E058C, // g_ownHeapBase
-        len: 4,
-        home: Home::Store(&crate::memory::state::HEAP_BASE),
-    },
-    Moved {
-        ida: 0x4E0590, // g_ownHeapCursor
-        len: 4,
-        home: Home::Store(&crate::memory::state::HEAP_CURSOR),
-    },
     // settings (`read_driver_names`' work areas), threading (the thread slots)
     Moved {
         ida: 0x529DA5, // aName000: the driver names' key, made in place

@@ -7,18 +7,17 @@
 //! Out: every register kept (`pusha` .. `popa`)
 //!
 //! One caller, `start`'s way out, which calls it directly (2026-10-23). Refuses (before
-//! anything) what `free_list` refuses: the game's own heap with blocks on the list. The
+//! anything) what `free_list` refuses: a list holding a block. The
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
-use crate::memory::own_heap;
 
 /// The Rust version (see the header).
 pub fn free_picture_buffer() -> Result<(), BadInput> {
     let pictures = &gfx().pictures;
-    if pictures.picture.list.get().head != 0 && own_heap() == 1 {
-        return Err(BadInput("the game's own heap is in use (altmemenable)"));
+    if pictures.picture.list.get().head != 0 {
+        return Err(BadInput("a memory list holding a block"));
     }
     pictures.picture.flags.set(0u32);
     pictures.picture.buffer.set(0u32);

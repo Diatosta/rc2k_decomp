@@ -8,13 +8,13 @@
 //! for itself). Another thread's step is waited for.
 
 use crate::errors::{BadInput, Refused};
-use crate::memory::{MemoryList, own_heap, with_figures};
+use crate::memory::{MemoryList, with_figures};
 use crate::pointers::{load_value, store_value};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
 /// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
-/// memory figures). Refuses what `allocate` refuses: the game's own heap, a size that with
+/// memory figures). Refuses what `allocate` refuses: a size that with
 /// the header wraps.
 pub fn count_on(list: &dyn crate::pointers::Store, bytes: u32) -> Result<(), Refused> {
     check_count(bytes)?;
@@ -41,9 +41,6 @@ pub fn count_on_at(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Ref
 }
 
 fn check_count(bytes: u32) -> Result<(), Refused> {
-    if own_heap() == 1 {
-        return Err(BadInput("the game's own heap is in use (altmemenable)").into());
-    }
     if rc2k_core::memory::block_size(bytes).is_none() {
         return Err(BadInput("no list, or a size that wraps").into());
     }

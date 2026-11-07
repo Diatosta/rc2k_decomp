@@ -422,10 +422,7 @@ fn start() {
     rust("system::read_windows_version");
     crate::system::read_windows_version::read_windows_version();
     // `CoInitialize` (no COM is used on this thread since phase 11).
-    rust("memory::open_own_heap");
-    if let Err(e) = crate::memory::open_own_heap::open_own_heap() {
-        refused("memory::open_own_heap", e, &r);
-    }
+    // `memory::open_own_heap` (0x40298A): the own heap was removed (2026-11-07).
     rust("system::set_error_mode");
     crate::system::set_error_mode::set_error_mode();
     rust("settings::read_settings");
@@ -601,8 +598,7 @@ fn start() {
     }
     rust("system::restore_error_mode");
     crate::system::restore_error_mode::restore_error_mode();
-    rust("memory::free_own_heap");
-    crate::memory::free_own_heap::free_own_heap();
+    // `memory::free_own_heap` (0x4029DB): the own heap was removed (2026-11-07).
     // `CoUninitialize` (see `CoInitialize`).
     rust("fatal::show_report_at_exit");
     crate::fatal::show_report_at_exit::show_report_at_exit();

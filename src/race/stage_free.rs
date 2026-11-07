@@ -5,7 +5,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
-use crate::memory::{MemoryList, own_heap};
+use crate::memory::MemoryList;
 use crate::race::owner::Race;
 
 /// One of the freeing functions: its list (where it is, found when it runs: the statics
@@ -108,13 +108,13 @@ pub const FONTS: Freeing = Freeing {
 /// pointers 0. The original leaves eax the total, ebx the list and carry clear
 /// (`counted`); no caller reads them (taint at every site of `render3d_tidy`,
 /// `objects_tidy` and in `tidy_stage`: 0 reads). Refuses, before anything, a list with a
-/// block while the game's own heap is in use (`free_list` refuses it).
+/// block (`free_list` refuses it).
 pub fn free(race: &Race, f: &Freeing) -> Result<(), Refused> {
     let course = &race.course;
     let l = (f.list)(race);
     let list = crate::pointers::load_value::<MemoryList>(l, 0)?;
-    if list.head != 0 && own_heap() == 1 {
-        return Err(BadInput("the game's own heap is in use (altmemenable)").into());
+    if list.head != 0 {
+        return Err(BadInput("a memory list holding a block").into());
     }
     if f.counted {
         // dword_5C6F90

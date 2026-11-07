@@ -1,7 +1,7 @@
 //! The game's own pointers (the 32-bit addresses its data holds), checked against what is
 //! there (owner, 2026-10-25: "checked against allocations", `notes/improvements.md`).
 //!
-//! Every block the game takes from the system (`memory::allocate`, `memory::virtual_alloc`)
+//! Every block the game takes from the system (`memory::allocate`)
 //! is registered here with its length and taken off when it is given back
 //! (`memory::free_list`); the moved stores (`moved::MOVED`) are regions too. A `GamePtr` is
 //! such an address: its reads find the region it lies in and answer only inside it. One
@@ -31,15 +31,6 @@ pub mod pool;
 
 /// The blocks taken from the system: start -> length.
 static BLOCKS: RwLock<BTreeMap<u32, u32>> = RwLock::new(BTreeMap::new());
-
-/// A block taken from the system with `VirtualAlloc`: its region is what the system commits,
-/// the bytes asked for rounded up to whole pages. The original's reads a few bytes past its
-/// block's end land there and always answered (`gfx::rescale_picture`'s last column, up to
-/// 3 bytes past its copy; `notes/bugs.md`).
-pub fn register_system_block(start: u32, len: u32) {
-    const PAGE: u32 = 0x1000;
-    register(start, len.div_ceil(PAGE).saturating_mul(PAGE));
-}
 
 /// A block taken from the system (`len` bytes from `start`, header included).
 pub fn register(start: u32, len: u32) {
@@ -341,18 +332,13 @@ pub fn lend(p: impl HostPointer, len: usize) -> u32 {
 }
 
 /// A block of the pool lent to the game until `forget_block`: a game range over the whole
-/// block, a region of `len` bytes from its start (whole pages for a block from the system,
-/// `system`: `register_system_block`), the block its store. Its game address.
-pub fn lend_block(block: &'static pool::PoolBlock, len: usize, system: bool) -> u32 {
+/// block, a region of `len` bytes from its start, the block its store. Its game address.
+pub fn lend_block(block: &'static pool::PoolBlock, len: usize) -> u32 {
     let at = map(block.as_ptr(), block.len());
     if let Ok(mut homes) = POOL_HOMES.write() {
         homes.insert(at, block);
     }
-    if system {
-        register_system_block(at, len as u32);
-    } else {
-        register(at, len as u32);
-    }
+    register(at, len as u32);
     at
 }
 
@@ -1572,7 +1558,7 @@ impl LentBytes {
         Self {
             block,
             len: bytes.len(),
-            game: lend_block(block, bytes.len(), false),
+            game: lend_block(block, bytes.len()),
         }
     }
 
