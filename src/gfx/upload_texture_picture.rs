@@ -51,7 +51,7 @@ pub struct GameSurfaces;
 impl Surfaces for GameSurfaces {
     fn lock(&mut self, surface: u32) -> Result<(u32, u32), i32> {
         let card = &gfx().card;
-        match crate::platform_3d::lock_surface(surface, card.upload.description.addr()) {
+        match crate::platform_3d::lock_surface(surface, &card.upload.description) {
             0 => Ok((
                 card.upload.description.pixels.get(),
                 card.upload.description.pitch.get(),

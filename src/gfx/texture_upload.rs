@@ -192,10 +192,6 @@ impl FormatCell {
         change(&mut format);
         self.set(format);
     }
-
-    pub fn addr(&self) -> u32 {
-        crate::pointers::game_address(std::ptr::from_ref(self))
-    }
 }
 
 /// IDA's address of the 3D card's tables.
@@ -317,22 +313,11 @@ impl Textures {
         if pool == 0 { &self.system } else { &self.video }
     }
 
-    /// Where kind `n`'s description is (0: none). A value that is no handle ends the
-    /// program.
-    // A number: the record's kind field is a game address other modules read.
-    pub fn kind(&self, n: usize) -> u32 {
-        let handle = self.kinds[n].get();
-        if handle == 0 {
-            return 0;
-        }
-        let k = (handle ^ FORMAT_TAG) as usize;
-        if k >= self.descriptions.len() {
-            crate::fatal::raise::end(
-                "gfx::texture_upload::kind",
-                BadInput("a texture kind's handle that names none"),
-            );
-        }
-        self.descriptions[k].addr()
+    /// The description a format value names: a handle (`FORMAT_TAG | k`); None for 0 and
+    /// for a number that is no handle (a kind read past the table).
+    pub fn description(&self, format: u32) -> Option<&FormatCell> {
+        let k = format.checked_sub(FORMAT_TAG)?;
+        self.descriptions.get(k as usize)
     }
 
     /// Kind `n`'s description's number in `descriptions` (None: none). A value that is no
@@ -353,10 +338,11 @@ impl Textures {
     }
 
     /// The kinds table's entry `n`, read where the original reads it (not checked against
-    /// the table: a kind past it reads on into the descriptions' bytes).
+    /// the table: a kind past it reads on into the descriptions' bytes, a raw number that
+    /// is no handle). Inside the table: the description's handle, 0 none.
     pub fn kind_entry(&self, n: usize) -> u32 {
         if n < self.kinds.len() {
-            return self.kind(n);
+            return self.kind_index(n).map_or(0, |k| FORMAT_TAG | k as u32);
         }
         // Bounded to the whole table (the kinds are followed by the descriptions).
         crate::pointers::GamePtr::to(self)
@@ -390,13 +376,10 @@ impl Record {
     }
 
     fn texture_format(&self) -> Result<TextureFormat, BadInput> {
-        let at = self.get().format;
         gfx()
             .card
             .texture_tables
-            .descriptions
-            .iter()
-            .find(|d| d.addr() == at)
+            .description(self.get().format)
             .map(FormatCell::get)
             .ok_or(BadInput("a texture's format that names no description"))
     }

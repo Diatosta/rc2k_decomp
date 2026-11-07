@@ -27,8 +27,7 @@ pub fn lock_texture(texture: u32) -> Result<Flags, Refused> {
         Lock::Nothing => {}
         Lock::Twice => return Err(fatal(LOCKED_TWICE).into()),
         Lock::Lock => {
-            let d = gfx().card.upload.description.addr();
-            if crate::platform_3d::lock_surface(surface, d) != 0 {
+            if crate::platform_3d::lock_surface(surface, &gfx().card.upload.description) != 0 {
                 return Err(fatal(LOCK_FAILED).into());
             }
             put_field(r, 0x60, 1);

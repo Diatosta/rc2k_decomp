@@ -23,15 +23,16 @@ pub fn texture_kind_format(n: usize) -> u32 {
     }
 }
 
-/// The handle for the layout of the texture description at game address `description`
-/// (a texture record's kind, whose +8 the original keeps): one that is no description's
-/// gives a handle no read finds, as the original's read there would go wrong.
-// `description` is the number a texture record keeps in its kind field.
+/// The handle for the layout of the texture description `description` names (a texture
+/// record's kind field, a `FORMAT_TAG` handle, whose +8 the original keeps): a value that
+/// is none gives a handle no read finds, as the original's read there would go wrong.
 pub fn texture_description_format(description: u32) -> u32 {
-    let descriptions = &gfx().card.texture_tables.descriptions;
-    match descriptions.iter().position(|d| d.addr() == description) {
-        Some(k) => TEXTURE_FORMAT | k as u32,
-        None => NO_TEXTURE_FORMAT,
+    use crate::gfx::texture_upload::FORMAT_TAG;
+    match description.checked_sub(FORMAT_TAG) {
+        Some(k) if (k as usize) < gfx().card.texture_tables.descriptions.len() => {
+            TEXTURE_FORMAT | k
+        }
+        _ => NO_TEXTURE_FORMAT,
     }
 }
 

@@ -165,7 +165,7 @@ fn object(number: usize) -> u32 {
 /// DirectDraw's `Lock` of a texture's surface (`d3d::lock_texture`,
 /// `gfx::upload_texture_picture`): the pixels' address at +0x24 and the pitch at +0x10 of
 /// the surface description at `description`; `NOT_THERE` for a surface with no memory.
-pub fn lock_surface(surface: u32, description: u32) -> i32 {
+pub fn lock_surface(surface: u32, description: &crate::gfx::upload::SurfaceDesc) -> i32 {
     let number = surface.wrapping_sub(1) as usize;
     // The texture is to be written: the noted drawing that reads it first (only then:
     // the mud's, the map's and the HUD's textures are locked every frame).
@@ -184,9 +184,8 @@ pub fn lock_surface(surface: u32, description: u32) -> i32 {
     let mut memory = LEVELS_MEMORY.lock().unwrap();
     match memory.get_mut(number).and_then(|l| l.as_mut()) {
         Some(level) => {
-            let what = "a surface description";
-            crate::pointers::write_or_end(description + 0x24, level.pixels.addr(), what);
-            crate::pointers::write_or_end(description + 0x10, level.pitch, what);
+            description.pixels.set(level.pixels.addr());
+            description.pitch.set(level.pitch);
             0
         }
         None => NOT_THERE,
@@ -424,16 +423,10 @@ fn level_of(
     level
 }
 
-/// The texture format at `format`: one of the card's descriptions read in place, else
-/// through the game's memory.
+/// The texture format at `format`: the description a handle names, else (a kind read past
+/// the table) a number read through the game's memory.
 fn format_at(format: u32) -> TextureFormat {
-    match gfx()
-        .card
-        .texture_tables
-        .descriptions
-        .iter()
-        .find(|d| d.addr() == format)
-    {
+    match gfx().card.texture_tables.description(format) {
         Some(d) => d.get(),
         None => crate::pointers::read_or_end::<TextureFormat>(format, "a texture format"),
     }
@@ -458,7 +451,7 @@ pub fn copy_screen_to_system_texture(number: u32) {
     if record.format == 0 || record.width == 0 || record.height == 0 {
         return;
     }
-    let format = crate::pointers::read_or_end::<TextureFormat>(record.format, "a texture format");
+    let format = format_at(record.format);
     let bytes = format.bytes_per_pixel as usize;
     let masks = format.format.masks;
     let mut memory = LEVELS_MEMORY.lock().unwrap();
@@ -623,8 +616,7 @@ fn make_texture(
         record.height = height;
         record.format = description;
         record.levels = levels;
-        let bytes = crate::pointers::read_or_end::<TextureFormat>(description, "a texture format")
-            .bytes_per_pixel;
+        let bytes = format_at(description).bytes_per_pixel;
         let mut memory = LEVELS_MEMORY.lock().unwrap();
         levels_changed();
         if memory.is_empty() {

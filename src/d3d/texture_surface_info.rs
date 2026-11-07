@@ -10,7 +10,7 @@
 //!
 //! Caller: `d3d::lock_texture`.
 
-use crate::d3d::texture_lock::{field, get};
+use crate::d3d::texture_lock::field;
 use crate::gfx::owner::gfx;
 
 /// The Rust version (see the header).
@@ -24,7 +24,7 @@ pub fn texture_surface_info(
     let f = rc2k_core::d3d::textures::surface_info(
         field(record, 4),
         field(record, 8),
-        get(kind + 4),
+        bytes_per_pixel(kind),
         crate::gfx::pixel_format::texture_description_format(kind),
         description.pitch.get(),
         description.pixels.get(),
@@ -50,4 +50,13 @@ pub fn texture_surface_info(
         [&surface.x, &surface.y, &surface.width, &surface.height].map(crate::session::Dword::get),
     );
     Ok(())
+}
+
+/// The bytes a pixel of the description a record's kind field names: a handle, else (a kind
+/// read past the table) the dword at +4 of that number as an address.
+fn bytes_per_pixel(kind: u32) -> u32 {
+    match gfx().card.texture_tables.description(kind) {
+        Some(d) => d.get().bytes_per_pixel,
+        None => crate::d3d::texture_lock::get(kind.wrapping_add(4)),
+    }
 }

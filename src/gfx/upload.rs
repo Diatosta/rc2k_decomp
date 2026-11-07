@@ -77,7 +77,8 @@ impl Upload {
 }
 
 impl SurfaceDesc {
-    /// Where the description is, for the surface's `Lock`.
+    /// Where the description is (the tests).
+    #[cfg(test)]
     pub fn addr(&self) -> u32 {
         crate::pointers::game_address(std::ptr::from_ref::<SurfaceDesc>(self))
     }
