@@ -13,10 +13,6 @@ use crate::gfx::owner::gfx;
 
 /// The Rust version (see the header).
 pub fn free_glyph_tables() -> Result<(), Refused> {
-    {
-        crate::memory::free_list::free_list(crate::pointers::GamePtr::to(
-            &gfx().fonts.glyph_tables.memory,
-        ))
-    }?;
+    { crate::memory::free_list::free_list(&gfx().fonts.glyph_tables.memory) }?;
     Ok(())
 }

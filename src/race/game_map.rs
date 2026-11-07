@@ -180,7 +180,7 @@ fn take_tiles(frame: &Frame) -> Result<(), Refused> {
 
 /// The pixels' block taken (`bytes` counted on the map's list), zeroed.
 fn take_pixels(frame: &Frame, bytes: u32) -> Result<(), Refused> {
-    crate::memory::owned::count_on(list(&frame.map.list), bytes)?;
+    crate::memory::owned::count_on_at(list(&frame.map.list), bytes)?;
     GAME_MAP.with(|m| m.pixels = vec![0; bytes as usize])?;
     Ok(())
 }
@@ -201,8 +201,8 @@ fn put_pixels(at: usize, bytes: &[u8]) -> Result<(), BadInput> {
 pub fn free_game_map(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
-    crate::memory::free_list::free_list(list(&frame.map.key_list))?;
-    crate::memory::free_list::free_list(list(&frame.map.list))?;
+    crate::memory::free_list::free_list_at(list(&frame.map.key_list))?;
+    crate::memory::free_list::free_list_at(list(&frame.map.list))?;
     GAME_MAP.give_back();
     for cell in [
         &frame.map.key_pixels,
@@ -312,7 +312,7 @@ pub fn load_packed_game_map(frame: &Frame, path: &[u8]) -> Result<(), Refused> {
 pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Result<(), Refused> {
     let pictures = &gfx().pictures;
     if frame.map.use_packed.get() == 1
-        && !crate::files::file_exists::file_exists(&crate::files::cstring(
+        && !crate::files::file_exists::file_exists(&crate::files::cstring_at(
             picture,
             "a map picture's path",
         )?)?
@@ -330,7 +330,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
         // The packed path as built in the buffer.
         load_packed_game_map(
             frame,
-            &crate::files::cstring(path, "the packed map's path")?,
+            &crate::files::cstring_at(path, "the packed map's path")?,
         )?;
         return Ok(());
     }
@@ -357,7 +357,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
     pictures.picture.row_bytes.set(KEY_ROW_BYTES);
     pictures.picture.buffer.set(key);
     let built = (|| -> Result<(), Refused> {
-        if !crate::gfx::read_sheet::read_sheet(&crate::files::cstring(
+        if !crate::gfx::read_sheet::read_sheet(&crate::files::cstring_at(
             key_path,
             "the key sheet's path",
         )?)? {
@@ -459,7 +459,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
     pictures.pcx.height_limit.set(kept[1]);
     pictures.pcx.width_limit.set(kept[0]);
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
-    crate::memory::free_list::free_list(list(&frame.map.key_list))?;
+    crate::memory::free_list::free_list_at(list(&frame.map.key_list))?;
     frame.map.key_pixels.set(0u32);
     Ok(())
 }

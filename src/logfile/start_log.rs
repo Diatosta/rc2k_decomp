@@ -65,7 +65,7 @@ pub fn start_log() -> Result<(), BadInput> {
     // the memory and the drive's numbers left in game memory as the original leaves
     // them), then each message logged as the original's call.
     use rc2k_core::files::log::{Machine, Message, head};
-    let c_text = |p: crate::pointers::GamePtr| crate::files::cstring(p, "a start-up text");
+    let c_text = |p: crate::pointers::GamePtr| crate::files::cstring_at(p, "a start-up text");
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
     let scratch = crate::pointers::GamePtr::to(&system.work.numbers);

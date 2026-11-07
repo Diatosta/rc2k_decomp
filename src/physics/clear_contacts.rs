@@ -13,8 +13,5 @@ const COUNT: u32 = 7;
 
 /// The Rust version.
 pub fn clear_contacts(shared: &Shared) -> Result<(), Refused> {
-    clear_records(
-        crate::pointers::GamePtr::to(&shared.physics_tables.contacts),
-        COUNT,
-    )
+    clear_records(&shared.physics_tables.contacts, COUNT)
 }

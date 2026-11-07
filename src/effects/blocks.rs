@@ -23,10 +23,7 @@ pub const SETTINGS_BLOCKS: u32 = 8;
 /// reaches reads the block (0x4C3908, 0x4C396A, `sub_4C39D5`: `notes/reference.md`), so
 /// since phase 12 it is only counted on its list (the memory figures) and not kept.
 pub fn allocate_places() -> Result<(), Refused> {
-    crate::memory::owned::count_on(
-        crate::pointers::GamePtr::to(&effects().blocks.places.list),
-        PLACES_LEN,
-    )
+    crate::memory::owned::count_on(&effects().blocks.places.list, PLACES_LEN)
 }
 
 /// A particle of the ring (`g_marksRing`'s 0x4C-byte entries), its dwords by their
@@ -102,10 +99,7 @@ pub fn allocate_ring(particles: &Particles, ring: &Ring) -> Result<(), Refused> 
 /// (0x4C5446 .. 0x4C5DEA, `sub_4C6242`: `notes/reference.md`), so since phase 12 it is
 /// only counted on its list (the memory figures) and not kept.
 pub fn allocate_links() -> Result<(), Refused> {
-    crate::memory::owned::count_on(
-        crate::pointers::GamePtr::to(&effects().blocks.links.list),
-        LINKS_LEN,
-    )?;
+    crate::memory::owned::count_on(&effects().blocks.links.list, LINKS_LEN)?;
     scale_corners();
     Ok(())
 }

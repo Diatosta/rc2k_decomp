@@ -72,10 +72,7 @@ pub fn begin_glyph_tables(vars: &SheetVars) -> Result<(), Refused> {
     // (The original's fatal error 0x80E48021 for no memory cannot come: the allocator
     // reports its own.) Only counted: the work memory holds nothing Rust reads back
     // (`build_glyphs` keeps the sheet's table in its own bytes).
-    crate::memory::owned::count_on(
-        crate::pointers::GamePtr::to(&strings.lexicon.memory.memory),
-        bytes,
-    )?;
+    crate::memory::owned::count_on(&strings.lexicon.memory.memory, bytes)?;
     vars.table.set(0u32);
     vars.table_size.set(0u32);
     Ok(())
@@ -93,9 +90,7 @@ pub fn begin_glyph_table(vars: &SheetVars, list: crate::pointers::GamePtr) -> Re
 }
 
 pub fn end_glyph_tables() -> Result<(), BadInput> {
-    free_list(crate::pointers::GamePtr::to(
-        &strings().lexicon.memory.memory,
-    ))
+    free_list(&strings().lexicon.memory.memory)
 }
 
 /// The last sheet's palette as 256 pixels of the builder's layout at `to`; nothing if `to`

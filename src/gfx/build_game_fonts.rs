@@ -87,7 +87,7 @@ pub fn build_game_fonts(vars: &SheetVars, pixels_b: &crate::session::Dword) -> R
         .get()
         .wrapping_mul(0x400)
         .wrapping_mul(system().session.screen.bytes.get());
-    crate::memory::owned::count_on(list, bytes)?;
+    crate::memory::owned::count_on_at(list, bytes)?;
     rewind_list(list)?;
     begin_glyph_tables(vars)?;
     gfx.pictures

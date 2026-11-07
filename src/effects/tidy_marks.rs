@@ -21,7 +21,7 @@ use crate::effects::owner::Effects;
 use crate::effects::owner::effects;
 use crate::effects::ring_store::Ring;
 use crate::errors::{BadInput, Refused};
-use crate::memory::free_list::free_list;
+use crate::memory::free_list::free_list_at;
 use crate::memory::{MemoryList, own_heap};
 use crate::pointers::GamePtr;
 
@@ -73,14 +73,14 @@ pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
     }
     for n in 0..count as u32 {
         let car = &marks.cars[n as usize];
-        free_list(car.at(CAR_PART + 0x4C))?;
+        free_list_at(car.at(CAR_PART + 0x4C))?;
         if let Some(points) = paths.block_points.get(n as usize) {
             points.give_back();
         }
         car.put(CAR_PART + 0x8C, paths.morph_work.taken.get())?;
     }
     for list in lists(ring, masks) {
-        free_list(list)?;
+        free_list_at(list)?;
     }
     // The particles and the masks went with their lists.
     effects.particles.ring.give_back();

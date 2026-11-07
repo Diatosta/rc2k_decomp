@@ -78,7 +78,7 @@ pub fn load_prefs(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     for path in prefs_paths(course) {
         crate::files::read_whole_file::read_whole_file_cells(
-            &crate::files::cstring(path, "a prefs path")?,
+            &crate::files::cstring_at(path, "a prefs path")?,
             course.stage_prefs.dwords(),
         )?;
     }
@@ -130,10 +130,7 @@ pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
 /// the lights' data, then `copy_lights_data`.
 pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        &crate::files::cstring(
-            GamePtr::to(&race.physics.camera.lights_path),
-            "the lights data path",
-        )?, // "files\s\data\ldata"
+        &crate::files::cstring(&race.physics.camera.lights_path, "the lights data path")?, // "files\s\data\ldata"
         &race.course.lights_data.lights,
     )?;
     copy_lights_data(race)?;

@@ -89,7 +89,7 @@ fn take_course_memory(
     bytes: u32,
     kept: u32,
 ) -> Result<u32, Refused> {
-    let mut memory = crate::memory::owned::counted(list, bytes)?;
+    let mut memory = crate::memory::owned::counted_at(list, bytes)?;
     memory.truncate(kept as usize);
     memory.shrink_to_fit();
     let memory = crate::pointers::LentBytes::from_vec(memory);
@@ -138,7 +138,7 @@ pub fn load_texture_info(course: &Course) -> Result<(), Refused> {
         return Err(BadInput("no course memory: the original reads into 0").into());
     }
     let read = |texts_at: usize, offset: u32, count: u32| {
-        let path = crate::files::cstring(file_numbers.text_ptr(texts_at), "a course info path")?;
+        let path = crate::files::cstring_at(file_numbers.text_ptr(texts_at), "a course info path")?;
         crate::race::course_places::read_file_into_info(&path, offset, count)
     };
     read(texts::TEXTURE_INFO_A, 0, 0x1F_4000)?;
@@ -164,7 +164,7 @@ pub fn set_course_number(eax: u32) -> Result<(), BadInput> {
 /// 0x637660.
 pub fn load_error_list(frame: &Frame) -> Result<(), Refused> {
     crate::files::read_whole_file::read_whole_file_bytes(
-        &crate::files::cstring(
+        &crate::files::cstring_at(
             scene().file_numbers.text_ptr(texts::ERROR_LIST_PATH),
             "the error list's path",
         )?,

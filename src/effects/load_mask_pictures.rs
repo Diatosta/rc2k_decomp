@@ -176,10 +176,7 @@ pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
         mask.pixels(masks)
             .take(list, MASK_BYTES, vec![0; MASK_PIXELS])?;
     }
-    let mut copy = crate::memory::owned::counted(
-        crate::pointers::GamePtr::to(&masks.picture_copy.list),
-        COPY_BYTES,
-    )?;
+    let mut copy = crate::memory::owned::counted(&masks.picture_copy.list, COPY_BYTES)?;
     lock(
         crate::scene::owner::scene()
             .textures
@@ -223,7 +220,7 @@ pub fn load_mask_pictures(masks: &Masks) -> Result<(), Refused> {
     crate::scene::forget_slot_texture::forget_slot_texture(
         crate::scene::owner::scene().textures.kinds.kind_first_slots[202].bits(),
     )?;
-    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&masks.picture_copy.list))?;
+    crate::memory::free_list::free_list(&masks.picture_copy.list)?;
     masks.blocks.seen.set(u32::MAX);
     Ok(())
 }

@@ -23,7 +23,7 @@ struct Globals {
 }
 
 fn text_at(at: GamePtr, what: &str) -> Result<Vec<u8>, BadInput> {
-    crate::files::cstring(at, what)
+    crate::files::cstring_at(at, what)
 }
 
 fn globals() -> Result<Globals, BadInput> {

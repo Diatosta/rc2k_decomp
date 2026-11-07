@@ -126,7 +126,7 @@ pub fn free(course: &Course, f: &Freeing) -> Result<(), Refused> {
                 .wrapping_sub(list.total),
         );
     }
-    crate::memory::free_list::free_list(l)?;
+    crate::memory::free_list::free_list_at(l)?;
     for clear in f.cleared {
         clear();
     }

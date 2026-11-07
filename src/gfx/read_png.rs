@@ -52,8 +52,7 @@ fn head_is_taken(path: &[u8]) -> Result<bool, Refused> {
 fn read_held(png: &Png, path: &[u8], size: u32) -> Result<bool, Refused> {
     let pictures = &gfx().pictures;
     // The file's memory Rust's (phase 12), counted on the list as the game's block was.
-    let mut file =
-        crate::memory::owned::counted(crate::pointers::GamePtr::to(&png.file.memory), size)?;
+    let mut file = crate::memory::owned::counted(&png.file.memory, size)?;
     let file = &mut file[..size as usize];
     let read = crate::files::read_file::read_file_into(path, file, 0)?;
     if !read.ok || read.bytes_read != Some(size) {
@@ -86,7 +85,7 @@ fn read_held(png: &Png, path: &[u8], size: u32) -> Result<bool, Refused> {
 pub fn read_png(png: &Png, path: &[u8]) -> Result<bool, Refused> {
     let free = || {
         // Refused only with the game's own heap, which `allocate` refuses first.
-        let _ = free_list(crate::pointers::GamePtr::to(&png.file.memory));
+        let _ = free_list(&png.file.memory);
     };
     // The original gives the list back on every way out, also with nothing on it.
     let taken = head_is_taken(path).inspect_err(|_| free())?;

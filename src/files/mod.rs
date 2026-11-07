@@ -58,10 +58,18 @@ pub fn ansi_bytes(text: &str) -> Vec<u8> {
         .collect()
 }
 
+/// `cstring_at` on the store's own place.
+pub fn cstring(
+    at: &dyn crate::pointers::Store,
+    what: &str,
+) -> Result<Vec<u8>, crate::errors::BadInput> {
+    cstring_at(crate::pointers::GamePtr::of_store(at), what)
+}
+
 /// The text at `at` up to its NUL (not included), read inside one allocation: a text with
 /// no NUL before its allocation's end is refused.
 #[track_caller]
-pub fn cstring(
+pub fn cstring_at(
     at: crate::pointers::GamePtr,
     what: &str,
 ) -> Result<Vec<u8>, crate::errors::BadInput> {

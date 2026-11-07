@@ -19,7 +19,7 @@ use crate::gfx::load_picture::load_picture;
 use crate::gfx::owner::gfx;
 use crate::gfx::picture::{Buffer, take, with_buffer};
 use crate::gfx::read_picture_file::read_picture_file;
-use crate::memory::free_list::free_list;
+use crate::memory::free_list::free_list_at;
 use crate::strings::owner::strings;
 
 const MEMORY: u32 = 0x1D4C00 + 0xC80;
@@ -40,7 +40,7 @@ pub fn load_picture_with_overlay(
     // the game's block was, given back with it.
     let free = || -> Result<(), Refused> {
         crate::gfx::picture::give_back(Buffer::Overlay);
-        Ok(free_list(list)?)
+        Ok(free_list_at(list)?)
     };
     let overlay = take(Buffer::Overlay, list, MEMORY)?;
     let kept: [u32; 4] = [

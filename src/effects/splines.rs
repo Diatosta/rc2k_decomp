@@ -661,7 +661,7 @@ pub fn load_splines(course: &Course, paths: &Paths, resume: u32) -> Result<(), R
     }
     if loaded == 0 {
         crate::files::read_whole_file::read_whole_file(
-            &crate::files::cstring(GamePtr::to(&paths.spline_path.path), "a spline file's path")?,
+            &crate::files::cstring(&paths.spline_path.path, "a spline file's path")?,
             GamePtr::to(&paths.spline_head.file),
             FILE_LEN,
         )?;

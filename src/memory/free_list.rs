@@ -21,7 +21,12 @@ use crate::memory::{MemoryList, own_heap, with_figures};
 
 // ---- Rust version ----
 
-pub fn free_list(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
+/// `free_list_at` on the store's own place.
+pub fn free_list(list: &dyn crate::pointers::Store) -> Result<(), BadInput> {
+    free_list_at(crate::pointers::GamePtr::of_store(list))
+}
+
+pub fn free_list_at(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
     if list.is_null() {
         return Ok(());
     }

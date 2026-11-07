@@ -109,7 +109,7 @@ impl Game {
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),
             Step::FileExists(f) => {
-                let there = crate::files::file_exists::file_exists(&crate::files::cstring(
+                let there = crate::files::file_exists::file_exists(&crate::files::cstring_at(
                     film(panels, f),
                     "a film's path",
                 )?)?;

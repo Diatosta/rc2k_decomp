@@ -33,7 +33,7 @@ pub fn replay_screenshot() -> Result<(), Refused> {
     let (counted, _, _) =
         rc2k_core::race::viewer::count_up(digits.read::<[u8; 6]>("the picture name")?);
     digits.write(counted, "the picture name")?;
-    let name = crate::files::cstring(name, "the picture name")?;
+    let name = crate::files::cstring_at(name, "the picture name")?;
     // The surface locked (the carry says it was not), the picture written, the surface
     // unlocked.
     if crate::platform::lock_surface() >= 1 {

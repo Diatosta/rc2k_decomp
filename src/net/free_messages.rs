@@ -14,7 +14,7 @@ use crate::net::owner::net;
 /// The Rust version.
 pub fn free_messages() -> Result<(), Refused> {
     let vars = &net().vars;
-    { crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&vars.memory)) }?;
+    { crate::memory::free_list::free_list(&vars.memory) }?;
     crate::net::tables::NET_TABLES.give_back();
     for cell in [
         &vars.connections,

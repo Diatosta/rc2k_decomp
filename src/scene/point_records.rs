@@ -38,7 +38,7 @@ pub fn take(
     course: &crate::race::owner_course::Course,
     list: crate::pointers::GamePtr,
 ) -> Result<(), Refused> {
-    crate::memory::owned::count_on(list, BYTES)?;
+    crate::memory::owned::count_on_at(list, BYTES)?;
     RECORDS.iter().flatten().for_each(|cell| cell.set(0));
     TAKEN.store(true, Ordering::Relaxed);
     course.lists.point_records.set(HELD);

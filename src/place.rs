@@ -113,7 +113,7 @@ impl Place {
                     .ok_or(BadInput("a text without its end in its buffer"))?;
                 Ok((at..end).map(|k| b.get(k)).collect())
             }
-            Place::At(a) => crate::files::cstring(a, what),
+            Place::At(a) => crate::files::cstring_at(a, what),
         }
     }
 

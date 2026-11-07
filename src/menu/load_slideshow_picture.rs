@@ -48,7 +48,7 @@ pub fn load_slideshow_picture(
     // Converted: `rc2k_core::menu::slides` (`slideshow_car`, `search`, `pcx`).
     use rc2k_core::menu::slides;
     let car = slides::slideshow_car(shown_car()?)?;
-    let template = crate::files::cstring(
+    let template = crate::files::cstring_at(
         crate::menu::texts_store::text_at(
             menus.tables.lists.slideshow_templates[car as usize].get(),
         )?,

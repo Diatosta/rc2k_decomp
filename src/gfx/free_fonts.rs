@@ -10,7 +10,7 @@
 
 use crate::errors::BadInput;
 use crate::gfx::owner::gfx;
-use crate::memory::free_list::free_list;
+use crate::memory::free_list::free_list_at;
 
 // ---- Rust version ----
 
@@ -18,7 +18,7 @@ pub fn free_fonts(
     list: crate::pointers::GamePtr,
     palettes: &crate::session::Dword,
 ) -> Result<(), BadInput> {
-    free_list(list)?;
+    free_list_at(list)?;
     palettes.set(0);
     Ok(())
 }

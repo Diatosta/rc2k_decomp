@@ -12,7 +12,7 @@
 use crate::errors::Refused;
 
 pub fn close_installer(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
-    { crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&g.run.buffers)) }?;
+    { crate::memory::free_list::free_list(&g.run.buffers) }?;
     g.run.dirs.set(0);
     g.run.files.set(0);
     crate::install::name_tables::FOLDERS.give_back();

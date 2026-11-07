@@ -12,10 +12,15 @@ use crate::memory::{MemoryList, own_heap, with_figures};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering::Relaxed};
 
+/// `count_on_at` on the store's own place.
+pub fn count_on(list: &dyn crate::pointers::Store, bytes: u32) -> Result<(), Refused> {
+    count_on_at(crate::pointers::GamePtr::of_store(list), bytes)
+}
+
 /// `bytes` counted on `list` as `memory::allocate` counts a block (the list's total, the
 /// memory figures). Refuses what `allocate` refuses: the game's own heap, no list, a size
 /// that with the header wraps.
-pub fn count_on(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
+pub fn count_on_at(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refused> {
     if own_heap() == 1 {
         return Err(BadInput("the game's own heap is in use (altmemenable)").into());
     }
@@ -31,13 +36,18 @@ pub fn count_on(list: crate::pointers::GamePtr, bytes: u32) -> Result<(), Refuse
     Ok(())
 }
 
+/// `counted_at` on the store's own place.
+pub fn counted(list: &dyn crate::pointers::Store, bytes: u32) -> Result<Vec<u8>, Refused> {
+    counted_at(crate::pointers::GamePtr::of_store(list), bytes)
+}
+
 /// `bytes` of Rust's memory, zeroed, counted on `list` as `memory::allocate` counts a
 /// block (the list's `free_list` counts it down): a block of the game's heap that lives
 /// only while one function runs. Sized as the game's block was (whole pages less its
 /// header), so a read just past `bytes` gives zeros as it did. Refuses what `count_on`
 /// refuses.
-pub fn counted(list: crate::pointers::GamePtr, bytes: u32) -> Result<Vec<u8>, Refused> {
-    count_on(list, bytes)?;
+pub fn counted_at(list: crate::pointers::GamePtr, bytes: u32) -> Result<Vec<u8>, Refused> {
+    count_on_at(list, bytes)?;
     Ok(vec![0; block_len(bytes)])
 }
 
@@ -98,7 +108,7 @@ impl<T> Owned<T> {
         bytes: u32,
         value: T,
     ) -> Result<(), Refused> {
-        count_on(list, bytes)?;
+        count_on_at(list, bytes)?;
         *self.lock() = Some(Box::new(value));
         Ok(())
     }
@@ -155,7 +165,7 @@ impl<T> ThreadOwned<T> {
         bytes: u32,
         value: T,
     ) -> Result<(), Refused> {
-        count_on(list, bytes)?;
+        count_on_at(list, bytes)?;
         self.set(value);
         Ok(())
     }

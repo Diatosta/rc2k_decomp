@@ -210,7 +210,7 @@ pub fn load_options(path: crate::pointers::GamePtr, places: &mut Places) -> Resu
     places.loaded.set(0);
     let file = &system().work.files.buffer;
     let read = read_file_to_store(
-        &crate::files::cstring(path, "the options file's path")?,
+        &crate::files::cstring_at(path, "the options file's path")?,
         file,
         TEXT_ROOM + 1,
         0,

@@ -794,7 +794,7 @@ impl<const N: usize> TextPlace for [u8; N] {
 
 impl TextPlace for crate::pointers::GamePtr {
     fn text(&self, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
-        crate::files::cstring(*self, what)
+        crate::files::cstring_at(*self, what)
     }
 
     fn write_text_at(

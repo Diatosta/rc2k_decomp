@@ -726,7 +726,7 @@ pub fn play_film(path: crate::pointers::GamePtr) -> bool {
     // A key pending before the film is dropped (`input::take_key`).
     crate::input::take_key::take_key();
     // the open: the path resolved (`files::resolve_path`), there (`files::file_exists`)
-    let found = crate::files::cstring(path, "a film's path").and_then(|given| {
+    let found = crate::files::cstring_at(path, "a film's path").and_then(|given| {
         let resolved = crate::files::resolve_path::resolve(&given)?;
         let there = crate::files::file_exists::file_exists(&resolved)?;
         Ok((resolved, there))

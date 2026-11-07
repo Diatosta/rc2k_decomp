@@ -62,7 +62,7 @@ pub fn read_kind_records(scene: &crate::scene::owner::Scene) -> Result<(), Refus
     for file in &FILES {
         let (to, room) = records(file);
         read_whole_file(
-            &crate::files::cstring(
+            &crate::files::cstring_at(
                 scene.file_numbers.text_ptr(file.path),
                 "a kinds file's path",
             )?,

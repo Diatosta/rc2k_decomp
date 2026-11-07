@@ -113,7 +113,7 @@ pub fn start_stream(
         state.stream_header.set(1);
     }
     data::with_buffer(Buffer::Header, |b| b[..HEADER_LEN as usize].fill(0));
-    let path_text = crate::files::cstring(path, "a stream's path")?;
+    let path_text = crate::files::cstring_at(path, "a stream's path")?;
     if !crate::audio::samples::read_sample(
         state,
         &path_text,

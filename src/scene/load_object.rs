@@ -176,7 +176,7 @@ pub fn load_object(
         .write(b'3', "an object's file name")?;
     BYTES_READ.set(0);
     read_whole_file_bytes(
-        &crate::files::cstring(
+        &crate::files::cstring_at(
             scene
                 .file_numbers
                 .text_ptr(scene.file_numbers.object_ro3_path.bits() as usize),

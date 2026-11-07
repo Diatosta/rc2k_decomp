@@ -76,13 +76,13 @@ pub fn list(vars: &NetVars) -> crate::pointers::GamePtr {
 pub fn take() -> Result<(), Refused> {
     let vars = &net().vars;
     NET_TABLES.take(list(vars), TABLES[0].0, NetTables::new())?;
-    crate::memory::owned::count_on(list(vars), TABLES[1].0)
+    crate::memory::owned::count_on_at(list(vars), TABLES[1].0)
 }
 
 /// `bytes` more counted on the network's list (a block the original takes there).
 pub fn count(bytes: u32) -> Result<(), Refused> {
     let vars = &net().vars;
-    crate::memory::owned::count_on(list(vars), bytes)
+    crate::memory::owned::count_on_at(list(vars), bytes)
 }
 
 /// The original's `net::connection_entry` checks: a number not below the count, then no

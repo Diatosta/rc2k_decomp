@@ -13,8 +13,5 @@ const COUNT: u32 = 0x17;
 
 /// The Rust version.
 pub fn clear_forces(shared: &Shared) -> Result<(), Refused> {
-    clear_records(
-        crate::pointers::GamePtr::to(&shared.physics_tables.forces),
-        COUNT,
-    )
+    clear_records(&shared.physics_tables.forces, COUNT)
 }

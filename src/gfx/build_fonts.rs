@@ -230,7 +230,7 @@ fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
         .get()
         .wrapping_mul(0x400)
         .wrapping_mul(system().session.screen.bytes.get());
-    crate::memory::owned::count_on(list, bytes)?;
+    crate::memory::owned::count_on_at(list, bytes)?;
     rewind_list(list)?;
     begin_glyph_tables(vars)?;
     gfx.pictures.decoder.builder_flags.set(RUN_LENGTHS);

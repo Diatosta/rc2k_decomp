@@ -54,7 +54,8 @@ pub fn show_version_and_leave(start: &Start) -> ! {
         .offset(5)
         .write(0u8, "the caption")
         .unwrap_or_else(|e| leave(e));
-    let c_text = |at: GamePtr, what| crate::files::cstring(at, what).unwrap_or_else(|e| leave(e));
+    let c_text =
+        |at: GamePtr, what| crate::files::cstring_at(at, what).unwrap_or_else(|e| leave(e));
     // The text from its seventh byte up to its NUL.
     let mut text = c_text(GamePtr::to(&start.texts.version).offset(6), "the version");
     text.extend(*b"\t\r\n");
@@ -69,7 +70,7 @@ pub fn show_version_and_leave(start: &Start) -> ! {
         .write_bytes(&kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
     // MB_ICONINFORMATION | MB_TASKMODAL.
-    let caption = crate::files::cstring(caption, "the caption").unwrap_or_else(|e| leave(e));
+    let caption = crate::files::cstring_at(caption, "the caption").unwrap_or_else(|e| leave(e));
     crate::os::message_box(crate::os::Icon::Information, &caption, &text);
     // The exit path (0x401116) ends in `ExitProcess`; so does the standalone, here.
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)

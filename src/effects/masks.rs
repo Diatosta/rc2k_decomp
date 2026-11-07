@@ -195,7 +195,7 @@ pub fn make_masks(course: &Course, masks: &Masks, drops: &WindscreenDrops) -> Re
     for n in 0..2 {
         crate::effects::pixels::map_shapes(masks, drops, n as u32)?;
     }
-    crate::memory::free_list::free_list(list)?;
+    crate::memory::free_list::free_list_at(list)?;
     masks.work.give_back();
     Ok(())
 }

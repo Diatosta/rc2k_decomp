@@ -24,7 +24,7 @@ pub fn write_record(g: &'static crate::install::owner::Install) -> Result<bool, 
     // constants).
     let locale_at = crate::files::state::locale_directory_place();
     let locale = (locale_at.read::<u8>("the locale directory")? != 0)
-        .then(|| crate::files::cstring(locale_at, "the locale directory"))
+        .then(|| crate::files::cstring_at(locale_at, "the locale directory"))
         .transpose()?;
     let text = rc2k_core::install::config::record_text(
         &crate::place::Place::from(&g.paths.game_dir).text("the game's folder")?,

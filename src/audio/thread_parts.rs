@@ -18,7 +18,7 @@ pub fn take_sample_buffer(state: &AudioState) -> Result<(), Refused> {
 
 /// `audio::free_sample_buffer`: its list freed, size and buffer 0.
 pub fn free_sample_buffer(state: &AudioState) -> Result<(), Refused> {
-    crate::memory::free_list::free_list(crate::pointers::GamePtr::to(&state.sample_buffer_memory))?;
+    crate::memory::free_list::free_list(&state.sample_buffer_memory)?;
     crate::audio::sample_data::free(crate::audio::sample_data::Buffer::Work);
     state.sample_buffer_size.set(0);
     state.sample_buffer.set(0);
