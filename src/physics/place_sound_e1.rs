@@ -20,7 +20,7 @@ pub fn place_sound_e1(race: &Race) -> Result<(), Refused> {
     if !listed(&race.frame, race.shared.work.current_car.bits())? {
         return Ok(());
     }
-    let b = band_value(&race.frame, TWIN);
+    let b = band_value(race, TWIN);
     if b == 0 {
         return Ok(());
     }

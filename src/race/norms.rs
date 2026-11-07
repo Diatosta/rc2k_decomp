@@ -6,15 +6,13 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 
 /// `race::normalise_work_vector` (0x41FC4D): `g_workVector` made one long by its 80-bit
 /// length (`math::x87::normalise_in_place`); a length equal to 0 makes it 0; -0.0 parts
 /// become 0. The length rounded into `dword_62400C`.
-pub fn normalise_work_vector() {
-    let race = race();
+pub fn normalise_work_vector(race: &Race) {
     let mut v = race
         .frame
         .scratch
@@ -67,7 +65,7 @@ pub fn face_normal(race: &Race, a: u32, b: u32, c: u32) -> Result<(), BadInput> 
             x87::int_product_difference(d[3], d[0], d[1], d[2]),
         ];
         crate::session::write_first(&race.frame.scratch.work_vector, &normal);
-        normalise_work_vector();
+        normalise_work_vector(race);
     }
     Ok(())
 }
@@ -178,10 +176,4 @@ pub fn store_norms(
         }
     }
     Ok(())
-}
-
-/// In the game: `face_normal` in Rust.
-pub fn game_normal(a: u32, b: u32, c: u32) -> Result<(), BadInput> {
-    let race = race();
-    face_normal(race, a, b, c)
 }

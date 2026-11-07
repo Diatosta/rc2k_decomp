@@ -353,7 +353,7 @@ pub fn run_race(race: &Race) -> Result<(), Refused> {
     crate::drive::play_race::play_race(race)?;
     crate::race::replay::close_replay(race)?;
     tidy_everything(race)?;
-    crate::race::settings_copy::copy_settings_out(&race.replay)?;
+    crate::race::settings_copy::copy_settings_out(race)?;
     Ok(())
 }
 

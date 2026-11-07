@@ -15,23 +15,17 @@ use std::cmp::Ordering;
 /// The path buffer the checks build in (`files::numbered_path`'s, 0x100 bytes).
 const SCRATCH_ROOM: usize = 0x100;
 
-fn scratch() -> crate::pointers::GamePtr {
-    crate::files::numbered_path::buffer()
-}
-
 /// `text` written into the path buffer at `at`.
 pub fn scratch_put(at: usize, text: &[u8]) -> Result<(), BadInput> {
     if at + text.len() > SCRATCH_ROOM {
         return Err(BadInput("a path past the path buffer"));
     }
-    scratch()
-        .offset(at as u32)
-        .write_bytes(text, "the scratch path")
+    crate::files::state::PATHS.write_at(at, text, "the scratch path")
 }
 
 /// The path buffer's bytes.
 pub fn scratch_bytes() -> Result<Vec<u8>, BadInput> {
-    scratch().read_bytes(SCRATCH_ROOM, "the scratch path")
+    crate::files::state::PATHS.read_at(0, SCRATCH_ROOM, "the scratch path")
 }
 
 /// The path buffer's text (up to its NUL).

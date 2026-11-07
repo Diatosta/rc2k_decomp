@@ -70,7 +70,7 @@ pub fn load_slideshow_picture(
             }
             let mut text = numbered;
             slides::pcx(&mut text)?;
-            crate::files::numbered_path::buffer().write_bytes(&text, "a picture path")?;
+            crate::files::state::PATHS.write_at(0, &text, "a picture path")?;
             let exists = file_exists(&text)?;
             path = Some(text);
             Ok(exists)
@@ -122,8 +122,6 @@ impl crate::session::TextPlace for MirroredPath {
             return Err(crate::errors::BadInput("a write past a path's end"));
         }
         value[at..end].copy_from_slice(bytes);
-        crate::files::numbered_path::buffer()
-            .offset(at as u32)
-            .write_bytes(bytes, what)
+        crate::files::state::PATHS.write_at(at, bytes, what)
     }
 }

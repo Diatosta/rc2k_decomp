@@ -13,12 +13,17 @@
 //! Out: ebx the band; the rest kept; no flags read (the callers compare ebx next)
 
 use crate::math::x87;
-use crate::race::owner_frame::Frame;
+use crate::race::owner::Race;
 use crate::session::{Dword, Float};
 use rc2k_core::physics::sound_bands::sound_band;
 
 /// One twin: (address, value, factor, step).
-pub type Twin = (usize, fn() -> &'static Float, fn() -> &'static Float, u32);
+pub type Twin = (
+    usize,
+    for<'a> fn(&'a Race) -> &'a Float,
+    for<'a> fn(&'a Race) -> &'a Float,
+    u32,
+);
 
 /// The exact x87 version on the value and the factor, the scratch keeps the number of `fistp`.
 pub fn band_at(value: &Float, factor: &Float, scratch: &Dword, step: u32) -> u32 {
@@ -35,8 +40,13 @@ pub fn band_at(value: &Float, factor: &Float, scratch: &Dword, step: u32) -> u32
 }
 
 /// The band on the game's variables (the exact x87 version).
-pub fn band_value(frame: &Frame, twin: Twin) -> u32 {
-    band_at(twin.1(), twin.2(), &frame.sound_spots.band_scratch, twin.3)
+pub fn band_value(race: &Race, twin: Twin) -> u32 {
+    band_at(
+        twin.1(race),
+        twin.2(race),
+        &race.frame.sound_spots.band_scratch,
+        twin.3,
+    )
 }
 
 /// The converted version (`rc2k_core::physics::sound_bands`, plain floats).
@@ -48,6 +58,11 @@ pub fn band_at_plain(value: &Float, factor: &Float, scratch: &Dword, step: u32) 
 }
 
 /// The converted band on the game's variables.
-pub fn band_value_plain(frame: &Frame, twin: Twin) -> u32 {
-    band_at_plain(twin.1(), twin.2(), &frame.sound_spots.band_scratch, twin.3)
+pub fn band_value_plain(race: &Race, twin: Twin) -> u32 {
+    band_at_plain(
+        twin.1(race),
+        twin.2(race),
+        &race.frame.sound_spots.band_scratch,
+        twin.3,
+    )
 }

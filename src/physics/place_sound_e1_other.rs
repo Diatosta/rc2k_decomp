@@ -25,7 +25,7 @@ pub fn place_sound_e1_other(race: &Race) -> Result<(), Refused> {
     {
         return Ok(());
     }
-    let b = band_value_plain(&race.frame, TWIN);
+    let b = band_value_plain(race, TWIN);
     if b == 0 {
         return Ok(());
     }

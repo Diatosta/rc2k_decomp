@@ -34,7 +34,6 @@ use crate::files::read_whole_file::read_whole_file_bytes;
 use crate::files::state::BYTES_READ;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
-use crate::race::owner::race;
 use crate::scene::add_object_shape::add_object_shape;
 use crate::scene::list_object_textures::list_object_textures;
 use crate::scene::measure_object::measure_object;
@@ -147,8 +146,8 @@ fn find_object_kind(kind: u32) -> u32 {
         .unwrap_or(KNOWN_KINDS)
 }
 
-fn mask(at: usize) -> u32 {
-    race().course.course.group_masks[at / 4].get()
+fn mask(course: &crate::race::owner_course::Course, at: usize) -> u32 {
+    course.course.group_masks[at / 4].get()
 }
 
 /// The Rust version. The registers the original leaves (eax the kind, ebx the slot) are read
@@ -221,7 +220,7 @@ pub fn load_object(
     }
     let rest = FIRST_FIVE[1..]
         .iter()
-        .fold(u32::MAX, |rest, &at| rest.wrapping_sub(mask(at)));
+        .fold(u32::MAX, |rest, &at| rest.wrapping_sub(mask(course, at)));
     course.course.group_masks[REST / 4].set_bits(rest);
     let (car, part) = ((slot - 0x50) / 0x14, (slot - 0x50) % 0x14);
     let first = car * 0x14 + 0x50;
@@ -234,13 +233,13 @@ pub fn load_object(
                     .object_work
                     .loading_slot
                     .set_bits(first + n as u32);
-                shape(scene, race, mask(at))?;
+                shape(scene, race, mask(course, at))?;
             }
             scene.drawing.object_work.loading_slot.set_bits(first + 5);
             for &(offset, at) in &MEASURED {
                 let slot = first + offset;
                 scene.drawing.object_work.loading_slot.set_bits(slot);
-                shape(scene, race, mask(at))?;
+                shape(scene, race, mask(course, at))?;
                 measure_object(&race.course)?;
                 let measures: [u32; 6] = crate::session::read_first(&scene.objects.slots.measures);
                 for (table, &measure) in measures.iter().enumerate() {

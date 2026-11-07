@@ -43,7 +43,7 @@ pub fn place_sound_object(race: &Race) -> Result<(), Refused> {
         |n| race.frame.sound_spots.object_kind_sounds[n as usize].get(),
     )?;
     trap.finish()?;
-    let b = band_value_plain(&race.frame, TWIN);
+    let b = band_value_plain(race, TWIN);
     if b == 0 {
         return Ok(());
     }

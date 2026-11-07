@@ -13,7 +13,6 @@ use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::owner_replay::Replay;
 use crate::race::owner_shared::Shared;
 use crate::race::state_store::RaceCar;
 use crate::session::{Dword, Float};
@@ -118,13 +117,13 @@ pub(crate) use {car, car_bits, var};
 /// The game as the steps' machine: its dwords at IDA addresses, the steps' own eax and ebx
 /// (the original reads no register at entry: they start from nothing), the x87's
 /// conversions, and the logs and calls.
-#[derive(Default)]
-struct Game {
+struct Game<'a> {
+    race: &'a Race,
     eax: u32,
     ebx: u32,
 }
 
-impl rc2k_core::race::settings_copy::Machine<Place> for Game {
+impl rc2k_core::race::settings_copy::Machine<Place> for Game<'_> {
     type Error = Refused;
     fn get(&mut self, a: Place) -> u32 {
         a.get()
@@ -151,7 +150,7 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         x87::loaded(v)
     }
     fn scaled_brake(&mut self, v: i32) -> u32 {
-        x87::int_times_to_int(v, race().course.numbers.brake_scale.bits()) as u32
+        x87::int_times_to_int(v, self.race.course.numbers.brake_scale.bits()) as u32
     }
     fn text(&mut self, text: &'static std::ffi::CStr, nl: bool) -> Result<(), Refused> {
         crate::logfile::log_write::log_nul(&text, nl, 1);
@@ -170,7 +169,7 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
         Ok(())
     }
     fn call(&mut self, a: Place) -> Result<(), Refused> {
-        let race = crate::race::owner::race();
+        let race = self.race;
         let Place::Routine(routine) = a else {
             unreachable!("a call of a variable");
         };
@@ -190,20 +189,27 @@ impl rc2k_core::race::settings_copy::Machine<Place> for Game {
 }
 
 /// The steps from the first, in the original's order.
-pub fn run(steps: &[Step<Place>]) -> Result<(), Refused> {
+pub fn run(race: &Race, steps: &[Step<Place>]) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::settings_copy::run` (the x87's conversions and the
     // brake's product kept, through `Machine`).
-    rc2k_core::race::settings_copy::run(steps, &mut Game::default())
+    rc2k_core::race::settings_copy::run(
+        steps,
+        &mut Game {
+            race,
+            eax: 0,
+            ebx: 0,
+        },
+    )
 }
 
 /// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.
 pub fn copy_settings_in(race: &Race) -> Result<(), Refused> {
-    run(&race.replay.graham_to_shaun)
+    run(race, &race.replay.graham_to_shaun)
 }
 
 /// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.
-pub fn copy_settings_out(replay: &Replay) -> Result<(), Refused> {
-    run(&replay.shaun_to_graham)
+pub fn copy_settings_out(race: &Race) -> Result<(), Refused> {
+    run(race, &race.replay.shaun_to_graham)
 }
 
 /// A float of a car block, picked by field.

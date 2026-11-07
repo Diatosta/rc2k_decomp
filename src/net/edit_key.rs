@@ -13,39 +13,37 @@
 //!      text (the measure's x changes no width it reads).
 //! Callers: `net::setting_key`, `net::chat_key`.
 
-use crate::errors::{BadInput, Refused};
-use crate::net::lobby::movsb;
+use crate::errors::Refused;
 use crate::net::owner::Net;
-use crate::pointers::GamePtr;
+use crate::pointers::{StoreBytes, copy_between, store_value};
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
 use rc2k_core::net::editing::{self, EditKey};
-
-fn set_byte(at: GamePtr, v: u8) -> Result<(), BadInput> {
-    at.write(v, "an edited text")
-}
 
 /// The Rust version.
 pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
     if net.vars.edited.get() != editing::NOT_EDITING {
-        let text = crate::net::begin_edit::EditedText::edited()?.place();
-        let words = text.bytes("an edited text")?;
+        let text = crate::net::begin_edit::EditedText::edited()?.text();
+        let words = StoreBytes(text);
         match EditKey::of(key) {
             EditKey::Escape => {
-                movsb(
-                    text,
+                copy_between(
                     &crate::install::owner::install().paths.script_path,
-                    editing::TEXT_LEN as u32,
+                    0,
+                    text,
+                    0,
+                    editing::TEXT_LEN,
+                    "an edited text",
                 )?;
                 net.vars.edited.set(editing::NOT_EDITING);
             }
             EditKey::Enter => net.vars.edited.set(editing::NOT_EDITING),
-            EditKey::Clear => text.fill(0, editing::TEXT_LEN, "an edited text")?,
+            EditKey::Clear => text.store(0, &[0; editing::TEXT_LEN])?,
             EditKey::Backspace => {
                 if let Some(last) = editing::last_char(&words)? {
-                    set_byte(text.offset(last as u32), 0)?;
+                    store_value(text, last, 0u8)?;
                 }
             }
             EditKey::Other => {
@@ -56,7 +54,8 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
                     // The text up to the character's place and the character, measured as a
                     // value; the original writes the character and a NUL, then takes the
                     // character off again (a NUL over it) when the text is too wide.
-                    let mut shown = text.read_bytes(at, "an edited text")?;
+                    let mut shown = vec![0; at];
+                    text.load(0, &mut shown)?;
                     shown.extend_from_slice(&[typed, 0]);
                     let width = {
                         measure_text_at(
@@ -72,8 +71,7 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
                     } else {
                         [typed, 0]
                     };
-                    text.offset(at as u32)
-                        .write_bytes(&kept, "an edited text")?;
+                    text.store(at, &kept)?;
                 }
             }
         }

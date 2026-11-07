@@ -370,7 +370,7 @@ pub fn open_replay(race: &Race) -> Result<(), Refused> {
     for (to, from) in w
         .header_patches
         .iter()
-        .zip(crate::race::replay_patches::switches())
+        .zip(crate::race::replay_patches::switches(shared))
     {
         to.set(from.get());
     }

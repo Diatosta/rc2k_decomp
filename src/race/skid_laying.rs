@@ -5,7 +5,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
 use crate::scene::owner::scene;
@@ -29,8 +28,7 @@ fn offsets(angle: u32, y: u32) -> (u32, u32) {
 /// the new angle (its own when it starts the strip, else halfway between its previous one
 /// and this); the ring's next moved on (0x400 points). Refuses (before anything) a point or a link outside the ring (the original reads and
 /// writes past its tables).
-pub fn add_skid_point(slot: &Dword) -> Result<(), Refused> {
-    let race = race();
+pub fn add_skid_point(race: &Race, slot: &Dword) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::skids::add_skid_point`.
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
@@ -187,7 +185,7 @@ pub fn lay_skidmarks(race: &Race) -> Result<(), Refused> {
                 frame.shadow_skids.skid_place[i]
                     .set(frame.shadow_skids.skid_place[i].get().wrapping_add(n));
             }
-            add_skid_point(slot)?;
+            add_skid_point(race, slot)?;
         }
     }
     Ok(())

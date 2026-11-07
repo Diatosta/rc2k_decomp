@@ -30,16 +30,13 @@ pub fn computer_name() -> Option<Vec<u8>> {
 /// The Rust version (see the header).
 pub fn check_developer_machine() {
     DEVELOPER.set(0);
-    let at = crate::strings::text_from_ids::text_at();
+    let text = &crate::strings::owner::strings().text.buffer.text;
     if let Some(name) = computer_name() {
-        at.write_bytes(&name, "the computer's name")
+        text.write_at(0, &name, "the computer's name")
             .unwrap_or_else(|e| crate::fatal::raise::end("system::computer_name", e));
     }
     // Converted: `rc2k_core::system::machine::developer`.
-    let (yes, _) = rc2k_core::system::machine::developer(
-        at.read("the computer's name")
-            .unwrap_or_else(|e| crate::fatal::raise::end("the computer's name", e)),
-    );
+    let (yes, _) = rc2k_core::system::machine::developer(core::array::from_fn(|n| text.get(n)));
     if yes {
         DEVELOPER.set(1);
     }

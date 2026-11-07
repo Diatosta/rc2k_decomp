@@ -20,9 +20,9 @@ use crate::install::installer::{
 };
 use crate::install::name_tables::{FILES, FOLDERS, found_name};
 
-/// FindFileData.cFileName (the search record: `files::search`).
-fn find_name() -> crate::pointers::GamePtr {
-    crate::files::search::found_name_place()
+/// FindFileData.cFileName (the search record: `files::search`), up to its NUL.
+fn find_name() -> Vec<u8> {
+    crate::files::search::found_name()
 }
 /// FindFileData.dwFileAttributes.
 fn find_attributes() -> u32 {
@@ -31,19 +31,21 @@ fn find_attributes() -> u32 {
 const DIRS_ROOM: u32 = 0x10000;
 const FILES_ROOM: u32 = 0x40000;
 
-fn same_name(a1: impl Into<crate::place::Place>, a2: impl Into<crate::place::Place>) -> bool {
+fn same_name(a1: impl Into<crate::place::Place>, name: &[u8]) -> bool {
+    let mut b = name.to_vec();
+    b.push(0);
     crate::menu::event_flow::refuse_here(
-        a1.into().game_ptr().bytes("a name").and_then(|a| {
-            let b = a2.into().game_ptr().bytes("a name")?;
-            crate::strings::same_text::same_text(&a, &b)
-        }),
+        a1.into()
+            .game_ptr()
+            .bytes("a name")
+            .and_then(|a| crate::strings::same_text::same_text(&a, &b)),
         "install::list_folder_tree: a name",
     )
 }
 
 /// The found file's path (the searched folder's) and name.
 fn found_path(search: &[u8]) -> Result<Vec<u8>, Refused> {
-    found_name(search, &text_at(find_name()))
+    found_name(search, &find_name())
 }
 
 fn walk(folder: crate::place::Place) -> Result<(), Refused> {
@@ -62,7 +64,6 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
     }
     loop {
         // list the folder
-        let base = crate::files::numbered_path::buffer(); // byte_94E8B0
         let mut search_text = folder.clone();
         // The original tests the byte before its cursor; for an empty folder that is the
         // byte before the search buffer (not the path's): here an empty folder gets its `\\`.
@@ -74,13 +75,15 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
         // it later).
         let mut kept = search_text.clone();
         kept.push(0);
-        base.write_bytes(&kept, "the search path")?;
+        // byte_94E8B0
+        crate::files::state::PATHS.write_at(0, &kept, "the search path")?;
         if find_first(&search_text) {
             loop {
                 if find_attributes() & 0x10 != 0 {
                     // "." and ".." passed over
-                    let real = !same_name(&crate::install::owner::install().texts.dot, find_name())
-                        && !same_name(&crate::install::owner::install().texts.dotdot, find_name());
+                    let name = find_name();
+                    let real = !same_name(&crate::install::owner::install().texts.dot, &name)
+                        && !same_name(&crate::install::owner::install().texts.dotdot, &name);
                     if real {
                         let name = found_path(&search_text)?;
                         let used = FOLDERS.with(|t| t.push(name))?;

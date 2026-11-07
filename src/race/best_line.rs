@@ -123,7 +123,7 @@ const MOST_FACES: u32 = 0x10_0000;
 pub struct Cameras {
     pub kind: u8,
     pub list: fn() -> &'static Dword,
-    pub count: fn() -> &'static Dword,
+    pub count: for<'a> fn(&'a Shared) -> &'a Dword,
     pub nearest: fn() -> &'static Dword,
 }
 
@@ -133,13 +133,13 @@ pub fn cameras() -> [Cameras; 2] {
         Cameras {
             kind: 0x3C,
             list: || &CHECKPOINTS.replay_cameras_1[0],
-            count: || &crate::race::owner::race().shared.vars.replay_camera_counts[0],
+            count: |shared| &shared.vars.replay_camera_counts[0],
             nearest: || &CHECKPOINTS.nearest_camera_1[0],
         },
         Cameras {
             kind: 0x38,
             list: || &CHECKPOINTS.replay_cameras_2[0],
-            count: || &crate::race::owner::race().shared.vars.replay_camera_counts[1],
+            count: |shared| &shared.vars.replay_camera_counts[1],
             nearest: || &CHECKPOINTS.nearest_camera_2[0],
         },
     ]
@@ -369,7 +369,7 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
             write_n((set.list)(), e as u32, f);
         }
         let m = cameras.len() as u32;
-        (set.count)().set(m);
+        (set.count)(shared).set(m);
         if m == 0 {
             return Ok(());
         }
@@ -624,24 +624,12 @@ const STEP_WORDS: [(&std::ffi::CStr, u32); 7] = [
 const COMPLETED_RVA: &std::ffi::CStr = c"best line completed"; // "best line completed"
 /// "dir" `g_stageDirection`, ": numblo" `g_lineFaceTotal`, "numsorted"
 /// `g_checkpointCount`, "numsortedm1" `g_lastCheckpoint` (the last with the line's end).
-type Summary = [(&'static std::ffi::CStr, fn() -> u32); 4];
+type Summary = [(&'static std::ffi::CStr, fn(&Shared) -> u32); 4];
 const SUMMARY: Summary = [
-    (c"dir", || {
-        crate::race::owner::RACE.shared.work.stage_direction.get()
-    }),
-    (c": numblo", || {
-        crate::race::owner::race().shared.vars.line_face_total.get()
-    }),
-    (c"numsorted", || {
-        crate::race::owner::race()
-            .shared
-            .vars
-            .checkpoint_count
-            .get()
-    }),
-    (c"numsortedm1", || {
-        crate::race::owner::race().shared.vars.last_checkpoint.get()
-    }),
+    (c"dir", |shared| shared.work.stage_direction.get()),
+    (c": numblo", |shared| shared.vars.line_face_total.get()),
+    (c"numsorted", |shared| shared.vars.checkpoint_count.get()),
+    (c"numsortedm1", |shared| shared.vars.last_checkpoint.get()),
 ];
 
 /// `race::build_best_line` (0x445772): a rule in the log; `sort_checkpoints`; with two
@@ -676,7 +664,7 @@ pub fn build_best_line(race: &Race) -> Result<(), Refused> {
         text(COMPLETED_RVA, true);
         for (n, (at, value)) in SUMMARY.into_iter().enumerate() {
             text(at, false);
-            log_int(value() as i32, n == 3, 1);
+            log_int(value(&race.shared) as i32, n == 3, 1);
         }
         text(RULE_RVA[1], true);
         // dword_6365E4, dword_6365EC

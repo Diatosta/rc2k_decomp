@@ -27,7 +27,6 @@
 use crate::audio::owner::audio;
 use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::system::owner::{Start, system};
 
@@ -48,29 +47,28 @@ pub enum Asked {
 /// The `-v` part: the box, and out through `start`'s exit path. Does not return.
 pub fn show_version_and_leave(start: &Start) -> ! {
     let leave = |e: BadInput| -> ! { crate::fatal::raise::end("system::read_command_line", e) };
-    let caption = GamePtr::to(&crate::fatal::state::CAPTION);
+    let caption = &crate::fatal::state::CAPTION;
     // byte_4F6702: its `:` (a byte of the caption text)
-    caption
-        .offset(5)
-        .write(0u8, "the caption")
-        .unwrap_or_else(|e| leave(e));
-    let c_text =
-        |at: GamePtr, what| crate::files::cstring_at(at, what).unwrap_or_else(|e| leave(e));
+    caption.set(5, 0);
+    let c_text = |at: &dyn crate::pointers::Store, what| {
+        crate::files::cstring(at, what).unwrap_or_else(|e| leave(e))
+    };
     // The text from its seventh byte up to its NUL.
-    let mut text = c_text(GamePtr::to(&start.texts.version).offset(6), "the version");
+    let version = start.texts.version.read();
+    let Some(end) = version[6..].iter().position(|&b| b == 0) else {
+        leave(BadInput("the version without its end in its block"))
+    };
+    let mut text = version[6..6 + end].to_vec();
     text.extend(*b"\t\r\n");
     // The second text is empty: its NUL is its one byte.
-    text.extend(c_text(
-        GamePtr::to(&start.texts.second_text),
-        "the second text",
-    ));
+    text.extend(c_text(&start.texts.second_text, "the second text"));
     let mut kept = text.clone();
     kept.push(0);
     crate::fatal::state::TEXT // Text
         .write_at(0, &kept, "the version's text")
         .unwrap_or_else(|e| leave(e));
     // MB_ICONINFORMATION | MB_TASKMODAL.
-    let caption = crate::files::cstring_at(caption, "the caption").unwrap_or_else(|e| leave(e));
+    let caption = c_text(caption, "the caption");
     crate::os::message_box(crate::os::Icon::Information, &caption, &text);
     // The exit path (0x401116) ends in `ExitProcess`; so does the standalone, here.
     crate::standalone::finish(&format!("the game's way out {EXIT_PATH:#x} was reached"), 0)

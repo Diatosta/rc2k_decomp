@@ -12,15 +12,10 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::pointers::GamePtr;
 
 // ---- game data ----
 
 const BUFFER_LEN: usize = 0x100; // up to the path buffer at 0x94E9B0
-
-pub fn buffer() -> GamePtr {
-    GamePtr::to(&crate::files::state::PATHS)
-}
 
 // ---- Rust version ----
 
@@ -45,6 +40,6 @@ pub fn numbered_path(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {
 /// `template` and the path without their NULs.
 pub fn numbered_path_bytes(template: &[u8], number: u32) -> Result<Vec<u8>, Refused> {
     let path = numbered_path(template, number)?;
-    buffer().write_bytes(&path, "the numbered path's buffer")?;
+    crate::files::state::PATHS.write_at(0, &path, "the numbered path's buffer")?;
     Ok(path[..path.iter().position(|&b| b == 0).unwrap_or(path.len())].to_vec())
 }

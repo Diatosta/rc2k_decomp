@@ -10,11 +10,10 @@
 //! above are the original's, for reference.
 
 use crate::physics::sound_bands::Twin;
-use crate::race::owner::race;
 
 pub const TWIN: Twin = (
     0x45D121,
-    || &crate::race::owner::RACE.shared.car.speed,
-    || &race().frame.sound_spots.band_scale_2,
+    |race| &race.shared.car.speed,
+    |race| &race.frame.sound_spots.band_scale_2,
     1,
 );

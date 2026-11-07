@@ -7,7 +7,6 @@
 //! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Callers: `net::begin_setting_edit`, `net::begin_chat`.
 
-use crate::net::lobby::movsb;
 use crate::net::owner::net;
 use crate::net::store::NetVars;
 
@@ -23,15 +22,14 @@ pub enum EditedText {
 }
 
 impl EditedText {
-    /// The text, bounded by its buffer.
-    pub fn place(self) -> crate::pointers::GamePtr {
+    /// The text's buffer.
+    pub fn text(self) -> &'static dyn crate::pointers::Store {
         let vars = &net().vars;
-        use crate::pointers::GamePtr;
         match self {
-            EditedText::MachineName => GamePtr::to(&vars.machine_name),
-            EditedText::HostAddress => GamePtr::to(&vars.host_address),
-            EditedText::MostPlayers => GamePtr::to(&crate::install::owner::install().paths.path_a),
-            EditedText::ChatInput => GamePtr::to(&vars.chat_input),
+            EditedText::MachineName => &vars.machine_name,
+            EditedText::HostAddress => &vars.host_address,
+            EditedText::MostPlayers => &crate::install::owner::install().paths.path_a,
+            EditedText::ChatInput => &vars.chat_input,
         }
     }
 
@@ -59,9 +57,12 @@ pub fn begin_edit(
     vars.edit_text.set(text as u32);
     vars.edit_width.set(width);
     vars.edit_font.set(font);
-    movsb(
+    Ok(crate::pointers::copy_between(
+        text.text(),
+        0,
         &crate::install::owner::install().paths.script_path,
-        text.place(),
+        0,
         0x40,
-    )
+        "an edited text",
+    )?)
 }

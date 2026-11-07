@@ -9,7 +9,6 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 
 // ---- game data ----
 
@@ -22,35 +21,27 @@ struct Globals {
     pct: Vec<u8>,
 }
 
-fn text_at(at: GamePtr, what: &str) -> Result<Vec<u8>, BadInput> {
-    crate::files::cstring_at(at, what)
-}
-
 fn globals() -> Result<Globals, BadInput> {
     Ok(Globals {
         mode: crate::files::state::MEDIA_MODE.get(),
-        a: text_at(
-            crate::files::state::base_directory_place(),
-            "the base directory",
-        )?, // g_baseDirectory
-        b: text_at(
-            GamePtr::to(&crate::install::owner::install().texts.base_b),
+        a: crate::files::state::directory_text(0, "the base directory")?, // g_baseDirectory
+        b: crate::files::cstring(
+            &crate::install::owner::install().texts.base_b,
             "the second base directory",
         )?,
-        pct: text_at(
-            crate::files::state::locale_directory_place(),
-            "the locale directory",
-        )?, // g_localeDirectory: replaces each '%'
+        // g_localeDirectory: replaces each '%'
+        pct: crate::files::state::directory_text(1, "the locale directory")?,
     })
 }
 
-/// The buffer the resolved path is written to: the current thread's slot's, else the global one.
-fn out_buffer() -> Result<GamePtr, BadInput> {
-    Ok(match crate::threading::find_thread_slot::current_slot()? {
-        // The global buffer's path text (bytes) starts 0x100 into the paths.
-        None => GamePtr::to(&crate::files::state::PATHS).offset(0x100),
-        Some(slot) => GamePtr::to(&slot.path),
-    })
+/// `path` written to the buffer the resolved path goes to: the current thread's slot's, else
+/// the global one (0x100 into the paths).
+fn write_out(path: &[u8]) -> Result<(), BadInput> {
+    let what = "the resolved path's buffer";
+    match crate::threading::find_thread_slot::current_slot()? {
+        None => crate::files::state::PATHS.write_at(0x100, path, what),
+        Some(slot) => slot.path.write_at(0, path, what),
+    }
 }
 
 // ---- Rust version ----
@@ -90,6 +81,6 @@ pub fn resolve(path: &[u8]) -> Result<Vec<u8>, BadInput> {
     let Some(resolved) = resolve_path(path, g.mode, &g.a, &g.b, &g.pct)? else {
         return Ok(path.to_vec());
     };
-    out_buffer()?.write_bytes(&resolved, "the resolved path's buffer")?;
+    write_out(&resolved)?;
     Ok(resolved[..resolved.len() - 1].to_vec())
 }

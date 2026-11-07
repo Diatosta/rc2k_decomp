@@ -33,7 +33,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     if compare_80(vector_length(&work), race.course.numbers.zero.bits()) & 0x4000 != 0 {
         fill_cells(work, 0);
     }
-    normalise_work_vector();
+    normalise_work_vector(race);
     copy_cells(&race.physics.contact.contact_normal, work);
     copy_cells(
         &race.physics.contact.contact_car_speed,

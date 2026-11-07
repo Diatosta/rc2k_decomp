@@ -36,7 +36,6 @@ use crate::math::x87_run::{
 };
 use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
-use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
 use crate::scene::view_matrix::cross_product;
 use crate::session::{Dword, Float};
@@ -75,12 +74,12 @@ fn flat_way(from: &[Dword], to: &[Dword], out: &[Float]) {
 
 /// Through `g_workVector` and `race::normalise_work_vector`: the vector `from` made one
 /// long into `to`.
-fn normalised(frame: &Frame, from: &[Float], to: &[Float]) {
-    let w = &frame.scratch.work_vector;
+fn normalised(race: &Race, from: &[Float], to: &[Float]) {
+    let w = &race.frame.scratch.work_vector;
     for k in 0..3 {
         w[k].set(from[k].bits());
     }
-    normalise_work_vector();
+    normalise_work_vector(race);
     for k in 0..3 {
         to[k].set_bits(w[k].get());
     }
@@ -266,7 +265,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
         &race.shared.work.driver_flat,
     );
     normalised(
-        &race.frame,
+        race,
         &race.shared.work.driver_flat,
         &race.shared.work.driver_flat_unit,
     );
@@ -276,7 +275,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
         &race.shared.work.driver_ahead,
     );
     normalised(
-        &race.frame,
+        race,
         &race.shared.work.driver_ahead,
         &race.shared.work.driver_ahead,
     );
@@ -312,7 +311,7 @@ pub fn drive_computer_car(race: &Race) -> Result<(), Refused> {
         &race.shared.work.driver_way,
     );
     normalised(
-        &race.frame,
+        race,
         &race.shared.work.driver_way,
         &race.shared.work.driver_way_unit,
     );

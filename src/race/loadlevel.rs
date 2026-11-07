@@ -8,7 +8,7 @@
 use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::scene::file_numbers_store::texts;
 use crate::scene::owner::scene;
@@ -61,12 +61,13 @@ impl LoadVars {
 }
 
 /// The original's `loadlevel_init`, step by step.
-struct Steps {
+struct Steps<'a> {
+    race: &'a Race,
     v: LoadVars,
     word: usize,
 }
 
-impl Steps {
+impl Steps<'_> {
     /// `pusha`; eax the next word; the log; `popa`.
     fn log(&mut self) {
         crate::logfile::log_write::log_nul(&WORDS[self.word], true, 1);
@@ -84,7 +85,7 @@ impl Steps {
     /// loading bar `loadlevel_init` puts there before its first mark (it is put away after
     /// the last).
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
-        let race = race();
+        let race = self.race;
         let shared = &race.shared;
         shared.vars.bar_share.set_bits(mark);
         if shared.vars.bar_function.bits() != self.v.bar {
@@ -129,7 +130,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     use crate::race::level_init as level;
     use crate::race::stage_prefs;
     let v = LoadVars::game();
-    let mut s = Steps { v, word: 0 };
+    let mut s = Steps { race, v, word: 0 };
     s.log();
     s.indent(3);
     race.frame.map.use_packed.set(1u32);
@@ -284,7 +285,9 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     // store norms; without `dword_64BB18` the checkpoints, the pace notes, the overlay.
     s.log();
     s.indent(3);
-    crate::race::norms::store_norms(race, &mut crate::race::norms::game_normal)?;
+    crate::race::norms::store_norms(race, &mut |a, b, c| {
+        crate::race::norms::face_normal(race, a, b, c)
+    })?;
     if race.replay.finish.no_place.get() == 0 {
         s.indent(-3);
         s.step(&mut || level::init_checkpoints(race), None)?;

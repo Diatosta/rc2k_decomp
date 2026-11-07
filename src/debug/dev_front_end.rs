@@ -150,8 +150,7 @@ fn round_a_race(race: &Race, f: impl FnOnce() -> Result<(), Refused>) -> Result<
 }
 
 /// `dev_front_end::test_course` (0x44306B) and `dev_front_end::run_race` (0x443F96).
-fn test_course() -> Result<(), Refused> {
-    let race = race();
+fn test_course(race: &Race) -> Result<(), Refused> {
     use crate::race::{race_end, race_shell, replay, stage_loading};
     round_a_race(race, || {
         race.course.numbers.replay_mode.set(1);
@@ -180,8 +179,7 @@ fn test_course() -> Result<(), Refused> {
 }
 
 /// `sub_442FEF`: the finish sequence, for the course's index (0 .. 5) and the car.
-fn finish_sequence() -> Result<(), Refused> {
-    let race = race();
+fn finish_sequence(race: &Race) -> Result<(), Refused> {
     round_a_race(race, || {
         let s = &SETTINGS;
         let car = s.car.load(Relaxed);
@@ -201,8 +199,7 @@ fn finish_sequence() -> Result<(), Refused> {
 }
 
 /// `sub_443104`, without its fonts (the menus' are up): the credits' race.
-fn credits() -> Result<(), Refused> {
-    let race = race();
+fn credits(race: &Race) -> Result<(), Refused> {
     round_a_race(race, || {
         crate::race::sound_tables::silence_race_sounds()?;
         crate::race::credits_race::credits_race(race)
@@ -210,8 +207,7 @@ fn credits() -> Result<(), Refused> {
 }
 
 /// `sub_4430C0`: the last race's replay (nothing happens without one).
-fn last_replay() -> Result<(), Refused> {
-    let race = race();
+fn last_replay(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let course = &race.course;
     round_a_race(race, || {
@@ -227,14 +223,14 @@ fn last_replay() -> Result<(), Refused> {
 
 /// A menu's frame: runs what was asked for; true if something ran.
 pub fn serve() -> Result<bool, Refused> {
-    let run: fn() -> Result<(), Refused> = match WANTED.swap(0, Relaxed) {
+    let run: fn(&Race) -> Result<(), Refused> = match WANTED.swap(0, Relaxed) {
         TEST => test_course,
         FINISH => finish_sequence,
         CREDITS => credits,
         REPLAY => last_replay,
         _ => return Ok(false),
     };
-    run()?;
+    run(race())?;
     Ok(true)
 }
 

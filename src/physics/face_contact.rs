@@ -182,7 +182,7 @@ pub fn steps(race: &Race, number: u32) -> Result<(), Refused> {
         fill_cells(&race.frame.scratch.work_vector, 0);
     }
     race.frame.scratch.work_vector[1].set(0);
-    normalise_work_vector();
+    normalise_work_vector(race);
     copy_cells(
         &race.physics.contact.contact_normal,
         &race.frame.scratch.work_vector,

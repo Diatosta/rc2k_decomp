@@ -242,6 +242,20 @@ pub mod state {
         crate::pointers::GamePtr::to(&DIRECTORIES).limited(DIRECTORY_LEN)
     }
 
+    /// Directory `n`'s text (0 g_baseDirectory, 1 g_localeDirectory), up to its NUL (a text
+    /// with no NUL in its room is refused).
+    pub fn directory_text(n: usize, what: &str) -> Result<Vec<u8>, crate::errors::BadInput> {
+        let room = DIRECTORY_LEN as usize;
+        let bytes = DIRECTORIES.read_at(n * room, room, what)?;
+        let end = bytes
+            .iter()
+            .position(|&b| b == 0)
+            .ok_or(crate::errors::BadInput(
+                "a directory without its end in its room",
+            ))?;
+        Ok(bytes[..end].to_vec())
+    }
+
     /// g_localeDirectory, as a place limited to its room.
     pub fn locale_directory_place() -> crate::pointers::GamePtr {
         // The second directory text of the buffer.

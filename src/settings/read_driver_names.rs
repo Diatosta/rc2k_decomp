@@ -77,21 +77,18 @@ pub fn read_driver_names(menus: &Menus, path: &[u8]) -> Result<(), BadInput> {
             .drivers
             .key
             .write_at(4, &last, "a driver name's key")?;
-        let mut pool = name_at(NAMES_LEN as u32);
-        let mut pool_used = 0u32;
+        let names = &strings.drivers.names;
+        let mut pool_used = 0usize;
         for (driver, entry) in entries.iter().enumerate() {
             let Some(entry) = entry else {
                 continue;
             };
             if let Some(name) = &entry.name {
-                crate::pointers::GamePtr::to(&strings.drivers.names)
-                    .offset((4 * driver) as u32)
-                    .write(NAMES_LEN as u32 + pool_used, "a driver name's pointer")?;
-                pool.write_bytes(name, "a driver name")?;
-                pool.offset(name.len() as u32)
-                    .write(0u8, "a driver name's end")?;
-                pool = pool.offset(name.len() as u32 + 1);
-                pool_used += name.len() as u32 + 1;
+                names.set_u32(4 * driver, (NAMES_LEN + pool_used) as u32);
+                let mut text = name.clone();
+                text.push(0);
+                names.write_at(NAMES_LEN + pool_used, &text, "a driver name")?;
+                pool_used += text.len();
             }
             if let Some(n) = entry.first {
                 cars.drivers.drivers[driver].nation.set(n);

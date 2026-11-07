@@ -21,7 +21,7 @@ pub fn place_sound_e5(race: &Race) -> Result<(), Refused> {
     if !listed(&race.frame, race.shared.work.current_car.bits())? {
         return Ok(());
     }
-    let b = band_value_plain(&race.frame, TWIN);
+    let b = band_value_plain(race, TWIN);
     cue_plain(race, object(), SECOND, SOUND_E5, b, None)?;
     Ok(())
 }
