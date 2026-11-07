@@ -33,7 +33,7 @@ pub fn draw_time_fixed_pitch(
     // Converted: `rc2k_core::text::{columns, TIME_STEPS}`.
     for (i, x) in columns(x, &TIME_STEPS).into_iter().enumerate() {
         put_cell(text, i)?;
-        too_wide = draw_text_keep_regs(font, cell, x, y, canvas)?;
+        too_wide = draw_text_keep_regs(font, &cell.bytes("a time digit")?, x, y, canvas)?;
     }
     Ok(too_wide)
 }

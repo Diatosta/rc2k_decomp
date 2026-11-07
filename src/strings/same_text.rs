@@ -6,7 +6,7 @@
 //! Character by character, each through `g_lowerCase`. Five callers.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use rc2k_core::strings::bytes::Bytes;
 use rc2k_core::strings::case::CaseTable;
 use std::cmp::Ordering;
 
@@ -52,11 +52,17 @@ pub fn set_case_table(table: &[u8; 256]) {
 
 /// How the first text's first differing character stands to the second's (converted:
 /// `rc2k_core::strings::case::CaseTable::compare`).
-pub fn compare_texts(a: GamePtr, b: GamePtr) -> Result<Ordering, BadInput> {
-    let read = |at: GamePtr| -> Result<Vec<u8>, BadInput> {
-        let len = crate::strings::text_length::nul_at(at, "a text to compare")?;
-        at.read_bytes(len as usize, "a text to compare")
-    };
+pub fn compare_texts(
+    a: &(impl Bytes + ?Sized),
+    b: &(impl Bytes + ?Sized),
+) -> Result<Ordering, BadInput> {
+    fn read(text: &(impl Bytes + ?Sized)) -> Result<Vec<u8>, BadInput> {
+        let len = crate::strings::text_length::nul_at(text)? as usize;
+        let mut out = vec![0; len];
+        text.copy_run(0, &mut out)
+            .ok_or(BadInput("a text to compare past its block"))?;
+        Ok(out)
+    }
     Ok(case_table().compare(&read(a)?, &read(b)?))
 }
 
@@ -71,7 +77,7 @@ pub fn compare_bytes(a: &[u8], b: &[u8]) -> Ordering {
     case_table().compare(&text(a), &text(b))
 }
 
-pub fn same_text(a: GamePtr, b: GamePtr) -> Result<bool, BadInput> {
+pub fn same_text(a: &(impl Bytes + ?Sized), b: &(impl Bytes + ?Sized)) -> Result<bool, BadInput> {
     Ok(compare_texts(a, b)? == Ordering::Equal)
 }
 

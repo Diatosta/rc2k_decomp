@@ -12,9 +12,11 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::gfx::glyph_store;
 use crate::pointers::GamePtr;
-use crate::text::draw_text::{Canvas, Outcome, outcome, run_core};
+use crate::text::draw_text::{Adapt, Canvas, Outcome, refusal};
 use crate::text::font::Font;
+use rc2k_core::strings::bytes::Bytes;
 
 // ---- Rust version ----
 
@@ -31,48 +33,27 @@ pub struct Measured {
 /// `rc2k_core::text::measure`.
 pub fn measure_text(
     font: &mut Font,
-    text: GamePtr,
+    text: &(impl Bytes + ?Sized),
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    let copy = *font;
-    let m = {
-        run_core(&copy, text, canvas, |words, glyphs, c| {
-            rc2k_core::text::measure(font, words, glyphs, x, c)
-        })
-    }?;
+    let glyphs = glyph_store::bytes(font.glyph_table, "a font's glyph table")?;
+    let m = refusal(rc2k_core::text::measure(
+        font,
+        text,
+        &glyphs,
+        x,
+        &mut Adapt::new(canvas),
+    ))?;
     Ok(Measured {
-        outcome: outcome(text, m.outcome),
+        outcome: Outcome {
+            too_wide: m.outcome.too_wide,
+            x: m.outcome.x,
+            y: m.outcome.y,
+        },
         lines: m.lines,
         width: m.width,
     })
-}
-
-/// `measure_text_at` on a text of Rust's own (an owned block's): its widest line's width
-/// and its line count.
-pub fn measure_bytes_at(
-    font: GamePtr,
-    text: &[u8],
-    x: i32,
-    canvas: &mut dyn Canvas,
-) -> Result<(u32, u32), Refused> {
-    use crate::text::draw_text::{Adapt, AdaptError};
-    let at = font;
-    let mut copy = at.read::<Font>("a font")?;
-    let glyphs = crate::gfx::glyph_store::bytes(copy.glyph_table, "a font's glyph table")?;
-    let m = match rc2k_core::text::measure(&mut copy, text, &glyphs, x, &mut Adapt::new(canvas)) {
-        Ok(m) => m,
-        Err(AdaptError::Refused(e)) => return Err(e),
-        Err(AdaptError::Invalid) => {
-            return Err(
-                crate::errors::BadInput("a read past a text or a font's glyph table").into(),
-            );
-        }
-    };
-    if canvas.keeps_font_changes() {
-        at.write(copy, "a font")?;
-    }
-    Ok((m.width, m.lines))
 }
 
 /// The font `font`, refused unless it only measures (`MODE_MEASURE`): then a measured width
@@ -91,7 +72,7 @@ pub fn only_measures(
 /// canvas keeps font changes.
 pub fn measure_text_at(
     font: GamePtr,
-    text: GamePtr,
+    text: &(impl Bytes + ?Sized),
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {

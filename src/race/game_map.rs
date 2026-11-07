@@ -320,7 +320,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
         // The picture's path after 3 bytes, its last four made ".sq" and a NUL, then
         // "files\" at the start (`str_append` and the two writes of the original).
         let path = GamePtr::to(&crate::files::state::PACKED_PATH);
-        let len = crate::strings::text_length::nul_at(picture, "a text to append")?;
+        let len = crate::strings::text_length::nul_at(&picture.bytes("a text to append")?)?;
         let room = path.limited(crate::files::state::PACKED_PATH_LEN as u32);
         picture.copy_to(room.offset(3), len as usize, "a text to append")?;
         room.offset(3 + len)

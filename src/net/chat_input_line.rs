@@ -44,7 +44,7 @@ fn chat_input_line_at(
     {
         crate::text::draw_text::draw_text_at(
             CHAT_FONT.game_ptr(),
-            shown.game_ptr(),
+            &shown.game_ptr().bytes("a chat line")?,
             0xA,
             y as i32,
             &mut GameCanvas,

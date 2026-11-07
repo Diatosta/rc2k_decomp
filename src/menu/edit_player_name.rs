@@ -64,7 +64,12 @@ pub fn edit_player_name(screens: &Screens, canvas: &mut dyn Canvas) -> Result<()
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 name.offset(len as u32).write::<u8>(c, "a player's name")?;
                 set_length(len.wrapping_add(1));
-                let measured = measure_text_at(MEASURING_FONT.game_ptr(), name, len, canvas)?;
+                let measured = measure_text_at(
+                    MEASURING_FONT.game_ptr(),
+                    &name.bytes("a player's name")?,
+                    len,
+                    canvas,
+                )?;
                 if entry::too_wide(measured.width as i32) {
                     backspace_name(name)?;
                 }

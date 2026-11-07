@@ -35,7 +35,7 @@ pub fn draw_clock_fixed_pitch(
     // Converted: `rc2k_core::text::{columns, CLOCK_STEPS}`.
     for (i, &x) in at.iter().enumerate() {
         crate::text::draw_time_fixed_pitch::put_cell(text, i)?;
-        draw_text_keep_regs(font, cell, x, y, canvas)?;
+        draw_text_keep_regs(font, &cell.bytes("a clock digit")?, x, y, canvas)?;
     }
     // The flags of the original's last `add`, after the fifth character.
     let (sum, carry) = (at[4] as u32).overflowing_add(CLOCK_STEPS[4] as u32);

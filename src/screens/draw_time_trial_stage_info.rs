@@ -66,9 +66,10 @@ pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refus
     build_second_heading(sel.record)?;
     draw_text_at(
         TITLE_FONT.game_ptr(),
-        crate::pointers::GamePtr::to(
+        &crate::pointers::GamePtr::to(
             &crate::screens::text_buffers_store::TEXT_BUFFERS.stage_heading,
-        ),
+        )
+        .bytes("the stage heading")?,
         TITLE_X,
         HEADING_Y,
         canvas,

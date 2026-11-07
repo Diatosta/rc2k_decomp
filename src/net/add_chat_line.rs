@@ -83,15 +83,8 @@ pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refus
             text += 1;
             end += 1;
             put(line, end, 0)?;
-            let width = {
-                measure_text_at(
-                    CHAT_FONT.game_ptr(),
-                    crate::pointers::GamePtr::to(line),
-                    0,
-                    &mut GameCanvas,
-                )
-            }?
-            .width;
+            let width =
+                { measure_text_at(CHAT_FONT.game_ptr(), &line.read(), 0, &mut GameCanvas) }?.width;
             if width > LINE_WIDTH {
                 put(line, end - 1, 0)?;
                 text -= 1;

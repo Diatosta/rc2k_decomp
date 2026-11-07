@@ -89,8 +89,12 @@ pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, 
             if entry::appends(c, len, menus.screens.loop_flags.text_max.get() as i32) {
                 name.add(len as u32).write(&[c], "a replay's name")?;
                 set_length(len.wrapping_add(1));
-                let measured =
-                    measure_text_at(MEASURING_FONT.game_ptr(), name.game_ptr(), len, canvas)?;
+                let measured = measure_text_at(
+                    MEASURING_FONT.game_ptr(),
+                    &name.game_ptr().bytes("a replay's name")?,
+                    len,
+                    canvas,
+                )?;
                 if entry::too_wide(measured.width as i32) {
                     backspace_savegame_name(menus)?;
                 }

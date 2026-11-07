@@ -33,7 +33,10 @@ const FILES_ROOM: u32 = 0x40000;
 
 fn same_name(a1: impl Into<crate::place::Place>, a2: impl Into<crate::place::Place>) -> bool {
     crate::menu::event_flow::refuse_here(
-        crate::strings::same_text::same_text(a1.into().game_ptr(), a2.into().game_ptr()),
+        a1.into().game_ptr().bytes("a name").and_then(|a| {
+            let b = a2.into().game_ptr().bytes("a name")?;
+            crate::strings::same_text::same_text(&a, &b)
+        }),
         "install::list_folder_tree: a name",
     )
 }

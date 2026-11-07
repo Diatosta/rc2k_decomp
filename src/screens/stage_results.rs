@@ -186,14 +186,13 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let seal_fault = crate::menu::event_flow::Fault::default();
     let mut seal_code = |a: u32, b: u32| {
         seal_fault.ok(crate::strings::format_seal_code::format_seal_code(a, b));
-        seal_fault.ok(crate::strings::text_length::nul_at(
-            GamePtr::to(&crate::strings::format_seal_code::SEAL_TEXT),
-            "the seal text",
-        )
-        .and_then(|len| {
-            GamePtr::to(&crate::strings::format_seal_code::SEAL_TEXT)
-                .read_bytes(len as usize, "the seal text")
-        }))
+        seal_fault.ok(GamePtr::to(&crate::strings::format_seal_code::SEAL_TEXT)
+            .bytes("the seal text")
+            .and_then(|text| crate::strings::text_length::nul_at(&text))
+            .and_then(|len| {
+                GamePtr::to(&crate::strings::format_seal_code::SEAL_TEXT)
+                    .read_bytes(len as usize, "the seal text")
+            }))
     };
     let drawn = stage_results(
         &mut crate::screens::game_screen::GameScreen::<_, _, HeldText>::new(canvas),

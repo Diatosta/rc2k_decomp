@@ -58,7 +58,7 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
                     let width = {
                         measure_text_at(
                             net.vars.edit_font.get().game_ptr(),
-                            text,
+                            &text.bytes("an edited text")?,
                             at as i32,
                             &mut GameCanvas,
                         )

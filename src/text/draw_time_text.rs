@@ -47,7 +47,7 @@ pub fn draw_time_text(font: GamePtr, text: GamePtr, x: u32, y: u32) -> Result<()
         let mut copy = font.read::<Font>("a font")?;
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
-            at,
+            &at.bytes("a time text")?,
             x as i32,
             y as i32,
             &mut GameCanvas,

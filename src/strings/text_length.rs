@@ -10,7 +10,6 @@
 //! Refuses a null pointer.
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use rc2k_core::strings::bytes::Bytes;
 
 // The original returns from `cmp byte ptr [ecx + ebx], 0` on the NUL: the same compare again
@@ -18,10 +17,9 @@ use rc2k_core::strings::bytes::Bytes;
 // ---- Rust version ----
 
 /// The length of the text at `at` (to its NUL), which must end inside its block.
-pub fn nul_at(at: GamePtr, what: &str) -> Result<u32, BadInput> {
-    let bytes = at.bytes(what)?;
+pub fn nul_at(text: &(impl Bytes + ?Sized)) -> Result<u32, BadInput> {
     (0..)
-        .map_while(|n| bytes.byte(n))
+        .map_while(|n| text.byte(n))
         .position(|b| b == 0)
         .map(|len| len as u32)
         .ok_or(BadInput("a text without its end in its block"))

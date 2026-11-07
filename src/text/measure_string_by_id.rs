@@ -29,7 +29,7 @@ pub fn measure_string_by_id(
 ) -> Result<Measured, Refused> {
     let bytes = string_text(id)?;
     buffer.write_bytes(&bytes, "the text buffer")?;
-    measure_text(font, buffer, x, canvas)
+    measure_text(font, &buffer.bytes("the text buffer")?, x, canvas)
 }
 
 /// The same with a font object in game memory and the game's text buffer, for Rust callers.

@@ -129,14 +129,14 @@ impl GameText for HeldText {
     ) -> Result<Drawn, Refused> {
         match self {
             HeldText::Place(at) => {
-                let out = draw_text_at(font, at, x, y, canvas)?;
+                let out = draw_text_at(font, &at.bytes("a name")?, x, y, canvas)?;
                 Ok(Drawn {
                     y: out.y,
                     too_wide: out.too_wide,
                 })
             }
             HeldText::Held(h) => {
-                let out = crate::text::draw_text::draw_bytes_at(font, &h.with_nul(), x, y, canvas)?;
+                let out = draw_text_at(font, &h.with_nul()[..], x, y, canvas)?;
                 Ok(Drawn {
                     y: out.y,
                     // Where the text after it starts, in the text (no caller of a held
@@ -154,11 +154,18 @@ impl GameText for HeldText {
     fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused> {
         match self {
             HeldText::Place(at) => {
-                let m = crate::text::measure_text::measure_text_at(font, at, x, canvas)?;
+                let m = crate::text::measure_text::measure_text_at(
+                    font,
+                    &at.bytes("a name")?,
+                    x,
+                    canvas,
+                )?;
                 Ok(m.width)
             }
             HeldText::Held(h) => {
-                Ok(crate::text::measure_text::measure_bytes_at(font, &h.with_nul(), x, canvas)?.0)
+                let m =
+                    crate::text::measure_text::measure_text_at(font, &h.with_nul()[..], x, canvas)?;
+                Ok(m.width)
             }
         }
     }

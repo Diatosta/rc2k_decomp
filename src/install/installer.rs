@@ -313,7 +313,13 @@ pub fn draw_text(
     use crate::text::font::Font;
     let at = font.game_ptr();
     let mut copy = at.read::<Font>("a font object")?;
-    crate::text::draw_text::draw_text(&mut copy, text, x as i32, y as i32, &mut GameCanvas)?;
+    crate::text::draw_text::draw_text(
+        &mut copy,
+        &text.bytes("a text")?,
+        x as i32,
+        y as i32,
+        &mut GameCanvas,
+    )?;
     if copy != at.read::<Font>("a font object")? {
         at.write(copy, "a font object")?;
     }
@@ -329,7 +335,12 @@ pub fn measure_text(
     let text = text.into().game_ptr();
     use crate::text::draw_text::GameCanvas;
     let m = {
-        crate::text::measure_text::measure_text_at(font.game_ptr(), text, x as i32, &mut GameCanvas)
+        crate::text::measure_text::measure_text_at(
+            font.game_ptr(),
+            &text.bytes("a text")?,
+            x as i32,
+            &mut GameCanvas,
+        )
     }?;
     Ok((m.width, m.outcome.y as u32))
 }

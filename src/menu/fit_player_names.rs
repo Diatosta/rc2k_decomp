@@ -38,7 +38,7 @@ pub fn fit_name(text: GamePtr) -> Result<u32, Refused> {
     let font = crate::text::measure_text::only_measures(MEASURING_FONT)?;
     text_entry::fit_name(len, |len| -> Result<u32, Refused> {
         text.offset(len as u32).write::<u8>(0, "a name")?;
-        Ok({ measure_text_at(font, text, 0, &mut GameCanvas) }?.width)
+        Ok({ measure_text_at(font, &name, 0, &mut GameCanvas) }?.width)
     })
 }
 

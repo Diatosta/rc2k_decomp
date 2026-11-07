@@ -92,7 +92,13 @@ pub fn draw_service_area(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     }
     text_at().write_bytes(&title, "the title")?;
     let (x, y) = AREA_TITLE_AT;
-    draw_text_at(font_of(AreaFont::Title).game_ptr(), text_at(), x, y, canvas)?;
+    draw_text_at(
+        font_of(AreaFont::Title).game_ptr(),
+        &text_at().bytes("the title")?,
+        x,
+        y,
+        canvas,
+    )?;
 
     draw_service_time(screens, canvas)?;
 

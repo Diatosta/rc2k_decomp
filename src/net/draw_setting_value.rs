@@ -60,7 +60,7 @@ pub fn draw_setting_value(
     {
         crate::text::draw_text::draw_text_at(
             FONT.game_ptr(),
-            shown.game_ptr(),
+            &shown.game_ptr().bytes("a setting's value")?,
             0x190,
             y as i32,
             &mut GameCanvas,

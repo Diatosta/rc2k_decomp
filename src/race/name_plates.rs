@@ -176,7 +176,7 @@ pub fn draw_text_in_game(
     let mut copy = font.get();
     let wide = crate::text::draw_text_keep_regs::draw_text_keep_regs(
         &mut copy,
-        text.into().game_ptr(),
+        &text.into().game_ptr().bytes("a name plate's text")?,
         x as i32,
         y as i32,
         &mut GameCanvas,

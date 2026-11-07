@@ -31,7 +31,7 @@ pub fn string_text(id: u32) -> Result<Vec<u8>, BadInput> {
 }
 
 /// `buffer` is where the text is built: the game's text buffer, or a private one of at least
-/// `TEXT_LEN` bytes when the game's must not be touched. `Outcome::text` points into it.
+/// `TEXT_LEN` bytes when the game's must not be touched.
 pub fn draw_string_by_id(
     id: u32,
     font: &mut Font,
@@ -42,7 +42,7 @@ pub fn draw_string_by_id(
 ) -> Result<Outcome, Refused> {
     let bytes = string_text(id)?;
     buffer.write_bytes(&bytes, "the text buffer")?;
-    draw_text(font, buffer, x, y, canvas)
+    draw_text(font, &buffer.bytes("the text buffer")?, x, y, canvas)
 }
 
 /// The same with a font object in game memory and the game's text buffer, for Rust callers.

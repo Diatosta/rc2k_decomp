@@ -55,7 +55,7 @@ pub fn list_frame(
         text.push(0);
         let at = y;
         y = y.wrapping_add(font.object().line_height.get());
-        crate::text::draw_text::draw_bytes_at(
+        crate::text::draw_text::draw_text_at(
             font.game_ptr(),
             &text,
             0x190,

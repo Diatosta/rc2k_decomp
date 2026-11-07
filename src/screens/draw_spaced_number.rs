@@ -40,7 +40,13 @@ pub fn draw_spaced_number(
     }
     cells.write_bytes(&spaced, "the spaced digits")?;
     for (i, x) in places {
-        draw_text_at(font, cells.offset(2 * i as u32), x, y, canvas)?;
+        draw_text_at(
+            font,
+            &cells.offset(2 * i as u32).bytes("the spaced digits")?,
+            x,
+            y,
+            canvas,
+        )?;
     }
     Ok(())
 }
