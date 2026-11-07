@@ -32,6 +32,7 @@ macro_rules! walk {
 // `walk`'s last step leaves its count unread.
 #[allow(unused_assignments)]
 pub unsafe fn load(from: *const u8, to: *mut u8, len: usize) {
+    crate::write_watch::read(from, len);
     let mut n = 0;
     macro_rules! step {
         ($atomic:ident, $int:ty) => {
@@ -54,6 +55,7 @@ pub unsafe fn load(from: *const u8, to: *mut u8, len: usize) {
 // `walk`'s last step leaves its count unread.
 #[allow(unused_assignments)]
 pub unsafe fn store(to: *mut u8, from: *const u8, len: usize) {
+    crate::write_watch::wrote(to.cast_const(), len);
     let mut n = 0;
     macro_rules! step {
         ($atomic:ident, $int:ty) => {
@@ -128,6 +130,7 @@ pub unsafe fn copy(from: *const u8, to: *mut u8, len: usize) {
 /// `base` is 4-aligned and starts `size` live bytes that are reached only through
 /// `load_words` / `store_words`, and `offset + to.len() <= size`.
 pub unsafe fn load_words(base: *const u8, size: usize, offset: usize, to: &mut [u8]) {
+    crate::write_watch::read(base.wrapping_add(offset), to.len());
     use std::sync::atomic::AtomicU32;
     let words = size & !3;
     let end = offset + to.len();
@@ -157,6 +160,7 @@ pub unsafe fn load_words(base: *const u8, size: usize, offset: usize, to: &mut [
 /// # Safety
 /// As `load_words`'.
 pub unsafe fn store_words(base: *mut u8, size: usize, offset: usize, from: &[u8]) {
+    crate::write_watch::wrote(base.wrapping_add(offset).cast_const(), from.len());
     use std::sync::atomic::AtomicU32;
     let words = size & !3;
     let end = offset + from.len();

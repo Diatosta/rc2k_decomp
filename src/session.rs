@@ -26,10 +26,12 @@ impl Dword {
     }
 
     pub fn get(&self) -> u32 {
+        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 4);
         self.0.load(Relaxed)
     }
 
     pub fn set(&self, value: u32) {
+        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
         self.0.store(value, Relaxed);
     }
 
@@ -115,10 +117,12 @@ impl Float {
     }
 
     pub fn get(&self) -> f32 {
+        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 4);
         f32::from_bits(self.0.load(Relaxed))
     }
 
     pub fn set(&self, value: f32) {
+        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
         self.0.store(value.to_bits(), Relaxed);
     }
 
@@ -129,11 +133,13 @@ impl Float {
 
     /// The bits, for the x87 model's loads (`x87_float::ld`).
     pub fn bits(&self) -> u32 {
+        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 4);
         self.0.load(Relaxed)
     }
 
     /// Stores the bits, for the x87 model's stores (`x87_float::st`).
     pub fn set_bits(&self, bits: u32) {
+        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 4);
         self.0.store(bits, Relaxed);
     }
 
@@ -274,10 +280,12 @@ impl Word {
     }
 
     pub fn get(&self) -> u16 {
+        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 2);
         self.0.load(Relaxed)
     }
 
     pub fn set(&self, value: u16) {
+        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 2);
         self.0.store(value, Relaxed);
     }
 
@@ -297,10 +305,12 @@ impl Byte {
     }
 
     pub fn get(&self) -> u8 {
+        crate::write_watch::read(self.0.as_ptr().cast::<u8>(), 1);
         self.0.load(Relaxed)
     }
 
     pub fn set(&self, value: u8) {
+        crate::write_watch::wrote(self.0.as_ptr().cast::<u8>(), 1);
         self.0.store(value, Relaxed);
     }
 
@@ -336,10 +346,12 @@ impl<const N: usize> Bytes<N> {
     }
 
     pub fn get(&self, index: usize) -> u8 {
+        crate::write_watch::read(self.0[index].as_ptr().cast_const(), 1);
         self.0[index].load(Relaxed)
     }
 
     pub fn set(&self, index: usize, value: u8) {
+        crate::write_watch::wrote(self.0[index].as_ptr().cast_const(), 1);
         self.0[index].store(value, Relaxed);
     }
 
@@ -427,10 +439,12 @@ impl Loose {
     }
 
     pub fn get(&self) -> u32 {
+        crate::write_watch::read(self.0[0].as_ptr().cast_const(), 4);
         u32::from_le_bytes(std::array::from_fn(|i| self.0[i].load(Relaxed)))
     }
 
     pub fn set(&self, value: u32) {
+        crate::write_watch::wrote(self.0[0].as_ptr().cast_const(), 4);
         for (cell, b) in self.0.iter().zip(value.to_le_bytes()) {
             cell.store(b, Relaxed);
         }

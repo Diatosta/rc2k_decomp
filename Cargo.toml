@@ -21,6 +21,8 @@ edition = "2024"
 [features]
 # Remote control for automated test runs (`src/remote.rs`, `tools/remote.py`).
 remote = []
+# The audit build's record of every read and write of the game's state (`src/write_watch.rs`).
+write_watch = []
 
 [lib]
 crate-type = ["rlib"]

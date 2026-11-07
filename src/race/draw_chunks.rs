@@ -46,6 +46,42 @@ enum Kind {
 struct Part {
     kind: Kind,
     bytes: Vec<u8>,
+    /// Its bytes that are a drawing thread's own (`RC2K_CHUNK_PRIVATE`): only the last run's
+    /// changes to them kept.
+    private: Vec<bool>,
+}
+
+/// The private list's words for the point records and the scene points.
+const RECORDS: usize = usize::MAX;
+const POINTS: usize = usize::MAX - 1;
+
+/// With `RC2K_CHUNK_PRIVATE=<file>` (IDA places `address+length` in hex, one a line, as the
+/// write watch lists them, and the words `records` and `points`): those bytes, and the point
+/// records and scene points when named, are each drawing thread's own, the game's thread
+/// drawing the last run: after the runs only the last run's changes to them are kept, as when
+/// the other threads' copies are dropped.
+fn private_places() -> Option<&'static [(usize, usize)]> {
+    static PLACES: OnceLock<Option<Vec<(usize, usize)>>> = OnceLock::new();
+    PLACES
+        .get_or_init(|| {
+            let text = std::fs::read_to_string(std::env::var_os("RC2K_CHUNK_PRIVATE")?).ok()?;
+            Some(
+                text.lines()
+                    .filter_map(|l| {
+                        let hex = |t: &str| usize::from_str_radix(t.trim_start_matches("0x"), 16);
+                        match l.trim() {
+                            "records" => Some((RECORDS, 1)),
+                            "points" => Some((POINTS, 1)),
+                            a => match a.split_once('+') {
+                                Some((at, len)) => Some((hex(at).ok()?, hex(len).ok()?)),
+                                None => Some((hex(a).ok()?, 1)),
+                            },
+                        }
+                    })
+                    .collect(),
+            )
+        })
+        .as_deref()
 }
 
 impl Part {
@@ -98,15 +134,23 @@ fn take_state() -> Vec<Part> {
         .map(|(n, r)| Part {
             kind: Kind::Moved(n),
             bytes: vec![0u8; r.len()],
+            private: (r.start..r.end)
+                .map(|a| {
+                    private_places()
+                        .is_some_and(|p| p.iter().any(|&(at, len)| (at..at + len).contains(&a)))
+                })
+                .collect(),
         })
         .collect();
     parts.push(Part {
         kind: Kind::Records,
         bytes: Vec::new(),
+        private: vec![private_places().is_some_and(|p| p.contains(&(RECORDS, 1)))],
     });
     parts.push(Part {
         kind: Kind::Points,
         bytes: Vec::new(),
+        private: vec![private_places().is_some_and(|p| p.contains(&(POINTS, 1)))],
     });
     for p in &mut parts {
         p.bytes = p.now();
@@ -141,9 +185,15 @@ pub fn draw_in_chunks(
     } else {
         (0..k).collect()
     };
+    #[cfg(feature = "write_watch")]
+    let mut seen: Vec<crate::write_watch::Seen> = Vec::new();
     for i in order {
         restore(&start);
+        #[cfg(feature = "write_watch")]
+        crate::write_watch::begin();
         draw(ranges[i].clone())?;
+        #[cfg(feature = "write_watch")]
+        seen.push(crate::write_watch::end());
         if crate::platform_3d::flushes() != flushes {
             crate::framework::log("draw_chunks: a flush inside a run (the check is void)");
         }
@@ -157,9 +207,20 @@ pub fn draw_in_chunks(
     // as when drawn one after the other.
     for (n, p) in start.iter().enumerate() {
         let mut v = p.bytes.clone();
-        for c in &changes {
+        let own = |i: usize| {
+            p.private
+                .get(i)
+                .or(p.private.first())
+                .copied()
+                .unwrap_or(false)
+        };
+        for (r, c) in changes.iter().enumerate() {
             for (at, bytes) in &c[n] {
-                v[*at..*at + bytes.len()].copy_from_slice(bytes);
+                for (i, &b) in (*at..).zip(bytes) {
+                    if r == k - 1 || !own(i) {
+                        v[i] = b;
+                    }
+                }
             }
         }
         if p.now() != v {
@@ -169,7 +230,57 @@ pub fn draw_in_chunks(
     for n in noted {
         crate::platform_3d::put_noted(n);
     }
+    #[cfg(feature = "write_watch")]
+    shared::add(&seen);
     Ok(())
+}
+
+/// With the feature `write_watch`: the places one run writes and another reads or writes
+/// (what threads drawing the runs at once would race on), gathered over the lists and
+/// logged as IDA ranges (the moved ranges) or game addresses (Rust's own state) at the 300th.
+#[cfg(feature = "write_watch")]
+mod shared {
+    use std::collections::BTreeSet;
+    use std::sync::Mutex;
+
+    static SHARED: Mutex<(BTreeSet<usize>, u32)> = Mutex::new((BTreeSet::new(), 0));
+
+    pub fn add(seen: &[crate::write_watch::Seen]) {
+        let mut s = SHARED.lock().unwrap();
+        for (i, a) in seen.iter().enumerate() {
+            for w in &a.written {
+                if seen
+                    .iter()
+                    .enumerate()
+                    .any(|(j, b)| j != i && (b.written.contains(w) || b.read.contains(w)))
+                {
+                    s.0.insert(*w);
+                }
+            }
+        }
+        s.1 += 1;
+        if s.1 % 300 != 0 {
+            return;
+        }
+        let mut text = String::from("draw_chunks: shared places:");
+        let words: Vec<usize> = s.0.iter().copied().collect();
+        let mut k = 0;
+        while k < words.len() {
+            let first = words[k];
+            while k + 1 < words.len() && words[k + 1] == words[k] + 1 {
+                k += 1;
+            }
+            let len = (words[k] - first + 1) * 4;
+            let host = first * 4;
+            let game = crate::address_map::game_of(host).map(|g| g as usize);
+            match game.and_then(crate::moved::ida_of) {
+                Some(ida) => text += &format!(" {ida:#x}+{len:#x}"),
+                None => text += &format!(" game:{:#x}+{len:#x}", game.unwrap_or(0)),
+            }
+            k += 1;
+        }
+        crate::framework::log(&text);
+    }
 }
 
 #[cfg(test)]

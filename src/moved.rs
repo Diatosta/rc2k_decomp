@@ -2548,6 +2548,16 @@ pub fn moved_ranges() -> Vec<std::ops::Range<usize>> {
     sorted().iter().map(|&(start, end, _)| start..end).collect()
 }
 
+/// The IDA address of game address `game` when a moved range's home holds it (the audit's
+/// names, `race::draw_chunks`).
+#[cfg(feature = "write_watch")]
+pub fn ida_of(game: usize) -> Option<usize> {
+    sorted()
+        .iter()
+        .find(|&&(start, end, home)| (home..home + (end - start)).contains(&game))
+        .map(|&(start, _, home)| start + (game - home))
+}
+
 /// Range `n`'s bytes into `to` (its length).
 pub fn load_moved(n: usize, to: &mut [u8]) {
     let (_, _, home) = sorted()[n];
