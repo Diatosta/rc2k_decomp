@@ -5,9 +5,10 @@
 //! (`files::make_directory`) and entered. The path's bytes are cut with a NUL and put back
 //! as the walk goes. A failed change or make ends it.
 //!
-//! A path without its closing `\\` (as `install_files` gives every folder) is scanned on
-//! past its NUL to the next `\\`, as the original does. Refuses (as met) a scan of 0x400
-//! bytes from the path's start, and a UNC path without its share's `\\`.
+//! A path without its closing `\\` (as `install_files` gives every folder) has its last
+//! folder made at its NUL: the original scans on past it into the buffers that follow
+//! (`notes/bugs.md`), to the same effect. Refuses (as met) a scan of 0x400 bytes from the
+//! path's start, and a UNC path without its share's `\\`.
 //! Callers `install::install_files`, `install::install_clio`.
 //!
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments.
@@ -66,18 +67,22 @@ pub fn walk(path: Place) -> Result<bool, Refused> {
             return Ok(false);
         }
     }
-    // loc_413AD6. A path without its closing `\\` (the installer's folders, as the script
-    // lists them: `install_files`) has the scan go on past its NUL to the next `\\` in what
-    // follows, as the original's does: each further segment only goes into the same path
-    // again (`notes/bugs.md`). Bounded: 0x400 bytes from the path's start.
+    // loc_413AD6. Bounded: 0x400 bytes from the path's start.
     while byte(at + 1) != 0 {
         loop {
             at += 1;
             if at > LIMIT {
                 return Err(BadInput("a path with no end in 0x400 bytes").into());
             }
-            if byte(at) == b'\\' {
-                break;
+            match byte(at) {
+                b'\\' => break,
+                // The path's end without its closing `\`. The original scans on past its NUL
+                // to the next `\` in the buffers that follow: its first cut there leaves the
+                // path whole, so the last folder is gone into or made, and each later one
+                // only goes into it again. Done here at the NUL, without reading past the
+                // path's own buffer (whose end the scan would otherwise reach and refuse).
+                0 => return Ok(set_cd(path) || (make_dir(path) && set_cd(path))),
+                _ => {}
             }
         }
         // Each call with the path cut at the `\\`, put back after it.

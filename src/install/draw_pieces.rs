@@ -55,7 +55,10 @@ pub fn draw_pieces(
                 let record = item.edit_field();
                 let edit_font = font(colour(first, record.font_kind() as u32))?;
                 let mut text = text_at(item.text());
-                if pieces::caret(first, record.flags()) {
+                // The drawer reads to the NUL.
+                if !pieces::caret(first, record.flags()) {
+                    text.push(0);
+                } else {
                     // The text and the caret, kept in the text buffer (anything reads it
                     // afterwards only after another page text overwrote it).
                     push_string_by_id(&mut text, 4);

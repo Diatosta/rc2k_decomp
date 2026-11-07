@@ -435,3 +435,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `scene::set_up_carousel`, `scene::draw_carousel_entry` / `draw_highlighted_object`, `screens::stage_panel` and the drivers' table (`g_driverNames` 0x741E88); not seen.
 
 **Fix:** an index past its table is refused (the program stops, naming the table) instead of reading the memory after it.
+
+## The installer's folder walk reads past the path
+
+**What it is:** the installer makes each folder it copies into from a path with no closing `\`. Its walk looks for the next `\` after each folder name, and for the last name it runs past the path's end into the buffers stored after it in memory. Its first cut there leaves the path whole, so the last folder is still made; every `\` it meets after that only goes into the same folder again, until one is followed by a NUL.
+
+**In game:** none seen with the original: the bytes after the path happened to hold a `\` soon enough. In the conversion, where the path has a buffer of its own, the walk reached that buffer's end and the Windows installer stopped while copying.
+
+**Seen or read:** read in `install::make_folders` (0x413A97) and seen in the standalone's trace (2026-10-20); the stop seen under Wine (2026-11-07).
+
+**Fix:** the walk treats the path's end as its closing `\`: the last folder is gone into or made there, and the walk ends without reading past the path.

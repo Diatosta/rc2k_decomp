@@ -64,15 +64,25 @@ impl Place {
         }
     }
 
-    /// The place's bytes `len` long, if inside its buffer (`In`).
+    /// The place's bytes `len` long, if inside its buffer (`In`); a refusal is logged with
+    /// its caller (the text alone does not say which reader it was).
+    #[track_caller]
     fn inside(b: &dyn Run, at: usize, len: usize) -> Result<(), BadInput> {
         match at.checked_add(len) {
             Some(end) if end <= b.len() => Ok(()),
-            _ => Err(PAST),
+            _ => {
+                crate::framework::log(&format!(
+                    "place: {len} bytes at {at} of a buffer of {}, from {}",
+                    b.len(),
+                    std::panic::Location::caller()
+                ));
+                Err(PAST)
+            }
         }
     }
 
     /// `len` bytes from here.
+    #[track_caller]
     pub fn read(self, len: usize, what: &str) -> Result<Vec<u8>, BadInput> {
         match self {
             Place::In(b, at) => {
@@ -84,12 +94,14 @@ impl Place {
     }
 
     /// `N` bytes from here, as an array.
+    #[track_caller]
     pub fn read_array<const N: usize>(self, what: &str) -> Result<[u8; N], BadInput> {
         let bytes = self.read(N, what)?;
         Ok(std::array::from_fn(|i| bytes[i]))
     }
 
     /// `data` written from here.
+    #[track_caller]
     pub fn write(self, data: &[u8], what: &str) -> Result<(), BadInput> {
         match self {
             Place::In(b, at) => {
@@ -104,6 +116,7 @@ impl Place {
     }
 
     /// The string from here, without its NUL (to the buffer's end at most for `In`).
+    #[track_caller]
     pub fn text(self, what: &str) -> Result<Vec<u8>, BadInput> {
         match self {
             Place::In(b, at) => {

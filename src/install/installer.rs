@@ -88,18 +88,21 @@ pub fn refuse(e: crate::errors::BadInput) -> ! {
     crate::fatal::raise::end("install", e)
 }
 
+#[track_caller]
 pub fn rb(at: impl Into<Place>) -> u8 {
     at.into()
         .read(1, "an installer byte")
         .unwrap_or_else(|e| refuse(e))[0]
 }
 
+#[track_caller]
 pub fn wb(at: impl Into<Place>, v: u8) {
     at.into()
         .write(&[v], "an installer byte")
         .unwrap_or_else(|e| refuse(e));
 }
 
+#[track_caller]
 pub fn rw(at: impl Into<Place>) -> u16 {
     let b = at
         .into()
@@ -108,12 +111,14 @@ pub fn rw(at: impl Into<Place>) -> u16 {
     u16::from_le_bytes([b[0], b[1]])
 }
 
+#[track_caller]
 pub fn ww(at: impl Into<Place>, v: u16) {
     at.into()
         .write(&v.to_le_bytes(), "an installer word")
         .unwrap_or_else(|e| refuse(e));
 }
 
+#[track_caller]
 pub fn rd(at: impl Into<Place>) -> u32 {
     let b = at
         .into()
@@ -123,10 +128,12 @@ pub fn rd(at: impl Into<Place>) -> u32 {
 }
 
 /// The link (`page_links::PageLink`) the dword at `at` holds.
+#[track_caller]
 pub fn rl(at: impl Into<Place>) -> crate::install::page_links::PageLink {
     crate::install::page_links::PageLink::from_raw(rd(at))
 }
 
+#[track_caller]
 pub fn wd(at: impl Into<Place>, v: u32) {
     at.into()
         .write(&v.to_le_bytes(), "an installer dword")
@@ -145,6 +152,13 @@ pub fn text_at(place: impl Into<Place>) -> Vec<u8> {
         .into()
         .text("an installer text")
         .unwrap_or_else(|e| refuse(e))
+}
+
+/// The text at `place` with its NUL, as the text drawers and measurers read it (to its NUL).
+pub fn text_with_nul(place: impl Into<Place>) -> Vec<u8> {
+    let mut text = text_at(place);
+    text.push(0);
+    text
 }
 
 /// `bytes`, the whole text a builder made (its NULs too), written at `at`.
