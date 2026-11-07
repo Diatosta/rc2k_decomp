@@ -25,8 +25,10 @@ const GRANULE: usize = 1 << GRANULE_BITS;
 const GRANULES: usize = 1 << (32 - GRANULE_BITS);
 /// The first granule handed out (game 0x0100_0000): small numbers are never addresses.
 const FIRST: u32 = 0x0100;
-/// The granule past the last one handed out (game 0xFFFF_0000).
-const LAST: u32 = 0xFFFF;
+/// The granule past the last one handed out (game 0xC000_0000): the numbers from there up
+/// are the handles' (`FORMAT_TAG`, `COURSE_TAG` and the other `*_TAG`s, 0xCA00_0000 ..
+/// 0xCFFF_FFFF), so no game address is ever one of them.
+const LAST: u32 = 0xC000;
 
 /// Per game granule: its host address less its game address, with bit 0 set; 0 when no
 /// range covers it (the tests' `host`).

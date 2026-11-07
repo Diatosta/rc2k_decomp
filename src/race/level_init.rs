@@ -75,8 +75,15 @@ struct CourseMemory {
 
 static COURSE_MEMORY: std::sync::Mutex<Option<CourseMemory>> = std::sync::Mutex::new(None);
 
-/// `bytes` of course memory counted on `list`, the first `kept` of them held: their game
-/// address.
+/// The course memory by handle (phase 13): `COURSE_TAG | offset` names the byte at `offset`
+/// of the course memory, 0 none. `g_courseMemory` holds `COURSE_TAG` (offset 0), the
+/// layout's addresses (`lay_out_course`) are `COURSE_TAG` plus the offset the original
+/// adds to the block's start; `course_memory_at` turns one back into a place. No host
+/// address is kept.
+pub const COURSE_TAG: u32 = 0xCF00_0000;
+
+/// `bytes` of course memory counted on `list`, the first `kept` of them held: their handle
+/// (`COURSE_TAG`).
 fn take_course_memory(
     list: crate::pointers::GamePtr,
     bytes: u32,
@@ -86,22 +93,21 @@ fn take_course_memory(
     memory.truncate(kept as usize);
     memory.shrink_to_fit();
     let memory = crate::pointers::LentBytes::from_vec(memory);
-    let at = memory.addr();
     *COURSE_MEMORY
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(CourseMemory { _bytes: memory });
-    Ok(at)
+    Ok(COURSE_TAG)
 }
 
-/// The place at game address `at` inside the course memory, bounded by the memory's bytes;
-/// an address outside it, or no course memory, is refused.
+/// The place at handle `at` (`COURSE_TAG | offset`) inside the course memory, bounded by the
+/// memory's bytes; a handle outside it, or no course memory, is refused.
 pub fn course_memory_at(at: u32) -> Result<crate::pointers::GamePtr, BadInput> {
     let guard = COURSE_MEMORY
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     let memory = &guard.as_ref().ok_or(BadInput("no course memory"))?._bytes;
     let off = at
-        .checked_sub(memory.addr())
+        .checked_sub(COURSE_TAG)
         .ok_or(BadInput("a place before the course memory"))?;
     Ok(memory.ptr().offset(off))
 }

@@ -37,7 +37,7 @@ pub struct CourseLists {
     pub unknown_614: [Dword; 12],
     /// +0x644 (0x5C6F90): `dword_5C6F90`: bytes taken from the course lists, added and subtracted by the allocators (`race::stage_free`, `race::mud`, `scene::allocate_object_memory`).
     pub course_bytes_total: Dword,
-    /// +0x648 (0x5C6F94): `g_courseMemory`: pointer to the course's memory (`race::course_data`, `race::norms`, `race::pace_notes`).
+    /// +0x648 (0x5C6F94): `g_courseMemory`: handle of the course's memory, `level_init::COURSE_TAG` while taken (`race::course_data`, `race::norms`, `race::pace_notes`).
     pub course_memory: Dword,
     /// +0x64c (0x5C6F98): `dword_5C6F98`, set by `race::free_course_list_2` (cleared by `race::stage_free`).
     pub course_list_2_a: Dword,
