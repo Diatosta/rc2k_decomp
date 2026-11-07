@@ -198,7 +198,7 @@ fn body(ui: &Ui, f: impl FnOnce()) {
 }
 
 /// The UI's frame.
-pub fn build(race: &'static Race, ui: &Ui) {
+pub fn build(race: &Race, ui: &Ui) {
     if PROBES.load(Relaxed) {
         draw_probes(race, ui);
     }

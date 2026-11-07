@@ -262,7 +262,7 @@ mod tab {
     }
 
     /// The tab.
-    pub fn tab(race: &'static Race, ui: &Ui) {
+    pub fn tab(race: &Race, ui: &Ui) {
         let s = &SETTINGS;
         number(ui, "Course", &s.course, 99);
         let course = s.course.load(Relaxed) as usize;

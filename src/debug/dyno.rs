@@ -77,7 +77,7 @@ struct Measured {
 static MEASURED: Mutex<Option<Measured>> = Mutex::new(None);
 
 /// Every variable the measuring writes.
-fn places(shared: &'static Shared) -> [&'static dyn Cell32; 15] {
+fn places(shared: &Shared) -> [&dyn Cell32; 15] {
     let drawing = &scene().drawing;
     [
         &shared.car.gear,
@@ -99,7 +99,7 @@ fn places(shared: &'static Shared) -> [&'static dyn Cell32; 15] {
 }
 
 /// `f` run, the variables put back after it.
-fn kept<T>(shared: &'static Shared, f: impl FnOnce() -> T) -> T {
+fn kept<T>(shared: &Shared, f: impl FnOnce() -> T) -> T {
     let places = places(shared);
     let saved = places.map(super::super::session::Cell32::bits);
     let result = f();
@@ -110,7 +110,7 @@ fn kept<T>(shared: &'static Shared, f: impl FnOnce() -> T) -> T {
 }
 
 /// `sub_43CAAB`: the drive at the engine's speed and the car's throttle.
-fn torque(race: &'static Race) {
+fn torque(race: &Race) {
     let shared = &race.shared;
     let course = &race.course;
     engine_torque(race);
@@ -138,7 +138,7 @@ fn torque(race: &'static Race) {
 
 /// The drive at `speed`, full throttle: None at or above the limit, or where the engine's
 /// speed is no number (a ratio of 0).
-fn drive_at(race: &'static Race, speed: f32) -> Option<(f32, f32)> {
+fn drive_at(race: &Race, speed: f32) -> Option<(f32, f32)> {
     let shared = &race.shared;
     shared.car.drive_speed_a.set_bits(speed.to_bits());
     shared.car.drive_speed_b.set_bits(speed.to_bits());
@@ -158,7 +158,7 @@ fn drive_at(race: &'static Race, speed: f32) -> Option<(f32, f32)> {
 }
 
 /// `sub_428F42`, without its drawing.
-fn measure(race: &'static Race) -> Option<Measured> {
+fn measure(race: &Race) -> Option<Measured> {
     let shared = &race.shared;
     let course = &race.course;
     let limit = f32::from_bits(shared.car.engine_speed_limit.bits());
@@ -220,7 +220,7 @@ fn measure(race: &'static Race) -> Option<Measured> {
 
 /// The car's speed and its drive right now, full throttle (`sub_4291C9`), in a forward gear
 /// below the limit.
-fn cursor(race: &'static Race) -> Option<(f32, f32, f32, i32)> {
+fn cursor(race: &Race) -> Option<(f32, f32, f32, i32)> {
     let shared = &race.shared;
     let gear = shared.car.gear.get() as i32;
     let speed = f32::from_bits(shared.car.drive_speed_a.bits());
@@ -236,7 +236,7 @@ fn cursor(race: &'static Race) -> Option<(f32, f32, f32, i32)> {
 }
 
 /// The tab.
-pub fn tab(race: &'static Race, ui: &Ui) {
+pub fn tab(race: &Race, ui: &Ui) {
     let mut measured = MEASURED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);

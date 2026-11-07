@@ -425,7 +425,7 @@ fn view_of(
     std::ptr::with_exposed_provenance_mut(view.1)
 }
 
-fn show_frame(race: &'static Race, screen: &Screen) -> Result<(), &'static str> {
+fn show_frame(race: &Race, screen: &Screen) -> Result<(), &'static str> {
     // The frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
     let bytes = (screen.bits / 8) as usize;
     let converted;
