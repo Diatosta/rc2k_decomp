@@ -64,8 +64,9 @@ pub struct Player {
     pub bindings: ControlsBlock,
     /// Record +0x7C .. +0x84: nothing reads or writes it.
     pub unused_7c: [u8; 8],
-    /// Zeroed for each player by `menu::begin_event`.
-    pub field_84: u32,
+    /// Zeroed for each player by `menu::begin_event` and `menu::reset_single_event`; nothing
+    /// reads it (IDA: no other access of a player's +0x84).
+    pub unread_84: u32,
     /// The stage's time (`HOUR`: none yet; `menu::reset_player_times`).
     pub time: u32,
     /// The event's total time (`menu::reset_player_totals`; 0 at `menu::begin_event`).
@@ -127,7 +128,9 @@ pub struct Player {
     pub tyre_wear: [u32; 5],
     /// The 0x40 bytes of the car's best line (the time trial's; the race's result data).
     pub best_line: [u8; 64],
-    pub field_24c: [u32; 8],
+    /// The car's eight impact marks (`impact_octant_marks`, 0 .. 1 floats' bits, one per
+    /// octant of a hit's direction), carried from stage to stage; a body repair zeroes them.
+    pub impact_marks: [u32; 8],
     /// Record +0x26C .. +0x274: nothing reads or writes it.
     pub unused_26c: [u8; 8],
     /// The other start section (`SCREEN_FLOW.start_section_a8`; player 0's, kept in the
@@ -342,7 +345,7 @@ layout! {
     0x04C word unused_4c,
     0x050 controls bindings,
     0x07C bytes unused_7c,
-    0x084 word field_84,
+    0x084 word unread_84,
     0x088 word time,
     0x08C word total,
     0x090 word class,
@@ -375,7 +378,7 @@ layout! {
     0x17C words parts_wear,
     0x1F8 words tyre_wear,
     0x20C bytes best_line,
-    0x24C words field_24c,
+    0x24C words impact_marks,
     0x26C bytes unused_26c,
     0x274 word saved_start_section_a8,
     0x278 word state_flags,
@@ -519,10 +522,10 @@ pub const TAKES_PART: u32 = 1;
 pub const OUT: u32 = 6;
 
 impl Player {
-    /// `menu::begin_event` and `reset_single_event`: no total, +0x84 0, taking part.
+    /// `menu::begin_event` and `reset_single_event`: no total, `unread_84` 0, taking part.
     pub fn begin(&mut self) {
         self.total = 0;
-        self.field_84 = 0;
+        self.unread_84 = 0;
         self.entry = TAKES_PART;
     }
 

@@ -4,7 +4,7 @@
 //! `dword_755254` and `dword_755950` 0; every driver of `g_drivers` (`standings::drivers`'s walk)
 //! gets +0x10, +0xC, +0x20 = 0 and +0x24 = 1 (`Driver::begin`); `dword_75592C` 1,
 //! `dword_755978` 0; then for each player n (the current player `dword_75598C` = n, left at 3):
-//! `field_8c` and `field_84` 0, +0xD0 1, `service::repair_car`, and unless the event mode
+//! `total` and `unread_84` 0, `entry` 1 (`Player::begin`), `service::repair_car`, and unless the event mode
 //! `dword_7556D0` is 3 the setup's defaults: gear ratio 2, brake balance 0x32, tyre 3, ride height
 //! 0x46, suspension 0x1E, steering sensitivity = the controller's (+0x280). Callers: the event
 //! loops' starts (`menu::single_rally` and nine more). Refuses drivers without their end entry, a

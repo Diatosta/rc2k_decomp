@@ -24,6 +24,10 @@ const fn sparse<const N: usize>(runs: &[(usize, &[u8])]) -> [u8; N] {
     out
 }
 
+/// The binding of `RaceCar::bindings` no word of the player's record goes to: the ninth
+/// device binding's (key byte 0x5C), left as the store's start value (0) and read as it is.
+pub const UNSET_BINDING: usize = 9;
+
 /// One player's settings as the race variables keep them (IDA 0x75AD1C and 0x75AE88,
 /// 0x16C bytes each): copies of fields of the player's record (`Player`), at the record's
 /// order less the words the race does not take. Field docs name the record's field and
@@ -90,19 +94,22 @@ pub struct RaceCar {
     pub strength: Dword,
     /// The record's +0x4C: not taken.
     pub _unused_4c: Dword,
-    /// `Player.bindings` words 0 .. 9 (record +0x50 .. +0x74).
-    pub controls_50: [Dword; 9],
-    /// The word after them: not copied from the player's record by `race::single_rally` or
-    /// `net::take_player_settings` (the record's +0x74 goes to `controls_74`); yet
-    /// `input::set_up_device` reads it as the control word of the ninth binding (key byte
-    /// 0x5C, controls word 0x48), as the original.
-    pub unset_control: Dword,
-    /// `Player.bindings` word 9 (record +0x74).
-    pub controls_74: Dword,
-    /// `Player.bindings` word 10 (record +0x78).
-    pub controls_78: Dword,
+    /// The twelve bindings' controller words (`input::set_up_device`, by
+    /// `rc2k_core::input::devices::DEVICE_BINDINGS`): `Player.bindings`' eleven words go to
+    /// all but `UNSET_BINDING` (`race::single_rally`, `net::take_player_settings`, as the
+    /// original).
+    pub bindings: [Dword; 12],
     /// `Player.keys` (+0x1C .. +0x27): the 12 bytes of the controls.
     pub keys: Bytes<12>,
+}
+
+impl RaceCar {
+    /// The binding words the player's record's eleven go to, in order: all but
+    /// `UNSET_BINDING`.
+    pub fn recorded_bindings(&self) -> impl Iterator<Item = &Dword> {
+        let (head, tail) = self.bindings.split_at(UNSET_BINDING);
+        head.iter().chain(&tail[1..])
+    }
 }
 
 /// A car's result as the race leaves it (IDA 0x75B01C and 0x75B08C, 0x70 bytes each).
@@ -119,8 +126,8 @@ pub struct RaceResult {
     pub result: Dword,
     /// The 0x40 bytes of data (`unk_75B02C` / `unk_75B09C`; the best line's text).
     pub data: Bytes<64>,
-    /// The 0x20 bytes copied from the record's +0x24C (`Player.field_24c`).
-    pub field_24c: [Dword; 8],
+    /// The car's eight impact marks, from and back to `Player::impact_marks`.
+    pub impact_marks: [Dword; 8],
 }
 
 /// The race's settings as the front end keeps them (IDA 0x75ACCC .. 0x75AFF4; "Graham's"
@@ -279,7 +286,7 @@ impl RaceState {
                         dead_zone_2: Dword::new(0xa),
                         strength: Dword::new(0),
                         _unused_4c: Dword::new(0),
-                        controls_50: [
+                        bindings: [
                             Dword::new(0x200),
                             Dword::new(0x100),
                             Dword::new(0x400),
@@ -289,10 +296,10 @@ impl RaceState {
                             Dword::new(2),
                             Dword::new(0),
                             Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
                         ],
-                        unset_control: Dword::new(0),
-                        controls_74: Dword::new(0),
-                        controls_78: Dword::new(0),
                         keys: Bytes::new(sparse::<12>(&[(
                             0x0,
                             &[
@@ -331,7 +338,7 @@ impl RaceState {
                         dead_zone_2: Dword::new(0xa),
                         strength: Dword::new(0),
                         _unused_4c: Dword::new(0),
-                        controls_50: [
+                        bindings: [
                             Dword::new(0x200),
                             Dword::new(0x100),
                             Dword::new(0x400),
@@ -341,10 +348,10 @@ impl RaceState {
                             Dword::new(2),
                             Dword::new(0),
                             Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
+                            Dword::new(0),
                         ],
-                        unset_control: Dword::new(0),
-                        controls_74: Dword::new(0),
-                        controls_78: Dword::new(0),
                         keys: Bytes::new(sparse::<12>(&[(
                             0x0,
                             &[
@@ -373,7 +380,7 @@ impl RaceState {
                         secs: Float::from_bits(0),
                         result: Dword::new(0),
                         data: Bytes::new([0xff; 64]),
-                        field_24c: [const { Dword::new(0) }; 8],
+                        impact_marks: [const { Dword::new(0) }; 8],
                     },
                     RaceResult {
                         time: Dword::new(0),
@@ -381,7 +388,7 @@ impl RaceState {
                         secs: Float::from_bits(0),
                         result: Dword::new(0),
                         data: Bytes::new([0xff; 64]),
-                        field_24c: [const { Dword::new(0) }; 8],
+                        impact_marks: [const { Dword::new(0) }; 8],
                     },
                 ],
                 stage_index: Dword::new(0),
@@ -469,10 +476,10 @@ mod tests {
         assert_eq!(offset_of!(RaceCar, dead_zone_1), 0x154 - 0x34);
         assert_eq!(offset_of!(RaceCar, dead_zone_2), 0x158 - 0x34);
         assert_eq!(offset_of!(RaceCar, strength), 0x15C - 0x34);
-        assert_eq!(offset_of!(RaceCar, controls_50), 0x164 - 0x34);
-        assert_eq!(offset_of!(RaceCar, controls_74), 0x18C - 0x34);
-        assert_eq!(offset_of!(RaceCar, controls_78), 0x190 - 0x34);
+        assert_eq!(offset_of!(RaceCar, bindings), 0x164 - 0x34);
+        assert_eq!(offset_of!(RaceCar, bindings) + 4 * 10, 0x18C - 0x34);
+        assert_eq!(offset_of!(RaceCar, bindings) + 4 * 11, 0x190 - 0x34);
         assert_eq!(offset_of!(RaceCar, keys), 0x194 - 0x34);
-        assert_eq!(offset_of!(RaceResult, field_24c), 0x50);
+        assert_eq!(offset_of!(RaceResult, impact_marks), 0x50);
     }
 }

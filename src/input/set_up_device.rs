@@ -23,8 +23,10 @@ use crate::session::Dword;
 use std::mem::offset_of;
 
 // The controls run from the car's `controller` (+0) to the key bytes (+0x54): the word 0x20
-// is a gap no binding reads, 0x48 the word the copies from the player's record pass over.
-const _: () = assert!(offset_of!(RaceCar, controls_78) - offset_of!(RaceCar, controller) == 0x50);
+// is a gap no binding reads, 0x48 (`UNSET_BINDING`) the word the copies from the player's
+// record pass over.
+const _: () =
+    assert!(offset_of!(RaceCar, bindings) + 4 * 11 - offset_of!(RaceCar, controller) == 0x50);
 const _: () = assert!(offset_of!(RaceCar, keys) - offset_of!(RaceCar, controller) == 0x54);
 
 /// The device `record` set up from the controls of `car`, from its `controller` on (see the
@@ -41,18 +43,18 @@ pub fn set_up_device(record: &InputDevice, car: &RaceCar) -> Result<(), Refused>
         &car.dead_zone_2,
         &car.strength,
         &car._unused_4c,
-        &car.controls_50[0],
-        &car.controls_50[1],
-        &car.controls_50[2],
-        &car.controls_50[3],
-        &car.controls_50[4],
-        &car.controls_50[5],
-        &car.controls_50[6],
-        &car.controls_50[7],
-        &car.controls_50[8],
-        &car.unset_control,
-        &car.controls_74,
-        &car.controls_78,
+        &car.bindings[0],
+        &car.bindings[1],
+        &car.bindings[2],
+        &car.bindings[3],
+        &car.bindings[4],
+        &car.bindings[5],
+        &car.bindings[6],
+        &car.bindings[7],
+        &car.bindings[8],
+        &car.bindings[9],
+        &car.bindings[10],
+        &car.bindings[11],
     ];
     // +0x414 .. +0x4DC: the reading flag, the hat's kind and the bindings.
     record.reading.set(0);

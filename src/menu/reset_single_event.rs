@@ -1,6 +1,7 @@
 //! `menu::reset_single_event` (0x4AAA2F): `dword_755254` / `dword_755950` 0; every
 //! driver's +0x10 / +0xC / +0x20 0 and +0x24 1; `dword_75592C` 1, `dword_755978` 0; the
-//! four players' +0x8C / +0x84 0 and +0xD0 1 (a reading: a single event's start).
+//! four players' `total` and `unread_84` 0 and `entry` 1 (`Player::begin`; a single event's
+//! start).
 //!
 //! Refuses a missing player or a drivers' table without its end
 //! entry, before anything.

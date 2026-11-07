@@ -68,7 +68,7 @@ struct Side {
     flags: &'static Dword,
     /// dword_75B00C (the current's): the record's `hud_bits`.
     hud_bits: &'static Dword,
-    /// The car's result, and the 0x20 bytes of its `field_24c`.
+    /// The car's result, and the 0x20 bytes of its `impact_marks`.
     result: &'static RaceResult,
 }
 const FIRST_SIDE: Side = Side {
@@ -112,10 +112,10 @@ const MODE_WORD: &Dword = &crate::race::owner::RACE.shared.state.settings.cars[0
 
 #[cfg(test)]
 const BLOCK_FIRST: &[Dword; 8] =
-    &crate::race::owner::RACE.shared.state.results.results[1].field_24c;
+    &crate::race::owner::RACE.shared.state.results.results[1].impact_marks;
 #[cfg(test)]
 const BLOCK_CURRENT: &[Dword; 8] =
-    &crate::race::owner::RACE.shared.state.results.results[0].field_24c;
+    &crate::race::owner::RACE.shared.state.results.results[0].impact_marks;
 #[cfg(test)]
 const TIMES_FIRST: [&Dword; 4] = [
     &crate::race::owner::RACE.shared.state.settings.cars[1].wear[10],
@@ -181,8 +181,8 @@ pub fn player(n: u32) -> Result<Record, BadInput> {
 }
 
 /// A record's controller settings into a car's: the controller, gearing, sensitivity, axes,
-/// mode, dead zones, strength, and the 0x2C bytes of `bindings` as eleven words (the last
-/// two are `controls_74` and `controls_78`).
+/// mode, dead zones, strength, and the 0x2C bytes of `bindings` as eleven words
+/// (`RaceCar::recorded_bindings`).
 fn take_controls(p: &Player, car: &RaceCar) {
     car.controller.set(p.controller);
     car.gearing.set(p.gearing);
@@ -192,11 +192,7 @@ fn take_controls(p: &Player, car: &RaceCar) {
     car.dead_zone_1.set(p.dead_zone_1);
     car.dead_zone_2.set(p.dead_zone_2);
     car.strength.set(p.strength);
-    let cells = car
-        .controls_50
-        .iter()
-        .chain([&car.controls_74, &car.controls_78]);
-    for (cell, word) in cells.zip(p.bindings.words()) {
+    for (cell, word) in car.recorded_bindings().zip(p.bindings.words()) {
         cell.set(word);
     }
 }
@@ -251,9 +247,9 @@ fn take_player(p: &Player, side: &Side, condition: bool) {
     }
 }
 
-/// The 0x20 bytes (`field_24c`) of a record into a result.
+/// The 0x20 bytes (`impact_marks`) of a record into a result.
 fn take_block(p: &Player, result: &RaceResult) {
-    for (cell, &word) in result.field_24c.iter().zip(&p.field_24c) {
+    for (cell, &word) in result.impact_marks.iter().zip(&p.impact_marks) {
         cell.set(word);
     }
 }
@@ -288,7 +284,7 @@ fn give_player(p: &mut Player, side: &Side) {
     for (word, cell) in wear.zip(&car.wear) {
         *word = cell.get();
     }
-    for (word, cell) in p.field_24c.iter_mut().zip(&side.result.field_24c) {
+    for (word, cell) in p.impact_marks.iter_mut().zip(&side.result.impact_marks) {
         *word = cell.get();
     }
     p.damage[1] = total(car);

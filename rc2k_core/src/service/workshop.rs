@@ -177,7 +177,7 @@ pub fn apply_repairs<W: Workshop>(w: &mut W) -> Result<(), W::Error> {
         }
         if *damage(car, BODY) == 0 {
             car.state_flags |= BODY_BITS;
-            car.field_24c = [0; 8];
+            car.impact_marks = [0; 8];
         }
     });
     w.sleep(END_SLEEP_MS);

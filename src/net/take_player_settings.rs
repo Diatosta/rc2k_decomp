@@ -64,11 +64,9 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
     car.dead_zone_1.set(p.dead_zone_1);
     car.dead_zone_2.set(p.dead_zone_2);
     car.strength.set(p.strength);
-    for (n, cell) in car.controls_50.iter().enumerate() {
-        cell.set(p.binding(n));
+    for (cell, word) in car.recorded_bindings().zip(p.bindings.words()) {
+        cell.set(word);
     }
-    car.controls_74.set(p.binding(9));
-    car.controls_78.set(p.binding(10));
     for (n, b) in p.keys.iter().enumerate() {
         car.keys.set(n, *b);
     }
@@ -76,8 +74,8 @@ fn copy_player_settings(p: &Player, state: &RaceState) {
     r.service_spent_current.set(p.service_spent);
     r.hud_bits_current.set(p.hud_bits as u32);
     r.flags_current.set(p.state_flags);
-    for (n, w) in p.field_24c.iter().enumerate() {
-        r.results[0].field_24c[n].set(*w);
+    for (n, w) in p.impact_marks.iter().enumerate() {
+        r.results[0].impact_marks[n].set(*w);
     }
 }
 

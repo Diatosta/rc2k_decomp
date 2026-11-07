@@ -467,9 +467,9 @@ const IMPACT_MARKS: [CarFloat; 8] = [
     |c| &c.impact_octant_marks[7],
 ];
 
-/// Car `car`'s eight impact marks in the results record (`results[car].field_24c`).
+/// Car `car`'s eight impact marks in the results record (`results[car].impact_marks`).
 fn result_marks(shared: &Shared, car: usize) -> &[Dword; 8] {
-    &shared.state.results.results[car].field_24c
+    &shared.state.results.results[car].impact_marks
 }
 
 /// The steps of `copy_settings_in` (the front end's settings into the race's), in the

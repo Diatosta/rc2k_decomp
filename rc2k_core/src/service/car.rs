@@ -57,7 +57,7 @@ impl Player {
     }
 
     /// `service::repair_car`: the car as new: eight damage dwords, every part, the tyres,
-    /// `state_flags` -1 and `field_24c` 0.
+    /// `state_flags` -1 and `impact_marks` 0.
     pub fn repair_car(&mut self) {
         for d in CAR_DAMAGE {
             self.damage[d] = 0;
@@ -68,7 +68,7 @@ impl Player {
             self.repair(part);
         }
         self.state_flags = u32::MAX;
-        self.field_24c = [0; 8];
+        self.impact_marks = [0; 8];
     }
 }
 
