@@ -16,9 +16,9 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, close_search, fatal, find_first, find_next, resolve_path, str_append,
+    close_search, fatal, find_first, find_next, resolve_path, text_at,
 };
-use crate::install::name_tables::{FILES, FOLDERS, made_name};
+use crate::install::name_tables::{FILES, FOLDERS, found_name};
 
 /// FindFileData.cFileName (the search record: `files::search`).
 fn find_name() -> crate::pointers::GamePtr {
@@ -43,10 +43,7 @@ fn same_name(a1: impl Into<crate::place::Place>, a2: impl Into<crate::place::Pla
 
 /// The found file's path (the searched folder's) and name.
 fn found_path(search: &[u8]) -> Result<Vec<u8>, Refused> {
-    made_name(|at| {
-        let (cursor, _) = crate::files::append_directory::append_directory(search, at)?;
-        Ok(append_byte(str_append(find_name(), cursor), 0).game_ptr())
-    })
+    found_name(search, &text_at(find_name()))
 }
 
 fn walk(folder: crate::place::Place) -> Result<(), Refused> {
@@ -65,21 +62,19 @@ fn walk(folder: crate::place::Place) -> Result<(), Refused> {
     }
     loop {
         // list the folder
-        let search = crate::files::numbered_path::buffer(); // byte_94E8B0
-        search.write_bytes(&folder, "the search path")?;
-        let base = search;
-        let mut cursor = crate::place::Place::from(base.offset(folder.len() as u32));
+        let base = crate::files::numbered_path::buffer(); // byte_94E8B0
+        let mut search_text = folder.clone();
         // The original tests the byte before its cursor; for an empty folder that is the
         // byte before the search buffer (not the path's): here an empty folder gets its `\\`.
         if folder.last() != Some(&b'\\') {
-            cursor = append_byte(cursor, b'\\');
+            search_text.push(b'\\');
         }
-        append_byte(
-            str_append(&crate::install::owner::install().texts.star, cursor),
-            0,
-        );
-        // The search path just built, read back where it was written.
-        let search_text = crate::files::cstring(base, "the search path")?;
+        search_text.extend(text_at(&crate::install::owner::install().texts.star));
+        // The search path, kept in the search buffer with its NUL (the numbered paths read
+        // it later).
+        let mut kept = search_text.clone();
+        kept.push(0);
+        base.write_bytes(&kept, "the search path")?;
         if find_first(&search_text) {
             loop {
                 if find_attributes() & 0x10 != 0 {

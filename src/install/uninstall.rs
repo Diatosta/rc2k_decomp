@@ -26,8 +26,8 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, copy_picture, delete_file, lock, normalise, remove_dir, run_frame, set_cd, show,
-    sleep, str_append, unlock, wb,
+    copy_picture, delete_file, lock, normalise, remove_dir, run_frame, set_cd, show, sleep,
+    store_text, text_at, unlock, wb,
 };
 
 /// byte_95E9F8 = byte_95E7F8 + name #index of `table`, NUL-ended.
@@ -35,12 +35,10 @@ fn build_path(
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
 ) -> Result<crate::place::Place, Refused> {
-    let cursor = str_append(
-        &crate::install::owner::install().paths.installed,
-        &crate::install::owner::install().paths.path_b,
-    );
-    let cursor = crate::install::name_tables::append_name(table, index, cursor)?;
-    append_byte(cursor, 0);
+    let mut path = text_at(&crate::install::owner::install().paths.installed);
+    crate::install::name_tables::push_name(table, index, &mut path)?;
+    path.push(0);
+    store_text(&crate::install::owner::install().paths.path_b, &path);
     Ok(crate::place::Place::from(
         &crate::install::owner::install().paths.path_b,
     ))

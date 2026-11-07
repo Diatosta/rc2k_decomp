@@ -16,8 +16,8 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, copy_picture, draw_string, lock, normalise, set_cd, show, sleep, str_append,
-    take_key, unlock,
+    copy_picture, draw_string, lock, normalise, set_cd, show, sleep, store_text, take_key, text_at,
+    unlock,
 };
 
 const FONT_BE: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::BOX_TEXT;
@@ -29,9 +29,10 @@ fn append_both(
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
 ) -> Result<(), Refused> {
-    let cursor = str_append(base, to);
-    let cursor = crate::install::name_tables::append_name(table, index, cursor)?;
-    append_byte(cursor, 0);
+    let mut path = text_at(base);
+    crate::install::name_tables::push_name(table, index, &mut path)?;
+    path.push(0);
+    store_text(to, &path);
     Ok(())
 }
 

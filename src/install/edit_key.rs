@@ -17,7 +17,7 @@
 //! plain edit (not Escape or Enter, the keys that end the edit). Caller `install::page_key`.
 
 use crate::errors::Refused;
-use crate::install::installer::{append_string_by_id, measure_text, rb, wb};
+use crate::install::installer::{measure_text, push_string_by_id, rb, store_text, text_at, wb};
 use crate::install::vars::InstallerPages;
 use crate::menu::list_handle::{EditField, ListItem};
 use crate::place::Place;
@@ -109,7 +109,9 @@ pub fn edit_key(
                             crate::install::run_installer::put_typed(&first);
                         }
                         _ => {
-                            append_string_by_id(record.default_text() as u32, text);
+                            let mut default = Vec::new();
+                            push_string_by_id(&mut default, record.default_text() as u32);
+                            store_text(text, &default);
                         }
                     }
                 }
@@ -143,7 +145,7 @@ pub fn edit_key(
     // The measure takes the text's last place as its limit.
     let (width, _) = measure_text(
         edit_font(record)?,
-        text,
+        &text_at(text),
         most.wrapping_add(text.game()).wrapping_add(1),
     )?;
     let widest = crate::install::folders::field_width(text, record.width());

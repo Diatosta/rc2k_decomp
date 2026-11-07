@@ -16,7 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::install::installer::{
-    append_byte, append_string_by_id, measure_string, measure_text, text_action,
+    measure_string, measure_text, push_string_by_id, store_text, text_action,
 };
 use crate::install::page_records::{BoxRecord, Piece, piece_count};
 use crate::install::vars::InstallerPages;
@@ -60,16 +60,17 @@ pub fn measure_pieces() -> Result<(), Refused> {
             }
             Way::Text => {
                 let item = piece.item();
-                let mut cursor =
-                    append_string_by_id(piece.text_id() as u32, &strings.text.buffer.text);
+                let mut text = Vec::new();
+                push_string_by_id(&mut text, piece.text_id() as u32);
                 let action = item.data();
                 if action != 0 {
-                    cursor = text_action(action, cursor)?;
+                    text_action(action, &mut text)?;
                 }
-                append_byte(cursor, 0);
+                text.push(0);
+                store_text(&strings.text.buffer.text, &text);
                 let kind = item.font_kind() as u32;
                 let font = InstallerPages::kind_font(pieces::measure_colour_at(kind)) as u32;
-                measure_text(font_of(font)?, &strings.text.buffer.text, left)?
+                measure_text(font_of(font)?, &text, left)?
             }
             Way::Action => {
                 let the_box = BoxRecord::linked(piece.item().box_link());

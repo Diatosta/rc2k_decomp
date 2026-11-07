@@ -20,7 +20,7 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, lock, normalise, pump, rb, run_frame, set_cd, show, sleep, str_append, take_key,
+    lock, normalise, pump, rb, run_frame, set_cd, show, sleep, store_text, take_key, text_at,
     unlock, wb,
 };
 use crate::install::name_tables::{FILES, FOLDERS};
@@ -50,9 +50,10 @@ fn build(
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
 ) -> Result<(), Refused> {
-    let cursor = str_append(base, to);
-    let cursor = crate::install::name_tables::append_name(table, index, cursor)?;
-    append_byte(cursor, 0);
+    let mut path = text_at(base);
+    crate::install::name_tables::push_name(table, index, &mut path)?;
+    path.push(0);
+    store_text(to, &path);
     Ok(())
 }
 
@@ -184,9 +185,10 @@ pub fn install_files(g: &'static crate::install::owner::Install) -> Result<(), R
             (&g.names.readme, Place::from(&g.names.readme).add(0xE)),
             (&g.names.manual, Place::from(&g.names.manual).add(0xE)),
         ] {
-            let cursor = str_append(&g.paths.game_dir, &g.paths.path_a);
-            let cursor = str_append(full, cursor);
-            append_byte(cursor, 0);
+            let mut path = text_at(&g.paths.game_dir);
+            path.extend(text_at(full));
+            path.push(0);
+            store_text(&g.paths.path_a, &path);
             // Not looked at (0x413435, 0x413463).
             i::copy_counted::copy_counted(g, &g.paths.path_a, base)?;
         }

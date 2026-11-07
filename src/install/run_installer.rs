@@ -20,8 +20,8 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, append_string_by_id, copy_picture, draw_string, fatal, load_language, lock,
-    normalise, rb, set_cd, show, sleep, unlock, wb,
+    copy_picture, draw_string, fatal, load_language, lock, normalise, push_string_by_id, rb,
+    set_cd, show, sleep, store_text, unlock, wb,
 };
 use crate::place::Place;
 use crate::system::owner::system;
@@ -54,9 +54,11 @@ pub fn run_installer(g: &'static crate::install::owner::Install) -> Result<(), R
             return Err(fatal(0x80AF_8101));
         }
         i::list_drives::list_drives(g);
-        let cursor = append_string_by_id(0x9F, &g.paths.typed);
-        let cursor = append_string_by_id(0xA0, cursor);
-        append_byte(cursor, 0);
+        let mut typed = Vec::new();
+        push_string_by_id(&mut typed, 0x9F);
+        push_string_by_id(&mut typed, 0xA0);
+        typed.push(0);
+        store_text(&g.paths.typed, &typed);
         if system().session.machine.keyboard_type.get() == 2 {
             g.paths.typed.set(0, g.run.first_drive.get() as u8);
         }

@@ -7,11 +7,9 @@
 //! Out: ebx + 2, the rest kept
 //!
 //! Conversion phase 3 (2026-10-23): plain Rust with typed arguments; the registers above
-//! are the original's.
+//! are the original's. Texts as values (2026-11-07): the two bytes pushed on the text built.
 
-/// The Rust version: the cursor after the two bytes.
-pub fn end_text_line(cursor: crate::place::Place) -> crate::place::Place {
-    crate::install::installer::wb(cursor, b'\n');
-    crate::install::installer::wb(cursor.add(1), 0);
-    cursor.add(2)
+/// The Rust version: the two bytes added to `out`.
+pub fn end_text_line(out: &mut Vec<u8>) {
+    out.extend_from_slice(b"\n\0");
 }

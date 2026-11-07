@@ -139,32 +139,25 @@ pub fn fatal(code: u32) -> Refused {
 
 // ---- pure text work ----
 
-/// `strings::str_append`: `text` appended at `cursor`; the cursor past it.
-pub fn str_append(text: impl Into<Place>, cursor: impl Into<Place>) -> Place {
-    let (text, cursor) = (text.into(), cursor.into());
-    let bytes = text.text("an installer text").unwrap_or_else(|e| refuse(e));
-    let len = bytes.len() as u32;
-    cursor
-        .write(&bytes, "an installer text")
+/// The NUL-ended text at `place` (a refused read ends the installer, as every wrapper here).
+pub fn text_at(place: impl Into<Place>) -> Vec<u8> {
+    place
+        .into()
+        .text("an installer text")
+        .unwrap_or_else(|e| refuse(e))
+}
+
+/// `bytes`, the whole text a builder made (its NULs too), written at `at`.
+pub fn store_text(at: impl Into<Place>, bytes: &[u8]) {
+    at.into()
+        .write(bytes, "an installer text")
         .unwrap_or_else(|e| refuse(e));
-    cursor.add(len)
 }
 
-/// `strings::append_nul` and the other one-byte cursor helpers.
-pub fn append_byte(cursor: impl Into<Place>, b: u8) -> Place {
-    let cursor = cursor.into();
-    wb(cursor, b);
-    cursor.add(1)
-}
-
-/// `strings::append_string_by_id`: string `id` appended at `cursor`; the cursor past it.
-pub fn append_string_by_id(id: u32, cursor: impl Into<Place>) -> Place {
-    let cursor = cursor.into();
-    let mut text = Vec::new();
-    let written = crate::strings::append_string_by_id::push_string(&mut text, id)
-        .and_then(|()| cursor.write(&text, "a text"));
-    crate::menu::event_flow::refuse_here(written, "install::installer: a string");
-    cursor.add(text.len() as u32)
+/// `strings::append_string_by_id`: string `id` appended to `out`.
+pub fn push_string_by_id(out: &mut Vec<u8>, id: u32) {
+    let pushed = crate::strings::append_string_by_id::push_string(out, id);
+    crate::menu::event_flow::refuse_here(pushed, "install::installer: a string");
 }
 
 // ---- the game's other functions the installer calls ----
@@ -304,22 +297,15 @@ pub fn draw_string(id: u32, font: crate::pointers::GamePtr, x: u32, y: u32) -> R
 /// when the drawing changed it.
 pub fn draw_text(
     font: crate::gfx::typefaces::FontId,
-    text: impl Into<crate::place::Place>,
+    text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
-    let text = text.into().game_ptr();
     use crate::text::draw_text::GameCanvas;
     use crate::text::font::Font;
     let at = font.game_ptr();
     let mut copy = at.read::<Font>("a font object")?;
-    crate::text::draw_text::draw_text(
-        &mut copy,
-        &text.bytes("a text")?,
-        x as i32,
-        y as i32,
-        &mut GameCanvas,
-    )?;
+    crate::text::draw_text::draw_text(&mut copy, text, x as i32, y as i32, &mut GameCanvas)?;
     if copy != at.read::<Font>("a font object")? {
         at.write(copy, "a font object")?;
     }
@@ -329,18 +315,12 @@ pub fn draw_text(
 /// `text::measure_text` (0x40230B), ecx `x`: (the widest line, the last line's y).
 pub fn measure_text(
     font: crate::gfx::typefaces::FontId,
-    text: impl Into<crate::place::Place>,
+    text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
 ) -> Result<(u32, u32), Refused> {
-    let text = text.into().game_ptr();
     use crate::text::draw_text::GameCanvas;
     let m = {
-        crate::text::measure_text::measure_text_at(
-            font.game_ptr(),
-            &text.bytes("a text")?,
-            x as i32,
-            &mut GameCanvas,
-        )
+        crate::text::measure_text::measure_text_at(font.game_ptr(), text, x as i32, &mut GameCanvas)
     }?;
     Ok((m.width, m.outcome.y as u32))
 }
@@ -484,9 +464,12 @@ pub fn item_action_at(
 
 /// A text item's action (+0xC), eax its +8: more text at `cursor`; the cursor after. The
 /// game's items hold only `install::end_text_line`.
-pub fn text_action(place: u32, cursor: impl Into<Place>) -> Result<Place, Refused> {
+pub fn text_action(place: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
     match place {
-        0x415304 => Ok(crate::install::end_text_line::end_text_line(cursor.into())),
+        0x415304 => {
+            crate::install::end_text_line::end_text_line(out);
+            Ok(())
+        }
         _ => Err(BadInput("a text action that is not one of the installer's").into()),
     }
 }

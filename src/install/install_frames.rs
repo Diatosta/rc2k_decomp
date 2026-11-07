@@ -87,7 +87,7 @@ pub fn progress_frame(g: &'static crate::install::owner::Install) -> Result<bool
             .write_at(0, &text, "the text buffer")?;
         draw_text(
             FONT,
-            &strings.text.buffer.text,
+            &text,
             x.wrapping_add(0xC8),
             g.pages.bar.get_u32(4).wrapping_add(2),
         )?;

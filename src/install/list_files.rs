@@ -14,9 +14,9 @@
 
 use crate::errors::Refused;
 use crate::install::installer::{
-    append_byte, close_search, fatal, find_first, find_next, resolve_path, str_append,
+    close_search, fatal, find_first, find_next, resolve_path, text_at,
 };
-use crate::install::name_tables::{FILES, made_name};
+use crate::install::name_tables::{FILES, found_name};
 use rc2k_core::install::script;
 
 /// FindFileData.cFileName (the search record: `files::search`).
@@ -33,10 +33,7 @@ pub fn list_files(
     if find_first(&pattern) {
         loop {
             // append_directory (edx the pattern's path, ebx the cursor)
-            let name = made_name(|at| {
-                let (cursor, _) = crate::files::append_directory::append_directory(&pattern, at)?;
-                Ok(append_byte(str_append(find_name(), cursor), 0).game_ptr())
-            })?;
+            let name = found_name(&pattern, &text_at(find_name()))?;
             let used = FILES.with(|t| t.push(name))?;
             g.run.file_cursor.set(used);
             g.run.file_count.set(g.run.file_count.get().wrapping_add(1));

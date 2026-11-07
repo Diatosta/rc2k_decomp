@@ -1,4 +1,3 @@
-pub mod append_directory;
 pub mod close_stream;
 pub mod copy_file;
 pub mod directories;

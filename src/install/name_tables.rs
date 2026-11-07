@@ -29,32 +29,26 @@ pub static FOLDERS: Owned<NameTable> = Owned::new("no installer folders table");
 /// The files' names (`g_fileNames`, 0x40100 bytes on the installer's list).
 pub static FILES: Owned<NameTable> = Owned::new("no installer files table");
 
-/// Name `index` of `table` written at `cursor` (the game's memory) without a NUL, as
-/// `strings::str_append_indexed` appends it; the cursor past it. Refused past the table.
-pub fn append_name(
-    table: &Owned<NameTable>,
-    index: u32,
-    cursor: impl Into<crate::place::Place>,
-) -> Result<crate::place::Place, Refused> {
-    let cursor = cursor.into();
+/// Name `index` of `table` (without a NUL, as `strings::str_append_indexed` appends it)
+/// added to `out`. Refused past the table.
+pub fn push_name(table: &Owned<NameTable>, index: u32, out: &mut Vec<u8>) -> Result<(), Refused> {
     let name = table
         .with(|t| t.names.get(index as usize).cloned())?
         .ok_or(BadInput("an installer name past its table"))?;
-    cursor.write(&name, "an installer path")?;
-    Ok(cursor.add(name.len() as u32))
+    out.extend_from_slice(&name);
+    Ok(())
 }
 
-/// A name made by the game's text helpers (which write at an address) in a lent buffer:
-/// `make` writes it from the cursor it is given and gives the cursor past its NUL.
-pub fn made_name(
-    make: impl FnOnce(crate::pointers::GamePtr) -> Result<crate::pointers::GamePtr, Refused>,
-) -> Result<Vec<u8>, Refused> {
-    let lent = crate::pointers::LentBytes::from_vec(vec![0u8; 0x400]);
-    let end = make(lent.ptr())?;
-    let len = end.addr().wrapping_sub(lent.addr()) as usize;
-    let buffer = lent.to_vec();
-    match len.checked_sub(1) {
-        Some(n) if len <= buffer.len() => Ok(buffer[..n].to_vec()),
-        _ => Err(BadInput("an installer name past its buffer").into()),
+/// A found file's name behind its search's folder: the directory of `path` (to its last
+/// separator, if it has one; `files::append_directory`) and `name`. The original builds it
+/// in a buffer of 0x400 bytes, with its NUL: a longer one is refused.
+pub fn found_name(path: &[u8], name: &[u8]) -> Result<Vec<u8>, Refused> {
+    let mut made = rc2k_core::files::paths::directory(path)
+        .unwrap_or_default()
+        .to_vec();
+    made.extend_from_slice(name);
+    if made.len() >= 0x400 {
+        return Err(BadInput("an installer name past its buffer").into());
     }
+    Ok(made)
 }
