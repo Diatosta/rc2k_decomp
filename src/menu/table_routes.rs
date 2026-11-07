@@ -229,7 +229,7 @@ use rc2k_core::menu::player::Setting;
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// Runs item function `f` with what the item hands it (`c`).
-pub fn item_fn(menus: &'static Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
+pub fn item_fn(menus: &Menus, f: ItemFn, c: &table_calls::ItemCall) -> Result<(), Refused> {
     match f {
         ItemFn::NextNationality => step_items::player_setting(Setting::Nationality, true),
         ItemFn::PreviousNationality => step_items::player_setting(Setting::Nationality, false),

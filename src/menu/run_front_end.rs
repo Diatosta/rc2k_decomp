@@ -27,7 +27,7 @@ const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finish
 
 /// The Rust version (the original keeps ebp, ecx, edi and edx; it leaves eax 0 and esi
 /// as the main menu does, which its callers do not read).
-pub fn run_front_end(menus: &'static Menus) -> Result<(), Refused> {
+pub fn run_front_end(menus: &Menus) -> Result<(), Refused> {
     let fonts = &gfx().fonts;
     let play = &menus.play;
     log("menu::run_front_end: the Rust version runs");

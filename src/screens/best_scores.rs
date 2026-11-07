@@ -237,7 +237,7 @@ pub struct StageTimes {
     pub records: fn(&Menus) -> Result<RecordTable, BadInput>,
     pub record: &'static Dword,
     /// The times' table (ten for each stage; the record's +0x3C the stage).
-    pub table: fn(&Menus) -> &'static StageTable,
+    pub table: fn(&Menus) -> &StageTable,
     /// The rally page keeps the sprites' y (+4) in `dword_7559B0` and the flag's glyph in
     /// `dword_7559B4`.
     pub rally: bool,

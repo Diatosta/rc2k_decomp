@@ -84,11 +84,11 @@ const ENTER_SOUND: u32 = 0x14D;
 
 /// A variable of the game that a screen's description names, found when asked (a description
 /// is a constant, and a constant cannot hold a reference to a static).
-pub type Cell = fn(&'static Menus) -> &'static Dword;
+pub type Cell = fn(&Menus) -> &Dword;
 
 /// A text of the game that a screen's description names (a picture's path), found when
 /// asked.
-pub type Text = fn(&'static Menus) -> &'static dyn crate::session::TextPlace;
+pub type Text = fn(&Menus) -> &dyn crate::session::TextPlace;
 
 /// Something a screen does at one of the loop's fixed places.
 #[derive(Clone, Copy, Debug)]
@@ -97,7 +97,7 @@ pub enum Step {
     Call(Callee),
     /// Writes a game variable.
     Write(Cell, u32),
-    WriteF32(fn(&'static Menus) -> &'static Float, f32),
+    WriteF32(fn(&Menus) -> &Float, f32),
     /// Calls the game function, and if it fails (the original's carry flag), that is the
     /// fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
@@ -122,8 +122,8 @@ pub enum Flow {
 /// One of the screen's function lists: the table, and the variable that points at it.
 #[derive(Clone, Copy, Debug)]
 pub struct List {
-    pub pointer: fn(&'static Menus) -> &'static crate::menu::fn_list::ListCell,
-    pub table: fn(&'static Menus) -> crate::menu::fn_list::FnList,
+    pub pointer: fn(&Menus) -> &crate::menu::fn_list::ListCell,
+    pub table: fn(&Menus) -> crate::menu::fn_list::FnList,
     /// Run with `menu::run_list` at set-up, before its pointer is stored. Such a list is not
     /// put in place again before each frame; the others are.
     pub run: bool,
@@ -131,7 +131,7 @@ pub struct List {
 
 pub struct Screen {
     /// off_...: the screen's menu.
-    pub menu: fn(&'static Menus) -> MenuId,
+    pub menu: fn(&Menus) -> MenuId,
     /// The variable the highlight is kept in between visits.
     pub saved_item: Cell,
     pub lists: &'static [List],
@@ -181,7 +181,7 @@ pub struct Screen {
     pub action_saved_item: Option<Cell>,
     /// The menu whose item's action is run, where it is not `menu`: three loops name a
     /// neighbouring screen's menu there (the original's slip, reproduced).
-    pub action_menu: Option<fn(&'static Menus) -> MenuId>,
+    pub action_menu: Option<fn(&Menus) -> MenuId>,
     /// The quit switch is not looked at; `dword_7556A4` = 0x6F is stored once a frame in
     /// that place.
     pub no_quit_check: bool,
@@ -189,19 +189,19 @@ pub struct Screen {
     pub before_asking: &'static [Step],
     /// A variable that, when it is 1, keeps the question from being put although
     /// `dword_758806` is 1.
-    pub ask_unless: Option<fn(&'static Menus) -> u32>,
+    pub ask_unless: Option<fn(&Menus) -> u32>,
     /// On a screen that does not ask: what runs first on leaving, before the highlight is
     /// saved (the mode menu calls `menu::go_back` there when `dword_758806` is 1).
     pub leaving: &'static [Step],
     /// The variable the highlight is saved in on leaving, where it is not `saved_item`.
     pub leave_saved_item: Option<Cell>,
     /// The menu stored in `dword_731BBB` before `menu::handle_keys`, where it is not `menu`.
-    pub keys_menu: Option<fn(&'static Menus) -> MenuId>,
+    pub keys_menu: Option<fn(&Menus) -> MenuId>,
     /// What runs last of all, with the carried values back as they were at entry.
     pub after_restored: &'static [Step],
     /// What the loop returns (in eax), where it returns something: read from the game's
     /// variables as the loop leaves them.
-    pub result: Option<fn(&'static Menus) -> u32>,
+    pub result: Option<fn(&Menus) -> u32>,
     /// `dword_758806` is cleared and the highlight put in place (with the Escape check) after
     /// the first frame, not at the start of set-up, and set-up stores neither `dword_7556A4`
     /// nor `dword_755561` after the lists: the main menu.
@@ -225,18 +225,18 @@ pub struct Screen {
 /// (`scene::set_up_carousel` reads it for menus 0xD and 0xE).
 /// It also carries the menus' owner, which the steps read.
 #[derive(Clone, Copy)]
-pub struct Entry {
-    pub menus: &'static Menus,
+pub struct Entry<'a> {
+    pub menus: &'a Menus,
     pub cars: Option<CarList>,
 }
 
-impl Entry {
+impl<'a> Entry<'a> {
     /// Entered with nothing carried in.
-    pub fn new(menus: &'static Menus) -> Self {
+    pub fn new(menus: &'a Menus) -> Self {
         Entry { menus, cars: None }
     }
     /// Entered with the list of cars the carousel shows.
-    pub fn with_cars(menus: &'static Menus, cars: Option<CarList>) -> Self {
+    pub fn with_cars(menus: &'a Menus, cars: Option<CarList>) -> Self {
         Entry { menus, cars }
     }
 }
@@ -350,7 +350,7 @@ pub enum Callee {
 impl Callee {
     /// Runs the function: whether it failed (the original's carry flag; false for those that
     /// do not set it).
-    pub fn run(self, menus: &'static Menus) -> Result<bool, Refused> {
+    pub fn run(self, menus: &Menus) -> Result<bool, Refused> {
         let play = &menus.play;
         let screens = &menus.screens;
         use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
@@ -459,7 +459,7 @@ fn clear_escape(screens: &Screens) {
 }
 
 /// A call whose failure is the fatal error `code`.
-pub fn call_or_fatal(menus: &'static Menus, function: Callee, code: u32) -> Result<(), Refused> {
+pub fn call_or_fatal(menus: &Menus, function: Callee, code: u32) -> Result<(), Refused> {
     if { function.run(menus) }? {
         log(&format!(
             "a screen loop's Rust version raises fatal error {code:#x}"
@@ -493,7 +493,7 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
 
 /// Puts the menu and the lists in place, as the original does before a frame (the esi it
 /// leaves at the last list's table is read by no one: `cars` is set before its reader).
-fn set_lists(menus: &'static Menus, screens: &Screens, screen: &Screen, lists: &[List]) {
+fn set_lists(menus: &Menus, screens: &Screens, screen: &Screen, lists: &[List]) {
     screens.loop_flags.menu.set((screen.menu)(menus));
     for list in lists.iter().filter(|list| !list.run) {
         (list.pointer)(menus).set((list.table)(menus));
@@ -560,7 +560,7 @@ pub fn screen_loop(screens: &Screens, screen: &Screen, entry: &Entry) -> Result<
 /// What the loop of one screen carries from step to step.
 struct Loop<'a> {
     screen: &'a Screen,
-    entry: &'a Entry,
+    entry: &'a Entry<'a>,
     menu: MenuId,
     callback: FrameRoutine,
     later_callback: FrameRoutine,

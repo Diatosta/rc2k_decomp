@@ -33,7 +33,7 @@ pub fn call_listed(menus: &Menus, function: u32) -> Result<(), Refused> {
 /// typed tables. Of those the tables name as key callbacks only
 /// `RaiseControllerSensitivity` reads a register: edi, which is the item here; the rest
 /// get none (2026-10-24, `tables_data.rs`' `on_key` against `item_fn`'s reads).
-pub fn call_key(menus: &'static Menus, function: u32, item: &MenuItem) -> Result<(), Refused> {
+pub fn call_key(menus: &Menus, function: u32, item: &MenuItem) -> Result<(), Refused> {
     match ItemFn::from_ral(function) {
         // edi the item: its +0x2C, the left link.
         Some(ItemFn::RaiseControllerSensitivity) => {
@@ -66,13 +66,7 @@ impl ItemCall {
 
 /// A menu item's action (`menu::run_item_action`): the item's function with the value,
 /// the item and the menu. A refusal ends the program here, as `call`'s.
-pub fn call_action(
-    menus: &'static Menus,
-    function: u32,
-    value: u32,
-    _item: &MenuItem,
-    menu: MenuId,
-) {
+pub fn call_action(menus: &Menus, function: u32, value: u32, _item: &MenuItem, menu: MenuId) {
     let given = ItemCall {
         value,
         menu: Some(menu),

@@ -18,7 +18,7 @@ use crate::menu::standings::Which;
 use crate::menu::standings_steps::{clear_standings, number_all};
 
 /// The Rust version (see the header).
-pub fn rally_results(menus: &'static Menus) -> Result<(), Refused> {
+pub fn rally_results(menus: &Menus) -> Result<(), Refused> {
     menus.screens.state.menus.which_title.set(1u32);
     crate::menu::standings_a_from_all::standings_a_from_all(menus)?;
     // Converted: `rc2k_core::menu::results_pages::class_pages_only`.

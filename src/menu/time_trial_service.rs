@@ -28,7 +28,7 @@ const OUT: &Dword = &crate::menu::owner::MENUS.screens.event.event_out; // dword
 const DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due; // dword_755938
 
 /// The Rust version.
-pub fn time_trial_service(menus: &'static Menus) -> Result<(), Refused> {
+pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).

@@ -28,12 +28,12 @@ impl<const N: usize> DrawList<N> {
 
     /// The list from its entry `k` on (lists share tails: a screen's may start inside
     /// another).
-    pub fn from(&'static self, k: usize) -> crate::menu::fn_list::FnList {
+    pub fn from(&self, k: usize) -> crate::menu::fn_list::FnList {
         crate::menu::fn_list::FnList::starting_at(&self.entries[k])
     }
 
     /// The list.
-    pub fn id(&'static self) -> crate::menu::fn_list::FnList {
+    pub fn id(&self) -> crate::menu::fn_list::FnList {
         self.from(0)
     }
 }

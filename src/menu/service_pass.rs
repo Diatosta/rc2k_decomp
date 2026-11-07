@@ -26,7 +26,7 @@ use crate::menu::standings::*;
 // service::service_area_loop
 
 /// The Rust version (see the header).
-pub fn service_pass(menus: &'static Menus) -> Result<(), Refused> {
+pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
     // pauses, `goes_on`).

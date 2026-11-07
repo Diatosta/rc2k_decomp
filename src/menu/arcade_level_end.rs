@@ -16,7 +16,7 @@ use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 /// The Rust version.
-pub fn arcade_level_end(menus: &'static Menus) -> Result<(), Refused> {
+pub fn arcade_level_end(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     // Converted: `rc2k_core::menu::arcade` (`won`, `won_level`, `first_win`).
     use rc2k_core::menu::arcade::{first_win, won, won_level};

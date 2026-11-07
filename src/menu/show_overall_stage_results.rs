@@ -19,7 +19,7 @@ use rc2k_core::menu::results_pages::{Page, held_figure};
 // g_eventMode
 
 /// The Rust version (see the header).
-pub fn show_overall_stage_results(menus: &'static Menus) -> Result<(), Refused> {
+pub fn show_overall_stage_results(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let found = crate::menu::first_player_a::first_player_a(ANY_GROUP)?;
     // Converted: `rc2k_core::menu::results_pages::held_figure`.

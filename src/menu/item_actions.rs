@@ -58,7 +58,7 @@ pub fn open_service_box(screens: &Screens, page: u32) {
 }
 
 /// `menu::view_stage_details`: the stage information screen.
-pub fn view_stage_details(menus: &'static Menus, screens: &Screens) -> Result<(), Refused> {
+pub fn view_stage_details(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::time_trial_details`.
     let time_trial =
         rc2k_core::menu::stage_screens::time_trial_details(screens.event.event_type.get());

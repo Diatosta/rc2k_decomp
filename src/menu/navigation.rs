@@ -45,7 +45,7 @@ impl Direction {
 
 /// The click is `sub_40F059` with sound 1 (`sound::play_menu_sound`); the callback gets
 /// the item (edi in the original, the only register its callbacks read).
-pub fn move_highlight(menus: &'static Menus, direction: Direction) -> Result<(), Refused> {
+pub fn move_highlight(menus: &Menus, direction: Direction) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::navigation` (`turn`, `link`, `walk`), everything worked
     // out before it is written.

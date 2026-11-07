@@ -25,7 +25,7 @@ fn first_class(menus: &Menus) -> u32 {
 }
 
 /// The Rust version (see the header).
-pub fn class_championship_pass(menus: &'static Menus) -> Result<(), Refused> {
+pub fn class_championship_pass(menus: &Menus) -> Result<(), Refused> {
     let first = first_class(menus);
     // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
     let classes = class_pages::classes(first, menus.screens.event.classes.get())?;

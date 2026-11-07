@@ -175,7 +175,7 @@ impl<const N: usize> Menu<N> {
     }
 
     /// The menu (`MenuId`).
-    pub fn id(&'static self) -> MenuId {
+    pub fn id(&self) -> MenuId {
         MenuId::of(&self.head)
     }
 }

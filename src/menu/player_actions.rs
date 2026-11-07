@@ -127,7 +127,7 @@ pub fn leave_with_carry() {
 
 /// `menu::player_N_car_specs`: the car specifications screen with player `n` the current
 /// one.
-pub fn player_car_specs(menus: &'static Menus, n: u32) -> Result<(), Refused> {
+pub fn player_car_specs(menus: &Menus, n: u32) -> Result<(), Refused> {
     let screens = &menus.screens;
     let kept = screens.event.current_player.get();
     screens.event.current_player.set(n);

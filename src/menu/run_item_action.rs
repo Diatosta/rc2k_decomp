@@ -19,7 +19,7 @@ use crate::menu::owner::Menus;
 /// The Rust version: the highlighted item's action, with its value. (The original hands
 /// the action the screen loop's other registers too, which no action reads; what the
 /// action leaves is nobody's.)
-pub fn run_item_action(menus: &'static Menus, menu: MenuId) -> Result<(), crate::errors::Refused> {
+pub fn run_item_action(menus: &Menus, menu: MenuId) -> Result<(), crate::errors::Refused> {
     let screens = &menus.screens;
     let items = menu.items();
     let highlighted: u32 = screens.loop_flags.item.get();

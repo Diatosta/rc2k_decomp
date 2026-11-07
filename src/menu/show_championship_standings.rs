@@ -18,7 +18,7 @@ use rc2k_core::menu::results_pages::{Page, held_figure};
 // g_eventMode
 
 /// The Rust version (see the header).
-pub fn show_championship_standings(menus: &'static Menus) -> Result<(), Refused> {
+pub fn show_championship_standings(menus: &Menus) -> Result<(), Refused> {
     let play = &menus.play;
     let found = crate::menu::first_player_unplaced::first_player_unplaced()?;
     // Converted: `rc2k_core::menu::results_pages::held_figure`.

@@ -38,7 +38,7 @@ impl FnList {
     }
 
     /// The list `entry` starts: an entry of the draw lists' (`DrawList::from`).
-    pub fn starting_at(entry: &'static Dword) -> FnList {
+    pub fn starting_at(entry: &Dword) -> FnList {
         let tables = &menus().tables;
         let all = draw_dwords(tables);
         let n =

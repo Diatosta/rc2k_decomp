@@ -26,7 +26,7 @@ fn first_class(screens: &Screens) -> u32 {
 }
 
 /// The Rust version (see the header).
-pub fn class_stage_results_pass(menus: &'static Menus) -> Result<(), Refused> {
+pub fn class_stage_results_pass(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     crate::menu::sort_standings_by_time::sort_standings_by_time(menus)?;
     let first = first_class(screens);
