@@ -46,7 +46,7 @@ pub fn draw_pieces() -> Result<(), Refused> {
             Way::String { font_kind } => {
                 draw_string(
                     piece.text_id() as u32,
-                    font(colour(first, font_kind))?.game_ptr(),
+                    font(colour(first, font_kind))?,
                     x,
                     y,
                 )?;

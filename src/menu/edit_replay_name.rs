@@ -90,7 +90,7 @@ pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, 
                 name.add(len as u32).write(&[c], "a replay's name")?;
                 set_length(len.wrapping_add(1));
                 let measured = measure_text_at(
-                    MEASURING_FONT.game_ptr(),
+                    MEASURING_FONT,
                     &name.game_ptr().bytes("a replay's name")?,
                     len,
                     canvas,

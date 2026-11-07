@@ -110,7 +110,7 @@ pub fn edit_setup_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Ref
                 set_length(len.wrapping_add(1));
                 // x is whatever ecx held: the length before this character.
                 let measured = measure_text_at(
-                    MEASURING_FONT.game_ptr(),
+                    MEASURING_FONT,
                     &name.game_ptr().bytes("a setup's name")?,
                     len,
                     canvas,

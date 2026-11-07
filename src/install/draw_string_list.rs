@@ -29,7 +29,7 @@ pub fn draw_string_list(
         let font = rl(record.add(8))
             .font()
             .unwrap_or_else(|e| crate::install::installer::refuse(e));
-        draw_string(rd(record.add(0xC)), font.game_ptr(), x, y)?;
+        draw_string(rd(record.add(0xC)), font, x, y)?;
     }
     Ok(())
 }

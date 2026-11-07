@@ -37,21 +37,24 @@ fn core_surface() -> rc2k_core::gfx::raster::Surface {
 
 /// The palette a colour is looked up in: 256 dwords.
 #[derive(Clone, Copy)]
-pub enum Palette {
+pub enum Palette<'a> {
     /// A font's palette as the game's data keeps it: a place of `gfx::glyph_store`, or a
     /// game address.
     Held(u32),
-    /// A palette of Rust's game state, bounded by its field.
-    Of(crate::pointers::GamePtr),
+    /// A palette of Rust's game state: a store, bounded by it.
+    Of(&'a dyn crate::pointers::Store),
 }
 
-impl Palette {
+impl Palette<'_> {
     /// Entry `colour`.
     fn entry(self, colour: u32) -> u32 {
         let what = "a palette entry";
         let bytes = match self {
             Palette::Held(place) => crate::gfx::glyph_store::read_bytes(place, 4 * colour, 4, what),
-            Palette::Of(at) => at.offset(4 * colour).read_bytes(4, what),
+            Palette::Of(store) => {
+                let mut entry = vec![0; 4];
+                store.load(4 * colour as usize, &mut entry).map(|()| entry)
+            }
         };
         match bytes {
             Ok(b) => u32::from_le_bytes([b[0], b[1], b[2], b[3]]),
@@ -61,7 +64,7 @@ impl Palette {
 }
 
 /// The plan's work variables, then its pixels in colour `colour`.
-fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette) {
+fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette<'_>) {
     let drawing = &gfx().drawing;
     let w = plan.work;
     for (at, value) in [
@@ -87,7 +90,7 @@ fn carry_out(plan: &rc2k_core::gfx::raster::Plan, colour: u32, palette: Palette)
 
 /// The pixel for colour `colour` by the surface's depth: `palette[colour]` as a word or a
 /// dword, else the byte itself.
-fn pixel(bits: u32, colour: u32, palette: Palette) -> Vec<u8> {
+fn pixel(bits: u32, colour: u32, palette: Palette<'_>) -> Vec<u8> {
     let entry = || palette.entry(colour);
     match bits {
         16 => (entry() as u16).to_le_bytes().to_vec(),
@@ -111,7 +114,7 @@ pub fn rect_in<const N: usize>(bytes: &crate::session::Bytes<N>) -> [i32; 4] {
 /// test skips the fill: `notes/bugs.md`). Refuses (before anything) other depths: on 8 bits
 /// the original fills with the byte and then once more with dwords past the rectangle's
 /// rows.
-pub fn fill_rect(rect: [i32; 4], colour: u32, palette: Palette) -> Result<(), Refused> {
+pub fn fill_rect(rect: [i32; 4], colour: u32, palette: Palette<'_>) -> Result<(), Refused> {
     let plan = rc2k_core::gfx::raster::fill(rect, &core_clip(), &core_surface())?;
     carry_out(&plan, colour, palette);
     Ok(())
@@ -119,14 +122,14 @@ pub fn fill_rect(rect: [i32; 4], colour: u32, palette: Palette) -> Result<(), Re
 
 /// `gfx::draw_hline` (0x406710): `length` pixels from (x, y) rightwards, clipped (the left
 /// clip as the original: what is cut is -x, right only for a left edge of 0).
-pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: Palette) {
+pub fn draw_hline(x: i32, y: i32, length: i32, colour: u32, palette: Palette<'_>) {
     let plan = rc2k_core::gfx::raster::hline(x, y, length, &core_clip(), &core_surface());
     carry_out(&plan, colour, palette);
 }
 
 /// `gfx::frame_rect` (0x4066DF): rectangle ebx's outline moved by (ecx, edx): the top and
 /// bottom rows (`draw_hline`), then the left and right columns between them (`draw_vline`).
-pub fn frame_rect(rect: [i32; 4], dx: i32, dy: i32, colour: u32, palette: Palette) {
+pub fn frame_rect(rect: [i32; 4], dx: i32, dy: i32, colour: u32, palette: Palette<'_>) {
     for plan in rc2k_core::gfx::raster::frame(rect, dx, dy, &core_clip(), &core_surface()) {
         carry_out(&plan, colour, palette);
     }

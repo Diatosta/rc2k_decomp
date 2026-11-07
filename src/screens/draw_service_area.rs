@@ -92,7 +92,7 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
     }
     text_at().write_bytes(&title, "the title")?;
     let (x, y) = AREA_TITLE_AT;
-    draw_text_at(font_of(AreaFont::Title).game_ptr(), &title, x, y, canvas)?;
+    draw_text_at(font_of(AreaFont::Title), &title, x, y, canvas)?;
 
     draw_service_time(screens, canvas)?;
 
@@ -104,11 +104,11 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
     for step in AREA_STEPS {
         match step {
             AreaStep::Label(id, font, x, y) => {
-                draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?;
+                draw_string_by_id_at(id, font_of(font), x, y, canvas)?;
             }
             AreaStep::LabelIfClass(id, font, x, y) => {
                 if car.class != 0 {
-                    draw_string_by_id_at(id, font_of(font).game_ptr(), x, y, canvas)?;
+                    draw_string_by_id_at(id, font_of(font), x, y, canvas)?;
                 }
             }
             AreaStep::DamageBar(x, y, part) => {
@@ -135,7 +135,7 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
         .wrapping_add(SETTING_FIRST_STRING);
     screens.draw_work.figure.set(setting);
     let (x, y) = TYRE_AT;
-    draw_string_by_id_at(setting, font_of(AreaFont::Small).game_ptr(), x, y, canvas)?;
+    draw_string_by_id_at(setting, font_of(AreaFont::Small), x, y, canvas)?;
 
     // The markers get the car in edi.
     draw_repair_times(screens, canvas)?;

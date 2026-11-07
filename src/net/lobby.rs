@@ -161,7 +161,7 @@ pub fn draw_string(
 ) -> Result<(), Refused> {
     crate::text::draw_string_by_id::draw_string_by_id_at(
         id,
-        font.game_ptr(),
+        font,
         x as i32,
         y as i32,
         &mut crate::text::draw_text::GameCanvas,

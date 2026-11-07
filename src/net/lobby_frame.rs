@@ -61,7 +61,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     for (id, x) in [(0x15F, 0x21A), (0x160, 0x2C0)] {
         crate::text::draw_string_by_id::draw_string_by_id_at(
             id,
-            HEADING_FONT.game_ptr(),
+            HEADING_FONT,
             x,
             y as i32,
             &mut canvas,
@@ -86,13 +86,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             } else {
                 NAME_FONT
             };
-            crate::text::draw_text::draw_text_at(
-                font.game_ptr(),
-                &name,
-                x as i32,
-                y as i32,
-                &mut canvas,
-            )?;
+            crate::text::draw_text::draw_text_at(font, &name, x as i32, y as i32, &mut canvas)?;
             x += 0x14A;
             blit(screens::car_sprite(block.record.head.get(1)), x, y + 1)?;
             x += 0x48;
@@ -109,7 +103,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 let none = store_text(none)?;
                 let out = {
                     crate::text::draw_text::draw_text_at(
-                        NAME_FONT.game_ptr(),
+                        NAME_FONT,
                         &none,
                         x as i32,
                         y as i32,
@@ -121,7 +115,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 store_text(time_text(time, gaps, first_time))?;
                 {
                     crate::text::draw_time_text::draw_time_text(
-                        FONT.game_ptr(),
+                        FONT,
                         crate::pointers::GamePtr::to(&text.buffer.text),
                         x,
                         y,
@@ -137,7 +131,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             ))?;
             {
                 crate::text::draw_time_text::draw_time_text(
-                    FONT.game_ptr(),
+                    FONT,
                     crate::pointers::GamePtr::to(&text.buffer.text),
                     x,
                     total_y,
@@ -151,7 +145,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     crate::net::lock_received::lock_received(&net.vars);
     {
         crate::text::draw_text::draw_text_at(
-            CHAT_FONT.game_ptr(),
+            CHAT_FONT,
             &vars.chat.read(),
             0xA,
             y as i32,

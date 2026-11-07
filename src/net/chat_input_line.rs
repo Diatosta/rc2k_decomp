@@ -26,12 +26,6 @@ pub fn chat_input_line(vars: &NetVars, text: &[u8], item: u32, y: u32) -> Result
         plain.push(0);
         plain
     };
-    crate::text::draw_text::draw_text_at(
-        CHAT_FONT.game_ptr(),
-        &shown,
-        0xA,
-        y as i32,
-        &mut GameCanvas,
-    )?;
+    crate::text::draw_text::draw_text_at(CHAT_FONT, &shown, 0xA, y as i32, &mut GameCanvas)?;
     Ok(y.wrapping_add(0x1E))
 }

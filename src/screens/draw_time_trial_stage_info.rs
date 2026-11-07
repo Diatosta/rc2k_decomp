@@ -64,7 +64,7 @@ pub fn draw_time_trial_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Res
     )?;
 
     let heading = build_second_heading(sel.record)?;
-    draw_text_at(TITLE_FONT.game_ptr(), &heading, TITLE_X, HEADING_Y, canvas)?;
+    draw_text_at(TITLE_FONT, &heading, TITLE_X, HEADING_Y, canvas)?;
     // ebx, the markers' palette, is what draw_text left there: a pointer into the heading.
     draw_stage_body(tables, sel.record, true, canvas)?;
     draw_records_for_group(sel.group, sel.record, canvas)

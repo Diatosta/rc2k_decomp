@@ -68,7 +68,7 @@ pub fn show_picture_file(path: &dyn crate::session::TextPlace) -> Result<(), Ref
             crate::gfx::picture_as_surface::picture_as_surface()?;
             crate::text::draw_string_by_id::draw_string_by_id_at(
                 0xC0,
-                LOADING_FONT.game_ptr(),
+                LOADING_FONT,
                 0x316,
                 0x2F,
                 &mut crate::text::draw_text::GameCanvas,

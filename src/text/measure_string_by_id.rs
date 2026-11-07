@@ -8,7 +8,8 @@
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
-use crate::errors::{BadInput, Refused};
+use crate::errors::Refused;
+use crate::gfx::typefaces::FontRef;
 use crate::pointers::GamePtr;
 use crate::strings::text_from_ids::text_at;
 use crate::text::draw_string_by_id::string_text;
@@ -36,17 +37,15 @@ pub fn measure_string_by_id(
 /// The font object is only written if the canvas keeps font changes.
 pub fn measure_string_by_id_at(
     id: u32,
-    font: GamePtr,
+    font: impl Into<FontRef>,
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    if font.is_null() {
-        return Err(BadInput("no font").into());
-    }
-    let mut copy = font.read::<Font>("a font")?;
+    let font = font.into().object();
+    let mut copy = font.get();
     let measured = measure_string_by_id(id, &mut copy, x, text_at(), canvas)?;
     if canvas.keeps_font_changes() {
-        font.write(copy, "a font")?;
+        font.set(copy);
     }
     Ok(measured)
 }

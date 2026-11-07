@@ -40,17 +40,18 @@ pub fn draw_clock_fixed_pitch(
 
 /// The same with a font object in game memory, for Rust callers.
 pub fn draw_clock_fixed_pitch_at(
-    font: crate::pointers::GamePtr,
+    font: impl Into<crate::gfx::typefaces::FontRef>,
     text: crate::pointers::GamePtr,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<(bool, bool), Refused> {
-    let before = font.read::<Font>("a font")?;
+    let font = font.into().object();
+    let before = font.get();
     let mut copy = before;
     let too_wide = draw_clock_fixed_pitch(&mut copy, text, x, y, canvas)?;
     if copy != before && canvas.keeps_font_changes() {
-        font.write(copy, "a font")?;
+        font.set(copy);
     }
     Ok(too_wide)
 }

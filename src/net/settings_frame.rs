@@ -60,7 +60,7 @@ pub fn settings_frame() -> Result<(), Refused> {
     let measured = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             0x16F,
-            PALETTE.game_ptr(),
+            PALETTE,
             0x190,
             &mut GameCanvas,
         )

@@ -68,7 +68,7 @@ pub fn draw_button(
     net.button.item.set(item);
     let measured = crate::text::measure_string_by_id::measure_string_by_id_at(
         string,
-        PALETTE.game_ptr(),
+        PALETTE,
         x as i32,
         &mut GameCanvas,
     )?;
@@ -117,7 +117,7 @@ pub fn draw_button(
     };
     crate::text::draw_string_by_id::draw_string_by_id_at(
         net.button.text.get(),
-        font.game_ptr(),
+        font,
         net.button.x.get() as i32,
         net.button.y.get() as i32,
         &mut GameCanvas,

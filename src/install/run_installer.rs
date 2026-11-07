@@ -92,7 +92,7 @@ pub fn run_installer(g: &'static crate::install::owner::Install) -> Result<(), R
     }
     if g.run.installing.get() == 1 && g.vars.running_from_cd.get() == 1 && lock() {
         copy_picture()?;
-        draw_string(0xBE, FONT_BE.game_ptr(), 0x1A9, 0x113)?;
+        draw_string(0xBE, FONT_BE, 0x1A9, 0x113)?;
         unlock();
         show();
         sleep(2000);

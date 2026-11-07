@@ -97,7 +97,7 @@ pub fn frame_callback(
         play.cheats.notice_due.set(0u32);
         crate::text::draw_string_by_id::draw_string_by_id_at(
             notice::STRING,
-            NOTICE_FONT.game_ptr(),
+            NOTICE_FONT,
             notice::AT.0 as i32,
             notice::AT.1 as i32,
             &mut GameCanvas,

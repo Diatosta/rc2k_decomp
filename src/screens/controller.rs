@@ -72,7 +72,7 @@ pub fn learn_axis(menus: &Menus) -> Result<(), Refused> {
             .item(screens.loop_flags.item.get())?;
         crate::text::draw_string_by_id::draw_string_by_id_at(
             0x3BE,
-            crate::gfx::typefaces::fonts::LIST.game_ptr(),
+            crate::gfx::typefaces::fonts::LIST,
             0x1B8,
             item.text_y.get() as i32,
             &mut crate::text::draw_text::GameCanvas,

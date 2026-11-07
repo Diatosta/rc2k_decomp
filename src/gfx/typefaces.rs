@@ -242,20 +242,61 @@ impl FontId {
         &gfx().fonts.typefaces.objects[self.0]
     }
 
-    /// Where the object is.
+    /// Where the object is (the tests').
+    #[cfg(test)]
     pub fn addr(self) -> u32 {
-        self.game_ptr().addr()
-    }
-
-    /// Where the object is, as a checked game pointer.
-    pub fn game_ptr(self) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(self.object())
+        crate::pointers::GamePtr::to(self.object()).addr()
     }
 
     /// IDA's address of the object (what the image's tables held).
     #[cfg(test)]
     pub const fn ida(self) -> usize {
         START + 0x20 * self.0
+    }
+}
+
+/// A font the text functions draw and measure with: one of the block's, or the menus' blended
+/// font (`text::blend_font::BLENDED_FONT`). Resolved to the object's cells in one place
+/// (`object`).
+#[derive(Clone, Copy)]
+pub enum FontRef {
+    Typeface(FontId),
+    /// The menus' blended font.
+    Blended,
+    /// One of the fonts of `gfx::fonts_store` (the race's: frame rate, tyre change, credits).
+    Stored(&'static FontObject),
+}
+
+impl From<&'static FontObject> for FontRef {
+    fn from(object: &'static FontObject) -> Self {
+        FontRef::Stored(object)
+    }
+}
+
+impl From<FontId> for FontRef {
+    fn from(id: FontId) -> Self {
+        FontRef::Typeface(id)
+    }
+}
+
+impl FontRef {
+    /// The font object.
+    pub fn object(self) -> &'static FontObject {
+        match self {
+            FontRef::Typeface(id) => id.object(),
+            FontRef::Blended => &crate::text::blend_font::BLENDED_FONT,
+            FontRef::Stored(object) => object,
+        }
+    }
+
+    pub fn is_blended(self) -> bool {
+        matches!(self, FontRef::Blended)
+    }
+
+    /// Where the object is, as the game's tables keep a font (`GameScreen::font_value`
+    /// only: the screens' core stores the font in a work variable as the original did).
+    pub fn addr(self) -> u32 {
+        crate::pointers::GamePtr::to(self.object()).addr()
     }
 }
 

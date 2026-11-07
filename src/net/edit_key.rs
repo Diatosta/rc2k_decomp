@@ -60,7 +60,7 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
                     shown.extend_from_slice(&[typed, 0]);
                     let width = {
                         measure_text_at(
-                            net.vars.edit_font.get().game_ptr(),
+                            net.vars.edit_font.get(),
                             &shown,
                             at as i32,
                             &mut GameCanvas,

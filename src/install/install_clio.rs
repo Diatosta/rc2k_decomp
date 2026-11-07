@@ -114,7 +114,7 @@ fn work() -> Result<Stop, Refused> {
 pub fn install_clio(g: &'static crate::install::owner::Install) -> Result<(), Refused> {
     if lock() {
         copy_picture()?;
-        draw_string(0xBE, FONT_BE.game_ptr(), 0x1A9, 0x113)?;
+        draw_string(0xBE, FONT_BE, 0x1A9, 0x113)?;
         unlock();
         show();
         sleep(1000);

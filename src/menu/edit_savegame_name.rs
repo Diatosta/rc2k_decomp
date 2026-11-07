@@ -111,7 +111,7 @@ pub fn edit_savegame_name(
                 name.add(len as u32).write(&[c], "a saved game's name")?;
                 set_length(len.wrapping_add(1));
                 let measured = measure_text_at(
-                    MEASURING_FONT.game_ptr(),
+                    MEASURING_FONT,
                     &name.game_ptr().bytes("a saved game's name")?,
                     len,
                     canvas,

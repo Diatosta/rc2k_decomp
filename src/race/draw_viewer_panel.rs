@@ -50,19 +50,13 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
     // A string of the game's texts drawn with a font at (x, y).
     let string =
         |id: u32, font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
-            crate::text::draw_string_by_id::draw_string_by_id_at(
-                id,
-                font.game_ptr(),
-                x,
-                y,
-                &mut GameCanvas,
-            )?;
+            crate::text::draw_string_by_id::draw_string_by_id_at(id, font, x, y, &mut GameCanvas)?;
             Ok(())
         };
     // The text buffer drawn with a font at (x, y).
     let text = |font: crate::gfx::typefaces::FontId, x: i32, y: i32| -> Result<(), Refused> {
-        let font = font.game_ptr();
-        let mut copy: crate::text::font::Font = font.read("a font record")?;
+        let font = font.object();
+        let mut copy = font.get();
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
             &crate::pointers::StoreBytes(&text_stores.buffer.text),
@@ -70,8 +64,8 @@ pub fn draw_viewer_panel(race: &Race) -> Result<(), Refused> {
             y,
             &mut GameCanvas,
         )?;
-        if copy != font.read::<crate::text::font::Font>("a font record")? {
-            font.write(copy, "a font record")?;
+        if copy != font.get() {
+            font.set(copy);
         }
         Ok(())
     };

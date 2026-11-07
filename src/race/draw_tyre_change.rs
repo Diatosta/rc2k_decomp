@@ -78,7 +78,7 @@ fn fill(shared: &Shared, x: u32, y: u32, width: u32, height: u32) -> Result<(), 
     crate::gfx::rect::fill_rect(
         crate::gfx::rect::rect_of(&VIEWER_PANEL.texture_rect),
         0,
-        crate::gfx::rect::Palette::Of(crate::pointers::GamePtr::to(&shared.tyre_change.palette)),
+        crate::gfx::rect::Palette::Of(&shared.tyre_change.palette),
     )
 }
 
@@ -142,7 +142,7 @@ pub fn draw_tyre_change(
                 }
                 crate::text::draw_string_by_id::draw_string_by_id_at(
                     id,
-                    crate::pointers::GamePtr::to(font),
+                    font,
                     x as i32,
                     y as i32,
                     &mut crate::text::draw_text::GameCanvas,

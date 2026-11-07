@@ -281,7 +281,12 @@ pub fn copy_picture() -> Result<(), Refused> {
 }
 
 /// `text::draw_string_by_id` (0x40234A): string `id` in `font` at (x, y).
-pub fn draw_string(id: u32, font: crate::pointers::GamePtr, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_string(
+    id: u32,
+    font: crate::gfx::typefaces::FontId,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
     crate::text::draw_string_by_id::draw_string_by_id_at(
         id,
@@ -302,12 +307,11 @@ pub fn draw_text(
     y: u32,
 ) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    use crate::text::font::Font;
-    let at = font.game_ptr();
-    let mut copy = at.read::<Font>("a font object")?;
+    let at = font.object();
+    let mut copy = at.get();
     crate::text::draw_text::draw_text(&mut copy, text, x as i32, y as i32, &mut GameCanvas)?;
-    if copy != at.read::<Font>("a font object")? {
-        at.write(copy, "a font object")?;
+    if copy != at.get() {
+        at.set(copy);
     }
     Ok(())
 }
@@ -319,9 +323,7 @@ pub fn measure_text(
     x: u32,
 ) -> Result<(u32, u32), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let m = {
-        crate::text::measure_text::measure_text_at(font.game_ptr(), text, x as i32, &mut GameCanvas)
-    }?;
+    let m = { crate::text::measure_text::measure_text_at(font, text, x as i32, &mut GameCanvas) }?;
     Ok((m.width, m.outcome.y as u32))
 }
 
@@ -335,7 +337,7 @@ pub fn measure_string(
     let m = {
         crate::text::measure_string_by_id::measure_string_by_id_at(
             id,
-            font.game_ptr(),
+            font,
             x as i32,
             &mut GameCanvas,
         )

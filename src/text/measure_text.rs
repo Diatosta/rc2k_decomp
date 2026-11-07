@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::gfx::glyph_store;
-use crate::pointers::GamePtr;
+use crate::gfx::typefaces::FontRef;
 use crate::text::draw_text::{Adapt, Canvas, Outcome, refusal};
 use crate::text::font::Font;
 use rc2k_core::strings::bytes::Bytes;
@@ -61,25 +61,26 @@ pub fn measure_text(
 /// whatever x its caller left measure from 0. A font in another mode would draw the text.
 pub fn only_measures(
     font: crate::gfx::typefaces::FontId,
-) -> Result<GamePtr, crate::errors::BadInput> {
+) -> Result<FontRef, crate::errors::BadInput> {
     if font.object().mode.get() != rc2k_core::text::MODE_MEASURE {
         return Err(crate::errors::BadInput("a measuring font that draws"));
     }
-    Ok(font.game_ptr())
+    Ok(font.into())
 }
 
 /// For Rust callers, with a font object in game memory: the object is only written if the
 /// canvas keeps font changes.
 pub fn measure_text_at(
-    font: GamePtr,
+    font: impl Into<FontRef>,
     text: &(impl Bytes + ?Sized),
     x: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Measured, Refused> {
-    let mut copy = font.read::<Font>("a font")?;
+    let font = font.into().object();
+    let mut copy = font.get();
     let measured = measure_text(&mut copy, text, x, canvas)?;
     if canvas.keeps_font_changes() {
-        font.write(copy, "a font")?;
+        font.set(copy);
     }
     Ok(measured)
 }

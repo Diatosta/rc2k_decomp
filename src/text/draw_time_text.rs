@@ -14,30 +14,28 @@
 
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
-use crate::text::font::Font;
 use rc2k_core::strings::bytes::Bytes as _;
-
-/// The font's fixed width.
-const WIDTH: u32 = 0x1C;
-
-fn write32(at: GamePtr, v: u32) -> Result<(), Refused> {
-    Ok(at.write(v, "a time text's character")?)
-}
 
 /// The Rust version (see the header): the time text at `text` in `font` at (`x`, `y`).
 /// The flags the original leaves are read by neither caller (register liveness,
 /// 2026-10-23: after the two calls DF, ebp, ebx/edi, edx, esi, all kept).
-pub fn draw_time_text(font: GamePtr, text: GamePtr, x: u32, y: u32) -> Result<(), Refused> {
+pub fn draw_time_text(
+    font: impl Into<crate::gfx::typefaces::FontRef>,
+    text: GamePtr,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
+    let font = font.into().object();
     let mut x = x;
     // Converted: `rc2k_core::text::time_text_widths`.
     let chars = text.bytes("a time text")?;
     let widths = rc2k_core::text::time_text_widths(&chars)
         .map_err(|_| crate::errors::BadInput("a time text past its block"))?;
     for (i, width) in widths.into_iter().enumerate() {
-        write32(font.offset(WIDTH), width)?;
+        font.box_width.set(width);
         // `text::draw_text_keep_regs` on a copy of the font, written back if it changed.
-        let mut copy = font.read::<Font>("a font")?;
+        let mut copy = font.get();
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
             &[chars.byte(i).unwrap_or(0), 0],
@@ -45,11 +43,11 @@ pub fn draw_time_text(font: GamePtr, text: GamePtr, x: u32, y: u32) -> Result<()
             y as i32,
             &mut GameCanvas,
         )?;
-        if copy != font.read::<Font>("a font")? {
-            font.write(copy, "a font")?;
+        if copy != font.get() {
+            font.set(copy);
         }
         x = x.wrapping_add(width);
     }
-    write32(font.offset(WIDTH), 0)?;
+    font.box_width.set(0);
     Ok(())
 }

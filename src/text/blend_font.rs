@@ -18,6 +18,7 @@ use crate::errors::BadInput;
 use crate::gfx::blend_palette::blend_palette;
 use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::surface_format;
+use crate::gfx::typefaces::{FontObject, FontRef};
 use crate::pointers::GamePtr;
 use crate::session::Dword;
 use crate::strings::owner::strings;
@@ -27,60 +28,62 @@ use crate::text::font::Font;
 
 /// g_blendedFont (stru_51E384, 0x20 bytes, out of the image since 2026-10-24, phase 5): the
 /// font a highlighted item is drawn with. Its first bytes are the image's.
-pub static BLENDED_FONT: [Dword; 8] = [
-    Dword::new(0x0400_FF20),
-    Dword::new(1),
-    Dword::new(0x1B),
-    Dword::new(0),
-    Dword::new(6),
-    Dword::new(0),
-    Dword::new(0),
-    Dword::new(0),
-];
+pub static BLENDED_FONT: FontObject = FontObject::from_font(Font {
+    first_char: 0x20,
+    last_char: 0xFF,
+    mode: 0,
+    flags: 4,
+    spacing: 1,
+    line_height: 0x1B,
+    y_offset: 0,
+    extended_spacing: 6,
+    palette: 0,
+    glyph_table: 0,
+    box_width: 0,
+});
 /// g_blendedPalette (0x4F3B74, 1024 bytes of which 15 entries are made): 0 at the start.
 pub static BLENDED_PALETTE: [Dword; 256] = [const { Dword::new(0) }; 256];
 const PALETTE_ENTRIES: u32 = 15;
-const FONT_LEN: usize = 0x20;
 
 // ---- Rust version ----
 
-pub fn blend_font(time: u32, half_pulse: u32, a: GamePtr, b: GamePtr) -> Result<(), BadInput> {
-    if a.is_null() || b.is_null() {
-        return Err(BadInput("a null font"));
-    }
+pub fn blend_font(
+    time: u32,
+    half_pulse: u32,
+    a: impl Into<FontRef>,
+    b: impl Into<FontRef>,
+) -> Result<(), BadInput> {
+    let (a, b) = (a.into(), b.into());
     let mode: u32 = strings().text.blend_mode.get();
     // Converted: `rc2k_core::text::pulse`.
     let (from_a, t) = rc2k_core::text::pulse(time, half_pulse, mode == 2);
     let (from, to) = if from_a { (a, b) } else { (b, a) };
-    let blended = GamePtr::to(&BLENDED_FONT);
     // The original reads the palettes after the copy, so if the second font is the
     // blended font itself, its palette is by then the first one's.
-    let from_palette = from.read::<Font>("a font")?.palette;
-    let to_palette = if to == blended {
-        from_palette
+    let from_font = from.object().get();
+    let to_palette = if to.is_blended() {
+        from_font.palette
     } else {
-        to.read::<Font>("a font")?.palette
+        to.object().get().palette
     };
-    if mode != 0 && (from_palette == 0 || to_palette == 0) {
+    if mode != 0 && (from_font.palette == 0 || to_palette == 0) {
         return Err(BadInput("a font without a palette"));
     }
-    from.copy_to(blended, FONT_LEN, "a font")?;
+    BLENDED_FONT.set(from_font);
     if mode == 0 {
         return Ok(());
     }
     let palette = GamePtr::to(&BLENDED_PALETTE);
     blend_palette(
         &gfx().pixel.formats,
-        from_palette,
+        from_font.palette,
         to_palette,
         palette,
         PALETTE_ENTRIES,
         t,
         &surface_format()?,
     )?;
-    let mut font = blended.read::<Font>("the blended font")?;
-    font.palette = palette.addr();
-    blended.write(font, "the blended font")?;
+    BLENDED_FONT.palette.set(palette.addr());
     Ok(())
 }
 
@@ -91,10 +94,19 @@ mod tests {
 
     #[test]
     fn data_starts_as_the_games() {
-        let bytes: Vec<u8> = super::BLENDED_FONT
-            .iter()
-            .flat_map(|w| w.get().to_le_bytes())
-            .collect();
+        let f = super::BLENDED_FONT.get();
+        let mut bytes = vec![f.first_char, f.last_char, f.mode, f.flags];
+        for w in [
+            f.spacing as u32,
+            f.line_height as u32,
+            f.y_offset as u32,
+            f.extended_spacing as u32,
+            f.palette,
+            f.glyph_table,
+            f.box_width,
+        ] {
+            bytes.extend(w.to_le_bytes());
+        }
         assert_eq!(bytes, image_bytes(0x51E384, 0x20));
         let bytes: Vec<u8> = super::BLENDED_PALETTE
             .iter()

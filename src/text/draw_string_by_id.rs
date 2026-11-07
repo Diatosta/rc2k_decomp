@@ -9,6 +9,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::gfx::typefaces::FontRef;
 use crate::pointers::GamePtr;
 use crate::strings::append_string_by_id::append_string_by_id;
 use crate::strings::text_from_ids::{TEXT_LEN, text_at};
@@ -48,16 +49,17 @@ pub fn draw_string_by_id(
 /// The same with a font object in game memory and the game's text buffer, for Rust callers.
 pub fn draw_string_by_id_at(
     id: u32,
-    font: GamePtr,
+    font: impl Into<FontRef>,
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let before = font.read::<Font>("a font")?;
+    let font = font.into().object();
+    let before = font.get();
     let mut copy = before;
     let out = draw_string_by_id(id, &mut copy, x, y, text_at(), canvas)?;
     if copy != before && canvas.keeps_font_changes() {
-        font.write(copy, "a font")?;
+        font.set(copy);
     }
     Ok(out)
 }

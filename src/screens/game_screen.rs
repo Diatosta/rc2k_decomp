@@ -4,6 +4,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_glyph::BlitCall;
+use crate::gfx::typefaces::FontRef;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::session::Dword;
@@ -17,7 +18,7 @@ use std::marker::PhantomData;
 /// A family's font: the address of its record (as IDA shows it).
 pub trait GameFont: Copy {
     /// The font record in the game.
-    fn pointer(self) -> GamePtr;
+    fn pointer(self) -> FontRef;
 }
 
 /// A font of the menus: one of the font objects a menu item or label names, or the blended
@@ -29,10 +30,10 @@ pub enum MenuFont {
 }
 
 impl GameFont for MenuFont {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         match self {
-            MenuFont::Object(id) => id.game_ptr(),
-            MenuFont::Blended => GamePtr::to(&crate::text::blend_font::BLENDED_FONT),
+            MenuFont::Object(id) => id.into(),
+            MenuFont::Blended => FontRef::Blended,
         }
     }
 }
@@ -47,12 +48,12 @@ pub trait GameWork: Copy {
 /// places (a player's name by `player_name`).
 pub trait GameText: Copy {
     /// Drawn in `font` at x, y.
-    fn draw(self, font: GamePtr, x: i32, y: i32, canvas: &mut dyn Canvas)
+    fn draw(self, font: FontRef, x: i32, y: i32, canvas: &mut dyn Canvas)
     -> Result<Drawn, Refused>;
     /// A shared buffer of the game's.
     fn of_buffer(at: GamePtr) -> Self;
     /// Measured in `font` from x: its widest line's width.
-    fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused>;
+    fn measure(self, font: FontRef, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused>;
 }
 
 /// A text held by value (a typed table's name, copied out of it): at most `ROOM` bytes,
@@ -122,7 +123,7 @@ pub enum HeldText {
 impl GameText for HeldText {
     fn draw(
         self,
-        font: GamePtr,
+        font: FontRef,
         x: i32,
         y: i32,
         canvas: &mut dyn Canvas,
@@ -151,7 +152,7 @@ impl GameText for HeldText {
         HeldText::Place(at)
     }
 
-    fn measure(self, font: GamePtr, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused> {
+    fn measure(self, font: FontRef, x: i32, canvas: &mut dyn Canvas) -> Result<u32, Refused> {
         match self {
             HeldText::Place(at) => {
                 let m = crate::text::measure_text::measure_text_at(
@@ -188,7 +189,7 @@ impl<'a, F, W, T> GameScreen<'a, F, W, T> {
     }
 }
 
-fn font_of(f: impl GameFont) -> GamePtr {
+fn font_of(f: impl GameFont) -> FontRef {
     f.pointer()
 }
 
@@ -368,17 +369,17 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
 }
 
 impl GameFont for rc2k_core::screens::best_scores::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::best_scores::Font as F;
         match self {
-            F::Name => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            F::Rank => crate::gfx::typefaces::fonts::RANK.game_ptr(),
-            F::Time => crate::gfx::typefaces::fonts::TIME.game_ptr(),
-            F::MarkedName => crate::gfx::typefaces::fonts::MARKED_NAME.game_ptr(),
-            F::MarkedRank => crate::gfx::typefaces::fonts::MARKED_RANK.game_ptr(),
-            F::MarkedTime => crate::gfx::typefaces::fonts::MARKED_TIME.game_ptr(),
-            F::Heading => crate::gfx::typefaces::fonts::STAGE_TITLE.game_ptr(),
-            F::Fastest => crate::gfx::typefaces::fonts::LABELS.game_ptr(),
+            F::Name => crate::gfx::typefaces::fonts::NAME.into(),
+            F::Rank => crate::gfx::typefaces::fonts::RANK.into(),
+            F::Time => crate::gfx::typefaces::fonts::TIME.into(),
+            F::MarkedName => crate::gfx::typefaces::fonts::MARKED_NAME.into(),
+            F::MarkedRank => crate::gfx::typefaces::fonts::MARKED_RANK.into(),
+            F::MarkedTime => crate::gfx::typefaces::fonts::MARKED_TIME.into(),
+            F::Heading => crate::gfx::typefaces::fonts::STAGE_TITLE.into(),
+            F::Fastest => crate::gfx::typefaces::fonts::LABELS.into(),
         }
     }
 }
@@ -397,17 +398,17 @@ impl GameWork for rc2k_core::screens::best_scores::Work {
 }
 
 impl GameFont for rc2k_core::screens::stage_panel::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::stage_panel::Font as F;
         match self {
-            F::Label => crate::gfx::typefaces::fonts::RANK.game_ptr(),
-            F::Value => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            F::Heading => crate::gfx::typefaces::fonts::HEADING.game_ptr(),
-            F::RallyHeading => crate::gfx::typefaces::fonts::TIME.game_ptr(),
-            F::Description => crate::gfx::typefaces::fonts::LABEL.game_ptr(),
-            F::Number => crate::gfx::typefaces::fonts::SMALL.game_ptr(),
-            F::Title => crate::gfx::typefaces::fonts::STAGE_TITLE.game_ptr(),
-            F::Time => crate::gfx::typefaces::fonts::TIME.game_ptr(),
+            F::Label => crate::gfx::typefaces::fonts::RANK.into(),
+            F::Value => crate::gfx::typefaces::fonts::NAME.into(),
+            F::Heading => crate::gfx::typefaces::fonts::HEADING.into(),
+            F::RallyHeading => crate::gfx::typefaces::fonts::TIME.into(),
+            F::Description => crate::gfx::typefaces::fonts::LABEL.into(),
+            F::Number => crate::gfx::typefaces::fonts::SMALL.into(),
+            F::Title => crate::gfx::typefaces::fonts::STAGE_TITLE.into(),
+            F::Time => crate::gfx::typefaces::fonts::TIME.into(),
         }
     }
 }
@@ -425,14 +426,14 @@ impl GameWork for rc2k_core::screens::stage_panel::Work {
 }
 
 impl GameFont for rc2k_core::screens::itinerary::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::itinerary::Font as F;
         match self {
-            F::Heading => crate::gfx::typefaces::fonts::STAGE_TITLE.game_ptr(),
-            F::Plain => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            F::Marked => crate::gfx::typefaces::fonts::MARKED_NAME.game_ptr(),
-            F::Clock => crate::gfx::typefaces::fonts::TIME.game_ptr(),
-            F::MarkedClock => crate::gfx::typefaces::fonts::MARKED_TIME.game_ptr(),
+            F::Heading => crate::gfx::typefaces::fonts::STAGE_TITLE.into(),
+            F::Plain => crate::gfx::typefaces::fonts::NAME.into(),
+            F::Marked => crate::gfx::typefaces::fonts::MARKED_NAME.into(),
+            F::Clock => crate::gfx::typefaces::fonts::TIME.into(),
+            F::MarkedClock => crate::gfx::typefaces::fonts::MARKED_TIME.into(),
         }
     }
 }
@@ -452,14 +453,14 @@ impl GameWork for rc2k_core::screens::itinerary::Work {
 }
 
 impl GameFont for rc2k_core::screens::settings_pages::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::settings_pages::Font as F;
         match self {
-            F::Value => crate::gfx::typefaces::fonts::LIST.game_ptr(),
-            F::Small => crate::gfx::typefaces::fonts::SMALL.game_ptr(),
-            F::Title => crate::gfx::typefaces::fonts::BOX_TEXT.game_ptr(),
-            F::Head => crate::gfx::typefaces::fonts::HEAD.game_ptr(),
-            F::Line => crate::gfx::typefaces::fonts::ITEM_PLAIN.game_ptr(),
+            F::Value => crate::gfx::typefaces::fonts::LIST.into(),
+            F::Small => crate::gfx::typefaces::fonts::SMALL.into(),
+            F::Title => crate::gfx::typefaces::fonts::BOX_TEXT.into(),
+            F::Head => crate::gfx::typefaces::fonts::HEAD.into(),
+            F::Line => crate::gfx::typefaces::fonts::ITEM_PLAIN.into(),
         }
     }
 }
@@ -485,13 +486,13 @@ pub type SettingsScreen<'a> = GameScreen<
 >;
 
 impl GameFont for rc2k_core::screens::car_pages::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         match self {
             rc2k_core::screens::car_pages::Font::Labels => {
-                crate::gfx::typefaces::fonts::RANK.game_ptr()
+                crate::gfx::typefaces::fonts::RANK.into()
             }
             rc2k_core::screens::car_pages::Font::Figures => {
-                crate::gfx::typefaces::fonts::NAME.game_ptr()
+                crate::gfx::typefaces::fonts::NAME.into()
             }
         }
     }
@@ -504,13 +505,13 @@ impl GameWork for rc2k_core::screens::car_pages::Work {
 }
 
 impl GameFont for rc2k_core::screens::slot_lists::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         match self {
             rc2k_core::screens::slot_lists::Font::Names => {
-                crate::gfx::typefaces::fonts::LIST.game_ptr()
+                crate::gfx::typefaces::fonts::LIST.into()
             }
             rc2k_core::screens::slot_lists::Font::Setups => {
-                crate::gfx::typefaces::fonts::TITLE.game_ptr()
+                crate::gfx::typefaces::fonts::TITLE.into()
             }
         }
     }
@@ -532,12 +533,12 @@ pub type SlotScreen<'a> =
     GameScreen<'a, rc2k_core::screens::slot_lists::Font, rc2k_core::screens::slot_lists::Work>;
 
 impl GameFont for rc2k_core::screens::savegame_preview::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::savegame_preview::Font as F;
         match self {
-            F::Rows => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            F::Title => crate::gfx::typefaces::fonts::RANKING_TITLE.game_ptr(),
-            F::RowNumber => crate::gfx::typefaces::fonts::RANK.game_ptr(),
+            F::Rows => crate::gfx::typefaces::fonts::NAME.into(),
+            F::Title => crate::gfx::typefaces::fonts::RANKING_TITLE.into(),
+            F::RowNumber => crate::gfx::typefaces::fonts::RANK.into(),
         }
     }
 }
@@ -556,12 +557,12 @@ pub type PreviewScreen<'a> = GameScreen<
 >;
 
 impl GameFont for rc2k_core::screens::players_results::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::players_results::Font as F;
         match self {
-            F::Rows => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            F::Small => crate::gfx::typefaces::fonts::TIME.game_ptr(),
-            F::Stage => crate::gfx::typefaces::fonts::STAGE_TITLE.game_ptr(),
+            F::Rows => crate::gfx::typefaces::fonts::NAME.into(),
+            F::Small => crate::gfx::typefaces::fonts::TIME.into(),
+            F::Stage => crate::gfx::typefaces::fonts::STAGE_TITLE.into(),
         }
     }
 }
@@ -579,13 +580,13 @@ impl GameWork for rc2k_core::screens::players_results::Work {
 }
 
 impl GameFont for rc2k_core::screens::stage_results::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::stage_results::Font as F;
         match self {
-            F::Rows => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            F::Small => crate::gfx::typefaces::fonts::TIME.game_ptr(),
-            F::Rank => crate::gfx::typefaces::fonts::RANK.game_ptr(),
-            F::Fastest => crate::gfx::typefaces::fonts::LABELS.game_ptr(),
+            F::Rows => crate::gfx::typefaces::fonts::NAME.into(),
+            F::Small => crate::gfx::typefaces::fonts::TIME.into(),
+            F::Rank => crate::gfx::typefaces::fonts::RANK.into(),
+            F::Fastest => crate::gfx::typefaces::fonts::LABELS.into(),
         }
     }
 }
@@ -605,17 +606,17 @@ impl GameWork for rc2k_core::screens::stage_results::Work {
 }
 
 impl GameFont for rc2k_core::screens::results_pages::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::results_pages::Font as F;
         match self {
-            F::Title => crate::gfx::typefaces::fonts::HEAD.game_ptr(),
-            F::StageName => crate::gfx::typefaces::fonts::STAGE_TITLE.game_ptr(),
-            F::Place => crate::gfx::typefaces::fonts::RANK.game_ptr(),
-            F::Name => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            F::Time => crate::gfx::typefaces::fonts::TIME.game_ptr(),
-            F::PlayerPlace => crate::gfx::typefaces::fonts::MARKED_RANK.game_ptr(),
-            F::PlayerName => crate::gfx::typefaces::fonts::MARKED_NAME.game_ptr(),
-            F::PlayerTime => crate::gfx::typefaces::fonts::MARKED_TIME.game_ptr(),
+            F::Title => crate::gfx::typefaces::fonts::HEAD.into(),
+            F::StageName => crate::gfx::typefaces::fonts::STAGE_TITLE.into(),
+            F::Place => crate::gfx::typefaces::fonts::RANK.into(),
+            F::Name => crate::gfx::typefaces::fonts::NAME.into(),
+            F::Time => crate::gfx::typefaces::fonts::TIME.into(),
+            F::PlayerPlace => crate::gfx::typefaces::fonts::MARKED_RANK.into(),
+            F::PlayerName => crate::gfx::typefaces::fonts::MARKED_NAME.into(),
+            F::PlayerTime => crate::gfx::typefaces::fonts::MARKED_TIME.into(),
         }
     }
 }
@@ -648,13 +649,13 @@ impl GameWork for rc2k_core::screens::results_pages::RankingWork {
 }
 
 impl GameFont for rc2k_core::screens::player_result::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::player_result::Font as F;
         match self {
-            F::Labels => crate::gfx::typefaces::fonts::LABELS.game_ptr(),
-            F::Values => crate::gfx::typefaces::fonts::VALUES.game_ptr(),
-            F::Measure => crate::gfx::typefaces::fonts::MEASURE_23.game_ptr(),
-            F::Name => crate::gfx::typefaces::fonts::NAME.game_ptr(),
+            F::Labels => crate::gfx::typefaces::fonts::LABELS.into(),
+            F::Values => crate::gfx::typefaces::fonts::VALUES.into(),
+            F::Measure => crate::gfx::typefaces::fonts::MEASURE_23.into(),
+            F::Name => crate::gfx::typefaces::fonts::NAME.into(),
         }
     }
 }
@@ -673,13 +674,13 @@ pub type PlayerResultScreen<'a> = GameScreen<
 >;
 
 impl GameFont for rc2k_core::screens::duel_result::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::duel_result::Font as F;
         match self {
-            F::Big => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            F::Small => crate::gfx::typefaces::fonts::RANK.game_ptr(),
-            F::Stage => crate::gfx::typefaces::fonts::STAGE_TITLE.game_ptr(),
-            F::Time => crate::gfx::typefaces::fonts::TIME.game_ptr(),
+            F::Big => crate::gfx::typefaces::fonts::NAME.into(),
+            F::Small => crate::gfx::typefaces::fonts::RANK.into(),
+            F::Stage => crate::gfx::typefaces::fonts::STAGE_TITLE.into(),
+            F::Time => crate::gfx::typefaces::fonts::TIME.into(),
         }
     }
 }
@@ -695,12 +696,10 @@ impl GameWork for rc2k_core::screens::duel_result::Work {
 }
 
 impl GameFont for rc2k_core::screens::notes::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         match self {
-            rc2k_core::screens::notes::Font::Question => {
-                crate::gfx::typefaces::fonts::TITLE.game_ptr()
-            }
-            rc2k_core::screens::notes::Font::Value => crate::gfx::typefaces::fonts::LIST.game_ptr(),
+            rc2k_core::screens::notes::Font::Question => crate::gfx::typefaces::fonts::TITLE.into(),
+            rc2k_core::screens::notes::Font::Value => crate::gfx::typefaces::fonts::LIST.into(),
         }
     }
 }
@@ -725,13 +724,13 @@ pub fn draw_note(
 }
 
 impl GameFont for rc2k_core::screens::player_details::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         match self {
             rc2k_core::screens::player_details::Font::Value => {
-                crate::gfx::typefaces::fonts::LIST.game_ptr()
+                crate::gfx::typefaces::fonts::LIST.into()
             }
             rc2k_core::screens::player_details::Font::Measure => {
-                crate::gfx::typefaces::fonts::MEASURE.game_ptr()
+                crate::gfx::typefaces::fonts::MEASURE.into()
             }
         }
     }
@@ -794,8 +793,8 @@ impl rc2k_core::screens::menus::MenuScreen for MenuScreen<'_> {
     }
     fn font_value(&self, f: MenuFont) -> u32 {
         match f {
-            MenuFont::Object(id) => id.addr(),
-            MenuFont::Blended => GamePtr::to(&crate::text::blend_font::BLENDED_FONT).addr(),
+            MenuFont::Object(id) => FontRef::from(id).addr(),
+            MenuFont::Blended => FontRef::Blended.addr(),
         }
     }
 }
@@ -813,14 +812,14 @@ impl MenuScreen<'_> {
 pub type MenuScreen<'a> = GameScreen<'a, MenuFont, rc2k_core::screens::menus::Work>;
 
 impl GameFont for rc2k_core::screens::service::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::service::Font;
         match self {
-            Font::Times => crate::gfx::typefaces::fonts::LABEL.game_ptr(),
-            Font::Available => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            Font::Remaining => crate::gfx::typefaces::fonts::RANK.game_ptr(),
-            Font::Overrun => crate::gfx::typefaces::fonts::MARKED_NAME.game_ptr(),
-            Font::Penalty => crate::gfx::typefaces::fonts::MARKED_RANK.game_ptr(),
+            Font::Times => crate::gfx::typefaces::fonts::LABEL.into(),
+            Font::Available => crate::gfx::typefaces::fonts::NAME.into(),
+            Font::Remaining => crate::gfx::typefaces::fonts::RANK.into(),
+            Font::Overrun => crate::gfx::typefaces::fonts::MARKED_NAME.into(),
+            Font::Penalty => crate::gfx::typefaces::fonts::MARKED_RANK.into(),
         }
     }
 }
@@ -842,14 +841,14 @@ pub type ServiceScreen<'a> =
     GameScreen<'a, rc2k_core::screens::service::Font, rc2k_core::screens::service::Work>;
 
 impl GameFont for rc2k_core::screens::highlighted_caption::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::highlighted_caption::Font;
         match self {
-            Font::Measure => crate::gfx::typefaces::fonts::MEASURE.game_ptr(),
-            Font::A => crate::gfx::typefaces::fonts::CAPTION_A.game_ptr(),
-            Font::B => crate::gfx::typefaces::fonts::CAPTION_B.game_ptr(),
+            Font::Measure => crate::gfx::typefaces::fonts::MEASURE.into(),
+            Font::A => crate::gfx::typefaces::fonts::CAPTION_A.into(),
+            Font::B => crate::gfx::typefaces::fonts::CAPTION_B.into(),
             // g_blendedFont.
-            Font::Blended => GamePtr::to(&crate::text::blend_font::BLENDED_FONT),
+            Font::Blended => FontRef::Blended,
         }
     }
 }
@@ -875,8 +874,8 @@ impl GameWork for rc2k_core::screens::highlighted_caption::Work {
 }
 
 impl GameFont for rc2k_core::screens::inspection::Font {
-    fn pointer(self) -> GamePtr {
-        crate::gfx::typefaces::fonts::SMALL.game_ptr()
+    fn pointer(self) -> FontRef {
+        crate::gfx::typefaces::fonts::SMALL.into()
     }
 }
 
@@ -891,8 +890,8 @@ impl GameWork for rc2k_core::screens::inspection::Work {
 }
 
 impl GameFont for rc2k_core::screens::controls::Font {
-    fn pointer(self) -> GamePtr {
-        crate::gfx::typefaces::fonts::LIST.game_ptr()
+    fn pointer(self) -> FontRef {
+        crate::gfx::typefaces::fonts::LIST.into()
     }
 }
 
@@ -907,13 +906,13 @@ pub type ControlsScreen<'a> =
     GameScreen<'a, rc2k_core::screens::controls::Font, rc2k_core::screens::controls::Work>;
 
 impl GameFont for rc2k_core::screens::championship_table::Font {
-    fn pointer(self) -> GamePtr {
+    fn pointer(self) -> FontRef {
         use rc2k_core::screens::championship_table::Font;
         match self {
-            Font::Position => crate::gfx::typefaces::fonts::RANK.game_ptr(),
-            Font::Text => crate::gfx::typefaces::fonts::NAME.game_ptr(),
-            Font::MarkedPosition => crate::gfx::typefaces::fonts::MARKED_RANK.game_ptr(),
-            Font::MarkedText => crate::gfx::typefaces::fonts::MARKED_NAME.game_ptr(),
+            Font::Position => crate::gfx::typefaces::fonts::RANK.into(),
+            Font::Text => crate::gfx::typefaces::fonts::NAME.into(),
+            Font::MarkedPosition => crate::gfx::typefaces::fonts::MARKED_RANK.into(),
+            Font::MarkedText => crate::gfx::typefaces::fonts::MARKED_NAME.into(),
         }
     }
 }
@@ -931,8 +930,8 @@ impl GameWork for rc2k_core::screens::championship_table::Work {
 }
 
 impl GameFont for rc2k_core::screens::controller_page::Font {
-    fn pointer(self) -> GamePtr {
-        crate::gfx::typefaces::fonts::LIST.game_ptr()
+    fn pointer(self) -> FontRef {
+        crate::gfx::typefaces::fonts::LIST.into()
     }
 }
 

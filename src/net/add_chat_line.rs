@@ -97,8 +97,7 @@ pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refus
             shown.push(0);
             let left = line.read();
             shown.extend_from_slice(left.get(shown.len()..).unwrap_or(&[]));
-            let width =
-                { measure_text_at(CHAT_FONT.game_ptr(), &shown, 0, &mut GameCanvas) }?.width;
+            let width = { measure_text_at(CHAT_FONT, &shown, 0, &mut GameCanvas) }?.width;
             if width > LINE_WIDTH {
                 built.pop();
                 text -= 1;

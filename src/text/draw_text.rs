@@ -21,7 +21,7 @@
 use crate::errors::Refused;
 use crate::gfx::blit_glyph::{BlitCall, blit_glyph_on_surface};
 use crate::gfx::glyph_store;
-use crate::pointers::GamePtr;
+use crate::gfx::typefaces::FontRef;
 use crate::text::font::Font;
 use crate::text::glyph_kerning::{STATE, State};
 use rc2k_core::strings::bytes::Bytes;
@@ -154,17 +154,18 @@ pub fn draw_text(
 /// `draw_text` with a font object in game memory, for Rust callers. The object is only
 /// written (it only changes in `MODE_MEASURE`) if the canvas keeps font changes.
 pub fn draw_text_at(
-    font: GamePtr,
+    font: impl Into<FontRef>,
     text: &(impl Bytes + ?Sized),
     x: i32,
     y: i32,
     canvas: &mut dyn Canvas,
 ) -> Result<Outcome, Refused> {
-    let before = font.read::<Font>("a font")?;
+    let font = font.into().object();
+    let before = font.get();
     let mut copy = before;
     let out = draw_text(&mut copy, text, x, y, canvas)?;
     if copy != before && canvas.keeps_font_changes() {
-        font.write(copy, "a font")?;
+        font.set(copy);
     }
     Ok(out)
 }

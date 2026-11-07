@@ -32,7 +32,7 @@ pub fn draw_centred_item(
     let next = y.wrapping_add(font.object().line_height.get());
     crate::text::draw_string_by_id::draw_string_by_id_at(
         string,
-        font.game_ptr(),
+        font,
         x as i32,
         y as i32,
         &mut GameCanvas,

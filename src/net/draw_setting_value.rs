@@ -40,12 +40,6 @@ pub fn draw_setting_value(vars: &NetVars, text: &[u8], item: u32, y: u32) -> Res
             plain
         }
     };
-    crate::text::draw_text::draw_text_at(
-        FONT.game_ptr(),
-        &shown,
-        0x190,
-        y as i32,
-        &mut GameCanvas,
-    )?;
+    crate::text::draw_text::draw_text_at(FONT, &shown, 0x190, y as i32, &mut GameCanvas)?;
     Ok(y.wrapping_add(0x1E))
 }
