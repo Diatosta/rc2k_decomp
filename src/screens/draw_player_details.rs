@@ -108,9 +108,10 @@ pub fn draw_player_page(
     let details = rc2k_core::screens::player_details::Details {
         controller_item: layout.controller_item,
         controllers: input().devices.controller_count.get() != 0,
-        name: crate::screens::game_screen::player_name_of(crate::menu::player_names::name_of(
-            &player,
-        )?),
+        name: crate::screens::game_screen::player_name_of(
+            menus,
+            crate::menu::player_names::name_of(&player)?,
+        ),
         typing: screens.option_work.typing.get() != 0,
         blink: screens.draw_work.cursor_on.get(),
         nationality: player.nationality,

@@ -11,6 +11,7 @@
 //! 0x400 or more.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 use crate::session::Dword;
 use crate::system::checked_reads::CheckedReads;
 
@@ -32,7 +33,7 @@ const LISTS: [(&[Dword], &[Dword], usize); 2] = [
 
 // ---- Rust version ----
 
-pub fn rebuild_car_lists() -> Result<(), BadInput> {
+pub fn rebuild_car_lists(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::saves::cars::pointers`, both lists worked out before either
     // is written.
 
@@ -47,7 +48,7 @@ pub fn rebuild_car_lists() -> Result<(), BadInput> {
         let reads = CheckedReads::new();
         let answer = rc2k_core::saves::cars::pointers(&list, |id| {
             // Past the table's 34 the original reads on into the bytes after it: refused.
-            reads.value(crate::menu::cars_store::car_entry(id))
+            reads.value(crate::menu::cars_store::car_entry(menus, id))
         });
         found.push(Some(reads.finish(answer)??));
     }

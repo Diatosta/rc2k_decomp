@@ -184,7 +184,7 @@ impl flow::Game for Game {
             C::ResetDrivers => m::reset_drivers::reset_drivers()?,
             C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
             C::ClearPlayers284 => m::clear_players_284::clear_players_284(menus)?,
-            C::TakePlayer1Units => m::take_player1_units::take_player1_units()?,
+            C::TakePlayer1Units => m::take_player1_units::take_player1_units(menus)?,
             C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724(menus)?,
             C::ClearEventState => m::clear_event_state::clear_event_state(menus)?,
             C::ReadyPlayers => m::ready_players::ready_players(menus)?,
@@ -218,7 +218,7 @@ impl flow::Game for Game {
             C::ClearStandingsB => m::standings_steps::clear_standings(Which::B)?,
             C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score(menus)?,
             C::NumberAllB => {
-                m::standings_steps::number_all(Which::B)?;
+                m::standings_steps::number_all(menus, Which::B)?;
             }
             C::ShowChampionshipStandings => {
                 m::show_championship_standings::show_championship_standings(menus)?;
@@ -232,7 +232,7 @@ impl flow::Game for Game {
             }
             C::ClearStandingsA => m::standings_steps::clear_standings(Which::A)?,
             C::NumberAllA => {
-                m::standings_steps::number_all(Which::A)?;
+                m::standings_steps::number_all(menus, Which::A)?;
             }
             C::ShowOverallRallyResults => {
                 m::show_overall_rally_results::show_overall_rally_results(menus)?;
@@ -281,7 +281,7 @@ impl flow::Game for Game {
             C::Results48584B => self.screen(&m::results_48584b_loop::SCREEN)?,
             C::Results482E9B => self.screen(&m::results_482e9b_loop::SCREEN)?,
             C::Screen483163 => self.screen(&m::screen_483163_loop::SCREEN)?,
-            C::KeepStageBest => m::keep_stage_best::keep_stage_best()?,
+            C::KeepStageBest => m::keep_stage_best::keep_stage_best(menus)?,
             C::TimeTrialQualifies => m::time_trial_qualifies::time_trial_qualifies()?,
             C::ClearTimeTrialMarks => m::clear_time_trial_marks::clear_time_trial_marks()?,
             C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best(menus)?,

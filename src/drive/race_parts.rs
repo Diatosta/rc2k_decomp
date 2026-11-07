@@ -13,8 +13,11 @@ pub fn race_frame(race: &Race) -> Result<(), Refused> {
 }
 
 /// `scene::restart_clock` (its reading into `g_sceneClock`).
-pub fn restart_clock() {
-    crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+pub fn restart_clock(race: &Race) {
+    crate::scene::restart_clock::restart_clock(
+        &race.shared,
+        crate::system::tick_count::tick_count(),
+    );
 }
 
 /// `input::update`.

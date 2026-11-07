@@ -38,7 +38,7 @@ pub fn backspace_setup_name(menus: &Menus) -> Result<(), BadInput> {
         let mut bytes = at.read(NAME_LEN, "a setup name")?;
         let len = rc2k_core::service::setups::backspace(&mut bytes, len);
         at.write(&bytes, "a setup name")?;
-        set_length(len as i32);
+        set_length(menus, len as i32);
     }
     Ok(())
 }

@@ -33,8 +33,8 @@ pub fn apply_screen_mode(screens: &Screens) -> Result<(), Refused> {
     } else {
         crate::gfx::screen_mode_choices::screen_mode_choices(display, BACK_TO_MODE != 0)?;
     }
-    crate::race::stage_free::render3d_tidy()?;
-    crate::race::stage_free::objects_tidy()?;
+    crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;
+    crate::race::stage_free::objects_tidy(crate::race::owner::race())?;
     // `nullsub_6`.
     crate::race::race_end::release_textures();
     crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;

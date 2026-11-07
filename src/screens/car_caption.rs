@@ -11,6 +11,7 @@
 
 use crate::errors::Refused;
 use crate::menu::car_description::{read, shown_description};
+use crate::menu::owner::Menus;
 use crate::strings::append_string_by_id::append_string_by_id;
 
 // ---- game data ----
@@ -34,8 +35,8 @@ pub fn put_string(
     Ok(())
 }
 
-pub fn car_caption() -> Result<(), Refused> {
-    let id = read(shown_description()?)?.name;
+pub fn car_caption(menus: &Menus) -> Result<(), Refused> {
+    let id = read(shown_description(menus)?)?.name;
     put_string(
         id,
         &crate::screens::text_buffers_store::TEXT_BUFFERS.caption,

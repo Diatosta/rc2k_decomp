@@ -12,7 +12,7 @@
 
 use crate::gfx::typefaces::FontCell;
 use crate::menu::item_sprites_store::SpriteCell;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, menus};
 use crate::session::Dword;
 
 /// A label: x, y, the font, the string id.
@@ -1067,6 +1067,7 @@ pub fn labels_place_of(head: &Dword) -> Result<Option<u32>, crate::errors::BadIn
 /// None for a menu without labels. For the original's slip of writing item 1 of the "menu"
 /// its labels would be (`notes/bugs.md`): the place lands in the labels' memory.
 pub fn labels_slot(
+    menus: &Menus,
     head: &Dword,
     offset: u32,
 ) -> Result<Option<crate::pointers::GamePtr>, crate::errors::BadInput> {
@@ -1074,7 +1075,7 @@ pub fn labels_slot(
         return Ok(None);
     };
     Ok(Some(
-        crate::pointers::GamePtr::to(&menus().tables.menus).offset(at.wrapping_add(offset)),
+        crate::pointers::GamePtr::to(&menus.tables.menus).offset(at.wrapping_add(offset)),
     ))
 }
 

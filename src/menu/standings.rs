@@ -148,6 +148,7 @@ pub fn walked_drivers() -> Result<Vec<rc2k_core::saves::rankings::Driver>, BadIn
 /// A player as a stage record's holder: the figure (+0x94), nationality, car and the name's
 /// 0x20 bytes (as the original copies them, past the NUL too).
 pub fn as_holder(
+    menus: &Menus,
     p: &rc2k_core::menu::player::Player,
 ) -> Result<
     (
@@ -161,13 +162,16 @@ pub fn as_holder(
         car: p.car_number,
         speed: p.figure,
     };
-    Ok((row, name_of(p)?))
+    Ok((row, name_of(menus, p)?))
 }
 
 /// The player's name, `N` bytes from its start (bounded by the names' store: the original
 /// runs on past a name that lacks its end).
-pub fn name_of<const N: usize>(p: &rc2k_core::menu::player::Player) -> Result<[u8; N], BadInput> {
-    crate::menu::player_names::name_ptr(name_player(p)?).read::<[u8; N]>("a name")
+pub fn name_of<const N: usize>(
+    menus: &Menus,
+    p: &rc2k_core::menu::player::Player,
+) -> Result<[u8; N], BadInput> {
+    crate::menu::player_names::name_ptr(menus, name_player(p)?).read::<[u8; N]>("a name")
 }
 
 /// Whose name the player has; refused without one.
@@ -296,7 +300,7 @@ pub fn enter_best(
         car: p.get().car_number,
         group: p.get().class,
         name_ref,
-        name: name_of(&p.get())?,
+        name: name_of(menus, &p.get())?,
     };
     scores.with(|t| {
         with_kept_name(play, |kept| {

@@ -110,7 +110,7 @@ impl arcade::Arcade for Game {
                     .records
                     .stage_tables
                     .level_table(play.arcade.level.get())?;
-                a::keep_arcade_stage_best(screens, level.row(play.arcade.stage.get())?)?;
+                a::keep_arcade_stage_best(menus, screens, level.row(play.arcade.stage.get())?)?;
             }
             Step::CheckStageTime => a::check_arcade_stage_time(menus)?,
             Step::ClearTimeMarks => a::clear_arcade_time_marks(play)?,

@@ -116,13 +116,17 @@ fn current(screens: &Screens) -> Result<(u32, crate::menu::standings::PlayerCell
 }
 
 /// `menu::keep_arcade_stage_best`, `record` the caller's edi.
-pub fn keep_arcade_stage_best(screens: &Screens, record: RecordRef) -> Result<(), Refused> {
+pub fn keep_arcade_stage_best(
+    menus: &Menus,
+    screens: &Screens,
+    record: RecordRef,
+) -> Result<(), Refused> {
     let (_, player) = current(screens)?;
     // Converted: `rc2k_core::menu::bests::takes_record`.
     let figure = player.get().figure;
     if bests::takes_record(figure, record.record()?.holder(Holder::Fastest).speed) {
         name_player(&player.get())?;
-        let (row, name) = crate::menu::standings::as_holder(&player.get())?;
+        let (row, name) = crate::menu::standings::as_holder(menus, &player.get())?;
         record.record()?.set_holder(Holder::Fastest, &row, &name);
     }
     Ok(())
@@ -153,6 +157,7 @@ pub fn check_arcade_stage_time(menus: &Menus) -> Result<(), Refused> {
 /// The player's new entry (player 1): +0x1C, +8, +0xC, +0x10 and the name from its
 /// record.
 fn new_best(
+    menus: &Menus,
     player: crate::menu::standings::PlayerCell,
     key: u32,
     seal: Option<bests::Seal>,
@@ -166,7 +171,7 @@ fn new_best(
         name_at,
         car: player.get().car_number,
         group: player.get().class,
-        name: name_of(&player.get())?,
+        name: name_of(menus, &player.get())?,
         entered: None,
         seal,
         line,
@@ -185,6 +190,7 @@ pub fn enter_arcade_stage_time(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::saves::entries` (`BestTime::enter`, `sort_arcade_times`).
     let seal = bests::Seal { cheats, sealed };
     let best = new_best(
+        menus,
         player,
         player.get().time,
         Some(seal),
@@ -205,7 +211,7 @@ pub fn enter_arcade_level_score(menus: &Menus) -> Result<(), Refused> {
     name_player(&player.get())?;
     // Converted: `rc2k_core::saves::entries` (`Entry::enter`, `sort_level_scores`).
     let score = (if n == 1 { SCORE_1 } else { SCORE }).get();
-    let best = new_best(player, score, None, None)?;
+    let best = new_best(menus, player, score, None, None)?;
     with_level_scores(&menus.play, |ten| {
         ten[9].enter(&best);
         with_kept_name(&menus.play, |kept| {

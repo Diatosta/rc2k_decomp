@@ -24,8 +24,8 @@ use crate::text::draw_text::GameCanvas;
 // ---- Rust version ----
 
 /// The car of the entry shown, 0x21 counting as 0x17.
-pub fn shown_car() -> Result<u32, Refused> {
-    let car = read(shown_description()?)?.car;
+pub fn shown_car(menus: &Menus) -> Result<u32, Refused> {
+    let car = read(shown_description(menus)?)?.car;
     // Converted: `rc2k_core::menu::slides::picture_car`.
     Ok(rc2k_core::menu::slides::picture_car(car))
 }
@@ -38,7 +38,7 @@ pub fn load_car_background(
 ) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::slides::background_page`.
     let page = rc2k_core::menu::slides::background_page(menus.screens.event.car_page.get())?;
-    let car = shown_car()?;
+    let car = shown_car(menus)?;
     let path = crate::menu::texts_store::text_at(crate::session::read_on_in(
         &menus.tables.lists,
         crate::menu::lists_store::page_pictures(&menus.tables, page)?,

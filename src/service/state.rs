@@ -1,6 +1,7 @@
 //! Game variables the service area's functions share.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 use crate::menu::owner::{Screens, Tables, menus};
 use crate::session::{read_all, write_all};
 use crate::system::checked_reads::refuse;
@@ -17,8 +18,8 @@ pub fn current_player_of(screens: &Screens) -> Option<crate::menu::standings::Pl
 
 /// The flag of menu item `item` in the repair flag table (the item not checked against
 /// the table: a read past it reads on, as the original's).
-pub fn repair_flag(item: u32) -> u32 {
-    repair_flag_in(&menus().tables, item)
+pub fn repair_flag(menus: &Menus, item: u32) -> u32 {
+    repair_flag_in(&menus.tables, item)
 }
 
 /// `repair_flag` for a caller that holds the tables group.
@@ -32,16 +33,16 @@ pub fn repair_flag_in(tables: &Tables, item: u32) -> u32 {
     .unwrap_or_else(|e| refuse(e))
 }
 
-pub fn edit_mode() -> bool {
-    menus().screens.state.service_ui.box_shown.get() == 1
+pub fn edit_mode(menus: &Menus) -> bool {
+    menus.screens.state.service_ui.box_shown.get() == 1
 }
 
 pub fn menu_item() -> u32 {
     menus().screens.loop_flags.item.get()
 }
 
-pub fn blink_on() -> bool {
-    menus().screens.draw_work.blink.get() == 1
+pub fn blink_on(menus: &Menus) -> bool {
+    menus.screens.draw_work.blink.get() == 1
 }
 
 /// Menu items of the service area that have a flag: 0 .. 19. Entry 20 of both flag tables is
@@ -88,24 +89,24 @@ pub fn store_marks(tables: &Tables, t: &rc2k_core::service::repairs::Table) {
 }
 
 /// An item's repair time, through its pointer (None: null).
-pub fn time_of(tables: &Tables, item: usize) -> Option<i32> {
+pub fn time_of(menus: &Menus, tables: &Tables, item: usize) -> Option<i32> {
     let key: u32 = tables
         .lists
         .repair_time_ptrs
         .get(item)
         .map(super::super::session::Dword::get)
         .unwrap_or_else(|| refuse(BadInput("an item past the repair times' pointers")));
-    crate::menu::lists_store::repair_time_at(key)
+    crate::menu::lists_store::repair_time_at(menus, key)
         .unwrap_or_else(|e| refuse(e))
         .map(|time| time.get() as i32)
 }
 
 /// The time of every item whose flag is not 0, as the original adds it up. Converted:
 /// `rc2k_core::service::repairs::chosen_time`.
-pub fn chosen_repairs_time(tables: &Tables) -> Result<i32, BadInput> {
+pub fn chosen_repairs_time(menus: &Menus, tables: &Tables) -> Result<i32, BadInput> {
     Ok(rc2k_core::service::repairs::chosen_time(
         &flags(tables),
-        |item| time_of(tables, item),
+        |item| time_of(menus, tables, item),
     )?)
 }
 

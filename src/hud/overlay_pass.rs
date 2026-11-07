@@ -62,7 +62,7 @@ pub fn overlay_pass(hud: &Hud, race: &Race) -> Result<(), Refused> {
     race.frame.panel_and_overlay.panel.hud_flags[0].set(kept[0]);
     done?;
     depth_buffer(true);
-    crate::scene::full_view_window::full_view_window();
+    crate::scene::full_view_window::full_view_window(race);
     crate::scene::set_render_state::set_render_state(3, 3);
     race.course.level_grid.plain_first.set(1);
     race.course.level_grid.plain_second.set(1);

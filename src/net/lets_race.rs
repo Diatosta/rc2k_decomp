@@ -23,9 +23,9 @@ pub fn lets_race(race: &Race, vars: &NetVars) -> Result<(u32, u32), Refused> {
     for car in &CAR_BLOCKS.cars[..8] {
         car.stop_state.set(0);
     }
-    crate::net::set_hud_options::set_hud_options(vars)?;
+    crate::net::set_hud_options::set_hud_options(race, vars)?;
     { crate::drive::play_race::play_race(race) }?;
-    crate::net::keep_hud_options::keep_hud_options(vars)?;
+    crate::net::keep_hud_options::keep_hud_options(&race.shared, vars)?;
     let block = crate::race::trap::car_at(
         race.shared
             .work

@@ -34,7 +34,7 @@ pub fn championship_standings(menus: &Menus) -> Result<(), Refused> {
         }
     }
     if !a8 {
-        number_all(Which::B)?;
+        number_all(menus, Which::B)?;
     }
     menus.screens.state.menus.standings_shown.set(1u32);
     if a8 {

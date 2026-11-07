@@ -47,6 +47,6 @@ pub fn draw_mirror_view(race: &Race) -> Result<(), Refused> {
         .view_scale
         .set_bits(saved.0);
     drawn?;
-    crate::race::frame_views::full_view_window(&race.physics, false);
+    crate::race::frame_views::full_view_window(race, false);
     Ok(())
 }

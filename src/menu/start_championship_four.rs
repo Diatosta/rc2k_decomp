@@ -8,6 +8,7 @@
 //! callees refuse when they are reached.
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::menu::start_event::{Starter, start_event};
 use rc2k_core::menu::starters::{self, Championship, Seats};
 
@@ -20,6 +21,6 @@ pub const START_CHAMPIONSHIP_FOUR: Starter = Starter {
 };
 
 /// The Rust version.
-pub fn start_championship_four() -> Result<(), Refused> {
-    start_event(&START_CHAMPIONSHIP_FOUR)
+pub fn start_championship_four(menus: &Menus) -> Result<(), Refused> {
+    start_event(menus, &START_CHAMPIONSHIP_FOUR)
 }

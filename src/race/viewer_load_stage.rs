@@ -60,13 +60,13 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
     #[cfg(feature = "remote")]
     crate::remote::shots_loading();
     if shared.replay_file.replay_open.get() == 1 {
-        stage_free::render3d_tidy()?;
-        stage_free::objects_tidy()?;
+        stage_free::render3d_tidy(race)?;
+        stage_free::objects_tidy(race)?;
         // nullsub_6
         race_end::release_textures();
         race_shell::set_race_screen_mode();
 
-        crate::menu::show_loading_picture::show_loading_picture()?;
+        crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
         for (to, from) in settings(shared) {
             to.set(from.get());
         }

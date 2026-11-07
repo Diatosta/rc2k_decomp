@@ -6,7 +6,8 @@
 //! it otherwise).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 use crate::session::Dword;
 
@@ -23,8 +24,7 @@ enum Prefs {
 }
 
 impl Prefs {
-    fn list(self) -> &'static [Dword] {
-        let course = &race().course;
+    fn list(self, course: &Course) -> &[Dword] {
         match self {
             Prefs::A => &course.stage_prefs.picture_lists_a,
             Prefs::B => &course.stage_prefs.picture_lists_b,
@@ -77,8 +77,8 @@ const COUNT_TEXT_RVA: &std::ffi::CStr = c"NUM DIFFERENT CARS/OBJECTS/TEXTURE SET
 /// the video level of two), and with `dword_621514` three more. What the original
 /// leaves in the registers its one caller reads none of (register liveness, 2026-10-23:
 /// the site in `race::loadlevel_init`, every register followed, no read).
-pub fn init_texture_levels() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn init_texture_levels(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     let scene = scene();
     // Converted: `rc2k_core::scene::texture_levels::{held_cars, set_levels}`.
     use crate::logfile::log_int::log_int;
@@ -102,7 +102,7 @@ pub fn init_texture_levels() -> Result<(), Refused> {
                     other_level,
                     step,
                 };
-                let prefs = list.list();
+                let prefs = list.list(&race.course);
                 (
                     k,
                     (0..count as usize).map(|n| prefs[from + n].get()).collect(),

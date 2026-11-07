@@ -10,7 +10,6 @@ use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::{Trap, car_at};
 use crate::scene::owner::scene;
@@ -21,7 +20,8 @@ use crate::system::owner::system;
 /// `dword_623FB4` 0, `dword_624080` 0x100, `scene::set_view_window`), `dword_63993C` 0; the
 /// first also `dword_6365C4` 0. Its callers (`race::draw_race_scene`,
 /// `race::draw_mirror_view`) read no register it leaves.
-pub fn full_view_window(physics: &Physics, first: bool) {
+pub fn full_view_window(race: &Race, first: bool) {
+    let physics = &race.physics;
     let session = &system().session;
     let scene = scene();
     scene.drawing.scene.view_size[0].set(session.screen.width.get());
@@ -29,7 +29,7 @@ pub fn full_view_window(physics: &Physics, first: bool) {
     scene.drawing.scene.view_offset[0].set(0);
     scene.drawing.scene.view_offset[1].set(0);
     scene.drawing.scene.view_zoom.set(0x100);
-    crate::scene::set_view_window::set_view_window();
+    crate::scene::set_view_window::set_view_window(race);
     if first {
         scene.lights.state.draw_mode.set(0);
     }
@@ -93,7 +93,7 @@ pub fn mirror_view_window(race: &Race) -> Result<(), Refused> {
     scene.drawing.scene.cleared_rectangle[2].set(x.wrapping_add(sx));
     scene.drawing.scene.cleared_rectangle[3].set(y.wrapping_add(sy));
     scene.drawing.scene.view_zoom.set(0x100);
-    crate::scene::set_view_window::set_view_window();
+    crate::scene::set_view_window::set_view_window(race);
     crate::race::frame_draw::set_up_fog(race)?;
     scene.lights.state.draw_mode.set(0);
     race.physics.ground.view_mirrored.set(1);
@@ -549,7 +549,7 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
     let done = crate::effects::frame_marks::frame_marks(race, effects).and_then(|_| {
         if race.frame.frame_work.drawing.get() == 0 {
-            crate::effects::run_frame::run_frame()
+            crate::effects::run_frame::run_frame(race)
         } else {
             Ok(())
         }

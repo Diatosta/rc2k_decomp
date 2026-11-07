@@ -81,14 +81,14 @@ pub fn edit_replay_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, 
             return Ok(false);
         }
         // The saved game's name, not the replay's: the original's slip.
-        Key::Clear => clear_text(other_name)?,
+        Key::Clear => clear_text(menus, other_name)?,
         Key::Backspace => backspace_savegame_name(menus)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             let len = length();
             if entry::appends(c, len, menus.screens.loop_flags.text_max.get() as i32) {
                 name.add(len as u32).write(&[c], "a replay's name")?;
-                set_length(len.wrapping_add(1));
+                set_length(menus, len.wrapping_add(1));
                 let measured = measure_text_at(
                     MEASURING_FONT,
                     &name.game_ptr().bytes("a replay's name")?,

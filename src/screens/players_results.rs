@@ -8,18 +8,17 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::captions_store::CaptionTables;
-use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, menus};
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
 pub use rc2k_core::screens::players_results::{Layout, WITH_POINTS, WITHOUT_POINTS};
 
-fn rows(layout: &Layout) -> usize {
-    rc2k_core::screens::players_results::rows(layout, menus().screens.event.player_count.get())
+fn rows(menus: &Menus, layout: &Layout) -> usize {
+    rc2k_core::screens::players_results::rows(layout, menus.screens.event.player_count.get())
 }
 
 fn offset(play: &Play, row: usize) -> u32 {
@@ -41,8 +40,15 @@ fn player(row: usize) -> Result<crate::menu::standings::PlayerCell, Refused> {
 }
 
 /// The row's points (`off_758992[offset]`).
-fn points_at(play: &Play, row: usize) -> Result<&'_ crate::session::Dword, Refused> {
-    Ok(CaptionTables::sum_of(offset(play, row) as usize / 4)?)
+fn points_at<'a>(
+    menus: &'a Menus,
+    play: &Play,
+    row: usize,
+) -> Result<&'a crate::session::Dword, Refused> {
+    Ok(CaptionTables::sum_of(
+        menus,
+        offset(play, row) as usize / 4,
+    )?)
 }
 
 /// The section's first record and the stage's (`off_735512[dword_7558C8][dword_7558D0]`, +
@@ -69,11 +75,11 @@ struct Prepared {
 /// What the page needs, checked before anything is written: the rows' players (and points),
 /// the stage line, the speeds (3 .. 0x80 characters for `draw_spaced_number`).
 fn prepare(menus: &Menus, layout: &Layout) -> Result<Prepared, Refused> {
-    let n = rows(layout);
+    let n = rows(menus, layout);
     let players = (0..n).map(player).collect::<Result<Vec<_>, _>>()?;
     if layout.points {
         for row in 0..n {
-            points_at(&menus.play, row)?;
+            points_at(menus, &menus.play, row)?;
         }
     }
     let (base, record) = records(&menus.screens)?;
@@ -117,6 +123,7 @@ pub fn draw_players_results(
         for (row, (p, speed)) in players.iter().zip(speeds).enumerate() {
             rows.push(Row {
                 name: crate::screens::game_screen::player_name_of(
+                    menus,
                     crate::menu::player_names::name_of(&p.get())?,
                 ),
                 nation: p.get().nationality,
@@ -124,7 +131,7 @@ pub fn draw_players_results(
                 time: p.get().time,
                 speed,
                 points: if layout.points {
-                    points_at(&menus.play, row)?.get()
+                    points_at(menus, &menus.play, row)?.get()
                 } else {
                     0
                 },

@@ -28,7 +28,7 @@ pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
     let players = counted_players(screens)?;
     for &p in &players {
         if passes::takes_part(p.get().entry) {
-            crate::menu::driver_stats::car_table(p)?;
+            crate::menu::driver_stats::car_table(menus, p)?;
         }
     }
     menus.screens.event.event_goes_on.set(1u32);
@@ -37,7 +37,7 @@ pub fn inspection_pass(menus: &Menus) -> Result<(), Refused> {
         if !passes::takes_part(p.get().entry) {
             continue;
         }
-        crate::menu::driver_stats::driver_stats(screens)?;
+        crate::menu::driver_stats::driver_stats(menus, screens)?;
         crate::menu::inspection_verdict::inspection_verdict(menus)?;
         crate::menu::inspection_faults::inspection_faults(menus)?;
         if !passes::is_out(p.get().entry) {

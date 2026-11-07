@@ -103,7 +103,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     assign_kind_textures()?;
     pick_pictures(menus)?;
     map_texture_places();
-    load_slot_textures_in_game()?;
+    load_slot_textures_in_game(&race.frame)?;
     scene().lights.state.draw_mode.set_bits(0u32);
     draw_shown_car(&race.shared, &menus.screens, &mut || {
         draw_menu_object_in_game(race)

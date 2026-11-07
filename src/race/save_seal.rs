@@ -3,7 +3,7 @@
 //! tables (`race::seal_block`, with `race::permute_bits`).
 
 use crate::errors::BadInput;
-use crate::race::owner::race;
+use crate::race::seal_store::SealWork;
 use crate::system::owner::system;
 
 /// `race::pack_runs` (0x41EFEC): ecx bytes at esi packed to edi: runs of 2 .. 0x80 equal
@@ -34,7 +34,7 @@ pub fn pack_runs(source: &[u8]) -> Result<(Vec<u8>, u32), BadInput> {
 /// permutation, sixteen rounds (expansion, the subkey, eight S-boxes, the permutation,
 /// the halves swapped), the final permutation into `value` (0x4E053C) and `dword_4E0540`.
 /// Every register kept (`pusha` / `popa`).
-pub fn seal_block() {
+pub fn seal_block(w: &SealWork) {
     // Converted: `rc2k_core::race::seal::seal_block`.
     {
         use crate::race::seal_tables::*;
@@ -47,7 +47,6 @@ pub fn seal_block() {
             permutation: &PERMUTATION,
             last: &LAST,
         };
-        let w = &race().replay.seal_work;
         let sealed = rc2k_core::race::seal::seal_block(
             [w.key[0].get(), w.key[1].get()],
             [w.block[0].get(), w.block[1].get()],

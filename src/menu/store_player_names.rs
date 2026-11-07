@@ -9,15 +9,20 @@
 //! Refuses a missing player.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::player_names::{cars, name_bytes};
 
 // ---- Rust version ----
 
 /// `log` gets each line's text.
-pub fn store_player_names(play: &Play, log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
+pub fn store_player_names(
+    menus: &Menus,
+    play: &Play,
+    log: &mut dyn FnMut(&[u8]),
+) -> Result<(), BadInput> {
     for (player, car) in cars(play).iter().enumerate() {
-        let name = name_bytes(player);
+        let name = name_bytes(menus, player);
         car.update(|p| p.name_copy = name);
         // Logged up to its NUL, read on past the copy's room as the original reads.
         let bytes = car.get().to_le_bytes();

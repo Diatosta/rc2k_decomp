@@ -37,7 +37,7 @@ fn lift_car(race: &Race) {
 /// `drive::finish_race`'s call has no read point).
 pub fn finish_run(race: &Race) -> Result<(), Refused> {
     lift_car(race);
-    restart_clock();
+    restart_clock(race);
     race.frame
         .clock_ticks
         .clock_a
@@ -50,7 +50,7 @@ pub fn finish_run(race: &Race) -> Result<(), Refused> {
         mark.set(u32::MAX);
     }
     race.replay.replay_view.play_end.set(u32::MAX);
-    restart_clock();
+    restart_clock(race);
     race.replay
         .finish
         .start_clock

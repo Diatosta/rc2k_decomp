@@ -27,15 +27,13 @@
 
 use crate::math::x87;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
 
 // ---- Rust version ----
 
-pub fn set_view_window() {
+pub fn set_view_window(race: &Race) {
     let drawing = &scene().drawing;
-    let race = race();
     let depth = race.course.stage_prefs.grid_reach.bits().wrapping_mul(0x20);
     crate::session::write_bits(&race.shared.view.view_depth, [depth, depth]);
     let [width, height]: [u32; 2] = crate::session::read_bits(&drawing.scene.view_size);

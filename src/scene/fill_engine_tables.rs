@@ -80,7 +80,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
         word(n).set(n as u16);
     }
     for n in 0..0x1_0000usize {
-        let other = (next_noise() & 0xFFFF) as usize;
+        let other = (next_noise(&race.shared) & 0xFFFF) as usize;
         let (here, there) = (word(n).get(), word(other).get());
         word(n).set(there);
         word(other).set(here);
@@ -90,7 +90,7 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
     for n in 0..NOISE_LEN {
         crate::scene::engine_tables_store::ENGINE_TABLES
             .noise_bytes
-            .set(n, (next_noise() >> 12) as u8);
+            .set(n, (next_noise(&race.shared) >> 12) as u8);
     }
     // sub_41F716
     for n in 1..0x100usize {
@@ -122,6 +122,6 @@ pub fn fill_engine_tables(race: &crate::race::owner::Race) {
         tangent(&race.frame, angle);
     }
     for place in 0..0x100u32 {
-        angle_of(place, 0x100);
+        angle_of(&race.course, place, 0x100);
     }
 }

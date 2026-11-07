@@ -15,6 +15,7 @@
 use crate::errors::Refused;
 use crate::gfx::blit_bar::Bar;
 use crate::gfx::blit_bar_marker::blit_bar_marker;
+use crate::menu::owner::Menus;
 use crate::service::state::{blink_on, edit_mode, menu_item, repair_flag};
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
@@ -75,6 +76,7 @@ fn place(
 /// `player` (edi) is the player for the upper bars. What the original
 /// leaves in eax and esi its one caller, `screens::draw_service_area`, does not read.
 pub fn draw_marker(
+    menus: &Menus,
     marker: Marker,
     player: crate::menu::standings::PlayerCell,
     canvas: &mut dyn Canvas,
@@ -82,9 +84,9 @@ pub fn draw_marker(
     // Converted: `rc2k_core::screens::setup_markers::plan`; here the values read and the bar drawn.
     use rc2k_core::screens::setup_markers::{Marker as M, Menu, Plan};
     let menu = Menu {
-        edit_mode: edit_mode(),
+        edit_mode: edit_mode(menus),
         item: menu_item(),
-        blink_on: blink_on(),
+        blink_on: blink_on(menus),
     };
     let read = |cell: &Dword| -> Result<i32, Refused> { Ok(cell.get() as i32) };
     let (core, item): (M, u32) = match marker {
@@ -105,7 +107,7 @@ pub fn draw_marker(
     };
     let (plan, _) =
         rc2k_core::screens::setup_markers::plan(core, menu, &percent, &installed, &|| {
-            repair_flag(item)
+            repair_flag(menus, item)
         })?;
     match plan {
         Plan::Hidden { .. } => Ok(()),

@@ -45,7 +45,7 @@ pub fn time_trial_service(menus: &Menus) -> Result<(), Refused> {
             crate::menu::fade_in::fade_in(screens)?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
             screens.state.driver_stats.repair_time.set(0);
-            { crate::menu::driver_stats::driver_stats(screens) }?;
+            { crate::menu::driver_stats::driver_stats(menus, screens) }?;
             screens.state.menus.service_flag.set(0);
             {
                 run_screen(

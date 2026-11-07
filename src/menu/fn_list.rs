@@ -6,6 +6,7 @@
 
 use crate::errors::BadInput;
 use crate::menu::draw_lists_store::DrawLists;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
 use crate::menu::owner::menus;
 use crate::session::Dword;
@@ -38,8 +39,8 @@ impl FnList {
     }
 
     /// The list `entry` starts: an entry of the draw lists' (`DrawList::from`).
-    pub fn starting_at(entry: &Dword) -> FnList {
-        let tables = &menus().tables;
+    pub fn starting_at(menus: &Menus, entry: &Dword) -> FnList {
+        let tables = &menus.tables;
         let all = draw_dwords(tables);
         let n =
             (std::ptr::from_ref::<Dword>(entry) as usize).wrapping_sub(all.as_ptr() as usize) / 4;

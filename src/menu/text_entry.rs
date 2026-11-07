@@ -11,8 +11,8 @@ pub fn length() -> i32 {
     menus().screens.loop_flags.text_length.get() as i32
 }
 
-pub fn set_length(length: i32) {
-    menus().screens.loop_flags.text_length.set(length as u32);
+pub fn set_length(menus: &Menus, length: i32) {
+    menus.screens.loop_flags.text_length.set(length as u32);
 }
 
 /// Where the backup copy of the text is.
@@ -32,7 +32,7 @@ pub fn entry() -> Entry {
 
 /// The entry's state stored back.
 pub fn put_entry(menus: &Menus, e: &Entry) {
-    set_length(e.length);
+    set_length(menus, e.length);
     menus.screens.option_work.typing.set(e.entering);
     for (i, &byte) in e.backup.iter().enumerate() {
         menus.play.names.text_backup.set(i, byte);

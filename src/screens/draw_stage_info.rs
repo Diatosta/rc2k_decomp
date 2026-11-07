@@ -69,7 +69,12 @@ pub fn draw_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, R
     let (record, _) = event_stage(screens)?;
     draw_stage_heading(record, canvas)?;
     draw_stage_body(tables, record, false, canvas)?;
-    draw_records_from(&crate::saves::best_times::STAGE_TIMES, record, canvas)
+    draw_records_from(
+        menus,
+        &crate::saves::best_times::STAGE_TIMES,
+        record,
+        canvas,
+    )
 }
 
 //

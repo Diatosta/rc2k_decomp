@@ -34,7 +34,7 @@ pub fn draw_players_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<
         {
             return Err(BadInput("a standings row without its name").into());
         }
-        *total = CaptionTables::total_of(row)?.get();
+        *total = CaptionTables::total_of(menus, row)?.get();
     }
     // Converted: `rc2k_core::screens::players_results::standings`.
     let player = |row: usize| menus.play.players.players[row].get();
@@ -44,6 +44,7 @@ pub fn draw_players_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<
         .map(|row| {
             Ok(rc2k_core::screens::players_results::Standing {
                 name: crate::screens::game_screen::player_name_of(
+                    menus,
                     crate::menu::player_names::name_of(&player(row))?,
                 ),
                 nation: player(row).nationality,

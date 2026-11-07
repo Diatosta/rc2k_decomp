@@ -251,13 +251,12 @@ impl Tidy {
 /// 0, `dword_606294` `dword_6235F4`); "finis". What the steps leave in eax, ebx and the
 /// flags is read by no caller (taint at its one site, 0x444B56 in `tidy_everything`: 0 reads).
 pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
-    let course = &race.course;
     use crate::race::stage_free::{
         COURSE, COURSE_2, FONTS, MUD, OBJECT_POINTS, POINT_RECORDS, free,
     };
     let s = Tidy;
-    s.step(STAGE_WORDS[0], || free(course, &MUD))?;
-    s.step(STAGE_WORDS[1], || free(course, &POINT_RECORDS))?;
+    s.step(STAGE_WORDS[0], || free(race, &MUD))?;
+    s.step(STAGE_WORDS[1], || free(race, &POINT_RECORDS))?;
     s.log(STAGE_WORDS[2]);
     s.indent(3);
     let enabled = crate::logfile::write_line::state::ENABLED
@@ -266,7 +265,7 @@ pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
     crate::effects::tidy_marks::tidy_marks(effects())?;
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
-    s.step(STAGE_WORDS[3], || free(course, &FONTS))?;
+    s.step(STAGE_WORDS[3], || free(race, &FONTS))?;
     s.step(STAGE_WORDS[4], || {
         crate::race::game_map::free_game_map(race)
     })?;
@@ -274,11 +273,11 @@ pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
         crate::race::race_shell::release_stage_textures();
         Ok(())
     })?;
-    s.step(STAGE_WORDS[6], || free(course, &COURSE_2))?;
-    s.step(STAGE_WORDS[7], || free(course, &COURSE))?;
+    s.step(STAGE_WORDS[6], || free(race, &COURSE_2))?;
+    s.step(STAGE_WORDS[7], || free(race, &COURSE))?;
     s.log(STAGE_WORDS[8]);
     s.indent(3);
-    free(course, &OBJECT_POINTS)?;
+    free(race, &OBJECT_POINTS)?;
     race.course.numbers.in_race.set(0);
     race.frame
         .view_and_records
@@ -377,8 +376,8 @@ pub fn start_race(race: &Race) -> Result<(), Refused> {
 /// `race::race_from_menu` (0x485570): `race::render3d_tidy`, `race::objects_tidy`,
 /// `nullsub_6`, `race::release_textures`, `race::start_race`.
 pub fn race_from_menu(race: &Race) -> Result<(), Refused> {
-    crate::race::stage_free::render3d_tidy()?;
-    crate::race::stage_free::objects_tidy()?;
+    crate::race::stage_free::render3d_tidy(race)?;
+    crate::race::stage_free::objects_tidy(race)?;
     release_textures();
     start_race(race)
 }

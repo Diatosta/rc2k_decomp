@@ -27,7 +27,7 @@ pub fn prepare_menu_scene() {
         &[0u32; 3],
     );
     crate::session::write_bits(&drawing.scene.view_size, [0x320u32, 0x258]);
-    set_view_window();
+    set_view_window(race);
     let o = &drawing.object_work;
     o.light_lowest.set(0x50);
     o.light_highest.set(0xFF);

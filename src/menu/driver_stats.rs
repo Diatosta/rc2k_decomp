@@ -24,6 +24,7 @@
 //! before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::standings::*;
 use crate::session::write_all;
@@ -52,6 +53,7 @@ const EQUALS_RVA: [&std::ffi::CStr; 13] = [
 const PARTS: u32 = 14;
 /// The current player and its car's table.
 pub fn player_and_table(
+    menus: &Menus,
     screens: &Screens,
 ) -> Result<(PlayerCell, crate::pointers::GamePtr), BadInput> {
     let n: u32 = screens.event.current_player.get();
@@ -59,25 +61,25 @@ pub fn player_and_table(
         return Err(BadInput("a current player past 3 or missing"));
     }
     let p = player(n);
-    Ok((p, car_table(p)?))
+    Ok((p, car_table(menus, p)?))
 }
 
 /// The player `p`'s car's table (`off_7564A0`[car]'s +0x74; car 0x21 as 0x17).
-pub fn car_table(p: PlayerCell) -> Result<crate::pointers::GamePtr, BadInput> {
+pub fn car_table(menus: &Menus, p: PlayerCell) -> Result<crate::pointers::GamePtr, BadInput> {
     let car = match p.get().car_number {
         0x21 => 0x17,
         c => c,
     };
     // The original reads entries up to 0xFF, on past the table's 34: refused there.
-    crate::menu::cars_store::description_table(crate::menu::cars_store::car_entry(car)?)
+    crate::menu::cars_store::description_table(crate::menu::cars_store::car_entry(menus, car)?)
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn driver_stats(screens: &Screens) -> Result<(), Refused> {
+pub fn driver_stats(menus: &Menus, screens: &Screens) -> Result<(), Refused> {
     use crate::logfile::log_int::log_int;
     // Converted: `rc2k_core::menu::driver_figures` (float: exact at the game's 0x027F).
     use rc2k_core::menu::driver_figures::{Car, Constants, Table, figures};
-    let (p, t) = player_and_table(screens)?;
+    let (p, t) = player_and_table(menus, screens)?;
     let fault = Fault::default();
     let table = Table::read(|o| fault.read_at::<u32>(t.offset(o as u32), "a car's figures"));
     let car = Car {

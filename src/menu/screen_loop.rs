@@ -394,7 +394,7 @@ impl Callee {
             Self::GoBack => crate::menu::go_back::go_back(),
             Self::MarkStageChoice => crate::menu::mark_stage_choice::mark_stage_choice(play),
             Self::EditPlayerName => {
-                crate::menu::edit_player_name::edit_player_name(screens, &mut GameCanvas)?;
+                crate::menu::edit_player_name::edit_player_name(menus, screens, &mut GameCanvas)?;
             }
             Self::EditSetupName => {
                 crate::service::edit_setup_name::edit_setup_name(menus, &mut GameCanvas)?;

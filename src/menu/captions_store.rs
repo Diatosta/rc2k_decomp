@@ -6,7 +6,7 @@
 //! (Split 2026-10-25 from the front end's block `menu::store`.)
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::session::{Bytes, Dword, with_runs};
 
 /// The string-id tables (IDA 0x758806 .. 0x758B72).
@@ -49,12 +49,12 @@ pub struct CaptionTables {
 impl CaptionTables {
     /// The results' cell a name (an IDA address in `menu::results_store`'s piece) names;
     /// refused off the piece's dwords.
-    fn result_at(name: &Dword) -> Result<&'static Dword, BadInput> {
+    fn result_at<'a>(menus: &'a Menus, name: &Dword) -> Result<&'a Dword, BadInput> {
         use crate::menu::results_store::{Results, START};
-        let r = &menus().play.results;
+        let r = &menus.play.results;
         use std::mem::offset_of;
         let at = (name.get() as usize).wrapping_sub(START);
-        let arrays: [(usize, &'static [Dword]); 10] = [
+        let arrays: [(usize, &'a [Dword]); 10] = [
             (offset_of!(Results, round), std::slice::from_ref(&r.round)),
             (offset_of!(Results, group_titles), &r.group_titles),
             (offset_of!(Results, order), &r.order),
@@ -80,36 +80,36 @@ impl CaptionTables {
     }
 
     /// Position `k` of the results (`Results::positions[k]`).
-    pub fn place_of(k: usize) -> Result<&'static Dword, BadInput> {
-        let name = menus()
+    pub fn place_of(menus: &Menus, k: usize) -> Result<&Dword, BadInput> {
+        let name = menus
             .tables
             .captions
             .place_pointers
             .get(k)
             .ok_or(BadInput("a place pointer past the four"))?;
-        Self::result_at(name)
+        Self::result_at(menus, name)
     }
 
     /// Sum `k` of the results (`Results::sums[k]`).
-    pub fn sum_of(k: usize) -> Result<&'static Dword, BadInput> {
-        let name = menus()
+    pub fn sum_of(menus: &Menus, k: usize) -> Result<&Dword, BadInput> {
+        let name = menus
             .tables
             .captions
             .sum_pointers
             .get(k)
             .ok_or(BadInput("a sum pointer past the four"))?;
-        Self::result_at(name)
+        Self::result_at(menus, name)
     }
 
     /// Total `k` of the results (`Results::totals[k]`).
-    pub fn total_of(k: usize) -> Result<&'static Dword, BadInput> {
-        let name = menus()
+    pub fn total_of(menus: &Menus, k: usize) -> Result<&Dword, BadInput> {
+        let name = menus
             .tables
             .captions
             .total_pointers
             .get(k)
             .ok_or(BadInput("a total pointer past the four"))?;
-        Self::result_at(name)
+        Self::result_at(menus, name)
     }
 }
 
@@ -366,12 +366,13 @@ pub const END: usize = 0x758B72;
 /// Where IDA 0x758806 is now (`moved::MOVED`'s home).
 #[cfg(test)]
 pub fn captions_addr() -> u32 {
-    crate::pointers::game_address(&raw const menus().tables.captions)
+    crate::pointers::game_address(&raw const crate::menu::owner::menus().tables.captions)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::menu::owner::menus;
     use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 
@@ -419,7 +420,7 @@ mod tests {
                     CaptionTables::place_of,
                     CaptionTables::sum_of,
                     CaptionTables::total_of,
-                ][from](k);
+                ][from](crate::menu::owner::menus(), k);
                 let cells = [
                     &play.results.positions,
                     &play.results.sums,
@@ -427,7 +428,7 @@ mod tests {
                 ][from];
                 assert!(std::ptr::eq(resolved.unwrap(), &raw const cells[k]));
             }
-            assert!(CaptionTables::sum_of(4).is_err());
+            assert!(CaptionTables::sum_of(crate::menu::owner::menus(), 4).is_err());
         }
     }
 }

@@ -23,7 +23,7 @@ use crate::service::state::edit_mode;
 // ---- Rust version ----
 
 pub fn handle_edit_keys(menus: &Menus) -> Result<(), Refused> {
-    if !edit_mode() {
+    if !edit_mode(menus) {
         return Ok(());
     }
     // Converted: `rc2k_core::service::setups::EditPage`.

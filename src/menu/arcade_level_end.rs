@@ -28,7 +28,7 @@ pub fn arcade_level_end(menus: &Menus) -> Result<(), Refused> {
     }
     let level = won_level(play.arcade.level.get())?;
     crate::sound::play_tune_6::play_tune_6();
-    crate::menu::arcade_finale::arcade_finale(&menus.play)?;
+    crate::menu::arcade_finale::arcade_finale(menus, &menus.play)?;
     if first_win(play.arcade.levels_won.get(level as usize)) {
         play.arcade.levels_won.set(level as usize, 1);
         let shown = Entry::with_cars(menus, Some(CarList::Shown));

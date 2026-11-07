@@ -21,7 +21,8 @@ use crate::text::draw_text::Canvas;
 /// The Rust version.
 pub fn draw_player_stage_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let player = crate::menu::player_settings::current()?.get();
-    let name = crate::screens::game_screen::player_name_of(crate::menu::player_name::name()?);
+    let name =
+        crate::screens::game_screen::player_name_of(menus, crate::menu::player_name::name()?);
     let top_speed = player.figure;
     let mut speed = crate::strings::append_speed::append_speed(
         top_speed,

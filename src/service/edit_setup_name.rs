@@ -100,14 +100,14 @@ pub fn edit_setup_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Ref
             screens.option_work.typing.set(0u32);
             return Ok(());
         }
-        Key::Clear => clear_text(name)?,
+        Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_setup_name(menus)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             let len = screens.loop_flags.text_length.get() as i32;
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 put_char(name, len, c)?;
-                set_length(len.wrapping_add(1));
+                set_length(menus, len.wrapping_add(1));
                 // x is whatever ecx held: the length before this character.
                 let measured = measure_text_at(
                     MEASURING_FONT,

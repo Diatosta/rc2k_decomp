@@ -47,7 +47,7 @@ pub fn draw_stage_map(menus: &Menus) -> Result<(), Refused> {
             menus.screens.event.section.get(),
         )?,
         _ => {
-            let s = selection()?.ok_or(crate::errors::BadInput(
+            let s = selection(menus)?.ok_or(crate::errors::BadInput(
                 "no stage tables for the choice: the original reads through null",
             ))?;
             crate::records::stages_store::row(s.table, menus.screens.event.stage_number.get())?

@@ -5,6 +5,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
+use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
 use crate::records::stages_store::RecordRef;
@@ -164,18 +165,20 @@ pub fn best_of(
 /// The record rows, with the stage's best time (the record's +0x3C its stage) from
 /// `table`. Returns the carry flag.
 pub fn draw_records_from(
+    menus: &Menus,
     table: &crate::menu::event_flow::StageTable,
     record: RecordRef,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let best = best_of(table, record.record()?.event_slot())?;
-    draw_stage_records(&best, canvas)
+    draw_stage_records(menus, &best, canvas)
 }
 
 /// The record rows as the two "selected stage" panels draw them: from the group 1 table when
 /// group 1 is selected, else from the usual one, and not at all while either the group 1
 /// table or the chosen one is missing. Returns the carry flag (clear when nothing is drawn).
 pub fn draw_records_for_group(
+    menus: &Menus,
     group: u32,
     record: RecordRef,
     canvas: &mut dyn Canvas,
@@ -192,7 +195,7 @@ pub fn draw_records_for_group(
     if !table.is_taken() {
         return Ok(false);
     }
-    draw_records_from(table, record, canvas)
+    draw_records_from(menus, table, record, canvas)
 }
 
 // ---- support ----

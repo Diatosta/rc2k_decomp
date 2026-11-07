@@ -92,13 +92,14 @@ fn link(net: &Net) -> Result<Way, Refused> {
 /// The Rust version: a network game in `mode` (1 host, 2 join).
 pub fn start_link(mode: u32) -> Result<(), Refused> {
     let net = net();
+    let race = crate::race::owner::race();
     let vars = &net.vars;
     use crate::net::*;
     log(VIEWER_PANEL.text_ptr(texts::NET_STARTING_LINK), true, 2);
     vars.mode.set(mode);
-    take_player_settings::take_player_settings();
+    take_player_settings::take_player_settings(race);
     let play = &menus().play;
-    fill_own_player::fill_own_player(net, play, &play.names.player_names.read())?;
+    fill_own_player::fill_own_player(race, net, play, &play.names.player_names.read())?;
     show_background::show_background(&net.vars)?;
     match link(net)? {
         Way::Message(n) => show_message::show_message(n)?,
@@ -115,11 +116,11 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
                 vars.all_raced.set(0);
                 vars.race_over.set(0);
                 crate::sound::play_tune_4::play_tune_4();
-                if (lobby_loop::lobby_loop(net)? as i32) < 0 {
+                if (lobby_loop::lobby_loop(race, net)? as i32) < 0 {
                     break;
                 }
                 close_if_host::close_if_host(net);
-                if lets_rally::lets_rally(crate::race::owner::race(), net)? {
+                if lets_rally::lets_rally(race, net)? {
                     break;
                 }
             }

@@ -49,7 +49,7 @@ pub fn draw_car_figures(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, 
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }
-    draw_car_page(page, shown_description()?, canvas)
+    draw_car_page(page, shown_description(menus)?, canvas)
 }
 
 /// One page (`sub_469C40`, `sub_469F12`, `sub_46A193`, `sub_469CA0` for 0 .. 3) of the

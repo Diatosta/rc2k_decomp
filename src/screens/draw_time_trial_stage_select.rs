@@ -49,7 +49,9 @@ pub fn draw_time_trial_stage_select(
     let play = &menus.play;
     let screens = &menus.screens;
     let tables = &menus.tables;
-    let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles(play)?) else {
+    let (Some(sel), Some((group_title, table_title))) =
+        (selection(menus)?, menu_titles(menus, play)?)
+    else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );
@@ -68,7 +70,7 @@ pub fn draw_time_trial_stage_select(
     build_second_heading(sel.record)?;
     draw_stage_body(tables, sel.record, true, canvas)?;
     let best = crate::screens::stage_panel::best_of(table, sel.record.record()?.event_slot())?;
-    draw_records_rows(&best, &TIME_TRIAL_ROWS, canvas)
+    draw_records_rows(menus, &best, &TIME_TRIAL_ROWS, canvas)
 }
 
 //

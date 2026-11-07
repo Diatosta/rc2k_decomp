@@ -100,7 +100,7 @@ pub fn race_init(race: &Race) -> Result<(), Refused> {
         { crate::drive::share_all_cars::share_all_cars(race) }?;
         MARKS_SETTINGS.other_marks_shown.set(0);
         crate::effects::frame_marks::frame_marks(race, effects())?;
-        crate::effects::run_frame::run_frame()?;
+        crate::effects::run_frame::run_frame(race)?;
     }
     crate::race::race_init::clear_race_slots(&race.shared);
     indent_by(race_steps::LOG_INDENT.wrapping_neg());

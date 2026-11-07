@@ -40,11 +40,11 @@ fn players(n: u32) -> Result<Vec<crate::menu::standings::PlayerCell>, Refused> {
         .collect()
 }
 
-fn place_pointer(offset: u32) -> Result<&'static crate::session::Dword, Refused> {
+fn place_pointer(menus: &Menus, offset: u32) -> Result<&crate::session::Dword, Refused> {
     if offset > 12 || !offset.is_multiple_of(4) {
         return Err(BadInput("an offset past the place pointers").into());
     }
-    Ok(CaptionTables::place_of(offset as usize / 4)?)
+    Ok(CaptionTables::place_of(menus, offset as usize / 4)?)
 }
 
 /// The ranking of `rank_stage_times` (`by_totals` false) or `rank_totals`.
@@ -59,7 +59,7 @@ pub fn rank(menus: &Menus, by_totals: bool) -> Result<(), Refused> {
         rc2k_core::menu::results::rank([values[0], values[1], values[2], values[3]], by_totals);
     let targets: Vec<_> = pairs
         .iter()
-        .map(|&(o, _)| place_pointer(o))
+        .map(|&(o, _)| place_pointer(menus, o))
         .collect::<Result<_, _>>()?;
     for (k, &(o, v)) in pairs.iter().enumerate() {
         menus.play.results.pairs[2 * k].set(o);

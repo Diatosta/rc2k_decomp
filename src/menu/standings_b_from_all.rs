@@ -19,12 +19,14 @@ use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
 /// down (`player_to_standing_b`, ebx the player's index).
-fn players_by_group(screens: &Screens, firsts: [usize; 4]) -> Result<(), Refused> {
+fn players_by_group(menus: &Menus, screens: &Screens, firsts: [usize; 4]) -> Result<(), Refused> {
     let players = counted_players(screens)?;
     let groups: Vec<u32> = players.iter().map(|p| p.get().class).collect();
     // Converted: `rc2k_core::menu::standings::by_group`.
     for (n, e) in rc2k_core::menu::standings::by_group(&groups, firsts) {
-        { crate::menu::player_to_standing_b::player_to_standing_b(e, players[n], n as u32) }?;
+        {
+            crate::menu::player_to_standing_b::player_to_standing_b(menus, e, players[n], n as u32)
+        }?;
     }
     Ok(())
 }
@@ -42,7 +44,7 @@ pub fn standings_b_from_all(menus: &Menus) -> Result<(), Refused> {
     }
     let mut texts = Vec::new();
     for d in &drivers {
-        let id: u32 = crate::menu::drivers_store::name_string(d.number)?;
+        let id: u32 = crate::menu::drivers_store::name_string(menus, d.number)?;
         let mut text = Vec::new();
         crate::strings::append_string_by_id::push_string(&mut text, id)?;
         text.push(0);
@@ -60,6 +62,6 @@ pub fn standings_b_from_all(menus: &Menus) -> Result<(), Refused> {
         }
     })?;
     use rc2k_core::menu::standings::B_GROUP_FIRSTS;
-    players_by_group(screens, B_GROUP_FIRSTS)?;
+    players_by_group(menus, screens, B_GROUP_FIRSTS)?;
     Ok(())
 }

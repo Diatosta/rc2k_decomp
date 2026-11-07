@@ -148,7 +148,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.indent(-3);
     s.step(
         &mut || {
-            crate::scene::set_up_object_memory::set_up_object_memory(scene)?;
+            crate::scene::set_up_object_memory::set_up_object_memory(&race.course, scene)?;
             Ok(())
         },
         None,
@@ -172,11 +172,11 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.step(&mut || stage_prefs::load_prefs(race), Some(7))?;
     s.step(&mut || level::load_error_list(&race.frame), Some(8))?;
     s.step(
-        &mut || crate::scene::texture_levels::init_texture_levels(),
+        &mut || crate::scene::texture_levels::init_texture_levels(race),
         Some(0xA),
     )?;
     s.step(
-        &mut || crate::scene::set_up_textures::set_up_textures(),
+        &mut || crate::scene::set_up_textures::set_up_textures(&race.shared),
         Some(0xE),
     )?;
     s.step(&mut || level::build_texture_infos(&race.course), Some(0xF))?;
@@ -253,14 +253,14 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     // render3d init: `scene::allocate_point_records`.
     s.step(
         &mut || {
-            crate::scene::allocate_point_records::allocate_point_records_in_game()?;
+            crate::scene::allocate_point_records::allocate_point_records_in_game(&race.course)?;
             Ok(())
         },
         Some(0x60),
     )?;
     s.step(
         &mut || {
-            crate::scene::fill_scene_light_tables::fill_scene_light_tables(scene)?;
+            crate::scene::fill_scene_light_tables::fill_scene_light_tables(race, scene)?;
             Ok(())
         },
         Some(0x62),

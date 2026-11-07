@@ -16,7 +16,7 @@
 //! index. That only works because those sprites do not use a palette; it is reproduced as is.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::records::stages_store::{Holder as RecordHolder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
 use crate::screens::stage_panel::PanelScreen;
@@ -44,8 +44,8 @@ pub struct Selection {
 }
 
 /// None while the tables are not there; the original then reads through a null pointer.
-pub fn selection() -> Result<Option<Selection>, BadInput> {
-    let screens = &menus().screens;
+pub fn selection(menus: &Menus) -> Result<Option<Selection>, BadInput> {
+    let screens = &menus.screens;
     let group: u32 = screens.event.stage_group.get();
     let index: u32 = screens.event.stage_number.get();
     let sub: u32 = screens.event.stage_sub.get();
@@ -61,8 +61,8 @@ pub fn selection() -> Result<Option<Selection>, BadInput> {
     }))
 }
 
-fn selected_record() -> Result<Option<(RecordRef, u32)>, BadInput> {
-    Ok(selection()?.map(|s| (s.record, s.sub)))
+fn selected_record(menus: &Menus) -> Result<Option<(RecordRef, u32)>, BadInput> {
+    Ok(selection(menus)?.map(|s| (s.record, s.sub)))
 }
 
 // ---- Rust version ----
@@ -89,15 +89,17 @@ pub const TIME_TRIAL_ROWS: Rows = Rows {
 /// Returns the carry flag of the last `draw_text`. Refuses a missing record table and what
 /// the speed formatter refuses; the fatal errors are the blitter's.
 pub fn draw_stage_records(
+    menus: &Menus,
     entry: &rc2k_core::saves::entries::BestTime,
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
-    draw_records_rows(entry, &STAGE_ROWS, canvas)
+    draw_records_rows(menus, entry, &STAGE_ROWS, canvas)
 }
 
 /// `draw_stage_records` with the top-speed row's places given. Converted:
 /// `rc2k_core::screens::stage_panel::records`.
 pub fn draw_records_rows(
+    menus: &Menus,
     entry: &rc2k_core::saves::entries::BestTime,
     rows: &Rows,
     canvas: &mut dyn Canvas,
@@ -105,7 +107,7 @@ pub fn draw_records_rows(
     use rc2k_core::screens::stage_panel::{CarRow, Holder};
     {
         // Without it the original reads through a null pointer after drawing the first row.
-        let Some((record, _)) = selected_record()? else {
+        let Some((record, _)) = selected_record(menus)? else {
             return Err(
                 BadInput("no record table is selected: the original reads through null").into(),
             );

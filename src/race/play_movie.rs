@@ -17,7 +17,7 @@ const OUT_TEXT: &std::ffi::CStr = c"shaunplayrendermovie - out"; // "shaunplayre
 /// keeps every register) reads none it leaves.
 pub fn play_movie(race: &Race) -> Result<(), Refused> {
     crate::logfile::log_write::log_nul(&IN_TEXT, false, 1);
-    crate::drive::race_parts::restart_clock();
+    crate::drive::race_parts::restart_clock(race);
     race.shared
         .physics_tables
         .race_clock_base

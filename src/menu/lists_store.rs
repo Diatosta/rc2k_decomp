@@ -5,8 +5,8 @@
 //! last field is a 22-byte string: the struct is padded to a multiple of 4.
 
 use crate::menu::cars_store::car_cell;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
-use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
 pub use rc2k_core::menu::car_lists::CarList;
@@ -189,10 +189,10 @@ pub fn page_pictures(tables: &Tables, page: u32) -> Result<&'_ [Dword], crate::e
 }
 
 /// An item's repair time cell (`repair_time_ptrs`; None: none).
-pub fn repair_time_at(key: u32) -> Result<Option<&'static Dword>, crate::errors::BadInput> {
+pub fn repair_time_at(menus: &Menus, key: u32) -> Result<Option<&Dword>, crate::errors::BadInput> {
     match key {
         0 => Ok(None),
-        _ => menus()
+        _ => menus
             .screens
             .state
             .driver_stats
@@ -1525,6 +1525,7 @@ const CAR_LISTS: [(usize, usize); 9] = {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::menu::owner::menus;
     use crate::moved::image_bytes;
     use core::mem::{offset_of, size_of};
 

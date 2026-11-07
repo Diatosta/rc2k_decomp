@@ -58,7 +58,7 @@ fn highlighted_slot(tables: &Tables) -> u32 {
 /// it called the original's writer by address, which the standalone does not have: it
 /// ended as "not ported").
 pub fn save_game(slot: u32) {
-    if let Err(why) = write_savegame_slot(slot) {
+    if let Err(why) = write_savegame_slot(crate::menu::owner::menus(), slot) {
         crate::framework::log(&format!("saves::write_savegame_slot: slot {slot}"));
         crate::fatal::raise::end("saves::write_savegame_slot", why);
     }
@@ -102,14 +102,14 @@ pub fn edit_savegame_name(
             screens.option_work.typing.set(0u32);
             return Ok(());
         }
-        Key::Clear => clear_text(name)?,
+        Key::Clear => clear_text(menus, name)?,
         Key::Backspace => backspace_savegame_name(menus)?,
         Key::Other(key) => {
             let c = key_to_char(key as u32)? as u8;
             let len = length();
             if entry::appends(c, len, screens.loop_flags.text_max.get() as i32) {
                 name.add(len as u32).write(&[c], "a saved game's name")?;
-                set_length(len.wrapping_add(1));
+                set_length(menus, len.wrapping_add(1));
                 let measured = measure_text_at(
                     MEASURING_FONT,
                     &name.game_ptr().bytes("a saved game's name")?,

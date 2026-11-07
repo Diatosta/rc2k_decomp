@@ -95,6 +95,7 @@ pub fn load_savegame(menus: &Menus) -> Result<(), Refused> {
         // same place, unless the file was damaged).
         car.update(|p| p.name_number = name);
         crate::menu::player_names::set_name_bytes(
+            menus,
             crate::menu::player_names::name_of(&car.get())?,
             &car.get().name_copy,
         );

@@ -35,6 +35,6 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     choose_carousel_pictures(menus)?;
     assign_menu_textures(&menus.tables)?;
     map_texture_places();
-    let count = load_slot_textures_in_game()?;
+    let count = load_slot_textures_in_game(&race.frame)?;
     draw_main_menu_carousel(menus, race, count)
 }

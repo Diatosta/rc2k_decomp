@@ -23,7 +23,7 @@ use crate::menu::owner::menus;
 pub fn play_car_stream(start: &mut dyn FnMut(u32, u32)) -> Result<(), Refused> {
     let menus = menus();
     // Converted: `rc2k_core::sound::set_up::car_stream`.
-    let car = shown_car()?;
+    let car = shown_car(menus)?;
     let failed = std::cell::Cell::new(None);
     let s = rc2k_core::sound::set_up::car_stream(
         // `MENU_LISTS.car_streams` (off_75A31E) has 24 entries; the original reads any

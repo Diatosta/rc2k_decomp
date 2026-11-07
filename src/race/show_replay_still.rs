@@ -83,7 +83,7 @@ pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
     let kept = race.shared.vars.scene_switch.get();
     race.shared.vars.scene_switch.set(1);
     // The scene (it reads no register).
-    crate::race::draw_race_scene::draw_race_scene()?;
+    crate::race::draw_race_scene::draw_race_scene(race)?;
     race.shared.vars.scene_switch.set(kept);
     race.frame.frame_work.drawing.set(0);
     race.frame.frame_work.still_2.set(0);

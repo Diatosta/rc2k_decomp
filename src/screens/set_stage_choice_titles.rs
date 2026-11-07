@@ -23,12 +23,13 @@ use crate::screens::stage_panel::{build_second_heading, table_dword_at};
 use rc2k_core::menu::items::{ITEM_LEN, MENU_HEAD_LEN};
 
 /// Where item 0's string goes, and where the original puts "item 1"'s.
-fn places(tables: &Tables) -> Result<(GamePtr, Option<GamePtr>), BadInput> {
+fn places(menus: &Menus, tables: &Tables) -> Result<(GamePtr, Option<GamePtr>), BadInput> {
     // Item 1's place is worked out from the menu's labels' address, as if it were the
     // menu's (the original's slip, `notes/bugs.md`): it lands in the memory after them.
     Ok((
         GamePtr::to(&tables.menus.select_stage.items[0].string),
         crate::menu::menus_store::labels_slot(
+            menus,
             &tables.menus.select_stage.head,
             MENU_HEAD_LEN + ITEM_LEN + 0x14,
         )?,
@@ -37,10 +38,10 @@ fn places(tables: &Tables) -> Result<(GamePtr, Option<GamePtr>), BadInput> {
 
 pub fn set_stage_choice_titles(menus: &Menus) -> Result<(), Refused> {
     let tables = &menus.tables;
-    let s = selection()?.ok_or(BadInput(
+    let s = selection(menus)?.ok_or(BadInput(
         "no stage tables for the choice: the original reads through null",
     ))?;
-    let (item_0, item_1) = places(tables)?;
+    let (item_0, item_1) = places(menus, tables)?;
     let Some(item_1) = item_1 else {
         return Err(BadInput("the menu's first dword is no pointer").into());
     };

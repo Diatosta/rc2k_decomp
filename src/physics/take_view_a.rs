@@ -15,9 +15,9 @@
 
 use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
+use crate::physics::camera_store::CameraWork;
 use crate::physics::camera_view::record;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
 use crate::scene::owner::scene;
@@ -27,7 +27,7 @@ use crate::scene::owner::scene;
 pub fn take_view_a(race: &Race, s: &ViewRecord) -> Result<(), crate::errors::BadInput> {
     x87_1(&race.physics, s.offset_bits());
     for (put, v) in copies().iter().zip(s.taken()) {
-        put(v);
+        put(&race.physics.camera, v);
     }
     race.physics
         .camera
@@ -47,20 +47,20 @@ pub fn take_view_a(race: &Race, s: &ViewRecord) -> Result<(), crate::errors::Bad
 }
 
 /// Where the record's +0x10 .. +0x38 go (the statics deref at run time, so a function).
-fn copies() -> [fn(u32); 11] {
+fn copies() -> [fn(&CameraWork, u32); 11] {
     [
-        |v| race().physics.camera.view_a_turn[0].set_bits(v),
-        |v| race().physics.camera.view_a_turn[1].set_bits(v),
-        |v| race().physics.camera.view_a_turn[2].set_bits(v),
-        |v| race().physics.camera.view_a_point[0].set_bits(v),
-        |v| race().physics.camera.view_a_point[1].set_bits(v),
-        |v| race().physics.camera.view_a_point[2].set_bits(v),
-        |v| race().physics.camera.view_a_shares[0].set_bits(v),
-        |v| race().physics.camera.view_a_shares[1].set_bits(v),
-        |v| race().physics.camera.view_a_shares[2].set_bits(v),
-        |v| race().physics.camera.view_a_aux.set(v),
-        |v| {
-            race().physics.camera.view_a_aux_2.set(v);
+        |camera, v| camera.view_a_turn[0].set_bits(v),
+        |camera, v| camera.view_a_turn[1].set_bits(v),
+        |camera, v| camera.view_a_turn[2].set_bits(v),
+        |camera, v| camera.view_a_point[0].set_bits(v),
+        |camera, v| camera.view_a_point[1].set_bits(v),
+        |camera, v| camera.view_a_point[2].set_bits(v),
+        |camera, v| camera.view_a_shares[0].set_bits(v),
+        |camera, v| camera.view_a_shares[1].set_bits(v),
+        |camera, v| camera.view_a_shares[2].set_bits(v),
+        |camera, v| camera.view_a_aux.set(v),
+        |camera, v| {
+            camera.view_a_aux_2.set(v);
         },
     ]
 }
@@ -114,7 +114,7 @@ mod asm_reference {
             reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
                 x87_1(
-                    &race().physics,
+                    &crate::race::owner::race().physics,
                     [4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o)),
                 );
             },

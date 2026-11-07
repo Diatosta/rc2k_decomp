@@ -14,6 +14,7 @@
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
+use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::session::Dword;
 use rc2k_core::menu::starters;
@@ -27,12 +28,12 @@ pub struct Starter {
 
 /// The game's variables and callees for `rc2k_core::menu::starters::start`, and the car
 /// list the car choice was shown.
-struct Game {
-    menus: &'static crate::menu::owner::Menus,
+struct Game<'a> {
+    menus: &'a crate::menu::owner::Menus,
     cars: Option<CarList>,
 }
 
-impl starters::Event for Game {
+impl starters::Event for Game<'_> {
     type Error = Refused;
 
     fn get(&mut self, v: starters::Var) -> u32 {
@@ -92,13 +93,7 @@ fn var(v: starters::Var) -> &'static Dword {
 }
 
 /// The Rust version of a starter.
-pub fn start_event(s: &Starter) -> Result<(), Refused> {
+pub fn start_event(menus: &Menus, s: &Starter) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::starters::start`.
-    starters::start(
-        s.kind,
-        &mut Game {
-            menus: crate::menu::owner::menus(),
-            cars: None,
-        },
-    )
+    starters::start(s.kind, &mut Game { menus, cars: None })
 }

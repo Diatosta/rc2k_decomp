@@ -103,8 +103,10 @@ impl Game {
             Step::LitEngine => {
                 crate::scene::set_up_lit_engine::set_up_lit_engine(crate::race::owner::race())?;
             }
-            Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,
-            Step::ObjectsTidy => crate::race::stage_free::objects_tidy()?,
+            Step::Render3dTidy => {
+                crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;
+            }
+            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(crate::race::owner::race())?,
             // `nullsub_6`.
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),

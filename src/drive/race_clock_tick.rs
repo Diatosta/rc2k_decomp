@@ -27,6 +27,7 @@ pub fn tick_from(shared: &Shared, now: u32) {
 
 /// The Rust version.
 pub fn race_clock_tick(shared: &Shared) {
-    let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+    let now =
+        crate::scene::restart_clock::restart_clock(shared, crate::system::tick_count::tick_count());
     tick_from(shared, now);
 }

@@ -67,8 +67,10 @@ pub fn gather_savegame(menus: &Menus, file: &dyn Store, base: usize) -> Result<(
         p.saved_start_section_a8 = menus.screens.flow.start_section_a8.get();
     });
     for (n, car) in cars.iter().enumerate() {
-        let name =
-            crate::menu::player_names::name_bytes(crate::menu::player_names::name_of(&car.get())?);
+        let name = crate::menu::player_names::name_bytes(
+            menus,
+            crate::menu::player_names::name_of(&car.get())?,
+        );
         car.update(|p| p.name_copy = name);
         file.store(
             base + car_at(n),
@@ -103,7 +105,9 @@ mod tests {
             .players
             .each_ref()
             .map(crate::session::Shared::get);
-        let original_names = std::array::from_fn::<_, 4, _>(crate::menu::player_names::name_bytes);
+        let original_names = std::array::from_fn::<_, 4, _>(|i| {
+            crate::menu::player_names::name_bytes(crate::menu::owner::menus(), i)
+        });
         // Distinct names and a distinct byte in every dword of every record.
         for (n, car) in play.players.players.iter().enumerate() {
             let mut bytes = car.get().to_le_bytes();
@@ -113,9 +117,15 @@ mod tests {
             let mut record = Player::from_le_bytes(bytes);
             record.set_name_player(n);
             car.set(record);
-            crate::menu::player_names::set_name_bytes(n, &[b'a' + n as u8; 0x20]);
+            crate::menu::player_names::set_name_bytes(
+                crate::menu::owner::menus(),
+                n,
+                &[b'a' + n as u8; 0x20],
+            );
         }
-        let names_before = std::array::from_fn::<_, 4, _>(crate::menu::player_names::name_bytes);
+        let names_before = std::array::from_fn::<_, 4, _>(|i| {
+            crate::menu::player_names::name_bytes(crate::menu::owner::menus(), i)
+        });
         gather_savegame(menus(), buffer, 0).unwrap();
         let file = buffer.read_at(0, LEN, "the file").unwrap();
         for (n, car) in play.players.players.iter().enumerate() {
@@ -137,7 +147,7 @@ mod tests {
             car.set(before);
         }
         for (n, name) in original_names.iter().enumerate() {
-            crate::menu::player_names::set_name_bytes(n, name);
+            crate::menu::player_names::set_name_bytes(crate::menu::owner::menus(), n, name);
         }
     }
 }

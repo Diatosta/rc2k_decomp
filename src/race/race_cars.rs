@@ -551,7 +551,7 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
             let second = (race.shared.view.players.bits() != 1)
                 .then(|| CAR_BLOCKS.cars[1].start_slot_value.bits());
             number_next = arcade_number(number_next, first, second);
-            let (_, kind) = arcade_type_draw(next_noise(), car);
+            let (_, kind) = arcade_type_draw(next_noise(&race.shared), car);
             if kind != last_type {
                 break kind;
             }
@@ -564,7 +564,7 @@ pub fn set_up_mode_2_cars(race: &Race) -> Result<(), Refused> {
     // The numbers shuffled.
     for car in 0..cars {
         let mine: u32 = race.shared.tables.arcade_car_numbers[car as usize].get();
-        let (_, other_car) = arcade_swap_draw(next_noise(), cars);
+        let (_, other_car) = arcade_swap_draw(next_noise(&race.shared), cars);
         let other: u32 = race.shared.tables.arcade_car_numbers[other_car as usize].get();
         race.shared.tables.arcade_car_numbers[car as usize].set(other);
         race.shared.tables.arcade_car_numbers[other_car as usize].set(mine);
@@ -699,7 +699,7 @@ pub fn choose_arcade_opponents(shared: &Shared) -> Result<(), Refused> {
     for (n, at) in shared.vars.race_car_kinds[1..4].iter().enumerate() {
         let (kind, place) = loop {
             let random = if n == 0 {
-                crate::scene::next_noise::next_noise()
+                crate::scene::next_noise::next_noise(shared)
             } else {
                 crate::math::next_random::next_random()
             };

@@ -43,7 +43,7 @@ pub fn run_front_end(menus: &Menus) -> Result<(), Refused> {
     crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
     run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::new(menus))?;
     crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
-    crate::menu::store_player_names::store_player_names(play, &mut |line| {
+    crate::menu::store_player_names::store_player_names(menus, play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);
     })?;
     crate::gfx::free_fonts::free_fonts(

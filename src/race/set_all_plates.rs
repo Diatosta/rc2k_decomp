@@ -59,6 +59,6 @@ pub fn set_all_plates(race: &Race) -> Result<(), Refused> {
         }
     }
     crate::scene::reload_system_textures::reload_system_textures(scene)?;
-    crate::scene::reload_slot_textures::reload_slot_textures()?;
+    crate::scene::reload_slot_textures::reload_slot_textures(&race.frame)?;
     Ok(())
 }

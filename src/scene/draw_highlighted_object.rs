@@ -86,7 +86,7 @@ pub fn run() -> Result<(), crate::errors::Refused> {
     assign_kind_textures()?;
     assign_menu_textures(&menus.tables)?;
     map_texture_places();
-    load_slot_textures_in_game()?;
+    load_slot_textures_in_game(&race.frame)?;
     scene().lights.state.draw_mode.set_bits(0u32);
     draw_highlighted(menus, &mut || draw_menu_object_in_game(race))
 }

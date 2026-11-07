@@ -5,6 +5,7 @@
 //! the front end's block `menu::store`.)
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::session::{Bytes, Dword, Shared, with_runs};
 use rc2k_core::screens::car_pages::CarDescription;
@@ -1252,8 +1253,8 @@ pub fn description(handle: u32) -> Result<&'static Shared<CarDescription>, BadIn
 
 /// The table's entry for car `number` (refused past the 34: the original reads on into
 /// the bytes after the table as addresses).
-pub fn car_entry(number: u32) -> Result<u32, BadInput> {
-    menus()
+pub fn car_entry(menus: &Menus, number: u32) -> Result<u32, BadInput> {
+    menus
         .cars
         .table
         .cars
@@ -1338,7 +1339,9 @@ mod tests {
             );
         }
         for car in 0..34 {
-            let found = description_table(car_entry(car).unwrap()).unwrap().addr();
+            let found = description_table(car_entry(crate::menu::owner::menus(), car).unwrap())
+                .unwrap()
+                .addr();
             assert!(
                 (menu_cars.table.description_texts.addr()..).contains(&found),
                 "{car}"

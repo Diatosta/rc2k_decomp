@@ -20,7 +20,7 @@ pub fn update_repair_total(menus: &Menus) -> Result<(), Refused> {
     let mut m = marks(tables);
     let budget = screens.event.service_minutes.get() as i32;
     let total = rc2k_core::service::repairs::update_total(&flags(tables), &mut m, budget, |item| {
-        time_of(tables, item)
+        time_of(menus, tables, item)
     })
     .map_err(|e| crate::errors::BadInput(e.0))?;
     store_marks(tables, &m);

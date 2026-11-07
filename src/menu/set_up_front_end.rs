@@ -61,9 +61,9 @@ pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
         crate::menu::add_clio_car::add_clio_car()?;
     }
     crate::menu::link_player_names::link_player_names(menus)?;
-    crate::menu::show_loading_picture::show_loading_picture()?;
+    crate::menu::show_loading_picture::show_loading_picture(menus)?;
     crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
-    crate::menu::fit_player_names::fit_player_names()?;
+    crate::menu::fit_player_names::fit_player_names(menus)?;
     // The two dwords: the music volumes, then the tables' copies.
     crate::sound::owner::sound()
         .menu

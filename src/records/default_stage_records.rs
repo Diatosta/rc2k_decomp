@@ -43,7 +43,7 @@ fn holder(driver: Driver, speed: u32) -> Result<(HolderRow, Vec<u8>), Refused> {
         car: driver.car(),
         speed,
     };
-    Ok((row, driver.name()?.1))
+    Ok((row, driver.name(crate::menu::owner::menus())?.1))
 }
 
 pub fn default_stage_records(table: RecordTable) -> Result<(), Refused> {

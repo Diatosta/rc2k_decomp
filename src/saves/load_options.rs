@@ -244,7 +244,7 @@ pub fn load_game_options() -> Result<bool, Refused> {
         &mut Places {
             loaded: &menus().screens.loop_flags.options_loaded,
             pieces: &pieces,
-            rebuild_car_lists: &mut || rebuild_car_lists(),
+            rebuild_car_lists: &mut || rebuild_car_lists(crate::menu::owner::menus()),
         },
     )
 }

@@ -7,6 +7,7 @@
 //! caller, `scene::reload_slot_textures`.
 
 use crate::errors::BadInput;
+use crate::race::owner_frame::Frame;
 use crate::scene::assign_kind_textures::assign_kind_textures;
 use crate::scene::load_slot_textures::load_slot_textures_in_game;
 use crate::scene::map_texture_places::map_texture_places;
@@ -15,9 +16,9 @@ use crate::scene::map_texture_places::map_texture_places;
 
 /// Its three calls in order. What they leave in the registers no caller reads (register
 /// liveness, 2026-10-23: `scene::reload_slot_textures`, whose caller reads none).
-pub fn load_wanted_textures() -> Result<(), BadInput> {
+pub fn load_wanted_textures(frame: &Frame) -> Result<(), BadInput> {
     assign_kind_textures()?;
     map_texture_places();
-    load_slot_textures_in_game()?;
+    load_slot_textures_in_game(frame)?;
     Ok(())
 }

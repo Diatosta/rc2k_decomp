@@ -50,7 +50,7 @@ pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     net.vars.first_host.set(first);
     crate::sound::stop_music::stop_music();
     crate::race::race_shell::set_race_screen_mode();
-    crate::menu::show_loading_picture::show_loading_picture()?;
+    crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
     sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game())?;
     crate::sound::set_up_race_sounds::set_up_race_sounds()?;
     crate::net::set_up_race::set_up_race(race, &net.vars)?;
@@ -75,7 +75,7 @@ pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     crate::race::race_end::tidy_everything(race)?;
     crate::sound::stop_music::stop_music();
     crate::platform::set_menu_mode_now();
-    crate::menu::show_loading_picture::show_loading_picture()?;
+    crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
     sound_tables::clear_race_sound_objects()?;
     crate::sound::apply_settings::apply_settings()?;
     crate::scene::set_up_engine::set_up_engine()?;

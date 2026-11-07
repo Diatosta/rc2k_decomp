@@ -33,7 +33,7 @@
 //! `g_slotWantedTextures`' 0x400; then what its steps refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
@@ -76,12 +76,10 @@ fn draw_view(race: &Race, car: usize, flags: usize, blit: bool) -> Result<(), Re
 }
 
 /// The Rust version (see the header).
-pub fn draw_race_scene() -> Result<(), Refused> {
+pub fn draw_race_scene(race: &Race) -> Result<(), Refused> {
     let session = &system().session;
     let scene = scene();
-    let race = race();
     let frame = &race.frame;
-    let physics = &race.physics;
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
     let blocks = view_blocks(&race.shared)?;
@@ -180,9 +178,10 @@ pub fn draw_race_scene() -> Result<(), Refused> {
         .view
         .clock_base
         .set(crate::scene::restart_clock::restart_clock(
+            &race.shared,
             crate::system::tick_count::tick_count(),
         ));
-    crate::race::frame_views::full_view_window(physics, true);
+    crate::race::frame_views::full_view_window(race, true);
     crate::race::car_parts::ready_car_parts(race)?;
     crate::race::map_scroll::scroll_maps(race)?;
     race.frame.panel_and_overlay.panel.texture_changes.set(0);
@@ -210,7 +209,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
         }
     }
     crate::scene::map_texture_places::map_texture_places();
-    crate::scene::load_slot_textures::load_slot_textures_in_game()?;
+    crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame)?;
     race_sound_tick(frame)?; // 0xC
     if race.replay.finish.no_place.get() == 0 {
         crate::race::frame_draw::set_up_panel(race)?;
@@ -242,8 +241,8 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     }
     crate::race::frame_views::load_first_car(&race.shared)?;
     use crate::race::frame_flush::{flush_batch, plain, textured};
-    flush_batch(&plain(), false)?;
-    flush_batch(&textured(), true)?;
+    flush_batch(&race.frame, &plain(&race.frame), false)?;
+    flush_batch(&race.frame, &textured(&race.frame), true)?;
     crate::race::sound_spots::find_sound_spots(race)?;
     crate::race::frame_draw::share_sound_spots(race)?;
     crate::race::frame_draw::wake_part_sounds(race)?;

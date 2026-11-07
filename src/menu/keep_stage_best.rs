@@ -13,10 +13,11 @@
 
 use crate::errors::Refused;
 use crate::menu::event_flow::*;
+use crate::menu::owner::Menus;
 use crate::menu::standings::name_player;
 use crate::records::stages_store::Holder;
 
-pub fn keep_stage_best() -> Result<(), Refused> {
+pub fn keep_stage_best(menus: &Menus) -> Result<(), Refused> {
     use rc2k_core::menu::bests;
     let record = stage_record()?;
     let p = current_player()?;
@@ -26,7 +27,7 @@ pub fn keep_stage_best() -> Result<(), Refused> {
         return Ok(());
     }
     name_player(&p.get())?;
-    let (row, name) = crate::menu::standings::as_holder(&p.get())?;
+    let (row, name) = crate::menu::standings::as_holder(menus, &p.get())?;
     record.record()?.set_holder(Holder::Second, &row, &name);
     Ok(())
 }

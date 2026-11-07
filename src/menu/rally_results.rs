@@ -25,7 +25,7 @@ pub fn rally_results(menus: &Menus) -> Result<(), Refused> {
     if !rc2k_core::menu::results_pages::class_pages_only(menus.play.champ_view.event_mode.get()) {
         crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
         clear_standings(Which::A)?;
-        number_all(Which::A)?;
+        number_all(menus, Which::A)?;
         crate::menu::show_overall_rally_results::show_overall_rally_results(menus)?;
     } else {
         crate::menu::class_rally_results_pass::class_rally_results_pass(menus)?;

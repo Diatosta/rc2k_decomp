@@ -30,7 +30,8 @@ fn offsets(angle: u32, y: u32) -> (u32, u32) {
 /// and this); the ring's next moved on (0x400 points). Refuses (before anything) a point or a link outside the ring (the original reads and
 /// writes past its tables).
 pub fn add_skid_point(slot: &Dword) -> Result<(), Refused> {
-    let frame = &race().frame;
+    let race = race();
+    let frame = &race.frame;
     // Converted: `rc2k_core::race::skids::add_skid_point`.
     use rc2k_core::race::skids::{Link, POINTS, Point, Ring, add_skid_point, next_point};
     let skids = &frame.shadow_skids;
@@ -71,7 +72,7 @@ pub fn add_skid_point(slot: &Dword) -> Result<(), Refused> {
         last,
         place,
         frame.shadow_skids.skid_cars.get() as u16,
-        crate::scene::angle_between::angle_of,
+        |first, second| crate::scene::angle_between::angle_of(&race.course, first, second),
         offsets,
     )?;
     for (k, (now, was)) in points.iter().zip(&points_before).enumerate() {

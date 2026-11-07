@@ -7,15 +7,17 @@
 //! end's 3D set-up and a race's).
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner_course::Course;
 use crate::scene::allocate_object_memory::allocate_object_memory_in_game;
 use crate::scene::read_kind_records::read_kind_records;
 
 // ---- Rust version ----
 
 /// The objects' memory allocated, then the kinds' records read.
-pub fn set_up_object_memory(scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
-    let course = &race().course;
+pub fn set_up_object_memory(
+    course: &Course,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     allocate_object_memory_in_game(course)?;
     read_kind_records(scene)?;
     Ok(())

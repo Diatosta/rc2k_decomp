@@ -52,7 +52,7 @@ fn run(race: &Race, step: rc2k_core::race::viewer_flow::TidyStep) -> Result<(), 
             crate::platform::set_menu_mode_now();
         }
         TidyStep::LoadingPicture => {
-            crate::menu::show_loading_picture::show_loading_picture()?;
+            crate::menu::show_loading_picture::show_loading_picture(crate::menu::owner::menus())?;
         }
         TidyStep::ClearRaceSounds => sound_tables::clear_race_sound_objects()?,
         TidyStep::SoundSettings => crate::sound::apply_settings::apply_settings()?,

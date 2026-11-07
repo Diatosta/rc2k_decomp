@@ -13,6 +13,7 @@
 //! Refuses a name that would be cut to before its start, and what the measuring refuses.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
 use crate::menu::player_names::{PLAYERS, name_ptr};
 use crate::pointers::GamePtr;
 use crate::text::draw_text::GameCanvas;
@@ -42,9 +43,9 @@ pub fn fit_name(text: GamePtr) -> Result<u32, Refused> {
     })
 }
 
-pub fn fit_player_names() -> Result<(), Refused> {
+pub fn fit_player_names(menus: &Menus) -> Result<(), Refused> {
     for player in 0..PLAYERS {
-        fit_name(name_ptr(player))?;
+        fit_name(name_ptr(menus, player))?;
     }
     Ok(())
 }

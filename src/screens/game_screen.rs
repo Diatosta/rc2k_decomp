@@ -5,6 +5,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_glyph::BlitCall;
 use crate::gfx::typefaces::FontRef;
+use crate::menu::owner::Menus;
 use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::session::Dword;
@@ -98,15 +99,15 @@ pub fn held_name(text: Option<Vec<u8>>) -> Result<HeldText, crate::errors::BadIn
 }
 
 /// The name of player `player` (counted from 0), drawn from the names' store.
-pub fn player_name_of(player: usize) -> HeldText {
-    HeldText::Place(crate::menu::player_names::name_ptr(player))
+pub fn player_name_of(menus: &Menus, player: usize) -> HeldText {
+    HeldText::Place(crate::menu::player_names::name_ptr(menus, player))
 }
 
 /// The name an entry's name address names (`player_names::name_address`), drawn from the
 /// names' store; refused when it names no player's name.
-pub fn player_name(name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
+pub fn player_name(menus: &Menus, name_at: u32) -> Result<HeldText, crate::errors::BadInput> {
     crate::menu::player_names::index_of(name_at)
-        .map(|k| HeldText::Place(crate::menu::player_names::name_ptr(k)))
+        .map(|k| HeldText::Place(crate::menu::player_names::name_ptr(menus, k)))
         .ok_or(crate::errors::BadInput(
             "a player's name that is no player's name",
         ))

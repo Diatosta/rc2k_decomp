@@ -19,7 +19,7 @@ pub fn link_player_names(menus: &Menus) -> Result<(), BadInput> {
     for (player, car) in cars(play).iter().enumerate() {
         car.update(|p| {
             p.set_name_player(player);
-            p.name_copy = name_bytes(player);
+            p.name_copy = name_bytes(menus, player);
         });
     }
     Ok(())

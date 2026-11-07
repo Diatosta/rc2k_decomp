@@ -4,8 +4,8 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::race::owner_frame::Frame;
 use crate::scene::owner::scene;
 use crate::session::Dword;
 
@@ -14,28 +14,27 @@ const STATES: [(u32, u32); 5] = [(4, 0x15), (1, 0x1C), (5, 0x13), (2, 0x14), (1,
 
 /// A batch: its count, its first word (into eax for the draw), the vertices (ebx) and
 /// indices (ecx), where the count is kept, and the second render state's value (+0x14).
-pub struct Batch {
-    pub count: &'static Dword,
-    pub word: &'static Dword,
+pub struct Batch<'a> {
+    pub count: &'a Dword,
+    pub word: &'a Dword,
     /// The platform's draw on the batch's vertices and indices (`sub_41ADF5`, its result),
     /// given their counts.
-    pub draw: fn(u32, u32) -> u32,
-    pub kept: &'static Dword,
+    pub draw: fn(&Frame, u32, u32) -> u32,
+    pub kept: &'a Dword,
     pub blend: u32,
     pub text: &'static std::ffi::CStr,
 }
 
 /// `race::flush_triangle_batch`'s (0x45FDCF).
-pub fn plain() -> Batch {
-    let frame = &race().frame;
+pub fn plain(frame: &Frame) -> Batch<'_> {
     Batch {
         count: &frame.draw_batches.plain_count,
         word: &frame.draw_batches.plain_word,
-        draw: |vertices, indices| {
+        draw: |frame, vertices, indices| {
             crate::platform_3d::draw_indexed(
-                &race().frame.draw_batches.plain_vertices,
+                &frame.draw_batches.plain_vertices,
                 vertices,
-                &race().frame.draw_batches.plain_indices,
+                &frame.draw_batches.plain_indices,
                 indices,
             )
         },
@@ -46,16 +45,15 @@ pub fn plain() -> Batch {
 }
 
 /// `race::flush_texture_batch`'s (0x45FEFE).
-pub fn textured() -> Batch {
-    let frame = &race().frame;
+pub fn textured(frame: &Frame) -> Batch<'_> {
     Batch {
         count: &frame.draw_batches.textured_count,
         word: &frame.draw_batches.textured_word,
-        draw: |vertices, indices| {
+        draw: |frame, vertices, indices| {
             crate::platform_3d::draw_indexed(
-                &race().frame.draw_batches.textured_vertices,
+                &frame.draw_batches.textured_vertices,
                 vertices,
-                &race().frame.draw_batches.textured_indices,
+                &frame.draw_batches.textured_indices,
                 indices,
             )
         },
@@ -73,7 +71,7 @@ pub fn textured() -> Batch {
 /// count, eax the word, ebx the vertices, ecx the indices), a failure (eax not 0) logged as
 /// "drawtri" and its code (level 1); the count and word 0. Its one caller,
 /// `race::draw_race_scene`, reads no register it leaves.
-pub fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
+pub fn flush_batch(frame: &Frame, b: &Batch, textured: bool) -> Result<(), Refused> {
     let scene = scene();
     use crate::scene::{set_render_state::set_render_state, set_texture::set_texture};
     if !textured {
@@ -90,7 +88,7 @@ pub fn flush_batch(b: &Batch, textured: bool) -> Result<(), Refused> {
             crate::scene::look_up_texture::look_up_texture();
             set_texture(scene.drawing.scene.polygon_texture.get());
         }
-        let result = (b.draw)(b.word.get(), count);
+        let result = (b.draw)(frame, b.word.get(), count);
         if result != 0 {
             crate::logfile::log_write::log_nul(&b.text, false, 1);
             crate::logfile::log_hex8::log_hex8(result, false, 1);
@@ -172,6 +170,7 @@ pub fn draw_view_backdrop(race: &Race) {
 mod asm_reference {
     use super::*;
     use crate::race::asm_test::{Rng, Saved, at_each_control_word, lock, same};
+    use crate::race::owner::race;
 
     // The original blocks, verbatim.
     pub(super) fn int_and_one_asm(i: u32, add: bool) -> u32 {

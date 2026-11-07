@@ -11,15 +11,15 @@
 //! Called by `net::start_link`.
 
 use crate::menu::owner::menus;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::state_store::RaceState;
 use rc2k_core::menu::player::{Player, TAKES_PART};
 
 /// Player 1's record into the network game's settings, its entry marked as taking part.
-pub fn take_player_settings() {
+pub fn take_player_settings(race: &Race) {
     let player = &menus().play.players.players[0];
     player.update(|p| p.entry = TAKES_PART);
-    copy_player_settings(&player.get(), &race().shared.state);
+    copy_player_settings(&player.get(), &race.shared.state);
 }
 
 /// The record's fields into the state's settings and results.
@@ -191,7 +191,7 @@ mod tests {
 
     #[test]
     fn field_copy_matches_the_offset_copy() {
-        let shared = &race().shared;
+        let shared = &crate::race::owner::race().shared;
         let _g = crate::store::test_lock();
         // A record whose every dword is different.
         let mut bytes = [0u8; 0x28C];

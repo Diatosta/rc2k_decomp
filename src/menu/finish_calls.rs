@@ -138,10 +138,14 @@ impl finish::Finish for Game {
             )?,
             Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds()?,
             Step::LoadingPicture => {
-                crate::menu::show_loading_picture::show_loading_picture()?;
+                crate::menu::show_loading_picture::show_loading_picture(
+                    crate::menu::owner::menus(),
+                )?;
             }
-            Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,
-            Step::ObjectsTidy => crate::race::stage_free::objects_tidy()?,
+            Step::Render3dTidy => {
+                crate::race::stage_free::render3d_tidy(crate::race::owner::race())?;
+            }
+            Step::ObjectsTidy => crate::race::stage_free::objects_tidy(crate::race::owner::race())?,
             // `nullsub_6`.
             Step::Nothing => {}
             Step::ReleaseTextures => crate::race::race_end::release_textures(),

@@ -4,9 +4,9 @@ use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
+use crate::race::owner_shared::Shared;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
@@ -51,8 +51,7 @@ pub fn draw_distance_settings(course: &Course) {
 /// the four corners into `LIGHT_STATE.noise_samples` .. `LIGHT_STATE.noise_samples[3]`, blended along x into
 /// `LIGHT_STATE.noise_samples[4]` / `LIGHT_STATE.noise_samples[5]` and then along z, each step `imul` and `shrd` by 16;
 /// the result shifted left 8 is returned.
-pub fn sample_noise(map: usize) -> Result<u32, BadInput> {
-    let shared = &race().shared;
+pub fn sample_noise(shared: &Shared, map: usize) -> Result<u32, BadInput> {
     // Converted: `rc2k_core::race::view::sample_noise`.
     let (px, pz) = (
         shared.car.camera_position[0].get(),
@@ -100,7 +99,7 @@ pub fn fog_table(race: &Race) -> Result<(), Refused> {
     }
     // Converted: `rc2k_core::race::view::fog_table`.
     draw_distance_settings(&race.course);
-    let noise = sample_noise(0)?;
+    let noise = sample_noise(&race.shared, 0)?;
     let fog = rc2k_core::race::view::fog_table(
         noise,
         &rc2k_core::race::view::FogSettings {
@@ -143,7 +142,10 @@ pub fn set_up_fog(race: &Race) -> Result<(), Refused> {
     if length == 0 || length > 0x1000 {
         return Err(BadInput("a fog table length of 0 or past 0x1000").into());
     }
-    crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+    crate::scene::restart_clock::restart_clock(
+        &race.shared,
+        crate::system::tick_count::tick_count(),
+    );
     // Converted: `rc2k_core::race::view::{fog_colour, device_fog_colour}`.
     let colour = rc2k_core::race::view::fog_colour(
         course.stage_prefs.fog_colour[0].bits(),
@@ -452,7 +454,7 @@ pub fn camera_view(race: &Race) -> Result<(), BadInput> {
     race.frame.view_and_records.view_vars.view_place_f[0].set_bits(from_int(place[0] as i32));
     race.frame.view_and_records.view_vars.view_place_f[1].set_bits(from_int(place[1] as i32));
     race.frame.view_and_records.view_vars.view_place_f[2].set_bits(from_int(place[2] as i32));
-    crate::scene::set_view_window::set_view_window();
+    crate::scene::set_view_window::set_view_window(race);
     view_matrices(race)?;
     Ok(())
 }

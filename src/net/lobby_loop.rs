@@ -29,6 +29,7 @@ use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::owner::Net;
 use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
+use crate::race::owner::Race;
 use crate::system::owner::system;
 
 /// The players' states and-ed together (those with bit 0x80 left out), starting from
@@ -111,7 +112,7 @@ fn step_item(vars: &NetVars, step: u32) {
 }
 
 /// The Rust version: 1 when the race is on, -1 (`u32::MAX`) when the lobby was left.
-pub fn lobby_loop(net: &Net) -> Result<u32, Refused> {
+pub fn lobby_loop(race: &Race, net: &Net) -> Result<u32, Refused> {
     let system = system();
     net.vars.players.set(0);
     net.vars.racing.set(0);
@@ -181,7 +182,7 @@ pub fn lobby_loop(net: &Net) -> Result<u32, Refused> {
                         if crate::install::owner::install().pages.choice.get() == 1 {
                             crate::net::choose_car::choose_car(&net.vars)?;
                         } else {
-                            crate::net::choose_stage::choose_stage(&net.vars)?;
+                            crate::net::choose_stage::choose_stage(race, &net.vars)?;
                         }
                         crate::net::list_players::list_players_regs(&net.vars)?;
                         moved = true;

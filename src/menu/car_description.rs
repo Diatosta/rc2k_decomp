@@ -6,7 +6,7 @@
 //! `sound::play_car_stream`) and the carousels.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 pub use rc2k_core::screens::car_pages::CarDescription;
 
@@ -16,8 +16,7 @@ const _: () = assert!(std::mem::size_of::<CarDescription>() == 0x78);
 const ENTRIES: u32 = 0x100;
 
 /// The description of the entry shown (`dword_755990` through `dword_75A65C`), by handle.
-pub fn shown_description() -> Result<u32, Refused> {
-    let menus = menus();
+pub fn shown_description(menus: &Menus) -> Result<u32, Refused> {
     let table = menus.screens.state.carousel.list()?;
     let entry: u32 = menus.screens.event.shown_car.get();
     let (Some(table), true) = (table, entry < ENTRIES) else {

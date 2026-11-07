@@ -86,7 +86,10 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
     log();
     indent(3);
     crate::drive::race_init::race_init(race)?;
-    crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+    crate::scene::restart_clock::restart_clock(
+        &race.shared,
+        crate::system::tick_count::tick_count(),
+    );
     let clock: u32 = race.shared.physics_tables.scene_clock.bits();
     race.frame.clock_ticks.clock_b.set(clock);
     race.frame.clock_ticks.sound_ticks.set(0);

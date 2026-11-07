@@ -26,9 +26,9 @@ pub fn begin_setup_name(menus: &Menus) -> Result<(), BadInput> {
     }
     {
         backup_text(menus, slot_name(slot))?;
-        clear_text(slot_name(slot))?;
+        clear_text(menus, slot_name(slot))?;
         menus.screens.option_work.typing.set(1u32);
     }
-    set_length(0);
+    set_length(menus, 0);
     Ok(())
 }

@@ -42,7 +42,7 @@ const HEADING_Y: i32 = 0xB1;
 /// Returns the carry flag. Refuses a missing selection: the original reads through null.
 pub fn draw_time_trial_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let tables = &menus.tables;
-    let Some(sel) = selection()? else {
+    let Some(sel) = selection(menus)? else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );
@@ -67,5 +67,5 @@ pub fn draw_time_trial_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Res
     draw_text_at(TITLE_FONT, &heading, TITLE_X, HEADING_Y, canvas)?;
     // ebx, the markers' palette, is what draw_text left there: a pointer into the heading.
     draw_stage_body(tables, sel.record, true, canvas)?;
-    draw_records_for_group(sel.group, sel.record, canvas)
+    draw_records_for_group(menus, sel.group, sel.record, canvas)
 }

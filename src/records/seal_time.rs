@@ -35,7 +35,7 @@ pub fn seal_time(time: u32, bytes: [u8; 3]) -> [u32; 2] {
     let bytes = block(value, bytes);
     replay.seal_work.block[0].set(u32::from_le_bytes(bytes[..4].try_into().unwrap()));
     replay.seal_work.block[1].set(u32::from_le_bytes(bytes[4..].try_into().unwrap()));
-    seal_block();
+    seal_block(&replay.seal_work);
     [
         replay.seal_work.sealed[0].get(),
         replay.seal_work.sealed[1].get(),

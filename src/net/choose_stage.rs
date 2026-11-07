@@ -12,12 +12,11 @@ use crate::menu::screen_loop::{Entry, run_screen};
 use crate::net::choose_car::ESCAPED;
 use crate::net::store::NetVars;
 use crate::net::store::PlayerRecord;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The Rust version. The stage screen is handed the lobby loop's leftovers in its carried
 /// registers (see `net::choose_car`): all 0 here.
-pub fn choose_stage(vars: &NetVars) -> Result<(), Refused> {
-    let race = race();
+pub fn choose_stage(race: &Race, vars: &NetVars) -> Result<(), Refused> {
     ESCAPED.set(0);
     {
         run_screen(

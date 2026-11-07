@@ -147,7 +147,7 @@ pub fn draw_service_area(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool,
         draw_ride_height_marker::MARKER,
         draw_suspension_stiffness_marker::MARKER,
     ] {
-        draw_marker(marker, player, canvas)?;
+        draw_marker(menus, marker, player, canvas)?;
     }
-    draw_inspection_status(screens, canvas)
+    draw_inspection_status(menus, screens, canvas)
 }

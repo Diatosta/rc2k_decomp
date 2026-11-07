@@ -32,8 +32,8 @@ use crate::text::draw_text::Canvas;
 // ---- Rust version ----
 
 /// The string ids this function gives menu items 0 and 1: the group's and the table's titles.
-pub fn menu_titles(play: &Play) -> Result<Option<(u32, u32)>, BadInput> {
-    let Some(sel) = selection()? else {
+pub fn menu_titles(menus: &Menus, play: &Play) -> Result<Option<(u32, u32)>, BadInput> {
+    let Some(sel) = selection(menus)? else {
         return Ok(None);
     };
     Ok(Some((
@@ -48,7 +48,9 @@ pub fn draw_selected_stage_menu(menus: &Menus, canvas: &mut dyn Canvas) -> Resul
     let play = &menus.play;
     let screens = &menus.screens;
     let tables = &menus.tables;
-    let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles(play)?) else {
+    let (Some(sel), Some((group_title, table_title))) =
+        (selection(menus)?, menu_titles(menus, play)?)
+    else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
         );
@@ -62,7 +64,7 @@ pub fn draw_selected_stage_menu(menus: &Menus, canvas: &mut dyn Canvas) -> Resul
 
     build_second_heading(sel.record)?;
     draw_stage_body(tables, sel.record, true, canvas)?;
-    draw_records_for_group(sel.group, sel.record, canvas)
+    draw_records_for_group(menus, sel.group, sel.record, canvas)
 }
 
 //

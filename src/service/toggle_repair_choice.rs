@@ -29,7 +29,7 @@ pub fn toggle_repair_choice(menus: &Menus) -> Result<(), Refused> {
     let budget = screens.event.service_minutes.get() as i32;
     let (total, status) =
         rc2k_core::service::repairs::toggle_choice(&mut f, &mut m, item as usize, budget, |item| {
-            time_of(tables, item)
+            time_of(menus, tables, item)
         })
         .map_err(|e| BadInput(e.0))?;
     store_flags(tables, &f);

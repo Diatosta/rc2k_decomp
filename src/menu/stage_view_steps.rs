@@ -56,9 +56,9 @@ fn championship() -> bool {
     stage_screens::championship(menus().play.champ_view.event_mode.get())
 }
 
-fn small_section() -> Result<u32, Refused> {
+fn small_section(menus: &Menus) -> Result<u32, Refused> {
     Ok(stage_screens::small_section(
-        menus().screens.event.section.get(),
+        menus.screens.event.section.get(),
     )?)
 }
 
@@ -131,7 +131,7 @@ pub fn play_rally_speech(menus: &Menus) -> Result<(), Refused> {
 /// `menu::load_welcome_picture`: the section's welcome picture under the title bar,
 /// converted; not loaded: the fatal error 0x80712345.
 pub fn load_welcome_picture(menus: &Menus) -> Result<(), Refused> {
-    let section = small_section()?;
+    let section = small_section(menus)?;
     // Converted: `rc2k_core::menu::stage_screens::welcome`.
     let table: &[crate::session::Dword] =
         match stage_screens::welcome(menus.play.champ_view.event_mode.get()) {

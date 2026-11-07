@@ -7,10 +7,10 @@
 //! for metric). Called at the start of each kind of event (`sub_482382` and more).
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
-pub fn take_player1_units() -> Result<(), Refused> {
+pub fn take_player1_units(menus: &Menus) -> Result<(), Refused> {
     // g_isImperialUnits
-    crate::strings::units::set_units(menus().play.players.players[0].get().metric_units);
+    crate::strings::units::set_units(menus.play.players.players[0].get().metric_units);
     Ok(())
 }

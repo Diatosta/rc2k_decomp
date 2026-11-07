@@ -35,7 +35,7 @@ pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
     let due = { menus.screens.event.service_due.get() } == 1;
     for &p in &players {
         if due && passes::takes_part(p.get().entry) {
-            crate::menu::driver_stats::car_table(p)?;
+            crate::menu::driver_stats::car_table(menus, p)?;
         }
     }
     menus.screens.state.driver_stats.money.set(0u32);
@@ -59,7 +59,7 @@ pub fn service_pass(menus: &Menus) -> Result<(), Refused> {
             crate::menu::fade_in::fade_in(screens)?;
             crate::system::sleep::sleep(passes::FADE_PAUSE);
             menus.screens.state.driver_stats.repair_time.set(0);
-            crate::menu::driver_stats::driver_stats(screens)?;
+            crate::menu::driver_stats::driver_stats(menus, screens)?;
             menus.screens.state.menus.service_flag.set(0);
             crate::menu::reset_driver_condition::reset_driver_condition()?;
             crate::service::clear_repair_flags::clear_repair_flags(menus)?;

@@ -74,7 +74,7 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
     }
     system.session.flags.paused.set(0);
     race.shared.vars.scene_switch.set(0);
-    restart_clock();
+    restart_clock(race);
     race.frame
         .clock_ticks
         .clock_a
@@ -88,7 +88,7 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
     }
     race.replay.replay_view.play_end.set(u32::MAX);
     loop {
-        restart_clock();
+        restart_clock(race);
         race.shared
             .physics_tables
             .race_clock_base

@@ -76,7 +76,7 @@ pub fn draw_duel_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Re
     let player = |p: crate::menu::standings::PlayerCell| -> Result<Player<crate::screens::game_screen::HeldText>, Refused> {
         let p = p.get();
         Ok(Player {
-            name: crate::screens::game_screen::player_name_of(crate::menu::player_names::name_of(&p)?),
+            name: crate::screens::game_screen::player_name_of(menus, crate::menu::player_names::name_of(&p)?),
             nation: p.nationality,
             car: p.car_number,
             time: p.time,

@@ -49,13 +49,16 @@ pub fn show_frame(race: &Race) -> Result<Shown, Refused> {
     }
     { crate::race::frame_text::draw_frame_rate(race, &mut crate::text::draw_text::GameCanvas) }?;
     // `scene::unlock_frame` leaves eax 0 (its carry is `present_frame`'s next).
-    crate::scene::unlock_frame::unlock_frame();
+    crate::scene::unlock_frame::unlock_frame(&race.frame);
     if !crate::scene::present_frame::present_frame() {
         return Ok(Shown { lost: true, eax: 0 });
     }
     // The sound tick with eax 0x14.
     crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
-    let clock = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+    let clock = crate::scene::restart_clock::restart_clock(
+        &race.shared,
+        crate::system::tick_count::tick_count(),
+    );
     let time = clock.wrapping_sub(race.shared.view.clock_base.bits());
     race.shared.view.frame_time.set_bits(time);
     // The measuring leaves eax the counter's low half on the 16th call, else as it was.

@@ -2,6 +2,7 @@
 //! default best times use them, and the table their names come from.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::strings::append_string_by_id::push_string;
 
@@ -39,17 +40,17 @@ impl Driver {
     }
 
     /// The id of the string that is the driver's name.
-    pub fn name_id(&self) -> Result<u32, BadInput> {
+    pub fn name_id(&self, menus: &Menus) -> Result<u32, BadInput> {
         let entry = self.0.name_entry.get();
         if entry >= MOST_NAME_ENTRIES {
             return Err(BadInput("a driver whose name entry is far past the table"));
         }
-        crate::menu::drivers_store::name_string(entry)
+        crate::menu::drivers_store::name_string(menus, entry)
     }
 
     /// The name's bytes, without a NUL, as `strings::append_string_by_id` writes them.
-    pub fn name(&self) -> Result<(u32, Vec<u8>), BadInput> {
-        let id = self.name_id()?;
+    pub fn name(&self, menus: &Menus) -> Result<(u32, Vec<u8>), BadInput> {
+        let id = self.name_id(menus)?;
         let mut name = Vec::new();
         push_string(&mut name, id)?;
         if name.len() > NAME_ROOM {

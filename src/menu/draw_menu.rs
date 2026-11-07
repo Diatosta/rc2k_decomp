@@ -22,6 +22,6 @@ pub fn draw_menu(
     menu: crate::menu::menus_store::MenuId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    draw_menu_labels(menu, canvas)?;
+    draw_menu_labels(menus, menu, canvas)?;
     draw_menu_items(menus, menu, canvas)
 }

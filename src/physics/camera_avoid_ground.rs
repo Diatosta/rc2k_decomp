@@ -31,6 +31,7 @@ use crate::physics::camera_clear_of_ground::camera_clear_of_ground;
 use crate::physics::camera_over_ground::camera_over_ground;
 use crate::physics::camera_view::record;
 use crate::race::owner::Race;
+use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Dword;
@@ -41,7 +42,7 @@ fn place(race: &Race) {
 }
 
 /// Turned to face from checkpoint `back` before the car's; false when there is none.
-fn face_checkpoint(shared: &Shared, back: u32) -> bool {
+fn face_checkpoint(course: &Course, shared: &Shared, back: u32) -> bool {
     let Some(checkpoint) = camera_ground::back_checkpoint(shared.car.checkpoint.get(), back) else {
         return false;
     };
@@ -54,7 +55,7 @@ fn face_checkpoint(shared: &Shared, back: u32) -> bool {
     };
     let first = shared.car.position[0].get().wrapping_sub(coordinate(0));
     let second = shared.car.position[2].get().wrapping_sub(coordinate(2));
-    let angle = crate::scene::angle_between::angle_of(first, second);
+    let angle = crate::scene::angle_between::angle_of(course, first, second);
     shared.car.camera_heading.set(angle << 16);
     true
 }
@@ -133,7 +134,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     if !camera_over_ground(race)? {
         let mut found = false;
         for back in [1, 2] {
-            if !face_checkpoint(&race.shared, back) {
+            if !face_checkpoint(&race.course, &race.shared, back) {
                 break;
             }
             place(race);

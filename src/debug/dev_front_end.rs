@@ -128,8 +128,8 @@ fn round_a_race(race: &Race, f: impl FnOnce() -> Result<(), Refused>) -> Result<
     step(Call::ShowLoadingPicture)?;
     step(Call::SetUpRaceSoundObjects)?;
     step(Call::SetUpRaceSounds)?;
-    stage_free::render3d_tidy()?;
-    stage_free::objects_tidy()?;
+    stage_free::render3d_tidy(race)?;
+    stage_free::objects_tidy(race)?;
     race_end::release_textures();
     shared.switches.mask_kind.set(0);
     race_shell::clear_player_absences();

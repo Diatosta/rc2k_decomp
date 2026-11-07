@@ -92,7 +92,10 @@ pub fn timing_from(race: &Race, now: u32) {
 
 /// The Rust version (the exact one, for `drive::finish_run`).
 pub fn finish_timing(race: &Race) {
-    let now = crate::scene::restart_clock::restart_clock(crate::system::tick_count::tick_count());
+    let now = crate::scene::restart_clock::restart_clock(
+        &race.shared,
+        crate::system::tick_count::tick_count(),
+    );
     timing_from(race, now);
 }
 

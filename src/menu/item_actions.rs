@@ -90,9 +90,9 @@ pub fn new_simulation_if_unlocked() -> Result<(), Refused> {
 
 /// `menu::start_arcade`: the arcade's level and stage 0, the first player's units taken
 /// and the arcade event run.
-pub fn start_arcade(play: &Play) -> Result<(), Refused> {
+pub fn start_arcade(menus: &Menus, play: &Play) -> Result<(), Refused> {
     play.arcade.level.set(0);
     play.arcade.stage.set(0);
-    crate::menu::take_player1_units::take_player1_units()?;
+    crate::menu::take_player1_units::take_player1_units(menus)?;
     crate::menu::arcade_event::arcade_event()
 }

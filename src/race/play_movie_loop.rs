@@ -43,7 +43,7 @@ pub fn play_movie_loop(race: &Race) -> Result<(), Refused> {
     log_text(TEXTS[2], false);
     log_number(race.replay.replay_view.play_end.get());
     race.course.numbers.replay_mode.set(2); // dword_5C5CE0
-    race_parts::restart_clock();
+    race_parts::restart_clock(race);
     race.shared
         .physics_tables
         .race_clock_base

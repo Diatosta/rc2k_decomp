@@ -38,7 +38,7 @@ pub fn enter_record_entry(menus: &Menus) -> Result<(), Refused> {
         name_at,
         car: p.get().car_number,
         group: p.get().class,
-        name: name_of(&p.get())?,
+        name: name_of(menus, &p.get())?,
         entered: Some(p.get().entry),
         seal: Some(bests::Seal { cheats, sealed }),
         line: None,

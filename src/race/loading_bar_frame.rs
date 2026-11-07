@@ -89,14 +89,14 @@ fn frame(race: &Race) -> Result<(), Refused> {
         begin_scene::begin_scene();
         let framed: u32 = shared.switches.editor_mode.bits();
         shared.switches.editor_mode.set_bits(0u32);
-        choose_view_window::choose_view_window();
+        choose_view_window::choose_view_window(race);
         shared.switches.editor_mode.set_bits(framed);
         crate::race::loading_bar_quad::loading_bar_quad(race)?;
         end_scene::end_scene();
         if lock_frame::lock_frame(race).0 < 1 {
             break 'frame false;
         }
-        unlock_frame::unlock_frame();
+        unlock_frame::unlock_frame(&race.frame);
         present_frame::present_frame()
     };
     if drawn || session.flags.quitting.get() == 1 {

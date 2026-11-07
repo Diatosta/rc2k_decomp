@@ -15,7 +15,7 @@ use crate::errors::Refused;
 use crate::menu::owner::Play;
 use crate::menu::player::Player;
 use crate::net::owner::Net;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Dword;
 use rc2k_core::net::record;
 
@@ -102,8 +102,12 @@ const MORE: [(&Dword, &Dword); 5] = [
 ];
 
 /// The Rust version.
-pub fn fill_own_player(net: &'static Net, play: &Play, name: &[u8]) -> Result<(), Refused> {
-    let race = race();
+pub fn fill_own_player(
+    race: &Race,
+    net: &'static Net,
+    play: &Play,
+    name: &[u8],
+) -> Result<(), Refused> {
     // `strings::copy_printable` with 0x1F room: at most 0x1E characters of `name` looked at.
     let printable = crate::strings::copy_printable::printable_from(name, 0x1F)?;
     net.vars

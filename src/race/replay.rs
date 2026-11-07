@@ -130,7 +130,7 @@ pub fn seal_replay_header(replay: &Replay) -> Result<(), Refused> {
         w.block[0].set(x);
         w.block[1].set(y);
         // `seal_block` works on the dwords at 0x4E052C .. (no register read).
-        crate::race::save_seal::seal_block();
+        crate::race::save_seal::seal_block(w);
         a = w.sealed[0].get();
         sealed_dwords[at].set(a);
         b = w.sealed[1].get();

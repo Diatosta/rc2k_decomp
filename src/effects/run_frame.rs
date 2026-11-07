@@ -15,7 +15,7 @@
 use crate::effects::owner::effects;
 use crate::errors::Refused;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Float;
 /// Where the share goes (its factor is `FRAME_K.times`): the draw, the ring, the whole.
 static SHARES: [&Float; 3] = [
@@ -47,8 +47,7 @@ fn share(at: usize, start: u32) {
 }
 
 /// The Rust version (see the header).
-pub fn run_frame() -> Result<(), Refused> {
-    let race = race();
+pub fn run_frame(race: &Race) -> Result<(), Refused> {
     use crate::effects::*;
     use crate::scene::set_render_state::set_render_state;
     let effects = owner::effects();

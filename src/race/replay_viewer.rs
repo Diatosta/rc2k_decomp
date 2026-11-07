@@ -121,7 +121,10 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         Mode::LastRace => LAST_RACE,
         Mode::Saved | Mode::SaveLast => {
             let saving = mode == Mode::SaveLast;
-            let slot = crate::menu::replay_slot_loop::replay_slot_loop(saving)?;
+            let slot = crate::menu::replay_slot_loop::replay_slot_loop(
+                crate::menu::owner::menus(),
+                saving,
+            )?;
             if slot == u32::MAX {
                 return Ok(());
             }

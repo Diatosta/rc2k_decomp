@@ -153,7 +153,7 @@ pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(),
     if !has_repair_time(tables, item) {
         return Err(BadInput("the highlighted item has no repair time").into());
     }
-    chosen_repairs_time(tables)?;
+    chosen_repairs_time(menus, tables)?;
     if !marks_ended(tables) {
         return Err(BadInput("the second flag table has lost its end mark").into());
     }
@@ -181,7 +181,7 @@ pub fn change_page(menus: &Menus, page: ChangePage, confirm: bool) -> Result<(),
         item as usize,
         screens.event.service_minutes.get() as i32,
         v,
-        |item| time_of(tables, item),
+        |item| time_of(menus, tables, item),
     )
     .map_err(|e| BadInput(e.0))?;
     store_flags(tables, &f);
