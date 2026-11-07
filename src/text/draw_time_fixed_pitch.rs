@@ -29,21 +29,22 @@ pub fn draw_time_fixed_pitch(
     canvas: &mut dyn Canvas,
 ) -> Result<bool, Refused> {
     let mut too_wide = false;
-    let cell = text.offset(CELL_OFFSET as u32);
     // Converted: `rc2k_core::text::{columns, TIME_STEPS}`.
     for (i, x) in columns(x, &TIME_STEPS).into_iter().enumerate() {
-        put_cell(text, i)?;
-        too_wide = draw_text_keep_regs(font, &cell.bytes("a time digit")?, x, y, canvas)?;
+        let cell = put_cell(text, i)?;
+        too_wide = draw_text_keep_regs(font, &cell, x, y, canvas)?;
     }
     Ok(too_wide)
 }
 
-/// Copies the text's byte `i` to its cell with a NUL after it.
-pub fn put_cell(text: crate::pointers::GamePtr, i: usize) -> Result<(), Refused> {
+/// Copies the text's byte `i` to its cell with a NUL after it (the buffer keeps the cell, as
+/// the original's) and returns the cell, which is what is drawn.
+pub fn put_cell(text: crate::pointers::GamePtr, i: usize) -> Result<[u8; 2], Refused> {
     let b = text.offset(i as u32).read::<u8>("a fixed-pitch text")?;
+    let cell = [b, 0];
     text.offset(CELL_OFFSET as u32)
-        .write_bytes(&[b, 0], "a fixed-pitch text's cell")?;
-    Ok(())
+        .write_bytes(&cell, "a fixed-pitch text's cell")?;
+    Ok(cell)
 }
 
 /// The same with a font object in game memory, for Rust callers.

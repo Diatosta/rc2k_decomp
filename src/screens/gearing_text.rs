@@ -30,7 +30,7 @@ pub fn gearing_text() -> Result<(), Refused> {
     let value = current(screens)?.get().gearing;
     put_string(
         FIRST_STRING.wrapping_add(value),
-        crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.title),
+        &crate::screens::text_buffers_store::TEXT_BUFFERS.title,
         TEXT_LEN,
     )?;
     menus().screens.flow.shown_gearing.set(value);
@@ -47,7 +47,7 @@ pub fn step_gearing(on: bool) -> Result<(), Refused> {
     let value = rc2k_core::screens::captions::step_gearing(kept, on);
     put_string(
         FIRST_STRING.wrapping_add(value),
-        crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.title),
+        &crate::screens::text_buffers_store::TEXT_BUFFERS.title,
         TEXT_LEN,
     )?;
     screens.flow.shown_gearing.set(value);

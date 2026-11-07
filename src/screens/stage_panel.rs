@@ -7,7 +7,6 @@ use crate::errors::{BadInput, Refused};
 use crate::gfx::blit_marker_pair::{marker_calls, set_marker_position};
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
-use crate::pointers::GamePtr;
 use crate::records::stages_store::RecordRef;
 use crate::records::trakpak_entry::record_entry;
 use crate::screens::draw_stage_heading::heading_text;
@@ -49,12 +48,14 @@ pub fn label(
 }
 
 /// Builds the second heading ("<string 0x482> n/6: name") in its own buffer. Three of the
-/// four panels build it; only `draw_time_trial_stage_info` also draws it.
-pub fn build_second_heading(record: RecordRef) -> Result<(), Refused> {
+/// four panels build it; only `draw_time_trial_stage_info` also draws it (the text it
+/// returns, with its NUL).
+pub fn build_second_heading(record: RecordRef) -> Result<Vec<u8>, Refused> {
     let bytes = heading_text(record, SECOND_HEADING_STRING)?;
-    GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.stage_heading)
-        .write_bytes(&bytes, "the second stage heading")?;
-    Ok(())
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .stage_heading
+        .write_at(0, &bytes, "the second stage heading")?;
+    Ok(bytes)
 }
 
 /// Everything from the map markers down to the numbered line at the bottom left, for the

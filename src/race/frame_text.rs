@@ -31,7 +31,7 @@ pub fn draw_frame_rate(race: &Race, canvas: &mut dyn Canvas) -> Result<(), Refus
     t.write_bytes(&bytes, "the frame rate's text")?;
     draw_text_at(
         crate::pointers::GamePtr::to(&gfx().fonts.menu_fonts.menu_fonts[3]),
-        &t.bytes("the frame rate's text")?,
+        &bytes,
         0x190,
         4,
         canvas,

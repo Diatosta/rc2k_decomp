@@ -18,9 +18,6 @@ use rc2k_core::text::{CLOCK_STEPS, columns};
 
 // ---- Rust version ----
 
-/// Where the one-character text is built, relative to the text.
-pub const CELL_OFFSET: usize = crate::text::draw_time_fixed_pitch::CELL_OFFSET;
-
 /// Returns the flags the original leaves: (carry, zero) of its last `add` (draw_text's
 /// own carry is lost there).
 pub fn draw_clock_fixed_pitch(
@@ -31,11 +28,10 @@ pub fn draw_clock_fixed_pitch(
     canvas: &mut dyn Canvas,
 ) -> Result<(bool, bool), Refused> {
     let at = columns(x, &CLOCK_STEPS);
-    let cell = text.offset(CELL_OFFSET as u32);
     // Converted: `rc2k_core::text::{columns, CLOCK_STEPS}`.
     for (i, &x) in at.iter().enumerate() {
-        crate::text::draw_time_fixed_pitch::put_cell(text, i)?;
-        draw_text_keep_regs(font, &cell.bytes("a clock digit")?, x, y, canvas)?;
+        let cell = crate::text::draw_time_fixed_pitch::put_cell(text, i)?;
+        draw_text_keep_regs(font, &cell, x, y, canvas)?;
     }
     // The flags of the original's last `add`, after the fifth character.
     let (sum, carry) = (at[4] as u32).overflowing_add(CLOCK_STEPS[4] as u32);

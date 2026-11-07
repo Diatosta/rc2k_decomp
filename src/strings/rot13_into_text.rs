@@ -13,7 +13,7 @@
 use crate::errors::BadInput;
 use crate::pointers::GamePtr;
 use crate::strings::owner::strings;
-use crate::strings::text_from_ids::{TEXT_LEN, text_at};
+use crate::strings::text_from_ids::TEXT_LEN;
 use rc2k_core::strings::bytes::Bytes;
 
 /// One byte coded.
@@ -21,8 +21,8 @@ pub fn rot13(b: u8) -> u8 {
     rc2k_core::strings::format::rot13(b)
 }
 
-/// The Rust version: the text buffer's address.
-pub fn rot13_into_text(from: GamePtr) -> Result<GamePtr, BadInput> {
+/// The Rust version: the coded text with its NUL, also left in the text buffer.
+pub fn rot13_into_text(from: GamePtr) -> Result<Vec<u8>, BadInput> {
     let source = from.bytes("a text to code")?;
     let mut coded = Vec::new();
     loop {
@@ -40,5 +40,5 @@ pub fn rot13_into_text(from: GamePtr) -> Result<GamePtr, BadInput> {
     for (i, &b) in coded.iter().enumerate() {
         strings().text.buffer.text.set(i, b);
     }
-    Ok(text_at())
+    Ok(coded)
 }

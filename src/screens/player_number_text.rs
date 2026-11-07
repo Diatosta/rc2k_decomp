@@ -27,7 +27,8 @@ pub fn player_number_text() -> Result<(), Refused> {
     append_string_by_id(SECOND_STRING, &mut emit)?;
     // Converted: `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, TEXT_LEN)?;
-    crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.number_text)
-        .write_bytes(&text, "the number text")?;
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .number_text
+        .write_at(0, &text, "the number text")?;
     Ok(())
 }

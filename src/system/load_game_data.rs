@@ -244,7 +244,9 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             }
         }
         Call::ComputerName(to) => {
-            crate::system::check_developer_machine::computer_name(to);
+            if let Some(name) = crate::system::check_developer_machine::computer_name() {
+                to.write_bytes(&name, "the computer's name")?;
+            }
         }
         Call::RandomBelow(limit) => return Ok(crate::math::random_below::random_below(limit)?),
         Call::ReadSavegameSlot(slot) => {

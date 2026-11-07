@@ -98,7 +98,7 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
     vars.mode.set(mode);
     take_player_settings::take_player_settings();
     let play = &menus().play;
-    fill_own_player::fill_own_player(net, play, &play.names.player_names)?;
+    fill_own_player::fill_own_player(net, play, &play.names.player_names.read())?;
     show_background::show_background(&net.vars)?;
     match link(net)? {
         Way::Message(n) => show_message::show_message(n)?,

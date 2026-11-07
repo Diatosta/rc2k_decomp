@@ -49,7 +49,10 @@ pub fn settings_frame() -> Result<(), Refused> {
         y = setting_label(net, label, item, y)?;
         y = match value {
             Value::Number(n) => draw_number_value(&net.vars, n, item, y)?,
-            Value::Text(text) => draw_setting_value(&net.vars, text, item, y)?,
+            Value::Text(text) => {
+                let text = crate::place::Place::from(text).text("a setting's text")?;
+                draw_setting_value(&net.vars, &text, item, y)?
+            }
         };
     }
     // The last item's string measured (the x the original hands it is `draw_text`'s x of the

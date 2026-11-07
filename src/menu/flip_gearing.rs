@@ -21,6 +21,7 @@ pub fn flip_gearing(screens: &Screens) -> Result<(), crate::errors::BadInput> {
     let mut text = Vec::new();
     push_string(&mut text, gearing_switch_text(kept))?;
     text.push(0);
-    crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.title)
-        .write_bytes(&text, "the title")
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .title
+        .write_at(0, &text, "the title")
 }

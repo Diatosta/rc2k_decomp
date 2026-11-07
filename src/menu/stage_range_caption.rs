@@ -15,6 +15,7 @@ pub fn stage_range_caption(play: &Play) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::event::stage_range`.
     let mut text = rc2k_core::menu::event::stage_range(first);
     text.push(0);
-    crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption)
-        .write_bytes(&text, "the caption")
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .caption
+        .write_at(0, &text, "the caption")
 }

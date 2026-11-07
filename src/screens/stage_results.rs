@@ -161,8 +161,9 @@ pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
     crate::screens::text_buffers_store::TEXT_BUFFERS
         .stage_result_value
         .set(record.record()?.track());
-    crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.stage_heading)
-        .write_bytes(&stage, "the stage line")?;
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .stage_heading
+        .write_at(0, &stage, "the stage line")?;
     // Converted: `rc2k_core::screens::stage_results`.
     use rc2k_core::screens::stage_results::{Entry, Fastest, stage_results};
     let rows = std::array::from_fn(|n| {

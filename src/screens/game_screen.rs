@@ -348,12 +348,10 @@ impl<F: GameFont, W: GameWork, T: GameText> Screen for GameScreen<'_, F, W, T> {
         let mut text = bytes.to_vec();
         text.push(0);
         store_in(Buffer::Line, &text)?;
-        let at = buffer_at(Buffer::Line);
         crate::screens::draw_spaced_number::draw_spaced_number(
             screens,
             font_of(font),
-            at,
-            at.offset(bytes.len() as u32),
+            bytes,
             x,
             y,
             self.canvas,

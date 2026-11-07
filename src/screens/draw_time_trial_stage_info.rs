@@ -63,17 +63,8 @@ pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refus
         TABLE_TITLE_Y,
     )?;
 
-    build_second_heading(sel.record)?;
-    draw_text_at(
-        TITLE_FONT.game_ptr(),
-        &crate::pointers::GamePtr::to(
-            &crate::screens::text_buffers_store::TEXT_BUFFERS.stage_heading,
-        )
-        .bytes("the stage heading")?,
-        TITLE_X,
-        HEADING_Y,
-        canvas,
-    )?;
+    let heading = build_second_heading(sel.record)?;
+    draw_text_at(TITLE_FONT.game_ptr(), &heading, TITLE_X, HEADING_Y, canvas)?;
     // ebx, the markers' palette, is what draw_text left there: a pointer into the heading.
     draw_stage_body(tables, sel.record, true, canvas)?;
     draw_records_for_group(sel.group, sel.record, canvas)

@@ -6,22 +6,19 @@
 //! Out: every register kept (`pusha` .. `popa`); the flags of the loop's last test (no
 //!      caller reads them)
 //!
-//! Each character is drawn as a text of its own: the dword after it is swapped for 0
-//! (`xchg edi, [ebx+1]`, edi 0) around `text::draw_text_keep_regs`, then put back; x moves
-//! on by the width. The font's +0x1C is 0 at the end. Callers: `net::lobby_frame` (twice).
+//! Each character is drawn as a text of its own (the original swapped the dword after it
+//! for 0 around `text::draw_text_keep_regs` and put it back: here the character and a NUL
+//! are drawn as a value and the buffer is not touched); x moves on by the width. The font's +0x1C is 0 at the end. Callers: `net::lobby_frame` (twice).
 //! Hook removed 2026-10-22 (conversion phase 4): Rust callers call this directly; the
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
 use crate::text::font::Font;
+use rc2k_core::strings::bytes::Bytes as _;
 
 /// The font's fixed width.
 const WIDTH: u32 = 0x1C;
-
-fn read32(at: GamePtr) -> Result<u32, Refused> {
-    Ok(at.read::<u32>("a time text's character")?)
-}
 
 fn write32(at: GamePtr, v: u32) -> Result<(), Refused> {
     Ok(at.write(v, "a time text's character")?)
@@ -32,22 +29,18 @@ fn write32(at: GamePtr, v: u32) -> Result<(), Refused> {
 /// 2026-10-23: after the two calls DF, ebp, ebx/edi, edx, esi, all kept).
 pub fn draw_time_text(font: GamePtr, text: GamePtr, x: u32, y: u32) -> Result<(), Refused> {
     use crate::text::draw_text::GameCanvas;
-    let (mut at, mut x, mut edi) = (text, x, 0u32);
-    // Converted: `rc2k_core::text::time_text_widths`; here the original's way of drawing
-    // one character at a time (the dword after it swapped for 0 around the call).
+    let mut x = x;
+    // Converted: `rc2k_core::text::time_text_widths`.
     let chars = text.bytes("a time text")?;
     let widths = rc2k_core::text::time_text_widths(&chars)
         .map_err(|_| crate::errors::BadInput("a time text past its block"))?;
-    for width in widths {
+    for (i, width) in widths.into_iter().enumerate() {
         write32(font.offset(WIDTH), width)?;
-        let kept = read32(at.offset(1))?;
-        write32(at.offset(1), edi)?;
-        edi = kept;
         // `text::draw_text_keep_regs` on a copy of the font, written back if it changed.
         let mut copy = font.read::<Font>("a font")?;
         crate::text::draw_text_keep_regs::draw_text_keep_regs(
             &mut copy,
-            &at.bytes("a time text")?,
+            &[chars.byte(i).unwrap_or(0), 0],
             x as i32,
             y as i32,
             &mut GameCanvas,
@@ -55,11 +48,7 @@ pub fn draw_time_text(font: GamePtr, text: GamePtr, x: u32, y: u32) -> Result<()
         if copy != font.read::<Font>("a font")? {
             font.write(copy, "a font")?;
         }
-        let zero = read32(at.offset(1))?;
-        write32(at.offset(1), edi)?;
-        edi = zero;
         x = x.wrapping_add(width);
-        at = at.offset(1);
     }
     write32(font.offset(WIDTH), 0)?;
     Ok(())

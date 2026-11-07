@@ -53,20 +53,27 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
                 if editing::takes(typed)
                     && let Some(at) = editing::end_for_char(&words)?
                 {
-                    let at = at as u32;
-                    text.offset(at).write(typed as u16, "an edited text")?;
+                    // The text up to the character's place and the character, measured as a
+                    // value; the original writes the character and a NUL, then takes the
+                    // character off again (a NUL over it) when the text is too wide.
+                    let mut shown = text.read_bytes(at, "an edited text")?;
+                    shown.extend_from_slice(&[typed, 0]);
                     let width = {
                         measure_text_at(
                             net.vars.edit_font.get().game_ptr(),
-                            &text.bytes("an edited text")?,
+                            &shown,
                             at as i32,
                             &mut GameCanvas,
                         )
                     }?
                     .width;
-                    if editing::too_wide(width, net.vars.edit_width.get()) {
-                        set_byte(text.offset(at), 0)?;
-                    }
+                    let kept = if editing::too_wide(width, net.vars.edit_width.get()) {
+                        [0, 0]
+                    } else {
+                        [typed, 0]
+                    };
+                    text.offset(at as u32)
+                        .write_bytes(&kept, "an edited text")?;
                 }
             }
         }

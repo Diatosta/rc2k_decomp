@@ -19,23 +19,22 @@ const NAME_ROOM: u32 = 0x40;
 
 // ---- Rust version ----
 
-/// `sub_410848`: the computer's name with its NUL at game address `to` (0x40 bytes), if
-/// it can be had.
-pub fn computer_name(to: crate::pointers::GamePtr) -> bool {
-    let Some(mut name) = crate::os::computer_name(NAME_ROOM) else {
-        return false;
-    };
+/// `sub_410848`: the computer's name with its NUL (room for 0x40 bytes), if it can be had;
+/// the callers store it where the original did.
+pub fn computer_name() -> Option<Vec<u8>> {
+    let mut name = crate::os::computer_name(NAME_ROOM)?;
     name.push(0);
-    to.write_bytes(&name, "the computer's name")
-        .unwrap_or_else(|e| crate::fatal::raise::end("system::computer_name", e));
-    true
+    Some(name)
 }
 
 /// The Rust version (see the header).
 pub fn check_developer_machine() {
     DEVELOPER.set(0);
     let at = crate::strings::text_from_ids::text_at();
-    computer_name(at);
+    if let Some(name) = computer_name() {
+        at.write_bytes(&name, "the computer's name")
+            .unwrap_or_else(|e| crate::fatal::raise::end("system::computer_name", e));
+    }
     // Converted: `rc2k_core::system::machine::developer`.
     let (yes, _) = rc2k_core::system::machine::developer(
         at.read("the computer's name")

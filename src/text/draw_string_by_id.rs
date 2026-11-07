@@ -42,7 +42,7 @@ pub fn draw_string_by_id(
 ) -> Result<Outcome, Refused> {
     let bytes = string_text(id)?;
     buffer.write_bytes(&bytes, "the text buffer")?;
-    draw_text(font, &buffer.bytes("the text buffer")?, x, y, canvas)
+    draw_text(font, &bytes, x, y, canvas)
 }
 
 /// The same with a font object in game memory and the game's text buffer, for Rust callers.

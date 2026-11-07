@@ -69,13 +69,13 @@ pub fn start_log() -> Result<(), BadInput> {
     // The date in the numbers' scratch buffer, as the original makes it (the log's
     // lock is not held: no thread logs yet).
     let scratch = crate::pointers::GamePtr::to(&system.work.numbers);
-    write_date_text(scratch)?;
+    let date = write_date_text(scratch)?;
     // `Buffer` (0x4E0558), written and read here only: a local.
     let memory = crate::os::memory();
     let free = free_space_kb();
     FREE_SPACE_KB.set(free);
     let m = Machine {
-        date: c_text(scratch)?,
+        date,
         version: VERSION[..VERSION.len() - 1].to_vec(), // Rust's own text
         second: (SECOND_TEXT[0] != 0).then(|| SECOND_TEXT[..SECOND_TEXT.len() - 1].to_vec()),
         cpu_family: system.session.machine.cpu_family.get() as i32,

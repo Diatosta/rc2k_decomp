@@ -29,9 +29,9 @@ pub fn yes_no_caption(tables: &Tables) -> Result<(), Refused> {
     append_string_by_id(id, &mut |bytes| text.extend_from_slice(bytes))?;
     // Converted: `rc2k_core::screens::captions::fit`.
     let text = rc2k_core::screens::captions::fit(text, CAPTION_LEN)?;
-    let caption =
-        crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption);
-    caption.write_bytes(&text, "the caption")?;
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .caption
+        .write_at(0, &text, "the caption")?;
     Ok(())
 }
 

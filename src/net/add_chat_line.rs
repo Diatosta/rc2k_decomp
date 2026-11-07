@@ -71,27 +71,50 @@ pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refus
     net.vars.chat_text.write_at(0, &text, "the chat's text")?;
     let (line, chat, said) = (&net.vars.chat_line, &net.vars.chat, &net.vars.chat_text);
     let mut text = 0usize;
+    let line_room = line.read().len();
     loop {
-        // The next line: one character more at a time while it fits.
-        let mut end = 0usize;
+        // The next line, built as a value: one character more at a time while it fits.
+        // (The original builds it in `line`, a NUL after each character, and measures the
+        // buffer; the same bytes are stored once the line is cut.)
+        let mut built: Vec<u8> = Vec::new();
+        let mut cut = false;
         loop {
             let c = at(said, text)?;
-            put(line, end, c)?;
+            if built.len() >= line_room {
+                return Err(BadInput("past the end of a chat buffer").into());
+            }
             if c == 0 {
                 break;
             }
+            if built.len() + 1 >= line_room {
+                return Err(BadInput("past the end of a chat buffer").into());
+            }
             text += 1;
-            end += 1;
-            put(line, end, 0)?;
+            built.push(c);
+            // Measured as the original measures `line`: this line's bytes, its NUL, and the
+            // bytes earlier lines left after it (a control code's argument may be the NUL).
+            let mut shown = built.clone();
+            shown.push(0);
+            let left = line.read();
+            shown.extend_from_slice(left.get(shown.len()..).unwrap_or(&[]));
             let width =
-                { measure_text_at(CHAT_FONT.game_ptr(), &line.read(), 0, &mut GameCanvas) }?.width;
+                { measure_text_at(CHAT_FONT.game_ptr(), &shown, 0, &mut GameCanvas) }?.width;
             if width > LINE_WIDTH {
-                put(line, end - 1, 0)?;
+                built.pop();
                 text -= 1;
+                cut = true;
                 break;
             }
         }
-        if at(line, 0)? == 0 && at(said, text)? != 0 {
+        // The line as the original leaves it in `line`: its NUL, and a second one where the
+        // character that did not fit was.
+        built.push(0);
+        if cut {
+            built.push(0);
+        }
+        line.write_at(0, &built, "the chat's line")?;
+        built.truncate(built.iter().position(|&b| b == 0).unwrap_or(0) + 1);
+        if built[0] == 0 && at(said, text)? != 0 {
             return Err(
                 BadInput("a character wider than a chat line: the original never ends").into(),
             );
@@ -119,15 +142,9 @@ pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refus
         }
         // The new line at the bottom.
         put(chat, to - 1, 0x0A)?;
-        let mut from = 0usize;
-        loop {
-            let c = at(line, from)?;
-            from += 1;
+        for &c in &built {
             put(chat, to, c)?;
             to += 1;
-            if c == 0 {
-                break;
-            }
         }
         if at(said, text)? == 0 {
             return Ok(());

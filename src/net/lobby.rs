@@ -22,7 +22,6 @@
 
 use crate::errors::Refused;
 use crate::framework::Regs;
-use crate::place::Place;
 use crate::session::{Bytes, Dword};
 use crate::strings::owner::strings;
 
@@ -47,50 +46,23 @@ pub fn movsb(
     Ok(())
 }
 
-/// A cursor into a text buffer: what the original's `ebx` is while it builds a line with
-/// `strings::str_append`, `append_string_by_id`, `format_u32`, `append_time` and
-/// `append_nul`.
-#[derive(Clone, Copy)]
-pub struct Cursor(pub Place);
+/// `strings::append_string_by_id`: the string `id` added to the text being built.
+pub fn push_id(text: &mut Vec<u8>, id: u32) -> Result<(), Refused> {
+    crate::strings::append_string_by_id::push_string(text, id)?;
+    Ok(())
+}
 
-impl Cursor {
-    /// The start of the game's text buffer.
-    pub fn text() -> Self {
-        Self(Place::from(&strings().text.buffer.text))
-    }
-
-    /// `strings::str_append`: the NUL-ended text at `from`, its end the new cursor.
-    pub fn string(&mut self, from: impl Into<Place>) {
-        let written = from
-            .into()
-            .text("a text")
-            .and_then(|text| self.0.write(&text, "a text line").map(|()| text.len()));
-        let len = crate::menu::event_flow::refuse_here(written, "net::lobby: a text");
-        self.0 = self.0.add(len as u32);
-    }
-
-    /// `strings::append_string_by_id`: the string `id`.
-    pub fn string_id(&mut self, id: u32) {
-        let mut text = Vec::new();
-        let written = crate::strings::append_string_by_id::push_string(&mut text, id)
-            .and_then(|()| self.0.write(&text, "a text line"));
-        crate::menu::event_flow::refuse_here(written, "net::lobby: a string");
-        self.0 = self.0.add(text.len() as u32);
-    }
-
-    /// The bytes written at the cursor (`format_u32`'s, `append_time`'s).
-    pub fn bytes(&mut self, bytes: &[u8]) -> Result<(), Refused> {
-        self.0.write(bytes, "a text line's bytes")?;
-        self.0 = self.0.add(bytes.len() as u32);
-        Ok(())
-    }
-
-    /// `strings::append_nul`: a NUL written, the cursor past it.
-    pub fn nul(&mut self) -> Result<(), Refused> {
-        self.0.write(&[0], "a text line's end")?;
-        self.0 = self.0.add(1);
-        Ok(())
-    }
+/// The text a line is built as (`text` up to its NUL), stored with its NUL at the start of
+/// the game's text buffer, where the original builds it; the text with its NUL, to be
+/// drawn or measured as a value.
+pub fn store_text(mut text: Vec<u8>) -> Result<Vec<u8>, Refused> {
+    text.push(0);
+    strings()
+        .text
+        .buffer
+        .text
+        .write_at(0, &text, "a text line")?;
+    Ok(text)
 }
 
 /// `gfx::blit_glyph` of the sprite `glyph` of the sprite table (`g_spriteTable`) at (`x`,
@@ -119,27 +91,6 @@ pub fn log_hex(value: u32, newline: bool) {
 /// `logfile::log_int_l<level>_nl`.
 pub fn log_int_nl(value: u32, level: u8) {
     crate::logfile::log_int::log_int(value as i32, true, level);
-}
-
-/// `strings::copy_printable`: the name at `text` (a typed buffer, or a pointer from the
-/// game's data) into `to`.
-pub fn copy_printable(
-    text: impl Into<crate::place::Place>,
-    to: impl Into<crate::place::Place>,
-    room: u32,
-) -> Result<(), Refused> {
-    use crate::place::Place;
-    let bytes = match text.into() {
-        // As far as the original reads: room - 1 characters or the NUL (here also the
-        // buffer's end).
-        Place::In(b, at) => {
-            let rest = Place::In(b, at).read(b.len().saturating_sub(at), "a name to copy")?;
-            crate::strings::copy_printable::printable_from(&rest, room)?
-        }
-        Place::At(a) => crate::strings::copy_printable::printable(a, room)?,
-    };
-    to.into().write(&bytes, "a printable name")?;
-    Ok(())
 }
 
 /// `system::zero_memory`.

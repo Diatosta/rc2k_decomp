@@ -9,7 +9,7 @@
 //! Caller: `net::settings_loop`.
 
 use crate::net::begin_edit::EditedText;
-use crate::net::lobby::{Cursor, PALETTE};
+use crate::net::lobby::PALETTE;
 use crate::net::store::NetVars;
 use rc2k_core::net::editing::{self, Setting};
 
@@ -22,14 +22,13 @@ pub fn begin_setting_edit(vars: &NetVars) -> Result<(), crate::errors::Refused> 
         Setting::Name => EditedText::MachineName,
         Setting::HostAddress => EditedText::HostAddress,
         Setting::MostPlayers => {
-            let mut cursor = Cursor(crate::place::Place::from(
-                &crate::install::owner::install().paths.path_a,
-            ));
-            cursor.bytes(&crate::strings::format_u32::format_u32(
-                vars.most_players.get(),
+            let mut digits = crate::strings::format_u32::format_u32(vars.most_players.get(), 0);
+            digits.push(0);
+            crate::install::owner::install().paths.path_a.write_at(
                 0,
-            ))?;
-            cursor.nul()?;
+                &digits,
+                "a text line's bytes",
+            )?;
             EditedText::MostPlayers
         }
         Setting::None => return Ok(()),

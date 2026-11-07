@@ -51,8 +51,9 @@ pub fn draw_highlighted_caption(
     if caption.len() > CAPTION_LEN {
         return Err(BadInput("a caption longer than its place").into());
     }
-    crate::pointers::GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption)
-        .write_bytes(&caption, "the caption")?;
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .caption
+        .write_at(0, &caption, "the caption")?;
     // Converted: `rc2k_core::screens::highlighted_caption`.
     let since_key = system()
         .session

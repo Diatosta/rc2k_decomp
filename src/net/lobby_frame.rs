@@ -18,7 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
-use crate::net::lobby::{Cursor, FONT, blit, copy_picture, lock_surface};
+use crate::net::lobby::{FONT, blit, copy_picture, lock_surface, push_id, store_text};
 use crate::net::owner::net;
 use crate::strings::owner::strings;
 use crate::text::draw_text::GameCanvas;
@@ -30,19 +30,15 @@ const NAME_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::V
 const READY_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::READY;
 const CHAT_FONT: crate::gfx::typefaces::FontId = crate::gfx::typefaces::fonts::NAME;
 
-/// A time, or its gap to `first` with a '+' over its first character, written at the
-/// cursor.
-fn time_text(cursor: &mut Cursor, time: u32, gaps: bool, first: u32) -> Result<(), Refused> {
+/// A time, or its gap to `first` with a '+' over its first character.
+fn time_text(time: u32, gaps: bool, first: u32) -> Vec<u8> {
     let (value, plus) = screens::shown_time(time, first, gaps);
-    let start = cursor.0;
-    cursor.bytes(&crate::strings::append_time::append_time(
-        value,
-        crate::strings::append_time::show_hours(),
-    ))?;
-    if plus {
-        start.write(b"+", "a text line")?;
+    let mut text =
+        crate::strings::append_time::append_time(value, crate::strings::append_time::show_hours());
+    if plus && let Some(first) = text.first_mut() {
+        *first = b'+';
     }
-    Ok(())
+    text
 }
 
 /// The Rust version (the original keeps every register). Called through
@@ -84,9 +80,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             let mut x = 0x18;
             blit(screens::flag_sprite(block.record.head.get(3)), x, y)?;
             x += 0x28;
-            let mut cursor = Cursor::text();
-            cursor.string(&block.name);
-            cursor.nul()?;
+            let name = store_text(crate::place::Place::from(&block.name).text("a text")?)?;
             let font = if block.record.state() & READY != 0 {
                 READY_FONT
             } else {
@@ -94,7 +88,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             };
             crate::text::draw_text::draw_text_at(
                 font.game_ptr(),
-                &crate::pointers::GamePtr::to(&text.buffer.text).bytes("a name")?,
+                &name,
                 x as i32,
                 y as i32,
                 &mut canvas,
@@ -106,17 +100,17 @@ pub fn lobby_frame() -> Result<(), Refused> {
             use std::sync::atomic::Ordering::Relaxed;
             let kept_hours = SHOW_HOURS.atomic().swap(1, Relaxed);
             let time = block.record.race_time.get();
-            let mut cursor = Cursor::text();
             // The total is drawn at the y the drawing before it leaves in edx: the text's,
             // font offset included, when there is no time (the original's slip).
             let mut total_y = y;
             if time == players::NO_TIME {
-                cursor.string_id(screens::NO_TIME);
-                cursor.nul()?;
+                let mut none = Vec::new();
+                push_id(&mut none, screens::NO_TIME)?;
+                let none = store_text(none)?;
                 let out = {
                     crate::text::draw_text::draw_text_at(
                         NAME_FONT.game_ptr(),
-                        &crate::pointers::GamePtr::to(&text.buffer.text).bytes("a time")?,
+                        &none,
                         x as i32,
                         y as i32,
                         &mut canvas,
@@ -124,8 +118,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 }?;
                 total_y = out.y as u32;
             } else {
-                time_text(&mut cursor, time, gaps, first_time)?;
-                cursor.nul()?;
+                store_text(time_text(time, gaps, first_time))?;
                 {
                     crate::text::draw_time_text::draw_time_text(
                         FONT.game_ptr(),
@@ -137,14 +130,11 @@ pub fn lobby_frame() -> Result<(), Refused> {
             }
             x += 0xA5;
             let timed = time != players::NO_TIME;
-            let mut cursor = Cursor::text();
-            time_text(
-                &mut cursor,
+            store_text(time_text(
                 block.record.total.get(),
                 gaps && timed,
                 first_total,
-            )?;
-            cursor.nul()?;
+            ))?;
             {
                 crate::text::draw_time_text::draw_time_text(
                     FONT.game_ptr(),
@@ -170,7 +160,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
     }?;
     crate::net::unlock_received::unlock_received(&net.vars);
     y = y.wrapping_add(CHAT_FONT.object().line_height.get().wrapping_mul(8));
-    crate::net::chat_input_line::chat_input_line(&net.vars, &vars.chat_input, 3, y)?;
+    crate::net::chat_input_line::chat_input_line(&net.vars, &vars.chat_input.text(), 3, y)?;
     let mut x = 0x310;
     let mut item = 0;
     for (n, (id, shown)) in screens::lobby_buttons(vars.car_item.get(), vars.stage_item.get())

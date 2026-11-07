@@ -26,7 +26,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
-use crate::pointers::GamePtr;
 use rc2k_core::menu::player::Player;
 use rc2k_core::menu::steps;
 
@@ -112,15 +111,13 @@ pub fn next_replay_range(tables: &Tables) -> Result<(), BadInput> {
 pub fn toggle_caption_choice(screens: &Screens) -> Result<(), BadInput> {
     let choice = steps::flip(screens.state.menus.caption_choice.get());
     screens.state.menus.caption_choice.set(choice);
-    let mut cursor = GamePtr::to(&crate::screens::text_buffers_store::TEXT_BUFFERS.caption);
     let caption = rc2k_core::screens::page_values::stage_options_caption(choice);
-    let fault = crate::menu::event_flow::Fault::default();
-    crate::strings::append_string_by_id::append_string_by_id(caption, &mut |text| {
-        fault.ok(cursor.write_bytes(text, "the caption"));
-        cursor = cursor.offset(text.len() as u32);
-    })?;
-    fault.check()?;
-    cursor.write::<u8>(0, "the caption")
+    let mut text = Vec::new();
+    crate::strings::append_string_by_id::push_string(&mut text, caption)?;
+    text.push(0);
+    crate::screens::text_buffers_store::TEXT_BUFFERS
+        .caption
+        .write_at(0, &text, "the caption")
 }
 
 pub fn leave_with_carry() {
