@@ -238,6 +238,13 @@ pub(crate) fn texture_as_bgra(note: &TextureNote) -> Vec<u8> {
 }
 
 impl Target {
+    /// `f` on the screen's rows: for the backends, which draw while the game's code waits for
+    /// the call (nothing else writes the canvas meanwhile).
+    pub fn with_canvas<R>(&self, f: impl FnOnce(&mut [u8]) -> R) -> R {
+        // SAFETY: the game's code waits for the backend's call; the slice lives through `f` only.
+        f(unsafe { self.bytes() })
+    }
+
     /// The screen's rows as bytes.
     ///
     /// # Safety

@@ -24,8 +24,10 @@
 //!
 //! Where the time goes: `platform_timing`.
 
+// Not FFI: `LentBytes::slice` (the frame's pixels, lent to the game) is a memory primitive.
 #![allow(unsafe_code)]
 
+use crate::ffi::sdl;
 use crate::framework::log;
 use crate::gfx::describe_format::describe_format;
 use crate::gfx::owner::gfx;
@@ -34,7 +36,6 @@ use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::system::find_entry::find_entry;
 use crate::system::owner::system;
-use sdl3_sys::everything::*;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 
@@ -45,11 +46,13 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 pub(crate) struct Screen {
     /// The pixels a region while the screen lives (the game's code draws on them by
     /// address: `pointers`). (Declared first: fields drop in order, and the region must go before the memory does.)
-    pub(crate) window: usize,
+    pub(crate) window: sdl::Window,
     /// The window's renderer (`SDL_Renderer`, 2026-10-30: the frame goes up as a texture,
     /// the debug UI drawn over it) and the frame's texture (XRGB8888, the screen's size).
-    renderer: usize,
-    texture: usize,
+    renderer: sdl::Renderer,
+    #[cfg_attr(all(target_os = "linux", target_arch = "aarch64"), allow(dead_code))]
+    // the handheld shows frames on its framebuffer
+    texture: sdl::Texture,
     width: usize,
     height: usize,
     bits: u32,
@@ -186,91 +189,65 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
     });
 
     let mut screen = SCREEN.lock().map_err(|_| "the screen's lock")?;
-    // The old frame's texture is destroyed only once the new screen is whole: on a failure
+    // The old frame's texture is dropped only once the new screen is whole: on a failure
     // the old one stays as it was.
-    let old_texture = screen
-        .as_ref()
-        .map(|old| std::ptr::with_exposed_provenance_mut::<SDL_Texture>(old.texture));
-    // SAFETY: SDL's calls on the window SDL made (kept in `SCREEN` while it lives), on
-    // the thread that opened it; its renderer and textures the same.
-    let (window, renderer, texture) = unsafe {
-        let (window, renderer) = match screen.as_ref() {
-            Some(old) => (
-                std::ptr::with_exposed_provenance_mut::<SDL_Window>(old.window),
-                std::ptr::with_exposed_provenance_mut::<SDL_Renderer>(old.renderer),
-            ),
-            None => {
-                // The handheld's frames go to the framebuffer (`handheld`).
-                #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-                SDL_SetHint(SDL_HINT_VIDEO_DRIVER, c"dummy".as_ptr());
-                if !SDL_Init(SDL_INIT_VIDEO) {
-                    return Err("SDL does not start".into());
-                }
-                let window = SDL_CreateWindow(
-                    c"Rally Championship".as_ptr(),
-                    width as i32,
-                    height as i32,
-                    SDL_WindowFlags(0),
-                );
-                if window.is_null() {
-                    return Err("SDL opens no window".into());
-                }
-                // `RC2K_RENDERER=gpu`: the window's renderer shares the 3D's device.
-                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-                let device = if crate::render::gpu::wanted() {
-                    crate::render::gpu::make_device()
-                } else {
-                    None
-                };
-                // The handheld's starts with its first frame (`render::show_on_panel`).
-                #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-                let device: Option<*mut SDL_GPUDevice> = None;
-                let renderer = match device {
-                    Some(device) => SDL_CreateGPURenderer(device, window),
-                    None => SDL_CreateRenderer(window, std::ptr::null()),
-                };
-                #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-                if let Some(device) = device
-                    && !renderer.is_null()
-                {
-                    crate::render::gpu::start(device);
-                }
-                if renderer.is_null() {
-                    return Err("SDL makes no renderer for the window".into());
-                }
-                (window, renderer)
+    let (window, renderer) = match screen.as_ref() {
+        Some(old) => (old.window, old.renderer),
+        None => {
+            // The handheld's frames go to the framebuffer (`handheld`).
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            sdl::use_dummy_video_driver();
+            if !sdl::init_video() {
+                return Err("SDL does not start".into());
             }
-        };
-        SDL_SetWindowSize(window, width as i32, height as i32);
-        let texture = SDL_CreateTexture(
-            renderer,
-            SDL_PIXELFORMAT_XRGB8888,
-            SDL_TEXTUREACCESS_STREAMING,
-            width as i32,
-            height as i32,
-        );
-        if texture.is_null() {
-            return Err("SDL makes no texture for the frame".into());
+            let Some(window) =
+                sdl::create_window(c"Rally Championship", width as usize, height as usize)
+            else {
+                return Err("SDL opens no window".into());
+            };
+            // `RC2K_RENDERER=gpu`: the window's renderer shares the 3D's device.
+            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            let gpu_device = if crate::render::gpu::wanted() {
+                crate::render::gpu::make_device()
+            } else {
+                None
+            };
+            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            let device = gpu_device.map(crate::ffi::sdl_gpu::Device::as_raw);
+            // The handheld's starts with its first frame (`render::show_on_panel`).
+            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+            let device: Option<*mut sdl3_sys::everything::SDL_GPUDevice> = None;
+            let renderer = match device {
+                Some(device) => sdl::create_gpu_renderer(device, window),
+                None => sdl::create_renderer(window),
+            };
+            #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+            if let Some(device) = gpu_device
+                && renderer.is_some()
+            {
+                crate::render::gpu::start(device);
+            }
+            let Some(renderer) = renderer else {
+                return Err("SDL makes no renderer for the window".into());
+            };
+            (window, renderer)
         }
-        // Black at once, as a mode change leaves the screen: until the first frame is
-        // shown the resized window would show what the window system puts there (white
-        // under Wine, a frame's flash before the loading picture: owner, 2026-10-19).
-        SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-        SDL_RenderClear(renderer);
-        SDL_RenderPresent(renderer);
-        (window, renderer, texture)
     };
+    window.set_size(width as usize, height as usize);
+    let Some(texture) = renderer.create_frame_texture(width as usize, height as usize) else {
+        return Err("SDL makes no texture for the frame".into());
+    };
+    // Black at once, as a mode change leaves the screen: until the first frame is
+    // shown the resized window would show what the window system puts there (white
+    // under Wine, a frame's flash before the loading picture: owner, 2026-10-19).
+    renderer.clear_black();
+    renderer.present();
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     if let Some(gpu) = crate::render::gpu::GPU.lock().unwrap().as_mut()
         && let Err(why) = gpu.set_size(width, height)
     {
-        // SAFETY: the texture made above, held by nothing else.
-        unsafe { SDL_DestroyTexture(texture) };
+        // The texture made above is dropped (destroyed) with `texture`.
         return Err(why);
-    }
-    if let Some(old_texture) = old_texture {
-        // SAFETY: the old screen's texture, replaced below; nothing else holds it.
-        unsafe { SDL_DestroyTexture(old_texture) };
     }
     let pixels = crate::pointers::LentBytes::from_vec(vec![0u8; (bytes * width * height) as usize]);
     gfx.drawing.draw_surface.present_pixels.set(pixels.addr());
@@ -280,9 +257,9 @@ fn set_screen_mode(mode: u32) -> Result<(), String> {
     gfx.drawing.surfaces.front.set(1);
     gfx.drawing.surfaces.back.set(1);
     *screen = Some(Screen {
-        window: window.expose_provenance(),
-        renderer: renderer.expose_provenance(),
-        texture: texture.expose_provenance(),
+        window,
+        renderer,
+        texture,
         width: width as usize,
         height: height as usize,
         bits,
@@ -370,60 +347,30 @@ pub fn unlock_surface() -> u32 {
 // ---- gfx::show_frame (0x4057D1) ----
 
 /// The GPU's colour target as a texture of the window's renderer: made once for a set of
-/// targets (`targets_made`, their number).
+/// targets (`targets_made`, their number), in `GPU_VIEW`.
 #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
-fn view_of(
-    renderer: *mut SDL_Renderer,
-    (colour, targets_made): (*mut SDL_GPUTexture, u64),
+fn make_view(
+    renderer: sdl::Renderer,
+    (colour, targets_made): (*mut sdl3_sys::everything::SDL_GPUTexture, u64),
     width: usize,
     height: usize,
-) -> *mut SDL_Texture {
-    /// The number of the targets' set the view was made for (none yet: 0), and the view as
-    /// a number.
-    static VIEW: Mutex<(u64, usize)> = Mutex::new((0, 0));
-    let mut view = VIEW.lock().unwrap();
+) {
+    let mut view = GPU_VIEW.lock().unwrap();
     if view.0 != targets_made {
-        // SAFETY: SDL's properties, set and read in this block; the renderer and the target
-        // are alive (`SCREEN`, `GPU`); the old view is this function's.
-        unsafe {
-            if view.1 != 0 {
-                SDL_DestroyTexture(std::ptr::with_exposed_provenance_mut(view.1));
-            }
-            let properties = SDL_CreateProperties();
-            SDL_SetPointerProperty(
-                properties,
-                SDL_PROP_TEXTURE_CREATE_GPU_TEXTURE_POINTER,
-                colour.cast(),
+        // The old view is destroyed (dropped) when the new one is made.
+        let Some(made) = renderer.create_gpu_view(colour, width, height) else {
+            crate::fatal::raise::end(
+                "platform::view_of",
+                crate::errors::BadInput("SDL makes no texture of the GPU's picture"),
             );
-            SDL_SetNumberProperty(
-                properties,
-                SDL_PROP_TEXTURE_CREATE_FORMAT_NUMBER,
-                SDL_PIXELFORMAT_ARGB8888.0 as i64,
-            );
-            SDL_SetNumberProperty(
-                properties,
-                SDL_PROP_TEXTURE_CREATE_WIDTH_NUMBER,
-                width as i64,
-            );
-            SDL_SetNumberProperty(
-                properties,
-                SDL_PROP_TEXTURE_CREATE_HEIGHT_NUMBER,
-                height as i64,
-            );
-            let made = SDL_CreateTextureWithProperties(renderer, properties);
-            SDL_DestroyProperties(properties);
-            if made.is_null() {
-                crate::fatal::raise::end(
-                    "platform::view_of",
-                    crate::errors::BadInput("SDL makes no texture of the GPU's picture"),
-                );
-            }
-            SDL_SetTextureBlendMode(made, SDL_BLENDMODE_NONE);
-            *view = (targets_made, made.expose_provenance());
-        }
+        };
+        *view = (targets_made, Some(made));
     }
-    std::ptr::with_exposed_provenance_mut(view.1)
 }
+
+/// The number of the targets' set the view was made for (none yet: 0), and the view.
+#[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+static GPU_VIEW: Mutex<(u64, Option<sdl::Texture>)> = Mutex::new((0, None));
 
 fn show_frame(race: &Race, screen: &Screen) -> Result<(), &'static str> {
     // The frame as XRGB8888: itself at 32 bits, else its 16-bit pixels widened.
@@ -472,38 +419,28 @@ fn show_frame(race: &Race, screen: &Screen) -> Result<(), &'static str> {
     }
     #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
     {
-        let window = std::ptr::with_exposed_provenance_mut::<SDL_Window>(screen.window);
-        let renderer = std::ptr::with_exposed_provenance_mut::<SDL_Renderer>(screen.renderer);
-        let texture = std::ptr::with_exposed_provenance_mut::<SDL_Texture>(screen.texture);
+        let renderer = screen.renderer;
         // A race on the GPU: its picture, the canvas's written pixels over it.
         let gpu_view = crate::platform_3d::screen()
             .and_then(|target| crate::render::finish_frame(&race.course, &target))
-            .map(|colour| view_of(renderer, colour, screen.width, screen.height));
-        // SAFETY: the window's renderer and the frame's texture (`set_screen_mode`), alive while
-        // `SCREEN` holds them; `frame` holds the screen's rows of `width` XRGB8888 pixels.
-        unsafe {
-            if gpu_view.is_none()
-                && !SDL_UpdateTexture(
-                    texture,
-                    std::ptr::null(),
-                    frame.as_ptr().cast(),
-                    (screen.width * 4) as i32,
-                )
-            {
-                return Err("SDL cannot take the frame into its texture");
+            .map(|colour| make_view(renderer, colour, screen.width, screen.height))
+            .is_some();
+        if !gpu_view && !screen.texture.upload(frame, screen.width * 4) {
+            return Err("SDL cannot take the frame into its texture");
+        }
+        renderer.clear_black();
+        if gpu_view {
+            let view = GPU_VIEW.lock().unwrap();
+            // `make_view` has just made it.
+            if let Some(view) = view.1.as_ref() {
+                renderer.draw_whole(view);
             }
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 255);
-            SDL_RenderClear(renderer);
-            let shown = match gpu_view {
-                Some(view) => view,
-                None => texture,
-            };
-            SDL_RenderTexture(renderer, shown, std::ptr::null(), std::ptr::null());
+        } else {
+            renderer.draw_whole(&screen.texture);
         }
         // Not the original's: the debug UI over the frame.
-        crate::debug::imgui_sdl::draw(race, renderer, window);
-        // SAFETY: as above.
-        unsafe { SDL_RenderPresent(renderer) };
+        crate::debug::imgui_sdl::draw(race, renderer, screen.window);
+        renderer.present();
         Ok(())
     }
 }
@@ -600,12 +537,10 @@ pub fn show_frame_now() -> bool {
         crate::platform_timing::start_sampler();
         crate::platform_timing::report_timing();
         // A flip waits for the screen: some sixty frames a second at most.
-        // SAFETY: SDL's clock and wait, no arguments that point anywhere.
-        let now = unsafe { SDL_GetTicks() } as usize;
+        let now = sdl::ticks() as usize;
         let since = now.wrapping_sub(LAST_SHOWN.swap(now, Ordering::SeqCst));
         if since < 16 {
-            // SAFETY: as above.
-            unsafe { SDL_Delay((16 - since) as u32) };
+            sdl::delay((16 - since) as u32);
         }
     }
     true

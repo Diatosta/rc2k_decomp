@@ -4,8 +4,6 @@
 //! Windows-1252 bytes, as the Win32 `A` functions took them. The system's own facts (its
 //! version, names, drives, memory) are each system's file: `windows.rs`, `unix.rs`.
 
-#![allow(unsafe_code)]
-
 #[cfg(windows)]
 mod windows;
 #[cfg(windows)]
@@ -38,18 +36,12 @@ pub fn ticks() -> u32 {
 
 /// The local date and time, as `GetLocalTime` gave them (SDL's calendar).
 pub fn local_time() -> rc2k_core::system::time::LocalTime {
-    use sdl3_sys::time::{SDL_DateTime, SDL_GetCurrentTime, SDL_TimeToDateTime};
-    let mut now = 0;
-    let mut dt = SDL_DateTime::default();
-    // SAFETY: two out-parameters of documented calls that need no SDL start-up.
-    let read =
-        unsafe { SDL_GetCurrentTime(&raw mut now) && SDL_TimeToDateTime(now, &raw mut dt, true) };
-    if !read {
+    let Some(dt) = crate::ffi::sdl::local_date_time() else {
         crate::fatal::raise::end(
             "os::local_time",
             crate::errors::BadInput("the system gave no local time"),
         );
-    }
+    };
     rc2k_core::system::time::LocalTime {
         year: dt.year as u16,
         month: dt.month as u16,
@@ -94,9 +86,7 @@ pub enum Icon {
 /// A message box with one button, over no window, waited for (`MessageBoxA` with
 /// MB_TASKMODAL; the texts Windows-1252).
 pub fn message_box(icon: Icon, caption: &[u8], text: &[u8]) {
-    use sdl3_sys::messagebox::{
-        SDL_MESSAGEBOX_INFORMATION, SDL_MESSAGEBOX_WARNING, SDL_ShowSimpleMessageBox,
-    };
+    use sdl3_sys::messagebox::{SDL_MESSAGEBOX_INFORMATION, SDL_MESSAGEBOX_WARNING};
     let c = |b: &[u8]| {
         std::ffi::CString::new(crate::files::ansi_text(b))
             .unwrap_or_else(|_| c"(a text with a NUL inside)".to_owned())
@@ -106,10 +96,7 @@ pub fn message_box(icon: Icon, caption: &[u8], text: &[u8]) {
         Icon::Information => SDL_MESSAGEBOX_INFORMATION,
         Icon::Warning => SDL_MESSAGEBOX_WARNING,
     };
-    // SAFETY: both texts are NUL-ended and live over the call; no window.
-    unsafe {
-        SDL_ShowSimpleMessageBox(flags, caption.as_ptr(), text.as_ptr(), std::ptr::null_mut())
-    };
+    crate::ffi::sdl::show_message_box(flags, &caption, &text);
 }
 
 #[cfg(test)]

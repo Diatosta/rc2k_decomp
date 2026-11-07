@@ -24,10 +24,7 @@
 //! Not done: Doppler, cones, EAX and the voice manager (their property sets are not
 //! offered: `query_interface` answers `E_NOINTERFACE`, as a DirectSound without them).
 
-#![allow(unsafe_code)]
-
 use crate::system::owner::system;
-use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -635,12 +632,13 @@ pub static LAST_PEAK: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU3
 /// Whether the audio callback has panicked: it gives silence from then on.
 static FEED_PANICKED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
-/// SDL's audio callback: the playing buffers mixed into what the stream wants.
-extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, wanted: i32, _: i32) {
+/// SDL's audio callback: the playing buffers mixed into what the stream wants (none when it
+/// wants less than a frame).
+fn feed(wanted: i32) -> Option<Vec<i16>> {
     use std::sync::atomic::Ordering::Relaxed;
     let frames = (wanted.max(0) / 4) as usize;
     if frames == 0 {
-        return;
+        return None;
     }
     // A panic must not unwind into SDL (it would end the program, unreported).
     let mixed = if FEED_PANICKED.load(Relaxed) {
@@ -648,16 +646,14 @@ extern "C" fn feed(_: *mut core::ffi::c_void, stream: *mut SDL_AudioStream, want
     } else {
         std::panic::catch_unwind(|| mixed_frames(frames)).ok()
     };
-    let pcm = mixed.unwrap_or_else(|| {
+    Some(mixed.unwrap_or_else(|| {
         if !FEED_PANICKED.swap(true, Relaxed) {
             crate::framework::log(
                 "platform_sound: the audio callback panicked: silence from now on",
             );
         }
         vec![0i16; frames * 2]
-    });
-    // SAFETY: the stream SDL called back with; `pcm`'s bytes, their count.
-    unsafe { SDL_PutAudioStreamData(stream, pcm.as_ptr().cast(), (pcm.len() * 2) as i32) };
+    }))
 }
 
 /// The playing buffers mixed into `frames` stereo frames for the device.
@@ -717,29 +713,16 @@ static OPENED: Mutex<bool> = Mutex::new(false);
 pub fn create_device() -> Result<u32, i32> {
     let mut opened = OPENED.lock().unwrap();
     if !*opened {
-        // SAFETY: SDL started on the main thread; the spec and callback live as SDL needs
-        // (`feed` is a plain function, the spec copied by SDL).
-        unsafe {
-            if !SDL_InitSubSystem(SDL_INIT_AUDIO) {
+        match crate::ffi::sdl::start_audio_output(OUT_RATE, feed) {
+            Ok(()) => {}
+            Err(crate::ffi::sdl::AudioError::Init) => {
                 crate::framework::log("platform_sound: SDL audio cannot be started");
                 return Err(NO_DRIVER);
             }
-            let spec = SDL_AudioSpec {
-                format: SDL_AUDIO_S16LE,
-                channels: 2,
-                freq: OUT_RATE as i32,
-            };
-            let stream = SDL_OpenAudioDeviceStream(
-                SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK,
-                &raw const spec,
-                Some(feed),
-                std::ptr::null_mut(),
-            );
-            if stream.is_null() {
+            Err(crate::ffi::sdl::AudioError::NoDevice) => {
                 crate::framework::log("platform_sound: no SDL audio device");
                 return Err(NO_DRIVER);
             }
-            SDL_ResumeAudioStreamDevice(stream);
         }
         *opened = true;
     }

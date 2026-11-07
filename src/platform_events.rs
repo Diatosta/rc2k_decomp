@@ -1,8 +1,7 @@
 //! SDL's events under the game: closing the window sets the quit switch, and the keys and
 //! buttons the menus know become the game's pending key.
 
-#![allow(unsafe_code)]
-
+use crate::ffi::sdl;
 use crate::framework::log;
 use crate::input::owner::input;
 use crate::race::owner::race;
@@ -27,54 +26,37 @@ enum Event {
 
 /// SDL's next event, if there is one.
 fn next_event() -> Option<Event> {
-    // SAFETY: an all-zero `SDL_Event` is valid (a union of plain records); SDL fills it, and
-    // its `type` says which member the reads below take.
-    unsafe {
-        let mut event: SDL_Event = std::mem::zeroed();
-        if !SDL_PollEvent(&raw mut event) {
-            return None;
-        }
-        // Ctrl+F11, in the race and in the menus (which never run `input::update`), and
-        // whatever has the UI's keyboard.
-        if event.r#type == SDL_EVENT_KEY_DOWN.0
-            && event.key.scancode == SDL_SCANCODE_F11
-            && !event.key.repeat
-            && event.key.r#mod.0 & SDL_KMOD_CTRL.0 != 0
-        {
-            crate::debug::overlay::toggle_ui();
-            return Some(Event::Other);
-        }
-        // The debug UI's first (`debug::imgui_sdl`): what it takes the game does not see.
-        if crate::debug::imgui_sdl::event(&event) {
-            return Some(Event::Other);
-        }
-        let kind = event.r#type;
-        Some(if kind == SDL_EVENT_QUIT.0 {
-            Event::Quit
-        } else if kind == SDL_EVENT_WINDOW_FOCUS_GAINED.0 {
-            Event::Focus(true)
-        } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST.0 {
-            Event::Focus(false)
-        } else if kind == SDL_EVENT_JOYSTICK_ADDED.0 {
-            crate::platform_input::pad_added(event.jdevice.which);
-            Event::Other
-        } else if kind == SDL_EVENT_JOYSTICK_REMOVED.0 {
-            crate::platform_input::pad_removed(event.jdevice.which);
-            Event::Other
-        } else if kind == SDL_EVENT_GAMEPAD_BUTTON_DOWN.0 || kind == SDL_EVENT_GAMEPAD_BUTTON_UP.0 {
-            Event::Pad {
-                button: SDL_GamepadButton(event.gbutton.button as i32),
-                down: event.gbutton.down,
-            }
-        } else if kind == SDL_EVENT_KEY_DOWN.0 || kind == SDL_EVENT_KEY_UP.0 {
-            Event::Key {
-                scancode: event.key.scancode.0,
-                down: event.key.down,
-            }
-        } else {
-            Event::Other
-        })
+    let event = sdl::poll_event()?;
+    // Ctrl+F11, in the race and in the menus (which never run `input::update`), and
+    // whatever has the UI's keyboard.
+    if event.is_fresh_ctrl_key_down(SDL_SCANCODE_F11) {
+        crate::debug::overlay::toggle_ui();
+        return Some(Event::Other);
     }
+    // The debug UI's first (`debug::imgui_sdl`): what it takes the game does not see.
+    if crate::debug::imgui_sdl::event(event.as_sdl()) {
+        return Some(Event::Other);
+    }
+    let kind = event.kind();
+    Some(if kind == SDL_EVENT_QUIT {
+        Event::Quit
+    } else if kind == SDL_EVENT_WINDOW_FOCUS_GAINED {
+        Event::Focus(true)
+    } else if kind == SDL_EVENT_WINDOW_FOCUS_LOST {
+        Event::Focus(false)
+    } else if kind == SDL_EVENT_JOYSTICK_ADDED {
+        crate::platform_input::pad_added(event.joystick_id());
+        Event::Other
+    } else if kind == SDL_EVENT_JOYSTICK_REMOVED {
+        crate::platform_input::pad_removed(event.joystick_id());
+        Event::Other
+    } else if let Some((button, down)) = event.gamepad_button() {
+        Event::Pad { button, down }
+    } else if let Some((scancode, down)) = event.key() {
+        Event::Key { scancode, down }
+    } else {
+        Event::Other
+    })
 }
 
 /// Set by `restore_window` (any thread): the window is restored at the next pump, on the
@@ -96,13 +78,7 @@ fn restore_if_asked() {
         return;
     };
     if let Some(screen) = screen.as_ref() {
-        let window = std::ptr::with_exposed_provenance_mut::<SDL_Window>(screen.window);
-        // SAFETY: the window SDL made, alive while `SCREEN` holds it (locked here).
-        unsafe {
-            if SDL_GetWindowFlags(window).0 & SDL_WINDOW_MINIMIZED.0 != 0 {
-                SDL_RestoreWindow(window);
-            }
-        }
+        screen.window.restore_if_minimised();
     }
 }
 

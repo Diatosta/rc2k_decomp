@@ -22,56 +22,43 @@
 //! What SDL's haptics cannot do (an effect it does not have) is logged once and skipped:
 //! the game's own effects go on without it.
 
-#![allow(unsafe_code)]
-
+use crate::ffi::sdl_input::{self, Gamepad, Haptic, Joystick};
 use crate::framework::log;
 use crate::input::di_objects::{Backend, DeviceInfo, Effect, Kind, Reading};
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
 use std::sync::Mutex;
 
-/// The gamepads `pad_added` opened for the menus, by SDL's id (the handles as numbers).
-static MENU_PADS: Mutex<Vec<(SDL_JoystickID, usize)>> = Mutex::new(Vec::new());
+/// The gamepads `pad_added` opened for the menus, by SDL's id.
+static MENU_PADS: Mutex<Vec<(SDL_JoystickID, Gamepad)>> = Mutex::new(Vec::new());
 
 /// A joystick has appeared (SDL's event, also for those there at the start): open as a gamepad
 /// if SDL knows it as one, so its buttons reach the menus (`input::menu_pad`) whether or not
 /// the game has asked for its devices yet.
 pub fn pad_added(id: SDL_JoystickID) {
-    // SAFETY: SDL's calls on the id its event gave; the name it returns (null checked) lives
-    // until the next call. A gamepad opened stays open until it goes (`pad_removed`): SDL
-    // counts the opens, so the game's own open of it is another.
-    unsafe {
-        let name = SDL_GetJoystickNameForID(id);
-        let name = if name.is_null() {
-            "a joystick".into()
-        } else {
-            std::ffi::CStr::from_ptr(name).to_string_lossy()
-        };
-        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-        if name == "ANBERNIC-keys" {
-            let mut text = [0 as std::ffi::c_char; 33];
-            SDL_GUIDToString(SDL_GetJoystickGUIDForID(id), text.as_mut_ptr(), 33);
-            let guid = std::ffi::CStr::from_ptr(text.as_ptr()).to_string_lossy();
-            if let Ok(mapping) = std::ffi::CString::new(crate::handheld::pad_mapping(&guid)) {
-                SDL_AddGamepadMapping(mapping.as_ptr());
-            }
-        }
-        let pad = if SDL_IsGamepad(id) {
-            SDL_OpenGamepad(id)
-        } else {
-            std::ptr::null_mut()
-        };
-        let opened = !pad.is_null();
-        if opened {
-            MENU_PADS
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .push((id, pad.expose_provenance()));
-        }
-        log(&format!(
-            "platform: {name} appeared; a gamepad for the menus: {opened}"
-        ));
+    let name = sdl_input::joystick_name_for_id(id, "a joystick");
+    #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+    if name == "ANBERNIC-keys" {
+        let guid = sdl_input::joystick_guid_text_for_id(id);
+        sdl_input::add_gamepad_mapping(crate::handheld::pad_mapping(&guid));
     }
+    // A gamepad opened stays open until it goes (`pad_removed`): SDL counts the opens, so the
+    // game's own open of it is another.
+    let pad = if sdl_input::is_gamepad(id) {
+        Gamepad::open(id)
+    } else {
+        None
+    };
+    let opened = pad.is_some();
+    if let Some(pad) = pad {
+        MENU_PADS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push((id, pad));
+    }
+    log(&format!(
+        "platform: {name} appeared; a gamepad for the menus: {opened}"
+    ));
 }
 
 /// A joystick has gone (SDL's event): the menus' gamepad of it closed.
@@ -81,8 +68,7 @@ pub fn pad_removed(id: SDL_JoystickID) {
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     pads.retain(|&(pad_id, pad)| {
         if pad_id == id {
-            // SAFETY: the gamepad `pad_added` opened, closed once (it leaves the list).
-            unsafe { SDL_CloseGamepad(std::ptr::with_exposed_provenance_mut(pad)) };
+            pad.close();
         }
         pad_id != id
     });
@@ -90,10 +76,10 @@ pub fn pad_removed(id: SDL_JoystickID) {
 
 struct Device {
     sdl_id: SDL_JoystickID,
-    joystick: *mut SDL_Joystick,
+    joystick: Option<Joystick>,
     /// Read as a gamepad (DirectInput's XInput layout), when SDL knows it as one.
-    gamepad: *mut SDL_Gamepad,
-    haptic: *mut SDL_Haptic,
+    gamepad: Option<Gamepad>,
+    haptic: Option<Haptic>,
     features: u32,
     info: DeviceInfo,
     /// The game's effects (their object numbers) as SDL's.
@@ -105,21 +91,17 @@ struct Device {
 impl Device {
     /// The device's handles closed (it has gone): it reads at rest and plays no effect.
     fn close(&mut self) {
-        // SAFETY: the handles `add` opened, each closed once (set to null after); the
-        // joystick of a gamepad is the gamepad's, closed with it.
-        unsafe {
-            if !self.haptic.is_null() {
-                SDL_CloseHaptic(self.haptic);
-            }
-            if !self.gamepad.is_null() {
-                SDL_CloseGamepad(self.gamepad);
-            } else if !self.joystick.is_null() {
-                SDL_CloseJoystick(self.joystick);
-            }
+        // The handles `add` opened, each closed once (taken); the joystick of a gamepad is
+        // the gamepad's, closed with it.
+        if let Some(haptic) = self.haptic.take() {
+            haptic.close();
         }
-        self.haptic = std::ptr::null_mut();
-        self.gamepad = std::ptr::null_mut();
-        self.joystick = std::ptr::null_mut();
+        if let Some(gamepad) = self.gamepad.take() {
+            gamepad.close();
+        } else if let Some(joystick) = self.joystick {
+            joystick.close();
+        }
+        self.joystick = None;
         self.features = 0;
         self.effects.clear();
     }
@@ -132,26 +114,18 @@ pub struct SdlBackend {
     warned: Vec<String>,
 }
 
-// SAFETY: SDL's joystick and haptic functions take SDL's own lock; the backend is used under
-// the objects' lock, one thread at a time.
-unsafe impl Send for SdlBackend {}
-
 impl SdlBackend {
     /// SDL's joysticks and haptics started (on the main thread, before the game's threads).
     pub fn start() {
-        // SAFETY: plain flags; SDL is started by then (`platform::start`).
-        unsafe {
-            // The handheld's dummy window never has the focus; its pad has no x and y axes, so
-            // SDL does not take its event device for a joystick: named, by its joystick node.
-            #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
-            {
-                SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, c"1".as_ptr());
-                SDL_SetHint(SDL_HINT_JOYSTICK_DEVICE, c"/dev/input/js0".as_ptr());
-            }
-            if !SDL_InitSubSystem(SDL_INIT_JOYSTICK | SDL_INIT_GAMEPAD | SDL_INIT_HAPTIC) {
-                log("platform: SDL's joysticks do not start: no joysticks");
-                return;
-            }
+        // The handheld's dummy window never has the focus; its pad has no x and y axes, so
+        // SDL does not take its event device for a joystick: named, by its joystick node.
+        #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
+        {
+            sdl_input::set_handheld_joystick_hints();
+        }
+        if !sdl_input::init_joystick_subsystems() {
+            log("platform: SDL's joysticks do not start: no joysticks");
+            return;
         }
         crate::input::di_objects::set_backend(Box::new(SdlBackend {
             devices: Vec::new(),
@@ -169,16 +143,8 @@ impl SdlBackend {
 
     /// New joysticks added to the list; those gone closed (they keep their places).
     fn look(&mut self) {
-        // SAFETY: SDL's array of `count` ids (null checked), copied and freed here.
-        let ids = unsafe {
-            let mut count = 0;
-            let ids = SDL_GetJoysticks(&raw mut count);
-            if ids.is_null() {
-                return;
-            }
-            let copied = std::slice::from_raw_parts(ids, count.max(0) as usize).to_vec();
-            SDL_free(ids.cast());
-            copied
+        let Some(ids) = sdl_input::joystick_ids() else {
+            return;
         };
         if ids == self.seen {
             return;
@@ -197,93 +163,73 @@ impl SdlBackend {
     }
 
     fn add(&mut self, id: SDL_JoystickID) {
-        // SAFETY: SDL's calls on a joystick id it listed; the handles it gives are kept in
-        // the device, open while it is.
-        unsafe {
-            let gamepad = if SDL_IsGamepad(id) {
-                SDL_OpenGamepad(id)
-            } else {
-                std::ptr::null_mut()
-            };
-            let joystick = if gamepad.is_null() {
-                SDL_OpenJoystick(id)
-            } else {
-                SDL_GetGamepadJoystick(gamepad)
-            };
-            if joystick.is_null() {
-                return;
-            }
-            let name = SDL_GetJoystickName(joystick);
-            let name = if name.is_null() {
-                "Joystick".to_string()
-            } else {
-                std::ffi::CStr::from_ptr(name)
-                    .to_string_lossy()
-                    .into_owned()
-            };
-            let product = SDL_GetJoystickGUID(joystick).data;
-            let mut instance = product;
-            for (n, b) in id.0.to_le_bytes().iter().enumerate() {
-                instance[n] ^= b;
-            }
-            instance[15] ^= 0x5A;
-            let axes = if gamepad.is_null() {
-                SDL_GetNumJoystickAxes(joystick).clamp(0, 6) as u32
-            } else {
-                5
-            };
-            let haptic = if SDL_IsJoystickHaptic(joystick) {
-                SDL_OpenHapticFromJoystick(joystick)
-            } else {
-                std::ptr::null_mut()
-            };
-            let features = if haptic.is_null() {
-                0
-            } else {
-                SDL_GetHapticFeatures(haptic)
-            };
-            let info = DeviceInfo {
-                name,
-                instance,
-                product,
-                axes: (1 << axes) - 1,
-                buttons: if gamepad.is_null() {
-                    SDL_GetNumJoystickButtons(joystick).clamp(0, 32) as u32
-                } else {
-                    PAD_BUTTONS.len() as u32
-                },
-                hats: if gamepad.is_null() {
-                    SDL_GetNumJoystickHats(joystick).clamp(0, 4) as u32
-                } else {
-                    1
-                },
-                force: !haptic.is_null(),
-            };
-            log(&format!(
-                "platform: joystick {}: \"{}\"{}, {} axes, {} buttons, {} hats, force feedback {} (SDL's effects {features:#x})",
-                self.devices.len(),
-                info.name,
-                if gamepad.is_null() {
-                    ""
-                } else {
-                    " (a gamepad)"
-                },
-                axes,
-                info.buttons,
-                info.hats,
-                info.force
-            ));
-            self.devices.push(Device {
-                sdl_id: id,
-                joystick,
-                gamepad,
-                haptic,
-                features,
-                info,
-                effects: HashMap::new(),
-                stick_moved: [false; 4],
-            });
+        let gamepad = if sdl_input::is_gamepad(id) {
+            Gamepad::open(id)
+        } else {
+            None
+        };
+        let joystick = match gamepad {
+            None => Joystick::open(id),
+            Some(pad) => pad.joystick(),
+        };
+        let Some(joystick) = joystick else {
+            return;
+        };
+        let name = joystick.name();
+        let product = joystick.guid();
+        let mut instance = product;
+        for (n, b) in id.0.to_le_bytes().iter().enumerate() {
+            instance[n] ^= b;
         }
+        instance[15] ^= 0x5A;
+        let axes = if gamepad.is_none() {
+            joystick.axis_count().clamp(0, 6) as u32
+        } else {
+            5
+        };
+        let haptic = joystick.open_haptic();
+        let features = haptic.map_or(0, Haptic::features);
+        let info = DeviceInfo {
+            name,
+            instance,
+            product,
+            axes: (1 << axes) - 1,
+            buttons: if gamepad.is_none() {
+                joystick.button_count().clamp(0, 32) as u32
+            } else {
+                PAD_BUTTONS.len() as u32
+            },
+            hats: if gamepad.is_none() {
+                joystick.hat_count().clamp(0, 4) as u32
+            } else {
+                1
+            },
+            force: haptic.is_some(),
+        };
+        log(&format!(
+            "platform: joystick {}: \"{}\"{}, {} axes, {} buttons, {} hats, force feedback {} (SDL's effects {features:#x})",
+            self.devices.len(),
+            info.name,
+            if gamepad.is_none() {
+                ""
+            } else {
+                " (a gamepad)"
+            },
+            axes,
+            info.buttons,
+            info.hats,
+            info.force
+        ));
+        self.devices.push(Device {
+            sdl_id: id,
+            joystick: Some(joystick),
+            gamepad,
+            haptic,
+            features,
+            info,
+            effects: HashMap::new(),
+            stick_moved: [false; 4],
+        });
     }
 }
 
@@ -312,39 +258,35 @@ fn stick_axis(raw: i32, moved: &mut bool) -> i32 {
     if *moved { raw } else { 0 }
 }
 
-fn pad_reading(device: &mut Device) -> Reading {
-    let pad = device.gamepad;
-    // SAFETY: the device's gamepad, opened by `add` and open while the device is listed.
-    unsafe {
-        let mut r = Reading::default();
-        if !SDL_GamepadConnected(pad) {
-            return r;
-        }
-        let axis = |a| SDL_GetGamepadAxis(pad, a) as i32;
-        // the triggers 0 .. 32767 each: the left one up, the right one down
-        let z = axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) - axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
-        let moved = &mut device.stick_moved;
-        r.axes = [
-            stick_axis(axis(SDL_GAMEPAD_AXIS_LEFTX), &mut moved[0]),
-            stick_axis(axis(SDL_GAMEPAD_AXIS_LEFTY), &mut moved[1]),
-            z.clamp(-32768, 32767),
-            stick_axis(axis(SDL_GAMEPAD_AXIS_RIGHTX), &mut moved[2]),
-            stick_axis(axis(SDL_GAMEPAD_AXIS_RIGHTY), &mut moved[3]),
-            0,
-        ];
-        for (n, &b) in PAD_BUTTONS.iter().enumerate() {
-            if SDL_GetGamepadButton(pad, b) {
-                r.buttons |= 1 << n;
-            }
-        }
-        let held = |b| SDL_GetGamepadButton(pad, b) as u8;
-        let bits = held(SDL_GAMEPAD_BUTTON_DPAD_UP)
-            | held(SDL_GAMEPAD_BUTTON_DPAD_RIGHT) << 1
-            | held(SDL_GAMEPAD_BUTTON_DPAD_DOWN) << 2
-            | held(SDL_GAMEPAD_BUTTON_DPAD_LEFT) << 3;
-        r.hats[0] = hat_direction(bits);
-        r
+fn pad_reading(pad: Gamepad, stick_moved: &mut [bool; 4]) -> Reading {
+    let mut r = Reading::default();
+    if !pad.connected() {
+        return r;
     }
+    let axis = |a| pad.axis(a) as i32;
+    // the triggers 0 .. 32767 each: the left one up, the right one down
+    let z = axis(SDL_GAMEPAD_AXIS_LEFT_TRIGGER) - axis(SDL_GAMEPAD_AXIS_RIGHT_TRIGGER);
+    let moved = stick_moved;
+    r.axes = [
+        stick_axis(axis(SDL_GAMEPAD_AXIS_LEFTX), &mut moved[0]),
+        stick_axis(axis(SDL_GAMEPAD_AXIS_LEFTY), &mut moved[1]),
+        z.clamp(-32768, 32767),
+        stick_axis(axis(SDL_GAMEPAD_AXIS_RIGHTX), &mut moved[2]),
+        stick_axis(axis(SDL_GAMEPAD_AXIS_RIGHTY), &mut moved[3]),
+        0,
+    ];
+    for (n, &b) in PAD_BUTTONS.iter().enumerate() {
+        if pad.button(b) {
+            r.buttons |= 1 << n;
+        }
+    }
+    let held = |b| pad.button(b) as u8;
+    let bits = held(SDL_GAMEPAD_BUTTON_DPAD_UP)
+        | held(SDL_GAMEPAD_BUTTON_DPAD_RIGHT) << 1
+        | held(SDL_GAMEPAD_BUTTON_DPAD_DOWN) << 2
+        | held(SDL_GAMEPAD_BUTTON_DPAD_LEFT) << 3;
+    r.hats[0] = hat_direction(bits);
+    r
 }
 
 /// An SDL hat's bits as DirectInput's direction.
@@ -416,8 +358,7 @@ fn sdl_effect(e: &Effect, features: u32) -> Result<SDL_HapticEffect, String> {
         ],
         None => [0; 4],
     };
-    // SAFETY: a C union of plain integers: all zero is a valid value.
-    let mut out: SDL_HapticEffect = unsafe { std::mem::zeroed() };
+    let mut out = sdl_input::blank_haptic_effect();
     match e.kind {
         Kind::Constant => {
             out.constant = SDL_HapticConstant {
@@ -512,26 +453,23 @@ impl Backend for SdlBackend {
             return Reading::default();
         };
         let mut r = Reading::default();
-        // SAFETY: the device's joystick, open until it has gone (null then); the counts are
-        // SDL's own.
-        unsafe {
-            if d.joystick.is_null() || !SDL_JoystickConnected(d.joystick) {
-                return r;
+        // The device's joystick, open until it has gone (none then).
+        let Some(joystick) = d.joystick.filter(|j| j.connected()) else {
+            return r;
+        };
+        if let Some(pad) = d.gamepad {
+            return pad_reading(pad, &mut d.stick_moved);
+        }
+        for n in 0..d.info.axes.count_ones() as usize {
+            r.axes[n] = joystick.axis(n as i32) as i32;
+        }
+        for n in 0..d.info.buttons {
+            if joystick.button(n as i32) {
+                r.buttons |= 1 << n;
             }
-            if !d.gamepad.is_null() {
-                return pad_reading(d);
-            }
-            for n in 0..d.info.axes.count_ones() as usize {
-                r.axes[n] = SDL_GetJoystickAxis(d.joystick, n as i32) as i32;
-            }
-            for n in 0..d.info.buttons {
-                if SDL_GetJoystickButton(d.joystick, n as i32) {
-                    r.buttons |= 1 << n;
-                }
-            }
-            for n in 0..d.info.hats as usize {
-                r.hats[n] = hat_direction(SDL_GetJoystickHat(d.joystick, n as i32));
-            }
+        }
+        for n in 0..d.info.hats as usize {
+            r.hats[n] = hat_direction(joystick.hat(n as i32));
         }
         r
     }
@@ -540,9 +478,9 @@ impl Backend for SdlBackend {
         let Some(d) = self.devices.get_mut(device) else {
             return;
         };
-        if d.haptic.is_null() {
+        let Some(haptic) = d.haptic else {
             return;
-        }
+        };
         let sdl = match sdl_effect(effect, d.features) {
             Ok(e) => e,
             Err(why) => {
@@ -550,33 +488,27 @@ impl Backend for SdlBackend {
                 return;
             }
         };
-        let (haptic, made) = (d.haptic, d.effects.get(&id).copied());
-        // SAFETY: the device's haptic (not null, open while listed), an effect made on it,
-        // and SDL's NUL-ended error text.
-        unsafe {
-            let sdl_id = match made {
-                Some(sdl_id) => {
-                    SDL_UpdateHapticEffect(haptic, sdl_id, &raw const sdl);
-                    sdl_id
-                }
-                None => {
-                    let sdl_id = SDL_CreateHapticEffect(haptic, &raw const sdl);
-                    if sdl_id.0 < 0 {
-                        let why = std::ffi::CStr::from_ptr(SDL_GetError())
-                            .to_string_lossy()
-                            .into_owned();
-                        self.warn(format!("SDL makes no {:?} effect: {why}", effect.kind));
-                        return;
-                    }
+        let made = d.effects.get(&id).copied();
+        let sdl_id = match made {
+            Some(sdl_id) => {
+                haptic.update_effect(sdl_id, &sdl);
+                sdl_id
+            }
+            None => match haptic.create_effect(&sdl) {
+                Ok(sdl_id) => {
                     d.effects.insert(id, sdl_id);
                     sdl_id
                 }
-            };
-            if start {
-                SDL_RunHapticEffect(haptic, sdl_id, 1);
-            } else if !playing {
-                SDL_StopHapticEffect(haptic, sdl_id);
-            }
+                Err(why) => {
+                    self.warn(format!("SDL makes no {:?} effect: {why}", effect.kind));
+                    return;
+                }
+            },
+        };
+        if start {
+            haptic.run_effect(sdl_id, 1);
+        } else if !playing {
+            haptic.stop_effect(sdl_id);
         }
     }
 
@@ -584,27 +516,28 @@ impl Backend for SdlBackend {
         let Some(d) = self.devices.get_mut(device) else {
             return;
         };
-        if let Some(sdl_id) = d.effects.remove(&id) {
-            // SAFETY: the device's haptic, open while it is listed (SDL refuses a null one).
-            unsafe { SDL_DestroyHapticEffect(d.haptic, sdl_id) };
+        if let Some(sdl_id) = d.effects.remove(&id)
+            && let Some(haptic) = d.haptic
+        {
+            haptic.destroy_effect(sdl_id);
         }
     }
 
     fn gain(&mut self, device: usize, gain: u32) {
         if let Some(d) = self.devices.get(device)
             && d.features & SDL_GAIN != 0
+            && let Some(haptic) = d.haptic
         {
-            // SAFETY: the device's haptic, open while it is listed (SDL refuses a null one).
-            unsafe { SDL_SetHapticGain(d.haptic, (gain / 100) as i32) };
+            haptic.set_gain((gain / 100) as i32);
         }
     }
 
     fn centring(&mut self, device: usize, on: bool) {
         if let Some(d) = self.devices.get(device)
             && d.features & SDL_AUTOCENTER != 0
+            && let Some(haptic) = d.haptic
         {
-            // SAFETY: the device's haptic, open while it is listed (SDL refuses a null one).
-            unsafe { SDL_SetHapticAutocenter(d.haptic, if on { 100 } else { 0 }) };
+            haptic.set_autocenter(if on { 100 } else { 0 });
         }
     }
 
@@ -612,10 +545,9 @@ impl Backend for SdlBackend {
         // Given back, a device's effects stop (as DirectInput's exclusive devices do).
         if !on
             && let Some(d) = self.devices.get(device)
-            && !d.haptic.is_null()
+            && let Some(haptic) = d.haptic
         {
-            // SAFETY: the device's haptic, open while it is listed (SDL refuses a null one).
-            unsafe { SDL_StopHapticEffects(d.haptic) };
+            haptic.stop_effects();
         }
     }
 }

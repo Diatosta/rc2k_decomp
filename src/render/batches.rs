@@ -32,6 +32,24 @@ pub struct PixelValues {
     pub flags: i32,
 }
 
+impl PixelValues {
+    /// The values' dwords as the shader's uniform block holds them.
+    #[cfg(not(all(target_os = "linux", target_arch = "aarch64")))]
+    pub fn to_words(self) -> [u32; 8] {
+        let [red, green, blue, alpha] = self.fog_colour;
+        [
+            red.to_bits(),
+            green.to_bits(),
+            blue.to_bits(),
+            alpha.to_bits(),
+            self.alpha_reference.to_bits(),
+            self.alpha_function as u32,
+            self.mixing as u32,
+            self.flags as u32,
+        ]
+    }
+}
+
 pub const TEXTURED: i32 = 1;
 pub const TEXTURE_HAS_ALPHA: i32 = 2;
 pub const FOG: i32 = 4;

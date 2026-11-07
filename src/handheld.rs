@@ -2,149 +2,32 @@
 //! knows (no DRM, X11 or Wayland), so the frames go straight to `/dev/fb0`. SDL stays for
 //! sound and the pad (`platform_input`, `input::menu_pad`), on its `dummy` video driver.
 
-#![allow(unsafe_code)]
-
-use std::fs::File;
-use std::os::fd::AsRawFd;
+use crate::ffi::linux_handheld::{self, Framebuffer, Sample};
 use std::sync::{Mutex, MutexGuard, OnceLock};
-
-const FBIOGET_VSCREENINFO: libc::c_ulong = 0x4600;
-const FBIOPUT_VSCREENINFO: libc::c_ulong = 0x4601;
-const FBIOGET_FSCREENINFO: libc::c_ulong = 0x4602;
-const FBIOPAN_DISPLAY: libc::c_ulong = 0x4606;
 
 /// The panel.
 const WIDTH: usize = 720;
 const HEIGHT: usize = 480;
 const STRIDE: usize = WIDTH * 4;
 
-/// `fb_var_screeninfo`: 160 bytes, of which these are read and set.
-#[repr(C)]
-struct VarInfo {
-    xres: u32,
-    yres: u32,
-    xres_virtual: u32,
-    yres_virtual: u32,
-    xoffset: u32,
-    yoffset: u32,
-    bits_per_pixel: u32,
-    grayscale: u32,
-    /// Offset and length of red, green, blue, alpha (and each one's `msb_right`).
-    colours: [u32; 12],
-    rest: [u32; 20],
-}
-
-/// `fb_fix_screeninfo`, of which the memory's length and a row's are read.
-#[repr(C)]
-struct FixedInfo {
-    id: [u8; 16],
-    memory_start: libc::c_ulong,
-    memory_length: u32,
-    kind: u32,
-    kind_aux: u32,
-    visual: u32,
-    pan_steps: [u16; 3],
-    row_bytes: u32,
-    io_start: libc::c_ulong,
-    io_length: u32,
-    accel: u32,
-    capabilities: u16,
-    reserved: [u16; 2],
-}
-
-struct Framebuffer {
-    /// Open while the mapping lives.
-    file: File,
-    pixels: *mut u8,
-    info: VarInfo,
+/// The framebuffer and what is shown on it.
+struct Screen {
+    framebuffer: Framebuffer,
     /// The page not on the screen.
     back: usize,
     /// The last frame's size.
     size: (usize, usize),
 }
 
-// SAFETY: only ever used under `FRAMEBUFFER`'s lock; the mapping is the program's for its life.
-unsafe impl Send for Framebuffer {}
-
-impl Framebuffer {
-    /// The two pages.
-    fn pages(&mut self) -> &mut [u8] {
-        // SAFETY: the mapping's whole length, the program's for its life; `&mut self` under
-        // `FRAMEBUFFER`'s lock is the only way to it.
-        unsafe { std::slice::from_raw_parts_mut(self.pixels, STRIDE * HEIGHT * 2) }
-    }
-}
-
-static FRAMEBUFFER: Mutex<Option<Framebuffer>> = Mutex::new(None);
+static FRAMEBUFFER: Mutex<Option<Screen>> = Mutex::new(None);
 
 /// 720x480 at 32 bits, two pages; black.
-fn open_framebuffer() -> Result<Framebuffer, String> {
-    let file = File::options()
-        .read(true)
-        .write(true)
-        .open("/dev/fb0")
-        .map_err(|e| format!("/dev/fb0: {e}"))?;
-    let fd = file.as_raw_fd();
-    let len = STRIDE * HEIGHT * 2;
-    // SAFETY: the ioctls fill and read a record of the kernel's size; the mapping's length is
-    // checked by the kernel against the framebuffer's memory.
-    unsafe {
-        let mut info: VarInfo = std::mem::zeroed();
-        if libc::ioctl(fd, FBIOGET_VSCREENINFO, &mut info) != 0 {
-            return Err("the framebuffer's mode cannot be read".into());
-        }
-        info.xres = WIDTH as u32;
-        info.yres = HEIGHT as u32;
-        info.xres_virtual = WIDTH as u32;
-        info.yres_virtual = HEIGHT as u32 * 2;
-        info.xoffset = 0;
-        info.yoffset = 0;
-        info.bits_per_pixel = 32;
-        // XRGB8888 in memory order B, G, R, X: the frames' own.
-        info.colours = [16, 8, 0, 8, 8, 0, 0, 8, 0, 24, 8, 0];
-        if libc::ioctl(fd, FBIOPUT_VSCREENINFO, &mut info) != 0 {
-            return Err("the framebuffer takes no 720x480 at 32 bits".into());
-        }
-        // The mode the driver has set, which may not be the one asked for.
-        let set = (info.xres, info.yres, info.bits_per_pixel);
-        if set != (WIDTH as u32, HEIGHT as u32, 32) || info.yres_virtual < HEIGHT as u32 * 2 {
-            return Err(format!(
-                "the framebuffer set {} x {} at {} bits, {} rows in all, not 720x480 at 32 bits \
-                 on two pages",
-                set.0, set.1, set.2, info.yres_virtual
-            ));
-        }
-        let mut fixed: FixedInfo = std::mem::zeroed();
-        if libc::ioctl(fd, FBIOGET_FSCREENINFO, &mut fixed) != 0 {
-            return Err("the framebuffer's layout cannot be read".into());
-        }
-        if fixed.row_bytes as usize != STRIDE || (fixed.memory_length as usize) < len {
-            return Err(format!(
-                "the framebuffer's rows are {} bytes and its memory {} bytes, not {STRIDE} and \
-                 at least {len}",
-                fixed.row_bytes, fixed.memory_length
-            ));
-        }
-        let pixels = libc::mmap(
-            std::ptr::null_mut(),
-            len,
-            libc::PROT_READ | libc::PROT_WRITE,
-            libc::MAP_SHARED,
-            fd,
-            0,
-        );
-        if pixels == libc::MAP_FAILED {
-            return Err("the framebuffer cannot be mapped".into());
-        }
-        std::ptr::write_bytes(pixels.cast::<u8>(), 0, len);
-        Ok(Framebuffer {
-            file,
-            pixels: pixels.cast(),
-            info,
-            back: 1,
-            size: (0, 0),
-        })
-    }
+fn open_framebuffer() -> Result<Screen, String> {
+    Ok(Screen {
+        framebuffer: Framebuffer::open(WIDTH, HEIGHT, STRIDE)?,
+        back: 1,
+        size: (0, 0),
+    })
 }
 
 /// The framebuffer in its mode, the first time.
@@ -176,7 +59,7 @@ pub fn present(frame: &[u8], width: usize, height: usize) -> Result<(), &'static
     // A new size leaves old pixels where the frame no longer reaches: both pages cleared.
     if fb.size != (width, height) {
         fb.size = (width, height);
-        fb.pages().fill(0);
+        fb.framebuffer.pages().fill(0);
     }
     let (shown_w, shown_h) = if width > WIDTH || height > HEIGHT {
         let by_height = (width * HEIGHT / height, HEIGHT);
@@ -190,7 +73,7 @@ pub fn present(frame: &[u8], width: usize, height: usize) -> Result<(), &'static
     };
     let (left, top) = ((WIDTH - shown_w) / 2, (HEIGHT - shown_h) / 2);
     let page = fb.back * HEIGHT * STRIDE;
-    let pages = fb.pages();
+    let pages = fb.framebuffer.pages();
     for row in 0..shown_h {
         let from = &frame[row * height / shown_h * width * 4..][..width * 4];
         let at = page + (top + row) * STRIDE + left * 4;
@@ -204,9 +87,7 @@ pub fn present(frame: &[u8], width: usize, height: usize) -> Result<(), &'static
             }
         }
     }
-    fb.info.yoffset = (fb.back * HEIGHT) as u32;
-    // SAFETY: the record the kernel gave, with the page's offset.
-    if unsafe { libc::ioctl(fb.file.as_raw_fd(), FBIOPAN_DISPLAY, &mut fb.info) } != 0 {
+    if !fb.framebuffer.pan_to((fb.back * HEIGHT) as u32) {
         return Err("the framebuffer does not pan");
     }
     fb.back ^= 1;
@@ -319,22 +200,14 @@ static CALLED_FROM: [[AtomicUsize; CALLERS]; SAMPLES] =
     [const { [const { AtomicUsize::new(0) }; CALLERS] }; SAMPLES];
 static TAKEN: AtomicUsize = AtomicUsize::new(0);
 
-/// The timer's signal: only atomics and a system call, as a handler must.
-unsafe extern "C" fn on_profile(
-    _signal: libc::c_int,
-    _info: *mut libc::siginfo_t,
-    context: *mut libc::c_void,
-) {
-    // SAFETY: the record the system hands the handler.
-    let (pc, sp, mut frame, lr) = unsafe {
-        let m = &(*context.cast::<libc::ucontext_t>()).uc_mcontext;
-        (
-            m.pc as usize,
-            m.sp as usize,
-            m.regs[29] as usize,
-            m.regs[30] as usize,
-        )
-    };
+/// The timer's signal, as `linux_handheld` hands it: only atomics and a system call.
+fn on_profile(sample: Sample) {
+    let Sample {
+        pc,
+        sp,
+        mut frame,
+        link: lr,
+    } = sample;
     let n = TAKEN.fetch_add(1, Relaxed);
     if n < SAMPLES {
         PLACES[n].store(pc, Relaxed);
@@ -348,36 +221,15 @@ unsafe extern "C" fn on_profile(
             }
             // Read by the kernel, which answers a failure for memory past the stack's top
             // rather than a fault in the handler.
-            let Some([next, from]) = read_own_words(frame) else {
+            let Some([next, from]) = linux_handheld::read_own_words(frame) else {
                 break;
             };
             caller.store(from, Relaxed);
             low = frame + 16;
             frame = next;
         }
-        // SAFETY: `gettid` takes nothing and cannot fail.
-        THREADS[n].store(unsafe { libc::syscall(libc::SYS_gettid) } as u32, Relaxed);
+        THREADS[n].store(linux_handheld::current_thread_id(), Relaxed);
     }
-}
-
-/// The two words at `at` in this process's memory, or None where it has none; a system call
-/// alone, as a signal handler must.
-fn read_own_words(at: usize) -> Option<[usize; 2]> {
-    let mut words = [0usize; 2];
-    let local = libc::iovec {
-        iov_base: words.as_mut_ptr().cast(),
-        iov_len: size_of_val(&words),
-    };
-    let remote = libc::iovec {
-        iov_base: std::ptr::with_exposed_provenance_mut(at),
-        iov_len: size_of_val(&words),
-    };
-    // SAFETY: `local` is `words`, of its length; the kernel only reads at `remote`, and fails
-    // the call for memory that is not there.
-    let read = unsafe {
-        libc::process_vm_readv(libc::getpid(), &raw const local, 1, &raw const remote, 1, 0)
-    };
-    (read == size_of_val(&words) as isize).then_some(words)
 }
 
 /// The timer started if `RC2K_PROFILE` is set: 500 samples of processor time a second.
@@ -385,23 +237,7 @@ pub fn start_profile() {
     if std::env::var_os("RC2K_PROFILE").is_none() {
         return;
     }
-    // SAFETY: a handler of the system's signature, for the program's life; the records are
-    // plain data the calls only read.
-    unsafe {
-        let mut action: libc::sigaction = std::mem::zeroed();
-        action.sa_sigaction = on_profile as *const () as usize;
-        action.sa_flags = libc::SA_SIGINFO | libc::SA_RESTART;
-        libc::sigaction(libc::SIGPROF, &raw const action, std::ptr::null_mut());
-        let time = libc::timeval {
-            tv_sec: 0,
-            tv_usec: 2000,
-        };
-        let timer = libc::itimerval {
-            it_interval: time,
-            it_value: time,
-        };
-        libc::setitimer(libc::ITIMER_PROF, &raw const timer, std::ptr::null_mut());
-    }
+    linux_handheld::start_profile_timer(on_profile);
     crate::framework::log(&format!(
         "handheld: profiling; the code's base {:#x}",
         start_profile as *const () as usize

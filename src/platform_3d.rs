@@ -29,6 +29,7 @@
 //! The drawing is noted and drawn in tiles over the processor's threads when something is to
 //! see it (see `flush`).
 
+// Not FFI: `LentBytes::slice_mut` (the target's pixels) is a memory primitive.
 #![allow(unsafe_code)]
 
 use crate::d3d::owner::d3d;

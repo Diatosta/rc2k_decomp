@@ -2,120 +2,22 @@
 //! there, and SDL has no display for it), drawing to `/dev/fb0` through its EGL. The same frame
 //! as `gpu`'s: `batches`' lists, the canvas's written pixels over the 3D. The GL's own thread
 //! holds the context and does the driver's work (a quarter of a frame's time on this processor);
-//! the game's thread hands it copies, by channel, and goes on. All of this file's `unsafe` is
-//! the calls through the library's table, on that thread alone.
+//! the game's thread hands it copies, by channel, and goes on. The calls into the
+//! library are `ffi::gl`'s.
 
 mod bench;
 
 use super::batches::{Batches, PipelineKey, PixelValues};
 use super::{Command, Target, TextureNote};
+use crate::ffi::gl::Gles;
 use crate::framework::log;
 use std::collections::HashMap;
-use std::ffi::{CStr, CString, c_char, c_void};
+use std::ffi::CStr;
 use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, Sender, SyncSender, channel, sync_channel};
 
 /// A canvas pixel the game has not written (`gpu::UNWRITTEN`'s kin).
 pub const UNWRITTEN: u32 = 0xA5FF_00FF;
-
-type P = *mut c_void;
-macro_rules! library {
-    ($($name:ident: fn($($arg:ty),*) $(-> $ret:ty)?;)*) => {
-        #[allow(non_snake_case)] // the library's names
-        struct Library { $($name: unsafe extern "C" fn($($arg),*) $(-> $ret)?,)* }
-        impl Library {
-            fn open() -> Result<Library, String> {
-                // SAFETY: a constant name; each symbol is cast to the type the Khronos
-                // headers give it, and the library stays open for the program's life.
-                unsafe {
-                    let handle = libc::dlopen(c"/usr/lib/libmali.so".as_ptr(), libc::RTLD_NOW);
-                    if handle.is_null() {
-                        return Err("no /usr/lib/libmali.so".into());
-                    }
-                    Ok(Library { $($name: {
-                        let symbol = libc::dlsym(
-                            handle,
-                            concat!(stringify!($name), "\0").as_ptr().cast(),
-                        );
-                        if symbol.is_null() {
-                            return Err(concat!("libmali has no ", stringify!($name)).into());
-                        }
-                        std::mem::transmute::<*mut c_void, unsafe extern "C" fn($($arg),*) $(-> $ret)?>(symbol)
-                    },)* })
-                }
-            }
-        }
-    };
-}
-library! {
-    eglGetDisplay: fn(P) -> P;
-    eglInitialize: fn(P, *mut i32, *mut i32) -> u32;
-    eglChooseConfig: fn(P, *const i32, *mut P, i32, *mut i32) -> u32;
-    eglCreateWindowSurface: fn(P, P, P, *const i32) -> P;
-    eglCreateContext: fn(P, P, P, *const i32) -> P;
-    eglMakeCurrent: fn(P, P, P, P) -> u32;
-    eglSwapBuffers: fn(P, P) -> u32;
-    eglSwapInterval: fn(P, i32) -> u32;
-    eglBindAPI: fn(u32) -> u32;
-    eglGetError: fn() -> i32;
-    glCreateShader: fn(u32) -> u32;
-    glShaderSource: fn(u32, i32, *const *const c_char, *const i32);
-    glCompileShader: fn(u32);
-    glGetShaderiv: fn(u32, u32, *mut i32);
-    glGetShaderInfoLog: fn(u32, i32, *mut i32, *mut c_char);
-    glCreateProgram: fn() -> u32;
-    glAttachShader: fn(u32, u32);
-    glLinkProgram: fn(u32);
-    glUseProgram: fn(u32);
-    glGetUniformLocation: fn(u32, *const c_char) -> i32;
-    glUniform1i: fn(i32, i32);
-    glUniform1f: fn(i32, f32);
-    glUniform2f: fn(i32, f32, f32);
-    glUniform4fv: fn(i32, i32, *const f32);
-    glGenTextures: fn(i32, *mut u32);
-    glDeleteTextures: fn(i32, *const u32);
-    glBindTexture: fn(u32, u32);
-    glTexImage2D: fn(u32, i32, i32, i32, i32, i32, u32, u32, *const c_void);
-    glTexSubImage2D: fn(u32, i32, i32, i32, i32, i32, u32, u32, *const c_void);
-    glTexParameteri: fn(u32, u32, i32);
-    glGenSamplers: fn(i32, *mut u32);
-    glBindSampler: fn(u32, u32);
-    glSamplerParameteri: fn(u32, u32, i32);
-    glGenBuffers: fn(i32, *mut u32);
-    glBindBuffer: fn(u32, u32);
-    glBufferData: fn(u32, isize, *const c_void, u32);
-    glGenVertexArrays: fn(i32, *mut u32);
-    glBindVertexArray: fn(u32);
-    glEnableVertexAttribArray: fn(u32);
-    glVertexAttribPointer: fn(u32, i32, u32, u8, i32, *const c_void);
-    glGenFramebuffers: fn(i32, *mut u32);
-    glBindFramebuffer: fn(u32, u32);
-    glFramebufferTexture2D: fn(u32, u32, u32, u32, i32);
-    glGenRenderbuffers: fn(i32, *mut u32);
-    glBindRenderbuffer: fn(u32, u32);
-    glRenderbufferStorage: fn(u32, u32, i32, i32);
-    glFramebufferRenderbuffer: fn(u32, u32, u32, u32);
-    glCheckFramebufferStatus: fn(u32) -> u32;
-    glViewport: fn(i32, i32, i32, i32);
-    glScissor: fn(i32, i32, i32, i32);
-    glClearColor: fn(f32, f32, f32, f32);
-    glClearDepthf: fn(f32);
-    glClear: fn(u32);
-    glEnable: fn(u32);
-    glDisable: fn(u32);
-    glBlendFunc: fn(u32, u32);
-    glDepthFunc: fn(u32);
-    glDepthMask: fn(u8);
-    glColorMask: fn(u8, u8, u8, u8);
-    glCullFace: fn(u32);
-    glFrontFace: fn(u32);
-    glDrawArrays: fn(u32, i32, i32);
-    glReadPixels: fn(i32, i32, i32, i32, u32, u32, *mut c_void);
-    glFinish: fn();
-    glActiveTexture: fn(u32);
-    glDeleteBuffers: fn(i32, *const u32);
-    glDeleteVertexArrays: fn(i32, *const u32);
-}
 
 const TEXTURE_2D: u32 = 0x0DE1;
 const TEXTURE0: u32 = 0x84C0;
@@ -273,9 +175,7 @@ struct CachedTexture {
 }
 
 pub struct Gpu {
-    gl: Library,
-    display: P,
-    surface: P,
+    gl: Gles,
     scene: u32,
     locations: Locations,
     overlay: Quad,
@@ -307,129 +207,56 @@ pub fn wanted() -> bool {
 
 impl Gpu {
     fn new() -> Result<Gpu, String> {
-        let gl = Library::open()?;
-        // SAFETY: EGL's and GL's calls with the values their documents ask for; the attribute
-        // lists are ended by EGL_NONE and live through their calls; the window record's
-        // lifetime is the program's (leaked: libmali holds on to it).
-        unsafe {
-            let display = (gl.eglGetDisplay)(std::ptr::null_mut());
-            let (mut major, mut minor) = (0, 0);
-            if (gl.eglInitialize)(display, &raw mut major, &raw mut minor) == 0 {
-                return Err(format!("eglInitialize: {:#x}", (gl.eglGetError)()));
-            }
-            let wanted = [
-                0x3024, 8, 0x3023, 8, 0x3022, 8, 0x3033, 4, 0x3040, 0x40, 0x3038i32,
-            ];
-            let (mut config, mut found) = (std::ptr::null_mut(), 0);
-            (gl.eglChooseConfig)(display, wanted.as_ptr(), &raw mut config, 1, &raw mut found);
-            if found == 0 {
-                return Err("EGL has no such config".into());
-            }
-            (gl.eglBindAPI)(0x30A0);
-            #[repr(C)]
-            struct FbdevWindow {
-                width: u16,
-                height: u16,
-            }
-            let window = Box::leak(Box::new(FbdevWindow {
-                width: PANEL.0 as u16,
-                height: PANEL.1 as u16,
-            }));
-            let surface = (gl.eglCreateWindowSurface)(
-                display,
-                config,
-                std::ptr::from_mut(window).cast(),
-                std::ptr::null(),
-            );
-            let attributes = [0x3098, 3, 0x3038i32];
-            let context =
-                (gl.eglCreateContext)(display, config, std::ptr::null_mut(), attributes.as_ptr());
-            if surface.is_null()
-                || context.is_null()
-                || (gl.eglMakeCurrent)(display, surface, surface, context) == 0
-            {
-                return Err(format!("the EGL context: {:#x}", (gl.eglGetError)()));
-            }
-            (gl.eglSwapInterval)(display, 0);
-            let mut gpu = Gpu {
-                display,
-                surface,
-                scene: 0,
-                locations: Locations {
-                    size: 0,
-                    first: ValueLocations::default(),
-                    second: ValueLocations::default(),
-                },
-                overlay: Quad {
-                    program: 0,
-                    flip: 0,
-                },
-                canvas_quad: Quad {
-                    program: 0,
-                    flip: 0,
-                },
-                target_quad: Quad {
-                    program: 0,
-                    flip: 0,
-                },
-                vertices: 0,
-                seconds: 0,
-                empty_array: 0,
-                scene_array: 0,
-                samplers: [0; 4],
-                framebuffer: 0,
-                colour: 0,
-                depth: 0,
-                canvas: 0,
-                canvas_size: (0, 0),
-                width: 0,
-                height: 0,
-                depth_is_new: true,
-                textures: HashMap::new(),
-                gl,
-            };
-            gpu.set_up()?;
-            Ok(gpu)
-        }
-    }
-
-    fn compile(&self, kind: u32, text: &CStr) -> Result<u32, String> {
-        // SAFETY: the text lives through the call, ended by its NUL; the log's room is given.
-        unsafe {
-            let shader = (self.gl.glCreateShader)(kind);
-            let pointer = text.as_ptr();
-            (self.gl.glShaderSource)(shader, 1, &raw const pointer, std::ptr::null());
-            (self.gl.glCompileShader)(shader);
-            let mut done = 0;
-            (self.gl.glGetShaderiv)(shader, 0x8B81, &raw mut done);
-            if done == 0 {
-                let mut log = [0 as c_char; 600];
-                (self.gl.glGetShaderInfoLog)(shader, 600, std::ptr::null_mut(), log.as_mut_ptr());
-                return Err(CStr::from_ptr(log.as_ptr()).to_string_lossy().into_owned());
-            }
-            Ok(shader)
-        }
+        let gl = Gles::open_panel(PANEL.0 as u16, PANEL.1 as u16)?;
+        let mut gpu = Gpu {
+            scene: 0,
+            locations: Locations {
+                size: 0,
+                first: ValueLocations::default(),
+                second: ValueLocations::default(),
+            },
+            overlay: Quad {
+                program: 0,
+                flip: 0,
+            },
+            canvas_quad: Quad {
+                program: 0,
+                flip: 0,
+            },
+            target_quad: Quad {
+                program: 0,
+                flip: 0,
+            },
+            vertices: 0,
+            seconds: 0,
+            empty_array: 0,
+            scene_array: 0,
+            samplers: [0; 4],
+            framebuffer: 0,
+            colour: 0,
+            depth: 0,
+            canvas: 0,
+            canvas_size: (0, 0),
+            width: 0,
+            height: 0,
+            depth_is_new: true,
+            textures: HashMap::new(),
+            gl,
+        };
+        gpu.set_up()?;
+        Ok(gpu)
     }
 
     fn program(&self, vertex: &CStr, fragment: &CStr) -> Result<u32, String> {
         let (v, f) = (
-            self.compile(0x8B31, vertex)?,
-            self.compile(0x8B30, fragment)?,
+            self.gl.compile_shader(0x8B31, vertex)?,
+            self.gl.compile_shader(0x8B30, fragment)?,
         );
-        // SAFETY: shaders just made.
-        unsafe {
-            let program = (self.gl.glCreateProgram)();
-            (self.gl.glAttachShader)(program, v);
-            (self.gl.glAttachShader)(program, f);
-            (self.gl.glLinkProgram)(program);
-            Ok(program)
-        }
+        Ok(self.gl.link_program(v, f))
     }
 
     fn uniform(&self, program: u32, name: &str) -> i32 {
-        let name = CString::new(name).expect("no NUL in a uniform's name");
-        // SAFETY: the name lives through the call.
-        unsafe { (self.gl.glGetUniformLocation)(program, name.as_ptr()) }
+        self.gl.uniform_location(program, name)
     }
 
     fn quad(&self, fragment: &CStr) -> Result<Quad, String> {
@@ -459,51 +286,46 @@ impl Gpu {
         self.canvas_quad = self.quad(CANVAS_FS)?;
         self.target_quad = self.quad(TARGET_FS)?;
         let gl = &self.gl;
-        // SAFETY: names made here, each out-pointer valid for the call; the attribute layout is
-        // `batches::Vertex`'s eight dwords.
-        unsafe {
-            (gl.glGenVertexArrays)(1, &raw mut self.empty_array);
-            (gl.glGenVertexArrays)(1, &raw mut self.scene_array);
-            (gl.glGenBuffers)(1, &raw mut self.vertices);
-            (gl.glGenBuffers)(1, &raw mut self.seconds);
-            (gl.glBindVertexArray)(self.scene_array);
-            (gl.glBindBuffer)(ARRAY_BUFFER, self.vertices);
-            for (n, count, kind, normal, offset) in [
-                (0u32, 4, 0x1406u32, 0u8, 0usize),
-                (1, 4, UNSIGNED_BYTE, 1, 16),
-                (2, 4, UNSIGNED_BYTE, 1, 20),
-                (3, 2, 0x1406, 0, 24),
-            ] {
-                (gl.glEnableVertexAttribArray)(n);
-                (gl.glVertexAttribPointer)(n, count, kind, normal, 32, offset as *const c_void);
-            }
-            // The second passes' colour, specular and texture place: `Batches::seconds`.
-            (gl.glBindBuffer)(ARRAY_BUFFER, self.seconds);
-            for (n, count, kind, normal, offset) in [
-                (4u32, 4, UNSIGNED_BYTE, 1u8, 0usize),
-                (5, 4, UNSIGNED_BYTE, 1, 4),
-                (6, 2, 0x1406, 0, 8),
-            ] {
-                (gl.glEnableVertexAttribArray)(n);
-                (gl.glVertexAttribPointer)(n, count, kind, normal, 16, offset as *const c_void);
-            }
-            (gl.glUseProgram)(self.scene);
-            (gl.glUniform1i)(second_picture, 1);
-            (gl.glGenSamplers)(4, self.samplers.as_mut_ptr());
-            for (n, &sampler) in self.samplers.iter().enumerate() {
-                let filter = if n & 1 != 0 { 0x2601 } else { 0x2600 };
-                let wrap = if n & 2 != 0 { 0x812F } else { 0x2901 };
-                (gl.glSamplerParameteri)(sampler, 0x2801, filter);
-                (gl.glSamplerParameteri)(sampler, 0x2800, filter);
-                (gl.glSamplerParameteri)(sampler, 0x2802, wrap);
-                (gl.glSamplerParameteri)(sampler, 0x2803, wrap);
-            }
-            (gl.glGenFramebuffers)(1, &raw mut self.framebuffer);
-            (gl.glGenTextures)(1, &raw mut self.colour);
-            (gl.glGenTextures)(1, &raw mut self.canvas);
-            (gl.glGenRenderbuffers)(1, &raw mut self.depth);
-            (gl.glFrontFace)(0x0900); // the shown ones are clockwise on the screen
+        // The attribute layout is `batches::Vertex`'s eight dwords.
+        self.empty_array = gl.gen_vertex_array();
+        self.scene_array = gl.gen_vertex_array();
+        self.vertices = gl.gen_buffer();
+        self.seconds = gl.gen_buffer();
+        gl.bind_vertex_array(self.scene_array);
+        gl.bind_buffer(ARRAY_BUFFER, self.vertices);
+        for (n, count, kind, normal, offset) in [
+            (0u32, 4, 0x1406u32, false, 0usize),
+            (1, 4, UNSIGNED_BYTE, true, 16),
+            (2, 4, UNSIGNED_BYTE, true, 20),
+            (3, 2, 0x1406, false, 24),
+        ] {
+            gl.attribute(n, count, kind, normal, 32, offset);
         }
+        // The second passes' colour, specular and texture place: `Batches::seconds`.
+        gl.bind_buffer(ARRAY_BUFFER, self.seconds);
+        for (n, count, kind, normal, offset) in [
+            (4u32, 4, UNSIGNED_BYTE, true, 0usize),
+            (5, 4, UNSIGNED_BYTE, true, 4),
+            (6, 2, 0x1406, false, 8),
+        ] {
+            gl.attribute(n, count, kind, normal, 16, offset);
+        }
+        gl.use_program(self.scene);
+        gl.uniform_1i(second_picture, 1);
+        self.samplers = gl.gen_samplers();
+        for (n, &sampler) in self.samplers.iter().enumerate() {
+            let filter = if n & 1 != 0 { 0x2601 } else { 0x2600 };
+            let wrap = if n & 2 != 0 { 0x812F } else { 0x2901 };
+            gl.sampler_parameter(sampler, 0x2801, filter);
+            gl.sampler_parameter(sampler, 0x2800, filter);
+            gl.sampler_parameter(sampler, 0x2802, wrap);
+            gl.sampler_parameter(sampler, 0x2803, wrap);
+        }
+        self.framebuffer = gl.gen_framebuffer();
+        self.colour = gl.gen_texture();
+        self.canvas = gl.gen_texture();
+        self.depth = gl.gen_renderbuffer();
+        gl.front_face(0x0900); // the shown ones are clockwise on the screen
         Ok(())
     }
 
@@ -513,30 +335,18 @@ impl Gpu {
             return Ok(());
         }
         let gl = &self.gl;
-        // SAFETY: names made in `set_up`; no pixels given.
-        unsafe {
-            (gl.glBindTexture)(TEXTURE_2D, self.colour);
-            (gl.glTexImage2D)(
-                TEXTURE_2D,
-                0,
-                0x8058,
-                width,
-                height,
-                0,
-                RGBA,
-                UNSIGNED_BYTE,
-                std::ptr::null(),
-            );
-            (gl.glTexParameteri)(TEXTURE_2D, 0x2801, 0x2600);
-            (gl.glTexParameteri)(TEXTURE_2D, 0x2800, 0x2600);
-            (gl.glBindRenderbuffer)(0x8D41, self.depth);
-            (gl.glRenderbufferStorage)(0x8D41, 0x81A6, width, height);
-            (gl.glBindFramebuffer)(FRAMEBUFFER, self.framebuffer);
-            (gl.glFramebufferTexture2D)(FRAMEBUFFER, 0x8CE0, TEXTURE_2D, self.colour, 0);
-            (gl.glFramebufferRenderbuffer)(FRAMEBUFFER, 0x8D00, 0x8D41, self.depth);
-            if (gl.glCheckFramebufferStatus)(FRAMEBUFFER) != 0x8CD5 {
-                return Err("the frame buffer object is not complete".into());
-            }
+        // No pixels given.
+        gl.bind_texture(TEXTURE_2D, self.colour);
+        gl.tex_image_2d(0x8058, width, height, RGBA, UNSIGNED_BYTE, None);
+        gl.tex_parameter(TEXTURE_2D, 0x2801, 0x2600);
+        gl.tex_parameter(TEXTURE_2D, 0x2800, 0x2600);
+        gl.bind_renderbuffer(0x8D41, self.depth);
+        gl.renderbuffer_storage(0x8D41, 0x81A6, width, height);
+        gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
+        gl.framebuffer_texture_2d(FRAMEBUFFER, 0x8CE0, self.colour);
+        gl.framebuffer_renderbuffer(FRAMEBUFFER, 0x8D00, self.depth);
+        if gl.framebuffer_status(FRAMEBUFFER) != 0x8CD5 {
+            return Err("the frame buffer object is not complete".into());
         }
         (self.width, self.height) = (width, height);
         self.depth_is_new = true;
@@ -546,39 +356,15 @@ impl Gpu {
     /// The canvas's bytes into its texture.
     fn upload_canvas(&mut self, canvas: &[u8], width: i32, height: i32) {
         let gl = &self.gl;
-        // SAFETY: `canvas` holds `width` x `height` pixels of four bytes (`Target::bytes`,
-        // `present`'s check).
-        unsafe {
-            (gl.glBindTexture)(TEXTURE_2D, self.canvas);
-            (gl.glBindSampler)(0, 0);
-            if self.canvas_size != (width, height) {
-                (gl.glTexImage2D)(
-                    TEXTURE_2D,
-                    0,
-                    0x8058,
-                    width,
-                    height,
-                    0,
-                    RGBA,
-                    UNSIGNED_BYTE,
-                    canvas.as_ptr().cast(),
-                );
-                (gl.glTexParameteri)(TEXTURE_2D, 0x2801, 0x2600);
-                (gl.glTexParameteri)(TEXTURE_2D, 0x2800, 0x2600);
-                self.canvas_size = (width, height);
-            } else {
-                (gl.glTexSubImage2D)(
-                    TEXTURE_2D,
-                    0,
-                    0,
-                    0,
-                    width,
-                    height,
-                    RGBA,
-                    UNSIGNED_BYTE,
-                    canvas.as_ptr().cast(),
-                );
-            }
+        gl.bind_texture(TEXTURE_2D, self.canvas);
+        gl.bind_sampler(0, 0);
+        if self.canvas_size != (width, height) {
+            gl.tex_image_2d(0x8058, width, height, RGBA, UNSIGNED_BYTE, Some(canvas));
+            gl.tex_parameter(TEXTURE_2D, 0x2801, 0x2600);
+            gl.tex_parameter(TEXTURE_2D, 0x2800, 0x2600);
+            self.canvas_size = (width, height);
+        } else {
+            gl.tex_sub_image_2d((0, 0), (width, height), RGBA, UNSIGNED_BYTE, canvas);
         }
     }
 
@@ -594,62 +380,40 @@ impl Gpu {
         last: usize,
     ) {
         let gl = &self.gl;
-        // SAFETY: `rows` holds the rows the call reads; no pixels given to the first.
-        unsafe {
-            (gl.glBindTexture)(TEXTURE_2D, self.canvas);
-            (gl.glBindSampler)(0, 0);
-            if self.canvas_size != (width, height) {
-                (gl.glTexImage2D)(
-                    TEXTURE_2D,
-                    0,
-                    0x8058,
-                    width,
-                    height,
-                    0,
-                    RGBA,
-                    UNSIGNED_BYTE,
-                    std::ptr::null(),
-                );
-                (gl.glTexParameteri)(TEXTURE_2D, 0x2801, 0x2600);
-                (gl.glTexParameteri)(TEXTURE_2D, 0x2800, 0x2600);
-                self.canvas_size = (width, height);
-            }
-            (gl.glTexSubImage2D)(
-                TEXTURE_2D,
-                0,
-                0,
-                first as i32,
-                width,
-                (last - first + 1) as i32,
-                RGBA,
-                UNSIGNED_BYTE,
-                rows.as_ptr().cast(),
-            );
+        gl.bind_texture(TEXTURE_2D, self.canvas);
+        gl.bind_sampler(0, 0);
+        if self.canvas_size != (width, height) {
+            gl.tex_image_2d(0x8058, width, height, RGBA, UNSIGNED_BYTE, None);
+            gl.tex_parameter(TEXTURE_2D, 0x2801, 0x2600);
+            gl.tex_parameter(TEXTURE_2D, 0x2800, 0x2600);
+            self.canvas_size = (width, height);
         }
+        gl.tex_sub_image_2d(
+            (0, first as i32),
+            (width, (last - first + 1) as i32),
+            RGBA,
+            UNSIGNED_BYTE,
+            rows,
+        );
     }
 
     /// Everything a quad needs off.
     fn plain_state(&self) {
         let gl = &self.gl;
-        // SAFETY: state only.
-        unsafe {
-            (gl.glDisable)(DEPTH_TEST);
-            (gl.glDisable)(BLEND);
-            (gl.glDisable)(CULL_FACE);
-            (gl.glDisable)(SCISSOR_TEST);
-            (gl.glColorMask)(1, 1, 1, 1);
-            (gl.glBindVertexArray)(self.empty_array);
-        }
+        gl.disable(DEPTH_TEST);
+        gl.disable(BLEND);
+        gl.disable(CULL_FACE);
+        gl.disable(SCISSOR_TEST);
+        gl.colour_mask(true);
+        gl.bind_vertex_array(self.empty_array);
     }
 
     fn draw_quad(&self, quad: &Quad, flip: bool) {
         let gl = &self.gl;
-        // SAFETY: a program made in `set_up`; three vertices of no attributes.
-        unsafe {
-            (gl.glUseProgram)(quad.program);
-            (gl.glUniform1f)(quad.flip, if flip { 1.0 } else { 0.0 });
-            (gl.glDrawArrays)(TRIANGLES, 0, 3);
-        }
+        // A program made in `set_up`; three vertices of no attributes.
+        gl.use_program(quad.program);
+        gl.uniform_1f(quad.flip, if flip { 1.0 } else { 0.0 });
+        gl.draw_arrays(TRIANGLES, 0, 3);
     }
 
     /// A frame's part: the textures brought up, the canvas's written rows over the target, then
@@ -681,109 +445,94 @@ impl Gpu {
         }
         self.plain_state();
         let gl = &self.gl;
-        // SAFETY: names ours; the vertices live through `glBufferData`, which copies them; the
-        // uniforms' values are read in the calls; the texture of each batch was made above.
-        unsafe {
-            (gl.glBindFramebuffer)(FRAMEBUFFER, self.framebuffer);
-            (gl.glViewport)(0, 0, width, height);
-            if self.depth_is_new {
-                (gl.glDepthMask)(1);
-                (gl.glClearDepthf)(1.0);
-                (gl.glClear)(DEPTH_BIT);
-                self.depth_is_new = false;
+        gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
+        gl.viewport(0, 0, width, height);
+        if self.depth_is_new {
+            gl.depth_mask(true);
+            gl.clear_depth(1.0);
+            gl.clear(DEPTH_BIT);
+            self.depth_is_new = false;
+        }
+        // Up in clip space is the picture's top for the 2D as for the 3D; the object's
+        // last row is that top, which `show_target` and `bring_back` turn over.
+        if !written.is_empty() {
+            gl.enable(SCISSOR_TEST);
+            for w in &written {
+                gl.bind_texture(TEXTURE_2D, self.canvas);
+                let rows = (w.last - w.first + 1) as i32;
+                gl.scissor(0, height - w.last as i32 - 1, width, rows);
+                self.draw_quad(&self.overlay, false);
             }
-            // Up in clip space is the picture's top for the 2D as for the 3D; the object's
-            // last row is that top, which `show_target` and `bring_back` turn over.
-            if !written.is_empty() {
-                (gl.glEnable)(SCISSOR_TEST);
-                for w in &written {
-                    (gl.glBindTexture)(TEXTURE_2D, self.canvas);
-                    let rows = (w.last - w.first + 1) as i32;
-                    (gl.glScissor)(0, height - w.last as i32 - 1, width, rows);
-                    self.draw_quad(&self.overlay, false);
+            gl.disable(SCISSOR_TEST);
+        }
+        if !batches.batches.is_empty() {
+            gl.use_program(self.scene);
+            gl.uniform_2f(self.locations.size, width as f32, height as f32);
+            gl.bind_vertex_array(self.scene_array);
+            gl.bind_buffer(ARRAY_BUFFER, self.vertices);
+            gl.buffer_data(ARRAY_BUFFER, &batches.vertices, 0x88E0);
+            gl.bind_buffer(ARRAY_BUFFER, self.seconds);
+            gl.buffer_data(ARRAY_BUFFER, &batches.seconds, 0x88E0);
+            gl.enable(DEPTH_TEST);
+            let mut last_pipeline = None;
+            let mut last_values = None;
+            let mut last_texture = None;
+            let mut last_sampler = u32::MAX;
+            let mut last_second = None;
+            let mut scissored = false;
+            for batch in &batches.batches {
+                if last_pipeline != Some(batch.pipeline) {
+                    self.set_pipeline(&batch.pipeline);
+                    last_pipeline = Some(batch.pipeline);
                 }
-                (gl.glDisable)(SCISSOR_TEST);
-            }
-            if !batches.batches.is_empty() {
-                (gl.glUseProgram)(self.scene);
-                (gl.glUniform2f)(self.locations.size, width as f32, height as f32);
-                (gl.glBindVertexArray)(self.scene_array);
-                (gl.glBindBuffer)(ARRAY_BUFFER, self.vertices);
-                (gl.glBufferData)(
-                    ARRAY_BUFFER,
-                    size_of_val(&batches.vertices[..]) as isize,
-                    batches.vertices.as_ptr().cast(),
-                    0x88E0,
-                );
-                (gl.glBindBuffer)(ARRAY_BUFFER, self.seconds);
-                (gl.glBufferData)(
-                    ARRAY_BUFFER,
-                    size_of_val(&batches.seconds[..]) as isize,
-                    batches.seconds.as_ptr().cast(),
-                    0x88E0,
-                );
-                (gl.glEnable)(DEPTH_TEST);
-                let mut last_pipeline = None;
-                let mut last_values = None;
-                let mut last_texture = None;
-                let mut last_sampler = u32::MAX;
-                let mut last_second = None;
-                let mut scissored = false;
-                for batch in &batches.batches {
-                    if last_pipeline != Some(batch.pipeline) {
-                        self.set_pipeline(&batch.pipeline);
-                        last_pipeline = Some(batch.pipeline);
+                self.set_values(&self.locations.first, last_values.as_ref(), &batch.values);
+                last_values = Some(batch.values);
+                if let Some(second) = &batch.second
+                    && last_second != Some(*second)
+                {
+                    let was = last_second
+                        .as_ref()
+                        .map(|s: &super::batches::Second| &s.values);
+                    self.set_values(&self.locations.second, was, &second.values);
+                    gl.active_texture(TEXTURE1);
+                    if let Some(n) = second.texture {
+                        let name = self.textures[&batches.textures[n as usize].pixels].name;
+                        gl.bind_texture(TEXTURE_2D, name);
                     }
-                    self.set_values(&self.locations.first, last_values.as_ref(), &batch.values);
-                    last_values = Some(batch.values);
-                    if let Some(second) = &batch.second
-                        && last_second != Some(*second)
-                    {
-                        let was = last_second
-                            .as_ref()
-                            .map(|s: &super::batches::Second| &s.values);
-                        self.set_values(&self.locations.second, was, &second.values);
-                        (gl.glActiveTexture)(TEXTURE1);
-                        if let Some(n) = second.texture {
-                            let name = self.textures[&batches.textures[n as usize].pixels].name;
-                            (gl.glBindTexture)(TEXTURE_2D, name);
-                        }
-                        let sampler =
-                            self.samplers[second.linear as usize + 2 * second.clamp as usize];
-                        (gl.glBindSampler)(1, sampler);
-                        (gl.glActiveTexture)(TEXTURE0);
-                        last_second = Some(*second);
-                    }
-                    if last_texture != Some(batch.texture) {
-                        if let Some(n) = batch.texture {
-                            let name = self.textures[&batches.textures[n as usize].pixels].name;
-                            (gl.glBindTexture)(TEXTURE_2D, name);
-                        }
-                        last_texture = Some(batch.texture);
-                    }
-                    let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
-                    if sampler != last_sampler {
-                        (gl.glBindSampler)(0, sampler);
-                        last_sampler = sampler;
-                    }
-                    if let Some([left, top, right, bottom]) = batch.scissor {
-                        (gl.glEnable)(SCISSOR_TEST);
-                        (gl.glScissor)(
-                            left as i32,
-                            height - bottom as i32,
-                            (right - left) as i32,
-                            (bottom - top) as i32,
-                        );
-                        scissored = true;
-                    } else if scissored {
-                        (gl.glDisable)(SCISSOR_TEST);
-                        scissored = false;
-                    }
-                    (gl.glDrawArrays)(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
+                    let sampler = self.samplers[second.linear as usize + 2 * second.clamp as usize];
+                    gl.bind_sampler(1, sampler);
+                    gl.active_texture(TEXTURE0);
+                    last_second = Some(*second);
                 }
-                (gl.glBindSampler)(0, 0);
-                (gl.glBindSampler)(1, 0);
+                if last_texture != Some(batch.texture) {
+                    if let Some(n) = batch.texture {
+                        let name = self.textures[&batches.textures[n as usize].pixels].name;
+                        gl.bind_texture(TEXTURE_2D, name);
+                    }
+                    last_texture = Some(batch.texture);
+                }
+                let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
+                if sampler != last_sampler {
+                    gl.bind_sampler(0, sampler);
+                    last_sampler = sampler;
+                }
+                if let Some([left, top, right, bottom]) = batch.scissor {
+                    gl.enable(SCISSOR_TEST);
+                    gl.scissor(
+                        left as i32,
+                        height - bottom as i32,
+                        (right - left) as i32,
+                        (bottom - top) as i32,
+                    );
+                    scissored = true;
+                } else if scissored {
+                    gl.disable(SCISSOR_TEST);
+                    scissored = false;
+                }
+                gl.draw_arrays(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
             }
+            gl.bind_sampler(0, 0);
+            gl.bind_sampler(1, 0);
         }
         if bench::due(batches.batches.len()) {
             self.bench(&batches, height);
@@ -791,64 +540,52 @@ impl Gpu {
     }
 
     /// A pass's values into `at`, each only when it differs from `was`'s: the batches differ
-    /// in one or two.
-    ///
-    /// # Safety
-    /// The context is current, with the scene's program in use.
-    unsafe fn set_values(&self, at: &ValueLocations, was: Option<&PixelValues>, v: &PixelValues) {
+    /// in one or two. The scene's program is in use.
+    fn set_values(&self, at: &ValueLocations, was: Option<&PixelValues>, v: &PixelValues) {
         let gl = &self.gl;
-        // SAFETY: the values are read in the calls.
-        unsafe {
-            if was.is_none_or(|w| w.fog_colour != v.fog_colour) {
-                (gl.glUniform4fv)(at.fog_colour, 1, v.fog_colour.as_ptr());
-            }
-            if was.is_none_or(|w| w.alpha_reference != v.alpha_reference) {
-                (gl.glUniform1f)(at.alpha_reference, v.alpha_reference);
-            }
-            if was.is_none_or(|w| w.alpha_function != v.alpha_function) {
-                (gl.glUniform1i)(at.alpha_function, v.alpha_function);
-            }
-            if was.is_none_or(|w| w.mixing != v.mixing) {
-                (gl.glUniform1i)(at.mixing, v.mixing);
-            }
-            if was.is_none_or(|w| w.flags != v.flags) {
-                (gl.glUniform1i)(at.flags, v.flags);
-            }
+        if was.is_none_or(|w| w.fog_colour != v.fog_colour) {
+            gl.uniform_4fv(at.fog_colour, &v.fog_colour);
+        }
+        if was.is_none_or(|w| w.alpha_reference != v.alpha_reference) {
+            gl.uniform_1f(at.alpha_reference, v.alpha_reference);
+        }
+        if was.is_none_or(|w| w.alpha_function != v.alpha_function) {
+            gl.uniform_1i(at.alpha_function, v.alpha_function);
+        }
+        if was.is_none_or(|w| w.mixing != v.mixing) {
+            gl.uniform_1i(at.mixing, v.mixing);
+        }
+        if was.is_none_or(|w| w.flags != v.flags) {
+            gl.uniform_1i(at.flags, v.flags);
         }
     }
 
-    /// # Safety
-    /// The context is current.
-    unsafe fn set_pipeline(&self, key: &PipelineKey) {
+    fn set_pipeline(&self, key: &PipelineKey) {
         let gl = &self.gl;
-        // SAFETY: state only.
-        unsafe {
-            match key.cull {
-                3 => {
-                    (gl.glEnable)(CULL_FACE);
-                    (gl.glCullFace)(0x0405);
-                }
-                2 => {
-                    (gl.glEnable)(CULL_FACE);
-                    (gl.glCullFace)(0x0404);
-                }
-                _ => (gl.glDisable)(CULL_FACE),
+        match key.cull {
+            3 => {
+                gl.enable(CULL_FACE);
+                gl.cull_face(0x0405);
             }
-            (gl.glDepthFunc)(match key.depth_function {
-                f @ 1..=7 => 0x0200 + f - 1,
-                _ => 0x0207, // as the rasteriser's `compare`: anything else passes
-            });
-            (gl.glDepthMask)(key.depth_write as u8);
-            match key.blend {
-                Some((source, target)) => {
-                    (gl.glEnable)(BLEND);
-                    (gl.glBlendFunc)(blend_factor(source), blend_factor(target));
-                }
-                None => (gl.glDisable)(BLEND),
+            2 => {
+                gl.enable(CULL_FACE);
+                gl.cull_face(0x0404);
             }
-            let c = key.colour as u8;
-            (gl.glColorMask)(c, c, c, c);
+            _ => gl.disable(CULL_FACE),
         }
+        gl.depth_func(match key.depth_function {
+            f @ 1..=7 => 0x0200 + f - 1,
+            _ => 0x0207, // as the rasteriser's `compare`: anything else passes
+        });
+        gl.depth_mask(key.depth_write);
+        match key.blend {
+            Some((source, target)) => {
+                gl.enable(BLEND);
+                gl.blend_func(blend_factor(source), blend_factor(target));
+            }
+            None => gl.disable(BLEND),
+        }
+        gl.colour_mask(key.colour);
     }
 
     fn bring_texture_up(&mut self, note: &TextureNote, bytes: &[u8]) {
@@ -857,55 +594,33 @@ impl Gpu {
         let known = self.textures.get(&note.pixels);
         let (width, height) = (note.width as i32, note.height as i32);
         let gl = &self.gl;
-        // SAFETY: `bytes` holds the whole picture (`texture_as_bgra`), for the calls' length.
-        unsafe {
-            let mut name = known.map_or(0, |t| t.name);
-            let new = known.is_none_or(|t| (t.width, t.height) != (note.width, note.height));
-            if name == 0 {
-                (gl.glGenTextures)(1, &raw mut name);
-            }
-            (gl.glBindTexture)(TEXTURE_2D, name);
-            if new {
-                (gl.glTexImage2D)(
-                    TEXTURE_2D,
-                    0,
-                    0x8058,
-                    width,
-                    height,
-                    0,
-                    RGBA,
-                    UNSIGNED_BYTE,
-                    bytes.as_ptr().cast(),
-                );
-                // No levels: one the sampler objects' filters read alone.
-                (gl.glTexParameteri)(TEXTURE_2D, 0x813D, 0);
-            } else {
-                (gl.glTexSubImage2D)(
-                    TEXTURE_2D,
-                    0,
-                    0,
-                    0,
-                    width,
-                    height,
-                    RGBA,
-                    UNSIGNED_BYTE,
-                    bytes.as_ptr().cast(),
-                );
-            }
-            self.textures.insert(
-                note.pixels,
-                CachedTexture {
-                    name,
-                    width: note.width,
-                    height: note.height,
-                    opaque: bytes
-                        .as_chunks::<4>()
-                        .0
-                        .iter()
-                        .all(|pixel| pixel[3] == 0xFF),
-                },
-            );
+        let mut name = known.map_or(0, |t| t.name);
+        let new = known.is_none_or(|t| (t.width, t.height) != (note.width, note.height));
+        if name == 0 {
+            name = gl.gen_texture();
         }
+        gl.bind_texture(TEXTURE_2D, name);
+        // `bytes` holds the whole picture (`texture_as_bgra`).
+        if new {
+            gl.tex_image_2d(0x8058, width, height, RGBA, UNSIGNED_BYTE, Some(bytes));
+            // No levels: one the sampler objects' filters read alone.
+            gl.tex_parameter(TEXTURE_2D, 0x813D, 0);
+        } else {
+            gl.tex_sub_image_2d((0, 0), (width, height), RGBA, UNSIGNED_BYTE, bytes);
+        }
+        self.textures.insert(
+            note.pixels,
+            CachedTexture {
+                name,
+                width: note.width,
+                height: note.height,
+                opaque: bytes
+                    .as_chunks::<4>()
+                    .0
+                    .iter()
+                    .all(|pixel| pixel[3] == 0xFF),
+            },
+        );
     }
 
     /// The whole of the panel black, and the viewport where a picture of `width` x `height` shows.
@@ -917,13 +632,10 @@ impl Gpu {
         } else {
             (width, height)
         };
-        // SAFETY: state, and a clear of the default frame buffer.
-        unsafe {
-            (gl.glBindFramebuffer)(FRAMEBUFFER, 0);
-            (gl.glClearColor)(0.0, 0.0, 0.0, 1.0);
-            (gl.glClear)(COLOUR_BIT);
-            (gl.glViewport)((PANEL.0 - w) / 2, (PANEL.1 - h) / 2, w, h);
-        }
+        gl.bind_framebuffer(FRAMEBUFFER, 0);
+        gl.clear_colour(0.0, 0.0, 0.0, 1.0);
+        gl.clear(COLOUR_BIT);
+        gl.viewport((PANEL.0 - w) / 2, (PANEL.1 - h) / 2, w, h);
     }
 
     /// The target on the panel.
@@ -931,13 +643,10 @@ impl Gpu {
         self.plain_state();
         self.panel_viewport(self.width, self.height);
         let gl = &self.gl;
-        // SAFETY: names ours; the context is current.
-        unsafe {
-            (gl.glBindSampler)(0, 0);
-            (gl.glBindTexture)(TEXTURE_2D, self.colour);
-            self.draw_quad(&self.target_quad, true);
-            (gl.eglSwapBuffers)(self.display, self.surface);
-        }
+        gl.bind_sampler(0, 0);
+        gl.bind_texture(TEXTURE_2D, self.colour);
+        self.draw_quad(&self.target_quad, true);
+        gl.swap_buffers();
     }
 
     /// A picture of the game's bytes (`width` x `height`, blue first) on the panel: the frames the
@@ -946,30 +655,17 @@ impl Gpu {
         self.upload_canvas(frame, width, height);
         self.plain_state();
         self.panel_viewport(width, height);
-        // SAFETY: names ours; the context is current.
-        unsafe {
-            self.draw_quad(&self.canvas_quad, false);
-            (self.gl.eglSwapBuffers)(self.display, self.surface);
-        }
+        self.draw_quad(&self.canvas_quad, false);
+        self.gl.swap_buffers();
     }
 
     /// The target's rows as the GL holds them.
     fn read_target(&mut self) -> Vec<u8> {
         let (width, height) = (self.width, self.height);
         let mut out = vec![0u8; width as usize * height as usize * 4];
-        // SAFETY: `out` holds the target's pixels.
-        unsafe {
-            (self.gl.glBindFramebuffer)(FRAMEBUFFER, self.framebuffer);
-            (self.gl.glReadPixels)(
-                0,
-                0,
-                width,
-                height,
-                RGBA,
-                UNSIGNED_BYTE,
-                out.as_mut_ptr().cast(),
-            );
-        }
+        self.gl.bind_framebuffer(FRAMEBUFFER, self.framebuffer);
+        self.gl
+            .read_pixels(width, height, RGBA, UNSIGNED_BYTE, &mut out);
         out
     }
 
@@ -977,8 +673,7 @@ impl Gpu {
     fn forget(&mut self, gone: &[crate::pointers::GamePtr]) {
         for pixels in gone {
             if let Some(texture) = self.textures.remove(pixels) {
-                // SAFETY: a name of ours, no longer in the table.
-                unsafe { (self.gl.glDeleteTextures)(1, &raw const texture.name) };
+                self.gl.delete_texture(texture.name);
             }
         }
     }
@@ -1263,7 +958,6 @@ static TRIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new
 impl super::Backend for Front {
     fn draw(&mut self, target: &Target, commands: Vec<Command>) {
         self.size = (target.width as i32, target.height as i32);
-        // SAFETY: the game's code waits for this call; nothing else writes the canvas meanwhile.
-        Front::draw(self, unsafe { target.bytes() }, commands);
+        target.with_canvas(|canvas| Front::draw(self, canvas, commands));
     }
 }

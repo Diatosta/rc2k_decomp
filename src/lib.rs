@@ -17,6 +17,7 @@ mod drive;
 mod effects;
 mod errors;
 mod fatal;
+mod ffi;
 mod files;
 mod film;
 mod framework;

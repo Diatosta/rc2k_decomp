@@ -4,8 +4,8 @@
 //! textures (the font atlas) as SDL textures, through the crate's managed-texture requests.
 //! Everything here runs on the window's thread (`platform`'s pump and frame).
 
-#![allow(unsafe_code)]
-
+use crate::ffi::imgui::{self as sdl_ui, Texture as SdlTexture, UiEvent};
+use crate::ffi::sdl::{Renderer, Window};
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use dear_imgui_rs::render::{DrawCmd, PendingFrame, SnapshotTextureId, TextureOp};
@@ -42,7 +42,7 @@ pub fn view_drawn(frame: &Frame) {
 
 /// An SDL texture of ImGui's.
 struct Texture {
-    sdl: *mut SDL_Texture,
+    sdl: SdlTexture,
     format: TextureFormat,
 }
 
@@ -133,65 +133,59 @@ pub fn event(event: &SDL_Event) -> bool {
     }
     with_gui(|gui| {
         let io = gui.context.io_mut();
-        // SAFETY: `type` says which member of the event SDL filled.
-        unsafe {
-            let kind = SDL_EventType(event.r#type);
-            match kind {
-                SDL_EVENT_MOUSE_MOTION => {
-                    io.add_mouse_pos_event([event.motion.x, event.motion.y]);
-                    io.want_capture_mouse()
-                }
-                SDL_EVENT_MOUSE_BUTTON_DOWN | SDL_EVENT_MOUSE_BUTTON_UP => {
-                    let button = match i32::from(event.button.button) {
-                        1 => MouseButton::Left,
-                        2 => MouseButton::Middle,
-                        3 => MouseButton::Right,
-                        _ => return false,
-                    };
-                    io.add_mouse_button_event(button, kind == SDL_EVENT_MOUSE_BUTTON_DOWN);
-                    io.want_capture_mouse()
-                }
-                SDL_EVENT_MOUSE_WHEEL => {
-                    io.add_mouse_wheel_event([event.wheel.x, event.wheel.y]);
-                    io.want_capture_mouse()
-                }
-                SDL_EVENT_TEXT_INPUT => {
-                    if !event.text.text.is_null() {
-                        let text = std::ffi::CStr::from_ptr(event.text.text);
-                        io.add_input_characters_utf8(text.to_string_lossy());
-                    }
-                    io.want_capture_keyboard()
-                }
-                SDL_EVENT_KEY_DOWN | SDL_EVENT_KEY_UP => {
-                    let down = event.key.down;
-                    let m = event.key.r#mod;
-                    io.add_key_event(Key::ModCtrl, m.0 & SDL_KMOD_CTRL.0 != 0);
-                    io.add_key_event(Key::ModShift, m.0 & SDL_KMOD_SHIFT.0 != 0);
-                    io.add_key_event(Key::ModAlt, m.0 & SDL_KMOD_ALT.0 != 0);
-                    if let Some(key) = key_of(event.key.key) {
-                        io.add_key_event(key, down);
-                    }
-                    io.want_capture_keyboard()
-                }
-                _ => false,
+        match sdl_ui::decode_event(event) {
+            UiEvent::MouseMotion { x, y } => {
+                io.add_mouse_pos_event([x, y]);
+                io.want_capture_mouse()
             }
+            UiEvent::MouseButton { button, down } => {
+                let button = match button {
+                    1 => MouseButton::Left,
+                    2 => MouseButton::Middle,
+                    3 => MouseButton::Right,
+                    _ => return false,
+                };
+                io.add_mouse_button_event(button, down);
+                io.want_capture_mouse()
+            }
+            UiEvent::MouseWheel { x, y } => {
+                io.add_mouse_wheel_event([x, y]);
+                io.want_capture_mouse()
+            }
+            UiEvent::Text(text) => {
+                if let Some(text) = text {
+                    io.add_input_characters_utf8(text);
+                }
+                io.want_capture_keyboard()
+            }
+            UiEvent::Key {
+                down,
+                modifiers: m,
+                key,
+            } => {
+                io.add_key_event(Key::ModCtrl, m.0 & SDL_KMOD_CTRL.0 != 0);
+                io.add_key_event(Key::ModShift, m.0 & SDL_KMOD_SHIFT.0 != 0);
+                io.add_key_event(Key::ModAlt, m.0 & SDL_KMOD_ALT.0 != 0);
+                if let Some(key) = key_of(key) {
+                    io.add_key_event(key, down);
+                }
+                io.want_capture_keyboard()
+            }
+            UiEvent::Other => false,
         }
     })
     .unwrap_or(false)
 }
 
 /// The debug UI drawn on `renderer` (after the game's frame, before the present).
-pub fn draw(race: &Race, renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
+pub fn draw(race: &Race, renderer: Renderer, window: Window) {
     let open = OPEN.load(Ordering::Relaxed);
     // ImGui's text fields need SDL's text input, started while the UI is shown.
     if open != TEXT_INPUT.swap(open, Ordering::Relaxed) {
-        // SAFETY: the window SDL made, on its thread.
-        unsafe {
-            if open {
-                SDL_StartTextInput(window);
-            } else {
-                SDL_StopTextInput(window);
-            }
+        if open {
+            window.start_text_input();
+        } else {
+            window.stop_text_input();
         }
     }
     // Closed: nothing else, and ImGui not even made until it is first opened.
@@ -199,12 +193,8 @@ pub fn draw(race: &Race, renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
         return;
     }
     with_gui(|gui| {
-        let (mut w, mut h, mut pw, mut ph) = (0, 0, 0, 0);
-        // SAFETY: as above; the renderer is the window's.
-        unsafe {
-            SDL_GetWindowSize(window, &raw mut w, &raw mut h);
-            SDL_GetRenderOutputSize(renderer, &raw mut pw, &raw mut ph);
-        }
+        let (w, h) = window.size();
+        let (pw, ph) = renderer.output_size();
         if w <= 0 || h <= 0 {
             return;
         }
@@ -250,7 +240,7 @@ fn wide(format: TextureFormat) -> usize {
 /// ImGui's texture requests met and its triangles drawn.
 fn render(
     textures: &mut HashMap<SnapshotTextureId, Texture>,
-    renderer: *mut SDL_Renderer,
+    renderer: Renderer,
     frame: PendingFrame<'_>,
 ) -> Result<(), String> {
     let mut feedback = Vec::with_capacity(frame.texture_requests().len());
@@ -264,31 +254,18 @@ fn render(
                 pixels,
             } => {
                 if let Some(old) = textures.remove(&request.texture()) {
-                    // SAFETY: a texture made below, no longer used.
-                    unsafe { SDL_DestroyTexture(old.sdl) };
-                }
-                // SAFETY: the window's renderer; RGBA bytes are ABGR8888 on a little-endian
-                // machine.
-                let sdl = unsafe {
-                    SDL_CreateTexture(
-                        renderer,
-                        SDL_PIXELFORMAT_ABGR8888,
-                        SDL_TEXTUREACCESS_STATIC,
-                        *width as i32,
-                        *height as i32,
-                    )
-                };
-                if sdl.is_null() {
-                    return Err("SDL makes no texture".into());
+                    old.sdl.destroy();
                 }
                 let rows = rgba(*format, pixels);
                 let pitch = row_pitch * 4 / wide(*format);
-                // SAFETY: `rows` holds `height` rows of `pitch` bytes.
-                unsafe {
-                    SDL_UpdateTexture(sdl, std::ptr::null(), rows.as_ptr().cast(), pitch as i32);
-                    SDL_SetTextureBlendMode(sdl, SDL_BLENDMODE_BLEND);
-                    SDL_SetTextureScaleMode(sdl, SDL_SCALEMODE_LINEAR);
-                }
+                let sdl = SdlTexture::create(
+                    renderer,
+                    *width as i32,
+                    *height as i32,
+                    &rows,
+                    pitch as i32,
+                )?;
+                let id = TextureId::new(sdl.id());
                 textures.insert(
                     request.texture(),
                     Texture {
@@ -296,7 +273,6 @@ fn render(
                         format: *format,
                     },
                 );
-                let id = TextureId::new(sdl.expose_provenance() as u64);
                 feedback.push(request.uploaded(id).map_err(|e| e.to_string())?);
             }
             TextureOp::Update { rects, .. } => {
@@ -314,23 +290,16 @@ fn render(
                         w: i32::from(r.w),
                         h: i32::from(r.h),
                     };
-                    // SAFETY: `rows` holds the rectangle's rows of `pitch` bytes.
-                    unsafe {
-                        SDL_UpdateTexture(
-                            texture.sdl,
-                            &raw const rect,
-                            rows.as_ptr().cast(),
-                            pitch as i32,
-                        )
-                    };
+                    texture
+                        .sdl
+                        .update(Some(&rect), i32::from(r.h), &rows, pitch as i32);
                 }
-                let id = TextureId::new(texture.sdl.expose_provenance() as u64);
+                let id = TextureId::new(texture.sdl.id());
                 feedback.push(request.uploaded(id).map_err(|e| e.to_string())?);
             }
             TextureOp::Destroy => {
                 if let Some(old) = textures.remove(&request.texture()) {
-                    // SAFETY: a texture made above, no longer drawn.
-                    unsafe { SDL_DestroyTexture(old.sdl) };
+                    old.sdl.destroy();
                 }
                 feedback.push(request.destroyed().map_err(|e| e.to_string())?);
             }
@@ -388,32 +357,17 @@ fn render(
             if first >= vertices.len() {
                 return Err("a draw command past its vertices".into());
             }
-            let texture = std::ptr::with_exposed_provenance_mut::<SDL_Texture>(
-                cmd_params.texture_id.id() as usize,
+            renderer.set_clip_rect(Some(&clip));
+            renderer.draw_geometry(
+                cmd_params.texture_id.id(),
+                &xy,
+                &colours,
+                vertices,
+                first,
+                index,
             );
-            let stride = core::mem::size_of_val(&vertices[0]) as i32;
-            // SAFETY: the vertices from `first` on and `count` indices of them (each below
-            // the vertex count, ImGui's), the texture one made above.
-            unsafe {
-                SDL_SetRenderClipRect(renderer, &raw const clip);
-                SDL_RenderGeometryRaw(
-                    renderer,
-                    texture,
-                    xy[first..].as_ptr().cast(),
-                    8,
-                    colours[first..].as_ptr(),
-                    core::mem::size_of::<SDL_FColor>() as i32,
-                    vertices[first..].as_ptr().cast::<f32>().add(2),
-                    stride,
-                    (vertices.len() - first) as i32,
-                    index.as_ptr().cast(),
-                    count as i32,
-                    2,
-                );
-            }
         }
     }
-    // SAFETY: the window's renderer.
-    unsafe { SDL_SetRenderClipRect(renderer, std::ptr::null()) };
+    renderer.set_clip_rect(None);
     Ok(())
 }

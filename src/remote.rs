@@ -17,17 +17,15 @@
 //! (`shots_loading`, `shot_frame_drawn`), and the random numbers start from one state, so the
 //! picture is the same from run to run (the picture check, `scratchpad/shots.sh`).
 
-#![allow(unsafe_code)]
-
 use crate::audio::owner::audio;
 use crate::effects::owner::effects;
+use crate::ffi::sdl_input;
 use crate::gfx::owner::gfx;
 use crate::menu::owner::menus;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::system::owner::system;
 use sdl3_sys::everything::*;
-use std::ffi::CString;
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
@@ -71,47 +69,19 @@ fn reply(id: &str, answer: &str) {
 }
 
 fn key(scancode: SDL_Scancode, down: bool) {
-    // SAFETY: an all-zero event is valid; SDL copies it.
-    unsafe {
-        let mut event: SDL_Event = std::mem::zeroed();
-        event.r#type = if down {
-            SDL_EVENT_KEY_DOWN.0
-        } else {
-            SDL_EVENT_KEY_UP.0
-        };
-        event.key.scancode = scancode;
-        event.key.down = down;
-        SDL_PushEvent(&raw mut event);
-    }
+    sdl_input::push_key_event(scancode, down);
 }
 
 fn pad(button: SDL_GamepadButton, down: bool) {
-    // SAFETY: as `key`.
-    unsafe {
-        let mut event: SDL_Event = std::mem::zeroed();
-        event.r#type = if down {
-            SDL_EVENT_GAMEPAD_BUTTON_DOWN.0
-        } else {
-            SDL_EVENT_GAMEPAD_BUTTON_UP.0
-        };
-        event.gbutton.button = button.0 as u8;
-        event.gbutton.down = down;
-        SDL_PushEvent(&raw mut event);
-    }
+    sdl_input::push_gamepad_button_event(button, down);
 }
 
 fn scancode(name: &str) -> Option<SDL_Scancode> {
-    let name = CString::new(name).ok()?;
-    // SAFETY: a NUL-ended text, read during the call.
-    let code = unsafe { SDL_GetScancodeFromName(name.as_ptr()) };
-    (code != SDL_SCANCODE_UNKNOWN).then_some(code)
+    sdl_input::scancode_from_name(name)
 }
 
 fn button(name: &str) -> Option<SDL_GamepadButton> {
-    let name = CString::new(name).ok()?;
-    // SAFETY: as `scancode`.
-    let code = unsafe { SDL_GetGamepadButtonFromString(name.as_ptr()) };
-    (code != SDL_GAMEPAD_BUTTON_INVALID).then_some(code)
+    sdl_input::gamepad_button_from_name(name)
 }
 
 /// A file the game opens, listed in `opened` for tests that damage what is read.
@@ -299,12 +269,7 @@ fn run(line: &str) {
             Some("ok".to_string())
         }
         ("quit", []) => {
-            // SAFETY: as `key`.
-            unsafe {
-                let mut event: SDL_Event = std::mem::zeroed();
-                event.r#type = SDL_EVENT_QUIT.0;
-                SDL_PushEvent(&raw mut event);
-            }
+            sdl_input::push_quit_event();
             Some("ok".to_string())
         }
         _ => None,

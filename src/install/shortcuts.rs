@@ -18,8 +18,6 @@
 //! folder into the current one (the original copies the program named on its command line
 //! to `.\ral.exe` when run from the CD).
 
-#![allow(unsafe_code)]
-
 use std::path::{Path, PathBuf};
 
 /// The group's folder name (the original's `[CreateGroup(Rally Championship)]`).
@@ -72,126 +70,11 @@ pub fn remove_start_menu_items() {
 #[cfg(windows)]
 mod start_menu {
     use super::{GROUP, items};
-    use std::ffi::c_void;
+    use crate::ffi::win32::{programs_folder, with_com, write_link};
     use std::path::{Path, PathBuf};
-    use windows_sys::Win32::System::Com::{
-        CLSCTX_INPROC_SERVER, CoCreateInstance, CoInitialize, CoUninitialize,
-    };
-    use windows_sys::Win32::UI::Shell::{CSIDL_PROGRAMS, SHGetFolderPathW};
-    use windows_sys::core::GUID;
-
-    const CLSID_SHELL_LINK: GUID = GUID::from_u128(0x00021401_0000_0000_c000_000000000046);
-    const IID_SHELL_LINK_W: GUID = GUID::from_u128(0x000214f9_0000_0000_c000_000000000046);
-    const IID_PERSIST_FILE: GUID = GUID::from_u128(0x0000010b_0000_0000_c000_000000000046);
-
-    // Vtable slots.
-    const QUERY_INTERFACE: usize = 0;
-    const RELEASE: usize = 2;
-    const LINK_SET_DESCRIPTION: usize = 7;
-    const LINK_SET_WORKING_DIRECTORY: usize = 9;
-    const LINK_SET_ARGUMENTS: usize = 11;
-    const LINK_SET_PATH: usize = 20;
-    const PERSIST_SAVE: usize = 6;
-
-    fn wide(s: &str) -> Vec<u16> {
-        s.encode_utf16().chain(Some(0)).collect()
-    }
-
-    fn wide_path(p: &Path) -> Vec<u16> {
-        wide(&p.to_string_lossy())
-    }
-
-    unsafe fn slot(object: *mut c_void, n: usize) -> usize {
-        unsafe { *(*(object as *const *const usize)).add(n) }
-    }
-
-    unsafe fn release(object: *mut c_void) {
-        unsafe {
-            let f: unsafe extern "system" fn(*mut c_void) -> u32 =
-                std::mem::transmute(slot(object, RELEASE));
-            f(object);
-        }
-    }
-
-    unsafe fn call_text(object: *mut c_void, n: usize, text: &[u16]) -> i32 {
-        unsafe {
-            let f: unsafe extern "system" fn(*mut c_void, *const u16) -> i32 =
-                std::mem::transmute(slot(object, n));
-            f(object, text.as_ptr())
-        }
-    }
-
-    /// The user's Start menu Programs folder.
-    fn programs_folder() -> Option<PathBuf> {
-        let mut path = [0u16; 260];
-        let hr = unsafe {
-            SHGetFolderPathW(
-                std::ptr::null_mut(),
-                CSIDL_PROGRAMS as i32,
-                std::ptr::null_mut(),
-                0,
-                path.as_mut_ptr(),
-            )
-        };
-        if hr < 0 {
-            return None;
-        }
-        let len = path.iter().position(|&c| c == 0).unwrap_or(path.len());
-        Some(PathBuf::from(String::from_utf16_lossy(&path[..len])))
-    }
 
     fn group_folder() -> Option<PathBuf> {
         programs_folder().map(|p| p.join(GROUP))
-    }
-
-    /// One shortcut written; false when COM or the shell refused.
-    unsafe fn write_link(at: &Path, target: &Path, arguments: &str, name: &str) -> bool {
-        unsafe {
-            let mut link: *mut c_void = std::ptr::null_mut();
-            if CoCreateInstance(
-                &CLSID_SHELL_LINK,
-                std::ptr::null_mut(),
-                CLSCTX_INPROC_SERVER,
-                &IID_SHELL_LINK_W,
-                &raw mut link,
-            ) < 0
-                || link.is_null()
-            {
-                return false;
-            }
-            let folder = target.parent().map(wide_path).unwrap_or_else(|| wide(""));
-            let mut ok = call_text(link, LINK_SET_PATH, &wide_path(target)) >= 0
-                && call_text(link, LINK_SET_WORKING_DIRECTORY, &folder) >= 0
-                && call_text(link, LINK_SET_ARGUMENTS, &wide(arguments)) >= 0
-                && call_text(link, LINK_SET_DESCRIPTION, &wide(name)) >= 0;
-            if ok {
-                let query: unsafe extern "system" fn(
-                    *mut c_void,
-                    *const GUID,
-                    *mut *mut c_void,
-                ) -> i32 = std::mem::transmute(slot(link, QUERY_INTERFACE));
-                let mut file: *mut c_void = std::ptr::null_mut();
-                ok = query(link, &IID_PERSIST_FILE, &raw mut file) >= 0 && !file.is_null();
-                if ok {
-                    let save: unsafe extern "system" fn(*mut c_void, *const u16, i32) -> i32 =
-                        std::mem::transmute(slot(file, PERSIST_SAVE));
-                    ok = save(file, wide_path(at).as_ptr(), 1) >= 0;
-                    release(file);
-                }
-            }
-            release(link);
-            ok
-        }
-    }
-
-    /// COM for the calls in `f` (the thread may have it already).
-    fn with_com<T>(f: impl FnOnce() -> T) -> T {
-        let hr = unsafe { CoInitialize(std::ptr::null()) };
-        let value = f();
-        if hr >= 0 {
-            unsafe { CoUninitialize() };
-        }
-        value
     }
 
     /// The three items, all in `installed`, the installed folder.
@@ -208,7 +91,7 @@ mod start_menu {
         with_com(|| {
             for (name, target, arguments) in items {
                 let at = group.join(format!("{name}.lnk"));
-                let done = unsafe { write_link(&at, &target, arguments, name) };
+                let done = write_link(&at, &target, arguments, name);
                 crate::framework::log(&format!(
                     "install: Start menu item {} -> {} {arguments}: {}",
                     at.display(),

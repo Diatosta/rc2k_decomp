@@ -168,224 +168,196 @@ impl Gpu {
         ));
         let mut line = String::from("gles bench: ms a frame (issued / finished):");
         for way in WAYS {
-            // SAFETY: the context is current; the state set is `draw`'s own.
-            let (issued, ms) = unsafe { self.timed(|| self.draw_in(batches, height, way)) };
+            let (issued, ms) = self.timed(|| self.draw_in(batches, height, way));
             line += &format!(" {}: {issued:.1} / {ms:.1};", way.name);
         }
         log(&line);
-        // SAFETY: as above; the buffers and arrays made here are let go before the end.
-        unsafe { self.bench_buffers(batches, height) };
+        self.bench_buffers(batches, height);
     }
 
     /// `f` `ROUNDS` times: the milliseconds a round until the calls are made, and until the
     /// GPU has done them.
-    unsafe fn timed(&self, mut f: impl FnMut()) -> (f64, f64) {
-        // SAFETY: the context is current.
-        unsafe {
-            (self.gl.glFinish)();
-            let start = Instant::now();
-            for _ in 0..ROUNDS {
-                f();
-            }
-            let issued = start.elapsed().as_secs_f64();
-            (self.gl.glFinish)();
-            let done = start.elapsed().as_secs_f64();
-            let per = |t: f64| t * 1000.0 / ROUNDS as f64;
-            (per(issued), per(done))
+    fn timed(&self, mut f: impl FnMut()) -> (f64, f64) {
+        self.gl.finish();
+        let start = Instant::now();
+        for _ in 0..ROUNDS {
+            f();
         }
+        let issued = start.elapsed().as_secs_f64();
+        self.gl.finish();
+        let done = start.elapsed().as_secs_f64();
+        let per = |t: f64| t * 1000.0 / ROUNDS as f64;
+        (per(issued), per(done))
     }
 
     /// Whether a draw's cost is the buffer's: as many draws as the frame's batches, of one
     /// triangle, from the frame's buffer and from a small one made once; and the frame's
     /// draws from its vertices sent as a static buffer instead of a stream.
-    ///
-    /// # Safety
-    /// As `draw_in`.
-    unsafe fn bench_buffers(&self, batches: &Batches, height: i32) {
+    fn bench_buffers(&self, batches: &Batches, height: i32) {
         let gl = &self.gl;
         let n = batches.batches.len();
         let mut line = String::from("gles bench: buffers (issued / finished):");
-        // SAFETY: names made here; vertex data copied by `glBufferData`.
-        unsafe {
-            let (issued, ms) = self.timed(|| {
-                for _ in 0..n {
-                    (gl.glDrawArrays)(TRIANGLES, 0, 3);
-                }
-            });
-            line += &format!(" {n} one-triangle draws, frame's buffer: {issued:.1} / {ms:.1};");
-            let (mut array, mut buffer) = (0, 0);
-            (gl.glGenVertexArrays)(1, &raw mut array);
-            (gl.glGenBuffers)(1, &raw mut buffer);
-            (gl.glBindVertexArray)(array);
-            (gl.glBindBuffer)(ARRAY_BUFFER, buffer);
-            (gl.glBufferData)(ARRAY_BUFFER, 96, batches.vertices.as_ptr().cast(), 0x88E4);
-            for (n, count, kind, normal, offset) in [
-                (0u32, 4, 0x1406u32, 0u8, 0usize),
-                (1, 4, UNSIGNED_BYTE, 1, 16),
-                (2, 4, UNSIGNED_BYTE, 1, 20),
-                (3, 2, 0x1406, 0, 24),
-            ] {
-                (gl.glEnableVertexAttribArray)(n);
-                (gl.glVertexAttribPointer)(n, count, kind, normal, 32, offset as *const c_void);
+        let (issued, ms) = self.timed(|| {
+            for _ in 0..n {
+                gl.draw_arrays(TRIANGLES, 0, 3);
             }
-            let (issued, ms) = self.timed(|| {
-                for _ in 0..n {
-                    (gl.glDrawArrays)(TRIANGLES, 0, 3);
-                }
-            });
-            line += &format!(" the same from a small static buffer: {issued:.1} / {ms:.1};");
-            (gl.glBindVertexArray)(self.scene_array);
-            (gl.glBindBuffer)(ARRAY_BUFFER, self.vertices);
-            (gl.glBufferData)(
-                ARRAY_BUFFER,
-                size_of_val(&batches.vertices[..]) as isize,
-                batches.vertices.as_ptr().cast(),
-                0x88E4,
-            );
-            let (issued, ms) = self.timed(|| self.draw_in(batches, height, WAYS[0]));
-            line += &format!(" as drawn from a static buffer: {issued:.1} / {ms:.1};");
-            let (issued, ms) = self.timed(|| self.draw_in(batches, height, WAYS[8]));
-            line += &format!(" draws only from it: {issued:.1} / {ms:.1};");
-            (gl.glBindVertexArray)(array);
-            (gl.glBindBuffer)(ARRAY_BUFFER, buffer);
-            let (issued, ms) = self.timed(|| (gl.glDrawArrays)(TRIANGLES, 0, 3));
-            line += &format!(" one triangle alone: {issued:.2} / {ms:.2};");
-            (gl.glBindVertexArray)(self.scene_array);
-            (gl.glBindBuffer)(ARRAY_BUFFER, self.vertices);
-            (gl.glDeleteBuffers)(1, &raw const buffer);
-            (gl.glDeleteVertexArrays)(1, &raw const array);
+        });
+        line += &format!(" {n} one-triangle draws, frame's buffer: {issued:.1} / {ms:.1};");
+        let array = gl.gen_vertex_array();
+        let buffer = gl.gen_buffer();
+        gl.bind_vertex_array(array);
+        gl.bind_buffer(ARRAY_BUFFER, buffer);
+        gl.buffer_data_first(ARRAY_BUFFER, &batches.vertices, 96, 0x88E4);
+        for (n, count, kind, normal, offset) in [
+            (0u32, 4, 0x1406u32, false, 0usize),
+            (1, 4, UNSIGNED_BYTE, true, 16),
+            (2, 4, UNSIGNED_BYTE, true, 20),
+            (3, 2, 0x1406, false, 24),
+        ] {
+            gl.attribute(n, count, kind, normal, 32, offset);
         }
+        let (issued, ms) = self.timed(|| {
+            for _ in 0..n {
+                gl.draw_arrays(TRIANGLES, 0, 3);
+            }
+        });
+        line += &format!(" the same from a small static buffer: {issued:.1} / {ms:.1};");
+        gl.bind_vertex_array(self.scene_array);
+        gl.bind_buffer(ARRAY_BUFFER, self.vertices);
+        gl.buffer_data(ARRAY_BUFFER, &batches.vertices, 0x88E4);
+        let (issued, ms) = self.timed(|| self.draw_in(batches, height, WAYS[0]));
+        line += &format!(" as drawn from a static buffer: {issued:.1} / {ms:.1};");
+        let (issued, ms) = self.timed(|| self.draw_in(batches, height, WAYS[8]));
+        line += &format!(" draws only from it: {issued:.1} / {ms:.1};");
+        gl.bind_vertex_array(array);
+        gl.bind_buffer(ARRAY_BUFFER, buffer);
+        let (issued, ms) = self.timed(|| gl.draw_arrays(TRIANGLES, 0, 3));
+        line += &format!(" one triangle alone: {issued:.2} / {ms:.2};");
+        gl.bind_vertex_array(self.scene_array);
+        gl.bind_buffer(ARRAY_BUFFER, self.vertices);
+        gl.delete_buffer(buffer);
+        gl.delete_vertex_array(array);
         log(&line);
     }
 
-    /// # Safety
     /// The context is current, with the scene's program, array and vertices bound by `draw`.
-    unsafe fn draw_in(&self, batches: &Batches, height: i32, way: Way) {
+    fn draw_in(&self, batches: &Batches, height: i32, way: Way) {
         let gl = &self.gl;
         let Some(first) = batches.batches.first() else {
             return;
         };
-        // SAFETY: as `draw`'s loop: names ours, values read in the calls.
-        unsafe {
-            self.set_pipeline(&first.pipeline);
-            if way.one_draw {
-                (gl.glDrawArrays)(TRIANGLES, 0, batches.vertices.len() as i32);
-                return;
-            }
-            let mut last: Option<&super::super::batches::Batch> = None;
-            let mut scissored = false;
-            for batch in &batches.batches {
-                let changed = |f: &dyn Fn(&super::super::batches::Batch) -> bool| {
-                    last.is_none_or(|l| f(l) != f(batch))
-                };
-                let key = &batch.pipeline;
-                match way.pipeline {
-                    Pipeline::Whole => {
-                        if last.is_none_or(|l| l.pipeline != *key) {
-                            self.set_pipeline(key);
-                        }
-                    }
-                    Pipeline::Changed => {
-                        if changed(&|b| b.pipeline.cull != 1) || changed(&|b| b.pipeline.cull == 2)
-                        {
-                            self.set_pipeline(key);
-                        } else {
-                            if changed(&|b| b.pipeline.depth_function != 0)
-                                && last.is_some_and(|l| {
-                                    l.pipeline.depth_function != key.depth_function
-                                })
-                            {
-                                (gl.glDepthFunc)(match key.depth_function {
-                                    f @ 1..=7 => 0x0200 + f - 1,
-                                    _ => 0x0207,
-                                });
-                            }
-                            if last.is_some_and(|l| l.pipeline.depth_write != key.depth_write) {
-                                (gl.glDepthMask)(key.depth_write as u8);
-                            }
-                            if last
-                                .is_some_and(|l| l.pipeline.blend.is_some() != key.blend.is_some())
-                            {
-                                if key.blend.is_some() {
-                                    (gl.glEnable)(BLEND);
-                                } else {
-                                    (gl.glDisable)(BLEND);
-                                }
-                            }
-                            if let Some((source, target)) = key.blend
-                                && last.is_some_and(|l| l.pipeline.blend != key.blend)
-                            {
-                                (gl.glBlendFunc)(blend_factor(source), blend_factor(target));
-                            }
-                            if last.is_some_and(|l| l.pipeline.colour != key.colour) {
-                                let c = key.colour as u8;
-                                (gl.glColorMask)(c, c, c, c);
-                            }
-                        }
-                    }
-                    Pipeline::DepthMask => {
-                        if last.is_some_and(|l| l.pipeline.depth_write != key.depth_write) {
-                            (gl.glDepthMask)(key.depth_write as u8);
-                        }
-                    }
-                    Pipeline::Blend => {
-                        if last.is_some_and(|l| l.pipeline.blend != key.blend) {
-                            match key.blend {
-                                Some((source, target)) => {
-                                    (gl.glEnable)(BLEND);
-                                    (gl.glBlendFunc)(blend_factor(source), blend_factor(target));
-                                }
-                                None => (gl.glDisable)(BLEND),
-                            }
-                        }
-                    }
-                    Pipeline::Kept => {}
-                }
-                if way.values
-                    && changed(&|b| b.values != first.values)
-                        | last.is_some_and(|l| l.values != batch.values)
-                {
-                    let v = &batch.values;
-                    let l = &self.locations.first;
-                    (gl.glUniform4fv)(l.fog_colour, 1, v.fog_colour.as_ptr());
-                    (gl.glUniform1f)(l.alpha_reference, v.alpha_reference);
-                    (gl.glUniform1i)(l.alpha_function, v.alpha_function);
-                    (gl.glUniform1i)(l.mixing, v.mixing);
-                    (gl.glUniform1i)(l.flags, v.flags);
-                }
-                if way.textures
-                    && last.is_none_or(|l| l.texture != batch.texture)
-                    && let Some(n) = batch.texture
-                {
-                    let name = self.textures[&batches.textures[n as usize].pixels].name;
-                    (gl.glBindTexture)(TEXTURE_2D, name);
-                }
-                if way.samplers
-                    && last.is_none_or(|l| (l.linear, l.clamp) != (batch.linear, batch.clamp))
-                {
-                    let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
-                    (gl.glBindSampler)(0, sampler);
-                }
-                if let Some([left, top, right, bottom]) = batch.scissor {
-                    (gl.glEnable)(SCISSOR_TEST);
-                    (gl.glScissor)(
-                        left as i32,
-                        height - bottom as i32,
-                        (right - left) as i32,
-                        (bottom - top) as i32,
-                    );
-                    scissored = true;
-                } else if scissored {
-                    (gl.glDisable)(SCISSOR_TEST);
-                    scissored = false;
-                }
-                (gl.glDrawArrays)(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
-                last = Some(batch);
-            }
-            if scissored {
-                (gl.glDisable)(SCISSOR_TEST);
-            }
-            (gl.glBindSampler)(0, 0);
+        self.set_pipeline(&first.pipeline);
+        if way.one_draw {
+            gl.draw_arrays(TRIANGLES, 0, batches.vertices.len() as i32);
+            return;
         }
+        let mut last: Option<&super::super::batches::Batch> = None;
+        let mut scissored = false;
+        for batch in &batches.batches {
+            let changed = |f: &dyn Fn(&super::super::batches::Batch) -> bool| {
+                last.is_none_or(|l| f(l) != f(batch))
+            };
+            let key = &batch.pipeline;
+            match way.pipeline {
+                Pipeline::Whole => {
+                    if last.is_none_or(|l| l.pipeline != *key) {
+                        self.set_pipeline(key);
+                    }
+                }
+                Pipeline::Changed => {
+                    if changed(&|b| b.pipeline.cull != 1) || changed(&|b| b.pipeline.cull == 2) {
+                        self.set_pipeline(key);
+                    } else {
+                        if changed(&|b| b.pipeline.depth_function != 0)
+                            && last.is_some_and(|l| l.pipeline.depth_function != key.depth_function)
+                        {
+                            gl.depth_func(match key.depth_function {
+                                f @ 1..=7 => 0x0200 + f - 1,
+                                _ => 0x0207,
+                            });
+                        }
+                        if last.is_some_and(|l| l.pipeline.depth_write != key.depth_write) {
+                            gl.depth_mask(key.depth_write);
+                        }
+                        if last.is_some_and(|l| l.pipeline.blend.is_some() != key.blend.is_some()) {
+                            if key.blend.is_some() {
+                                gl.enable(BLEND);
+                            } else {
+                                gl.disable(BLEND);
+                            }
+                        }
+                        if let Some((source, target)) = key.blend
+                            && last.is_some_and(|l| l.pipeline.blend != key.blend)
+                        {
+                            gl.blend_func(blend_factor(source), blend_factor(target));
+                        }
+                        if last.is_some_and(|l| l.pipeline.colour != key.colour) {
+                            gl.colour_mask(key.colour);
+                        }
+                    }
+                }
+                Pipeline::DepthMask => {
+                    if last.is_some_and(|l| l.pipeline.depth_write != key.depth_write) {
+                        gl.depth_mask(key.depth_write);
+                    }
+                }
+                Pipeline::Blend => {
+                    if last.is_some_and(|l| l.pipeline.blend != key.blend) {
+                        match key.blend {
+                            Some((source, target)) => {
+                                gl.enable(BLEND);
+                                gl.blend_func(blend_factor(source), blend_factor(target));
+                            }
+                            None => gl.disable(BLEND),
+                        }
+                    }
+                }
+                Pipeline::Kept => {}
+            }
+            if way.values
+                && changed(&|b| b.values != first.values)
+                    | last.is_some_and(|l| l.values != batch.values)
+            {
+                let v = &batch.values;
+                let l = &self.locations.first;
+                gl.uniform_4fv(l.fog_colour, &v.fog_colour);
+                gl.uniform_1f(l.alpha_reference, v.alpha_reference);
+                gl.uniform_1i(l.alpha_function, v.alpha_function);
+                gl.uniform_1i(l.mixing, v.mixing);
+                gl.uniform_1i(l.flags, v.flags);
+            }
+            if way.textures
+                && last.is_none_or(|l| l.texture != batch.texture)
+                && let Some(n) = batch.texture
+            {
+                let name = self.textures[&batches.textures[n as usize].pixels].name;
+                gl.bind_texture(TEXTURE_2D, name);
+            }
+            if way.samplers
+                && last.is_none_or(|l| (l.linear, l.clamp) != (batch.linear, batch.clamp))
+            {
+                let sampler = self.samplers[batch.linear as usize + 2 * batch.clamp as usize];
+                gl.bind_sampler(0, sampler);
+            }
+            if let Some([left, top, right, bottom]) = batch.scissor {
+                gl.enable(SCISSOR_TEST);
+                gl.scissor(
+                    left as i32,
+                    height - bottom as i32,
+                    (right - left) as i32,
+                    (bottom - top) as i32,
+                );
+                scissored = true;
+            } else if scissored {
+                gl.disable(SCISSOR_TEST);
+                scissored = false;
+            }
+            gl.draw_arrays(TRIANGLES, batch.first_vertex as i32, batch.vertices as i32);
+            last = Some(batch);
+        }
+        if scissored {
+            gl.disable(SCISSOR_TEST);
+        }
+        gl.bind_sampler(0, 0);
     }
 }

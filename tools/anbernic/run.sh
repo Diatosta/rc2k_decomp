@@ -2,7 +2,13 @@
 # Runs a command in the handheld's build container, on this repository (tools/anbernic/Dockerfile).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-exec docker run --rm --user "$(id -u):$(id -g)" -e HOME="$HOME" \
+# A worktree's third_party is a link into the main checkout: mount where it points too.
+extra=()
+if [ -L third_party ]; then
+    real=$(readlink -f third_party)
+    extra=(-v "$real:$real:ro")
+fi
+exec docker run "${extra[@]}" --rm --user "$(id -u):$(id -g)" -e HOME="$HOME" \
     -e CARGO_TARGET_DIR=target/a64-linux \
     -e CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
     -e CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc \

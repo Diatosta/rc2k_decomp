@@ -3,8 +3,6 @@
 //! Where Unix has no such thing (a drive's serial, a keyboard's subtype, an error mode, a
 //! priority class) the answer is the one a plain Windows machine gives, or none.
 
-#![allow(unsafe_code)]
-
 /// A record shaped as `OSVERSIONINFOA` (0x94 bytes): the kernel's release as the version
 /// (major, minor, build), platform 2 (NT's), and "Linux <release>" as its text. Only the
 /// log's head reads it.
@@ -102,20 +100,14 @@ pub fn disk_free(root: Option<&[u8]>) -> Option<[u32; 4]> {
     if root.is_some_and(|r| r.get(1) == Some(&b':')) {
         return None;
     }
-    // SAFETY: all zeros is a valid value of this plain C struct.
-    let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
-    // SAFETY: a NUL-ended path and an out-parameter of its type.
-    if unsafe { libc::statvfs(c".".as_ptr(), &raw mut stat) } != 0 {
-        return None;
-    }
-    let clusters = |blocks: u64| {
-        (blocks.saturating_mul(stat.f_frsize as u64) / 4096).min(u32::MAX as u64) as u32
-    };
+    let stats = crate::ffi::unix::file_system_stats(c".")?;
+    let clusters =
+        |blocks: u64| (blocks.saturating_mul(stats.block_size) / 4096).min(u32::MAX as u64) as u32;
     Some([
         8,
         512,
-        clusters(stat.f_bavail as u64),
-        clusters(stat.f_blocks as u64),
+        clusters(stats.blocks_available),
+        clusters(stats.blocks_total),
     ])
 }
 
@@ -123,31 +115,23 @@ pub fn disk_free(root: Option<&[u8]>) -> Option<[u32; 4]> {
 pub fn free_kb_at(at: &std::path::Path) -> Option<u32> {
     use std::os::unix::ffi::OsStrExt;
     let path = std::ffi::CString::new(at.as_os_str().as_bytes()).ok()?;
-    // SAFETY: all zeros is a valid value of this plain C struct.
-    let mut stat: libc::statvfs = unsafe { std::mem::zeroed() };
-    // SAFETY: a NUL-ended path and an out-parameter of its type.
-    if unsafe { libc::statvfs(path.as_ptr(), &raw mut stat) } != 0 {
-        return None;
-    }
-    let kb = (stat.f_bavail as u64).saturating_mul(stat.f_frsize as u64) / 1024;
+    let stats = crate::ffi::unix::file_system_stats(&path)?;
+    let kb = stats.blocks_available.saturating_mul(stats.block_size) / 1024;
     Some(kb.min(u32::MAX as u64) as u32)
 }
 
 /// Available and total physical memory, available and total swap (bytes, at most 32
 /// bits' worth, as `GlobalMemoryStatus` caps them).
 pub fn memory() -> [u32; 4] {
-    // SAFETY: all zeros is a valid value of this plain C struct.
-    let mut info: libc::sysinfo = unsafe { std::mem::zeroed() };
-    // SAFETY: an out-parameter of its type.
-    if unsafe { libc::sysinfo(&raw mut info) } != 0 {
+    let Some(info) = crate::ffi::unix::memory_stats() else {
         return [0; 4];
-    }
-    let bytes = |n: u64| n.saturating_mul(info.mem_unit as u64).min(u32::MAX as u64) as u32;
+    };
+    let capped = |n: u64| n.min(u32::MAX as u64) as u32;
     [
-        bytes(info.freeram as u64),
-        bytes(info.totalram as u64),
-        bytes(info.freeswap as u64),
-        bytes(info.totalswap as u64),
+        capped(info.free_ram),
+        capped(info.total_ram),
+        capped(info.free_swap),
+        capped(info.total_swap),
     ]
 }
 
@@ -159,100 +143,9 @@ pub fn set_error_mode(_mode: u32) -> u32 {
 /// No priority classes on Unix: the process runs as it was started.
 pub fn set_priority_class(_class: u32) {}
 
-/// `len` bytes of zeroed, readable and writable pages for the program's life (a pool block):
-/// their first byte, or None. Pages not yet touched take no memory.
-pub fn map_pages(len: usize) -> Option<*mut u8> {
-    // SAFETY: a new anonymous mapping; nothing is passed in.
-    let at = unsafe {
-        libc::mmap(
-            std::ptr::null_mut(),
-            len,
-            libc::PROT_READ | libc::PROT_WRITE,
-            libc::MAP_PRIVATE | libc::MAP_ANONYMOUS,
-            -1,
-            0,
-        )
-    };
-    (at != libc::MAP_FAILED).then_some(at.cast())
-}
-
-/// The pages of `map_pages`' `len` bytes at `at` handed back to the system, still mapped:
-/// their memory is freed and they read as zeros when next touched. Whether the pages came
-/// back zeroed (they do here).
-///
-/// # Safety
-/// `at` and `len` are a mapping of `map_pages` (whole pages).
-pub unsafe fn discard_pages(at: *mut u8, len: usize) -> bool {
-    // SAFETY: the caller's mapping; private anonymous pages read zero after this.
-    unsafe { libc::madvise(at.cast(), len, libc::MADV_DONTNEED) == 0 }
-}
+pub use crate::ffi::unix::{discard_pages, image, map_pages, thread_stack};
 
 /// The process ended at once with `code` (no library's leave-taking).
 pub fn terminate(code: u32) -> ! {
-    // SAFETY: ends the process.
-    unsafe { libc::_exit(code as i32) }
-}
-
-/// The running thread's stack: its lowest byte and the byte past its top.
-#[cfg(not(miri))]
-pub fn thread_stack() -> (usize, usize) {
-    // SAFETY: the running thread's attributes, read and destroyed here.
-    unsafe {
-        let mut attr: libc::pthread_attr_t = std::mem::zeroed();
-        if libc::pthread_getattr_np(libc::pthread_self(), &raw mut attr) != 0 {
-            return (0, 0);
-        }
-        let (mut low, mut size) = (std::ptr::null_mut(), 0usize);
-        let read = libc::pthread_attr_getstack(&raw const attr, &raw mut low, &raw mut size);
-        libc::pthread_attr_destroy(&raw mut attr);
-        if read != 0 {
-            return (0, 0);
-        }
-        let low = low.expose_provenance();
-        (low, low + size)
-    }
-}
-
-/// Miri cannot ask for the stack; its tests have none to register.
-#[cfg(miri)]
-pub fn thread_stack() -> (usize, usize) {
-    (0, 0)
-}
-
-/// Miri cannot ask the loader; its tests have no image to find.
-#[cfg(miri)]
-pub fn image() -> (usize, Vec<(usize, usize)>) {
-    (0, Vec::new())
-}
-
-/// The program's own image: its load address, and its loaded segments (first byte, byte
-/// past the end), from the program's headers.
-#[cfg(not(miri))]
-pub fn image() -> (usize, Vec<(usize, usize)>) {
-    unsafe extern "C" fn each(
-        info: *mut libc::dl_phdr_info,
-        _size: usize,
-        found: *mut libc::c_void,
-    ) -> libc::c_int {
-        // SAFETY: the loader's record of the program (the first one listed) and its
-        // program headers, live during the call; `found` is `image`'s.
-        unsafe {
-            let info = &*info;
-            let found = &mut *found.cast::<(usize, Vec<(usize, usize)>)>();
-            let base = info.dlpi_addr as usize;
-            found.0 = base;
-            for n in 0..info.dlpi_phnum as usize {
-                let h = &*info.dlpi_phdr.add(n);
-                if h.p_type == libc::PT_LOAD {
-                    let start = base + h.p_vaddr as usize;
-                    found.1.push((start, start + h.p_memsz as usize));
-                }
-            }
-        }
-        1 // the program is listed first: stop there
-    }
-    let mut found: (usize, Vec<(usize, usize)>) = (0, Vec::new());
-    // SAFETY: `each` reads the loader's records as documented; `found` outlives the call.
-    unsafe { libc::dl_iterate_phdr(Some(each), (&raw mut found).cast()) };
-    found
+    crate::ffi::unix::exit_now(code)
 }

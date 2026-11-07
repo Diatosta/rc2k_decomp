@@ -1,22 +1,22 @@
-//! The GPU backend, on SDL's GPU API (Vulkan on the PC). All of this file's `unsafe` is SDL's calls:
-//! each handle here was made by the same device and lives as long as `Gpu`, or until the line
-//! that replaces it.
+//! The GPU backend, on SDL's GPU API (Vulkan on the PC). The calls into SDL are
+//! `ffi::sdl_gpu`'s: each handle here was made by the same device and lives as long as `Gpu`,
+//! or until the line that replaces it.
 //!
 //! A race's frame is 3D in the GPU's colour target and the game's 2D on the screen's memory (the
 //! canvas), which starts each layer holding `UNWRITTEN` in every pixel. When the two meet, the
 //! pixels the game has written go over the target and the canvas is marked again. Something that
 //! wants the true picture in the canvas asks `bring_back`, which is slow on a handheld.
 
-#![allow(unsafe_code)]
-
 use super::batches::{Batch, Batches, PipelineKey};
 use super::{Command, Target, TextureNote};
+use crate::ffi::sdl_gpu::{
+    self, Buffer, Device, Pipeline, PipelineSpec, Sampler, Shader, Texture, Transfer,
+};
 use crate::framework::log;
 #[cfg(test)]
 use crate::system::owner::system;
 use sdl3_sys::everything::*;
 use std::collections::HashMap;
-use std::ptr::{null, null_mut};
 use std::sync::Mutex;
 
 /// A canvas pixel the game has not written: magenta, with an alpha byte the screen's pixels are
@@ -33,7 +33,7 @@ const DEPTH_FORMAT: SDL_GPUTextureFormat = SDL_GPU_TEXTUREFORMAT_D32_FLOAT;
 const VERTEX_BYTES: u32 = 32;
 
 struct CachedTexture {
-    texture: *mut SDL_GPUTexture,
+    texture: Texture,
     width: usize,
     height: usize,
     stale: bool,
@@ -41,51 +41,48 @@ struct CachedTexture {
 
 /// The targets a frame is drawn into, at the screen's size.
 struct Targets {
-    colour: *mut SDL_GPUTexture,
-    depth: *mut SDL_GPUTexture,
-    canvas: *mut SDL_GPUTexture,
-    canvas_transfer: *mut SDL_GPUTransferBuffer,
+    colour: Texture,
+    depth: Texture,
+    canvas: Texture,
+    canvas_transfer: Transfer,
 }
 
 impl Default for Targets {
     fn default() -> Targets {
         Targets {
-            colour: null_mut(),
-            depth: null_mut(),
-            canvas: null_mut(),
-            canvas_transfer: null_mut(),
+            colour: Texture::NONE,
+            depth: Texture::NONE,
+            canvas: Texture::NONE,
+            canvas_transfer: Transfer::NONE,
         }
     }
 }
 
 pub struct Gpu {
-    device: *mut SDL_GPUDevice,
-    colour: *mut SDL_GPUTexture,
-    depth: *mut SDL_GPUTexture,
-    canvas: *mut SDL_GPUTexture,
-    canvas_transfer: *mut SDL_GPUTransferBuffer,
+    device: Device,
+    colour: Texture,
+    depth: Texture,
+    canvas: Texture,
+    canvas_transfer: Transfer,
     width: u32,
     height: u32,
     /// How many times the targets have been made: names the colour target's set.
     targets_made: u64,
     depth_is_new: bool,
-    scene_vert: *mut SDL_GPUShader,
-    scene_frag: *mut SDL_GPUShader,
-    overlay: *mut SDL_GPUGraphicsPipeline,
-    pipelines: HashMap<PipelineKey, *mut SDL_GPUGraphicsPipeline>,
+    scene_vert: Shader,
+    scene_frag: Shader,
+    overlay: Pipeline,
+    pipelines: HashMap<PipelineKey, Pipeline>,
     /// By `linear as usize + 2 * clamp as usize`.
-    samplers: [*mut SDL_GPUSampler; 4],
-    nearest: *mut SDL_GPUSampler,
-    white: *mut SDL_GPUTexture,
+    samplers: [Sampler; 4],
+    nearest: Sampler,
+    white: Texture,
     textures: HashMap<crate::pointers::GamePtr, CachedTexture>,
-    vertices: *mut SDL_GPUBuffer,
+    vertices: Buffer,
     vertices_room: u32,
-    transfer: *mut SDL_GPUTransferBuffer,
+    transfer: Transfer,
     transfer_room: u32,
 }
-
-// Safety: used only under `GPU`'s lock, and SDL's device may be used from any one thread at a time.
-unsafe impl Send for Gpu {}
 
 /// The GPU, once asked for and made.
 pub static GPU: Mutex<Option<Gpu>> = Mutex::new(None);
@@ -96,33 +93,23 @@ pub fn wanted() -> bool {
 }
 
 fn sdl_error() -> String {
-    // SAFETY: SDL's own text, valid until its next call, copied at once.
-    unsafe { std::ffi::CStr::from_ptr(SDL_GetError()) }
-        .to_string_lossy()
-        .into_owned()
+    sdl_gpu::error()
 }
 
 /// A device that takes our shaders; `None` (logged) when the system has none.
-pub fn make_device() -> Option<*mut SDL_GPUDevice> {
-    // SAFETY: no pointers but SDL's error text.
-    let device = unsafe { SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, false, null()) };
-    if device.is_null() {
+pub fn make_device() -> Option<Device> {
+    let device = Device::create_spirv();
+    if device.is_none() {
         log(&format!("render: no GPU device: {}", sdl_error()));
-        return None;
     }
-    Some(device)
+    device
 }
 
 /// Starts the backend on `device`.
-pub fn start(device: *mut SDL_GPUDevice) {
+pub fn start(device: Device) {
     match Gpu::new(device) {
         Ok(gpu) => {
-            // SAFETY: the device's own constant text.
-            let driver = unsafe { std::ffi::CStr::from_ptr(SDL_GetGPUDeviceDriver(device)) };
-            log(&format!(
-                "render: the GPU backend on {}",
-                driver.to_string_lossy()
-            ));
+            log(&format!("render: the GPU backend on {}", device.driver()));
             *GPU.lock().unwrap() = Some(gpu);
             super::gpu_started();
         }
@@ -131,28 +118,28 @@ pub fn start(device: *mut SDL_GPUDevice) {
 }
 
 impl Gpu {
-    pub fn new(device: *mut SDL_GPUDevice) -> Result<Gpu, String> {
+    pub fn new(device: Device) -> Result<Gpu, String> {
         let mut gpu = Gpu {
             device,
-            colour: null_mut(),
-            depth: null_mut(),
-            canvas: null_mut(),
-            canvas_transfer: null_mut(),
+            colour: Texture::NONE,
+            depth: Texture::NONE,
+            canvas: Texture::NONE,
+            canvas_transfer: Transfer::NONE,
             width: 0,
             height: 0,
             targets_made: 0,
             depth_is_new: true,
-            scene_vert: null_mut(),
-            scene_frag: null_mut(),
-            overlay: null_mut(),
+            scene_vert: Shader::NONE,
+            scene_frag: Shader::NONE,
+            overlay: Pipeline::NONE,
             pipelines: HashMap::new(),
-            samplers: [null_mut(); 4],
-            nearest: null_mut(),
-            white: null_mut(),
+            samplers: [Sampler::NONE; 4],
+            nearest: Sampler::NONE,
+            white: Texture::NONE,
             textures: HashMap::new(),
-            vertices: null_mut(),
+            vertices: Buffer::NONE,
             vertices_room: 0,
-            transfer: null_mut(),
+            transfer: Transfer::NONE,
             transfer_room: 0,
         };
         gpu.scene_vert = gpu.shader(SCENE_VERT, SDL_GPU_SHADERSTAGE_VERTEX, 0, 1)?;
@@ -178,23 +165,11 @@ impl Gpu {
         stage: SDL_GPUShaderStage,
         samplers: u32,
         uniforms: u32,
-    ) -> Result<*mut SDL_GPUShader, String> {
-        let info = SDL_GPUShaderCreateInfo {
-            code_size: code.len(),
-            code: code.as_ptr(),
-            entrypoint: c"main".as_ptr(),
-            format: SDL_GPU_SHADERFORMAT_SPIRV,
-            stage,
-            num_samplers: samplers,
-            num_uniform_buffers: uniforms,
-            ..Default::default()
-        };
-        // SAFETY: `info` and the code it points to live through the call.
-        let shader = unsafe { SDL_CreateGPUShader(self.device, &raw const info) };
-        (!shader.is_null()).then_some(shader).ok_or_else(sdl_error)
+    ) -> Result<Shader, String> {
+        self.device.create_shader(code, stage, samplers, uniforms)
     }
 
-    fn make_sampler(&self, linear: bool, clamp: bool) -> Result<*mut SDL_GPUSampler, String> {
+    fn make_sampler(&self, linear: bool, clamp: bool) -> Result<Sampler, String> {
         let filter = if linear {
             SDL_GPU_FILTER_LINEAR
         } else {
@@ -214,11 +189,7 @@ impl Gpu {
             address_mode_w: address,
             ..Default::default()
         };
-        // SAFETY: `info` lives through the call.
-        let sampler = unsafe { SDL_CreateGPUSampler(self.device, &raw const info) };
-        (!sampler.is_null())
-            .then_some(sampler)
-            .ok_or_else(sdl_error)
+        self.device.create_sampler(&info)
     }
 
     fn make_texture(
@@ -226,7 +197,7 @@ impl Gpu {
         width: u32,
         height: u32,
         usage: SDL_GPUTextureUsageFlags,
-    ) -> Result<*mut SDL_GPUTexture, String> {
+    ) -> Result<Texture, String> {
         self.make_texture_of(COLOUR_FORMAT, width, height, usage)
     }
 
@@ -236,53 +207,29 @@ impl Gpu {
         width: u32,
         height: u32,
         usage: SDL_GPUTextureUsageFlags,
-    ) -> Result<*mut SDL_GPUTexture, String> {
-        let info = SDL_GPUTextureCreateInfo {
-            r#type: SDL_GPU_TEXTURETYPE_2D,
-            format,
-            usage,
-            width,
-            height,
-            layer_count_or_depth: 1,
-            num_levels: 1,
-            sample_count: SDL_GPU_SAMPLECOUNT_1,
-            props: SDL_PropertiesID(0),
-        };
-        // SAFETY: `info` lives through the call.
-        let texture = unsafe { SDL_CreateGPUTexture(self.device, &raw const info) };
-        (!texture.is_null())
-            .then_some(texture)
-            .ok_or_else(sdl_error)
+    ) -> Result<Texture, String> {
+        self.device.create_texture(format, width, height, usage)
     }
 
     fn make_overlay_pipeline(
         &self,
-        vertex_shader: *mut SDL_GPUShader,
-        fragment_shader: *mut SDL_GPUShader,
-    ) -> Result<*mut SDL_GPUGraphicsPipeline, String> {
-        let colour = [SDL_GPUColorTargetDescription {
-            format: COLOUR_FORMAT,
-            ..Default::default()
-        }];
-        let info = SDL_GPUGraphicsPipelineCreateInfo {
-            vertex_shader,
-            fragment_shader,
-            primitive_type: SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-            target_info: SDL_GPUGraphicsPipelineTargetInfo {
-                color_target_descriptions: colour.as_ptr(),
-                num_color_targets: 1,
+        vertex_shader: Shader,
+        fragment_shader: Shader,
+    ) -> Result<Pipeline, String> {
+        let spec = PipelineSpec {
+            vertices: None,
+            colour: SDL_GPUColorTargetDescription {
+                format: COLOUR_FORMAT,
                 ..Default::default()
             },
-            ..Default::default()
+            rasterizer: SDL_GPURasterizerState::default(),
+            depth: None,
         };
-        // SAFETY: `info` and `colour` live through the call.
-        let pipeline = unsafe { SDL_CreateGPUGraphicsPipeline(self.device, &raw const info) };
-        (!pipeline.is_null())
-            .then_some(pipeline)
-            .ok_or_else(sdl_error)
+        self.device
+            .create_pipeline(vertex_shader, fragment_shader, &spec)
     }
 
-    fn pipeline(&mut self, key: PipelineKey) -> Result<*mut SDL_GPUGraphicsPipeline, String> {
+    fn pipeline(&mut self, key: PipelineKey) -> Result<Pipeline, String> {
         if let Some(&pipeline) = self.pipelines.get(&key) {
             return Ok(pipeline);
         }
@@ -298,12 +245,6 @@ impl Gpu {
             format,
             offset,
         });
-        let buffer = [SDL_GPUVertexBufferDescription {
-            slot: 0,
-            pitch: VERTEX_BYTES,
-            input_rate: SDL_GPU_VERTEXINPUTRATE_VERTEX,
-            instance_step_rate: 0,
-        }];
         let mut blend = SDL_GPUColorTargetBlendState {
             enable_color_write_mask: !key.colour,
             ..Default::default()
@@ -317,21 +258,13 @@ impl Gpu {
             blend.dst_alpha_blendfactor = blend_factor(target);
             blend.alpha_blend_op = SDL_GPU_BLENDOP_ADD;
         }
-        let colour = [SDL_GPUColorTargetDescription {
-            format: COLOUR_FORMAT,
-            blend_state: blend,
-        }];
-        let info = SDL_GPUGraphicsPipelineCreateInfo {
-            vertex_shader: self.scene_vert,
-            fragment_shader: self.scene_frag,
-            vertex_input_state: SDL_GPUVertexInputState {
-                vertex_buffer_descriptions: buffer.as_ptr(),
-                num_vertex_buffers: 1,
-                vertex_attributes: attributes.as_ptr(),
-                num_vertex_attributes: attributes.len() as u32,
+        let spec = PipelineSpec {
+            vertices: Some((VERTEX_BYTES, &attributes)),
+            colour: SDL_GPUColorTargetDescription {
+                format: COLOUR_FORMAT,
+                blend_state: blend,
             },
-            primitive_type: SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-            rasterizer_state: SDL_GPURasterizerState {
+            rasterizer: SDL_GPURasterizerState {
                 fill_mode: SDL_GPU_FILLMODE_FILL,
                 cull_mode: match key.cull {
                     3 => SDL_GPU_CULLMODE_BACK,
@@ -343,26 +276,19 @@ impl Gpu {
                 enable_depth_clip: false,
                 ..Default::default()
             },
-            depth_stencil_state: SDL_GPUDepthStencilState {
-                compare_op: compare_op(key.depth_function),
-                enable_depth_test: true,
-                enable_depth_write: key.depth_write,
-                ..Default::default()
-            },
-            target_info: SDL_GPUGraphicsPipelineTargetInfo {
-                color_target_descriptions: colour.as_ptr(),
-                num_color_targets: 1,
-                depth_stencil_format: DEPTH_FORMAT,
-                has_depth_stencil_target: true,
-                ..Default::default()
-            },
-            ..Default::default()
+            depth: Some((
+                SDL_GPUDepthStencilState {
+                    compare_op: compare_op(key.depth_function),
+                    enable_depth_test: true,
+                    enable_depth_write: key.depth_write,
+                    ..Default::default()
+                },
+                DEPTH_FORMAT,
+            )),
         };
-        // SAFETY: `info` and the arrays it points to live through the call.
-        let pipeline = unsafe { SDL_CreateGPUGraphicsPipeline(self.device, &raw const info) };
-        if pipeline.is_null() {
-            return Err(sdl_error());
-        }
+        let pipeline = self
+            .device
+            .create_pipeline(self.scene_vert, self.scene_frag, &spec)?;
         self.pipelines.insert(key, pipeline);
         Ok(pipeline)
     }
@@ -412,16 +338,13 @@ impl Gpu {
 
     /// The targets released, those of them that were made.
     fn release_targets(&self, targets: &Targets) {
-        // SAFETY: ours, no longer held by `self`; SDL waits for work that uses them.
-        unsafe {
-            for texture in [targets.colour, targets.depth, targets.canvas] {
-                if !texture.is_null() {
-                    SDL_ReleaseGPUTexture(self.device, texture);
-                }
+        for texture in [targets.colour, targets.depth, targets.canvas] {
+            if !texture.is_none() {
+                self.device.release_texture(texture);
             }
-            if !targets.canvas_transfer.is_null() {
-                SDL_ReleaseGPUTransferBuffer(self.device, targets.canvas_transfer);
-            }
+        }
+        if !targets.canvas_transfer.is_none() {
+            self.device.release_transfer(targets.canvas_transfer);
         }
     }
 
@@ -429,58 +352,32 @@ impl Gpu {
         &self,
         usage: SDL_GPUTransferBufferUsage,
         size: u32,
-    ) -> Result<*mut SDL_GPUTransferBuffer, String> {
-        let info = SDL_GPUTransferBufferCreateInfo {
-            usage,
-            size,
-            props: SDL_PropertiesID(0),
-        };
-        // SAFETY: `info` lives through the call.
-        let transfer = unsafe { SDL_CreateGPUTransferBuffer(self.device, &raw const info) };
-        (!transfer.is_null())
-            .then_some(transfer)
-            .ok_or_else(sdl_error)
+    ) -> Result<Transfer, String> {
+        self.device.create_transfer(usage, size)
     }
 
     /// The colour target, for showing it, and the number of its set of targets (a new
     /// target may be made at an old one's address).
     pub fn colour_texture(&self) -> (*mut SDL_GPUTexture, u64) {
-        (self.colour, self.targets_made)
+        (self.colour.as_raw(), self.targets_made)
     }
 
     /// `bytes` into the transfer buffer `transfer` from `at` (cycled when `at` is 0: the last
     /// frame's may be in use).
-    fn fill_transfer(
-        &self,
-        transfer: *mut SDL_GPUTransferBuffer,
-        at: usize,
-        bytes: &[u8],
-    ) -> Result<(), String> {
-        // SAFETY: the buffer holds at least `at + bytes.len()` bytes (the callers' sums), mapped
-        // only here.
-        unsafe {
-            let map = SDL_MapGPUTransferBuffer(self.device, transfer, at == 0);
-            if map.is_null() {
-                return Err(sdl_error());
-            }
-            std::ptr::copy_nonoverlapping(bytes.as_ptr(), map.cast::<u8>().add(at), bytes.len());
-            SDL_UnmapGPUTransferBuffer(self.device, transfer);
-        }
-        Ok(())
+    fn fill_transfer(&self, transfer: Transfer, at: usize, bytes: &[u8]) -> Result<(), String> {
+        self.device.fill_transfer(transfer, at, bytes, at == 0)
     }
 
     fn upload_white(&self) -> Result<(), String> {
         let transfer = self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, 4)?;
         self.fill_transfer(transfer, 0, &[0xFF; 4])?;
-        // SAFETY: the handles are ours; the command buffer is submitted at once.
-        unsafe {
-            let commands = SDL_AcquireGPUCommandBuffer(self.device);
-            let copy = SDL_BeginGPUCopyPass(commands);
-            upload(copy, transfer, 0, self.white, 1, 1);
-            SDL_EndGPUCopyPass(copy);
-            SDL_SubmitGPUCommandBuffer(commands);
-            SDL_ReleaseGPUTransferBuffer(self.device, transfer);
-        }
+        // The command buffer is submitted at once.
+        let commands = self.device.acquire_command_buffer()?;
+        let copy = commands.begin_copy_pass();
+        copy.upload_texture(transfer, 0, self.white, 1, 1);
+        copy.end();
+        let _ = commands.submit();
+        self.device.release_transfer(transfer);
         Ok(())
     }
 
@@ -488,28 +385,17 @@ impl Gpu {
     fn ensure_room(&mut self, vertex_bytes: u32, transfer_bytes: u32) -> Result<(), String> {
         if vertex_bytes > self.vertices_room {
             let room = vertex_bytes.next_power_of_two().max(1 << 20);
-            let info = SDL_GPUBufferCreateInfo {
-                usage: SDL_GPU_BUFFERUSAGE_VERTEX,
-                size: room,
-                props: SDL_PropertiesID(0),
-            };
-            // SAFETY: `info` lives through the call; the old buffer is ours.
-            unsafe {
-                if !self.vertices.is_null() {
-                    SDL_ReleaseGPUBuffer(self.device, self.vertices);
-                }
-                self.vertices = SDL_CreateGPUBuffer(self.device, &raw const info);
+            if !self.vertices.is_none() {
+                self.device.release_buffer(self.vertices);
             }
-            if self.vertices.is_null() {
-                return Err(sdl_error());
-            }
+            self.vertices = Buffer::NONE;
+            self.vertices = self.device.create_vertex_buffer(room)?;
             self.vertices_room = room;
         }
         if transfer_bytes > self.transfer_room {
             let room = transfer_bytes.next_power_of_two().max(1 << 22);
-            if !self.transfer.is_null() {
-                // SAFETY: ours.
-                unsafe { SDL_ReleaseGPUTransferBuffer(self.device, self.transfer) };
+            if !self.transfer.is_none() {
+                self.device.release_transfer(self.transfer);
             }
             self.transfer = self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD, room)?;
             self.transfer_room = room;
@@ -528,8 +414,7 @@ impl Gpu {
         }
         for pixels in changes.gone {
             if let Some(gone) = self.textures.remove(&pixels) {
-                // SAFETY: ours; SDL waits for work that uses it.
-                unsafe { SDL_ReleaseGPUTexture(self.device, gone.texture) };
+                self.device.release_texture(gone.texture);
             }
         }
     }
@@ -574,8 +459,7 @@ impl Gpu {
                         stale: false,
                     },
                 ) {
-                    // SAFETY: ours; SDL waits for work that uses it.
-                    unsafe { SDL_ReleaseGPUTexture(self.device, old.texture) };
+                    self.device.release_texture(old.texture);
                 }
             }
         }
@@ -584,7 +468,7 @@ impl Gpu {
         for batch in &batches.batches {
             pipelines.push(self.pipeline(batch.pipeline)?);
         }
-        let vertex_data: &[u8] = bytes_of_vertices(&batches.vertices);
+        let vertex_data: &[u8] = sdl_gpu::words_as_bytes(&batches.vertices);
         self.fill_transfer(self.transfer, 0, vertex_data)?;
         let mut at = vertex_data.len();
         let mut placed = Vec::with_capacity(uploads.len());
@@ -594,152 +478,83 @@ impl Gpu {
             at += bytes.len();
         }
         self.fill_transfer(self.canvas_transfer, 0, canvas)?;
-        // SAFETY: every handle is ours and alive; the offsets are within the buffers (the sums
-        // above); the bound arrays live through their calls; the command buffer is submitted
-        // before the end of this block.
-        unsafe {
-            let buffer = SDL_AcquireGPUCommandBuffer(self.device);
-            if buffer.is_null() {
-                return Err(sdl_error());
-            }
-            let copy = SDL_BeginGPUCopyPass(buffer);
-            let from = SDL_GPUTransferBufferLocation {
-                transfer_buffer: self.transfer,
-                offset: 0,
-            };
-            let to = SDL_GPUBufferRegion {
-                buffer: self.vertices,
-                offset: 0,
-                size: vertex_bytes,
-            };
-            if vertex_bytes > 0 {
-                SDL_UploadToGPUBuffer(copy, &raw const from, &raw const to, true);
-            }
-            for (note, offset) in &placed {
-                let texture = self.textures.get_mut(&note.pixels).expect("made above");
-                upload(
-                    copy,
-                    self.transfer,
-                    *offset,
-                    texture.texture,
-                    note.width as u32,
-                    note.height as u32,
-                );
-                texture.stale = false;
-            }
-            upload(
-                copy,
-                self.canvas_transfer,
-                0,
-                self.canvas,
-                self.width,
-                self.height,
-            );
-            SDL_EndGPUCopyPass(copy);
-            let colour = SDL_GPUColorTargetInfo {
-                texture: self.colour,
-                load_op: SDL_GPU_LOADOP_LOAD,
-                store_op: SDL_GPU_STOREOP_STORE,
-                ..Default::default()
-            };
-            let depth = SDL_GPUDepthStencilTargetInfo {
-                texture: self.depth,
-                clear_depth: 1.0,
-                load_op: if self.depth_is_new {
-                    SDL_GPU_LOADOP_CLEAR
-                } else {
-                    SDL_GPU_LOADOP_LOAD
-                },
-                store_op: SDL_GPU_STOREOP_STORE,
-                stencil_load_op: SDL_GPU_LOADOP_DONT_CARE,
-                stencil_store_op: SDL_GPU_STOREOP_DONT_CARE,
-                ..Default::default()
-            };
-            self.depth_is_new = false;
-            let pass = SDL_BeginGPURenderPass(buffer, &raw const colour, 1, &raw const depth);
-            self.draw_overlay(pass);
-            let size = [self.width as f32, self.height as f32];
-            SDL_PushGPUVertexUniformData(buffer, 0, size.as_ptr().cast(), 8);
-            let binding = SDL_GPUBufferBinding {
-                buffer: self.vertices,
-                offset: 0,
-            };
-            SDL_BindGPUVertexBuffers(pass, 0, &raw const binding, 1);
-            let mut last_pipeline = null_mut();
-            let mut last_values = None;
-            let mut last_sampling = None;
-            let mut scissored = false;
-            for (batch, &pipeline) in batches.batches.iter().zip(&pipelines) {
-                if pipeline != last_pipeline {
-                    SDL_BindGPUGraphicsPipeline(pass, pipeline);
-                    last_pipeline = pipeline;
-                }
-                if last_values != Some(batch.values) {
-                    SDL_PushGPUFragmentUniformData(
-                        buffer,
-                        0,
-                        (&raw const batch.values).cast(),
-                        size_of_val(&batch.values) as u32,
-                    );
-                    last_values = Some(batch.values);
-                }
-                let sampling = (batch.texture, batch.linear, batch.clamp);
-                if last_sampling != Some(sampling) {
-                    let texture = batch.texture.map_or(self.white, |n| {
-                        self.textures[&batches.textures[n as usize].pixels].texture
-                    });
-                    let bound = SDL_GPUTextureSamplerBinding {
-                        texture,
-                        sampler: self.samplers[sampler_number(batch)],
-                    };
-                    SDL_BindGPUFragmentSamplers(pass, 0, &raw const bound, 1);
-                    last_sampling = Some(sampling);
-                }
-                if let Some([left, top, right, bottom]) = batch.scissor {
-                    let rect = SDL_Rect {
-                        x: left as i32,
-                        y: top as i32,
-                        w: (right - left) as i32,
-                        h: (bottom - top) as i32,
-                    };
-                    SDL_SetGPUScissor(pass, &raw const rect);
-                    scissored = true;
-                } else if scissored {
-                    let rect = SDL_Rect {
-                        x: 0,
-                        y: 0,
-                        w: self.width as i32,
-                        h: self.height as i32,
-                    };
-                    SDL_SetGPUScissor(pass, &raw const rect);
-                    scissored = false;
-                }
-                SDL_DrawGPUPrimitives(pass, batch.vertices, 1, batch.first_vertex, 0);
-            }
-            SDL_EndGPURenderPass(pass);
-            if !SDL_SubmitGPUCommandBuffer(buffer) {
-                return Err(sdl_error());
-            }
+        // Every handle is ours and alive; the offsets are within the buffers (the sums above);
+        // the command buffer is submitted before the end of this block.
+        let buffer = self.device.acquire_command_buffer()?;
+        let copy = buffer.begin_copy_pass();
+        if vertex_bytes > 0 {
+            copy.upload_buffer(self.transfer, self.vertices, vertex_bytes);
         }
+        for (note, offset) in &placed {
+            let texture = self.textures.get_mut(&note.pixels).expect("made above");
+            copy.upload_texture(
+                self.transfer,
+                *offset,
+                texture.texture,
+                note.width as u32,
+                note.height as u32,
+            );
+            texture.stale = false;
+        }
+        copy.upload_texture(
+            self.canvas_transfer,
+            0,
+            self.canvas,
+            self.width,
+            self.height,
+        );
+        copy.end();
+        let pass = buffer.begin_render_pass(self.colour, self.depth, self.depth_is_new);
+        self.depth_is_new = false;
+        self.draw_overlay(&pass);
+        buffer.push_vertex_uniform(0, &[self.width as f32, self.height as f32]);
+        pass.bind_vertex_buffer(self.vertices);
+        let mut last_pipeline = None;
+        let mut last_values = None;
+        let mut last_sampling = None;
+        let mut scissored = false;
+        for (batch, &pipeline) in batches.batches.iter().zip(&pipelines) {
+            if last_pipeline != Some(pipeline) {
+                pass.bind_pipeline(pipeline);
+                last_pipeline = Some(pipeline);
+            }
+            if last_values != Some(batch.values) {
+                buffer.push_fragment_uniform(0, &batch.values.to_words());
+                last_values = Some(batch.values);
+            }
+            let sampling = (batch.texture, batch.linear, batch.clamp);
+            if last_sampling != Some(sampling) {
+                let texture = batch.texture.map_or(self.white, |n| {
+                    self.textures[&batches.textures[n as usize].pixels].texture
+                });
+                pass.bind_fragment_sampler(texture, self.samplers[sampler_number(batch)]);
+                last_sampling = Some(sampling);
+            }
+            if let Some([left, top, right, bottom]) = batch.scissor {
+                pass.set_scissor(
+                    left as i32,
+                    top as i32,
+                    (right - left) as i32,
+                    (bottom - top) as i32,
+                );
+                scissored = true;
+            } else if scissored {
+                pass.set_scissor(0, 0, self.width as i32, self.height as i32);
+                scissored = false;
+            }
+            pass.draw(batch.vertices, batch.first_vertex);
+        }
+        pass.end();
+        buffer.submit()?;
         mark_unwritten(canvas);
         Ok(())
     }
 
     /// The canvas's written pixels over the target (bound in an open pass).
-    ///
-    /// # Safety
-    /// `pass` is an open render pass on the target.
-    unsafe fn draw_overlay(&self, pass: *mut SDL_GPURenderPass) {
-        let bound = SDL_GPUTextureSamplerBinding {
-            texture: self.canvas,
-            sampler: self.nearest,
-        };
-        // SAFETY: the caller's pass; handles ours; `bound` lives through the call.
-        unsafe {
-            SDL_BindGPUGraphicsPipeline(pass, self.overlay);
-            SDL_BindGPUFragmentSamplers(pass, 0, &raw const bound, 1);
-            SDL_DrawGPUPrimitives(pass, 3, 1, 0, 0);
-        }
+    fn draw_overlay(&self, pass: &sdl_gpu::RenderPass) {
+        pass.bind_pipeline(self.overlay);
+        pass.bind_fragment_sampler(self.canvas, self.nearest);
+        pass.draw(3, 0);
     }
 
     /// The frame's end: what the canvas has written goes over the target.
@@ -752,78 +567,22 @@ impl Gpu {
         self.finish_frame(canvas)?;
         let bytes = self.width * self.height * 4;
         let transfer = self.make_transfer(SDL_GPU_TRANSFERBUFFERUSAGE_DOWNLOAD, bytes)?;
-        // SAFETY: handles ours; the wait ends the GPU's use of the buffer before it is read, and
-        // the copy is of the `bytes` the buffer holds, which `canvas` holds too (`Target::bytes`).
-        unsafe {
-            let buffer = SDL_AcquireGPUCommandBuffer(self.device);
-            let copy = SDL_BeginGPUCopyPass(buffer);
-            let region = SDL_GPUTextureRegion {
-                texture: self.colour,
-                w: self.width,
-                h: self.height,
-                d: 1,
-                ..Default::default()
-            };
-            let to = SDL_GPUTextureTransferInfo {
-                transfer_buffer: transfer,
-                ..Default::default()
-            };
-            SDL_DownloadFromGPUTexture(copy, &raw const region, &raw const to);
-            SDL_EndGPUCopyPass(copy);
-            let fence = SDL_SubmitGPUCommandBufferAndAcquireFence(buffer);
-            if fence.is_null() {
-                return Err(sdl_error());
-            }
-            SDL_WaitForGPUFences(self.device, true, &raw const fence, 1);
-            SDL_ReleaseGPUFence(self.device, fence);
-            let map = SDL_MapGPUTransferBuffer(self.device, transfer, false);
-            if map.is_null() {
-                return Err(sdl_error());
-            }
-            std::ptr::copy_nonoverlapping(map.cast::<u8>(), canvas.as_mut_ptr(), bytes as usize);
-            SDL_UnmapGPUTransferBuffer(self.device, transfer);
-            SDL_ReleaseGPUTransferBuffer(self.device, transfer);
-        }
+        // The wait ends the GPU's use of the buffer before it is read; the copy is of the
+        // `bytes` the buffer holds, which `canvas` holds too (`Target::bytes`).
+        let buffer = self.device.acquire_command_buffer()?;
+        let copy = buffer.begin_copy_pass();
+        copy.download_texture(self.colour, self.width, self.height, transfer);
+        copy.end();
+        buffer.submit_and_wait(self.device)?;
+        self.device
+            .read_transfer(transfer, &mut canvas[..bytes as usize])?;
+        self.device.release_transfer(transfer);
         Ok(())
     }
 }
 
-/// A copy pass's upload of a whole picture.
-///
-/// # Safety
-/// `copy` is an open copy pass, and the transfer buffer holds the picture at `offset`.
-unsafe fn upload(
-    copy: *mut SDL_GPUCopyPass,
-    transfer: *mut SDL_GPUTransferBuffer,
-    offset: u32,
-    texture: *mut SDL_GPUTexture,
-    width: u32,
-    height: u32,
-) {
-    let from = SDL_GPUTextureTransferInfo {
-        transfer_buffer: transfer,
-        offset,
-        pixels_per_row: width,
-        rows_per_layer: height,
-    };
-    let to = SDL_GPUTextureRegion {
-        texture,
-        w: width,
-        h: height,
-        d: 1,
-        ..Default::default()
-    };
-    // SAFETY: the caller's pass and buffer; the two records live through the call.
-    unsafe { SDL_UploadToGPUTexture(copy, &raw const from, &raw const to, true) };
-}
-
 fn sampler_number(batch: &Batch) -> usize {
     batch.linear as usize + 2 * batch.clamp as usize
-}
-
-fn bytes_of_vertices(vertices: &[super::batches::Vertex]) -> &[u8] {
-    // SAFETY: dwords as bytes: same memory, a smaller alignment, every value valid.
-    unsafe { std::slice::from_raw_parts(vertices.as_ptr().cast(), size_of_val(vertices)) }
 }
 
 /// Every pixel of the canvas marked as not written.
@@ -865,11 +624,10 @@ fn compare_op(function: u32) -> SDL_GPUCompareOp {
 
 impl super::Backend for Gpu {
     fn draw(&mut self, target: &Target, commands: Vec<Command>) {
-        // SAFETY: the game's code waits for this call; nothing else writes the canvas meanwhile.
-        let canvas = unsafe { target.bytes() };
-        let done = self
-            .set_size(target.width as u32, target.height as u32)
-            .and_then(|()| Gpu::draw(self, canvas, &commands));
+        let done = target.with_canvas(|canvas| {
+            self.set_size(target.width as u32, target.height as u32)
+                .and_then(|()| Gpu::draw(self, canvas, &commands))
+        });
         if let Err(why) = done {
             crate::fatal::raise::end(
                 "render::gpu",
@@ -980,8 +738,7 @@ mod comparison {
             read_commands(&mut Reader(r.0)),
         );
 
-        // SAFETY: no pointers; SDL's start-up, on this test's thread.
-        unsafe { SDL_Init(SDL_INIT_VIDEO) };
+        sdl_gpu::init_video();
         let Some(device) = make_device() else {
             println!("SKIPPED: no GPU device: {}", sdl_error());
             return;
