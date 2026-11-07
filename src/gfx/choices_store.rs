@@ -6,7 +6,6 @@
 //! image's (`tests`).
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
 use crate::session::{Bytes, Dword};
 
 /// The graphics page's choices (IDA 0x4F50C0 .. 0x4F51F0, the image's layout; the rows' texts
@@ -74,9 +73,8 @@ impl ModeList {
         if let Some(m) = self.modes.get(place as usize) {
             return Ok([&m.width, &m.height, &m.figure, &m.mode][index].get());
         }
-        GamePtr::to(self)
-            .offset(16 * place + 4 * index as u32)
-            .read(what)
+        crate::pointers::load_value(self, (16 * place + 4 * index as u32) as usize)
+            .inspect_err(|_| crate::framework::log(&format!("choices: {what}: past the table")))
     }
 }
 

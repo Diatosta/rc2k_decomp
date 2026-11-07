@@ -14,9 +14,8 @@
 use crate::race::owner_course::Course;
 use rc2k_core::physics::grades::{percentage, reset_writes};
 
-fn put(b: crate::pointers::GamePtr, offset: u32, v: u32) {
-    b.offset(offset)
-        .write::<u32>(v, "physics::reset_car_grades's operand")
+fn put(b: &dyn crate::pointers::Store, offset: u32, v: u32) {
+    crate::pointers::store_value::<u32>(b, offset as usize, v)
         .unwrap_or_else(|e| crate::fatal::raise::end("physics::reset_car_grades", e));
 }
 
@@ -25,7 +24,7 @@ fn put(b: crate::pointers::GamePtr, offset: u32, v: u32) {
 // Converted: `rc2k_core::physics::grades::{percentage, reset_writes}`.
 pub fn reset_grades_at(
     course: &Course,
-    b: crate::pointers::GamePtr,
+    b: &dyn crate::pointers::Store,
     s0c: &crate::session::Dword,
     s08: &crate::session::Dword,
 ) {

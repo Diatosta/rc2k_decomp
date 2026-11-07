@@ -345,9 +345,7 @@ impl Textures {
             return self.kind_index(n).map_or(0, |k| FORMAT_TAG | k as u32);
         }
         // Bounded to the whole table (the kinds are followed by the descriptions).
-        crate::pointers::GamePtr::to(self)
-            .offset((core::mem::offset_of!(Textures, kinds) + 4 * n) as u32)
-            .read::<u32>("a texture kind")
+        crate::pointers::load_value::<u32>(self, core::mem::offset_of!(Textures, kinds) + 4 * n)
             .unwrap_or_else(|e| crate::fatal::raise::end("gfx::texture_upload::kind_entry", e))
     }
 }

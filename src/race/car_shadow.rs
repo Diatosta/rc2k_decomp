@@ -5,6 +5,7 @@
 //! `race().frame.frame_work.shadow_point_count`, the hull's `race().frame.shadow_skids.hull_count`.
 
 use crate::errors::{BadInput, Refused};
+#[cfg(all(test, target_arch = "x86"))]
 use crate::pointers::GamePtr;
 use crate::race::owner::Race;
 #[cfg(all(test, target_arch = "x86"))]
@@ -103,16 +104,16 @@ pub fn shadow_hull(race: &Race) -> Result<(), Refused> {
     if !(2..=0x40).contains(&count) {
         return Err(BadInput("fewer than two shadow points or more than 0x40").into());
     }
-    let at = |n: usize| point_at(&race.frame, n as u32).map(GamePtr::to);
+    let at = |n: usize| point_at(&race.frame, n as u32);
     let mut records: Vec<Record> = Vec::new();
     for n in 0..hull_records(count) {
-        records.push(at(n)?.read::<Record>("a shadow hull record")?);
+        records.push(crate::pointers::load_value::<Record>(at(n)?, 0)?);
     }
     let before = records.clone();
     let h = hull(&mut records, count)?;
     for (n, (now, was)) in records.iter().zip(&before).enumerate() {
         if now != was {
-            at(n)?.write(*now, "a shadow hull record")?;
+            crate::pointers::store_value(at(n)?, 0, *now)?;
         }
     }
     race.physics.ground_probe.product[0].set(h.product as u32);

@@ -21,7 +21,6 @@ use crate::errors::BadInput;
 use crate::input::di_harness::{CAPS_LEN, CONTROLLERS};
 use crate::input::owner::Input;
 use crate::input::types::{Controller, DiDeviceInstance};
-use crate::pointers::GamePtr;
 use crate::system::owner::system;
 
 /// Looks the joystick over and fills the entry: false at the first failure.
@@ -64,17 +63,17 @@ fn look_over(
     use rc2k_core::input::joystick::{NAME_ROOM, name_prefix};
     let count = input.devices.controller_count.get();
     let name = name_prefix(count);
-    let at_name = GamePtr::to(&entry.name);
-    at_name.write_bytes(&name, "a controller's name")?;
+    entry.name.write_at(0, &name, "a controller's name")?;
     use crate::strings::copy_printable::KEEP_CASE; // dword_4E0144
     use std::sync::atomic::Ordering::Relaxed;
     let kept = KEEP_CASE.atomic().swap(0, Relaxed);
-    let to = at_name.offset(name.len() as u32);
     // room 0x19 is never refused
     if let Ok(printable) =
         crate::strings::copy_printable::printable_from(&instance.instance_name, NAME_ROOM)
     {
-        to.write_bytes(&printable, "a controller's name")?;
+        entry
+            .name
+            .write_at(name.len(), &printable, "a controller's name")?;
     }
     KEEP_CASE.set(kept);
     let f = rc2k_core::input::joystick::found(

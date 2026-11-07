@@ -13,15 +13,13 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::pointers::GamePtr;
-use rc2k_core::strings::bytes::Bytes as _;
 
 /// The Rust version (see the header): the time text at `text` in `font` at (`x`, `y`).
 /// The flags the original leaves are read by neither caller (register liveness,
 /// 2026-10-23: after the two calls DF, ebp, ebx/edi, edx, esi, all kept).
 pub fn draw_time_text(
     font: impl Into<crate::gfx::typefaces::FontRef>,
-    text: GamePtr,
+    text: &(impl rc2k_core::strings::bytes::Bytes + ?Sized),
     x: u32,
     y: u32,
 ) -> Result<(), Refused> {
@@ -29,8 +27,8 @@ pub fn draw_time_text(
     let font = font.into().object();
     let mut x = x;
     // Converted: `rc2k_core::text::time_text_widths`.
-    let chars = text.bytes("a time text")?;
-    let widths = rc2k_core::text::time_text_widths(&chars)
+    let chars = text;
+    let widths = rc2k_core::text::time_text_widths(chars)
         .map_err(|_| crate::errors::BadInput("a time text past its block"))?;
     for (i, width) in widths.into_iter().enumerate() {
         font.box_width.set(width);

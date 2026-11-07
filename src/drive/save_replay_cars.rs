@@ -7,7 +7,7 @@
 //!
 //! Caller: `sub_45FFB6`.
 
-use crate::pointers::{Cells, GamePtr, copy_cells};
+use crate::pointers::{Cells, copy_cells};
 use crate::race::blocks_store::{CAR_BLOCKS, REPLAY_STATE_OFFSET};
 use crate::race::groups_store::CarsAndReplay;
 use crate::race::owner::Race;
@@ -18,13 +18,11 @@ use rc2k_core::drive::replay_frames::{StartPiece, start_layout};
 /// Where a piece of the starting state is now: a car's block, the race slots (`g_raceSlots`) or
 /// `unk_71BF84` (its 0x400 bytes run on through the computer driver's fields: bounded to
 /// the race work). For the replay check, which reads it dword by dword.
-pub fn piece_place(shared: &Shared, piece: StartPiece) -> GamePtr {
+pub fn piece_place(shared: &Shared, piece: StartPiece) -> (&dyn crate::pointers::Store, usize) {
     match piece {
-        StartPiece::Car(k) => GamePtr::to(&CAR_BLOCKS.cars[k as usize]),
-        StartPiece::RaceSlots => GamePtr::to(&shared.work.race_slots),
-        StartPiece::Extra => {
-            GamePtr::to(&shared.work).offset(core::mem::offset_of!(RaceWork, replay_extra) as u32)
-        }
+        StartPiece::Car(k) => (&CAR_BLOCKS.cars[k as usize], 0),
+        StartPiece::RaceSlots => (&shared.work.race_slots, 0),
+        StartPiece::Extra => (&shared.work, core::mem::offset_of!(RaceWork, replay_extra)),
     }
 }
 
@@ -87,7 +85,9 @@ mod tests {
     #[test]
     fn every_piece_fits_its_place() {
         for (piece, _, n) in start_layout() {
-            let room = piece_place(&crate::race::owner::race().shared, piece)
+            let (store, at) = piece_place(&crate::race::owner::race().shared, piece);
+            let room = crate::pointers::GamePtr::of_store(store)
+                .offset(at as u32)
                 .bytes("a piece")
                 .unwrap();
             assert!(room.byte(n * 4 - 1).is_some(), "{piece:?}: {n:#x} dwords");

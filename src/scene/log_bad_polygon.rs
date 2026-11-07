@@ -16,7 +16,7 @@
 //! vertices (the original's loop would run through memory).
 
 use crate::errors::BadInput;
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 use crate::race::owner::race;
 use crate::scene::owner::scene;
 
@@ -90,7 +90,7 @@ const PT: &std::ffi::CStr = c"pt"; // "pt"
 
 /// The Rust version: the dump of the `g_polygonVertexCount` vertices at `vertices` (at most 64,
 /// held to the vertex buffer: the longest read is the last vertex's 0x20 bytes of its 0x800).
-pub fn log_bad_polygon(vertices: GamePtr) -> Result<(), BadInput> {
+pub fn log_bad_polygon(vertices: &dyn Store) -> Result<(), BadInput> {
     let scene = scene();
     let count: u32 = scene.drawing.scene.polygon_vertex_count.bits();
     if count > MOST {
@@ -112,7 +112,8 @@ pub fn log_bad_polygon(vertices: GamePtr) -> Result<(), BadInput> {
         return Ok(());
     }
     for n in 0..count {
-        let words = vertices.offset(0x20 * n).read_bytes(0x20, "a vertex")?;
+        let mut words = [0u8; 0x20];
+        vertices.load(0x20 * n as usize, &mut words)?;
         write(PT);
         log(INT, n);
         for (label, kind, offset) in VERTEX {

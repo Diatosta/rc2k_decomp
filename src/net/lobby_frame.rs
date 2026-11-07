@@ -116,7 +116,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
                 {
                     crate::text::draw_time_text::draw_time_text(
                         FONT,
-                        crate::pointers::GamePtr::to(&text.buffer.text),
+                        &text.buffer.text.read(),
                         x,
                         y,
                     )
@@ -132,7 +132,7 @@ pub fn lobby_frame() -> Result<(), Refused> {
             {
                 crate::text::draw_time_text::draw_time_text(
                     FONT,
-                    crate::pointers::GamePtr::to(&text.buffer.text),
+                    &text.buffer.text.read(),
                     x,
                     total_y,
                 )

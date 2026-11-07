@@ -25,7 +25,7 @@ pub fn file_len() -> usize {
 // ---- Rust version ----
 
 /// True if the file was written.
-pub fn save_options(path: crate::pointers::GamePtr) -> Result<bool, Refused> {
+pub fn save_options(path: &dyn crate::pointers::Store) -> Result<bool, Refused> {
     let file = &system().work.files.buffer;
     let mut owned = Vec::new();
     for piece in pieces() {
@@ -35,7 +35,7 @@ pub fn save_options(path: crate::pointers::GamePtr) -> Result<bool, Refused> {
     let bytes = rc2k_core::saves::kept::options_file(packed_local_time(), &pieces);
     file.write_at(0, &bytes, "the scratch buffer")?;
     Ok(write_file_from_store(
-        &crate::files::cstring_at(path, "the options file's path")?,
+        &crate::files::cstring(path, "the options file's path")?,
         file,
         file_len() as u32,
     )?

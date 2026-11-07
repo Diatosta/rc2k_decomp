@@ -315,18 +315,22 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
     {
         // The picture's path after 3 bytes, its last four made ".sq" and a NUL, then
         // "files\" at the start (`str_append` and the two writes of the original).
-        let path = GamePtr::to(&crate::files::state::PACKED_PATH);
+        let path = &crate::files::state::PACKED_PATH;
         let len = crate::strings::text_length::nul_at(&picture.bytes("a text to append")?)?;
-        let room = path.limited(crate::files::state::PACKED_PATH_LEN as u32);
-        picture.copy_to(room.offset(3), len as usize, "a text to append")?;
-        room.offset(3 + len)
-            .offset(4u32.wrapping_neg())
-            .write(0x0071_732Eu32, "the packed map's path")?;
-        room.write_bytes(b"files\\", "the packed map's path")?;
+        let text = picture.read_bytes(len as usize, "a text to append")?;
+        path.write_at(3, &text, "a text to append")?;
+        // At `3 + len - 4`: before the buffer when the path is empty, as the original's.
+        let tail = (3 + len as usize).checked_sub(4);
+        path.write_at(
+            tail.ok_or(crate::errors::BadInput("past the end of a buffer"))?,
+            &0x0071_732Eu32.to_le_bytes(),
+            "the packed map's path",
+        )?;
+        path.write_at(0, b"files\\", "the packed map's path")?;
         // The packed path as built in the buffer.
         load_packed_game_map(
             frame,
-            &crate::files::cstring_at(path, "the packed map's path")?,
+            &crate::files::cstring(path, "the packed map's path")?,
         )?;
         return Ok(());
     }

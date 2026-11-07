@@ -28,11 +28,7 @@ pub fn save_game_data(
 /// `menu::arcade_level_end`; register liveness, 2026-10-23).
 pub fn save_in_game() -> Result<bool, Refused> {
     save_game_data(
-        &mut || {
-            crate::saves::save_options::save_options(crate::pointers::GamePtr::to(
-                &saves().files.options_path,
-            ))
-        },
+        &mut || crate::saves::save_options::save_options(&saves().files.options_path),
         &mut || crate::saves::save_best_times::in_game(),
     )
 }

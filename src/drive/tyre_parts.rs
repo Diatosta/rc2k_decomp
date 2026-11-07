@@ -89,10 +89,7 @@ fn quad_tail_math(rect: [u32; 4], vertices: &[Vertex], screen: [u32; 2], scratch
 /// its result (Direct3D's, always 0) is read by no one: the quads keep every register
 /// round it (`pusha` / `popa`).
 pub fn draw() -> Result<(), Refused> {
-    crate::d3d::draw_vertex_strip::draw_vertex_strip(
-        crate::pointers::GamePtr::to(&VERTICES.vertices),
-        4,
-    )?;
+    crate::d3d::draw_vertex_strip::draw_vertex_strip(&VERTICES.vertices, 4)?;
     Ok(())
 }
 
