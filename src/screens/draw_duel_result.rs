@@ -19,9 +19,9 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
-use crate::menu::owner::menus;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
@@ -50,10 +50,10 @@ fn label(tables: &Tables, v: u32) -> Result<u32, Refused> {
     Ok(tables.captions.duel_labels[v as usize - 1].get())
 }
 
-pub fn draw_duel_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let play = &menus().play;
-    let screens = &menus().screens;
-    let tables = &menus().tables;
+pub fn draw_duel_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let play = &menus.play;
+    let screens = &menus.screens;
+    let tables = &menus.tables;
     let (p1, p2) = (
         crate::menu::standings::player(0),
         crate::menu::standings::player(1),

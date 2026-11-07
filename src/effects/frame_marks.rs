@@ -19,7 +19,7 @@ use crate::effects::{morph_object_points, scale_vectors_by, view_frame};
 use crate::errors::Refused;
 use crate::math::x87;
 use crate::race::marks_settings_store::MarksSettings;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Dword;
 /// (the settings' field, the copy): +0x50, +0x4C and +0x10.
 fn copies(marks: &MarksSettings) -> [(&Dword, &Dword); 3] {
@@ -37,9 +37,9 @@ fn rdtsc() -> (u32, u32) {
 }
 
 /// The Rust version (see the header).
-pub fn frame_marks(effects: &Effects) -> Result<(), Refused> {
-    let shared = &crate::race::owner::race().shared;
-    let course = &race().course;
+pub fn frame_marks(race: &Race, effects: &Effects) -> Result<(), Refused> {
+    let shared = &race.shared;
+    let course = &race.course;
     let marks = crate::effects::setup::marks()?;
     {
         let (start, _) = rdtsc();

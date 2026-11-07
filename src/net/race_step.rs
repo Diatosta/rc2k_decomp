@@ -14,19 +14,19 @@
 use crate::errors::Refused;
 use crate::net::owner::net;
 use crate::net::{apply_received, follow_remote, send_turn};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The Rust version.
-pub fn race_step() -> Result<(), Refused> {
+pub fn race_step(race: &Race) -> Result<(), Refused> {
     let vars = &net().vars;
     if vars.session.get() == 0 {
         return Ok(());
     }
-    if race().shared.work.current_car.get() == vars.player.get() {
-        send_turn::send_turn()?;
-        apply_received::apply_received(vars)
+    if race.shared.work.current_car.get() == vars.player.get() {
+        send_turn::send_turn(race)?;
+        apply_received::apply_received(race, vars)
     } else {
-        follow_remote::follow_remote(vars)?;
+        follow_remote::follow_remote(race, vars)?;
         Ok(())
     }
 }

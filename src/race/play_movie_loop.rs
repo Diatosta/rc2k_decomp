@@ -36,7 +36,7 @@ fn log_number(n: u32) {
 /// caller reads none either) reads none it leaves (`lq -s 0x4607A5`: nothing live).
 pub fn play_movie_loop(race: &Race) -> Result<(), Refused> {
     use crate::drive::race_parts;
-    crate::race::stage_prefs::init_skidmarks()?;
+    crate::race::stage_prefs::init_skidmarks(race)?;
     log_text(TEXTS[0], false);
     log_text(TEXTS[1], false);
     log_number(race.replay.replay_view.replay_block.get());
@@ -53,8 +53,8 @@ pub fn play_movie_loop(race: &Race) -> Result<(), Refused> {
         if input().devices.keys_pressed.get(1) != 0 {
             break;
         }
-        { crate::drive::race_step::race_step() }?;
-        race_parts::race_frame()?;
+        { crate::drive::race_step::race_step(race) }?;
+        race_parts::race_frame(race)?;
         if race.replay.replay_view.replay_block.get() == race.replay.replay_view.play_end.get() {
             break;
         }

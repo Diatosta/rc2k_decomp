@@ -5,7 +5,7 @@
 //! rounds' points, below 0 none, +0x6C the total, +0x70 the position).
 
 use crate::errors::{FatalError, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::screens::game_screen::{HeldText, held_name};
 use crate::text::draw_text::Canvas;
 use rc2k_core::saves::rankings::HistoryEntry;
@@ -44,8 +44,7 @@ pub fn find_history_entry(
 /// leaves it. (It also looks the section's first record up and never uses it: left out.)
 /// Every register kept. Refuses (before anything) no history table; a position not in it is
 /// the original's fatal error.
-pub fn draw_championship_table(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let menus = menus();
+pub fn draw_championship_table(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let walked = crate::menu::standings::walked_entries_b()?;
     // Converted: `rc2k_core::screens::championship_table`; the ten entries looked up
     // first (a position not in the history is the original's fatal error, raised

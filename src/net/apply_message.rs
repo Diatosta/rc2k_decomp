@@ -22,7 +22,7 @@ use crate::logfile::log_int::log_int;
 use crate::net::send_inputs::fields;
 use crate::net::store::NetVars;
 use crate::physics::car_store::Car;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Dword;
 use rc2k_core::net::race::{self, Arrival, Kind};
 
@@ -68,8 +68,12 @@ fn word_at(message: &[u8], at: usize) -> Result<u32, BadInput> {
 }
 
 /// The Rust version.
-pub fn apply_message(vars: &NetVars, player: u32, message: &[u8]) -> Result<(), BadInput> {
-    let race = race();
+pub fn apply_message(
+    race: &Race,
+    vars: &NetVars,
+    player: u32,
+    message: &[u8],
+) -> Result<(), BadInput> {
     log_int(vars.player.get() as i32, false, 1);
     log_int(race.shared.view.local_car.get() as i32, false, 1);
     log_int(
@@ -133,6 +137,7 @@ pub fn apply_message(vars: &NetVars, player: u32, message: &[u8]) -> Result<(), 
 mod tests {
     use super::*;
     use crate::pointers::GamePtr;
+    use crate::race::owner::race;
 
     /// The places sit where the core's constants put them in the car's block.
     #[test]

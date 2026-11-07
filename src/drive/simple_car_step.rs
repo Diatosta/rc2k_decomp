@@ -22,14 +22,14 @@ use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
 pub fn simple_car_step(race: &Race) -> Result<(), Refused> {
-    crate::drive::car_input_words::car_input_words()?;
-    crate::drive::read_car_controls::read_car_controls()?;
-    crate::drive::steer_inputs::steer_inputs();
-    crate::drive::pedal_inputs::pedal_inputs();
+    crate::drive::car_input_words::car_input_words(race)?;
+    crate::drive::read_car_controls::read_car_controls(race)?;
+    crate::drive::steer_inputs::steer_inputs(race);
+    crate::drive::pedal_inputs::pedal_inputs(race);
     // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
     let keys = race.shared.car.input_keys.get();
-    { crate::drive::reset_request::reset_request() }?;
+    { crate::drive::reset_request::reset_request(race) }?;
     let distance = roam_distance(
         CAR_BLOCKS.cars[0].throttle.bits(),
         CAR_BLOCKS.cars[0].brake.bits(),
@@ -74,6 +74,6 @@ pub fn simple_car_step(race: &Race) -> Result<(), Refused> {
     CAR_BLOCKS.cars[0].car_pitch.set_bits(0);
     CAR_BLOCKS.cars[0].car_roll.set_bits(0);
     // `race::get_mat_crash` reads no register at entry (liveness): a scratch.
-    crate::race::stage_prefs::get_mat_crash();
+    crate::race::stage_prefs::get_mat_crash(race);
     Ok(())
 }

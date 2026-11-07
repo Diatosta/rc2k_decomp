@@ -70,9 +70,9 @@ pub fn set_up_race(race: &Race, vars: &NetVars) -> Result<(), Refused> {
     race.shared.view.race_cars.set(players);
     race.shared.view.players.set(1);
     race.shared.switches.editor_mode.set(0);
-    crate::net::reset_cars::reset_cars()?;
+    crate::net::reset_cars::reset_cars(race)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
-    crate::race::race_shell::set_start_states()?;
+    crate::race::race_shell::set_start_states(race)?;
     // Each stored block's gearbox kind and start slot value, from the race's tables.
     for (car, colours) in CAR_BLOCKS.cars[..8]
         .iter()

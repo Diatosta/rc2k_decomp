@@ -13,13 +13,12 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the page's lines.
 /// The Rust version.
-pub fn draw_options_checklist(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let menus = menus();
+pub fn draw_options_checklist(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::settings_pages::options_checklist`.
     {
         let mut ticks = Vec::new();

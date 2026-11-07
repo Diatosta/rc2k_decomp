@@ -9,6 +9,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::screens::draw_menu_items::draw_menu_items;
 use crate::screens::draw_menu_labels::draw_menu_labels;
 use crate::text::draw_text::Canvas;
@@ -17,9 +18,10 @@ use crate::text::draw_text::Canvas;
 
 /// `menu` (edi in the original).
 pub fn draw_menu(
+    menus: &Menus,
     menu: crate::menu::menus_store::MenuId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
     draw_menu_labels(menu, canvas)?;
-    draw_menu_items(menu, canvas)
+    draw_menu_items(menus, menu, canvas)
 }

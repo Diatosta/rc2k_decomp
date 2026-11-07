@@ -4,8 +4,8 @@
 //! shares, the weather, the description, the stage's number, and the best and fastest.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
-use crate::menu::owner::menus;
 use crate::records::stages_store::{Holder as RecordHolder, RecordRef};
 use crate::screens::game_screen::{Held, HeldText};
 use crate::system::owner::system;
@@ -76,16 +76,16 @@ pub fn draw_stage_best_and_fastest(
 /// `dword_75ACD0`'s second dword), then `draw_stage_best_and_fastest` on its times
 /// (`g_courseBestTimes`, the stage the record's +0x3C). Every register kept. Refuses (before anything) no
 /// stage record or times table.
-pub fn draw_rally_stage_info(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let play = &menus().play;
-    let tables = &menus().tables;
+pub fn draw_rally_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let play = &menus.play;
+    let tables = &menus.tables;
     use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
     let record = stage_record(play)?;
     let course_times = &crate::saves::best_times::COURSE_TIMES;
     if !course_times.is_taken() {
         return Err(BadInput("no stage record or times table").into());
     }
-    draw_times_heading(&RALLY_STAGE_TIMES, canvas)?;
+    draw_times_heading(menus, &RALLY_STAGE_TIMES, canvas)?;
     // the two headings in `stru_51E564` here (the other stage pages: `stru_51E5C4`)
     crate::screens::stage_panel::draw_stage_body_in(
         tables,

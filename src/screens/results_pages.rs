@@ -39,7 +39,7 @@
 //! line buffer, and what the look-ups refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::ranked_lookups::{find_ranked_entry, find_ranked_position, first_overall_time};
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::{HeldText, held_name};
@@ -105,8 +105,11 @@ pub const OVERALL_STAGE: Page = Page {
 };
 
 /// The Rust version of one page.
-pub fn draw_results_page(page: &Page, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let menus = menus();
+pub fn draw_results_page(
+    menus: &Menus,
+    page: &Page,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
     let class = menus.screens.event.class.get();
     if !section_there()? {
         return Err(BadInput("a section past the record table").into());
@@ -205,8 +208,8 @@ macro_rules! results_page_entry {
         pub mod $module {
             use super::*;
             /// The Rust version the typed tables run (`menu::table_calls`).
-            pub fn draw() -> Result<(), Refused> {
-                draw_results_page(&$page, &mut crate::text::draw_text::GameCanvas)
+            pub fn draw(menus: &crate::menu::owner::Menus) -> Result<(), Refused> {
+                draw_results_page(menus, &$page, &mut crate::text::draw_text::GameCanvas)
             }
         }
     };

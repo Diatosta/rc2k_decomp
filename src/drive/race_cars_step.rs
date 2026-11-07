@@ -29,13 +29,13 @@ fn car_step(race: &Race) -> Result<(), Refused> {
         .work
         .work_block
         .set(race.shared.work.car_block(slot));
-    crate::drive::load_car::load_car()?;
+    crate::drive::load_car::load_car(&race.shared)?;
     if race.shared.car.driver_kind.get() != 0 {
-        crate::drive::read_car_controls::read_car_controls()?;
-        crate::physics::gear_input_rules::gear_input_rules();
-        crate::physics::car_physics_step::car_physics_step()?;
+        crate::drive::read_car_controls::read_car_controls(race)?;
+        crate::physics::gear_input_rules::gear_input_rules(race);
+        crate::physics::car_physics_step::car_physics_step(race)?;
     }
-    crate::drive::store_car::store_car()?;
+    crate::drive::store_car::store_car(&race.shared)?;
     Ok(())
 }
 
@@ -45,7 +45,7 @@ fn car_step(race: &Race) -> Result<(), Refused> {
 pub fn race_cars_step(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     race_steps::check_cars(shared.view.race_cars.get())?;
-    crate::drive::choose_shown_cars::choose_shown_cars()?;
+    crate::drive::choose_shown_cars::choose_shown_cars(race)?;
     race_steps::each_car(
         || shared.work.current_car.get(),
         || shared.view.race_cars.get(),
@@ -53,6 +53,6 @@ pub fn race_cars_step(race: &Race) -> Result<(), Refused> {
         || car_step(race),
     )?;
     crate::drive::animate_stage::animate_stage(race)?;
-    crate::drive::race_mode_cars::race_mode_cars()?;
+    crate::drive::race_mode_cars::race_mode_cars(race)?;
     Ok(())
 }

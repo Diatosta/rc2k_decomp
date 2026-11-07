@@ -10,6 +10,7 @@
 //! Refuses no function to call.
 
 use crate::errors::{BadInput, Refused};
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
@@ -37,7 +38,8 @@ fn progress(shared: &Shared, done: u32) -> Option<u32> {
 /// `dword_623704` names is one of the two the loading puts there: `race::loading_bar_frame`
 /// (0x4467C7) or the empty function after it (0x4467C6); they read no register, so none of
 /// the original's (ebp the span, eax / edx / ebx the progress, esi the function) is passed.
-pub fn step_loading_bar(shared: &Shared, done: u32) -> Result<(), Refused> {
+pub fn step_loading_bar(race: &Race, done: u32) -> Result<(), Refused> {
+    let shared = &race.shared;
     let show: u32 = shared.vars.bar_function.bits();
     if show == 0 {
         return Err(BadInput("no function to show the loading with").into());
@@ -46,7 +48,7 @@ pub fn step_loading_bar(shared: &Shared, done: u32) -> Result<(), Refused> {
         shared.vars.bar_share.set_bits(progress);
     }
     if show == BAR {
-        crate::race::loading_bar_frame::loading_bar_frame()
+        crate::race::loading_bar_frame::loading_bar_frame(race)
     } else if show == NOTHING {
         Ok(())
     } else {

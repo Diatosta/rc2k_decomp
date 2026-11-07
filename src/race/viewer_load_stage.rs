@@ -90,7 +90,7 @@ pub fn viewer_load_stage(race: &Race) -> Result<(), Refused> {
         crate::logfile::log_write::log_nul(&DOOR_TEXT, false, 1);
         crate::logfile::log_int::log_int(door as i32, true, 1);
 
-        sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
+        sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game())?;
         crate::sound::set_up_race_sounds::set_up_race_sounds()?;
         if gfx().fonts.menu_fonts.palettes.get() == 0 {
             { crate::gfx::build_fonts::build_fonts() }?;

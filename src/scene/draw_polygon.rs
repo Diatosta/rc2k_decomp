@@ -40,7 +40,7 @@ use crate::d3d::NO_TEXTURE;
 use crate::d3d::owner::d3d;
 use crate::errors::BadInput;
 use crate::math::x87;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use crate::scene::polygon_store::PolygonEntry;
 use crate::scene::submit_polygon::{self, submit_polygon};
@@ -537,7 +537,6 @@ impl Outside for Game {
 
 /// `draw_polygon` with the game's Direct3D layer (`scene::submit_polygon`'s), for Rust
 /// callers.
-pub fn draw_polygon_in_game() -> Result<(), BadInput> {
-    let race = race();
+pub fn draw_polygon_in_game(race: &Race) -> Result<(), BadInput> {
     draw_polygon(race, &mut Game)
 }

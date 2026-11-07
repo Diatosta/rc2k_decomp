@@ -485,10 +485,13 @@ pub fn draw_sky(race: &Race) -> Result<(), Refused> {
     crate::scene::glow_render_states::glow_render_states();
     scene.lights.work.light_kind.set(0u32);
     // esi as the `rep movsd` of the matrix's copy leaves it: past `g_madeObjectMatrix`.
-    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(matrices_at(
-        frame,
-        core::mem::offset_of!(SceneMatrices, made_object_matrix) + 0x40,
-    )))?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(
+        race,
+        Some(matrices_at(
+            frame,
+            core::mem::offset_of!(SceneMatrices, made_object_matrix) + 0x40,
+        )),
+    )?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
     crate::scene::depth_buffer_on::depth_buffer(true);
     scene.lights.state.view_kind.set_bits(0);

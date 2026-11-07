@@ -20,7 +20,7 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::flow::c0;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Dword;
@@ -86,8 +86,8 @@ fn steer(shared: &Shared, cell: &Dword, step: u32) {
 
 /// The Rust version (the exact one, for `drive::simple_car_step`, `drive::replay_step`
 /// and `race::step_replay_cars`).
-pub fn steer_inputs() {
-    let race_owner = race();
+pub fn steer_inputs(race: &Race) {
+    let race_owner = race;
     let drawing = &scene().drawing;
     let course = &race_owner.course;
     let mut keys = race_owner.shared.physics_tables.input_steer.get() == 0;
@@ -172,6 +172,7 @@ pub fn steer_inputs() {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.

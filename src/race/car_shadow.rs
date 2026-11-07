@@ -528,7 +528,7 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
             read_on_in(&race.shared.buffers, list, k as usize, "the polygon list")?,
         )?;
     }
-    crate::scene::project_polygon::project_polygon()?;
+    crate::scene::project_polygon::project_polygon(race)?;
     crate::scene::fog_polygon::fog_polygon()?;
     drawing
         .scene
@@ -539,12 +539,12 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
         if outside == drawing.scene.polygon_vertex_count.bits() {
             return Ok(());
         }
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race)?;
         if drawing.scene.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
     }
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race)?;
     if drawing.scene.polygon_vertex_count.bits() < 3 {
         return Ok(());
     }
@@ -553,7 +553,7 @@ pub fn shadow_on_face(race: &Race) -> Result<(), Refused> {
     drawing.scene.polygon_sides[0].set(0u32);
     drawing.scene.polygon_sides[1].set(1u32);
     race.shared.view.polygon_mode.set(5u32);
-    crate::scene::draw_polygon::draw_polygon_in_game()?;
+    crate::scene::draw_polygon::draw_polygon_in_game(race)?;
     drawing.scene.polygon_drawn.set(1u32);
     Ok(())
 }
@@ -802,7 +802,7 @@ pub fn cast_car_shadows(race: &Race) -> Result<(), Refused> {
             continue;
         }
         race.shared.work.current_car.set(n);
-        crate::drive::load_car::load_car()?;
+        crate::drive::load_car::load_car(&race.shared)?;
         race.frame
             .frame_work
             .shadow_point_count

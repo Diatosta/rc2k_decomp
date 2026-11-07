@@ -57,7 +57,7 @@ pub fn load_stage(race: &Race) -> Result<(), Refused> {
         ))?;
     }
     race.replay.replay_frames.last_kept.set(u32::MAX);
-    crate::race::sounds::wake_car_sounds()?;
+    crate::race::sounds::wake_car_sounds(race)?;
     indent(-3);
     log();
     indent(3);

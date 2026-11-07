@@ -8,7 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
@@ -41,8 +40,8 @@ fn get(n: u32, k: u32) -> Result<u32, BadInput> {
 /// heading; the first face's number in `dword_5CCD28`. The registers it leaves are read
 /// by none of its callers (conversion phase 3, 2026-10-24). Refuses no checkpoints (the
 /// original reads entry -1) or more than the lists.
-pub fn place_car_on_line(course: &Course) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn place_car_on_line(race: &Race, course: &Course) -> Result<(), Refused> {
+    let shared = &race.shared;
     let lights = &scene().lights;
     // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
@@ -277,8 +276,8 @@ pub fn nearest_checkpoint(race: &Race) -> Result<u32, Refused> {
 
 /// `race::invert_car_matrix` (0x43F16C): `scene::invert_turn` of the work car's matrix
 /// (`g_crashMatrix`, +0xB4) into its inverse (+0x9CC, 0x71A9A4), every register kept.
-pub fn invert_car_matrix() {
-    let shared = &race().shared;
+pub fn invert_car_matrix(race: &Race) {
+    let shared = &race.shared;
     crate::scene::view_matrix::invert_turn(
         &shared.car.crash_matrix,
         &shared.car.car_inverse_matrix,

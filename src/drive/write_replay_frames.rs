@@ -38,7 +38,7 @@ pub fn write_replay_frames(race: &Race) -> Result<(), Refused> {
         cell.set(cell.get() & !0xFF00 | u32::from(v as u8) << 8);
     }
     // `race::write_replay_block` reads no register at entry (liveness: DF only).
-    { crate::race::replay::write_replay_block(replay) }?;
+    { crate::race::replay::write_replay_block(race, replay) }?;
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_used
         .set(0);

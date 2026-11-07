@@ -25,7 +25,7 @@ pub fn quad(x: u32, y: u32, w: u32, h: u32, colour: u32, see: u32) -> Result<(),
     q.quad_corners[5].set(y.wrapping_add(h));
     q.quad_colour[0].set(colour);
     q.quad_colour[1].set(see);
-    crate::scene::draw_tinted_quad::draw_tinted_quad()
+    crate::scene::draw_tinted_quad::draw_tinted_quad(crate::race::owner::race())
 }
 
 /// Colours of the service area's boxes (0xRRGGBB).

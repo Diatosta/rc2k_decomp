@@ -50,6 +50,6 @@ pub fn draw_menu_object_in_game(race: &crate::race::owner::Race) -> Result<(), R
             make_object_matrix(&race.frame);
             Ok(())
         }
-        Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(None),
+        Step::Draw => crate::scene::draw_scene_object::draw_scene_object_in_game(race, None),
     })
 }

@@ -181,7 +181,7 @@ pub fn event(event: &SDL_Event) -> bool {
 }
 
 /// The debug UI drawn on `renderer` (after the game's frame, before the present).
-pub fn draw(race: &Race, renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
+pub fn draw(race: &'static Race, renderer: *mut SDL_Renderer, window: *mut SDL_Window) {
     let open = OPEN.load(Ordering::Relaxed);
     // ImGui's text fields need SDL's text input, started while the UI is shown.
     if open != TEXT_INPUT.swap(open, Ordering::Relaxed) {

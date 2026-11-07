@@ -32,7 +32,7 @@ pub fn credits_race(race: &Race) -> Result<(), Refused> {
     race.shared.switches.editor_mode.set(0);
     crate::race::set_up_credits_race::set_up_credits_race(&race.shared)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
-    crate::race::race_shell::set_start_states()?;
+    crate::race::race_shell::set_start_states(race)?;
     race.shared.work.in_credits.set(1);
     let word = |n: usize| &WORDS[n];
     crate::logfile::log_write::log_nul(word(0), false, 1);

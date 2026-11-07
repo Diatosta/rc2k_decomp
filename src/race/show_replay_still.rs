@@ -44,31 +44,31 @@ pub fn show_replay_still(race: &Race) -> Result<(), Refused> {
     race.frame.frame_work.still_2.set(1);
     load_frame(&race.replay);
     load_replay_cars::load_replay_cars(race);
-    replay_cameras::replay_cameras()?;
+    replay_cameras::replay_cameras(race)?;
     for step in 0..g(&race.replay.replay_view.replay_frame) {
         race.replay.replay_frames.step_frame.set(step);
         race.replay
             .replay_frames
             .step_block
             .set(race.replay.replay_view.replay_block.get());
-        crate::race::step_replay_cars::step_replay_cars(&race.shared)?;
+        crate::race::step_replay_cars::step_replay_cars(race)?;
     }
     if race.replay.replay_view.replay_frame.get() == 0 {
         race.replay.replay_frames.step_first.set(1);
-        crate::race::step_replay_cars::step_replay_cars(&race.shared)?;
+        crate::race::step_replay_cars::step_replay_cars(race)?;
         race.replay.replay_frames.step_first.set(0);
         load_frame(&race.replay);
         load_replay_cars::load_replay_cars(race);
     }
     race.shared.work.current_car.set(0);
     loop {
-        load_car::load_car()?;
+        load_car::load_car(&race.shared)?;
         if !matches!(race.shared.car.driver_kind.get(), 0 | 2) {
             race.replay.replay_frames.step_first.set(1);
-            crate::physics::camera_frame::camera_frame()?;
+            crate::physics::camera_frame::camera_frame(race)?;
             race.replay.replay_frames.step_first.set(0);
         }
-        store_car::store_car()?;
+        store_car::store_car(&race.shared)?;
         race.shared
             .work
             .current_car

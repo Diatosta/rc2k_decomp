@@ -15,7 +15,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::saves::owner::saves;
 use crate::saves::read_savegame_slot::read_savegame_slot;
 use crate::screens::draw_empty_savegame::draw_empty_savegame;
@@ -28,13 +28,13 @@ use crate::text::draw_text::Canvas;
 // ---- Rust version ----
 
 /// Returns the carry flag of the panel drawn.
-pub fn draw_savegame_preview(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+pub fn draw_savegame_preview(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let savegame_preview = &saves().savegame_preview;
-    let tables = &menus().tables;
+    let tables = &menus.tables;
     // Converted: `rc2k_core::screens::savegame_preview::preview` (the slot); the panels
     // are converted in their own functions.
     use rc2k_core::screens::savegame_preview::{NO_SLOT, Preview, preview};
-    let page = menus().tables.pages.save_page.get();
+    let page = menus.tables.pages.save_page.get();
     match preview(menu_item(), page, savegame_preview.shown_slot.get()) {
         Preview::NoSlot => {
             savegame_preview.nothing_to_show.set(1u32);

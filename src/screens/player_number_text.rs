@@ -10,15 +10,15 @@
 //! above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::strings::append_string_by_id::append_string_by_id;
 
 const TEXT_LEN: usize = 0x100;
 const FIRST_STRING: u32 = 0x191;
 const SECOND_STRING: u32 = 0x170;
 
-pub fn player_number_text() -> Result<(), Refused> {
-    let n: u32 = menus().screens.event.current_player.get();
+pub fn player_number_text(menus: &Menus) -> Result<(), Refused> {
+    let n: u32 = menus.screens.event.current_player.get();
     let mut text = Vec::new();
     let mut emit = |bytes: &[u8]| text.extend_from_slice(bytes);
     append_string_by_id(FIRST_STRING.wrapping_add(n), &mut emit)?;

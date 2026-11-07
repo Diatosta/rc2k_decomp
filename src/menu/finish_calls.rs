@@ -133,6 +133,7 @@ impl finish::Finish for Game {
         self.fault.check()?;
         match s {
             Step::RaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
+                crate::race::owner::race(),
                 &crate::race::sound_tables::ObjectVars::game(),
             )?,
             Step::RaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds()?,

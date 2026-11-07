@@ -4,7 +4,7 @@
 
 use crate::errors::BadInput;
 use crate::physics::car_store::Car;
-use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::{Dword, Float};
 
@@ -126,9 +126,9 @@ pub fn grade_car_values(block: u32) -> Result<(), BadInput> {
 /// `race::grade_all_cars` (0x43FDFE): `grade_car_values` of the eight blocks
 /// (`g_carBlocks`). The registers it leaves (ebx 8, esi the last block, eax its last
 /// grade) are read by no caller (race init's one call).
-pub fn grade_all_cars() -> Result<(), BadInput> {
+pub fn grade_all_cars(shared: &Shared) -> Result<(), BadInput> {
     for n in 0..8usize {
-        grade_car_values(race().shared.work.car_block(n))?;
+        grade_car_values(shared.work.car_block(n))?;
     }
     Ok(())
 }

@@ -30,7 +30,7 @@
 //! One caller, `menu::draw_menu`. Refuses a menu without an end in its first 256 items.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::system::owner::system;
 use crate::text::draw_text::Canvas;
 
@@ -46,10 +46,10 @@ const ITEM_LIMIT: u32 = 256;
 // ---- Rust version ----
 
 pub fn draw_menu_items(
+    menus: &Menus,
     menu: crate::menu::menus_store::MenuId,
     canvas: &mut dyn Canvas,
 ) -> Result<(), Refused> {
-    let menus = menus();
     let all = menu.items();
     if all.len() > ITEM_LIMIT as usize {
         return Err(BadInput("a menu without an end").into());

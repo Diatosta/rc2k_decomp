@@ -15,7 +15,7 @@
 //! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::screens::draw_stage_heading::draw_stage_heading;
 use crate::screens::draw_stage_info::{TITLE_X, TITLE_Y, event_stage, event_title};
 use crate::screens::stage_panel::{
@@ -28,8 +28,7 @@ use crate::text::draw_text::Canvas;
 // ---- Rust version ----
 
 /// Returns the carry flag of `draw_stage_records`.
-pub fn draw_service_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let menus = menus();
+pub fn draw_service_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let screens = &menus.screens;
     let tables = &menus.tables;
     label(canvas, event_title(menus)?, TITLE_FONT, TITLE_X, TITLE_Y)?;

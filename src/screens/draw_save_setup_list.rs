@@ -10,16 +10,16 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-pub fn draw_save_setup_list(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_save_setup_list(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::slot_lists::setup_page`.
-    let page: u32 = menus().tables.pages.setup_slot_page.get();
+    let page: u32 = menus.tables.pages.setup_slot_page.get();
     rc2k_core::screens::slot_lists::setup_page(
         &mut crate::screens::game_screen::SlotScreen::new(canvas),
         rc2k_core::screens::slot_lists::SAVE_SETUP_TITLE,

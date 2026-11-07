@@ -17,7 +17,7 @@
 //! version stays for the Rust callers in unconverted code).
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use crate::scene::polygon::{Listed, listed};
 use crate::scene::project_point::{NEAR, project_point};
@@ -26,16 +26,13 @@ use crate::scene::project_point::{NEAR, project_point};
 
 // ---- Rust version ----
 
-pub fn project_polygon() -> Result<(), Refused> {
-    let course = &race().course;
-    project_entries(course, &listed()?)
+pub fn project_polygon(race: &Race) -> Result<(), Refused> {
+    project_entries(race, &listed()?)
 }
 
 /// `project_polygon` on the polygon's entries as listed.
-pub fn project_entries(
-    course: &crate::race::owner_course::Course,
-    entries: &Listed,
-) -> Result<(), Refused> {
+pub fn project_entries(race: &Race, entries: &Listed) -> Result<(), Refused> {
+    let course = &race.course;
     let drawing = &scene().drawing;
     if entries.is_empty() {
         return Err(BadInput("a polygon of no vertices").into());
@@ -51,7 +48,7 @@ pub fn project_entries(
     let far = f32::from_bits(drawing.scene.farthest.bits());
     let mut outside = 0u32;
     for entry in entries {
-        let point = project_point(course, entry.point.get())?;
+        let point = project_point(race, entry.point.get())?;
         entry.record.set(point.record);
         let depth = f32::from_bits(crate::scene::point_records::field(point.record, 0x18)?);
         // Two compares, each taking "no number" for "below".

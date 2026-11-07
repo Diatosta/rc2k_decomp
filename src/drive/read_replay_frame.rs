@@ -14,13 +14,13 @@
 //! `read_packed` refuses.
 
 use crate::errors::{FatalError, Refused};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use rc2k_core::drive::replay_frames::{frame_fault, past_end};
 
 /// The Rust version: CF.
-pub fn read_replay_frame(frame: u32, tenth: u32) -> Result<bool, Refused> {
-    let race_owner = race();
-    let replay = &race().replay;
+pub fn read_replay_frame(race: &Race, frame: u32, tenth: u32) -> Result<bool, Refused> {
+    let race_owner = race;
+    let replay = &race.replay;
     if race_owner.shared.replay_file.replay_open.get() != 1 {
         return Ok(true);
     }

@@ -14,10 +14,11 @@
 //! of 0 or past 8 (0 goes round 2^32 times).
 
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner::Race;
 
 /// The Rust version (the original leaves registers nothing reads).
-pub fn step_replay_cars(shared: &Shared) -> Result<(), Refused> {
+pub fn step_replay_cars(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     use crate::drive::*;
     // Converted: `rc2k_core::race::viewer_flow::{check_replay_cars, car_block, car_runs,
     // RUN_STEPS, next_car}`.
@@ -25,38 +26,38 @@ pub fn step_replay_cars(shared: &Shared) -> Result<(), Refused> {
         RUN_STEPS, RunStep, car_block, car_runs, check_replay_cars, next_car,
     };
     check_replay_cars(shared.view.race_cars.get())?;
-    choose_shown_cars::choose_shown_cars()?;
+    choose_shown_cars::choose_shown_cars(race)?;
     shared.work.current_car.set(0);
     loop {
-        car_input_words::car_input_words()?;
-        play_inputs::play_inputs()?;
+        car_input_words::car_input_words(race)?;
+        play_inputs::play_inputs(race)?;
         shared.work.work_block.set(
             shared
                 .work
                 .car_block(car_block(shared.work.current_car.get()) as usize),
         );
-        load_car::load_car()?;
+        load_car::load_car(shared)?;
         if car_runs(shared.car.driver_kind.get()) {
             for step in RUN_STEPS {
                 match step {
-                    RunStep::Controls => read_car_controls::read_car_controls()?,
-                    RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(),
-                    RunStep::Steering => steer_inputs::steer_inputs(),
-                    RunStep::Pedals => pedal_inputs::pedal_inputs(),
-                    RunStep::ResetKey => reset_request::reset_request()?,
-                    RunStep::Physics => crate::physics::car_physics_step::car_physics_step()?,
+                    RunStep::Controls => read_car_controls::read_car_controls(race)?,
+                    RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(race),
+                    RunStep::Steering => steer_inputs::steer_inputs(race),
+                    RunStep::Pedals => pedal_inputs::pedal_inputs(race),
+                    RunStep::ResetKey => reset_request::reset_request(race)?,
+                    RunStep::Physics => crate::physics::car_physics_step::car_physics_step(race)?,
                 }
             }
             for clock in [&shared.car.step_clock, &shared.car.run_ticks] {
                 clock.set(clock.get().wrapping_add(1));
             }
         }
-        store_car::store_car()?;
+        store_car::store_car(shared)?;
         let (next, done) = next_car(shared.work.current_car.get(), shared.view.race_cars.get());
         shared.work.current_car.set(next);
         if done {
             break;
         }
     }
-    race_mode_cars::race_mode_cars()
+    race_mode_cars::race_mode_cars(race)
 }

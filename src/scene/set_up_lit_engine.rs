@@ -11,13 +11,13 @@
 //! `fill_light_tables`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 
 /// The Rust version (the original keeps every register: `pusha` / `popa`).
-pub fn set_up_lit_engine() -> Result<(), Refused> {
+pub fn set_up_lit_engine(race: &Race) -> Result<(), Refused> {
     crate::scene::set_up_engine::set_up_engine()?;
-    crate::race::find_present_courses::find_present_courses()?;
+    crate::race::find_present_courses::find_present_courses(race)?;
     // `g_lightLowest`, `g_lightHighest`, `g_lightLevel`, `g_lightStrength`,
     // `dword_635094`, `dword_635098`.
     scene().drawing.object_work.light_lowest.set_bits(0x50u32);
@@ -26,6 +26,6 @@ pub fn set_up_lit_engine() -> Result<(), Refused> {
     scene().drawing.object_work.light_strength.set_bits(0xB4u32);
     scene().drawing.object_work.light_turns[0].set_bits(0x6Eu32);
     scene().drawing.object_work.light_turns[1].set_bits(0x1Eu32);
-    crate::scene::fill_light_tables::fill_light_tables(scene(), race())?;
+    crate::scene::fill_light_tables::fill_light_tables(scene(), race)?;
     Ok(())
 }

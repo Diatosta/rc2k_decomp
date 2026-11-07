@@ -29,7 +29,7 @@ fn run(race: &Race) {
 /// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
 /// `free_rev_clutch` and their callers).
 pub fn free_rev(race: &Race) {
-    engine_torque();
+    engine_torque(race);
     run(race);
     let (e, drag) = (
         race.shared.car.engine_speed.bits(),

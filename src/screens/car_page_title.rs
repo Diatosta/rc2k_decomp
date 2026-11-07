@@ -9,7 +9,7 @@
 //! the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::screens::car_caption::put_string;
 
 // ---- game data ----
@@ -19,8 +19,7 @@ const PAGES: u32 = 4;
 
 // ---- Rust version ----
 
-pub fn car_page_title() -> Result<(), Refused> {
-    let menus = menus();
+pub fn car_page_title(menus: &Menus) -> Result<(), Refused> {
     let page: u32 = menus.screens.event.car_page.get();
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());

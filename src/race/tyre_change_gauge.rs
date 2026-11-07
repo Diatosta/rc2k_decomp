@@ -94,10 +94,11 @@ impl Io for GameIo {
         Ok(self.device.bits.get() & 0xFF != 0)
     }
     fn draw(&mut self, g: &Gauge) -> Result<(), Refused> {
-        let shared = &crate::race::owner::race().shared;
+        let race = crate::race::owner::race();
+        let shared = &race.shared;
         self.store(g);
         // The drawing takes the device by address (its x87 turn reads the gauge).
-        crate::race::draw_tyre_change::draw_tyre_change(shared, self.device)
+        crate::race::draw_tyre_change::draw_tyre_change(race, shared, self.device)
     }
     fn press_time(&mut self, s: u32) -> u32 {
         let shared = &crate::race::owner::race().shared;

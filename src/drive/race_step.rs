@@ -9,14 +9,13 @@
 //! Callers: `drive::race_loop`, `sub_4607A5`. Refuses what its calls refuse.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The Rust version. The registers it leaves are read by no caller (liveness: edi, edx
 /// and esi after `drive::race_loop`'s call have no read point but the false ones of
 /// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
-pub fn race_step() -> Result<(), Refused> {
-    let race = race();
+pub fn race_step(race: &Race) -> Result<(), Refused> {
     crate::drive::race_clock_tick::race_clock_tick(&race.shared);
     if race.shared.physics_tables.debug[1].get() == 0 {
         rc2k_core::drive::race_ticks::run_ticks(
@@ -24,7 +23,7 @@ pub fn race_step() -> Result<(), Refused> {
             |ecx| {
                 crate::debug::timing::note_tick();
                 { crate::drive::race_tick::race_tick(race) }?;
-                let out = crate::race::frame::players_all_out()?;
+                let out = crate::race::frame::players_all_out(race)?;
                 Ok::<_, Refused>((out, ecx))
             },
         )?;

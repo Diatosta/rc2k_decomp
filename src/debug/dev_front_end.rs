@@ -164,16 +164,16 @@ fn test_course() -> Result<(), Refused> {
             !crate::debug::screens::raced() || race.shared.vars.stage_number.bits() != course,
         );
         // The player's settings, as a race from the menus; then this tab's.
-        crate::race::settings_copy::copy_settings_in()?;
+        crate::race::settings_copy::copy_settings_in(race)?;
         set_up_race()?;
         crate::race::race_cars::set_up_arcade_cars(race)?;
-        race_shell::set_start_states()?;
+        race_shell::set_start_states(race)?;
         stage_loading::load_stage(race)?;
-        race_end::record_replay_header();
-        replay::open_replay()?;
+        race_end::record_replay_header(race);
+        replay::open_replay(race)?;
         race.shared.view.after_credits.set(0);
         crate::drive::play_race::play_race(race)?;
-        replay::close_replay()?;
+        replay::close_replay(race)?;
         race_end::tidy_everything(race)
     })
 }
@@ -268,7 +268,8 @@ mod tab {
         let present = crate::race::owner::race().shared.switches.course_present[course].get() != 0;
         ui.same_line();
         if ui.button("Find the courses")
-            && let Err(e) = crate::race::find_present_courses::find_present_courses()
+            && let Err(e) =
+                crate::race::find_present_courses::find_present_courses(crate::race::owner::race())
         {
             crate::framework::log(&format!("debug: find the courses: {e:?}"));
         }

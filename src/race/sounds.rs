@@ -2,7 +2,7 @@
 //! pointers to the cars' sound objects (`sound::load_race_sounds`), each with a flag at +8.
 
 use crate::errors::{BadInput, Refused};
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 const OBJECTS: u32 = 8;
 const MOST_CARS: u32 = 0x1_0000;
@@ -36,8 +36,8 @@ pub fn start_race_sounds() -> Result<(), Refused> {
 /// object (`dword_63DB90` of them, the table taken round its eight) woken, then
 /// `race::start_race_sounds`. Refuses 0x10000 cars or
 /// more (the original counts on to them).
-pub fn wake_car_sounds() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     if shared.work.in_credits.bits() != 0 {
         return Ok(());
     }

@@ -32,7 +32,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::car_description::{read, shown_description};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
@@ -44,8 +44,8 @@ const PAGES: u32 = 4;
 // ---- Rust version ----
 
 /// Returns the carry of the last text drawn.
-pub fn draw_car_figures(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let page: u32 = menus().screens.event.car_page.get();
+pub fn draw_car_figures(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let page: u32 = menus.screens.event.car_page.get();
     if page >= PAGES {
         return Err(BadInput("a page past the four").into());
     }

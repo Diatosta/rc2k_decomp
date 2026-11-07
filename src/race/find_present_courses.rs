@@ -17,7 +17,7 @@ use crate::files::read_whole_file::read_whole_file;
 use crate::files::state::BYTES_READ;
 use crate::race::course_data::set_cdat_number;
 use crate::race::level_init::set_course_number;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 
 /// `srclvls\level01\cdat00c`, `files\levels\level01\cdat00c.sq`.
@@ -32,9 +32,9 @@ use crate::scene::owner::scene;
 use rc2k_core::race::stage_objects::COURSES;
 
 /// The Rust version (nothing written when it refuses).
-pub fn find_present_courses() -> Result<(), Refused> {
-    let shared = &race().shared;
-    let course = &race().course;
+pub fn find_present_courses(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
+    let course = &race.course;
     // Converted: `rc2k_core::race::stage_objects::{COURSES, course_present, PROBE_BYTES}`.
     use rc2k_core::race::stage_objects::{PROBE_BYTES, course_present};
     for n in 0..COURSES {

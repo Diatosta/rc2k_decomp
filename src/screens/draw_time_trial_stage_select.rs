@@ -26,7 +26,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::race::owner::race;
 use crate::screens::draw_selected_stage_menu::menu_titles;
 use crate::screens::draw_stage_records::selection;
@@ -42,10 +42,13 @@ const TIMES: &StageTable = &crate::saves::best_times::TIME_TRIAL_TIMES; // dword
 
 /// Returns the carry flag. Refuses a missing selection or menu: the original reads or writes
 /// through null.
-pub fn draw_time_trial_stage_select(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let play = &menus().play;
-    let screens = &menus().screens;
-    let tables = &menus().tables;
+pub fn draw_time_trial_stage_select(
+    menus: &Menus,
+    canvas: &mut dyn Canvas,
+) -> Result<bool, Refused> {
+    let play = &menus.play;
+    let screens = &menus.screens;
+    let tables = &menus.tables;
     let (Some(sel), Some((group_title, table_title))) = (selection()?, menu_titles(play)?) else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),

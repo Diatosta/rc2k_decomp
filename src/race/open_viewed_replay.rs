@@ -68,7 +68,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     replay.replay_view.replay_block.set(0);
     replay.replay_view.replay_frame.set(0);
     // Whether a buffer's read is good (`read_good`), given its first word after.
-    let good = |(n, ok): (u32, bool), len: u32, first: fn() -> u32, header: bool| {
+    let good = |(n, ok): (u32, bool), len: u32, first: &dyn Fn() -> u32, header: bool| {
         read_good(!ok, n, len, first(), header)
     };
     let mut header = shared.replays.header.read();
@@ -77,7 +77,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     if !good(
         got,
         HEADER_LEN,
-        || crate::race::owner::race().shared.replays.header.get_u32(0),
+        &|| race.shared.replays.header.get_u32(0),
         true,
     ) || !version_good(shared.replays.header.get_u32(8))
     {
@@ -98,13 +98,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
                 shared.replay_file.index(),
             ),
             INDEX_LEN,
-            || {
-                crate::race::owner::race()
-                    .shared
-                    .replay_file
-                    .index_magic
-                    .get()
-            },
+            &|| race.shared.replay_file.index_magic.get(),
             false,
         )
     {
@@ -117,7 +111,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     }
     let mut block = 0u32;
     loop {
-        if { crate::drive::read_replay_frame_0::read_replay_frame_0(block) }? {
+        if { crate::drive::read_replay_frame_0::read_replay_frame_0(race, block) }? {
             return failed();
         }
         crate::race::viewer::move_cells(
@@ -142,7 +136,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
     crate::race::viewer_buffers_store::VIEWER_BUFFERS
         .block_used
         .set(0);
-    if { crate::drive::read_replay_frame_0::read_replay_frame_0(0) }? {
+    if { crate::drive::read_replay_frame_0::read_replay_frame_0(race, 0) }? {
         return failed();
     }
     // The file's header is bytes (a byte-level copy of its stage part).

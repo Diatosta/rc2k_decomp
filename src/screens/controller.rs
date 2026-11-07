@@ -5,6 +5,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::input;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
 use crate::menu::owner::menus;
 use crate::screens::controls_store::ControlsScreen;
@@ -138,9 +139,10 @@ pub fn controller_page_refuses(
 /// device for a player that has one; an x whose x 100 is 0 is the original's fatal error
 /// 0x80701010.
 pub fn draw_controller_page(
+    menus: &Menus,
     canvas: &mut dyn crate::text::draw_text::Canvas,
 ) -> Result<(), Refused> {
-    let screens = &menus().screens;
+    let screens = &menus.screens;
     // Converted: `rc2k_core::screens::controller_page::controller_page`.
     use rc2k_core::screens::controller_page::{Controller, Font, Work, controller_page};
     {

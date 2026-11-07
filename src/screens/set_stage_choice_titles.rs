@@ -14,8 +14,8 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
 use crate::menu::owner::Tables;
-use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::draw_time_trial_stage_info::GROUP_TITLES;
@@ -35,8 +35,8 @@ fn places(tables: &Tables) -> Result<(GamePtr, Option<GamePtr>), BadInput> {
     ))
 }
 
-pub fn set_stage_choice_titles() -> Result<(), Refused> {
-    let tables = &menus().tables;
+pub fn set_stage_choice_titles(menus: &Menus) -> Result<(), Refused> {
+    let tables = &menus.tables;
     let s = selection()?.ok_or(BadInput(
         "no stage tables for the choice: the original reads through null",
     ))?;
@@ -46,7 +46,7 @@ pub fn set_stage_choice_titles() -> Result<(), Refused> {
     };
     build_second_heading(s.record)?;
     item_0.write(
-        table_dword_at(&menus().play.results, GROUP_TITLES, s.group)?,
+        table_dword_at(&menus.play.results, GROUP_TITLES, s.group)?,
         "a menu item's string",
     )?;
     item_1.write(s.table.title()?, "a menu item's string")?;

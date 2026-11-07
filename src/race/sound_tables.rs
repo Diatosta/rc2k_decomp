@@ -4,7 +4,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::{Dword, Float};
 use crate::sound::sets_store::SoundSet;
 use crate::system::owner::system;
@@ -186,8 +186,8 @@ fn set_up_object(o: &crate::sound::store::SoundObject) {
 /// +0x2C and 24 fields reset; `dword_5BEBE8` 0; `restart_race_sounds`. Every register
 /// kept. Refuses, before anything, a chosen car past 7 (the original reads past the
 /// table)
-pub fn set_up_race_sound_objects(v: &ObjectVars) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn set_up_race_sound_objects(race: &Race, v: &ObjectVars) -> Result<(), Refused> {
+    let shared = &race.shared;
     let vars = &net().vars;
     {
         let one = vars.session.get() == 1;

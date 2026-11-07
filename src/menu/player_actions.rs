@@ -91,20 +91,20 @@ pub fn previous_scores_page(tables: &Tables) {
         .set(steps::scores_page(tables.pages.scores_page.get(), false));
 }
 
-pub fn previous_replay_range(tables: &Tables) -> Result<(), BadInput> {
+pub fn previous_replay_range(menus: &Menus, tables: &Tables) -> Result<(), BadInput> {
     tables
         .pages
         .replay_page
         .set(steps::replay_range(tables.pages.replay_page.get(), false));
-    crate::screens::best_scores::replay_range_caption()
+    crate::screens::best_scores::replay_range_caption(menus)
 }
 
-pub fn next_replay_range(tables: &Tables) -> Result<(), BadInput> {
+pub fn next_replay_range(menus: &Menus, tables: &Tables) -> Result<(), BadInput> {
     tables
         .pages
         .replay_page
         .set(steps::replay_range(tables.pages.replay_page.get(), true));
-    crate::screens::best_scores::replay_range_caption()
+    crate::screens::best_scores::replay_range_caption(menus)
 }
 
 /// `menu::toggle_caption_choice`: the choice flipped and its caption written.

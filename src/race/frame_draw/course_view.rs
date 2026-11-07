@@ -63,10 +63,10 @@ pub fn checkpoint_colours(race: &Race) -> Result<(), BadInput> {
 /// A scene point's record (`sub_44CF33`, inline in the callers): the record at
 /// `g_pointRecords` + (point & 0xFFF) x 0x20, made anew (`scene::make_scene_record`) when
 /// its +0 is not the point.
-pub fn point_record(point: u32) -> Result<u32, Refused> {
+pub fn point_record(race: &Race, point: u32) -> Result<u32, Refused> {
     let record = crate::scene::point_records::of_scene_point(point);
     if crate::scene::point_records::field(record, 0)? != point {
-        crate::scene::project_point::make_scene_record(point, record)?;
+        crate::scene::project_point::make_scene_record(race, point, record)?;
     }
     Ok(record)
 }
@@ -111,7 +111,7 @@ pub fn face_hidden(race: &Race, face: &rc2k_core::race::faces::Face) -> Result<b
         return Ok(true);
     }
     points_there(&race.course)?;
-    let record = point_record(face.point(0))?;
+    let record = point_record(race, face.point(0))?;
     let x = crate::math::x87_load::abs_to_int(crate::scene::point_records::field(record, 0x10)?);
     drawing.object_work.object_position[0].set_bits(x as u32);
     let depth = crate::math::x87_load::add_to_int(
@@ -134,7 +134,7 @@ pub fn face_depth(race: &Race, face: u32) -> Result<(), Refused> {
     use crate::math::x87::{add, to_int};
     points_there(course)?;
     let depth = |k: u32| -> Result<u32, Refused> {
-        let record = point_record(face_field(face, 4 + 4 * k)?)?;
+        let record = point_record(race, face_field(face, 4 + 4 * k)?)?;
         Ok(crate::scene::point_records::field(record, 0x18)?)
     };
     // Converted: `rc2k_core::race::faces::{depth_by, deeper, average_key, depth_key}`;
@@ -152,7 +152,7 @@ pub fn face_depth(race: &Race, face: u32) -> Result<(), Refused> {
     trap.finish()?;
     let key = match by {
         DepthBy::First => {
-            let record = point_record(face_field(face, 4)?)?;
+            let record = point_record(race, face_field(face, 4)?)?;
             let key = to_int(crate::scene::point_records::field(record, 0x18)?) as u32;
             shared.view.face_depth_key.set_bits(key);
             shared
@@ -343,7 +343,7 @@ pub fn gather_visible_faces(race: &Race) -> Result<(), Refused> {
 /// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
-    crate::physics::probe_ground::probe_ground()?;
+    crate::physics::probe_ground::probe_ground(race)?;
     let ground: u32 = race.shared.car.probe_point_face[4].bits();
     if ground == u32::MAX {
         return Ok(());

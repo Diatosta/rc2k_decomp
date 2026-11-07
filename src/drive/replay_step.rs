@@ -25,7 +25,7 @@ use rc2k_core::drive::race_steps;
 
 /// One car's step (inside `pusha` / `popa`: nothing it leaves in the registers goes out).
 fn car_step(race: &Race) -> Result<(), Refused> {
-    crate::drive::car_input_words::car_input_words()?;
+    crate::drive::car_input_words::car_input_words(race)?;
     crate::drive::record_inputs_if::record_inputs_if(race)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
     let slot = race_steps::block_slot(race.shared.work.current_car.get());
@@ -33,18 +33,18 @@ fn car_step(race: &Race) -> Result<(), Refused> {
         .work
         .work_block
         .set(race.shared.work.car_block(slot as usize));
-    crate::drive::load_car::load_car()?;
+    crate::drive::load_car::load_car(&race.shared)?;
     if race.shared.car.driver_kind.get() != 0 {
-        crate::drive::read_car_controls::read_car_controls()?;
-        crate::physics::gear_input_rules::gear_input_rules();
-        crate::drive::steer_inputs::steer_inputs();
-        crate::drive::pedal_inputs::pedal_inputs();
-        crate::drive::reset_request::reset_request()?;
-        crate::physics::car_physics_step::car_physics_step()?;
+        crate::drive::read_car_controls::read_car_controls(race)?;
+        crate::physics::gear_input_rules::gear_input_rules(race);
+        crate::drive::steer_inputs::steer_inputs(race);
+        crate::drive::pedal_inputs::pedal_inputs(race);
+        crate::drive::reset_request::reset_request(race)?;
+        crate::physics::car_physics_step::car_physics_step(race)?;
         // `net::race_step` reads no register at entry (liveness: its esi "read" at
         // 0x4644AF is `imul esi, ebp, ..`'s destination); its Rust version still takes
         // the registers: a local scratch.
-        crate::net::race_step::race_step()?;
+        crate::net::race_step::race_step(race)?;
     }
     race.shared
         .car
@@ -54,7 +54,7 @@ fn car_step(race: &Race) -> Result<(), Refused> {
         .car
         .run_ticks
         .set(race.shared.car.run_ticks.get().wrapping_add(1));
-    crate::drive::store_car::store_car()?;
+    crate::drive::store_car::store_car(&race.shared)?;
     Ok(())
 }
 
@@ -65,7 +65,7 @@ fn car_step(race: &Race) -> Result<(), Refused> {
 pub fn replay_step(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     race_steps::check_cars(shared.view.race_cars.get())?;
-    crate::drive::choose_shown_cars::choose_shown_cars()?;
+    crate::drive::choose_shown_cars::choose_shown_cars(race)?;
     crate::drive::keep_replay_frame::keep_replay_frame(race)?;
     crate::drive::play_replay_frame::play_replay_frame(race)?;
     if race_steps::skids_restart(
@@ -73,7 +73,7 @@ pub fn replay_step(race: &Race) -> Result<(), Refused> {
         CAR_BLOCKS.cars[0].unknown_f0c.bits(),
     ) {
         // `race::init_skidmarks` reads no register at entry (liveness): a scratch.
-        crate::race::stage_prefs::init_skidmarks()?;
+        crate::race::stage_prefs::init_skidmarks(race)?;
     }
     CAR_BLOCKS.cars[0]
         .unknown_f0c
@@ -86,7 +86,7 @@ pub fn replay_step(race: &Race) -> Result<(), Refused> {
     )?;
     crate::drive::replay_check::note(race)?;
     crate::drive::animate_stage::animate_stage(race)?;
-    crate::drive::race_mode_cars::race_mode_cars()?;
+    crate::drive::race_mode_cars::race_mode_cars(race)?;
     crate::drive::duel_sound_levels::duel_sound_levels();
     crate::drive::countdown_beeps::countdown_beeps(race)?;
     crate::drive::two_car_order::two_car_order(&race.shared)?;

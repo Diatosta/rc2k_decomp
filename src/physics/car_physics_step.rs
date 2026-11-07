@@ -44,7 +44,7 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics as ph;
 use crate::physics::flow::{hold_high, hold_low, negate};
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
@@ -52,7 +52,7 @@ fn motion(race: &Race) {
     ph::move_car::move_car(race);
     ph::spin_matrix::spin_matrix(race);
     ph::lever_pushes::lever_pushes(race);
-    crate::race::start_place::invert_car_matrix();
+    crate::race::start_place::invert_car_matrix(race);
     ph::update_car_angles::update_car_angles(race);
 }
 
@@ -103,7 +103,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     {
         figure.set_bits(0);
     }
-    crate::race::start_place::invert_car_matrix();
+    crate::race::start_place::invert_car_matrix(race);
     ph::feel_ground::feel_ground(race)?;
     ph::start_skid_mark::start_skid_mark(&race.shared);
     ph::probe_and_keep::probe_and_keep(race)?;
@@ -233,7 +233,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         "a listed car sound",
     )?;
     if listed != u32::MAX {
-        ph::camera_frame::camera_frame()?;
+        ph::camera_frame::camera_frame(race)?;
     }
     ph::hold_spin_on_ground::hold_spin_on_ground(race);
     ph::drop_broken_parts::drop_broken_parts(race)?;
@@ -242,14 +242,13 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::blend_wheel_load::blend_wheel_load(race);
     ph::share_engine_sound::share_engine_sound(race)?;
     ph::note_time_mark::note_time_mark(race);
-    ph::false_start::false_start(&race.shared)?;
+    ph::false_start::false_start(race)?;
     ph::value_notice::value_notice(&race.shared);
     Ok(())
 }
 
 /// The Rust version.
-pub fn car_physics_step() -> Result<(), Refused> {
-    let race = race();
+pub fn car_physics_step(race: &Race) -> Result<(), Refused> {
     if race.shared.work.current_car.get() > 7 {
         return Err(BadInput("a current car past 7 (dword_641680's room)").into());
     }
@@ -278,6 +277,7 @@ fn x87_1(race: &Race) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.

@@ -15,7 +15,7 @@
 
 use crate::errors::Refused;
 use crate::physics::flow::c0;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use rc2k_core::drive::controls::{
     RESET_NOTICE, reset_counts, reset_held, reset_penalty, reset_step,
@@ -34,9 +34,9 @@ fn clear_notice(shared: &Shared) {
 
 /// The Rust version, then `physics::reset_car`.
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
-pub fn reset_request() -> Result<(), Refused> {
-    let race_owner = race();
-    let race = race();
+pub fn reset_request(race: &Race) -> Result<(), Refused> {
+    let race_owner = race;
+
     if !reset_counts(race_owner.shared.car.run_ticks.get()) {
         return Ok(());
     }

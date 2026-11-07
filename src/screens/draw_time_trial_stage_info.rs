@@ -18,7 +18,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::race::owner::race;
 use crate::screens::draw_stage_records::selection;
 use crate::screens::stage_panel::{
@@ -40,8 +40,8 @@ const HEADING_Y: i32 = 0xB1;
 // ---- Rust version ----
 
 /// Returns the carry flag. Refuses a missing selection: the original reads through null.
-pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let tables = &menus().tables;
+pub fn draw_time_trial_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
+    let tables = &menus.tables;
     let Some(sel) = selection()? else {
         return Err(
             BadInput("no record table is selected: the original reads through null").into(),
@@ -49,7 +49,7 @@ pub fn draw_time_trial_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refus
     };
     label(
         canvas,
-        table_dword_at(&menus().play.results, GROUP_TITLES, sel.group)?,
+        table_dword_at(&menus.play.results, GROUP_TITLES, sel.group)?,
         TITLE_FONT,
         TITLE_X,
         GROUP_TITLE_Y,

@@ -15,6 +15,6 @@ use crate::race::owner_shared::Shared;
 pub fn store_first_car(shared: &Shared) -> Result<(), Refused> {
     shared.work.current_car.set(0);
 
-    crate::drive::store_car::store_car()?;
+    crate::drive::store_car::store_car(shared)?;
     Ok(())
 }

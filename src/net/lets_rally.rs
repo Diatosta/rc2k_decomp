@@ -51,7 +51,7 @@ pub fn lets_rally(race: &Race, net: &Net) -> Result<bool, Refused> {
     crate::sound::stop_music::stop_music();
     crate::race::race_shell::set_race_screen_mode();
     crate::menu::show_loading_picture::show_loading_picture()?;
-    sound_tables::set_up_race_sound_objects(&sound_tables::ObjectVars::game())?;
+    sound_tables::set_up_race_sound_objects(race, &sound_tables::ObjectVars::game())?;
     crate::sound::set_up_race_sounds::set_up_race_sounds()?;
     crate::net::set_up_race::set_up_race(race, &net.vars)?;
     let tick = crate::system::tick_count::tick_count();

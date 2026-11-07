@@ -64,8 +64,8 @@ pub fn copy_picture() -> Result<(), Refused> {
 }
 
 /// `menu::draw_menu` (0x4746B7) on the game's canvas.
-pub fn draw_menu(menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
-    crate::menu::draw_menu::draw_menu(menu, &mut GameCanvas)
+pub fn draw_menu(menus: &Menus, menu: crate::menu::menus_store::MenuId) -> Result<(), Refused> {
+    crate::menu::draw_menu::draw_menu(menus, menu, &mut GameCanvas)
 }
 
 /// `menu` is edi at entry. Returns whether the
@@ -79,7 +79,7 @@ pub fn frame_callback(
         return Ok(false);
     }
     copy_picture()?;
-    draw_menu(menu)?;
+    draw_menu(menus, menu)?;
     run_listed(menus, DRAW_LIST)?;
     unlock_surface();
     scene().lights.state.scene_state.set_bits(4u32);

@@ -10,8 +10,8 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::owner::menus;
 use crate::menu::player::{Player, player};
 use crate::screens::car_caption::put_string;
 
@@ -25,22 +25,22 @@ pub fn current(screens: &Screens) -> Result<&'_ crate::session::Shared<Player>, 
         .ok_or(BadInput("a current player past the four"))?)
 }
 
-pub fn gearing_text() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn gearing_text(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     let value = current(screens)?.get().gearing;
     put_string(
         FIRST_STRING.wrapping_add(value),
         &crate::screens::text_buffers_store::TEXT_BUFFERS.title,
         TEXT_LEN,
     )?;
-    menus().screens.flow.shown_gearing.set(value);
+    menus.screens.flow.shown_gearing.set(value);
     Ok(())
 }
 
 /// `menu::next_gearing` / `menu::previous_gearing`: `dword_7554F0` on (past 2 to 0) or back
 /// (below 0 to 2, both signed), the current player's `gearing` it, and its text.
-pub fn step_gearing(on: bool) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn step_gearing(menus: &Menus, on: bool) -> Result<(), Refused> {
+    let screens = &menus.screens;
     let p = current(screens)?;
     let kept = screens.flow.shown_gearing.get() as i32;
     // Converted: `rc2k_core::screens::captions::step_gearing`.

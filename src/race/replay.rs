@@ -10,7 +10,7 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
 use crate::net::owner::net;
 use crate::pointers::GamePtr;
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::race::owner_replay::Replay;
 use crate::race::owner_shared::Shared;
 use crate::race::replay_work_store::REPLAY_WORK;
@@ -59,6 +59,7 @@ impl Replays {
 #[cfg(test)]
 mod block_tests {
     use super::*;
+    use crate::race::owner::race;
     use core::mem::offset_of;
 
     #[test]
@@ -223,8 +224,8 @@ pub fn block_place(race: &Race, k: usize) -> Result<u32, BadInput> {
 /// length on; the block count on. A failed write or the index full (0x708 blocks) closes
 /// the replay (`race::close_replay`; the carry it sets is read by no caller). Every
 /// register kept.
-pub fn write_replay_block(replay: &Replay) -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn write_replay_block(race: &Race, replay: &Replay) -> Result<(), Refused> {
+    let shared = &race.shared;
     let n = shared.replay_file.index_block_count.get();
     if n >= MOST_BLOCKS {
         return Err(BadInput("the replay's index is full already").into());
@@ -243,7 +244,7 @@ pub fn write_replay_block(replay: &Replay) -> Result<(), Refused> {
         full
     };
     if failed {
-        close_replay()?;
+        close_replay(race)?;
     }
     Ok(())
 }
@@ -282,7 +283,7 @@ pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
     }
     VIEWER_BUFFERS.block_used.set(used + bytes);
     if full {
-        write_replay_block(replay)?;
+        write_replay_block(race, replay)?;
         VIEWER_BUFFERS.block_used.set(0);
         replay.replay_view.frames_in_block.set(0);
     }
@@ -294,8 +295,7 @@ pub fn add_replay_frame(race: &Race, frame: &[Dword]) -> Result<(), Refused> {
 /// frame count (`dword_5C252C`: 100, or for the last block the frames modulo 100 plus
 /// one); the time sealed; the index ("RCIB", 0x3850 bytes) written; the file closed;
 /// `dword_5BEC88` 0, `dword_5BEC84` 1. Every register kept.
-pub fn close_replay() -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+pub fn close_replay(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let replay = &race.replay;
     if shared.replay_file.replay_open.get() != 1 {
@@ -329,9 +329,9 @@ pub fn close_replay() -> Result<(), Refused> {
 /// cursor, counts and length 0; `var\tmprpl` created; the header written. A failed open
 /// or write closes it (`race::close_replay`). Every register kept; the carry it leaves is
 /// read by none of its callers (taint at both sites).
-pub fn open_replay() -> Result<(), Refused> {
-    let shared = &race().shared;
-    let replay = &race().replay;
+pub fn open_replay(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
+    let replay = &race.replay;
     // Converted: `rc2k_core::race::replay::{replays_on, room_for_replay}` and the
     // header's and the index's words.
     use rc2k_core::race::replay::{
@@ -411,7 +411,7 @@ pub fn open_replay() -> Result<(), Refused> {
         }
     };
     if failed {
-        close_replay()?;
+        close_replay(race)?;
     }
     Ok(())
 }

@@ -16,7 +16,7 @@
 //! versions; the window, the scene's begin and end and the restore through the game.
 
 use crate::errors::Refused;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::system::owner::system;
 
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
@@ -26,9 +26,9 @@ const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platf
 /// and the restore leave of it). Only `drive::quit_question` reads it (into
 /// `input::yes_no_key`, liveness: 0x44520A); its flags and other registers are read by
 /// no caller (only DF live after the other four calls).
-pub fn race_frame(eax: u32) -> Result<u32, Refused> {
+pub fn race_frame(race: &Race, eax: u32) -> Result<u32, Refused> {
     let system = system();
-    let race = race();
+
     let frame = &race.frame;
     // The calls below read no register at entry (liveness: `pump_messages`,
     // `race_sound_tick`, `replay_screenshot`, `show_frame`, `sub_405B10`): only eax runs

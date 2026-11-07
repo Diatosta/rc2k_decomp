@@ -71,8 +71,8 @@ const REPLAY_WORDS: [&std::ffi::CStr; 13] = [
 /// two players' absences) into the car header (`dword_719B14` ..), each logged as
 /// "[replayheader.x]" (`log_write_l1`) and its value (`log_int_l1_nl`). Every register
 /// kept (the logs inside `pusha`); it reads none.
-pub fn record_replay_header() {
-    let shared = &crate::race::owner::race().shared;
+pub fn record_replay_header(race: &Race) {
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::replay::HEADER_SETTINGS`.
     use rc2k_core::race::replay::HEADER_SETTINGS;
     for s in HEADER_SETTINGS {
@@ -267,7 +267,9 @@ pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
     crate::logfile::write_line::state::ENABLED.set(enabled);
     s.indent(-3);
     s.step(STAGE_WORDS[3], || free(course, &FONTS))?;
-    s.step(STAGE_WORDS[4], crate::race::game_map::free_game_map)?;
+    s.step(STAGE_WORDS[4], || {
+        crate::race::game_map::free_game_map(race)
+    })?;
     s.step(STAGE_WORDS[5], || {
         crate::race::race_shell::release_stage_textures();
         Ok(())
@@ -341,16 +343,16 @@ pub fn run_race(race: &Race) -> Result<(), Refused> {
     }
     race.shared.switches.editor_mode.set(0u32);
     race.course.numbers.replay_mode.set_bits(1u32);
-    crate::race::settings_copy::copy_settings_in()?;
+    crate::race::settings_copy::copy_settings_in(race)?;
     crate::race::race_cars::set_up_arcade_cars(race)?;
     race.shared.vars.settings_words[1].set(1u32);
-    crate::race::race_shell::set_start_states()?;
+    crate::race::race_shell::set_start_states(race)?;
     crate::race::stage_loading::load_stage(race)?;
-    record_replay_header();
-    crate::race::replay::open_replay()?;
+    record_replay_header(race);
+    crate::race::replay::open_replay(race)?;
     race.shared.view.after_credits.set(0u32);
     crate::drive::play_race::play_race(race)?;
-    crate::race::replay::close_replay()?;
+    crate::race::replay::close_replay(race)?;
     tidy_everything(race)?;
     crate::race::settings_copy::copy_settings_out(&race.replay)?;
     Ok(())

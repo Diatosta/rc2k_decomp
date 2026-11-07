@@ -157,12 +157,12 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
             if system.session.flags.paused.get() != 0 {
                 break true;
             }
-            race_keys()?;
+            race_keys(race)?;
             let begun = crate::debug::timing::start();
-            { crate::drive::race_step::race_step() }?;
+            { crate::drive::race_step::race_step(race) }?;
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
-            tyre_change()?;
-            if players_all_out()? {
+            tyre_change(race)?;
+            if players_all_out(race)? {
                 if race.shared.work.in_credits.get() != 0 {
                     crate::framework::log(&format!(
                         "drive::race_loop: the credits race ends: every player out, frame {}",
@@ -171,7 +171,7 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
                 }
                 return Ok(());
             }
-            race_frame()?;
+            race_frame(race)?;
         };
         if !paused {
             continue;
@@ -180,7 +180,7 @@ pub fn race_loop(race: &Race) -> Result<(), Refused> {
         if net().vars.session.get() != 0 {
             net_player_car(&race.shared)?.input_keys.set_bits(0);
         } else {
-            { crate::drive::pause_until_key::pause_until_key(&race.shared) }?;
+            { crate::drive::pause_until_key::pause_until_key(race) }?;
         }
         system.session.flags.paused.set(0);
     }

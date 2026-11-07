@@ -23,7 +23,7 @@ pub fn drive_force(race: &Race) -> Result<(), Refused> {
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    engine_torque_or_cut(&race.shared);
+    engine_torque_or_cut(race);
     race.shared
         .physics_tables
         .drive_ratio
@@ -42,6 +42,6 @@ pub fn drive_force(race: &Race) -> Result<(), Refused> {
     if race.shared.car.drive_cut_steps.get() != 0 {
         race.shared.physics_tables.drive_torque.set_bits(0);
     }
-    drive_torque_share();
+    drive_torque_share(race);
     Ok(())
 }

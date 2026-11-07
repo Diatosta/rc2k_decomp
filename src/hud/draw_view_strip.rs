@@ -18,7 +18,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
@@ -49,10 +48,16 @@ fn sizes(v: [u32; 4]) {
 
 /// One flat quad: its inputs from `left`, `width`, `rows` (the texture's rows) and the
 /// sizes (`strips::quad_inputs`), the texture when given, then the device's settings.
-fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Refused> {
-    let shared = &crate::race::owner::race().shared;
+fn quad(
+    race: &Race,
+    left: u32,
+    width: u32,
+    rows: u32,
+    texture: Option<u32>,
+) -> Result<(), Refused> {
+    let shared = &race.shared;
     let drawing = &scene().drawing;
-    let course = &race().course;
+    let course = &race.course;
     let sizes: [u32; 4] = std::array::from_fn(|n| gfx().strips.sizes[n].get());
     for (o, v) in strips::quad_inputs(left, width, &sizes, rows) {
         quad_input(shared, o).set_bits(v);
@@ -64,7 +69,7 @@ fn quad(left: u32, width: u32, rows: u32, texture: Option<u32>) -> Result<(), Re
     quad_input(shared, 0).set_bits(0xFFFF_FFFF);
     drawing.scene.polygon_sides[0].set_bits(1);
     drawing.scene.polygon_sides[1].set_bits(0);
-    crate::scene::draw_flat_quad::draw_flat_quad(course)
+    crate::scene::draw_flat_quad::draw_flat_quad(race, course)
 }
 
 /// The shared tail (0x45B9AA, see the header).
@@ -81,7 +86,7 @@ pub fn overlay_tail(race: &Race) -> Result<(), Refused> {
     for (v, rows) in strips::TAIL {
         sizes(v);
         let get = |n: usize| gfx().strips.sizes[n].get();
-        quad(get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
+        quad(race, get(2), get(3), rows, Some(strips::TAIL_TEXTURE))?;
     }
     Ok(())
 }
@@ -102,7 +107,7 @@ pub fn draw_view_strip(race: &Race, view: u32) -> Result<(), Refused> {
         let get = |n: usize| strips.sizes[n].get();
         let (mut left, width, mut rows) = (get(2), get(3), 0);
         for _ in 0..3 {
-            quad(left, width, rows, None)?;
+            quad(race, left, width, rows, None)?;
             left = left.wrapping_add(width);
             rows = rows.wrapping_add(strips::ROWS_STEP);
         }

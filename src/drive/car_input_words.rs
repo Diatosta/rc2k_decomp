@@ -13,14 +13,14 @@
 
 use crate::errors::Refused;
 use crate::net::owner::net;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::inputs::{check_car, device_words, replay_words}`.
-pub fn car_input_words() -> Result<(), Refused> {
+pub fn car_input_words(race: &Race) -> Result<(), Refused> {
     let vars = &net().vars;
-    let race_owner = race();
-    let frame = &race().frame;
+    let race_owner = race;
+    let frame = &race.frame;
     use rc2k_core::drive::inputs::{NO_DEVICE, ReplayWords, check_car, device_words, replay_words};
     let car = race_owner.shared.work.current_car.get();
     check_car(car)?;

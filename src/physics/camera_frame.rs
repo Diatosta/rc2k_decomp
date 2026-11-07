@@ -20,7 +20,6 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::st;
 use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
@@ -63,8 +62,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
 
 /// The Rust version. The registers the original leaves are read by none of its callers
 /// (`physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`).
-pub fn camera_frame() -> Result<(), Refused> {
-    let race = race();
+pub fn camera_frame(race: &Race) -> Result<(), Refused> {
     steps(race)
 }
 
@@ -100,6 +98,7 @@ fn x87_2(course: &Course) {
 #[cfg(all(test, target_arch = "x86"))]
 mod asm_reference {
     use super::*;
+    use crate::race::owner::race;
     use crate::scene::asm_test::{Block, In, Operand, Out, reference, sparse};
 
     // The original's instructions, one function per run.

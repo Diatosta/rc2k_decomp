@@ -25,7 +25,7 @@ use crate::drive::start_blend::start_blend;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::net::owner::net;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use rc2k_core::drive::controls::{FLIP_BIT, VIEW_BIT, computer_drives, flipped, read_keys};
 
@@ -45,9 +45,9 @@ fn computer(shared: &Shared) -> bool {
 
 /// The Rust version: `r` as the original leaves it.
 // Converted: `rc2k_core::drive::controls::{read_keys, computer_drives, flipped}`.
-pub fn read_car_controls() -> Result<(), Refused> {
-    let race_owner = race();
-    let race = race();
+pub fn read_car_controls(race: &Race) -> Result<(), Refused> {
+    let race_owner = race;
+
     let course = &race.course;
     if computer(&race_owner.shared)
         && race_owner.shared.vars.checkpoint_count.get() == 0

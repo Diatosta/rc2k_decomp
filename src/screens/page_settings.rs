@@ -3,6 +3,7 @@
 
 use crate::audio::owner::audio;
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::system::owner::system;
@@ -28,10 +29,10 @@ pub fn pick_player(n: u32) -> Result<(), Refused> {
 /// channels, Dolby, A3D, EAX, DS3D) into the sound page's work variables (`dword_75566C`,
 /// `dword_755680`, `dword_75567C`, `dword_755678`, `dword_755674`, `dword_755670`). Every
 /// register kept.
-pub fn load_audio_settings() {
+pub fn load_audio_settings(menus: &Menus) {
     // Converted: `rc2k_core::screens::page_values::audio_page`.
     let options: rc2k_core::audio::modes::AudioOptions = audio().state.audio_options.get();
-    menus()
+    menus
         .screens
         .option_work
         .set_audio_page(rc2k_core::screens::page_values::audio_page(&options));
@@ -89,8 +90,7 @@ fn stage_refuses(a: u32, b: u32) -> Result<(), Refused> {
 /// 0x19D by `dword_7556FC`, item 3 the record's +0x38), the stage line (string 0x481) and the
 /// caption string 0x4FC + `dword_75AB30`. Every register kept. Refuses (before anything) no
 /// stage records; a record of another track pack is the original's fatal error.
-pub fn stage_options_texts() -> Result<(), Refused> {
-    let menus = menus();
+pub fn stage_options_texts(menus: &Menus) -> Result<(), Refused> {
     let (a, b) = (
         menus.play.champ_view.switch_f8.get(),
         menus.tables.captions.shown_group.get(),
@@ -123,8 +123,7 @@ pub fn stage_options_texts() -> Result<(), Refused> {
 /// then the stage line (string 0x482) for record `dword_7558CC` of `off_735512[dword_7558C8]
 /// [dword_7558D0]`. Every register kept. Refuses (before anything) no stage records or no
 /// item table; another track pack is the original's fatal error.
-pub fn stage_choice_texts() -> Result<(), Refused> {
-    let menus = menus();
+pub fn stage_choice_texts(menus: &Menus) -> Result<(), Refused> {
     let (a, b) = (
         menus.screens.event.stage_group.get(),
         menus.screens.event.stage_sub.get(),

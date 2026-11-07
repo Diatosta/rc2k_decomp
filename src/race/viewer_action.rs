@@ -35,7 +35,6 @@
 
 use crate::errors::Refused;
 use crate::race::owner::Race;
-use crate::race::owner_replay::Replay;
 use crate::race::replay_work_store::REPLAY_WORK;
 
 /// The Rust version: whether the action is one (the zero flag the original leaves; it
@@ -63,7 +62,7 @@ pub fn viewer_action(race: &Race, action: u32) -> Result<bool, Refused> {
                     .get(),
             });
             // Whether the frame could be read is not looked at.
-            crate::drive::read_replay_frame_0::read_replay_frame_0(block)?;
+            crate::drive::read_replay_frame_0::read_replay_frame_0(race, block)?;
         }
         Action::MarkIn => {
             if mark_in_here(
@@ -94,7 +93,7 @@ pub fn viewer_action(race: &Race, action: u32) -> Result<bool, Refused> {
                 replay.replay_view.replay_block.get(),
                 replay.replay_view.replay_frame.get(),
             );
-            read_at(&race.replay, block, frame)?;
+            read_at(race, block, frame)?;
         }
         Action::FrameOn => {
             let (block, frame) = frame_on(
@@ -102,7 +101,7 @@ pub fn viewer_action(race: &Race, action: u32) -> Result<bool, Refused> {
                 replay.replay_view.replay_frame.get(),
                 race.shared.replay_file.index_block_count.get(),
             );
-            read_at(&race.replay, block, frame)?;
+            read_at(race, block, frame)?;
         }
         Action::PlayHere { from_here } => {
             if from_here {
@@ -175,10 +174,11 @@ pub fn viewer_action(race: &Race, action: u32) -> Result<bool, Refused> {
 
 /// A frame read (`drive::read_replay_frame`) after the block and frame are stored (whether
 /// it could be read is not looked at).
-fn read_at(replay: &Replay, block: u32, frame: u32) -> Result<(), Refused> {
+fn read_at(race: &Race, block: u32, frame: u32) -> Result<(), Refused> {
+    let replay = &race.replay;
     replay.replay_view.replay_block.set(block);
     replay.replay_view.replay_frame.set(frame);
-    { crate::drive::read_replay_frame::read_replay_frame(block, frame) }?;
+    { crate::drive::read_replay_frame::read_replay_frame(race, block, frame) }?;
     Ok(())
 }
 
@@ -323,7 +323,7 @@ fn save(race: &Race, back: bool) -> Result<(), Refused> {
         return Ok(());
     }
     read_at(
-        replay,
+        race,
         replay.replay_view.replay_block.get(),
         replay.replay_view.replay_frame.get(),
     )

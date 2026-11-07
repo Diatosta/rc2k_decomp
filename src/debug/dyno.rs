@@ -14,8 +14,8 @@ use crate::physics::drive_torque_share::drive_torque_share;
 use crate::physics::engine_torque::engine_torque;
 use crate::physics::gear_store::GEAR;
 use crate::physics::revs_from_wheels::revs_from_wheels;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
+use crate::race::owner::Race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
 use dear_imgui_rs::Ui;
@@ -77,8 +77,7 @@ struct Measured {
 static MEASURED: Mutex<Option<Measured>> = Mutex::new(None);
 
 /// Every variable the measuring writes.
-fn places() -> [&'static dyn Cell32; 15] {
-    let shared = &race().shared;
+fn places(shared: &'static Shared) -> [&'static dyn Cell32; 15] {
     let drawing = &scene().drawing;
     [
         &shared.car.gear,
@@ -100,8 +99,8 @@ fn places() -> [&'static dyn Cell32; 15] {
 }
 
 /// `f` run, the variables put back after it.
-fn kept<T>(f: impl FnOnce() -> T) -> T {
-    let places = places();
+fn kept<T>(shared: &'static Shared, f: impl FnOnce() -> T) -> T {
+    let places = places(shared);
     let saved = places.map(super::super::session::Cell32::bits);
     let result = f();
     for (place, bits) in places.iter().zip(saved) {
@@ -111,9 +110,10 @@ fn kept<T>(f: impl FnOnce() -> T) -> T {
 }
 
 /// `sub_43CAAB`: the drive at the engine's speed and the car's throttle.
-fn torque(course: &Course) {
-    let shared = &race().shared;
-    engine_torque();
+fn torque(race: &'static Race) {
+    let shared = &race.shared;
+    let course = &race.course;
+    engine_torque(race);
     shared
         .physics_tables
         .drive_ratio
@@ -133,24 +133,24 @@ fn torque(course: &Course) {
     if shared.car.drive_cut_steps.get() != 0 {
         shared.physics_tables.drive_torque.set_bits(0);
     }
-    drive_torque_share();
+    drive_torque_share(race);
 }
 
 /// The drive at `speed`, full throttle: None at or above the limit, or where the engine's
 /// speed is no number (a ratio of 0).
-fn drive_at(course: &Course, speed: f32) -> Option<(f32, f32)> {
-    let shared = &race().shared;
+fn drive_at(race: &'static Race, speed: f32) -> Option<(f32, f32)> {
+    let shared = &race.shared;
     shared.car.drive_speed_a.set_bits(speed.to_bits());
     shared.car.drive_speed_b.set_bits(speed.to_bits());
     shared.car.local_velocity[2].set_bits(speed.to_bits());
-    revs_from_wheels().ok()?;
+    revs_from_wheels(race).ok()?;
     let revs = f32::from_bits(shared.car.engine_speed.bits());
     let limit = f32::from_bits(shared.car.engine_speed_limit.bits());
     if revs.is_nan() || revs >= limit || revs < 0.0 {
         return None;
     }
     shared.car.throttle.set(0x100);
-    torque(course);
+    torque(race);
     Some((
         f32::from_bits(shared.physics_tables.drive_torque.bits()),
         revs / limit,
@@ -158,8 +158,9 @@ fn drive_at(course: &Course, speed: f32) -> Option<(f32, f32)> {
 }
 
 /// `sub_428F42`, without its drawing.
-fn measure(course: &Course) -> Option<Measured> {
-    let shared = &race().shared;
+fn measure(race: &'static Race) -> Option<Measured> {
+    let shared = &race.shared;
+    let course = &race.course;
     let limit = f32::from_bits(shared.car.engine_speed_limit.bits());
     let count = shared.physics_tables.gear_count.get().min(7) as usize;
     if limit.is_nan() || limit <= 0.0 || count == 0 {
@@ -172,7 +173,7 @@ fn measure(course: &Course) -> Option<Measured> {
     let air = figure(&shared.physics_tables.air_drag);
     let rolling = figure(&shared.physics_tables.rolling_drag);
     let k = f32::from_bits(course.numbers.k10000.bits());
-    Some(kept(|| {
+    Some(kept(shared, || {
         let mut gears = Vec::new();
         let mut best = [f32::MIN; POINTS];
         for gear in 1..=count {
@@ -180,7 +181,7 @@ fn measure(course: &Course) -> Option<Measured> {
             let mut curve = Vec::new();
             for (n, best) in best.iter_mut().enumerate() {
                 let speed = n as f32 / POINTS as f32 * TOP_SPEED;
-                let Some((drive, part)) = drive_at(course, speed) else {
+                let Some((drive, part)) = drive_at(race, speed) else {
                     continue;
                 };
                 *best = best.max(drive);
@@ -219,8 +220,8 @@ fn measure(course: &Course) -> Option<Measured> {
 
 /// The car's speed and its drive right now, full throttle (`sub_4291C9`), in a forward gear
 /// below the limit.
-fn cursor(course: &Course) -> Option<(f32, f32, f32, i32)> {
-    let shared = &race().shared;
+fn cursor(race: &'static Race) -> Option<(f32, f32, f32, i32)> {
+    let shared = &race.shared;
     let gear = shared.car.gear.get() as i32;
     let speed = f32::from_bits(shared.car.drive_speed_a.bits());
     if !(1..=7).contains(&gear)
@@ -230,17 +231,17 @@ fn cursor(course: &Course) -> Option<(f32, f32, f32, i32)> {
     {
         return None;
     }
-    let (drive, part) = kept(|| drive_at(course, speed))?;
+    let (drive, part) = kept(&race.shared, || drive_at(race, speed))?;
     Some((speed, drive, part, gear))
 }
 
 /// The tab.
-pub fn tab(course: &Course, ui: &Ui) {
+pub fn tab(race: &'static Race, ui: &Ui) {
     let mut measured = MEASURED
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     if ui.button("Measure the car") || measured.is_none() {
-        *measured = measure(course);
+        *measured = measure(race);
     }
     ui.same_line();
     ui.text_disabled("the last car simulated, full throttle; measure again after a change of car");
@@ -268,7 +269,7 @@ pub fn tab(course: &Course, ui: &Ui) {
     ui.text_colored(DRAG, "drag");
     ui.same_line();
     ui.text_colored(NET, "best drive less drag");
-    let live = cursor(course);
+    let live = cursor(race);
     let high = m
         .gears
         .iter()
@@ -339,11 +340,11 @@ const NET: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::race::owner::race;
 
     #[test]
     fn measuring_puts_back_all_it_writes() {
         let shared = &race().shared;
-        let course = &race().course;
         let _lock = crate::store::test_lock();
         let was_limit = shared.car.engine_speed_limit.bits();
         let was_count = shared.physics_tables.gear_count.get();
@@ -351,9 +352,9 @@ mod tests {
         shared.car.engine_speed_limit.set_bits(7000.0_f32.to_bits());
         shared.physics_tables.gear_count.set(1);
         shared.physics_tables.gear_ratios[2].set_bits(0.01_f32.to_bits());
-        let before = places().map(crate::session::Cell32::bits);
-        let m = measure(course).expect("a car");
-        assert_eq!(places().map(crate::session::Cell32::bits), before);
+        let before = places(shared).map(crate::session::Cell32::bits);
+        let m = measure(race()).expect("a car");
+        assert_eq!(places(shared).map(crate::session::Cell32::bits), before);
         assert_eq!(m.gears.len(), 1);
         assert!(!m.gears[0].is_empty());
         shared.car.engine_speed_limit.set_bits(was_limit);
@@ -364,11 +365,10 @@ mod tests {
     #[test]
     fn no_limit_no_measuring() {
         let shared = &race().shared;
-        let course = &race().course;
         let _lock = crate::store::test_lock();
         let was = shared.car.engine_speed_limit.bits();
         shared.car.engine_speed_limit.set_bits(0);
-        assert!(measure(course).is_none());
+        assert!(measure(race()).is_none());
         shared.car.engine_speed_limit.set_bits(was);
     }
 }

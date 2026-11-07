@@ -437,7 +437,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
     );
     car_body_matrix(&race.frame);
     crate::race::frame_draw::start_kept_reflections(race, &race.physics)?;
-    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(&race.frame)))?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(lit_place(&race.frame)))?;
     crate::race::frame_draw::end_kept_reflections(&race.shared);
     scene.lights.work.light_kind_extra.set(1);
     if below(race.frame.frame_work.car_depth.bits(), 0x3C_0000) {
@@ -451,9 +451,10 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
                 .set(race.shared.switches.object_number.bits().wrapping_add(1));
             if scene.drawing.object_work.car_switches.bits() & bit != 0 {
                 car_part_matrix(&race.frame, matrix);
-                crate::scene::draw_scene_object::draw_scene_object_in_game(Some(lit_place(
-                    &race.frame,
-                )))?;
+                crate::scene::draw_scene_object::draw_scene_object_in_game(
+                    race,
+                    Some(lit_place(&race.frame)),
+                )?;
             }
         }
     }

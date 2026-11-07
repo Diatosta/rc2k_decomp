@@ -7,8 +7,9 @@
 //! Callers: `drive::load_replay_frame`, `sub_41DE81` (six).
 
 use crate::errors::Refused;
+use crate::race::owner::Race;
 
 /// The Rust version: CF.
-pub fn read_replay_frame_0(frame: u32) -> Result<bool, Refused> {
-    crate::drive::read_replay_frame::read_replay_frame(frame, 0)
+pub fn read_replay_frame_0(race: &Race, frame: u32) -> Result<bool, Refused> {
+    crate::drive::read_replay_frame::read_replay_frame(race, frame, 0)
 }

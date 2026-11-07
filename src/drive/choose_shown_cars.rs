@@ -17,7 +17,6 @@
 use crate::errors::Refused;
 use crate::net::owner::net;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::drive::shown_cars::{ShownCars, ShownSetup};
 
@@ -82,7 +81,6 @@ fn game(race: &Race) -> Vec<&Dword> {
 }
 
 /// The Rust version.
-pub fn choose_shown_cars() -> Result<(), Refused> {
-    let race = race();
+pub fn choose_shown_cars(race: &Race) -> Result<(), Refused> {
     choose_at(&game(race))
 }

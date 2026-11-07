@@ -10,7 +10,7 @@
 //!
 //! Callers: `drive::car_controls`, `sub_460835`, `sub_460B2F`.
 
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::session::Dword;
 use rc2k_core::drive::controls::{BRAKE_KEY, THROTTLE_KEY, handbrake, pedal};
@@ -26,8 +26,7 @@ fn step_pedal(shared: &Shared, bit: u32, input: &Dword, at: &Dword) {
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::controls::{pedal, handbrake}`.
-pub fn pedal_inputs() {
-    let race = race();
+pub fn pedal_inputs(race: &Race) {
     step_pedal(
         &race.shared,
         THROTTLE_KEY,

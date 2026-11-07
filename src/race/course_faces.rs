@@ -181,11 +181,11 @@ pub fn face_materials(race: &Race, face: &Face) -> Result<(), BadInput> {
 
 /// `race::draw_marked_face` (0x44CD90): `scene::scale_texture_coordinates`,
 /// `scene::fog_polygon`, the drawing (`scene::draw_marked_polygon`), `g_polygonDrawn` 1.
-pub fn draw_marked_face() -> Result<(), Refused> {
+pub fn draw_marked_face(race: &Race) -> Result<(), Refused> {
     crate::scene::scale_texture_coordinates::scale_texture_coordinates()?;
     crate::scene::fog_polygon::fog_polygon()?;
-    crate::scene::draw_marked_polygon::draw_marked_polygon(&mut || {
-        crate::scene::draw_polygon::draw_polygon_in_game()
+    crate::scene::draw_marked_polygon::draw_marked_polygon(race, &mut || {
+        crate::scene::draw_polygon::draw_polygon_in_game(race)
     })?;
     scene().drawing.scene.polygon_drawn.set(1u32);
     Ok(())
@@ -256,21 +256,21 @@ pub fn face_lights(race: &Race) -> Result<(), Refused> {
 /// `race::clip_and_draw_face` (0x454187): the face's polygon cut by depth (when some
 /// vertices are outside, `g_polygonOutsideCount`) and to the screen, and with three
 /// vertices or more drawn (`scene::draw_polygon_in_game`), `g_polygonDrawn` 1.
-pub fn clip_and_draw_face() -> Result<(), Refused> {
+pub fn clip_and_draw_face(race: &Race) -> Result<(), Refused> {
     let drawing = &scene().drawing;
     // Converted: `rc2k_core::race::face_drawing::draws_polygon`.
     use rc2k_core::race::face_drawing::draws_polygon;
     if drawing.scene.polygon_outside_count.get() != 0 {
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race)?;
         if !draws_polygon(drawing.scene.polygon_vertex_count.bits()) {
             return Ok(());
         }
     }
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race)?;
     if !draws_polygon(drawing.scene.polygon_vertex_count.bits()) {
         return Ok(());
     }
-    crate::scene::draw_polygon::draw_polygon_in_game()?;
+    crate::scene::draw_polygon::draw_polygon_in_game(race)?;
     drawing.scene.polygon_drawn.set(1u32);
     Ok(())
 }
@@ -295,7 +295,7 @@ pub fn face_out_of_view(race: &Race) -> Result<bool, Refused> {
         if k == 3 && n == u32::MAX {
             break;
         }
-        let record = crate::race::frame_draw::point_record(n)?;
+        let record = crate::race::frame_draw::point_record(race, n)?;
         let depth = crate::scene::point_records::field(record, 0x18)?;
         if depth & 0x8000_0000 != 0 {
             continue;
@@ -500,7 +500,8 @@ fn plain_list(count: u32, next: u32) {
 /// rounded into `dword_62400C`, compared by the sign of the difference); nothing when
 /// all are outside; else the quad drawn (`race::draw_marked_face`). Gives the carry
 /// (true: draw it as triangles).
-pub fn draw_whole_quad(shared: &Shared) -> Result<bool, Refused> {
+pub fn draw_whole_quad(race: &Race) -> Result<bool, Refused> {
+    let shared = &race.shared;
     let drawing = &scene().drawing;
     // Converted: `rc2k_core::race::face_drawing::{QUAD_ENTRIES, quad_by_outside,
     // screen_inside, inside}` (the roundings the x87's).
@@ -514,7 +515,7 @@ pub fn draw_whole_quad(shared: &Shared) -> Result<bool, Refused> {
         }
     }
     plain_list(4, 4);
-    crate::scene::project_polygon::project_polygon()?;
+    crate::scene::project_polygon::project_polygon(race)?;
     if let Some(triangles) = quad_by_outside(drawing.scene.polygon_outside_count.bits()) {
         return Ok(triangles);
     }
@@ -538,7 +539,7 @@ pub fn draw_whole_quad(shared: &Shared) -> Result<bool, Refused> {
         }
     }
     drawing.scene.polygon_vertex_count.set(4u32);
-    draw_marked_face()?;
+    draw_marked_face(race)?;
     Ok(false)
 }
 
@@ -582,7 +583,7 @@ pub fn draw_face_polygons(race: &Race) -> Result<(), Refused> {
             race.shared.view.face_turned[0].bits(),
             race.shared.view.face_turned[1].bits(),
         )
-        && !draw_whole_quad(&race.shared)?
+        && !draw_whole_quad(race)?
     {
         return Ok(());
     }
@@ -712,7 +713,7 @@ pub fn draw_lit_triangle(race: &Race) -> Result<(), Refused> {
         }
     }
     if !lit {
-        return crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game();
+        return crate::scene::draw_clipped_polygon::draw_clipped_polygon_in_game(race);
     }
     crate::race::frame_draw::points_there(&race.course)?;
     crate::race::frame_draw::check_light_colour(&race.shared)?;
@@ -723,7 +724,7 @@ pub fn draw_lit_triangle(race: &Race) -> Result<(), Refused> {
         .polygon_next_record
         .set(crate::scene::polygon::pool_start());
     plain_list(scene.drawing.scene.polygon_vertex_count.bits(), 6);
-    crate::scene::project_polygon::project_polygon()?;
+    crate::scene::project_polygon::project_polygon(race)?;
     if scene.drawing.scene.polygon_outside_count.get()
         == scene.drawing.scene.polygon_vertex_count.get()
     {
@@ -781,7 +782,7 @@ pub fn draw_lit_triangle(race: &Race) -> Result<(), Refused> {
         POLYGON_WORK.list[3].set(list[0]);
         scene.drawing.scene.polygon_vertex_count.set(3u32);
         scene.drawing.scene.polygon_next_entry.set(6u32);
-        clip_and_draw_face()?;
+        clip_and_draw_face(race)?;
     }
     Ok(())
 }

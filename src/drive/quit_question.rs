@@ -58,7 +58,7 @@ pub fn quit_question(race: &Race) -> Result<u32, Refused> {
             shared.vars.no_replay.get() != 0,
         ) {
             Some(answer) => break answer,
-            None => eax = crate::drive::race_frame::race_frame(eax)?,
+            None => eax = crate::drive::race_frame::race_frame(race, eax)?,
         }
     };
     for c in 0..8 {
@@ -68,7 +68,7 @@ pub fn quit_question(race: &Race) -> Result<u32, Refused> {
         }
     }
     shared.vars.scene_switch.set(0);
-    wake_car_sounds()?;
+    wake_car_sounds(race)?;
     for c in 0..8 {
         CAR_BLOCKS.cars[c as usize].input_keys.set_bits(0);
     }

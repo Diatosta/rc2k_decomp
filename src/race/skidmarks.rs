@@ -203,20 +203,20 @@ pub fn draw_skidmarks(race: &Race) -> Result<(), Refused> {
         list[4].set(0);
         drawing.scene.polygon_next_entry.set(4u32);
         crate::scene::fog_polygon::fog_polygon()?;
-        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth()?;
+        crate::scene::clip_polygon_by_depth::clip_polygon_by_depth(race)?;
         // Each quad inside the original's `pusha` .. `popa`; the depth test's switches
         // and the polygon's drawing read no register.
         if drawing.scene.polygon_vertex_count.get() < 3 {
             continue;
         }
-        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
+        crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race)?;
         if drawing.scene.polygon_vertex_count.get() >= 3 {
             drawing.scene.polygon_colour.set(0u32);
             crate::scene::depth_test_off::depth_test_off();
             race.shared.view.polygon_mode.set(3u32);
             drawing.scene.polygon_sides[0].set(0u32);
             drawing.scene.polygon_sides[1].set(1u32);
-            crate::scene::draw_polygon::draw_polygon_in_game()?;
+            crate::scene::draw_polygon::draw_polygon_in_game(race)?;
             race.shared.view.polygon_mode.set(0u32);
             drawing.scene.polygon_drawn.set(1u32);
             crate::scene::depth_test_on::depth_test_on();

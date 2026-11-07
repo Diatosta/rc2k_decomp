@@ -8,7 +8,7 @@ use crate::net::owner::net;
 use crate::physics::car_store::Car;
 use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::{Cell32, Dword};
@@ -611,8 +611,7 @@ const PLAYER_RESETS: [(Field, u32); 6] = [
 /// numbers, the times, the arcade set-up, `dword_601C68` (0x40 dwords) 0; 1, 3, 0 (with
 /// the numbers first), 4 their set-ups; others nothing. The registers it leaves are read
 /// by no caller (conversion phase 3, 2026-10-24).
-pub fn set_up_cars() -> Result<(), Refused> {
-    let race = race();
+pub fn set_up_cars(race: &Race) -> Result<(), Refused> {
     text(c"gamemode", false);
     number(race.shared.vars.run_kind.bits(), true);
     // Converted: `rc2k_core::race::cars::cars_steps`.

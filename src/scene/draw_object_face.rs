@@ -200,8 +200,8 @@ pub fn draw_object_face_in_game(
 ) -> Result<(), Refused> {
     draw_object_face(race, face, &mut |step| match step {
         Step::Draw => draw_object_polygon(race, &mut |step| match step {
-            draw_object_polygon::Step::Project => project_polygon(),
-            draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(),
+            draw_object_polygon::Step::Project => project_polygon(race),
+            draw_object_polygon::Step::Draw => draw_clipped_polygon_in_game(race),
         }),
         Step::DepthTestOff => {
             Game.state(0xE, 0);

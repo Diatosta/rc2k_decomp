@@ -20,7 +20,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 
 /// What `scene::draw_scene_object` would refuse for `object`: in a race (`g_inRace`) a car
@@ -50,8 +50,8 @@ pub fn draw_described_object(
 }
 
 /// The same for course face `face` (kind 0xFF), its own description.
-pub fn draw_described_face(face: u32) -> Result<(), Refused> {
-    draw_description(race(), &|len| {
+pub fn draw_described_face(race: &Race, face: u32) -> Result<(), Refused> {
+    draw_description(race, &|len| {
         let bytes: [u8; 0x40] =
             crate::race::course_places::face_field(face, 0, "a described face")?;
         Ok(bytes[..len].to_vec())
@@ -163,7 +163,7 @@ fn draw_description(
         }
     }
     scene.lights.state.view_kind.set(2u32);
-    crate::race::frame_draw::place_object_matrix()?;
+    crate::race::frame_draw::place_object_matrix(race)?;
     scene.lights.work.light_kind.set(2u32);
     let object: u32 = shared.switches.object_number.bits();
     let kind: u32 = scene.objects.tables.object_kind(object);
@@ -171,7 +171,7 @@ fn draw_description(
     if record.offset(0x1F).read::<u8>("an object's material")? != 0 {
         scene.lights.work.light_kind.set(1u32);
     }
-    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(record))?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(record))?;
     end();
     Ok(())
 }

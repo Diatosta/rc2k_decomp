@@ -9,18 +9,18 @@
 //! run its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
-pub fn draw_background_band(canvas: &mut dyn Canvas) -> Result<(), Refused> {
+pub fn draw_background_band(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::controller_page::background_band`.
     use rc2k_core::screens::controller_page::{Font, Work, background_band};
     background_band(
         &mut crate::screens::game_screen::GameScreen::<Font, Work>::new(canvas),
-        { menus().screens.flow.left_service.get() } == 1,
+        { menus.screens.flow.left_service.get() } == 1,
     )
 }

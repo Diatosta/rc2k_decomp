@@ -31,7 +31,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::input::owner::input;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::player::Player;
 use crate::session::Dword;
 use crate::text::draw_text::Canvas;
@@ -74,8 +74,12 @@ fn string(table: &[Dword], index: u32, count: u32) -> Result<u32, Refused> {
     Ok(table[index as usize].get())
 }
 
-pub fn draw_player_page(layout: Layout, canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn draw_player_page(
+    menus: &Menus,
+    layout: Layout,
+    canvas: &mut dyn Canvas,
+) -> Result<(), Refused> {
+    let screens = &menus.screens;
     let Some(cell) = crate::menu::player::player(screens.event.current_player.get()) else {
         return Err(BadInput("a player past the four").into());
     };

@@ -6,7 +6,7 @@
 use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::physics::car_store::Car;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
@@ -41,17 +41,16 @@ pub fn state_cell(car: &Car, off: u32) -> Result<&Dword, BadInput> {
 }
 
 /// `race::clear_race_slots` (0x4621CD): the eight `g_raceSlots` records' first dword 0.
-pub fn clear_race_slots() {
-    for slot in &race().shared.work.race_slots {
+pub fn clear_race_slots(shared: &Shared) {
+    for slot in &shared.work.race_slots {
         slot.part.set(0);
     }
 }
 
 /// `race::reset_car_starts` (0x444BBC): each car block's +0x14 and +8 0 (0x320 while
 /// `dword_71C3E0` is set), +0x18 and +0x1C 0.
-pub fn reset_car_starts() -> Result<(), BadInput> {
+pub fn reset_car_starts(shared: &Shared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::start_value`.
-    let shared = &race().shared;
     let value = rc2k_core::race::cars::start_value(shared.work.in_credits.bits() != 0);
     for n in 0..BLOCKS {
         let b = block(shared, n);
@@ -67,10 +66,9 @@ pub fn reset_car_starts() -> Result<(), BadInput> {
 
 /// `race::seed_car_randoms` (0x444BF6): each car block's +0x10 and +0xC one
 /// `nonzero_random`.
-pub fn seed_car_randoms() -> Result<(), BadInput> {
+pub fn seed_car_randoms(shared: &Shared) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::cars::car_seeds`.
     use crate::math::next_random::{DRAWS, wait_for_random, with_random};
-    let shared = &race().shared;
     wait_for_random();
     DRAWS.fetch_add(BLOCKS, std::sync::atomic::Ordering::SeqCst);
     let seeds = with_random(rc2k_core::race::cars::car_seeds);
@@ -87,8 +85,7 @@ pub fn seed_car_randoms() -> Result<(), BadInput> {
 /// `race::reset_car_race_state` (0x444C1D): each car block's +0x71C 0xCA, +0x72C 0x12C,
 /// +0x720/+0x724/+0x728/+0x730 0, +0xA0C .. +0xA1C -1; the four text dwords at 0x6D1838 ..
 /// spaces, the four at 0x6D1850 .. -1.
-pub fn reset_car_race_state() -> Result<(), BadInput> {
-    let race = race();
+pub fn reset_car_race_state(race: &Race) -> Result<(), BadInput> {
     let (shared, frame) = (&race.shared, &race.frame);
     // Converted: `rc2k_core::race::cars::{RACE_STATE, BLANK_TEXT, UNSET_TEXT}`.
     use rc2k_core::race::cars::{BLANK_TEXT, RACE_STATE, UNSET_TEXT};

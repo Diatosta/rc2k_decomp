@@ -35,7 +35,7 @@ pub fn viewer_frame() -> Result<bool, Refused> {
     // `d3d::begin_scene` cannot fail (its carry is clear).
     crate::platform_3d::begin_layer();
     if race.shared.replay_file.replay_at_end.get() != 1 {
-        crate::drive::replay_frame_marks::replay_frame_marks()?;
+        crate::drive::replay_frame_marks::replay_frame_marks(race)?;
         crate::race::show_replay_still::show_replay_still(race)?;
     }
     if replay.replay_view.snapshot_asked.get() == 1 {

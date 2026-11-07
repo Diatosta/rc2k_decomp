@@ -39,7 +39,7 @@ fn step(race: &Race) -> Result<(), Refused> {
     ));
     crate::physics::count_down_timers::count_down_timers(&race.shared);
     crate::physics::gearbox_step::gearbox_step(race)?;
-    crate::physics::engine_torque::engine_torque();
+    crate::physics::engine_torque::engine_torque(race);
     let gear = race.shared.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
@@ -48,9 +48,9 @@ fn step(race: &Race) -> Result<(), Refused> {
         race,
         &race.shared.physics_tables.gear_ratios[gear.wrapping_add(1) as usize],
     );
-    crate::physics::drive_torque_share::drive_torque_share();
+    crate::physics::drive_torque_share::drive_torque_share(race);
     x87_2(race);
-    { crate::physics::revs_from_wheels::revs_from_wheels() }?;
+    { crate::physics::revs_from_wheels::revs_from_wheels(race) }?;
     Ok(())
 }
 

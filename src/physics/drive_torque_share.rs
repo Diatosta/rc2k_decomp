@@ -14,7 +14,6 @@
 use crate::math::x87;
 use crate::math::x87_run::{abs_fidiv, int_fidiv, one_less_times_plus};
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::session::Cell32;
@@ -72,7 +71,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
 
 /// The Rust version (the exact one, for `physics::drive_force` and
 /// `physics::test_drive_run`): eax as the original leaves it.
-pub fn drive_torque_share() -> u32 {
-    let race = race();
+pub fn drive_torque_share(race: &Race) -> u32 {
     drive_torque_share_at(race, &game(&race.shared))
 }

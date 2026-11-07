@@ -11,6 +11,7 @@ use crate::gfx::owner::GFX;
 use crate::math::x87;
 use crate::physics::car_store::Car;
 use crate::race::blocks_store::CAR_BLOCKS;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_replay::Replay;
 use crate::race::owner_shared::Shared;
@@ -196,8 +197,8 @@ pub fn run(steps: &[Step<Place>]) -> Result<(), Refused> {
 }
 
 /// `race::copy_settings_in` (0x446EBE): `GRAHAM_TO_SHAUN`.
-pub fn copy_settings_in() -> Result<(), Refused> {
-    run(&race().replay.graham_to_shaun)
+pub fn copy_settings_in(race: &Race) -> Result<(), Refused> {
+    run(&race.replay.graham_to_shaun)
 }
 
 /// `race::copy_settings_out` (0x4486FB): `SHAUN_TO_GRAHAM`.

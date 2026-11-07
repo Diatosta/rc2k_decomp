@@ -11,7 +11,6 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::owner::menus;
 use crate::screens::service_boxes::{BLACK, Outline, quad};
 
 /// The colour of the backdrop.
@@ -211,8 +210,7 @@ fn tall_item(menus: &Menus, item: u32) -> Result<(), Refused> {
 }
 
 /// The service area's boxes, in the order the original draws them.
-pub fn draw_service_boxes() -> Result<(), Refused> {
-    let menus = menus();
+pub fn draw_service_boxes(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     for [x, y, w, h] in BACKDROP_BOXES {
         quad(

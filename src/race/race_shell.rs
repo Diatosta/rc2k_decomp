@@ -5,7 +5,6 @@ use crate::net::owner::net;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
@@ -153,11 +152,11 @@ fn settle_state(view: &Dword) {
 /// leaves are read by none of its four callers (taint at each site; it keeps the rest).
 /// Refuses, with `dword_52A910` 1, a chosen car past 7 (the original reads past the
 /// tables), before anything.
-pub fn set_start_states() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn set_start_states(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     let vars = &net().vars;
-    let frame = &race().frame;
-    let physics = &race().physics;
+    let frame = &race.frame;
+    let physics = &race.physics;
     // Converted: `rc2k_core::race::cars::{start_record, start_state_value, held_split,
     // settled_state}`.
     {

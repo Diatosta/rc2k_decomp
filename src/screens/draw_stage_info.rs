@@ -19,7 +19,6 @@
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::owner::menus;
 use crate::records::find_record::find_record_in;
 use crate::records::stages_store::RecordRef;
 use crate::screens::draw_stage_heading::draw_stage_heading;
@@ -63,8 +62,7 @@ pub fn event_title(menus: &Menus) -> Result<u32, crate::errors::BadInput> {
 
 /// Returns the carry flag of `draw_stage_records`. The errors are those of the functions it
 /// uses: the track pack lookup, the blitter, the formatters and the record rows.
-pub fn draw_stage_info(canvas: &mut dyn Canvas) -> Result<bool, Refused> {
-    let menus = menus();
+pub fn draw_stage_info(menus: &Menus, canvas: &mut dyn Canvas) -> Result<bool, Refused> {
     let screens = &menus.screens;
     let tables = &menus.tables;
     label(canvas, event_title(menus)?, TITLE_FONT, TITLE_X, TITLE_Y)?;

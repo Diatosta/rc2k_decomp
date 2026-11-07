@@ -13,17 +13,17 @@
 //! `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::screens::best_scores::{RALLY_STAGE_TIMES, draw_times_heading};
 use crate::text::draw_text::Canvas;
 
 /// (id, x, y, font) of the labels.
 /// The Rust version.
-pub fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let play = &menus().play;
+pub fn draw_player_rally_result(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let play = &menus.play;
     let player = crate::menu::player_settings::current()?.get();
     let name = crate::screens::game_screen::player_name_of(crate::menu::player_name::name()?);
-    (RALLY_STAGE_TIMES.records)()?;
+    (RALLY_STAGE_TIMES.records)(menus)?;
     let top_speed = player.figure;
     let speed = crate::strings::append_speed::append_speed(
         top_speed,
@@ -53,7 +53,7 @@ pub fn draw_player_rally_result(canvas: &mut dyn Canvas) -> Result<(), Refused> 
     };
     rc2k_core::screens::player_result::rally_result(
         &mut PlayerResultScreen::new(canvas),
-        &mut |s: &mut PlayerResultScreen| draw_times_heading(&RALLY_STAGE_TIMES, s.canvas),
+        &mut |s: &mut PlayerResultScreen| draw_times_heading(menus, &RALLY_STAGE_TIMES, s.canvas),
         &p,
         &figures,
         crate::strings::append_time::show_hours(),

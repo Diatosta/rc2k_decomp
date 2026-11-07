@@ -99,7 +99,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
             return Err(BadInput("a wanted texture's slot past g_slotWantedTextures").into());
         }
     }
-    crate::drive::choose_shown_cars::choose_shown_cars()?;
+    crate::drive::choose_shown_cars::choose_shown_cars(race)?;
     crate::session::write_bits(&race.shared.view.view_cleared, [0u32; 0x20]);
     for (flags, block) in race
         .frame
@@ -240,12 +240,12 @@ pub fn draw_race_scene() -> Result<(), Refused> {
             draw_view(race, view as usize, view as usize, false)?;
         }
     }
-    crate::race::frame_views::load_first_car()?;
+    crate::race::frame_views::load_first_car(&race.shared)?;
     use crate::race::frame_flush::{flush_batch, plain, textured};
     flush_batch(&plain(), false)?;
     flush_batch(&textured(), true)?;
     crate::race::sound_spots::find_sound_spots(race)?;
-    crate::race::frame_draw::share_sound_spots()?;
+    crate::race::frame_draw::share_sound_spots(race)?;
     crate::race::frame_draw::wake_part_sounds(race)?;
     race_sound_tick(frame)?; // 0x10
     for state in [0x11, 0x12] {

@@ -1,4 +1,5 @@
 use crate::errors::Refused;
+use crate::race::owner::Race;
 
 // What these calls leave in the registers is read by none of their callers (liveness at
 // each call site in `race_loop`, `quit_question`, `pause_until_key`, `finish_run` and
@@ -6,8 +7,8 @@ use crate::errors::Refused;
 
 /// `sub_4541BF`: the race's frame (drawing and the sound tick), for the callers that do
 /// not read the eax it leaves (any value in, as their eax is not read past it either).
-pub fn race_frame() -> Result<(), Refused> {
-    crate::drive::race_frame::race_frame(0)?;
+pub fn race_frame(race: &Race) -> Result<(), Refused> {
+    crate::drive::race_frame::race_frame(race, 0)?;
     Ok(())
 }
 
@@ -27,20 +28,20 @@ pub fn take_key() {
 }
 
 /// `race::race_keys`.
-pub fn race_keys() -> Result<(), Refused> {
-    { crate::race::frame::race_keys() }?;
+pub fn race_keys(race: &Race) -> Result<(), Refused> {
+    { crate::race::frame::race_keys(race) }?;
     Ok(())
 }
 
 /// `race::tyre_change`.
-pub fn tyre_change() -> Result<(), Refused> {
-    crate::race::frame::tyre_change()?;
+pub fn tyre_change(race: &Race) -> Result<(), Refused> {
+    crate::race::frame::tyre_change(race)?;
     Ok(())
 }
 
 /// `race::players_all_out`: the CF.
-pub fn players_all_out() -> Result<bool, Refused> {
-    crate::race::frame::players_all_out()
+pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
+    crate::race::frame::players_all_out(race)
 }
 
 /// `race::stop_race_sounds` (0x45D28E): `race::reset_race_sounds`, its one call.
@@ -49,8 +50,8 @@ pub fn stop_race_sounds() -> Result<(), Refused> {
 }
 
 /// `race::wake_car_sounds` (its callers keep the registers round it).
-pub fn wake_car_sounds() -> Result<(), Refused> {
-    crate::race::sounds::wake_car_sounds()?;
+pub fn wake_car_sounds(race: &Race) -> Result<(), Refused> {
+    crate::race::sounds::wake_car_sounds(race)?;
     Ok(())
 }
 

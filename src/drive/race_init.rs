@@ -56,7 +56,7 @@ pub fn race_init(race: &Race) -> Result<(), Refused> {
     let race_owner = race;
     log(c"RACEINIT : setbestline");
     indent_by(race_steps::LOG_INDENT);
-    crate::race::best_line::build_best_line()?;
+    crate::race::best_line::build_best_line(race)?;
     if race_steps::no_best_line(race_owner.shared.vars.checkpoint_count.get()) {
         if race_owner.shared.switches.editor_mode.get() != 0 {
             return Ok(());
@@ -69,26 +69,26 @@ pub fn race_init(race: &Race) -> Result<(), Refused> {
     }
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
     log(c"RACEINIT : initcarpositions");
-    indented(&mut || crate::race::car_starts::start_cars())?;
+    indented(&mut || crate::race::car_starts::start_cars(race))?;
     log(c"RACEINIT : initobjectsoncourse");
-    indented(&mut || crate::race::course_data::reset_face_lights())?;
+    indented(&mut || crate::race::course_data::reset_face_lights(race))?;
     log(c"RACEINIT : gamemodestuff_init");
-    indented(&mut || { crate::race::race_cars::set_up_cars() }.map(drop))?;
+    indented(&mut || { crate::race::race_cars::set_up_cars(race) }.map(drop))?;
     log(c"RACEINIT : messagesystem_init");
     indented(&mut || {
-        crate::race::race_init::reset_car_race_state()?;
+        crate::race::race_init::reset_car_race_state(race)?;
         Ok(())
     })?;
     log(c"RACEINIT : carparts_init");
     indented(&mut || {
-        crate::race::race_init::clear_race_slots();
+        crate::race::race_init::clear_race_slots(&race.shared);
         Ok(())
     })?;
     log(c"RACEINIT : resettimers");
     indented(&mut || {
         {
-            crate::race::race_init::reset_car_starts()?;
-            crate::race::race_init::seed_car_randoms()?;
+            crate::race::race_init::reset_car_starts(&race.shared)?;
+            crate::race::race_init::seed_car_randoms(&race.shared)?;
         }
         Ok(())
     })?;
@@ -99,14 +99,14 @@ pub fn race_init(race: &Race) -> Result<(), Refused> {
         MARKS_SETTINGS.other_marks_shown.set(1);
         { crate::drive::share_all_cars::share_all_cars(race) }?;
         MARKS_SETTINGS.other_marks_shown.set(0);
-        crate::effects::frame_marks::frame_marks(effects())?;
+        crate::effects::frame_marks::frame_marks(race, effects())?;
         crate::effects::run_frame::run_frame()?;
     }
-    crate::race::race_init::clear_race_slots();
+    crate::race::race_init::clear_race_slots(&race.shared);
     indent_by(race_steps::LOG_INDENT.wrapping_neg());
     log(c"RACEINIT : resetalldamagemessages");
     indented(&mut || {
-        crate::race::car_grades::grade_all_cars()?;
+        crate::race::car_grades::grade_all_cars(&race.shared)?;
         Ok(())
     })?;
     log(c"RACEINIT : end");

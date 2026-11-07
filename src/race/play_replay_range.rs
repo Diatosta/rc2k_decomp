@@ -19,7 +19,7 @@ use crate::race::viewer_screen_store::VIEWER_PANEL;
 pub fn play_replay_range(race: &Race) -> Result<(), Refused> {
     let replay = &race.replay;
     use crate::race::race_end;
-    crate::drive::replay_frame_marks::replay_frame_marks()?;
+    crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     if VIEWER_PANEL.replay_recording.get() != 1 {
         crate::race::sounds::start_race_sounds()?;
     }

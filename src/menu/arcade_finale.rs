@@ -42,6 +42,7 @@ pub fn arcade_finale(play: &Play) -> Result<(), Refused> {
         .set(rc2k_core::menu::arcade::levels_left(level));
     race.shared.state.results.finished.set(0);
     crate::race::sound_tables::set_up_race_sound_objects(
+        race,
         &crate::race::sound_tables::ObjectVars::game(),
     )?;
     crate::sound::set_up_race_sounds::set_up_race_sounds()?;

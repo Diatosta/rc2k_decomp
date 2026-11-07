@@ -42,11 +42,11 @@ pub fn shown() -> (u64, u64) {
 }
 
 /// The Rust version (see the header), timed.
-pub fn loading_bar_frame() -> Result<(), Refused> {
+pub fn loading_bar_frame(race: &Race) -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
     // Not the original's: some 30 frames a second at most, and the last. Every step's frame
     // was 3/4 of a load (882 ms of 1231, 2026-10-30).
-    let race = crate::race::owner::race();
+
     let begun = std::time::Instant::now();
     {
         let mut last = LAST_FRAME

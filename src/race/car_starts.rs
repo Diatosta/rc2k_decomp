@@ -9,7 +9,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
 use crate::race::best_line::MOST_CHECKS;
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::scene::owner::scene;
 use crate::session::Dword;
@@ -44,10 +44,10 @@ fn settle_step(low: u32, high: u32, angle: &Dword, step: &Dword) {
 }
 
 /// The matrix (`get_mat_crash`) and the wheels (`physics::probe_ground`).
-fn matrix_and_wheels(physics: &Physics) -> Result<[u32; 4], Refused> {
-    crate::race::stage_prefs::get_mat_crash();
-    crate::physics::probe_ground::probe_ground()?;
-    Ok(wheels(physics))
+fn matrix_and_wheels(race: &Race) -> Result<[u32; 4], Refused> {
+    crate::race::stage_prefs::get_mat_crash(race);
+    crate::physics::probe_ground::probe_ground(race)?;
+    Ok(wheels(&race.physics))
 }
 
 /// `race::settle_car` (0x43FC32): `sub_43EB5D` (`physics::set_handling`); the work car's
@@ -67,7 +67,7 @@ pub fn settle_car(race: &Race) -> Result<(), Refused> {
     shared.physics_tables.settle_steps[1].set(0x2000_0000u32);
     physics.ground_probe.settle_mark.set(0x80);
     for _ in 0..8 {
-        let w = matrix_and_wheels(physics)?;
+        let w = matrix_and_wheels(race)?;
         settle_step(
             w[0].wrapping_add(w[2]),
             w[1].wrapping_add(w[3]),
@@ -81,7 +81,7 @@ pub fn settle_car(race: &Race) -> Result<(), Refused> {
             &shared.physics_tables.settle_steps[0],
         );
     }
-    let w = matrix_and_wheels(physics)?;
+    let w = matrix_and_wheels(race)?;
     let mut lowest = 0x64_0000u32;
     for &h in &w {
         if (h.wrapping_sub(lowest) as i32) < 0 {
@@ -105,12 +105,11 @@ pub fn settle_car(race: &Race) -> Result<(), Refused> {
 /// heading, pitch and roll copied to `dword_608B50` / `58` / `54` and +0x6B0 / +0x6B8 /
 /// +0x6B4; +0x1E8, `g_carDriveSpeed`, `g_carDriveSpeed2`, `g_carGear`, +0x200, +0x204,
 /// +0x1C4, +0x1F4 0; with +0x68C not 0, +0x688 and +0x684 it less one and +0x68C 0.
-pub fn reset_car_motion() -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+pub fn reset_car_motion(race: &Race) -> Result<(), Refused> {
     let shared = &race.shared;
     let physics = &race.physics;
     settle_car(race)?;
-    crate::race::start_place::invert_car_matrix();
+    crate::race::start_place::invert_car_matrix(race);
     for v in &shared.car.velocity {
         v.set_bits(0);
     }
@@ -172,9 +171,8 @@ fn move_turned(race: &Race, x: u32, z: u32) {
 /// `nearest_checkpoint` into +0x98, +0x94, +0x9C; its check count less one held to 0 ..
 /// 100 into +0x90 and +0xAC; `reset_car_motion`; +0x264 .. +0x26C 0. The registers it
 /// leaves are read by no caller. Refuses a nearest checkpoint past the lists (when met).
-pub fn start_car() -> Result<(), Refused> {
+pub fn start_car(race: &Race) -> Result<(), Refused> {
     let lights = &scene().lights;
-    let race = race();
     let course = &race.course;
     let replay = &race.replay;
     race.shared.car.notice_count.set(0);
@@ -208,7 +206,7 @@ pub fn start_car() -> Result<(), Refused> {
             lights.state.line_place.set(0);
             lights.state.line_fraction.set(0);
         }
-        crate::race::start_place::place_car_on_line(course)?;
+        crate::race::start_place::place_car_on_line(race, course)?;
         if replay.finish.no_place.get() == 0 {
             move_turned(race, 0, 0xFFFE_0000);
             let side = starts_aside(
@@ -237,7 +235,7 @@ pub fn start_car() -> Result<(), Refused> {
     );
     race.shared.car.splits_passed.set(checks);
     race.shared.car.splits_recorded.set(checks);
-    reset_car_motion()?;
+    reset_car_motion(race)?;
     zero(&[
         &race.shared.car.reset_key_count,
         &race.shared.car.stopped_steps,
@@ -250,16 +248,16 @@ pub fn start_car() -> Result<(), Refused> {
 /// it, `drive::load_car`, `start_car`, the work car's +0xA3C (8 dwords) and +0xA5C (0x11)
 /// 0, `drive::store_car`; every register kept round each car (`pusha` / `popa`). Refuses
 /// no cars (the original's `jnz` runs on) or more than 8, before anything.
-pub fn start_cars() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn start_cars(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     let cars: u32 = shared.view.race_cars.bits();
     if cars == 0 || cars > MOST_CARS {
         return Err(BadInput("no cars or more than eight").into());
     }
     for n in 0..cars {
         shared.work.current_car.set(n);
-        crate::drive::load_car::load_car()?;
-        start_car()?;
+        crate::drive::load_car::load_car(shared)?;
+        start_car(race)?;
         // +0xA3C (8 dwords) and +0xA5C (0x11) 0.
         for cell in shared
             .car
@@ -269,7 +267,7 @@ pub fn start_cars() -> Result<(), Refused> {
         {
             cell.set(0);
         }
-        crate::drive::store_car::store_car()?;
+        crate::drive::store_car::store_car(shared)?;
     }
     Ok(())
 }

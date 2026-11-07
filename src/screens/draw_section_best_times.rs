@@ -18,7 +18,7 @@
 //! reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::pointers::GamePtr;
 use crate::saves::owner::saves;
 use crate::strings::append_time::show_hours;
@@ -26,8 +26,8 @@ use crate::text::draw_text::Canvas;
 
 const SECTIONS: u32 = 6;
 /// The Rust version.
-pub fn draw_section_best_times(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let section: u32 = menus().screens.event.section.get();
+pub fn draw_section_best_times(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let section: u32 = menus.screens.event.section.get();
     if section >= SECTIONS {
         return Err(BadInput("a section past the six best-times tables").into());
     }

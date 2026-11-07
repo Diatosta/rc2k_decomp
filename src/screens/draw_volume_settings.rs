@@ -14,11 +14,11 @@
 //! the registers above are the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::text::draw_text::Canvas;
 
-pub fn draw_volume_settings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn draw_volume_settings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let screens = &menus.screens;
     // Converted: `rc2k_core::screens::settings_pages::volume`.
 
     let id = crate::sound::owner::sound()

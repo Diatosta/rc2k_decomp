@@ -92,19 +92,19 @@ fn put_car(
     let car = car_by_start(&race.shared, start)?;
     race.shared.work.current_car.set(car);
     slot.set(car);
-    crate::drive::load_car::load_car()?;
+    crate::drive::load_car::load_car(&race.shared)?;
     race.shared.tables.start_speed.set_bits(speed);
     crate::drive::start_car_on_line::start_car_on_line(race, dist)?;
-    crate::drive::store_car::store_car()?;
+    crate::drive::store_car::store_car(&race.shared)?;
     Ok(())
 }
 
 /// A car taken off the line: made the work car, its start values cleared, stored back.
 fn clear_car(shared: &Shared, car: u32) -> Result<(), Refused> {
     shared.work.current_car.set(car);
-    crate::drive::load_car::load_car()?;
+    crate::drive::load_car::load_car(shared)?;
     crate::drive::clear_start_state::clear_start_state(shared);
-    crate::drive::store_car::store_car()?;
+    crate::drive::store_car::store_car(shared)?;
     Ok(())
 }
 

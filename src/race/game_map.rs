@@ -15,7 +15,7 @@ use crate::errors::{BadInput, FatalError, Refused};
 use crate::gfx::owner::gfx;
 use crate::gfx::pixel_format::PixelFormat;
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::session::{Bytes, Loose};
 use crate::system::owner::system;
@@ -198,8 +198,8 @@ fn put_pixels(at: usize, bytes: &[u8]) -> Result<(), BadInput> {
 
 /// `race::free_game_map` (0x41B907): both map lists freed, the sheet, tiles and pixels 0.
 /// Every register preserved.
-pub fn free_game_map() -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn free_game_map(race: &Race) -> Result<(), Refused> {
+    let frame = &race.frame;
     crate::gfx::picture::give_back(crate::gfx::picture::Buffer::Key);
     crate::memory::free_list::free_list(list(&frame.map.key_list))?;
     crate::memory::free_list::free_list(list(&frame.map.list))?;
@@ -467,6 +467,7 @@ pub fn load_game_map(frame: &Frame, picture: GamePtr, key_path: GamePtr) -> Resu
 #[cfg(test)]
 mod block_tests {
     use super::*;
+    use crate::race::owner::race;
     use core::mem::offset_of;
 
     #[test]

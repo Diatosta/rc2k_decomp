@@ -6,7 +6,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_physics::Physics;
 
@@ -49,11 +49,11 @@ pub fn clear_lit_faces(physics: &Physics) {
 /// `race::reset_face_lights` (0x45ED70): each face whose first byte is 0xFF gets its
 /// +0x30 .. +0x38 and bytes +0x11 .. +0x13 0; then `clear_lit_faces`. Refuses no faces
 /// (the original counts round) or 0x100000 or more.
-pub fn reset_face_lights() -> Result<(), Refused> {
-    let course = &race().course;
-    let physics = &race().physics;
+pub fn reset_face_lights(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
+    let physics = &race.physics;
     {
-        let count: u32 = race().course.course.course_face_count.bits();
+        let count: u32 = course.course.course_face_count.bits();
         rc2k_core::race::faces::check_face_count(count)?;
         // Converted: `rc2k_core::race::faces::reset_lights` (each record inside the
         // faces the original walks; written back only when changed).
@@ -160,7 +160,8 @@ fn take_scene_points(course: &Course) -> Result<(), BadInput> {
 /// first part (`files::read_level_file`, the bytes in `dword_60B2CC`; a failed read is
 /// fatal error 0x80650210, without a message), its header copied, laid out, the faces'
 /// lights reset, with "loadlevel", "done", "next", "this", "then", "ok" in the log.
-pub fn load_level(course: &Course) -> Result<(), Refused> {
+pub fn load_level(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     use crate::files::read_level_file;
     set_cdat_number(course, 0);
     crate::files::state::BYTES_READ.set(0);
@@ -182,7 +183,7 @@ pub fn load_level(course: &Course) -> Result<(), Refused> {
     load_log(3);
     crate::race::norms::lay_out_course(course);
     load_log(4);
-    reset_face_lights()?;
+    reset_face_lights(race)?;
     load_log(5);
     Ok(())
 }
@@ -190,10 +191,11 @@ pub fn load_level(course: &Course) -> Result<(), Refused> {
 /// `race::locate_current_course` (0x4394CB, "locacurrcourse"): `dword_609380` 0,
 /// `load_level`, `lay_out_course` (its test of `dword_621514` jumps to the next
 /// instruction either way: section 16), `group_records_by_kind`, `build_best_line`.
-pub fn locate_current_course(course: &Course) -> Result<(), Refused> {
+pub fn locate_current_course(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     course.stage_prefs.cdat_number.set_bits(0u32);
-    load_level(course)?;
+    load_level(race)?;
     crate::race::norms::lay_out_course(course);
     group_records_by_kind(course)?;
-    crate::race::best_line::build_best_line()
+    crate::race::best_line::build_best_line(race)
 }

@@ -18,7 +18,6 @@
 //! above are the original's, for reference.
 
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::physics::gearbox::{GearCar, GearInputs};
 
@@ -90,8 +89,6 @@ fn game(race: &Race) -> Vec<&dyn Cell32> {
 }
 
 /// The Rust version.
-pub fn gear_input_rules() {
-    let race = race();
-
+pub fn gear_input_rules(race: &Race) {
     rules_at(&game(race));
 }

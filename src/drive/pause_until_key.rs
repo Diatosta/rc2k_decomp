@@ -19,7 +19,7 @@ use crate::drive::race_parts::{
 use crate::errors::Refused;
 use crate::input::owner::input;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner_shared::Shared;
+use crate::race::owner::Race;
 use crate::system::owner::system;
 use rc2k_core::drive::race_ticks;
 
@@ -34,7 +34,8 @@ fn any_ending_key() -> u32 {
 // Converted: `rc2k_core::drive::race_ticks::{ends_pause, held_wait}`.
 /// The Rust version. The registers it leaves are read by no caller (liveness: nothing
 /// live after `race_loop`'s call).
-pub fn pause_until_key(shared: &Shared) -> Result<(), Refused> {
+pub fn pause_until_key(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     shared.vars.hold_count.set(0x19);
     for _ in 0..5 {
         take_key();
@@ -57,7 +58,7 @@ pub fn pause_until_key(shared: &Shared) -> Result<(), Refused> {
             }
         }
         take_key();
-        race_frame()?;
+        race_frame(race)?;
         if system().session.flags.window_active.get() == 0 {
             hold = true;
             continue;
@@ -68,7 +69,7 @@ pub fn pause_until_key(shared: &Shared) -> Result<(), Refused> {
             shared.vars.pause_wait.set(shared.vars.pause_wait.get() - 1);
             continue;
         }
-        race_keys()?;
+        race_keys(race)?;
         if any_ending_key() != 0 {
             break;
         }
@@ -79,7 +80,7 @@ pub fn pause_until_key(shared: &Shared) -> Result<(), Refused> {
         CAR_BLOCKS.cars[c as usize].notice_last.set_bits(0);
     }
     shared.vars.scene_switch.set(0);
-    wake_car_sounds()?;
+    wake_car_sounds(race)?;
     take_key();
     CAR_BLOCKS.cars[0].input_keys.set_bits(0);
     Ok(())

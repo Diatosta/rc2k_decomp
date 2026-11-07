@@ -10,15 +10,15 @@
 
 use crate::errors::BadInput;
 use crate::pointers::Store;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::replay_work_store::REPLAY_WORK;
 use rc2k_core::drive::replay_frames::{on_tape, tape_offset};
 
 /// The Rust version.
 // Converted: `rc2k_core::drive::replay_frames::{on_tape, tape_offset}`.
-pub fn play_inputs() -> Result<(), BadInput> {
-    let shared = &race().shared;
-    let replay = &race().replay;
+pub fn play_inputs(race: &Race) -> Result<(), BadInput> {
+    let shared = &race.shared;
+    let replay = &race.replay;
     let car = shared.work.current_car.get();
     if !on_tape(car) {
         return Ok(());

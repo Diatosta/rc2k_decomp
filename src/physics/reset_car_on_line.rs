@@ -30,8 +30,8 @@ pub fn reset_car_on_line(race: &Race) -> Result<(), Refused> {
     for cell in [&lights.state.line_place, &lights.state.line_fraction] {
         cell.set(nearest);
     }
-    crate::race::start_place::place_car_on_line(&race.course)?;
-    crate::race::car_starts::reset_car_motion()?;
+    crate::race::start_place::place_car_on_line(race, &race.course)?;
+    crate::race::car_starts::reset_car_motion(race)?;
     race.shared.car.value_jump_steps.set(8u32);
     race.shared.car.light_hold_steps.set(8u32);
     race.shared.car.reset_marker.set(10u32);

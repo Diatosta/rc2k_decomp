@@ -10,16 +10,17 @@
 use crate::errors::Refused;
 use crate::pointers::copy_cells;
 use crate::race::blocks_store::REPLAY_STATE_OFFSET;
-use crate::race::owner_replay::Replay;
+use crate::race::owner::Race;
 use crate::race::viewer_buffers_store::VIEWER_BUFFERS;
 
 const DWORDS: usize = 0xA04;
 
 /// The Rust version.
-pub fn load_replay_frame(replay: &Replay) -> Result<(), Refused> {
+pub fn load_replay_frame(race: &Race) -> Result<(), Refused> {
+    let replay = &race.replay;
     let frame = replay.replay_frames.step_block.get();
-    { crate::drive::read_replay_frame_0::read_replay_frame_0(frame) }?;
-    crate::drive::replay_frame_marks::replay_frame_marks()?;
+    { crate::drive::read_replay_frame_0::read_replay_frame_0(race, frame) }?;
+    crate::drive::replay_frame_marks::replay_frame_marks(race)?;
     copy_cells(
         (&VIEWER_BUFFERS.block, 0),
         (&replay.cars_and_replay, REPLAY_STATE_OFFSET),

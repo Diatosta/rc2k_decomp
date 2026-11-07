@@ -11,17 +11,20 @@
 //! `sub_44CD90`.
 
 use crate::errors::BadInput;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 
 // ---- game data ----
 const MARK: u32 = 0xFFFF_00FF;
 
 // ---- Rust version ----
 
-pub fn draw_marked_polygon(draw: &mut dyn FnMut() -> Result<(), BadInput>) -> Result<(), BadInput> {
-    let shared = &race().shared;
+pub fn draw_marked_polygon(
+    race: &Race,
+    draw: &mut dyn FnMut() -> Result<(), BadInput>,
+) -> Result<(), BadInput> {
+    let shared = &race.shared;
     {
-        let marked = race().course.course.polygon_flags.bits() & 0x8000_0000 != 0;
+        let marked = race.course.course.polygon_flags.bits() & 0x8000_0000 != 0;
         shared
             .vars
             .polygon_mark

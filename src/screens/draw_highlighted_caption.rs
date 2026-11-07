@@ -18,7 +18,7 @@
 //! its `entry` (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::system::owner::system;
 use crate::text::draw_string_by_id::string_text;
 use crate::text::draw_text::Canvas;
@@ -34,10 +34,10 @@ const ITEMS: u32 = 32;
 // ---- Rust version ----
 
 pub fn draw_highlighted_caption(
+    menus: &Menus,
     measured_at: u32,
     canvas: &mut dyn Canvas,
 ) -> Result<Option<bool>, Refused> {
-    let menus = menus();
     let menu: u32 = menus.screens.state.carousel.menu.get();
     let Some(&list) = LISTS.get(menu as usize) else {
         return Ok(None);

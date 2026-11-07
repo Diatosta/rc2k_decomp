@@ -3,7 +3,7 @@
 use super::*;
 use crate::errors::{BadInput, Refused};
 use crate::race::checkpoints_store::CHECKPOINTS;
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
@@ -146,8 +146,8 @@ pub fn fetch_view_value(race: &Race) -> Result<(), Refused> {
 /// `race::share_sound_spots` (0x45C7B9): the shared count = `race().frame.sound_spots.sound_spot_count`, and that many
 /// 0x14-byte spots copied from 0x6D1AF4 to 0x5165F0 (read by the sound side,
 /// `sub_40E642`). Refuses (before anything) more than 36 (past both tables).
-pub fn share_sound_spots() -> Result<(), Refused> {
-    let frame = &race().frame;
+pub fn share_sound_spots(race: &Race) -> Result<(), Refused> {
+    let frame = &race.frame;
     // Converted: `rc2k_core::race::view::shared_spot_bytes`.
     let n: u32 = frame.sound_spots.sound_spot_count.bits();
     let bytes = rc2k_core::race::view::shared_spot_bytes(n)?;

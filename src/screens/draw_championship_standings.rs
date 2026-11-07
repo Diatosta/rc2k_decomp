@@ -25,7 +25,7 @@
 //! original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::ranked_lookups::find_champ_position;
 use crate::screens::best_scores::section_there;
 use crate::screens::game_screen::{HeldText, held_name};
@@ -34,8 +34,8 @@ use crate::text::draw_text::Canvas;
 // g_champRow
 // g_champRowEnd
 /// The Rust version.
-pub fn draw_championship_standings(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let play = &menus().play;
+pub fn draw_championship_standings(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
+    let play = &menus.play;
     if !section_there()? {
         return Err(BadInput("a section past the record table").into());
     }

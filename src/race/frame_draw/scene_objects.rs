@@ -6,7 +6,7 @@ use crate::pointers::GamePtr;
 use crate::race::kind_store::KIND_TABLES;
 use crate::race::light_records_store::LIGHT_RECORDS;
 use crate::race::matrices_store::SceneMatrices;
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::Shared;
@@ -103,10 +103,13 @@ pub fn draw_slot_object(
     );
     start_kept_reflections(race, &race.physics)?;
     // esi `g_turnedMatrix`, as the matrices' calls leave it.
-    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(matrices_at(
-        &race.frame,
-        core::mem::offset_of!(SceneMatrices, turned_matrix),
-    )))?;
+    crate::scene::draw_scene_object::draw_scene_object_in_game(
+        race,
+        Some(matrices_at(
+            &race.frame,
+            core::mem::offset_of!(SceneMatrices, turned_matrix),
+        )),
+    )?;
     end_kept_reflections(&race.shared);
     Ok(())
 }
@@ -196,14 +199,14 @@ pub fn draw_screen_quad(race: &Race) -> Result<(), Refused> {
     drawing.scene.polygon_next_entry.set(4u32);
     // No callee reads a register (the clip keeps them; the depth buffer's switches and
     // the polygon's drawing take none).
-    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen()?;
+    crate::scene::clip_polygon_to_screen::clip_polygon_to_screen(race)?;
     if drawing.scene.polygon_vertex_count.get() >= 3 {
         crate::scene::depth_buffer_on::depth_buffer(false);
         drawing.scene.polygon_textures[0].set(u32::MAX);
         shared.view.polygon_mode.set(0u32);
         drawing.scene.polygon_sides[0].set(1u32);
         drawing.scene.polygon_sides[1].set(0u32);
-        crate::scene::draw_polygon::draw_polygon_in_game()?;
+        crate::scene::draw_polygon::draw_polygon_in_game(race)?;
         shared.view.polygon_mode.set(0u32);
         drawing.scene.polygon_drawn.set(1u32);
         crate::scene::depth_buffer_on::depth_buffer(true);
@@ -543,9 +546,9 @@ pub(super) fn scale_object_turn(frame: &Frame) -> Result<(), BadInput> {
 /// angle (fine turns); else about y by -`OBJECT_WORK.angles`, then with `OBJECT_WORK.angles[1]` tilted
 /// about x round the y of `OBJECT_WORK.angles[2]`, and with `OBJECT_WORK.described_cleared[1]` / `OBJECT_WORK.described_cleared[2]` again
 /// round `OBJECT_WORK.described_cleared`; then scaled by `OBJECT_WORK.size` / 16.
-pub fn place_object_matrix() -> Result<(), BadInput> {
+pub fn place_object_matrix(race: &Race) -> Result<(), BadInput> {
     let scene = scene();
-    let frame = &race().frame;
+    let frame = &race.frame;
     use crate::scene::matrix::{
         multiply_matrices, set_light_direction, set_turn_x, set_turn_y, set_turn_z_16,
     };
@@ -573,13 +576,10 @@ pub fn place_object_matrix() -> Result<(), BadInput> {
     if scene.lights.state.view_kind.get() == 4 {
         return Ok(());
     }
-    let kind = scene.objects.tables.object_kind(
-        crate::race::owner::race()
-            .shared
-            .switches
-            .object_number
-            .get(),
-    );
+    let kind = scene
+        .objects
+        .tables
+        .object_kind(race.shared.switches.object_number.get());
     let material = POLYGON_WORK
         .object_materials
         .get(kind as usize)
@@ -683,9 +683,9 @@ pub fn draw_flare(race: &Race, flare: u32, entry: GamePtr) -> Result<(), Refused
         );
     }
     scene.lights.state.view_kind.set(2u32);
-    place_object_matrix()?;
+    place_object_matrix(race)?;
     scene.lights.work.light_kind.set(0u32);
-    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(entry))
+    crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(entry))
 }
 
 /// `race::draw_lamp_flare` (0x4551F4): lamp `lamp` (`g_lamps`): its point (`g_scenePoints`)
@@ -706,14 +706,17 @@ pub fn draw_lamp_flare(race: &Race, lamp: u32) -> Result<(), Refused> {
         .object_number
         .set(race.shared.switches.marker_object.get());
     scene.lights.state.view_kind.set(2u32);
-    place_object_matrix()?;
+    place_object_matrix(race)?;
     scene.lights.work.light_kind.set(0u32);
     // esi `g_turnedMatrix`, as `place_object_matrix` leaves it (`LIGHT_STATE.view_kind` is 2 here,
     // so it always ends by placing the object).
-    crate::scene::draw_scene_object::draw_scene_object_in_game(Some(matrices_at(
-        &race.frame,
-        core::mem::offset_of!(SceneMatrices, turned_matrix),
-    )))
+    crate::scene::draw_scene_object::draw_scene_object_in_game(
+        race,
+        Some(matrices_at(
+            &race.frame,
+            core::mem::offset_of!(SceneMatrices, turned_matrix),
+        )),
+    )
 }
 
 /// `race::draw_list_entry` (0x454FF0): the entry at `at`, whose second word is `flags_word`
@@ -741,7 +744,7 @@ pub fn draw_list_entry(race: &Race, at: GamePtr, flags_word: u32) -> Result<(), 
                 course.level_grid.plain_second.set_bits(1);
                 if kind == 0xFF {
                     // The description is the face.
-                    crate::scene::draw_described_object::draw_described_face(face)?;
+                    crate::scene::draw_described_object::draw_described_face(race, face)?;
                 } else {
                     crate::race::course_faces::draw_tinted_face(race, face)?;
                 }

@@ -8,7 +8,7 @@ use crate::gfx::owner::gfx;
 use crate::input::owner::input;
 use crate::pointers::GamePtr;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
-use crate::race::owner::{Race, race};
+use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::Shared;
@@ -158,13 +158,12 @@ pub fn draw_marks_overlays(race: &Race) -> Result<(), Refused> {
 /// `race::load_first_car` (0x460C7A): `g_currentCar` 0, `drive::load_car`. (Its callers,
 /// `race::draw_race_scene` and `drive::finish_run`, read no register it leaves.) Refuses
 /// (before anything) car 0 without its block.
-pub fn load_first_car() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn load_first_car(shared: &Shared) -> Result<(), Refused> {
     if shared.work.car_block(0) == 0 {
         return Err(BadInput("car 0 without its block").into());
     }
     shared.work.current_car.set(0);
-    crate::drive::load_car::load_car()?;
+    crate::drive::load_car::load_car(shared)?;
     Ok(())
 }
 
@@ -383,7 +382,7 @@ pub fn draw_screen_tint(race: &Race) -> Result<(), Refused> {
         race.shared.vars.quad_colour[1].set(NIGHT_ALPHA);
         window_corners(&race.shared);
         race.shared.vars.quad_colour[0].set(NIGHT_COLOUR);
-        return crate::scene::draw_tinted_quad::draw_tinted_quad();
+        return crate::scene::draw_tinted_quad::draw_tinted_quad(race);
     }
     let sun = race.frame.frame_work.sun_on_screen.get();
     let a = glare_alpha(scene().lights.state.fog_far.get());
@@ -398,7 +397,7 @@ pub fn draw_screen_tint(race: &Race) -> Result<(), Refused> {
             byte(0),
             byte(1),
         ));
-        done = crate::scene::draw_tinted_quad::draw_tinted_quad();
+        done = crate::scene::draw_tinted_quad::draw_tinted_quad(race);
     }
     race.frame.frame_work.sun_on_screen.set(sun);
     done
@@ -548,7 +547,7 @@ pub fn run_view_marks(race: &Race) -> Result<(), Refused> {
         race.frame.frame_work.view_scale_y[n].bits(),
     ));
     // Neither reads a register nor leaves one read after it (0x456464, 0x456472).
-    let done = crate::effects::frame_marks::frame_marks(effects).and_then(|_| {
+    let done = crate::effects::frame_marks::frame_marks(race, effects).and_then(|_| {
         if race.frame.frame_work.drawing.get() == 0 {
             crate::effects::run_frame::run_frame()
         } else {

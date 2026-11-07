@@ -75,7 +75,7 @@ pub fn reset_car(race: &Race) -> Result<(), Refused> {
             .line_place
             .set(race.shared.physics_tables.reset_candidate.get());
     }
-    crate::race::start_place::place_car_on_line(&race.course)?;
+    crate::race::start_place::place_car_on_line(race, &race.course)?;
     crate::physics::reset_car_on_line::reset_car_on_line(race)?;
     race.shared.car.reset_marker.set(10);
     Ok(())

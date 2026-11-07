@@ -30,6 +30,7 @@ pub fn reset_marks(race: &Race) -> Result<(), Refused> {
             .set(mark_out);
         {
             crate::drive::read_replay_frame_0::read_replay_frame_0(
+                race,
                 replay.replay_view.replay_block.get(),
             )
         }?;

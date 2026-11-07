@@ -38,7 +38,6 @@ use crate::math::x87;
 use crate::math::x87_run::{int_times_times_over_to_int, less_plus_less_product_80};
 use crate::physics::ground::*;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::scene::matrix3::{extended, rounded};
 use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
@@ -192,7 +191,6 @@ fn probe_points(race: &Race, n: u32) -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn probe_ground() -> Result<(), Refused> {
-    let race = race();
+pub fn probe_ground(race: &Race) -> Result<(), Refused> {
     probe_ground_at(race)
 }

@@ -5,7 +5,7 @@
 //! services in `dword_755A0C`.
 
 use crate::errors::{FatalError, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::records::stages_store::RecordRef;
 use crate::screens::best_scores::{record_at, section_there};
 use crate::screens::game_screen::GameScreen;
@@ -25,8 +25,7 @@ const INVALID_STAGE: FatalError = FatalError {
 /// number, and its time; tags 3 and 4 end the list, any other is fatal error 0x8070D91A
 /// "Invalid Stage ID". Every register kept. Refuses (before anything) a section past the
 /// table.
-pub fn draw_itinerary(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let menus = menus();
+pub fn draw_itinerary(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::itinerary`.
     use rc2k_core::screens::itinerary::Row;
     {

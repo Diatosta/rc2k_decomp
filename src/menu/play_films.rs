@@ -100,7 +100,9 @@ impl Game {
             Step::Player(f) => {
                 flags.zero = play(film(panels, f.unwrap_or(Film::AlLogo)));
             }
-            Step::LitEngine => crate::scene::set_up_lit_engine::set_up_lit_engine()?,
+            Step::LitEngine => {
+                crate::scene::set_up_lit_engine::set_up_lit_engine(crate::race::owner::race())?;
+            }
             Step::Render3dTidy => crate::race::stage_free::render3d_tidy()?,
             Step::ObjectsTidy => crate::race::stage_free::objects_tidy()?,
             // `nullsub_6`.

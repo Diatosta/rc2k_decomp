@@ -12,16 +12,16 @@
 //! the original's, for reference.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 // ---- game data ----
 
 // ---- Rust version ----
 
 /// A number with a 0 before it under 10.
-pub fn savegame_page_numbers() -> Result<(), Refused> {
+pub fn savegame_page_numbers(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::captions::savegame_numbers`.
-    let page = menus().tables.pages.save_page.get();
+    let page = menus.tables.pages.save_page.get();
     let (caption, numbers) = rc2k_core::screens::captions::savegame_numbers(page)?;
     let buffers = &crate::screens::text_buffers_store::TEXT_BUFFERS;
     buffers.caption.write_at(0, &caption, "the caption")?;

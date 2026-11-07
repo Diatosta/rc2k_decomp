@@ -84,12 +84,13 @@ impl Steps {
     /// loading bar `loadlevel_init` puts there before its first mark (it is put away after
     /// the last).
     fn progress(&mut self, mark: u32) -> Result<(), Refused> {
-        let shared = &race().shared;
+        let race = race();
+        let shared = &race.shared;
         shared.vars.bar_share.set_bits(mark);
         if shared.vars.bar_function.bits() != self.v.bar {
             return Err(BadInput("the loading bar's callback is not the loading bar").into());
         }
-        crate::race::loading_bar_frame::loading_bar_frame()
+        crate::race::loading_bar_frame::loading_bar_frame(race)
     }
 
     /// A step's usual frame: the word, the indent in, the call, the mark, the indent out.
@@ -180,7 +181,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     )?;
     s.step(&mut || level::build_texture_infos(&race.course), Some(0xF))?;
     s.step(
-        &mut || crate::race::course_data::locate_current_course(&race.course),
+        &mut || crate::race::course_data::locate_current_course(race),
         Some(0x13),
     )?;
     s.step(
@@ -244,7 +245,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.indent(-3);
     s.step(
         &mut || {
-            stage_prefs::init_skidmarks()?;
+            stage_prefs::init_skidmarks(race)?;
             Ok(())
         },
         Some(0x5F),
@@ -275,7 +276,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
     s.indent(-3);
     s.step(
         &mut || {
-            stage_prefs::get_mat_crash();
+            stage_prefs::get_mat_crash(race);
             Ok(())
         },
         None,

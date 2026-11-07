@@ -98,8 +98,8 @@ pub fn reset_skid_slots(object: &crate::physics::car_store::Car) {
 
 /// `race::init_skidmarks` (0x45857D): the two skid objects' slots, the 0x400 marks' first
 /// two words -1, `dword_645B10` 0.
-pub fn init_skidmarks() -> Result<(), BadInput> {
-    let frame = &race().frame;
+pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
+    let frame = &race.frame;
     {
         // The skid objects are car blocks 0 and 1.
         for n in 0..2 {
@@ -144,9 +144,9 @@ pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
 /// `race::get_mat_crash` (0x43D43E): the three angles (`dword_71A99C`, `dword_71A998`,
 /// `dword_71A9A0`, each >> 16) kept at `dword_63503C` .., the x, y and z turns made of
 /// them, Z x X into the lit matrix, that x Y into `dword_71A08C`.
-pub fn get_mat_crash() {
-    let shared = &race().shared;
-    let frame = &race().frame;
+pub fn get_mat_crash(race: &Race) {
+    let shared = &race.shared;
+    let frame = &race.frame;
     use crate::scene::matrix;
     // Converted: `rc2k_core::race::stage_objects::crash_turns` (the matrices the
     // scene's).

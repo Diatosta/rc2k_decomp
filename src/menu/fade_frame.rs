@@ -8,11 +8,12 @@
 //! (`picture_frame` and `fade_frame` alike).
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 
 /// The Rust version: whether the frame was made (the original's carry clear): as
 /// `picture_frame`, with the fade's overlay drawn in a scene between the unlock and the
 /// showing (`scene::begin_scene` never sets the carry).
-pub fn fade_frame() -> Result<bool, Refused> {
+pub fn fade_frame(menus: &Menus) -> Result<bool, Refused> {
     if crate::platform::lock_surface() < 1 {
         return Ok(false);
     }
@@ -23,7 +24,7 @@ pub fn fade_frame() -> Result<bool, Refused> {
     }?;
     crate::platform::unlock_surface();
     crate::scene::begin_scene::begin_scene();
-    crate::screens::draw_fade_overlay::draw_fade_overlay()?;
+    crate::screens::draw_fade_overlay::draw_fade_overlay(menus)?;
     crate::scene::end_scene::end_scene();
     Ok(crate::platform::show_frame_now())
 }

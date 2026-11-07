@@ -83,7 +83,7 @@ pub fn reload_system_textures(scene: &crate::scene::owner::Scene) -> Result<(), 
         grading.scale.set(scale);
         grading.saturation.set(saturation);
         load_changed_texture_picture_in_game(race, texture)?;
-        step_loading_bar(&race.shared, texture)?;
+        step_loading_bar(race, texture)?;
     }
     let grading = &gfx_grading;
     grading.reading.set(0u32);

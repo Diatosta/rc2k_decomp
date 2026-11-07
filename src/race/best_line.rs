@@ -650,8 +650,7 @@ const SUMMARY: Summary = [
 /// "best line completed", the summary ("dir", ": numblo", "numsorted", "numsortedm1"),
 /// a rule; `dword_6365E4` and `dword_6365EC` 0. The registers it leaves are read by no
 /// caller (conversion phase 3, 2026-10-24).
-pub fn build_best_line() -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+pub fn build_best_line(race: &Race) -> Result<(), Refused> {
     let lights = &scene().lights;
     use crate::logfile::log_int::log_int;
     let text =

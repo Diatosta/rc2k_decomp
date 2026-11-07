@@ -199,7 +199,7 @@ fn body(ui: &Ui, f: impl FnOnce()) {
 }
 
 /// The UI's frame.
-pub fn build(race: &Race, ui: &Ui) {
+pub fn build(race: &'static Race, ui: &Ui) {
     if PROBES.load(Relaxed) {
         draw_probes(&race.physics, ui);
     }
@@ -279,7 +279,7 @@ pub fn build(race: &Race, ui: &Ui) {
                     body(ui, || crate::debug::effects_page::tab(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Dyno") {
-                    body(ui, || crate::debug::dyno::tab(&race.course, ui));
+                    body(ui, || crate::debug::dyno::tab(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Players") {
                     body(ui, || crate::debug::players::tab(ui));

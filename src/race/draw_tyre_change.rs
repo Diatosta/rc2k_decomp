@@ -27,6 +27,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::input::types::InputDevice;
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
@@ -108,7 +109,11 @@ fn three_times(x: u32, y: u32) -> Result<(), Refused> {
 
 /// The Rust version, for the device `device` (esi). The registers it leaves (ebp = esi,
 /// the copy's flags) are read by no caller.
-pub fn draw_tyre_change(shared: &Shared, device: &InputDevice) -> Result<(), Refused> {
+pub fn draw_tyre_change(
+    race: &'static Race,
+    shared: &Shared,
+    device: &InputDevice,
+) -> Result<(), Refused> {
     let gfx = gfx();
     let clips = (
         clip(&gfx.drawing.blit.clip.left),
@@ -154,12 +159,7 @@ pub fn draw_tyre_change(shared: &Shared, device: &InputDevice) -> Result<(), Ref
         set_clip(&gfx.drawing.blit.clip.left, 0);
         fill(shared, 0, 0x99, 0x100, 0x19)?;
         gfx.fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0xF8);
-        text(
-            font(),
-            &crate::race::owner::race().shared.tyre_change.record_name,
-            4,
-            0x99,
-        )?;
+        text(font(), &race.shared.tyre_change.record_name, 4, 0x99)?;
         let x = if shared.tyre_change.player.get() == 0 {
             set_clip(&gfx.drawing.blit.clip.right, 0x7F);
             0

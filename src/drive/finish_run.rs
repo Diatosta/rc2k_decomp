@@ -76,11 +76,11 @@ pub fn finish_run(race: &Race) -> Result<(), Refused> {
             break;
         }
         CAR_BLOCKS.cars[0].camera_view.set_bits(6);
-        crate::race::frame_views::load_first_car()?;
+        crate::race::frame_views::load_first_car(&race.shared)?;
         crate::drive::finish_camera::finish_camera(&race.replay);
-        crate::physics::camera_frame::camera_frame()?;
+        crate::physics::camera_frame::camera_frame(race)?;
         crate::drive::store_first_car::store_first_car(&race.shared)?;
-        race_frame()?;
+        race_frame(race)?;
     }
     Ok(())
 }

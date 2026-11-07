@@ -4,7 +4,6 @@ use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::StageTable;
 use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
-use crate::menu::owner::menus;
 use crate::pointers::GamePtr;
 use crate::records::stages_store::{Holder, RecordRef, RecordTable};
 use crate::screens::game_screen::{Held, HeldText};
@@ -83,8 +82,7 @@ fn ends_within_ten(table: &StageTable, stage: usize) -> Result<bool, BadInput> {
 /// table, a stage line past its buffer, a times table whose end (-1) comes within the ten rows
 /// (the original's early exit leaves two dwords on the stack and returns through a `pusha`
 /// slot), and what the strings refuse.
-pub fn draw_stage_results(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let menus = menus();
+pub fn draw_stage_results(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let play = &menus.play;
     let menu = menus.screens.loop_flags.menu.get().ok();
     let (base, record) = records(menus)?;

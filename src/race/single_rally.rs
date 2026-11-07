@@ -530,6 +530,7 @@ pub fn step(call: Call) -> Result<(), Refused> {
             crate::menu::show_loading_picture::show_loading_picture()?;
         }
         Call::SetUpRaceSoundObjects => crate::race::sound_tables::set_up_race_sound_objects(
+            race,
             &crate::race::sound_tables::ObjectVars::game(),
         )?,
         Call::SetUpRaceSounds => crate::sound::set_up_race_sounds::set_up_race_sounds()?,

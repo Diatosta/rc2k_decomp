@@ -41,7 +41,7 @@ pub fn inspection_frame(
     if lock_failed() {
         return Ok(false);
     }
-    draw_menu(menu)?;
+    draw_menu(menus, menu)?;
     run_listed(menus, OVERLAY_LIST)?;
     unlock_surface();
     Ok(show_frame_now())

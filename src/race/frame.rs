@@ -8,7 +8,7 @@ use crate::input::owner::input;
 use crate::menu::owner::menus;
 use crate::net::owner::net;
 use crate::physics::car_store::Car;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
@@ -20,9 +20,9 @@ fn block(shared: &Shared, n: u32) -> u32 {
 /// chosen car's with `dword_52A910` 1, else each of the `dword_63DB94` players' (none: no
 /// carry). Every register kept. Refuses, before anything, a chosen car past 7 or more
 /// than 8 players (the original reads past the table).
-pub fn players_all_out() -> Result<bool, Refused> {
+pub fn players_all_out(race: &Race) -> Result<bool, Refused> {
     let vars = &net().vars;
-    let shared = &race().shared;
+    let shared = &race.shared;
     // Converted: `rc2k_core::race::cars::players_all_out`.
     use rc2k_core::race::cars::{Players, players_all_out};
     {
@@ -80,12 +80,12 @@ pub fn load_view_car(shared: &Shared, n: usize) -> Result<(), Refused> {
 fn with_view_car(
     shared: &Shared,
     n: usize,
-    then: impl FnOnce() -> Result<(), Refused>,
+    then: impl FnOnce(&Shared) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let current = &shared.work.current_car;
     let was = current.get();
     current.set(view_car(shared, n).get());
-    let result = then();
+    let result = then(shared);
     if result.is_err() {
         current.set(was);
     }
@@ -117,10 +117,10 @@ fn pressed(key: usize) -> bool {
 /// `race::race_keys` (0x43A649): the race's view and sound keys (see its header). It
 /// reads no register at entry; the ones it leaves are read by none of its callers
 /// (`drive::race_loop`, `drive::pause_until_key`).
-pub fn race_keys() -> Result<(), Refused> {
+pub fn race_keys(race: &Race) -> Result<(), Refused> {
     let state = &audio().state;
-    let shared = &race().shared;
-    crate::drive::choose_shown_cars::choose_shown_cars()?;
+    let shared = &race.shared;
+    crate::drive::choose_shown_cars::choose_shown_cars(race)?;
     let second = input().devices.keys_now.get(VIEW_MODE_KEY) != 0;
     let view_addr = shared.view.view_block(usize::from(second));
     let view = Car::at(view_addr);
@@ -148,7 +148,7 @@ pub fn race_keys() -> Result<(), Refused> {
     };
     match key {
         Some(Key::NextView) => {
-            crate::drive::next_camera_view::next_camera_view(view_addr)?;
+            crate::drive::next_camera_view::next_camera_view(race, view_addr)?;
             let camera = view.camera_blend_view.get();
             if camera < COUNTED_VIEWS {
                 set_car_counter(
@@ -214,8 +214,8 @@ pub fn race_keys() -> Result<(), Refused> {
 /// `dword_70F740` .. `dword_70F74C`, one per bit 1 .. 4) `race::tyre_change_gauge`
 /// started, then run, its time when done added. It reads no register at entry; the eax and
 /// esi it leaves are read by no caller (`drive::race_loop`).
-pub fn tyre_change() -> Result<(), Refused> {
-    let shared = &race().shared;
+pub fn tyre_change(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     let textures = &scene().textures;
     use crate::race::blocks_store::CAR_BLOCKS;
     use crate::race::tyre_change_gauge::tyre_change_gauge;
