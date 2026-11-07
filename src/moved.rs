@@ -2537,3 +2537,76 @@ mod tests {
         assert_eq!(image_bytes(0x93E430, 4), [0; 4]);
     }
 }
+
+/// A write census (the multi-core audit, `notes/conversion.md`, optimisation phase): with
+/// `RC2K_WRITE_CENSUS` set, the bytes of every moved range a stretch of code changes, unioned
+/// over 200 calls, logged as IDA address runs per label. Other threads' writes in the same
+/// time show too (the audio thread's voices and commands): read the runs with that in mind.
+pub mod census {
+    use std::sync::Mutex;
+    /// A label, its changed bytes per moved range, its calls so far.
+    type Union = (&'static str, Vec<Vec<bool>>, u32);
+    static UNION: Mutex<Vec<Union>> = Mutex::new(Vec::new());
+
+    fn bytes() -> Vec<Vec<u8>> {
+        super::sorted()
+            .iter()
+            .map(|&(start, end, home)| {
+                let mut v = vec![0u8; end - start];
+                if let Some((store, off)) = super::store_of(home) {
+                    let _ = store.load(off, &mut v);
+                }
+                v
+            })
+            .collect()
+    }
+
+    /// The moved ranges' bytes when the census is on.
+    pub fn before() -> Option<Vec<Vec<u8>>> {
+        static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+        ON.get_or_init(|| std::env::var_os("RC2K_WRITE_CENSUS").is_some())
+            .then(bytes)
+    }
+
+    /// The bytes changed since `before`, added to `label`'s union; logged at the 200th call.
+    pub fn after(label: &'static str, before: Option<Vec<Vec<u8>>>) {
+        let Some(b) = before else { return };
+        let a = bytes();
+        let mut u = UNION.lock().unwrap();
+        let i = match u.iter().position(|e| e.0 == label) {
+            Some(i) => i,
+            None => {
+                u.push((label, a.iter().map(|r| vec![false; r.len()]).collect(), 0));
+                u.len() - 1
+            }
+        };
+        let e = &mut u[i];
+        for ((x, y), m) in b.iter().zip(&a).zip(&mut e.1) {
+            for k in 0..x.len() {
+                if x[k] != y[k] {
+                    m[k] = true;
+                }
+            }
+        }
+        e.2 += 1;
+        if e.2 == 200 {
+            let mut text = format!("census {label}:");
+            for (&(start, _, _), m) in super::sorted().iter().zip(&e.1) {
+                let mut k = 0;
+                while k < m.len() {
+                    if m[k] {
+                        let s = k;
+                        while k < m.len()
+                            && (m[k] || (k + 8 < m.len() && m[k..k + 8].contains(&true)))
+                        {
+                            k += 1;
+                        }
+                        text += &format!(" {:#x}+{:#x}", start + s, k - s);
+                    }
+                    k += 1;
+                }
+            }
+            crate::framework::log(&text);
+        }
+    }
+}

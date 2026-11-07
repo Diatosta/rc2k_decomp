@@ -155,8 +155,118 @@ pub fn flipped(away: u32) -> u32 {
     away ^ 1
 }
 
+/// A projected corner: its depth in the view and its place on the screen (floats' bits, a
+/// point record's +0x18, +0xC, +0x1C).
+#[derive(Clone, Copy, Debug)]
+pub struct ScreenCorner {
+    pub depth: u32,
+    pub x: u32,
+    pub y: u32,
+}
+
+/// The screen's clip edges (`clip_screen`: top, bottom, left, right; floats' bits).
+#[derive(Clone, Copy, Debug)]
+pub struct ScreenEdges {
+    pub top: u32,
+    pub bottom: u32,
+    pub left: u32,
+    pub right: u32,
+}
+
+/// Whether a face whose polygons all lie within its corners' hull leaves nothing on the
+/// screen (not the original's: it finds this only at the end, cutting each polygon to the
+/// screen): every corner projected (its depth at least `near`, so no polygon is cut at the
+/// near plane and each lies on the same side of a screen edge as its corners), and every
+/// corner strictly past the same edge (the clipper's passes then keep none of its
+/// vertices). Ties never count as past, and a corner with an unordered depth or place keeps
+/// the face (the clipper counts such a place as inside), so a face this answers for would
+/// have been cut away whole.
+pub fn off_screen(corners: &[ScreenCorner], edges: ScreenEdges, near: f32) -> bool {
+    let f = |b: u32| f32::from_bits(b) as f64;
+    let mut past = [true; 4];
+    for c in corners {
+        // Unordered (NaN) counts as nearer.
+        if f(c.depth)
+            .partial_cmp(&(near as f64))
+            .is_none_or(std::cmp::Ordering::is_lt)
+        {
+            return false;
+        }
+        let (x, y) = (f(c.x), f(c.y));
+        // The clipper keeps an unordered place inside every edge: a face with one is drawn.
+        if x.is_nan() || y.is_nan() {
+            return false;
+        }
+        past[0] &= y < f(edges.top);
+        past[1] &= y > f(edges.bottom);
+        past[2] &= x < f(edges.left);
+        past[3] &= x > f(edges.right);
+    }
+    !corners.is_empty() && past.contains(&true)
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_face_off_the_screen_only_when_wholly_past_one_edge() {
+        let b = |v: f32| v.to_bits();
+        let e = ScreenEdges {
+            top: b(0.0),
+            bottom: b(100.0),
+            left: b(0.0),
+            right: b(200.0),
+        };
+        let c = |d: f32, x: f32, y: f32| ScreenCorner {
+            depth: b(d),
+            x: b(x),
+            y: b(y),
+        };
+        // All above the top.
+        assert!(off_screen(
+            &[
+                c(5000.0, 10.0, -1.0),
+                c(5000.0, 300.0, -5.0),
+                c(9e3, -9.0, -0.5)
+            ],
+            e,
+            4096.0
+        ));
+        // Past two different edges (above and right), so not wholly past one.
+        assert!(!off_screen(
+            &[c(5000.0, 10.0, -1.0), c(5000.0, 300.0, 50.0)],
+            e,
+            4096.0
+        ));
+        // On an edge is not past it.
+        assert!(!off_screen(
+            &[c(5000.0, 10.0, 0.0), c(5000.0, 20.0, -1.0)],
+            e,
+            4096.0
+        ));
+        assert!(!off_screen(
+            &[c(5000.0, 200.0, 10.0), c(5000.0, 300.0, 10.0)],
+            e,
+            4096.0
+        ));
+        // A corner nearer than the near plane, or unordered: kept.
+        assert!(!off_screen(
+            &[c(4000.0, 10.0, -1.0), c(5000.0, 10.0, -1.0)],
+            e,
+            4096.0
+        ));
+        assert!(!off_screen(&[c(f32::NAN, 10.0, -1.0)], e, 4096.0));
+        assert!(!off_screen(
+            &[c(5000.0, f32::NAN, -1.0), c(5000.0, 10.0, -1.0)],
+            e,
+            4096.0
+        ));
+        assert!(!off_screen(&[], e, 4096.0));
+        // Each edge alone.
+        assert!(off_screen(&[c(5e3, 10.0, 101.0)], e, 4096.0));
+        assert!(off_screen(&[c(5e3, -1.0, 10.0)], e, 4096.0));
+        assert!(off_screen(&[c(5e3, 201.0, 10.0)], e, 4096.0));
+    }
+
     use super::*;
 
     #[test]

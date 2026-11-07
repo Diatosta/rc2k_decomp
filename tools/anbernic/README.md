@@ -13,7 +13,7 @@ Stock OS with the community mod: Ubuntu 22.04 arm64, glibc 2.35, kernel 4.9, no 
 - GPU: `RC2K_RENDERER=gpu` (set by `Rally.sh`) draws races through libmali's OpenGL ES
   (`src/render/gles.rs`); without it the rasteriser draws them at half size.
 - Profiling: `RC2K_PROFILE=1` (set by `Rally.sh` for now) writes `profile.txt`: the marker's
-  place (`handheld::start_profile`), then (place, thread, five callers) a line; resolve against the
+  place (`handheld::start_profile`), then (place, thread, 24 callers) a line; resolve against the
   unstripped build with `aarch64-linux-gnu-addr2line -i -f -C`.
 - Testing over SSH: stop `loadapp.sh` and `dmenu_ln` (SIGSTOP), kill `dmenu.bin`; SIGCONT brings
   the launcher back. Writing `input_event`s to `/dev/input/event1` presses buttons.

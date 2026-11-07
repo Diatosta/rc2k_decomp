@@ -189,12 +189,12 @@ impl Small {
 use crate::race::owner::race;
 use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering::Relaxed};
 
-const SAMPLES: usize = 1 << 17;
+const SAMPLES: usize = 1 << 16;
 /// (Where the processor was, which thread) of each sample.
 static PLACES: [AtomicUsize; SAMPLES] = [const { AtomicUsize::new(0) }; SAMPLES];
 static THREADS: [AtomicU32; SAMPLES] = [const { AtomicU32::new(0) }; SAMPLES];
 /// How many callers each sample keeps.
-const CALLERS: usize = 5;
+const CALLERS: usize = 24;
 /// Each sample's callers, nearest first (0: the chain ended).
 static CALLED_FROM: [[AtomicUsize; CALLERS]; SAMPLES] =
     [const { [const { AtomicUsize::new(0) }; CALLERS] }; SAMPLES];

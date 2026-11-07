@@ -316,6 +316,46 @@ pub fn face_out_of_view(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
     Ok(true)
 }
 
+/// Whether the face leaves nothing on the screen, its corners all projected and past one
+/// edge (`rc2k_core::race::face_drawing::off_screen`; not the original's, which cuts each of
+/// its polygons away at the end: the same picture, without the face's colours, lights and
+/// polygons made for nothing). The corners' records are there: `face_out_of_view` made them.
+fn face_off_screen(race: &Race, scene: &crate::scene::owner::Scene) -> Result<bool, Refused> {
+    use rc2k_core::race::face_drawing::{ScreenCorner, ScreenEdges, off_screen};
+    let mut corners = [ScreenCorner {
+        depth: 0,
+        x: 0,
+        y: 0,
+    }; 4];
+    let mut n = 0;
+    for k in 0..4 {
+        let point: u32 = race.shared.view.corners[k].get();
+        if k == 3 && point == u32::MAX {
+            break;
+        }
+        let record = crate::race::frame_draw::point_record(race, point, scene)?;
+        let at = |offset| crate::scene::point_records::field(record, offset);
+        corners[n] = ScreenCorner {
+            depth: at(0x18)?,
+            x: at(0xC)?,
+            y: at(0x1C)?,
+        };
+        n += 1;
+    }
+    let clip = &scene.drawing.scene.clip_screen;
+    let edges = ScreenEdges {
+        top: clip[0].bits(),
+        bottom: clip[1].bits(),
+        left: clip[2].bits(),
+        right: clip[3].bits(),
+    };
+    Ok(off_screen(
+        &corners[..n],
+        edges,
+        crate::scene::project_point::NEAR,
+    ))
+}
+
 /// Where one of the face's two triangles keeps its texture's working values
 /// (`race::face_texture_coordinates` for the first, 0x45349F for the second: the same code on other
 /// variables).
@@ -961,7 +1001,7 @@ pub fn draw_course_face(
     if face.switches() & rc2k_core::race::faces::REPEATED != 0 {
         face_corners_to_new_points(race)?;
     }
-    if face_out_of_view(race, scene)? {
+    if face_out_of_view(race, scene)? || face_off_screen(race, scene)? {
         return Ok(());
     }
     face_sides(race, &face)?;

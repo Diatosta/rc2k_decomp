@@ -59,7 +59,9 @@ fn draw_view(
     use crate::sound::race_sound_tick::race_sound_tick;
     load_view_car(&race.shared, car)?;
     crate::race::frame_draw::fetch_view_value(race)?;
+    let c = crate::moved::census::before();
     crate::race::draw_view_scene::draw_view_scene(race, scene)?;
+    crate::moved::census::after(if car == 0 { "view0" } else { "view1" }, c);
     // Not the original's: the debug UI's probe points need this view.
     if car == 0 {
         crate::debug::imgui_sdl::view_drawn(&race.frame);
@@ -69,11 +71,15 @@ fn draw_view(
         crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&race.frame);
         race_sound_tick(&race.frame)?; // 0xE
     }
+    let c = crate::moved::census::before();
     crate::race::draw_view_overlays::draw_view_overlays(race, scene, system, effects)?;
+    crate::moved::census::after("overlays", c);
     race_sound_tick(&race.frame)?; // 0xF
     if race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0 {
         load_view_car(&race.shared, car)?;
+        let c = crate::moved::census::before();
         crate::race::draw_mirror_view::draw_mirror_view(race, scene, system)?;
+        crate::moved::census::after("mirror", c);
     }
     Ok(())
 }
