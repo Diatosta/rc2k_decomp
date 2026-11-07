@@ -2,6 +2,7 @@
 
 pub mod free_list;
 pub mod owned;
+pub mod shared_table;
 pub mod take_from_list;
 
 /// A list of blocks: what `allocate` adds to and `free_list` gives back in one go. Every

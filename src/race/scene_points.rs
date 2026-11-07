@@ -8,6 +8,9 @@
 //! `copy_point`). `COURSE.scene_points` is `base()` while they are held (0 otherwise; a number
 //! in the range `race::course_places` reserves, which no host memory backs): the number's
 //! byte is 12 n from it, and any other value of `COURSE.scene_points` reads nothing.
+//!
+//! The points past the count are scratch: each drawing thread (`workers`) has its own,
+//! taken from the shared ones as they are when it first reaches them in a run (`TAIL`).
 
 use crate::errors::BadInput;
 use crate::race::owner::race;
@@ -18,9 +21,90 @@ pub fn base() -> u32 {
     crate::race::course_places::points_base()
 }
 
-crate::memory::owned::thread_owned!(
-    pub static POINTS: Vec<u8> = "no scene points";
-);
+/// The points' most bytes: their part of the course's places.
+pub static POINTS: crate::memory::shared_table::SharedTable =
+    crate::memory::shared_table::SharedTable::new(
+        crate::race::course_places::room() as usize,
+        "no scene points",
+    );
+
+thread_local! {
+    /// A drawing thread's own points past the count, from the count on (see the header).
+    static TAIL: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+/// The byte from which the running thread's points are its own: the count's for a drawing
+/// thread, none for the game's.
+fn own_from() -> usize {
+    if crate::workers::index() == 0 {
+        return usize::MAX;
+    }
+    (race().course.course.scene_point_count.get() as usize).saturating_mul(12)
+}
+
+/// A drawing thread's own points forgotten: its next run takes them from the shared ones.
+#[allow(dead_code, reason = "the drawing threads' pool calls it (next step)")]
+pub fn forget_own() {
+    TAIL.with_borrow_mut(Vec::clear);
+}
+
+/// `f` on the running thread's own bytes `from .. from + len` (`own` being `own_from`,
+/// `from` at least `own`); `None` past the points.
+fn with_own<R>(
+    own: usize,
+    from: usize,
+    len: usize,
+    f: impl FnOnce(&mut [u8]) -> R,
+) -> Result<Option<R>, BadInput> {
+    let all = POINTS.len()?;
+    let Some(end) = from.checked_add(len).filter(|&end| end <= all) else {
+        return Ok(None);
+    };
+    let (start, end) = (from - own, end - own);
+    TAIL.with_borrow_mut(|tail| {
+        if tail.len() < end {
+            let had = tail.len();
+            tail.resize(end, 0);
+            if POINTS.read(own + had, &mut tail[had..])?.is_none() {
+                return Ok(None);
+            }
+        }
+        Ok(Some(f(&mut tail[start..end])))
+    })
+}
+
+/// `into`'s length of the points' bytes from byte `start`; `None` past the points.
+fn read_at(start: usize, into: &mut [u8]) -> Result<Option<()>, BadInput> {
+    let own = own_from();
+    let end = start.saturating_add(into.len());
+    if end <= own {
+        return POINTS.read(start, into);
+    }
+    let split = own.saturating_sub(start).min(into.len());
+    let (shared, mine) = into.split_at_mut(split);
+    if POINTS.read(start, shared)?.is_none() {
+        return Ok(None);
+    }
+    with_own(own, start + split, mine.len(), |t| mine.copy_from_slice(t))
+}
+
+/// `data` written into the points from byte `start`; `None` (nothing written) past them.
+fn write_at(start: usize, data: &[u8]) -> Result<Option<()>, BadInput> {
+    let own = own_from();
+    let end = start.saturating_add(data.len());
+    if end <= own {
+        return POINTS.write(start, data);
+    }
+    if end > POINTS.len()? {
+        return Ok(None);
+    }
+    let split = own.saturating_sub(start).min(data.len());
+    let (shared, mine) = data.split_at(split);
+    if POINTS.write(start, shared)?.is_none() {
+        return Ok(None);
+    }
+    with_own(own, start + split, mine.len(), |t| t.copy_from_slice(mine))
+}
 
 /// Whether the points are held.
 pub fn held() -> bool {
@@ -35,23 +119,21 @@ pub fn take_from(from: u32, len: u32) -> Result<(), BadInput> {
     }
     let bytes = crate::race::level_init::course_memory_at(from)?
         .read_bytes(len as usize, "the scene points")?;
-    POINTS.set(bytes);
+    POINTS.set(&bytes)?;
     crate::race::course_places::first_points_changed();
     Ok(())
 }
 
 /// The points' bytes (`race::draw_chunks`' check); none while they are not held.
 pub fn all_bytes() -> Vec<u8> {
-    POINTS.with(|v| v.clone()).unwrap_or_default()
+    POINTS.all().unwrap_or_default()
 }
 
 /// The points from `all_bytes`' kind of list (one of the same length).
 pub fn put_all_bytes(bytes: &[u8]) {
-    let _ = POINTS.with(|v| {
-        if v.len() == bytes.len() {
-            v.copy_from_slice(bytes);
-        }
-    });
+    if POINTS.len() == Ok(bytes.len()) {
+        let _ = POINTS.write(0, bytes);
+    }
 }
 
 /// Given back with the course memory.
@@ -73,7 +155,7 @@ fn outside(
     len: usize,
     caller: &std::panic::Location<'static>,
 ) -> BadInput {
-    let held = POINTS.with(|p| p.len()).ok();
+    let held = POINTS.len().ok();
     crate::framework::log(&format!(
         "scene points: {what} of {len} bytes at {at:#x}; the points at {:#x}, {held:?} bytes; \
          from {}",
@@ -93,16 +175,20 @@ fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
     let caller = std::panic::Location::caller();
     let before = base().wrapping_sub(at) as usize;
     if at < base() && len <= before && before <= 12 {
-        let faces_len = crate::race::course_places::FACES.with(|f| f.len())?;
+        let faces_len = crate::race::course_places::FACES.len()?;
         let from = faces_len
             .checked_sub(before)
             .ok_or_else(|| outside("a read before the scene points", at, len, caller))?;
         return crate::race::course_places::FACES
-            .with(|f| f.get(from..from + len).map(<[u8]>::to_vec))?
+            .bytes(from, len)?
             .ok_or_else(|| outside("a read before the scene points", at, len, caller));
     }
-    POINTS
-        .with(|p| p.get(range(at, len)?).map(<[u8]>::to_vec))?
+    let mut to = vec![0; len];
+    range(at, len)
+        .map(|r| read_at(r.start, &mut to))
+        .transpose()?
+        .flatten()
+        .map(|()| to)
         .ok_or_else(|| outside("a read outside the scene points", at, len, caller))
 }
 
@@ -117,8 +203,9 @@ fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
         return Ok(to);
     }
     let start = (at - base()) as usize;
-    POINTS
-        .with(|p| p.get(start..)?.first_chunk::<N>().copied())?
+    let mut to = [0; N];
+    read_at(start, &mut to)?
+        .map(|()| to)
         .ok_or_else(|| outside("a read outside the scene points", at, N, caller))
 }
 
@@ -182,18 +269,15 @@ fn write(course: &Course, at: u32, data: &[u8]) -> Result<(), BadInput> {
     // The points below the count are the course's own (the ones past it are copies made
     // while drawing): a change to them is noted.
     let counted = (course.course.scene_point_count.get() as usize).saturating_mul(12);
-    POINTS
-        .with(|p| {
-            let range = range(at, data.len())?;
-            let start = range.start;
-            let to = p.get_mut(range)?;
-            if start < counted && to != data {
-                crate::race::course_places::first_points_changed();
-            }
-            to.copy_from_slice(data);
-            Some(())
-        })?
-        .ok_or_else(|| outside("a write outside the scene points", at, data.len(), caller))
+    let refused = || outside("a write outside the scene points", at, data.len(), caller);
+    let start = range(at, data.len()).ok_or_else(refused)?.start;
+    if start < counted {
+        let mut was = vec![0; data.len()];
+        if read_at(start, &mut was)?.is_some() && was != data {
+            crate::race::course_places::first_points_changed();
+        }
+    }
+    write_at(start, data)?.ok_or_else(refused)
 }
 
 /// The dword at place `at` set to `v`.
@@ -208,15 +292,22 @@ fn put(course: &Course, at: u32, v: u32) -> Result<(), BadInput> {
 #[cfg(all(test, target_arch = "x86"))]
 pub fn with_test_points<R>(words: &[u32], f: impl FnOnce() -> R) -> R {
     let course = &race().course;
-    let kept = POINTS.with(std::mem::take).ok();
+    let kept = POINTS.all().ok();
     let kept_at = course.course.scene_points.get();
     crate::race::course_places::reserve().expect("the course's places");
-    POINTS.set(words.iter().flat_map(|w| w.to_le_bytes()).collect());
+    POINTS
+        .set(
+            &words
+                .iter()
+                .flat_map(|w| w.to_le_bytes())
+                .collect::<Vec<u8>>(),
+        )
+        .expect("test points in their room");
     crate::race::course_places::first_points_changed();
     course.course.scene_points.set(base());
     let out = f();
     match kept {
-        Some(p) => POINTS.set(p),
+        Some(p) => POINTS.set(&p).expect("the points as they were"),
         None => POINTS.give_back(),
     }
     crate::race::course_places::first_points_changed();

@@ -15,9 +15,9 @@ use crate::race::owner::race;
 /// `COURSE_LISTS.object_points` while the points are taken: point 0's place.
 pub const BASE: u32 = 1;
 
-crate::memory::owned::thread_owned!(
-    pub static POINTS: Vec<u8> = "no objects' points";
-);
+/// The points' most bytes: `scene::allocate_object_memory`'s room for them out of a race.
+pub static POINTS: crate::memory::shared_table::SharedTable =
+    crate::memory::shared_table::SharedTable::new(0x18_0000, "no objects' points");
 
 /// `bytes` of points, zeroed, counted on `list`.
 pub fn take(
@@ -25,7 +25,8 @@ pub fn take(
     list: &dyn crate::pointers::Store,
     bytes: u32,
 ) -> Result<(), Refused> {
-    POINTS.take(list, bytes, vec![0; bytes as usize])?;
+    crate::memory::owned::count_on(list, bytes)?;
+    POINTS.set(&vec![0; bytes as usize])?;
     course.lists.object_points.set(BASE);
     Ok(())
 }
@@ -42,11 +43,9 @@ fn range(at: u32, len: usize) -> Option<std::ops::Range<usize>> {
 
 /// The `N` bytes at place `at`; refused outside the points.
 fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
+    let range = range(at, N).ok_or(BadInput("a read outside the objects' points"))?;
     POINTS
-        .with(|p| {
-            let run = p.get(range(at, N)?)?;
-            <[u8; N]>::try_from(run).ok()
-        })?
+        .array(range.start)?
         .ok_or(BadInput("a read outside the objects' points"))
 }
 
@@ -65,11 +64,9 @@ pub fn point(at: u32) -> Result<[u32; 3], BadInput> {
 
 /// `data` written at place `at`; refused outside the points.
 pub fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
+    let range = range(at, data.len()).ok_or(BadInput("a write outside the objects' points"))?;
     POINTS
-        .with(|p| {
-            p.get_mut(range(at, data.len())?)
-                .map(|to| to.copy_from_slice(data))
-        })?
+        .write(range.start, data)?
         .ok_or(BadInput("a write outside the objects' points"))
 }
 
@@ -82,7 +79,7 @@ pub fn set_point(at: u32, value: [u32; 3]) -> Result<(), BadInput> {
 /// The first `bytes` zeroed (`scene::reset_objects`).
 pub fn clear(bytes: usize) -> Result<(), BadInput> {
     POINTS
-        .with(|p| p.get_mut(..bytes).map(|b| b.fill(0)))?
+        .write(0, &vec![0; bytes])?
         .ok_or(BadInput("a clear past the objects' points"))
 }
 

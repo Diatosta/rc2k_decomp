@@ -185,8 +185,6 @@ fn measure_held(
         race.physics.ground.ground_x.bits(),
         race.physics.ground.ground_z.bits(),
     );
-    let dword =
-        |bytes: &[u8], at: usize| Some(u32::from_le_bytes(*bytes.get(at..)?.first_chunk()?));
     // With rounding to nearest the distance is `round(sqrt(dx² + dz²))` in plain doubles,
     // rising with the sum: a checkpoint whose sum is at least (nearest + 1)² cannot be kept,
     // and its root is not taken (the bound is exact while the nearest is below 2^26).
@@ -208,14 +206,13 @@ fn measure_held(
                     Some((f, px, pz)) if f == face => (px, pz),
                     _ => {
                         // As the original's u32 arithmetic on the places.
-                        let Some(point) = dword(faces, (face << 6).wrapping_add(4) as usize) else {
+                        let Some(point) = faces((face << 6).wrapping_add(4) as usize) else {
                             return;
                         };
                         let at = point.wrapping_mul(12);
-                        let (Some(px), Some(pz)) = (
-                            dword(points, at as usize),
-                            dword(points, at.wrapping_add(8) as usize),
-                        ) else {
+                        let (Some(px), Some(pz)) =
+                            (points(at as usize), points(at.wrapping_add(8) as usize))
+                        else {
                             return;
                         };
                         if point < point_count {

@@ -16,9 +16,9 @@ use crate::race::owner::race;
 /// `COURSE_LISTS.face_memory` while the faces are taken: the first face's place.
 pub const BASE: u32 = 1;
 
-crate::memory::owned::thread_owned!(
-    pub static FACES: Vec<u8> = "no objects' faces";
-);
+/// The faces' most bytes: `scene::allocate_object_memory`'s room for them out of a race.
+pub static FACES: crate::memory::shared_table::SharedTable =
+    crate::memory::shared_table::SharedTable::new(0x40_0000, "no objects' faces");
 
 /// `bytes` of faces, zeroed, counted on `list`.
 pub fn take(
@@ -26,7 +26,8 @@ pub fn take(
     list: &dyn crate::pointers::Store,
     bytes: u32,
 ) -> Result<(), Refused> {
-    FACES.take(list, bytes, vec![0; bytes as usize])?;
+    crate::memory::owned::count_on(list, bytes)?;
+    FACES.set(&vec![0; bytes as usize])?;
     course.lists.face_memory.set(BASE);
     Ok(())
 }
@@ -43,28 +44,25 @@ fn range(at: u32, len: usize) -> Option<std::ops::Range<usize>> {
 
 /// `len` bytes at place `at`; refused outside the faces.
 pub fn bytes(at: u32, len: usize) -> Result<Vec<u8>, BadInput> {
+    let range = range(at, len).ok_or(BadInput("a read outside the objects' faces"))?;
     FACES
-        .with(|f| f.get(range(at, len)?).map(<[u8]>::to_vec))?
+        .bytes(range.start, len)?
         .ok_or(BadInput("a read outside the objects' faces"))
 }
 
 /// The `N` bytes at place `at`; refused outside the faces.
 pub fn array<const N: usize>(at: u32) -> Result<[u8; N], BadInput> {
+    let range = range(at, N).ok_or(BadInput("a read outside the objects' faces"))?;
     FACES
-        .with(|f| {
-            let run = f.get(range(at, N)?)?;
-            <[u8; N]>::try_from(run).ok()
-        })?
+        .array(range.start)?
         .ok_or(BadInput("a read outside the objects' faces"))
 }
 
 /// `into`'s length of bytes at place `at`; refused outside the faces.
 pub fn read_into(at: u32, into: &mut [u8]) -> Result<(), BadInput> {
+    let range = range(at, into.len()).ok_or(BadInput("a read outside the objects' faces"))?;
     FACES
-        .with(|f| {
-            into.copy_from_slice(f.get(range(at, into.len())?)?);
-            Some(())
-        })?
+        .read(range.start, into)?
         .ok_or(BadInput("a read outside the objects' faces"))
 }
 
@@ -80,11 +78,9 @@ pub fn word(at: u32) -> Result<u32, BadInput> {
 
 /// `data` written at place `at`; refused outside the faces.
 pub fn write(at: u32, data: &[u8]) -> Result<(), BadInput> {
+    let range = range(at, data.len()).ok_or(BadInput("a write outside the objects' faces"))?;
     FACES
-        .with(|f| {
-            f.get_mut(range(at, data.len())?)
-                .map(|to| to.copy_from_slice(data))
-        })?
+        .write(range.start, data)?
         .ok_or(BadInput("a write outside the objects' faces"))
 }
 
