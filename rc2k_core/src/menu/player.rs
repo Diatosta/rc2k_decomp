@@ -15,7 +15,8 @@ pub const PLAYERS: u32 = 4;
 #[repr(C)]
 #[derive(Clone, Copy, Debug)]
 pub struct Player {
-    pub gap_0: u32,
+    /// Record +0x00: nothing reads or writes it (the saved games carry it as it is).
+    pub unused_0: u32,
     /// The player's nationality (0 Great Britain, 1 Argentina, ..; `dword_758816` has
     /// their strings, the flag is sprite 0x1C + it).
     pub nationality: u32,
@@ -55,11 +56,14 @@ pub struct Player {
     /// The device's strength, 0 .. 100 in tens (`menu::raise_player_48`,
     /// `lower_player_48`; shown for a device that has it).
     pub strength: u32,
-    pub gap_4c: u32,
-    /// The controller's bindings, 0x2C bytes (11 dwords; `binding`), which the controller
-    /// pages copy out (`screens::pick_player_n`) and back (`menu::keep_player_keys`).
-    pub bindings: [u8; 0x2C],
-    pub gap_7c: [u8; 8],
+    /// Record +0x4C: the word between `strength` and the bindings; no page, hook or race
+    /// copy reads it (the device set-up reads the car's copy of it as a gap).
+    pub unused_4c: u32,
+    /// The controller's bindings (`ControlsBlock`), which the controller pages copy out
+    /// (`screens::pick_player_n`) and back (`menu::keep_player_keys`).
+    pub bindings: ControlsBlock,
+    /// Record +0x7C .. +0x84: nothing reads or writes it.
+    pub unused_7c: [u8; 8],
     /// Zeroed for each player by `menu::begin_event`.
     pub field_84: u32,
     /// The stage's time (`HOUR`: none yet; `menu::reset_player_times`).
@@ -124,7 +128,8 @@ pub struct Player {
     /// The 0x40 bytes of the car's best line (the time trial's; the race's result data).
     pub best_line: [u8; 64],
     pub field_24c: [u32; 8],
-    pub gap_26c: [u8; 8],
+    /// Record +0x26C .. +0x274: nothing reads or writes it.
+    pub unused_26c: [u8; 8],
     /// The other start section (`SCREEN_FLOW.start_section_a8`; player 0's, kept in the
     /// saved game).
     pub saved_start_section_a8: u32,
@@ -214,6 +219,42 @@ impl Player {
     }
 }
 
+/// The controller's bindings: 0x2C bytes, 11 little-endian dwords, kept in the player's record
+/// (+0x50), in the keys' table and in the controller pages' copy.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ControlsBlock([u8; CONTROLS_LEN]);
+
+/// The bindings' bytes.
+pub const CONTROLS_LEN: usize = 0x2C;
+
+impl ControlsBlock {
+    /// The block from its bytes.
+    pub const fn from_bytes(b: [u8; CONTROLS_LEN]) -> Self {
+        Self(b)
+    }
+
+    /// The block's bytes.
+    pub const fn to_bytes(self) -> [u8; CONTROLS_LEN] {
+        self.0
+    }
+
+    /// Dword `k` (0 .. 10; at byte 4 k).
+    pub fn word(&self, k: usize) -> u32 {
+        let b = &self.0[4 * k..4 * k + 4];
+        u32::from_le_bytes([b[0], b[1], b[2], b[3]])
+    }
+
+    /// Dword `k` stored.
+    pub fn set_word(&mut self, k: usize, v: u32) {
+        self.0[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
+    }
+
+    /// The eleven dwords in order.
+    pub fn words(&self) -> impl Iterator<Item = u32> + '_ {
+        (0..CONTROLS_LEN / 4).map(|k| self.word(k))
+    }
+}
+
 const _: () = assert!(std::mem::size_of::<Player>() == RECORD_LEN);
 
 /// The record's length.
@@ -271,15 +312,17 @@ macro_rules! layout {
     (@put word $b:ident, $at:literal, $v:expr) => { put_words(&mut $b, $at, &[$v]) };
     (@put signed $b:ident, $at:literal, $v:expr) => { put_words(&mut $b, $at, &[$v as u32]) };
     (@put words $b:ident, $at:literal, $v:expr) => { put_words(&mut $b, $at, &$v) };
+    (@put controls $b:ident, $at:literal, $v:expr) => { $b[$at..$at + CONTROLS_LEN].copy_from_slice(&$v.to_bytes()) };
     (@put bytes $b:ident, $at:literal, $v:expr) => { $b[$at..$at + $v.len()].copy_from_slice(&$v) };
     (@get word $b:ident, $at:literal) => { word(&$b, $at) };
     (@get signed $b:ident, $at:literal) => { word(&$b, $at) as i32 };
     (@get words $b:ident, $at:literal) => { words(&$b, $at) };
+    (@get controls $b:ident, $at:literal) => { ControlsBlock::from_bytes(bytes(&$b, $at)) };
     (@get bytes $b:ident, $at:literal) => { bytes(&$b, $at) };
 }
 
 layout! {
-    0x000 word gap_0,
+    0x000 word unused_0,
     0x004 word nationality,
     0x008 word car_number,
     0x00C word view,
@@ -296,9 +339,9 @@ layout! {
     0x040 word dead_zone_1,
     0x044 word dead_zone_2,
     0x048 word strength,
-    0x04C word gap_4c,
-    0x050 bytes bindings,
-    0x07C bytes gap_7c,
+    0x04C word unused_4c,
+    0x050 controls bindings,
+    0x07C bytes unused_7c,
     0x084 word field_84,
     0x088 word time,
     0x08C word total,
@@ -333,7 +376,7 @@ layout! {
     0x1F8 words tyre_wear,
     0x20C bytes best_line,
     0x24C words field_24c,
-    0x26C bytes gap_26c,
+    0x26C bytes unused_26c,
     0x274 word saved_start_section_a8,
     0x278 word state_flags,
     0x27C word result_word,
@@ -402,12 +445,11 @@ impl Player {
 
     /// Binding `k` (0 .. 10; +0x50 + 4 k).
     pub fn binding(&self, k: usize) -> u32 {
-        let b = &self.bindings[4 * k..4 * k + 4];
-        u32::from_le_bytes([b[0], b[1], b[2], b[3]])
+        self.bindings.word(k)
     }
 
     pub fn set_binding(&mut self, k: usize, v: u32) {
-        self.bindings[4 * k..4 * k + 4].copy_from_slice(&v.to_le_bytes());
+        self.bindings.set_word(k, v);
     }
 
     /// `menu::toggle_player_3c`: the controller mode's bit 0 turned over.
@@ -662,6 +704,48 @@ pub fn redefine(keys: [u8; KEYS], place: usize, key: u8, reserved: &[u8]) -> Red
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A seeded stream of bytes (xorshift).
+    fn random_record(seed: u64) -> [u8; RECORD_LEN] {
+        let mut x = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1;
+        let mut b = [0; RECORD_LEN];
+        for byte in &mut b {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            *byte = (x >> 24) as u8;
+        }
+        b
+    }
+
+    #[test]
+    fn every_byte_of_the_record_round_trips() {
+        for seed in 0..10_000 {
+            let bytes = random_record(seed);
+            assert_eq!(Player::from_le_bytes(bytes).to_le_bytes(), bytes, "{seed}");
+        }
+    }
+
+    #[test]
+    fn the_controls_block_is_the_records_0x50_bytes() {
+        for seed in 0..10_000 {
+            let bytes = random_record(seed);
+            let p = Player::from_le_bytes(bytes);
+            assert_eq!(p.bindings.to_bytes()[..], bytes[0x50..0x7c]);
+            for k in 0..11 {
+                let at = 0x50 + 4 * k;
+                let word =
+                    u32::from_le_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]);
+                assert_eq!(p.binding(k), word);
+            }
+            let mut q = p;
+            q.set_binding(10, 0xDEAD_BEEF);
+            let mut expected = bytes;
+            expected[0x78..0x7c].copy_from_slice(&0xDEAD_BEEFu32.to_le_bytes());
+            assert_eq!(q.to_le_bytes(), expected);
+            assert_eq!(p.bindings.words().count(), 11);
+        }
+    }
 
     /// A record whose every dword is different.
     fn numbered() -> [u8; 0x28c] {

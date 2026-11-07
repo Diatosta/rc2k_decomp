@@ -1,8 +1,8 @@
-//! The car's shadow (`sub_45754C`'s tree, IDA 2026-10-18; a reading: a dark polygon under
+//! The car's shadow (the tree under `cast_car_shadows`, IDA 2026-10-18; a reading: a dark polygon under
 //! each car, the hull of its corners on the ground, cut by the course's faces). Its
-//! leaves and shared code. The point records are 0x20 bytes at `race().frame.shadow_skids.shadow_points` (+0 x, +4 y,
+//! leaves and shared code. The point records are 0x20 bytes at `shadow_skids.shadow_points` (+0 x, +4 y,
 //! +8 z as whole numbers, +0xC the angle, +0x10 the distance, +0x14 0), their count
-//! `race().frame.frame_work.shadow_point_count`, the hull's `race().frame.shadow_skids.hull_count`.
+//! `frame_work.shadow_point_count`, the hull's `shadow_skids.hull_count`.
 
 use crate::errors::{BadInput, Refused};
 #[cfg(all(test, target_arch = "x86"))]
@@ -17,10 +17,10 @@ use crate::race::trap::Trap;
 use crate::scene::polygon_store::{POLYGON_WORK, PolygonEntry};
 use crate::session::{Byte, Dword, copy_on_in, read_on_in, write_on_in};
 
-// race().frame.shadow_skids.shadow_points: the points, 0x20 bytes each
+// shadow_skids.shadow_points: the points, 0x20 bytes each
 
-/// Point `n` (0x20 bytes each; `race().frame.shadow_skids.farthest` keeps the farthest one's number), bounded by
-/// the table (`race().frame.shadow_skids.shadow_points`).
+/// Point `n` (0x20 bytes each; `shadow_skids.farthest` keeps the farthest one's number), bounded by
+/// the table (`shadow_skids.shadow_points`).
 fn point_at(frame: &Frame, n: u32) -> Result<&'_ ShadowPoint, BadInput> {
     frame
         .shadow_skids
@@ -47,10 +47,10 @@ fn two_pi_plus(v: u32) -> u32 {
     st(X(sum) + X(error + low))
 }
 
-/// `race::shadow_angles` (0x4581F3): the farthest point (`race().frame.shadow_skids.farthest`) swapped into
+/// `race::shadow_angles` (0x4581F3): the farthest point (`shadow_skids.farthest`) swapped into
 /// the first record; each record's angle made relative to the first's
-/// (`race().frame.shadow_skids.first_angle`; below 0 plus 2 pi), times 65536 as a whole number, +0x14 0;
-/// with two records or more sorted by angle (`sub_4582AC`, `sorting::sort_records`). Refuses
+/// (`shadow_skids.first_angle`; below 0 plus 2 pi), times 65536 as a whole number, +0x14 0;
+/// with two records or more sorted by angle (`sorting::sort_records`). Refuses
 /// (before anything) no points (its loop tests at its end) or more than 0x40.
 pub fn shadow_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     use crate::math::x87::{mul_to_int, sub};
@@ -80,7 +80,7 @@ pub fn shadow_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
         record.zeroed.set(0);
     }
     if count >= 2 {
-        // Converted: `rc2k_core::race::quick_sort::quick_sort` (`sub_4582AC`).
+        // Converted: `rc2k_core::race::quick_sort::quick_sort`.
         crate::race::sorting::sort_records::<8>(
             &race.frame.shadow_skids.shadow_points,
             count,
@@ -94,7 +94,7 @@ pub fn shadow_angles(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
 /// `race::shadow_hull` (0x45836F): the first record copied after the last; then, walking the
 /// points, each one where the turn from the one before to the one after is not to the left (the
 /// 64-bit cross product of whole numbers, `GROUND_PROBE.product` its first half, not negative)
-/// is taken out (the rest moved down, starting again), until none is; `race().frame.shadow_skids.hull_count`
+/// is taken out (the rest moved down, starting again), until none is; `shadow_skids.hull_count`
 /// the points left. Refuses (before anything) fewer than two points or more than 0x40.
 pub fn shadow_hull(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::shadow::hull`.
@@ -136,10 +136,10 @@ fn circle_place(e: &PolygonEntry, k: u32, n: u32, radius: u32, unit: u32) {
 }
 
 /// `race::shadow_polygon` (0x45787F): the hull's points as new scene points (after the scene's,
-/// from `g_scenePointCount` + 0x10: x and z the record's, y `race().frame.frame_work.shadow_ground`) and as
-/// the polygon's work entries (+0 the point, +0x18 white, +0x21 `race().course.stage_prefs.shadow_alpha` / 2,
+/// from `g_scenePointCount` + 0x10: x and z the record's, y `frame_work.shadow_ground`) and as
+/// the polygon's work entries (+0 the point, +0x18 white, +0x21 `stage_prefs.shadow_alpha` / 2,
 /// +0x10 / +0x14 a circle's texture place: cos / sin of 2 pi k / n times
-/// `race().frame.frame_work.shadow_circle` plus it, rounded, over `race().frame.frame_work.shadow_circle[1]`). Refuses
+/// `frame_work.shadow_circle` plus it, rounded, over `frame_work.shadow_circle[1]`). Refuses
 /// (before anything) a hull of no points (its loop tests at its end) or more than 0x40.
 pub fn shadow_polygon(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let n: u32 = race.frame.shadow_skids.hull_count.get();
@@ -186,8 +186,8 @@ fn work_entry(n: u32) -> Result<&'static PolygonEntry, BadInput> {
         .ok_or(BadInput("a polygon work entry past 0x80"))
 }
 
-/// `sub_457BE8`: whether scene point `n` is on the inner side of the edge from
-/// (`race().frame.frame_work.shadow_corners`, `race().frame.frame_work.shadow_corners[1]`) to (`race().frame.frame_work.shadow_corners[2]`, `race().frame.frame_work.shadow_corners[3]`): the cross product
+/// `inside_edge`: whether scene point `n` is on the inner side of the edge from
+/// (`frame_work.shadow_corners`, `frame_work.shadow_corners[1]`) to (`frame_work.shadow_corners[2]`, `frame_work.shadow_corners[3]`): the cross product
 /// of whole numbers on the x87 (the original's instructions) above 0, or not a number
 /// (`fldz; fcompp`, C0). The point's x and z into `GROUND_WORK.ground_x` / `GROUND_WORK.ground_z`.
 fn inside_edge(race: &Race, n: u32) -> Result<bool, BadInput> {
@@ -204,8 +204,8 @@ fn inside_edge(race: &Race, n: u32) -> Result<bool, BadInput> {
     Ok(compare(X(0.0), first - second) & 0x0100 != 0)
 }
 
-/// `sub_457CA8`'s arithmetic: the share of the edge's crossing (-(`race().frame.frame_work.shadow_work[8]` x
-/// `race().frame.frame_work.shadow_work[11]` - `race().frame.frame_work.shadow_work[10]` x `race().frame.frame_work.shadow_work[9]`) over the difference of the two cross
+/// `edge_crossing`'s arithmetic: the share of the edge's crossing (-(`frame_work.shadow_work[8]` x
+/// `frame_work.shadow_work[11]` - `frame_work.shadow_work[10]` x `frame_work.shadow_work[9]`) over the difference of the two cross
 /// products, rounded to a float into `GROUND_WORK.plane_f` and used as read back), the crossing's
 /// place (x and z whole numbers into `DRAW.clip_work[2]` / `DRAW.clip_work[4]`) and the entry's
 /// texture floats (`DRAW.clip_work[10]`, `DRAW.clip_work[11]`) and two bytes (`DRAW.vertex_byte_21`, `DRAW.clip_work_2`)
@@ -221,41 +221,39 @@ fn crossing_block(
 ) -> Result<(), BadInput> {
     let drawing = &scene.drawing;
     use crate::math::x87_float::{int, ld, st, to_int};
-    {
-        let word = |n: usize| int(race.frame.frame_work.shadow_work[n].bits() as i32);
-        let first = word(11) * word(8) - word(10) * word(9);
-        let second = word(13) * word(8) - word(12) * word(9);
-        let share = st(-(first / (second - first)));
-        race.physics.ground.plane_f.set_bits(share);
-        let share = ld(share);
-        // a + (b - a) x share
-        let whole = |k: u32| -> Result<i32, BadInput> {
-            let (a, b) = (point_word(pa, k)?, point_word(pb, k)?);
-            Ok(to_int(
-                int(a as i32) + (int(b as i32) - int(a as i32)) * share,
-            ))
-        };
-        drawing.scene.clip_work[2].set_bits(whole(0)? as u32);
-        drawing.scene.clip_work[4].set_bits(whole(2)? as u32);
-        let float = |a: &Dword, b: &Dword| st(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share);
-        drawing.scene.clip_work[10].set_bits(float(&ea.u2, &eb.u2));
-        drawing.scene.clip_work[11].set_bits(float(&ea.v2, &eb.v2));
-        let byte = |a: &Byte, b: &Byte| {
-            let (a, b) = (int(a.get().into()), int(b.get().into()));
-            to_int(a + (b - a) * share) as u32
-        };
-        drawing
-            .scene
-            .vertex_byte_21
-            .set(byte(&ea.amount, &eb.amount));
-        drawing.scene.clip_work_2[0].set(byte(&ea.fog, &eb.fog));
-        drawing.scene.scratch.set(st(share));
-    }
+    let word = |n: usize| int(race.frame.frame_work.shadow_work[n].bits() as i32);
+    let first = word(11) * word(8) - word(10) * word(9);
+    let second = word(13) * word(8) - word(12) * word(9);
+    let share = st(-(first / (second - first)));
+    race.physics.ground.plane_f.set_bits(share);
+    let share = ld(share);
+    // a + (b - a) x share
+    let whole = |k: u32| -> Result<i32, BadInput> {
+        let (a, b) = (point_word(pa, k)?, point_word(pb, k)?);
+        Ok(to_int(
+            int(a as i32) + (int(b as i32) - int(a as i32)) * share,
+        ))
+    };
+    drawing.scene.clip_work[2].set_bits(whole(0)? as u32);
+    drawing.scene.clip_work[4].set_bits(whole(2)? as u32);
+    let float = |a: &Dword, b: &Dword| st(ld(a.get()) + (ld(b.get()) - ld(a.get())) * share);
+    drawing.scene.clip_work[10].set_bits(float(&ea.u2, &eb.u2));
+    drawing.scene.clip_work[11].set_bits(float(&ea.v2, &eb.v2));
+    let byte = |a: &Byte, b: &Byte| {
+        let (a, b) = (int(a.get().into()), int(b.get().into()));
+        to_int(a + (b - a) * share) as u32
+    };
+    drawing
+        .scene
+        .vertex_byte_21
+        .set(byte(&ea.amount, &eb.amount));
+    drawing.scene.clip_work_2[0].set(byte(&ea.fog, &eb.fog));
+    drawing.scene.scratch.set(st(share));
     Ok(())
 }
 
-/// `sub_457CA8`: the edge's crossing between work entries `ea` and `eb` as a new scene
-/// point (`race().frame.frame_work.shadow_scene`, then counted on: x and z from the share `GROUND_WORK.plane_f`, y 0) and
+/// `edge_crossing`: the edge's crossing between work entries `ea` and `eb` as a new scene
+/// point (`frame_work.shadow_scene`, then counted on: x and z from the share `GROUND_WORK.plane_f`, y 0) and
 /// the new work entry `ed` (its point, texture places +0x10 / +0x14 and the two bytes
 /// +0x20 / +0x21 shared the same way); the original's work dwords (0x641958 .. 0x64198C,
 /// `DRAW.clip_work[2]` ..) kept as it leaves them.
@@ -268,42 +266,40 @@ fn edge_crossing(
 ) -> Result<(), BadInput> {
     let drawing = &scene.drawing;
     let frame = &race.frame;
-    {
-        let (pa, pb) = (ea.point.get(), eb.point.get());
-        let c = &frame.frame_work.shadow_corners;
-        let w = &frame.frame_work.shadow_work;
-        let rd = |d: &crate::session::Dword| d.bits();
-        let ((bx, bz), (ax, az)) = (point_xz(pb)?, point_xz(pa)?);
-        w[1].set(bx);
-        w[5].set(bz);
-        w[0].set(ax);
-        w[4].set(az);
-        w[2].set(rd(&c[0]));
-        w[3].set(rd(&c[2]));
-        w[6].set(rd(&c[1]));
-        w[7].set(rd(&c[3]));
-        w[8].set(rd(&w[3]).wrapping_sub(rd(&w[2])));
-        w[9].set(rd(&w[7]).wrapping_sub(rd(&w[6])));
-        w[10].set(rd(&w[0]).wrapping_sub(rd(&w[2])));
-        w[11].set(rd(&w[4]).wrapping_sub(rd(&w[6])));
-        w[12].set(rd(&w[1]).wrapping_sub(rd(&w[2])));
-        w[13].set(rd(&w[5]).wrapping_sub(rd(&w[6])));
-        crossing_block(race, pa, pb, ea, eb, scene)?;
-        let n = rd(&frame.frame_work.shadow_scene);
-        put_point_word(&race.course, n, 0, drawing.scene.clip_work[2].bits())?;
-        put_point_word(&race.course, n, 1, 0)?;
-        put_point_word(&race.course, n, 2, drawing.scene.clip_work[4].bits())?;
-        ed.point.set(n);
-        frame.frame_work.shadow_scene.set(n.wrapping_add(1));
-        ed.u2.set(drawing.scene.clip_work[10].bits());
-        ed.v2.set(drawing.scene.clip_work[11].bits());
-        ed.amount.set(rd(&drawing.scene.vertex_byte_21) as u8);
-        ed.fog.set(rd(&drawing.scene.clip_work_2[0]) as u8);
-    }
+    let (pa, pb) = (ea.point.get(), eb.point.get());
+    let c = &frame.frame_work.shadow_corners;
+    let w = &frame.frame_work.shadow_work;
+    let rd = |d: &crate::session::Dword| d.bits();
+    let ((bx, bz), (ax, az)) = (point_xz(pb)?, point_xz(pa)?);
+    w[1].set(bx);
+    w[5].set(bz);
+    w[0].set(ax);
+    w[4].set(az);
+    w[2].set(rd(&c[0]));
+    w[3].set(rd(&c[2]));
+    w[6].set(rd(&c[1]));
+    w[7].set(rd(&c[3]));
+    w[8].set(rd(&w[3]).wrapping_sub(rd(&w[2])));
+    w[9].set(rd(&w[7]).wrapping_sub(rd(&w[6])));
+    w[10].set(rd(&w[0]).wrapping_sub(rd(&w[2])));
+    w[11].set(rd(&w[4]).wrapping_sub(rd(&w[6])));
+    w[12].set(rd(&w[1]).wrapping_sub(rd(&w[2])));
+    w[13].set(rd(&w[5]).wrapping_sub(rd(&w[6])));
+    crossing_block(race, pa, pb, ea, eb, scene)?;
+    let n = rd(&frame.frame_work.shadow_scene);
+    put_point_word(&race.course, n, 0, drawing.scene.clip_work[2].bits())?;
+    put_point_word(&race.course, n, 1, 0)?;
+    put_point_word(&race.course, n, 2, drawing.scene.clip_work[4].bits())?;
+    ed.point.set(n);
+    frame.frame_work.shadow_scene.set(n.wrapping_add(1));
+    ed.u2.set(drawing.scene.clip_work[10].bits());
+    ed.v2.set(drawing.scene.clip_work[11].bits());
+    ed.amount.set(rd(&drawing.scene.vertex_byte_21) as u8);
+    ed.fog.set(rd(&drawing.scene.clip_work_2[0]) as u8);
     Ok(())
 }
 
-/// `sub_457A85`: the polygon cut by the edge from scene point `from` to scene point `to`
+/// `clip_to_edge`: the polygon cut by the edge from scene point `from` to scene point `to`
 /// (kept: those on the inner side, and the crossings), with three vertices or more.
 fn clip_to_edge(
     race: &Race,
@@ -313,149 +309,145 @@ fn clip_to_edge(
 ) -> Result<(), BadInput> {
     let drawing = &scene.drawing;
     let frame = &race.frame;
-    {
-        let count: u32 = drawing.scene.polygon_vertex_count.bits();
-        if count < 3 {
-            return Ok(());
-        }
-        let ((tx, tz), (fx, fz)) = (point_xz(to)?, point_xz(from)?);
-        frame.frame_work.shadow_corners[2].set(tx);
-        frame.frame_work.shadow_corners[3].set(tz);
-        frame.frame_work.shadow_corners[0].set(fx);
-        frame.frame_work.shadow_corners[1].set(fz);
-        let (list, old) = (&POLYGON_WORK.list, &POLYGON_WORK.old_list);
-        copy_on_in(
-            (&race.shared.buffers, list),
-            (&race.shared.buffers, old),
-            count as usize,
-            "the polygon list",
-        )?;
-        write_on_in(
-            &race.shared.buffers,
-            old,
-            count as usize,
-            list[0].get(),
-            "the old polygon list",
-        )?;
-        // Converted: `rc2k_core::race::shadow::clip_by_edge`.
-        let mut added = 0u32;
-        let trap = Trap::new();
-        rc2k_core::race::shadow::clip_by_edge(
-            count,
-            |k| {
-                read_on_in(
-                    &race.shared.buffers,
-                    old,
-                    k as usize,
-                    "the old polygon list",
-                )
-                .unwrap_or_else(|err| {
+    let count: u32 = drawing.scene.polygon_vertex_count.bits();
+    if count < 3 {
+        return Ok(());
+    }
+    let ((tx, tz), (fx, fz)) = (point_xz(to)?, point_xz(from)?);
+    frame.frame_work.shadow_corners[2].set(tx);
+    frame.frame_work.shadow_corners[3].set(tz);
+    frame.frame_work.shadow_corners[0].set(fx);
+    frame.frame_work.shadow_corners[1].set(fz);
+    let (list, old) = (&POLYGON_WORK.list, &POLYGON_WORK.old_list);
+    copy_on_in(
+        (&race.shared.buffers, list),
+        (&race.shared.buffers, old),
+        count as usize,
+        "the polygon list",
+    )?;
+    write_on_in(
+        &race.shared.buffers,
+        old,
+        count as usize,
+        list[0].get(),
+        "the old polygon list",
+    )?;
+    // Converted: `rc2k_core::race::shadow::clip_by_edge`.
+    let mut added = 0u32;
+    let trap = Trap::new();
+    rc2k_core::race::shadow::clip_by_edge(
+        count,
+        |k| {
+            read_on_in(
+                &race.shared.buffers,
+                old,
+                k as usize,
+                "the old polygon list",
+            )
+            .unwrap_or_else(|err| {
+                trap.keep(err);
+                0
+            })
+        },
+        |e| {
+            let entry = match work_entry(e) {
+                Ok(x) => x.point.get(),
+                Err(err) => {
                     trap.keep(err);
                     0
-                })
-            },
-            |e| {
-                let entry = match work_entry(e) {
-                    Ok(x) => x.point.get(),
-                    Err(err) => {
-                        trap.keep(err);
-                        0
-                    }
-                };
-                inside_edge(race, entry).unwrap_or_else(|err| {
-                    trap.keep(err);
-                    false
-                })
-            },
-            |a, b| {
-                let next: u32 = drawing.scene.polygon_next_entry.bits();
-                let crossing = (|| {
-                    edge_crossing(
-                        race,
-                        work_entry(a)?,
-                        work_entry(b)?,
-                        work_entry(next)?,
-                        scene,
-                    )
-                })();
-                if let Err(err) = crossing {
-                    trap.keep(err);
                 }
-                drawing
-                    .scene
-                    .polygon_next_entry
-                    .set_bits(next.wrapping_add(1));
-                next
-            },
-            |e| {
-                if let Err(err) = write_on_in(
-                    &race.shared.buffers,
-                    list,
-                    added as usize,
-                    e,
-                    "the polygon list",
-                ) {
-                    trap.keep(err);
-                }
-                added += 1;
-            },
-        );
-        trap.finish()?;
-        drawing.scene.polygon_vertex_count.set_bits(added);
-    }
+            };
+            inside_edge(race, entry).unwrap_or_else(|err| {
+                trap.keep(err);
+                false
+            })
+        },
+        |a, b| {
+            let next: u32 = drawing.scene.polygon_next_entry.bits();
+            let crossing = (|| {
+                edge_crossing(
+                    race,
+                    work_entry(a)?,
+                    work_entry(b)?,
+                    work_entry(next)?,
+                    scene,
+                )
+            })();
+            if let Err(err) = crossing {
+                trap.keep(err);
+            }
+            drawing
+                .scene
+                .polygon_next_entry
+                .set_bits(next.wrapping_add(1));
+            next
+        },
+        |e| {
+            if let Err(err) = write_on_in(
+                &race.shared.buffers,
+                list,
+                added as usize,
+                e,
+                "the polygon list",
+            ) {
+                trap.keep(err);
+            }
+            added += 1;
+        },
+    );
+    trap.finish()?;
+    drawing.scene.polygon_vertex_count.set_bits(added);
     Ok(())
 }
 
 /// `race::clip_shadow_to_face` (0x457960): the shadow's polygon cut to the course face whose
-/// corners are `race().frame.frame_work.shadow_light` .. `race().frame.frame_work.shadow_light[2]` (scene points): none
+/// corners are `frame_work.shadow_light` .. `frame_work.shadow_light[2]` (scene points): none
 /// (count 0) when a corner is more than 0x100000 off the work car in x before one within
 /// 0x100000 in z is met (or none is); else cut by its three edges in turn while three vertices
-/// are left (`sub_457A85`, with `sub_457BE8` the side test and `sub_457CA8` the crossing).
+/// are left (`clip_to_edge`, with `inside_edge` the side test and `edge_crossing` the crossing).
 pub fn clip_shadow_to_face(
     race: &Race,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     let drawing = &scene.drawing;
     let frame = &race.frame;
-    {
-        let corners = [
-            frame.frame_work.shadow_light[0].get(),
-            frame.frame_work.shadow_light[1].bits(),
-            frame.frame_work.shadow_light[2].bits(),
-        ];
-        // Converted: `rc2k_core::race::shadow::face_near`.
-        let trap = Trap::new();
-        let found = rc2k_core::race::shadow::face_near(
-            (
-                race.shared.car.position[0].bits(),
-                race.shared.car.position[2].bits(),
-            ),
-            |n| {
-                point_xz(corners[n]).unwrap_or_else(|e| {
-                    trap.keep(e);
-                    (0, 0)
-                })
-            },
-        );
-        trap.finish()?;
-        if !found.near {
-            drawing.scene.polygon_vertex_count.set_bits(0u32);
+    let corners = [
+        frame.frame_work.shadow_light[0].get(),
+        frame.frame_work.shadow_light[1].bits(),
+        frame.frame_work.shadow_light[2].bits(),
+    ];
+    // Converted: `rc2k_core::race::shadow::face_near`.
+    let trap = Trap::new();
+    let found = rc2k_core::race::shadow::face_near(
+        (
+            race.shared.car.position[0].bits(),
+            race.shared.car.position[2].bits(),
+        ),
+        |n| {
+            point_xz(corners[n]).unwrap_or_else(|e| {
+                trap.keep(e);
+                (0, 0)
+            })
+        },
+    );
+    trap.finish()?;
+    if !found.near {
+        drawing.scene.polygon_vertex_count.set_bits(0u32);
+        return Ok(());
+    }
+    for (a, b) in [(0usize, 1usize), (1, 2), (2, 0)] {
+        if drawing.scene.polygon_vertex_count.bits() < 3 {
             return Ok(());
         }
-        for (a, b) in [(0usize, 1usize), (1, 2), (2, 0)] {
-            if drawing.scene.polygon_vertex_count.bits() < 3 {
-                return Ok(());
-            }
-            clip_to_edge(race, corners[a], corners[b], scene)?;
-        }
+        clip_to_edge(race, corners[a], corners[b], scene)?;
     }
     Ok(())
 }
 
-/// `sub_457B86`: work entry `index`'s scene point raised onto the face (`race().frame.frame_work.shadow_light` ..):
+/// `raise_onto_face`: work entry `index`'s scene point raised onto the face (`frame_work.shadow_light` ..):
 /// the face's corners (into `GROUND_WORK.face_corner_numbers` ..) and the point (into `GROUND_WORK.ground_x` /
 /// `GROUND_WORK.ground_z`) through `physics::face_shares` and `physics::plane_height`, its y the
-/// height (`GROUND_WORK.ground_height`) plus `race().frame.frame_work.shadow_strength`.
+/// height (`GROUND_WORK.ground_height`) plus `frame_work.shadow_strength`.
 fn raise_onto_face(race: &Race, index: u32) -> Result<(), Refused> {
     use crate::physics::ground::face_shares_at;
     let p = work_entry(index)?.point.get();
@@ -482,13 +474,13 @@ fn raise_onto_face(race: &Race, index: u32) -> Result<(), Refused> {
 }
 
 /// `race::shadow_on_face` (0x45773C): the shadow's polygon (the hull's list at
-/// `race().frame.frame_work.shadow_list`, its count `race().frame.frame_work.shadow_list_count`) cut to the face
-/// `race().frame.frame_work.shadow_light` .. and drawn on it: new points from `g_scenePointCount` + 0x30
-/// (`race().frame.frame_work.shadow_scene`), entries from 0x20, the 0x40 point records after the scene's
+/// `frame_work.shadow_list`, its count `frame_work.shadow_list_count`) cut to the face
+/// `frame_work.shadow_light` .. and drawn on it: new points from `g_scenePointCount` + 0x30
+/// (`frame_work.shadow_scene`), entries from 0x20, the 0x40 point records after the scene's
 /// marked unmade; `clip_shadow_to_face`; with three vertices or more each raised onto the face,
 /// projected (`scene::project_polygon`, `scene::fog_polygon`), cut by depth (unless all or none
 /// are outside) and to the screen and drawn (`scene::draw_polygon_in_game`) in mode 5 with
-/// texture `race().frame.frame_work.shadow_texture`. The registers it leaves are not read (its caller calls
+/// texture `frame_work.shadow_texture`. The registers it leaves are not read (its caller calls
 /// it. Refuses what the projection and the clips refuse (after the work is set; not met with a
 /// hull's few vertices) and a hull list past 0x40.
 pub fn shadow_on_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
@@ -571,7 +563,7 @@ pub fn shadow_on_face(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     Ok(())
 }
 
-/// `sub_4576C9`: each face of course record number `record` (its
+/// `shadow_on_record`: each face of course record number `record` (its
 /// address; +8 .. +0xC) with a kind below 0x10 and
 /// without bit 7 of its +2 word gets the shadow (`shadow_on_face`) on its two triangles
 /// (corners +4, +8, +0xC and +0x10, +0xC, +8); `g_currentCourseFace` each face.
@@ -608,7 +600,7 @@ fn shadow_on_record(
 
 /// `race::shadow_faces` (0x457618): the shadow (`shadow_on_face`) on the last course
 /// record's faces, then on every record in the 3 x 3 cells round the work car
-/// (`sub_4576C9` each).
+/// (`shadow_on_record` each).
 pub fn shadow_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     let count: u32 = course.course.course_record_count.get();
@@ -650,8 +642,8 @@ fn tbyte_to_float(t: [u8; 10]) -> u32 {
     crate::math::x87_float::st(crate::math::x87_float::from_f80(t))
 }
 
-/// The sun's slant from `sun` and `turn` (the angles as 128ths of a half turn): `race().frame.shadow_skids.slant_x`
-/// = cos(turn) x cot(sun), `race().frame.shadow_skids.slant_z` = sin(turn) x cot(sun); `DRAW.scratch` is left 0x80.
+/// The sun's slant from `sun` and `turn` (the angles as 128ths of a half turn): `shadow_skids.slant_x`
+/// = cos(turn) x cot(sun), `shadow_skids.slant_z` = sin(turn) x cot(sun); `DRAW.scratch` is left 0x80.
 fn sun_slant(frame: &Frame, sun: u32, turn: u32, scene: &crate::scene::owner::Scene) {
     use crate::math::x87_float::{int, st};
     let cot = {
@@ -671,11 +663,11 @@ fn angle_of(at: &ShadowPoint) -> u32 {
 }
 
 /// `race::shadow_points` (0x458078): the shadow's points: the ground under the work car
-/// (`physics::find_ground`, its height to `race().frame.frame_work.shadow_ground`); the sun's slant from
-/// `race().course.stage_prefs.sun_height` (at least 0x10) and -`race().course.stage_prefs.sun_turn` - 0x40 (`race().frame.shadow_skids.slant_x`, `race().frame.shadow_skids.slant_z`);
-/// each of the car's `race().frame.frame_work.shadow_point_count` corners (`g_car` +0xAF0 .. +0xCF0 by axis) turned by
+/// (`physics::find_ground`, its height to `frame_work.shadow_ground`); the sun's slant from
+/// `stage_prefs.sun_height` (at least 0x10) and -`stage_prefs.sun_turn` - 0x40 (`shadow_skids.slant_x`, `shadow_skids.slant_z`);
+/// each of the car's `frame_work.shadow_point_count` corners (`g_car` +0xAF0 .. +0xCF0 by axis) turned by
 /// its matrix (+0x840), moved along the slant by its height plus 0.7, its angle (`fpatan`)
-/// and distance, the farthest kept (`race().frame.shadow_skids.farthest_length`, `race().frame.shadow_skids.farthest`), as whole numbers (x
+/// and distance, the farthest kept (`shadow_skids.farthest_length`, `shadow_skids.farthest`), as whole numbers (x
 /// 65536) plus the car's place. Refuses what `find_ground` refuses (before anything), and
 /// no corners or more than 0x40.
 pub fn shadow_points(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
@@ -758,8 +750,8 @@ fn lifted(y: u32, lift: u32, slant: u32, base: u32) -> u32 {
 }
 
 /// `race::cast_car_shadow` (0x4575C1): with three corners or more, the shadow's points, their
-/// order, hull and polygon, the hull's list (`race().frame.frame_work.shadow_list`,
-/// `race().frame.frame_work.shadow_list_count`), texture 0xC3 (`race().frame.frame_work.shadow_texture`), and the shadow
+/// order, hull and polygon, the hull's list (`frame_work.shadow_list`,
+/// `frame_work.shadow_list_count`), texture 0xC3 (`frame_work.shadow_texture`), and the shadow
 /// on the faces round the car (`shadow_faces`). Refuses what its
 /// parts refuse (before anything for the points and the counts).
 pub fn cast_car_shadow(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
@@ -792,10 +784,10 @@ pub fn cast_car_shadow(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     shadow_faces(race, scene)
 }
 
-/// `race::cast_car_shadows` (0x45754C): the depth test off, `race().frame.frame_work.shadow_strength`
+/// `race::cast_car_shadows` (0x45754C): the depth test off, `frame_work.shadow_strength`
 /// 0x1999, then for each race car with +0x6FC not 0: loaded into the work copy
 /// (`drive::load_car`), its corner count from `g_car` +0x260, `cast_car_shadow` once with
-/// `RACE_VARS.settings_words[2]` set, then once more with `race().course.stage_prefs.sun_height` 0x40 (put
+/// `RACE_VARS.settings_words[2]` set, then once more with `stage_prefs.sun_height` 0x40 (put
 /// back after); the depth test on. Refuses (before anything) no cars or more than eight, or a
 /// null block.
 pub fn cast_car_shadows(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
@@ -1353,7 +1345,7 @@ mod asm_reference {
                 let turn = (r.below(0x800) as i32 - 0x400) as u32;
                 // At a multiple of a quarter turn (sun 0x40, ...) the sine or the cosine is
                 // about 1e-16: the x87 reduces by a 66-bit pi, libm exactly, so those few
-                // digits differ (race().frame.shadow_skids.slant_x and race().frame.shadow_skids.slant_z are then about 1e-17 or 1e16 in
+                // digits differ (shadow_skids.slant_x and shadow_skids.slant_z are then about 1e-17 or 1e16 in
                 // the original, whatever the processor). Left out here, reported.
                 if sun.is_multiple_of(64) || turn.is_multiple_of(64) {
                     continue;

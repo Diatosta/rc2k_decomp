@@ -196,9 +196,8 @@ fn take_controls(p: &Player, car: &RaceCar) {
         .controls_50
         .iter()
         .chain([&car.controls_74, &car.controls_78]);
-    let (words, _) = p.bindings.as_chunks::<4>();
-    for (cell, &word) in cells.zip(words) {
-        cell.set(u32::from_le_bytes(word));
+    for (cell, word) in cells.zip(p.bindings.words()) {
+        cell.set(word);
     }
 }
 
@@ -560,7 +559,20 @@ pub fn step(call: Call) -> Result<(), Refused> {
 #[cfg(test)]
 mod table {
     use crate::errors::{FatalError, Refused};
-    use crate::framework::{Regs, game_addr, rva};
+    use crate::framework::{game_addr, rva};
+
+    /// The table's own scratch registers and flags.
+    #[derive(Clone, Copy, Default)]
+    pub struct Regs {
+        pub edi: u32,
+        pub esi: u32,
+        pub ebp: u32,
+        pub ebx: u32,
+        pub edx: u32,
+        pub ecx: u32,
+        pub eax: u32,
+        pub eflags: u32,
+    }
 
     /// A register of the table's.
     #[derive(Clone, Copy, Debug)]
@@ -1733,10 +1745,10 @@ mod table {
 
 #[cfg(test)]
 mod tests {
-    use super::table::{Op, R, SINGLE_RALLY};
+    use super::table::{Op, R, Regs, SINGLE_RALLY};
     use super::*;
     use crate::errors::BadInput;
-    use crate::framework::{Regs, game_addr, rva};
+    use crate::framework::{game_addr, rva};
     use crate::menu::owner::menus;
     use crate::pointers::GamePtr;
 

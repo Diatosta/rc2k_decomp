@@ -41,7 +41,7 @@ pub fn set_up_device(record: &InputDevice, car: &RaceCar) -> Result<(), Refused>
         &car.dead_zone_1,
         &car.dead_zone_2,
         &car.strength,
-        &car._gap_4c,
+        &car._unused_4c,
         &car.controls_50[0],
         &car.controls_50[1],
         &car.controls_50[2],

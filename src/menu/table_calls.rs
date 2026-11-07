@@ -12,10 +12,11 @@
 //! ported" (2026-10-24).
 
 use crate::errors::{BadInput, Refused};
-use crate::framework::{Regs, log};
+use crate::framework::log;
 use crate::menu::menus_store::{MenuId, MenuItem};
 use crate::menu::owner::Menus;
 use crate::menu::table_routes::{item_fn, screen_fn};
+use rc2k_core::fatal::Context;
 use rc2k_core::menu::tables::{ItemFn, ScreenFn};
 
 /// A function of a screen's function list (`menu::run_list`, the frame callbacks): a
@@ -55,11 +56,11 @@ pub struct ItemCall {
 
 impl ItemCall {
     /// The registers the original hands the function, for a refusal's report.
-    pub fn regs(&self) -> Regs {
-        Regs {
+    pub fn regs(&self) -> Context {
+        Context {
             eax: self.value,
             edi: self.menu.map_or(0, MenuId::code),
-            ..Regs::default()
+            ..Context::default()
         }
     }
 }
@@ -90,7 +91,7 @@ pub fn call_action(menus: &Menus, function: u32, value: u32, _item: &MenuItem, m
 
 /// A refusal of a function called by its address or directly in its place (`what` names
 /// it): a refused input ends the program, a fatal error is raised.
-pub fn refused(what: &str, e: Refused, r: &Regs) {
+pub fn refused(what: &str, e: Refused, r: &Context) {
     match e {
         Refused::BadInput(why) => {
             crate::standalone::finish(&format!("menu::table_calls: {what} refused: {}", why.0), 1)

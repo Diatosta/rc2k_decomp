@@ -35,7 +35,7 @@ pub fn quad(frame: &Frame, hud: &Hud, colour: Option<u32>, c: [u32; 4]) -> Resul
 }
 
 /// The bars of `kinds`' players (each player's colour into `colour_vars`), `dy` lower
-/// (see the header and `hud::draw_stage_bars_1`'s).
+/// (see the header and `hud::draw_stage_bars`'s).
 // Converted: `rc2k_core::hud::stage_bars`
 pub fn bars(
     frame: &Frame,

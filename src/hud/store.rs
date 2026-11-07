@@ -74,7 +74,7 @@ impl Vertex {
 pub struct Hud {
     /// `g_hudRects` (92 rectangles) and `dword_75BF00` (the last five): the texture's rectangles, 16 bytes each (left, top, width, height), picked by number (`hud::layout_*` sprites, markers, signs). Sign `v` is rectangle 0x4C + (v - 1) & 0xF.
     pub rects: [Rect; 0x61],
-    /// `dword_75BF50`, `dword_75BF54` (the stage marker's two colours, `draw_markers_1`) and the six dwords after them (colours too, a reading; nothing ported reads them).
+    /// `dword_75BF50`, `dword_75BF54` (the stage marker's two colours, `draw_markers`) and the six dwords after them (colours too, a reading; nothing ported reads them).
     pub marker_colours: [Dword; 8],
     /// `dword_75BF70`: the stage bar's four part colours, read at the byte offset the kind table gives (`draw_stage_bar`).
     pub stage_colours: [Dword; 4],

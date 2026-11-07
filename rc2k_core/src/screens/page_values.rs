@@ -37,7 +37,7 @@ pub const PICKED_LEN: usize = 0x2C;
 impl Player {
     /// `pick_player_n`'s copy.
     pub fn picked(&self) -> (u32, [u8; PICKED_LEN]) {
-        (self.controller, self.bindings)
+        (self.controller, self.bindings.to_bytes())
     }
 }
 

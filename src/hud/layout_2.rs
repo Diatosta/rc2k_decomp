@@ -1,8 +1,8 @@
 //! `hud::layout_2` (0x4B3B64): the HUD of layout 2, two players one above the other (the
 //! record's +0xF8 flags the upper's, +0xFC the lower's): the dials (`dials::DISC_2A` /
-//! `_2B`), a black divider at 0x12B, the stage bars (`hud::draw_stage_bars_2`), the cut
-//! calls (`sub_4B6A8E` / `sub_4B6A99`: ecx 2 / 5), the icons (`hud::icons_2`), the scaled
-//! sprites, the markers (`hud::draw_markers_2`), signs (`draw_signs::LAYOUT_2A` / `_2B`),
+//! `_2B`), a black divider at 0x12B, the stage bars (`hud::draw_stage_bars`), the cut
+//! calls (`sub_4B6A8E` / `sub_4B6A99`: ecx 2 / 5), the icons (`hud::icons`), the scaled
+//! sprites, the markers (`hud::draw_markers`), signs (`draw_signs::LAYOUT_2A` / `_2B`),
 //! needles (`dials::NEEDLE_2A` / `_2B`), the lap panels (+0x1C / +0x4C, `dword_75C07C` /
 //! `dword_75C088`), the times with their leading digits left out (+0x14 / +0x44) and the
 //! four clocks (by the upper's flag 0x40 alone). The upper's rows move 0x10 down and the
@@ -56,12 +56,12 @@ pub fn layout_2(frame: &Frame, hud: &Hud, record: GamePtr) -> Result<(), Refused
     }
     add_solid_quad::add_solid_quad(frame, hud)?;
     if f1 & 0x40 != 0 {
-        draw_stage_bars_2::draw_stage_bars_2(frame, hud)?;
+        draw_stage_bars::draw_stage_bars(frame, hud, draw_stage_bars::STAGE_BARS_DROP_2)?;
     }
     hud.block.quad[5].set(0xFFFF_FFFF);
     hud.block.quad[0].set(0xFF);
     hud.block.texture.set(0xDC);
-    icons_2::icons_2(frame, hud, record)?;
+    icons::icons(frame, hud, record, &icons::LAYOUT_2)?;
     hud.block.quad[5].set(0xFFFF_FFFF);
     hud.block.quad[0].set(0xFF);
     hud.block.texture.set(0xC1);
@@ -114,7 +114,7 @@ pub fn layout_2(frame: &Frame, hud: &Hud, record: GamePtr) -> Result<(), Refused
         scaled(frame, hud, 0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
-        draw_markers_2::draw_markers_2(frame, hud, record)?;
+        draw_markers::draw_markers(frame, hud, record, draw_markers::MARKER_ROWS_2)?;
     }
     hud.block.quad[5].set(0xFFFF_FFFF);
     if f1 & 0x80 != 0 {

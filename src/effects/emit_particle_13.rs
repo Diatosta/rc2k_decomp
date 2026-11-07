@@ -62,7 +62,7 @@ pub fn emit_particle_13(
         return Ok(());
     }
     let model = object.word(4)? as usize;
-    let e = take_entry(ring, effects, object.word(0x1C)? & 0xFF_FFFF, 0xD)?;
+    let e = take_entry(ring, effects, object.word(car_word::TAG)? & 0xFF_FFFF, 0xD)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
     let car = emitting_car(effects)?;
     let cells = car.whole()?;
@@ -124,7 +124,7 @@ pub fn emit_particle_13(
         particles.kind13_set.size_k[1].bits(),
     );
     put(field::SIZE_GOAL, size as u32)?;
-    put(0x6C, car.word(0x88)?)?;
+    put(field::CAR_PACE, car.word(car_word::PACE)?)?;
     put(
         field::SIZE,
         x87::int_times(size, particles.kind13_set.size_k[2].bits()),

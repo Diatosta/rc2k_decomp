@@ -34,13 +34,14 @@
 
 use crate::d3d::owner::d3d;
 use crate::errors::FatalError;
-use crate::framework::{Regs, log};
+use crate::framework::log;
 use crate::gfx::owner::gfx;
 use crate::gfx::texture_upload::TextureFormat;
 use crate::race::viewer_screen_store::{VIEWER_PANEL, texts};
 use crate::render::{Command, STATES, Target, TextureNote};
 use crate::scene::owner::scene;
 use crate::system::find_entry::find_entry;
+use rc2k_core::fatal::Context;
 use std::sync::Mutex;
 
 // ---- game data ----
@@ -698,13 +699,13 @@ pub fn allocate_textures_for(
         Ok(first) => first,
         Err(e) => {
             // The registers the report shows: the original's at the call.
-            let r = Regs {
+            let r = Context {
                 eax: video,
                 ebx: system,
                 ecx: sizes,
                 edx: kind,
                 ebp: mips,
-                ..Regs::default()
+                ..Context::default()
             };
             crate::fatal::raise::refused_in("gfx::allocate_textures", e, &r);
             (video, system)

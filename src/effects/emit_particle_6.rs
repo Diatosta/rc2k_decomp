@@ -145,7 +145,7 @@ pub fn emit_particle_6(
         if !g.passes || next_entry(ring)?.is_none() {
             return Ok(());
         }
-        let e = take_entry(ring, effects, object.word(0x1C)? & 0xFF_FFFF, 6)?;
+        let e = take_entry(ring, effects, object.word(car_word::TAG)? & 0xFF_FFFF, 6)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
         let car = emitting_car(effects)?;
         let m = car.whole()?;
@@ -210,9 +210,9 @@ pub fn emit_particle_6(
         )?;
         put(field::ALPHA, effects.setup.floats.two_fifty_five.bits())?;
         put(field::CAR, effects.kinds.emitter.car.get())?;
-        let size = car.word(0x90)?.wrapping_add(g.rate as u32);
+        let size = car.word(car_word::GATE_BASE)?.wrapping_add(g.rate as u32);
         put(field::SIZE_GOAL, size)?;
-        put(0x6C, car.word(0x88)?)?;
+        put(field::CAR_PACE, car.word(car_word::PACE)?)?;
         put(
             field::SIZE,
             x87::int_times_plus(

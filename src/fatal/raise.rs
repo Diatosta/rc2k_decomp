@@ -10,13 +10,14 @@
 
 use crate::errors::{FatalError, Refused};
 use crate::fatal::state::{CODE, MESSAGE};
-use crate::framework::{Regs, log};
+use crate::framework::log;
+use rc2k_core::fatal::Context;
 
 /// Reports `error` with the registers in `regs` and ends the game the way the original
 /// does: on a thread without a thread slot through the exit path (which shows the report in
 /// a message box), on a slot's thread by entering its routine again. It only returns for a
 /// code without the fatal bit, which nothing in this build has.
-pub fn raise(error: FatalError, regs: &Regs) {
+pub fn raise(error: FatalError, regs: &Context) {
     // None for an empty one, and for one with a NUL inside (a C string could not hold it).
     let message =
         (!error.message.is_empty() && !error.message.contains('\0')).then_some(error.message);
@@ -33,7 +34,7 @@ pub fn raise(error: FatalError, regs: &Regs) {
 /// so that it shows: the game ends with the report, and the log says which function raised
 /// it. If that ever happens where the original would have carried on, the Rust version is
 /// wrong.
-pub fn refused_in(name: &str, reason: impl Into<Refused>, r: &Regs) {
+pub fn refused_in(name: &str, reason: impl Into<Refused>, r: &Context) {
     let error = match reason.into() {
         Refused::BadInput(why) => {
             crate::standalone::finish(&format!("{name} refused: {}", why.0), 1)
@@ -58,7 +59,7 @@ pub fn end(name: &str, reason: impl Into<Refused>) -> ! {
     }
     #[cfg(not(test))]
     {
-        refused_in(name, reason, &Regs::default());
+        refused_in(name, reason, &Context::default());
         crate::standalone::finish(
             &format!("{name}: a fatal error came back from its report"),
             1,

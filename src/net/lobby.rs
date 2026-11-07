@@ -21,9 +21,9 @@
 //! COM objects whose methods note their arguments.
 
 use crate::errors::Refused;
-use crate::framework::Regs;
 use crate::session::{Bytes, Dword};
 use crate::strings::owner::strings;
+use rc2k_core::fatal::Context;
 
 // ---- game data (IDA addresses) ----
 
@@ -191,7 +191,7 @@ pub fn callback_entry(name: &str, ral: u32, rust: impl FnOnce() -> Result<u32, R
                 "{name}: the Rust version raises fatal error {:#x} {:?}",
                 error.code, error.message
             ));
-            let r = Regs::default();
+            let r = Context::default();
             crate::fatal::raise::raise(error, &r);
             r.eax
         }

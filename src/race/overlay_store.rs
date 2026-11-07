@@ -11,7 +11,7 @@ pub struct OverlayBlock {
     pub overlay_part_miles: [Float; 64],
     /// +0x100 (0x6D160C): `dword_6D160C`: the parts' colours/kinds, first view (`race::init_overlay`, `race::frame_draw` COLOUR_BUFFERS, `hud::draw_stage_bar`).
     pub overlay_part_kinds_a: [Dword; 64],
-    /// +0x200 (0x6D170C): `dword_6D170C`: the same, second view (`race::init_overlay`, `hud::draw_stage_bars_1`).
+    /// +0x200 (0x6D170C): `dword_6D170C`: the same, second view (`race::init_overlay`, `hud::draw_stage_bars`).
     pub overlay_part_kinds_b: [Dword; 64],
     /// +0x300 (0x6D180C): `flt_6D180C`: the polygon w factor (`scene::draw_polygon`).
     pub w_factor: Float,

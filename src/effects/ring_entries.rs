@@ -52,6 +52,12 @@ pub mod field {
     pub const ALPHA_FADE: u32 = 0x78;
     /// The ticks of life left.
     pub const LIFE: u32 = 0x84;
+    /// The emitter's tag (`EMITTER.tag`) at the time it was taken.
+    pub const EMITTER_TAG: u32 = 0x08;
+    /// The emitting car's tag (its object's +0x1C, 24 bits), for the draw lists.
+    pub const CAR_TAG: u32 = 0x90;
+    /// The emitting car's +0x88 (its pace), kept by the emitters of kinds 6, 0xD, 0x15.
+    pub const CAR_PACE: u32 = 0x6C;
 }
 
 pub type Entry = [u32; (ENTRY_LEN / 4) as usize];

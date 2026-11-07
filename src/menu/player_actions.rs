@@ -49,7 +49,9 @@ fn with_player(screens: &Screens, f: impl FnOnce(&mut Player)) -> Result<(), Ref
 /// `menu::keep_player_keys`: the keys' table's bindings into the player's.
 pub fn keep_player_keys(menus: &Menus) -> Result<(), Refused> {
     let controls = menus.keys.tables.controls.read();
-    with_player(&menus.screens, |p| p.bindings = controls)
+    with_player(&menus.screens, |p| {
+        p.bindings = rc2k_core::menu::player::ControlsBlock::from_bytes(controls);
+    })
 }
 
 /// `menu::lower_player_40`.

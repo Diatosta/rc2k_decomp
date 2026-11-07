@@ -52,7 +52,7 @@ impl Deferred {
 /// What the program does with a refusal where a Windows callback leaves no way to hand it
 /// on: it ends, saying which function refused and why.
 pub fn refused_here(name: &str, e: impl Into<crate::errors::Refused>) {
-    crate::fatal::raise::refused_in(name, e, &crate::framework::Regs::default());
+    crate::fatal::raise::refused_in(name, e, &rc2k_core::fatal::Context::default());
 }
 
 /// The key table and the device's state, for the core.

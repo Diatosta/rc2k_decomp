@@ -89,7 +89,7 @@ pub struct RaceCar {
     /// `Player.strength` (+0x48).
     pub strength: Dword,
     /// The record's +0x4C: not taken.
-    pub _gap_4c: Dword,
+    pub _unused_4c: Dword,
     /// `Player.bindings` words 0 .. 9 (record +0x50 .. +0x74).
     pub controls_50: [Dword; 9],
     /// The word after them: not copied from the player's record by `race::single_rally` or
@@ -278,7 +278,7 @@ impl RaceState {
                         dead_zone_1: Dword::new(0),
                         dead_zone_2: Dword::new(0xa),
                         strength: Dword::new(0),
-                        _gap_4c: Dword::new(0),
+                        _unused_4c: Dword::new(0),
                         controls_50: [
                             Dword::new(0x200),
                             Dword::new(0x100),
@@ -330,7 +330,7 @@ impl RaceState {
                         dead_zone_1: Dword::new(0),
                         dead_zone_2: Dword::new(0xa),
                         strength: Dword::new(0),
-                        _gap_4c: Dword::new(0),
+                        _unused_4c: Dword::new(0),
                         controls_50: [
                             Dword::new(0x200),
                             Dword::new(0x100),

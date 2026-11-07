@@ -17,11 +17,12 @@
 
 use crate::audio::owner::audio;
 use crate::errors::Refused;
-use crate::framework::{LOG_PATH, Regs, log};
+use crate::framework::{LOG_PATH, log};
 use crate::gfx::owner::gfx;
 use crate::install::outside::Game as Outside;
 use crate::saves::owner::saves;
 use crate::system::owner::system;
+use rc2k_core::fatal::Context;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 
@@ -232,7 +233,7 @@ fn rust(name: &str) {
 
 /// A Rust version's refusal in `start`: a refused input ends the program, a fatal error is
 /// raised.
-fn refused(name: &str, e: Refused, r: &Regs) {
+fn refused(name: &str, e: Refused, r: &Context) {
     crate::fatal::raise::refused_in(name, e, r);
 }
 
@@ -254,7 +255,7 @@ fn start() {
     let menus = crate::menu::owner::menus();
     let system = system();
     let gfx = gfx();
-    let r = Regs::default();
+    let r = Context::default();
     crate::menu::players_store::point_players(menus);
     // Font 56's palette: the image names the palette sheet (`gfx::build_fonts` hangs the rest).
     gfx.fonts.typefaces.objects[56]

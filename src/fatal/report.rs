@@ -26,12 +26,10 @@
 
 use crate::errors::BadInput;
 use crate::fatal::state::{CAPTION, CODE, EXTRA, REPORTED, TEMPLATE, TEXT, W32};
-use crate::framework::{Regs, log};
+use crate::framework::log;
 use crate::threading::find_thread_slot::find_thread_slot;
 use crate::threading::request_quit::request_quit;
 use std::sync::atomic::Ordering;
-
-const _: () = assert!(size_of::<Regs>() == 36);
 
 // ---- game data ----
 
@@ -100,18 +98,7 @@ pub fn report(context: &Context, outside: &mut Outside) -> Result<Leave, BadInpu
 /// as the original's two ways out end it: with no thread slot the program at `start`'s way
 /// out, on a slot's thread its routine (the Rust version) run again, which finds the game
 /// quitting, and the thread ended.
-pub fn report_now(r: &Regs) {
-    let context = Context {
-        eax: r.eax,
-        ebx: r.ebx,
-        ecx: r.ecx,
-        edx: r.edx,
-        esi: r.esi,
-        edi: r.edi,
-        esp: r.esp,
-        ebp: r.ebp,
-        flags: r.eflags,
-    };
+pub fn report_now(context: &Context) {
     log(&format!(
         "fatal::report: thread {}",
         crate::sync::thread_id()
@@ -126,7 +113,7 @@ pub fn report_now(r: &Regs) {
         thread_slot: &find_thread_slot,
     };
     let code = CODE.get();
-    match report(&context, &mut outside) {
+    match report(context, &mut outside) {
         Ok(Leave::Return) => {}
         Ok(Leave::Exit) => crate::standalone::finish(
             &format!("fatal error {code:#x}: the game's way out (`start`, 0x4010EE)"),

@@ -1,9 +1,9 @@
 //! `hud::layout_1` (0x4B2743): the HUD of layout 1, two players side by side (the record's
 //! +0xF8 flags the first's, +0xFC the second's): the dials (`dials::DISC_1A` / `_1B`), a
-//! black divider, the stage bars (`hud::draw_stage_bars_1`), the cut calls (`sub_4B6A78` /
-//! `sub_4B6A83`: ecx 1 / 4 and an empty function), the icons (`hud::icons_1`), each
+//! black divider, the stage bars (`hud::draw_stage_bars`), the cut calls (`sub_4B6A78` /
+//! `sub_4B6A83`: ecx 1 / 4 and an empty function), the icons (`hud::icons`), each
 //! player's sprites scaled 0xC0 over `flt_75C00C` (`hud::add_scaled_sprite`), the markers
-//! (`hud::draw_markers_1`), signs (`draw_signs::LAYOUT_1A` / `_1B`), needles
+//! (`hud::draw_markers`), signs (`draw_signs::LAYOUT_1A` / `_1B`), needles
 //! (`dials::NEEDLE_1A` / `_1B`), each player's time with its leading digits left out, the
 //! four clocks (`dword_75C074`, `dword_75C078`, `dword_75C080`, `dword_75C084`, by the
 //! first player's flag 0x40 and +0x28), and each player's lap panel (+0x1C / +0x4C,
@@ -11,7 +11,7 @@
 //! original.
 
 use crate::errors::Refused;
-use crate::hud::draw_markers_1::{int_over_80, taken_off};
+use crate::hud::draw_markers::{int_over_80, taken_off};
 use crate::hud::draw_signs::row;
 use crate::hud::layout_0::*;
 use crate::hud::owner::Hud;
@@ -71,12 +71,12 @@ pub fn layout_1(frame: &Frame, hud: &Hud, record: GamePtr) -> Result<(), Refused
     }
     add_solid_quad::add_solid_quad(frame, hud)?;
     if f1 & 0x40 != 0 {
-        draw_stage_bars_1::draw_stage_bars_1(frame, hud)?;
+        draw_stage_bars::draw_stage_bars(frame, hud, 0)?;
     }
     hud.block.quad[5].set(0xFFFF_FFFF);
     hud.block.quad[0].set(0xFF);
     hud.block.texture.set(0xDC);
-    icons_1::icons_1(frame, hud, record)?;
+    icons::icons(frame, hud, record, &icons::LAYOUT_1)?;
     hud.block.quad[5].set(0xFFFF_FFFF);
     hud.block.quad[0].set(0xFF);
     hud.block.texture.set(0xC1);
@@ -129,7 +129,7 @@ pub fn layout_1(frame: &Frame, hud: &Hud, record: GamePtr) -> Result<(), Refused
         scaled(frame, hud, 0x5F, 0x2A7, 0x1DE)?;
     }
     if f1 & 0x40 != 0 {
-        draw_markers_1::draw_markers_1(frame, hud, record)?;
+        draw_markers::draw_markers(frame, hud, record, draw_markers::MARKER_ROWS_1)?;
     }
     hud.block.quad[5].set(0xFFFF_FFFF);
     if f1 & 0x80 != 0 {

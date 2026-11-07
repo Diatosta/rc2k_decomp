@@ -88,25 +88,9 @@ pub fn log(msg: &str) {
     }
 }
 
-/// The registers of a place in the original (`pushad` order and the flags): what a
-/// fatal error's report shows.
-#[repr(C)]
-#[derive(Copy, Clone, Default)]
-pub struct Regs {
-    pub edi: u32,
-    pub esi: u32,
-    pub ebp: u32,
-    pub esp: u32,
-    pub ebx: u32,
-    pub edx: u32,
-    pub ecx: u32,
-    pub eax: u32,
-    pub eflags: u32,
-}
-
 /// The carry and zero flags a function leaves, for Rust callers that still read them
 /// (conversion phase 3: a function whose callers hold registers returns these, and they
-/// go into the callers' `Regs` with `apply`).
+/// go into the callers' registers with `apply`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Flags {
     pub carry: bool,

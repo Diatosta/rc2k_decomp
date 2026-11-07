@@ -7,7 +7,7 @@
 //! In:  ebp the record, edi the entry's offset, ebx the top
 //! Out: ebx the bottom, edx the colour, esi the left, edi the right (kept when none)
 //!
-//! Callers: `hud::icons_0`, `hud::icons_1`, `hud::icons_2`.
+//! Callers: `hud::icons`.
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::errors::Refused;

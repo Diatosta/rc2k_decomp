@@ -3,7 +3,7 @@
 //! stage bar (`hud::draw_stage_bar`), the marker (`hud::draw_marker`) and the two time
 //! panels (sprite 0x29 + the record's +0x28 / +0x30 held to 0 .. 0x16, the times
 //! `dword_75C074` / `dword_75C078` as digits); 8 the cut call (`sub_4B6A6D`: ecx 0 and an
-//! empty function); always the icons (`hud::icons_0`); 0x20 two sprites (the second by the
+//! empty function); always the icons (`hud::icons`); 0x20 two sprites (the second by the
 //! record's +0x18) and the time +0x14 with its leading digits left out while they are 0;
 //! 1 the sign by +0xCC (also into `dword_75BFAC`) and the needle (`dials::NEEDLE_0`); 0x80
 //! the signs (`draw_signs::LAYOUT_0`); 2 the time +0x1C's last two digits, two sprites and the
@@ -118,7 +118,7 @@ pub fn layout_0(frame: &Frame, hud: &Hud, record: GamePtr) -> Result<(), Refused
     hud.block.quad[5].set(0xFFFF_FFFF);
     hud.block.quad[0].set(0xFF);
     hud.block.texture.set(0xDC);
-    icons_0::icons_0(frame, hud, record)?;
+    icons::icons(frame, hud, record, &icons::LAYOUT_0)?;
     hud.block.quad[5].set(0xFFFF_FFFF);
     hud.block.quad[0].set(0xFF);
     hud.block.texture.set(0xC1);
