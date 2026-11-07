@@ -49,7 +49,7 @@ pub fn free_list(list: crate::pointers::GamePtr) -> Result<(), BadInput> {
     let mut block = l.emptied();
     at.write(l, "a memory list")?;
     while block != 0 {
-        // The block is the system's, taken by `allocate`; its first dword the next.
+        // The block is the system's, a block id; its first dword the next one's id.
         let before = crate::memory::pages::block(block)?.read::<u32>("a block's header")?;
         crate::memory::pages::give_back(block)?;
         block = before;

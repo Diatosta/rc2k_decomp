@@ -23,7 +23,7 @@ pub const NO_MEMORY: FatalError = FatalError {
 
 // ---- Rust version ----
 
-/// The memory, 0 for 0 bytes.
+/// The memory's block id (`pages::BLOCK_TAG`, not an address), 0 for 0 bytes.
 pub fn virtual_alloc(bytes: u32) -> Result<u32, Refused> {
     if bytes == 0 {
         return Ok(0);
