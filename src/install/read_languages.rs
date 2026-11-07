@@ -25,7 +25,7 @@ use rc2k_core::install::config;
 
 pub fn read_languages(
     g: &'static crate::install::owner::Install,
-    path: crate::pointers::GamePtr,
+    path: impl crate::files::handle::GamePath,
 ) -> Result<(), BadInput> {
     {
         let Some((text, _)) = read_text(path)? else {
@@ -34,14 +34,14 @@ pub fn read_languages(
         // Converted: `rc2k_core::install::config` (`find_languages`, its keys as constants;
         // `keep_languages`). Found first, stored after (`sub_4139AB`).
         let found = config::find_languages(&text.bytes("the languages' text")?, &case_table())?;
-        let all = crate::pointers::GamePtr::to(&g.names.languages);
-        let mut slots = all.read_bytes(LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;
+        let all = &g.names.languages;
+        let mut slots = all.read_at(0, LANGUAGE_SLOT * LANGUAGE_SLOTS, "the languages' slots")?;
         for (slot, value) in found {
             let at = slot * LANGUAGE_SLOT;
             slots[at..at + value.len()].copy_from_slice(&value);
             slots[at + value.len()] = 0;
         }
-        all.write_bytes(&slots, "the languages' slots")?;
+        all.write_at(0, &slots, "the languages' slots")?;
         let kept = config::keep_languages(&mut slots);
         g.names.language_count.set(kept);
         choose_language(g, 1)

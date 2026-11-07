@@ -29,10 +29,10 @@ pub fn copy_received(vars: &NetVars) -> Result<(), Refused> {
     let mut player = 0u32;
     loop {
         // Converted: `rc2k_core::net::inbox::hand_over`, on the inbox and its copy.
-        let at = vars.player_block(player).inbox();
-        let mut both = at.read_bytes(2 * inbox::COPIED, "a player's inbox")?;
+        let at = vars.player_block(player);
+        let mut both = at.read_inbox(2 * inbox::COPIED)?;
         inbox::hand_over(&mut both);
-        at.write_bytes(&both, "a player's inbox")?;
+        at.write_inbox(&both)?;
         player += 1;
         if player >= count() {
             break;

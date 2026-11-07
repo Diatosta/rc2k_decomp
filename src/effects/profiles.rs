@@ -7,7 +7,6 @@ use crate::effects::owner::effects;
 use crate::effects::paths::Paths;
 use crate::errors::{BadInput, Refused};
 use crate::math::x87;
-use crate::pointers::GamePtr;
 use crate::race::owner_course::Course;
 use crate::session::Dword;
 
@@ -134,7 +133,7 @@ pub fn make_profiles(course: &Course, paths: &Paths, resume: u32) -> Result<(), 
             CORNERS_LEN,
             "the course corners",
         )?;
-        GamePtr::to(&effects.blocks.corners.corners).write_bytes(&corners, "the course corners")?;
+        crate::pointers::Store::store(&effects.blocks.corners, 0, &corners)?;
         crate::effects::blocks::allocate_links()?;
         crate::effects::blocks::reset_settings_blocks()?;
     }

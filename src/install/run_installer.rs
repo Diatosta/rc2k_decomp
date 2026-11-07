@@ -42,7 +42,7 @@ pub fn run_installer(g: &'static crate::install::owner::Install) -> Result<(), R
         crate::install::page_links::PageLink::of_ida(0x95EBF8).raw(),
     );
     crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
-    i::read_languages::read_languages(g, crate::pointers::GamePtr::to(&g.names.lang_cfg))?;
+    i::read_languages::read_languages(g, &g.names.lang_cfg.text()[..])?;
     { crate::gfx::build_fonts::build_fonts() }?;
     i::open_installer::open_installer(g)?;
     // From the command line: the install, and on past the pages (`jmp loc_412EDC`).
@@ -76,7 +76,7 @@ pub fn run_installer(g: &'static crate::install::owner::Install) -> Result<(), R
         if g.run.same_version.get() == 1 {
             g.pages.record_flag.set(1);
             set_cd(&g.paths.installed);
-            i::read_record::read_record(crate::pointers::GamePtr::to(&g.texts.record_path))?;
+            i::read_record::read_record(&g.texts.record_path.text()[..])?;
             crate::install::installer::wb(crate::files::state::base_directory_place(), 0);
             set_cd(&g.paths.game_dir);
             load_language()?;

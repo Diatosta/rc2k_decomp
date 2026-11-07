@@ -22,7 +22,6 @@ use crate::logfile::log_int::log_int;
 use crate::net::send_inputs::fields;
 use crate::net::store::NetVars;
 use crate::physics::car_store::Car;
-use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::session::Dword;
 use rc2k_core::net::race::{self, Arrival, Kind};
@@ -60,12 +59,24 @@ fn note_unbelievable(player: u32) {
     }
 }
 
+/// The dword at byte `at` of the message.
+fn word_at(message: &[u8], at: usize) -> Result<u32, BadInput> {
+    let word = message
+        .get(at..at + 4)
+        .ok_or(BadInput("a received message"))?;
+    Ok(u32::from_le_bytes([word[0], word[1], word[2], word[3]]))
+}
+
 /// The Rust version.
-pub fn apply_message(vars: &NetVars, player: u32, message: GamePtr) -> Result<(), BadInput> {
+pub fn apply_message(vars: &NetVars, player: u32, message: &[u8]) -> Result<(), BadInput> {
     let race = race();
     log_int(vars.player.get() as i32, false, 1);
     log_int(race.shared.view.local_car.get() as i32, false, 1);
-    log_int(message.read::<u8>("a received message")? as i32, false, 1);
+    log_int(
+        *message.first().ok_or(BadInput("a received message"))? as i32,
+        false,
+        1,
+    );
     crate::logfile::log_write::log_nul(&TEXT, false, 1);
     log_int(player as i32, true, 1);
     if player >= 8 {
@@ -74,13 +85,13 @@ pub fn apply_message(vars: &NetVars, player: u32, message: GamePtr) -> Result<()
     let block = race.shared.work.car_block(player as usize);
     // The block is looked up after the message is read and believed: a null one refuses
     // at the first write, as the original's.
-    let Some(kind) = Kind::of(message.read("a received message")?) else {
+    let Some(kind) = Kind::of(word_at(message, 0)?) else {
         return Ok(());
     };
     let table = fields(kind);
     let mut values = Vec::with_capacity(table.len());
     for n in 0..table.len() as u32 {
-        values.push(message.offset(4 + 4 * n).read("a received message")?);
+        values.push(word_at(message, 4 + 4 * n as usize)?);
     }
     if !race::believable(table.iter().map(|&(_, limit)| limit), &values) {
         note_unbelievable(player);
@@ -121,6 +132,7 @@ pub fn apply_message(vars: &NetVars, player: u32, message: GamePtr) -> Result<()
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pointers::GamePtr;
 
     /// The places sit where the core's constants put them in the car's block.
     #[test]

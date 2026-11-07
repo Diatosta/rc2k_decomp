@@ -48,3 +48,18 @@ pub fn read_file_into(
         offset,
     )?)
 }
+
+/// `read_file` into a store's field from its first byte.
+#[track_caller]
+pub fn read_file_to_store(
+    path: impl GamePath,
+    to: &dyn crate::pointers::Store,
+    count: u32,
+    offset: u32,
+) -> Result<ReadResult, BadInput> {
+    let mut into = vec![0u8; count as usize];
+    to.load(0, &mut into)?;
+    let result = rc2k_core::files::io::read_file(&mut GameFiles::new(), path, &mut into, offset)?;
+    to.store(0, &into)?;
+    Ok(result)
+}

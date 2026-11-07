@@ -33,10 +33,7 @@ pub fn write_record(g: &'static crate::install::owner::Install) -> Result<bool, 
     );
     start.write(&text, "the install record's text")?;
     // files::write_file
-    let written = crate::files::write_file::write_file(
-        crate::pointers::GamePtr::to(&g.texts.record_path),
-        start.game_ptr(),
-        text.len() as u32,
-    )?;
+    let written =
+        crate::files::write_file::write_file_from(&g.texts.record_path.text()[..], &text)?;
     Ok(written.ok)
 }

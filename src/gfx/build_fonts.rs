@@ -28,7 +28,7 @@ use crate::gfx::glyph_tables::{
     begin_glyph_table, begin_glyph_tables, end_glyph_tables, palette_to_pixels,
 };
 use crate::memory::take_from_list::{rewind_list, take_from_list};
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 use crate::session::Dword;
 use crate::system::owner::system;
 
@@ -239,11 +239,10 @@ fn tables(vars: &SheetVars, palettes: &Dword) -> Result<(), Refused> {
     build_glyphs(vars, &crate::gfx::texts::PAL_00, list)?;
     gfx.fonts.menu_fonts.font27_glyphs.set(vars.table.get());
     palette_to_pixels(palettes.get())?;
-    GamePtr::to(&gfx.pictures.decoder.palette).copy_to(
-        GamePtr::to(&gfx.fonts.menu_fonts.palette_sheet),
-        PALETTE_BYTES,
-        "the fonts' palette sheet",
-    )?;
+    // The palette sheet is a copy of the decoder's palette (256 dwords).
+    let mut palette = [0u8; PALETTE_BYTES];
+    gfx.pictures.decoder.palette.load(0, &mut palette)?;
+    gfx.fonts.menu_fonts.palette_sheet.store(0, &palette)?;
     for (sheet, kept) in font_sheets() {
         begin_glyph_table(vars, list)?;
         build_glyphs(vars, sheet, list)?;

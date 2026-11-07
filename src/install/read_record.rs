@@ -21,7 +21,7 @@ use rc2k_core::install::config;
 
 // ---- Rust version ----
 
-pub fn read_record(path: crate::pointers::GamePtr) -> Result<(), BadInput> {
+pub fn read_record(path: impl crate::files::handle::GamePath) -> Result<(), BadInput> {
     {
         let Some((text, _)) = read_text(path)? else {
             return Ok(());

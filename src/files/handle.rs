@@ -147,23 +147,26 @@ pub fn write_cells(file: u32, cells: &[crate::session::Dword]) -> (u32, bool) {
     write_slice(file, &bytes)
 }
 
-/// `read` into the game's memory at `to` (checked); a read that gets more than the memory
-/// holds is refused before anything is written.
-pub fn read_to(file: u32, to: GamePtr, count: u32, what: &str) -> Result<(u32, bool), BadInput> {
+/// `read_to` into a store's field from its first byte (no address between).
+pub fn read_into_store(
+    file: u32,
+    to: &dyn crate::pointers::Store,
+    count: u32,
+) -> Result<(u32, bool), BadInput> {
     let mut bytes = vec![0u8; count as usize];
     let (got, ok) = read_slice(file, &mut bytes);
-    to.write_bytes(&bytes[..got as usize], what)?;
+    to.store(0, &bytes[..got as usize])?;
     Ok((got, ok))
 }
 
-/// `write` from the game's memory at `from` (checked).
-pub fn write_from(
+/// `write_from` the first `count` bytes of a store's field.
+pub fn write_from_store(
     file: u32,
-    from: GamePtr,
+    from: &dyn crate::pointers::Store,
     count: u32,
-    what: &str,
 ) -> Result<(u32, bool), BadInput> {
-    let bytes = from.read_bytes(count as usize, what)?;
+    let mut bytes = vec![0u8; count as usize];
+    from.load(0, &mut bytes)?;
     Ok(write_slice(file, &bytes))
 }
 

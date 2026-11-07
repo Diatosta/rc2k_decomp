@@ -14,16 +14,15 @@ use crate::net::add_chat_line::add_chat_line;
 use crate::net::dplay_send::dplay_send;
 use crate::net::owner::Net;
 use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
-use crate::pointers::GamePtr;
 
 /// The Rust version.
-pub fn send_chat(net: &Net, player: u32, message: GamePtr) -> Result<(), Refused> {
+pub fn send_chat(net: &Net, player: u32, message: &[u8]) -> Result<(), Refused> {
     lock_received(&net.vars);
     add_chat_line(net, player, message)?;
     unlock_received(&net.vars);
-    let text = crate::files::cstring(message, "a chat line")?;
+    let text = crate::net::add_chat_line::text_in(message)?;
     let mut line = vec![b'"'];
-    line.extend_from_slice(&text);
+    line.extend_from_slice(text);
     net.vars.send_buffer.write_at(0, &line, "the send buffer")?;
     dplay_send(&net.vars, net.vars.send_to.get(), &line);
     Ok(())

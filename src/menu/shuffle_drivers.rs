@@ -12,8 +12,10 @@
 //! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::menus;
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 use crate::session::Dword;
+
+const DRIVER_LEN: usize = 0x94;
 
 /// The four classes' first drivers (`g_drivers` + 90, + 140, + 170, + 0) and counts.
 const TABLES: [(usize, &Dword); 4] = [
@@ -41,20 +43,18 @@ pub fn shuffle_drivers() -> Result<(), Refused> {
     if TABLES.iter().any(|&(_, c)| c.get() == 0) {
         return Err(BadInput("a driver table count of 0").into());
     }
-    let [t1, t2] = [
-        GamePtr::to(&menus.cars.numbers.shuffle_a),
-        GamePtr::to(&menus.cars.numbers.shuffle_b),
-    ];
     for &(table, count) in &TABLES {
-        let first = GamePtr::to(&menus.cars.drivers.drivers[table]);
+        let first = &menus.cars.drivers.drivers[table];
         let n = count.get();
         for _ in 0..n {
             menus.screens.draw_work.figure.set(random_below(n)?);
             menus.screens.draw_work.hhmm.set(random_below(n)?);
-            first.copy_to(t1, 0x94, "a driver")?;
-            first.copy_to(t2, 0x94, "a driver")?;
-            t1.copy_to(first, 0x94, "a driver")?;
-            t2.copy_to(first, 0x94, "a driver")?;
+            // The first entry through both scratch records and back (both left holding it).
+            let mut driver = [0; DRIVER_LEN];
+            first.load(0, &mut driver)?;
+            menus.cars.numbers.shuffle_a.store(0, &driver)?;
+            menus.cars.numbers.shuffle_b.store(0, &driver)?;
+            first.store(0, &driver)?;
         }
     }
     Ok(())

@@ -8,17 +8,17 @@
 //! (`sub_482382` and four more).
 use crate::menu::owner::menus;
 use crate::menu::results_store::Results;
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 
 const RUN_DWORDS: usize = 28;
 
 pub fn clear_event_state() -> Result<(), crate::errors::BadInput> {
     let menus = menus();
-    let what = "the event\'s figures";
-    GamePtr::to(&menus.screens.event.stages_done).fill(0, 4, what)?;
-    GamePtr::to(&menus.play.results.round).fill(0, 4, what)?;
-    GamePtr::to(&menus.play.results)
-        .offset(std::mem::offset_of!(Results, time_bonus) as u32)
-        .fill(0, RUN_DWORDS * 4, what)?;
+    menus.screens.event.stages_done.store(0, &[0; 4])?;
+    menus.play.results.round.store(0, &[0; 4])?;
+    menus.play.results.store(
+        std::mem::offset_of!(Results, time_bonus),
+        &[0; RUN_DWORDS * 4],
+    )?;
     Ok(())
 }

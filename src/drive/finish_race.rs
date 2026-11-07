@@ -12,7 +12,6 @@
 
 use crate::drive::race_parts::log_line;
 use crate::errors::{BadInput, Refused};
-use crate::pointers::GamePtr;
 use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::marks_settings_store::MARKS_SETTINGS;
 use crate::race::owner::RACE;
@@ -65,9 +64,7 @@ fn set_up() -> Result<(), BadInput> {
             Set::Var(x) => var(x).set(v),
             // Car block 0 (0x70F3EC) + o.
             Set::Lead(o) => {
-                GamePtr::to(&CAR_BLOCKS.cars[0])
-                    .offset(o)
-                    .write(v, "a car's block")?;
+                crate::pointers::Store::store(&CAR_BLOCKS.cars[0], o as usize, &v.to_le_bytes())?;
             }
         }
     }

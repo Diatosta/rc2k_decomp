@@ -18,7 +18,6 @@ use crate::net::choose_connection::list_move;
 use crate::net::lobby::{list_key, other_key, run_frame};
 use crate::net::owner::Net;
 use crate::net::tables::with_session;
-use crate::pointers::GamePtr;
 use crate::system::owner::system;
 use rc2k_core::net::screens::{self, ListKey};
 
@@ -45,7 +44,7 @@ fn refresh(net: &Net) -> Result<bool, Refused> {
     if listed != 0 && net.vars.sessions.get() != 0 {
         let mut n = 0;
         loop {
-            let joined = GamePtr::to(&net.vars.joined).read::<[u8; 16]>("the joined session")?;
+            let joined = net.vars.joined.read();
             // `system::same_guid`: the four dwords alike.
             if with_session(n, |s| s.instance)? == joined {
                 // Converted: `rc2k_core::net::screens` (`keeps_top`, `moved_top`).

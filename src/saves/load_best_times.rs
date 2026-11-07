@@ -14,8 +14,7 @@
 //! One caller, `sub_411239`. Refuses what `resolve_path` and `allocate_best_times` refuse.
 
 use crate::errors::{BadInput, Refused};
-use crate::files::handle::{close, open_by_mode, read_to};
-use crate::pointers::GamePtr;
+use crate::files::handle::{close, open_by_mode};
 use crate::saves::allocate_best_times::allocate_best_times;
 use crate::saves::owner::saves;
 use crate::system::owner::system;
@@ -39,8 +38,8 @@ const READ: [usize; 6] = [1, 2, 3, 4, 7, 8];
 // ---- Rust version ----
 
 /// Reads exactly `count` bytes into `to`, or closes the file and says false.
-fn read_or_close(file: u32, to: GamePtr, count: u32) -> Result<bool, BadInput> {
-    let (got, ok) = read_to(file, to, count, "the best times file's data")?;
+fn read_or_close(file: u32, to: &dyn crate::pointers::Store, count: u32) -> Result<bool, BadInput> {
+    let (got, ok) = crate::files::handle::read_into_store(file, to, count)?;
     if !ok || got != count {
         close(file);
         return Ok(false);
@@ -59,12 +58,12 @@ pub fn load_game_best_times() -> Result<bool, Refused> {
     let Some(file) = open_by_mode(&PATH[..PATH_LEN], 0)? else {
         return Ok(false);
     };
-    let scratch = GamePtr::to(&system.work.files.buffer);
+    let scratch = &system.work.files.buffer;
     if !read_or_close(file, scratch, HEAD_LEN)? {
         return Ok(false);
     }
     // Converted: `rc2k_core::saves::kept::head_ok`.
-    let head = scratch.read_bytes(HEAD_LEN as usize, "the best times file's head")?;
+    let head = scratch.read_at(0, HEAD_LEN as usize, "the best times file's head")?;
     if !rc2k_core::saves::kept::head_ok(&head, rc2k_core::saves::kept::BEST_TIMES) {
         // The file stays open, as in the original.
         return Ok(false);

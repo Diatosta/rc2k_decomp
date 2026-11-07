@@ -11,11 +11,7 @@ use crate::net::owner::Net;
 use crate::net::{lock_received::lock_received, unlock_received::unlock_received};
 
 /// The Rust version.
-pub fn chat_line_locked(
-    net: &Net,
-    player: u32,
-    message: crate::pointers::GamePtr,
-) -> Result<(), Refused> {
+pub fn chat_line_locked(net: &Net, player: u32, message: &[u8]) -> Result<(), Refused> {
     lock_received(&net.vars);
     add_chat_line(net, player, message)?;
     unlock_received(&net.vars);

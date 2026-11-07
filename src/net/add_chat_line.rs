@@ -16,7 +16,6 @@
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::Net;
 use crate::net::owner::net;
-use crate::pointers::GamePtr;
 use crate::session::Bytes;
 use crate::text::draw_text::GameCanvas;
 use crate::text::measure_text::measure_text_at;
@@ -53,16 +52,22 @@ fn said_text(name: &[u8], message: &[u8]) -> Vec<u8> {
     text
 }
 
+/// The text in `bytes`, up to its NUL (refused when none ends it).
+pub fn text_in(bytes: &[u8]) -> Result<&[u8], BadInput> {
+    bytes
+        .iter()
+        .position(|&b| b == 0)
+        .map(|end| &bytes[..end])
+        .ok_or(BadInput("a text without its end in its block"))
+}
+
 /// The Rust version.
-pub fn add_chat_line(net: &Net, player: u32, message: GamePtr) -> Result<(), Refused> {
-    if message.read::<u8>("the chat's text")? == 0 {
+pub fn add_chat_line(net: &Net, player: u32, message: &[u8]) -> Result<(), Refused> {
+    let message = text_in(message)?;
+    if message.is_empty() {
         return Ok(());
     }
-    let length = crate::strings::text_length::nul_at(message, "the chat's text")?;
-    let text = said_text(
-        &net.vars.player_block(player).name.text(),
-        &message.read_bytes(length as usize, "the chat's text")?,
-    );
+    let text = said_text(&net.vars.player_block(player).name.text(), message);
     net.vars.chat_text.write_at(0, &text, "the chat's text")?;
     let (line, chat, said) = (&net.vars.chat_line, &net.vars.chat, &net.vars.chat_text);
     let mut text = 0usize;

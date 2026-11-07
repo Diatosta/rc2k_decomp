@@ -362,19 +362,11 @@ pub fn components_to_pixels(
     let what = "a pixel format";
     let format = crate::gfx::pixel_format::surface_format()
         .unwrap_or_else(|e| crate::fatal::raise::end(what, e));
-    let (from, to) = (
-        crate::pointers::GamePtr::to(from),
-        crate::pointers::GamePtr::to(to),
-    );
-    for n in 0..0x100u32 {
-        let components = from
-            .offset(4 * n)
-            .read::<u32>("an installer dword")
-            .unwrap_or_else(|e| refuse(e));
-        let pixel = crate::gfx::components_to_pixel::components_to_pixel(&format, components);
-        to.offset(4 * n)
-            .write(pixel, "an installer dword")
-            .unwrap_or_else(|e| refuse(e));
+    for (from, to) in from.iter().zip(to) {
+        to.set(crate::gfx::components_to_pixel::components_to_pixel(
+            &format,
+            from.get(),
+        ));
     }
 }
 

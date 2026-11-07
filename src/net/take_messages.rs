@@ -47,8 +47,8 @@ fn get8(vars: &NetVars, at: usize) -> Result<u8, BadInput> {
 }
 
 /// The received message from its byte 1 on.
-fn after_first(vars: &NetVars) -> crate::pointers::GamePtr {
-    crate::pointers::GamePtr::to(&vars.receive_data).offset(1)
+fn after_first(vars: &NetVars, length: usize) -> Result<Vec<u8>, BadInput> {
+    vars.receive_data.read_at(1, length, "a received message")
 }
 
 /// The Rust version.
@@ -106,7 +106,7 @@ pub fn take_messages(net: &Net) -> Result<(), Refused> {
                 net.vars
                     .receive_data
                     .set((m.size as usize).min(ROOM as usize - 1), 0);
-                chat_line_locked(net, player, after_first(&net.vars))?;
+                chat_line_locked(net, player, &after_first(&net.vars, ROOM as usize - 1)?)?;
             }
             Kind::Call { reply, ready } => {
                 if !messages::answers_call(round()?, own_state) {
@@ -139,7 +139,12 @@ pub fn take_messages(net: &Net) -> Result<(), Refused> {
                 }
                 let time = crate::system::tick_count::tick_count();
                 lock_received(&net.vars);
-                store_received(first, block, time, after_first(&net.vars), length)?;
+                store_received(
+                    first,
+                    block,
+                    time,
+                    &after_first(&net.vars, length as usize)?,
+                )?;
                 unlock_received(&net.vars);
             }
             Kind::Other => {}

@@ -13,7 +13,7 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Play;
-use crate::pointers::GamePtr;
+use crate::pointers::{GamePtr, Store};
 use crate::strings::rot13_into_text::rot13_into_text;
 use rc2k_core::strings::bytes::Bytes;
 
@@ -23,7 +23,8 @@ const HIDDEN_NAME: u32 = 0x18F;
 /// The list's entry and the cheat's bit for the coded name in the text buffer, if it is in
 /// the list.
 fn find(play: &Play, coded: GamePtr) -> Result<Option<(u32, u32)>, Refused> {
-    let list = GamePtr::to(&play.cheats.cheat_names);
+    let mut list = vec![0; play.cheats.cheat_names.size()];
+    play.cheats.cheat_names.load(0, &mut list)?;
     let text = coded.bytes("a coded name")?;
     let coded: Vec<u8> = (0..)
         .map_while(|n| text.byte(n))
@@ -31,7 +32,7 @@ fn find(play: &Play, coded: GamePtr) -> Result<Option<(u32, u32)>, Refused> {
         .collect();
     // Converted: `rc2k_core::menu::cheat_names::find`.
     let found = rc2k_core::menu::cheat_names::find(
-        &list.bytes("the cheat names")?,
+        &list,
         &coded,
         &crate::strings::same_text::case_table(),
     )?;

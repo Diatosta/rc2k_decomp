@@ -29,11 +29,12 @@ pub fn apply_received(vars: &NetVars) -> Result<(), Refused> {
         let block = vars.player_block(player);
         let mut left = block.copied_count.get();
         if left != 0 {
-            let mut record = crate::pointers::GamePtr::to(&block.copied);
+            let mut at = 0;
             loop {
                 // The inbox records are 0x100 bytes each, message bytes from +2.
-                apply_message(vars, player, record.offset(2).limited(0xFE))?;
-                record = record.offset(0x100);
+                let message = block.copied.read_at(at + 2, 0xFE, "a received message")?;
+                apply_message(vars, player, &message)?;
+                at += 0x100;
                 left = left.wrapping_sub(1);
                 if left == 0 {
                     break;

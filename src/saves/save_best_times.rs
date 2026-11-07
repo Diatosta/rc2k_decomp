@@ -11,8 +11,7 @@
 //! `resolve_path` refuses.
 
 use crate::errors::Refused;
-use crate::files::handle::{close, open_by_mode, write_from};
-use crate::pointers::GamePtr;
+use crate::files::handle::{close, open_by_mode};
 use crate::saves::owner::saves;
 use crate::system::owner::system;
 use crate::system::packed_local_time::packed_local_time;
@@ -46,8 +45,7 @@ pub fn in_game() -> Result<bool, Refused> {
     else {
         return Ok(false);
     };
-    let scratch = GamePtr::to(&system.work.files.buffer);
-    write_from(file, scratch, HEAD_LEN, "the best times file's head")?;
+    crate::files::handle::write_from_store(file, &system.work.files.buffer, HEAD_LEN)?;
     for table in WRITTEN {
         let bytes = crate::saves::best_times::typed(table).bytes()?;
         crate::files::handle::write_slice(file, &bytes);

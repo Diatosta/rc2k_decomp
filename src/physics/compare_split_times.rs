@@ -61,8 +61,6 @@ pub fn compare_split_times(race: &Race) -> Result<(), Refused> {
     // From the record's data on, and no further than the record.
     let at = std::mem::offset_of!(crate::race::state_store::RaceResult, data)
         + 4 * race.shared.car.splits_recorded.get() as usize;
-    crate::pointers::GamePtr::to(times)
-        .offset(at as u32)
-        .write(time, "a result's split times")?;
+    crate::pointers::Store::store(times, at, &time.to_le_bytes())?;
     Ok(())
 }

@@ -70,8 +70,8 @@ pub fn note(race: &Race) -> Result<(), BadInput> {
     for car in 0..race.shared.view.race_cars.get().min(4) as usize {
         // g_carBlockStore: four blocks of 0xFE0.
         let block = &CAR_BLOCKS.cars[car];
-        let bytes =
-            crate::pointers::GamePtr::to(block).read_bytes(4 * CAR_DWORDS, "a car's block")?;
+        let mut bytes = vec![0u8; 4 * CAR_DWORDS];
+        crate::pointers::Store::load(block, 0, &mut bytes)?;
         let h = hash(
             bytes
                 .as_chunks::<4>()

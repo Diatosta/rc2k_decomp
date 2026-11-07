@@ -9,7 +9,7 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::files::read_file::read_file;
+use crate::files::read_file::read_file_to_store;
 use crate::pointers::GamePtr;
 use crate::settings::TEXT_ROOM;
 use crate::system::owner::system;
@@ -24,7 +24,7 @@ pub fn read_text(
     let system = system();
     {
         let text = GamePtr::to(&system.work.files.buffer);
-        let read = read_file(path, GamePtr::to(&system.work.files.buffer), TEXT_ROOM, 0)?;
+        let read = read_file_to_store(path, &system.work.files.buffer, TEXT_ROOM, 0)?;
         // Converted: `rc2k_core::files::settings::text_read`.
         let Some(bytes) = rc2k_core::files::settings::text_read(read.ok, read.bytes_read) else {
             return Ok(None);

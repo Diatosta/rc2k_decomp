@@ -54,9 +54,7 @@ impl Outside for Game {
     }
 
     fn read_record(&mut self) -> Result<(), BadInput> {
-        read_record(crate::pointers::GamePtr::to(
-            &crate::install::owner::install().texts.record_path,
-        ))
+        read_record(&crate::install::owner::install().texts.record_path.text()[..])
     }
 
     fn log(&mut self, text: &[u8]) {

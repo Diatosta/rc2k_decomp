@@ -10,13 +10,12 @@
 //! See `net/mod.rs`; `send_position` and `send_extra` are the same with other dwords (this
 //! file has their shared body). One caller, `net::send_turn` (every fourth step).
 
-use crate::errors::Refused;
+use crate::errors::{BadInput, Refused};
 use crate::net::log_send;
 use crate::net::owner::Net;
 use crate::net::owner::net;
 use crate::net::send_message::send_message;
 use crate::physics::car_store::Car;
-use crate::pointers::GamePtr;
 use crate::race::owner::race;
 use crate::session::Cell32;
 use rc2k_core::net::race::Limit::{Free, Gauge, Gear, Large, Pedal};
@@ -117,17 +116,19 @@ const EXTRA_FIELDS: [Field; 9] = [
 pub fn send_fields(net: &Net, m: &Message) -> Result<(), Refused> {
     let shared = &race().shared;
     let car = &shared.car;
-    let message = GamePtr::to(&shared.work.net_message);
+    let message = &shared.work.net_message;
     log_send(&net.vars, m.text);
     // The tag, then the kind's fields' bits.
     let mut dwords = vec![m.kind.tag()];
     dwords.extend(fields(m.kind).iter().map(|(field, _)| field(car).bits()));
-    for (n, &v) in dwords.iter().enumerate() {
-        message
-            .offset(4 * n as u32)
-            .write(v, "the network message")?;
+    let cells = message
+        .get(..dwords.len())
+        .ok_or(BadInput("a network message past its buffer"))?;
+    for (cell, &v) in cells.iter().zip(&dwords) {
+        cell.set(v);
     }
-    send_message(net, message, 4 * dwords.len() as u32)
+    let bytes: Vec<u8> = dwords.iter().flat_map(|v| v.to_le_bytes()).collect();
+    send_message(net, &bytes)
 }
 
 /// The Rust version.
@@ -139,6 +140,7 @@ pub fn send_inputs() -> Result<(), Refused> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::pointers::GamePtr;
 
     /// Each field sits where the core's table had its offset in the car's block.
     #[test]

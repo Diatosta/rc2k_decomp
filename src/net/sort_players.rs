@@ -10,10 +10,9 @@
 //! `net::lobby_frame`.
 
 use crate::errors::{BadInput, Refused};
-use crate::net::lobby::movsb;
 use crate::net::store::NetVars;
 use crate::net::store::PlayerBlock;
-use crate::pointers::GamePtr;
+use crate::pointers::Store;
 use rc2k_core::net::players::{self, Standing};
 
 const BLOCK: u32 = std::mem::size_of::<PlayerBlock>() as u32;
@@ -30,14 +29,13 @@ fn standing(block: &PlayerBlock) -> Standing {
 
 /// The two blocks swapped, a dword at a time.
 pub fn swap_blocks(one: &PlayerBlock, two: &PlayerBlock) -> Result<(), BadInput> {
-    let (one, two) = (GamePtr::to(one), GamePtr::to(two));
     // Two player blocks swapped as dwords: whole blocks of bytes.
-    for n in 0..BLOCK / 4 {
-        let v = one.offset(4 * n).read::<u32>("a player's block")?;
-        let w = two.offset(4 * n).read::<u32>("a player's block")?;
-        one.offset(4 * n).write(w, "a player's block")?;
-        two.offset(4 * n).write(v, "a player's block")?;
-    }
+    let mut first = vec![0u8; BLOCK as usize];
+    let mut second = vec![0u8; BLOCK as usize];
+    Store::load(one, 0, &mut first)?;
+    Store::load(two, 0, &mut second)?;
+    Store::store(one, 0, &second)?;
+    Store::store(two, 0, &first)?;
     Ok(())
 }
 
@@ -64,11 +62,9 @@ pub fn sort_players(vars: &NetVars) -> Result<(), Refused> {
     if players > players::MOST {
         return Err(BadInput("more than eight players").into());
     }
-    movsb(
-        crate::pointers::GamePtr::to(&vars.sorted),
-        crate::pointers::GamePtr::to(&vars.received),
-        ALL,
-    )?;
+    let mut all = vec![0u8; ALL as usize];
+    Store::load(&vars.received, 0, &mut all)?;
+    Store::store(&vars.sorted, 0, &all)?;
     // Converted: `rc2k_core::net::players` (`bubble`, `goes_after`).
     // `k + 1` is at most 7: `players` is at most eight.
     let sorted = &vars.sorted;

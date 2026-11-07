@@ -25,7 +25,6 @@
 
 use crate::errors::Refused;
 use crate::net::store::PlayerBlock;
-use crate::pointers::GamePtr;
 use rc2k_core::net::inbox;
 
 /// The Rust version.
@@ -33,14 +32,11 @@ pub fn store_received(
     sequence: u8,
     block: &PlayerBlock,
     time: u32,
-    bytes: GamePtr,
-    length: u32,
+    message: &[u8],
 ) -> Result<(), Refused> {
-    let base = block.inbox();
     // Converted: `rc2k_core::net::inbox::store`, on the block's inbox and the message.
-    let mut inbox = base.read_bytes(inbox::INBOX, "a player's inbox")?;
-    let message = bytes.read_bytes(length as usize, "a received message")?;
-    inbox::store(&mut inbox, sequence, time, &message)?;
-    base.write_bytes(&inbox, "a player's inbox")?;
+    let mut inbox = block.read_inbox(inbox::INBOX)?;
+    inbox::store(&mut inbox, sequence, time, message)?;
+    block.write_inbox(&inbox)?;
     Ok(())
 }

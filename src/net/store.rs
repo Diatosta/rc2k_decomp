@@ -111,6 +111,9 @@ pub struct PlayerBlock {
     pub _gap_8044: [Dword; 2],
 }
 
+/// Where the inbox begins in a player's block.
+const INBOX_AT: usize = 0x34;
+
 impl PlayerBlock {
     pub const fn zero() -> Self {
         Self {
@@ -129,10 +132,17 @@ impl PlayerBlock {
         }
     }
 
-    /// Where the count and the records are (`+0x34`, the start of the inbox
-    /// `rc2k_core::net::inbox` works on, which runs on past `messages`).
-    pub fn inbox(&self) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(self).offset(0x34)
+    /// `len` bytes of the inbox: the count and the records, from `+0x34` (the start of the
+    /// inbox `rc2k_core::net::inbox` works on, which runs on past `messages`).
+    pub fn read_inbox(&self, len: usize) -> Result<Vec<u8>, crate::errors::BadInput> {
+        let mut bytes = vec![0; len];
+        crate::pointers::Store::load(self, INBOX_AT, &mut bytes)?;
+        Ok(bytes)
+    }
+
+    /// `bytes` written from the inbox's start.
+    pub fn write_inbox(&self, bytes: &[u8]) -> Result<(), crate::errors::BadInput> {
+        crate::pointers::Store::store(self, INBOX_AT, bytes)
     }
 }
 
