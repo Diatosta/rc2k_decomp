@@ -13,7 +13,7 @@
 //! car at all: the original copies one entry back and then counts through all 32 bits.
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::session::Dword;
 use rc2k_core::menu::car_lists;
 
@@ -44,7 +44,7 @@ pub fn write_list(list: List, entries: &[u32]) {
 
 // ---- Rust version ----
 
-pub fn remove_secret_cars() -> Result<(), BadInput> {
+pub fn remove_secret_cars(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::menu::car_lists` (`entries`, `without_secret`).
     {
         let secret = read_list(SECRET)?;
@@ -63,7 +63,7 @@ pub fn remove_secret_cars() -> Result<(), BadInput> {
                 SCRATCH.0[n].set(car);
             }
             write_list(list, cars);
-            menus().play.cheats.cheats.set(0u32);
+            menus.play.cheats.cheats.set(0u32);
         }
         Ok(())
     }

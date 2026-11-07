@@ -61,10 +61,10 @@ pub fn car_part_matrix(frame: &Frame, a: &[Float]) {
 
 /// `race::car_body_matrix` (0x461EA1): the turns about x and z by 0 (`scene::set_fine_turn_x`,
 /// `scene::set_turn_z`) multiplied into `g_litMatrix`, then as `car_part_matrix` on it.
-pub fn car_body_matrix(frame: &Frame) {
+pub fn car_body_matrix(course: &Course, frame: &Frame) {
     use crate::scene::view_matrix::{Axis, set_fine_turn};
-    set_fine_turn(Axis::X, 0);
-    set_fine_turn(Axis::Z, 0);
+    set_fine_turn(course, &frame.matrices, Axis::X, 0);
+    set_fine_turn(course, &frame.matrices, Axis::Z, 0);
     multiply_matrices(
         &frame.matrices.turn_x_matrix,
         &frame.matrices.turn_z_matrix,
@@ -419,7 +419,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
     };
     place();
     scene.drawing.object_work.size.set(0x10);
-    crate::scene::matrix::set_light_direction();
+    crate::scene::matrix::set_light_direction(&race.frame.matrices);
     place();
     scene.drawing.object_work.car_switches.set(switches);
     race.physics.camera.drawing_car.set(1);
@@ -435,7 +435,7 @@ pub fn draw_car(race: &Race, car: u32) -> Result<(), Refused> {
             .wrapping_mul(0x14)
             .wrapping_add(0x50),
     );
-    car_body_matrix(&race.frame);
+    car_body_matrix(&race.course, &race.frame);
     crate::race::frame_draw::start_kept_reflections(race, &race.physics)?;
     crate::scene::draw_scene_object::draw_scene_object_in_game(race, Some(lit_place(&race.frame)))?;
     crate::race::frame_draw::end_kept_reflections(&race.shared);

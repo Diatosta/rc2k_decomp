@@ -13,8 +13,8 @@
 //! for any record of the walk, and a walk past 64 records, before anything.
 use crate::errors::Refused;
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::records::stages_store::RecordRef;
 use crate::system::owner::system;
@@ -45,8 +45,8 @@ fn walk(screens: &Screens) -> Result<Vec<(u32, Step)>, Refused> {
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn walk_section_records() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn walk_section_records(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     use crate::menu::{reset_driver_condition as rdc, reset_player_totals as rpt};
     let records = walk(screens)?;
     for (_, step) in records {
@@ -73,7 +73,7 @@ pub fn walk_section_records() -> Result<(), Refused> {
             .event
             .stages_done
             .set(screens.event.stages_done.get().wrapping_add(1));
-        rpt::reset_player_totals()?;
+        rpt::reset_player_totals(menus)?;
     }
     rdc::reset_driver_condition()?;
     Ok(())

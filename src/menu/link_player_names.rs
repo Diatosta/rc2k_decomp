@@ -9,13 +9,13 @@
 //! original's, for reference.
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::player_names::{cars, name_bytes};
 
 // ---- Rust version ----
 
-pub fn link_player_names() -> Result<(), BadInput> {
-    let play = &menus().play;
+pub fn link_player_names(menus: &Menus) -> Result<(), BadInput> {
+    let play = &menus.play;
     for (player, car) in cars(play).iter().enumerate() {
         car.update(|p| {
             p.set_name_player(player);

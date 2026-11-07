@@ -9,10 +9,11 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::service::pages::{BRAKE_BALANCE, simple_page};
 
 // ---- Rust version ----
 
-pub fn edit_brake_balance() -> Result<(), Refused> {
-    simple_page(crate::menu::owner::menus(), BRAKE_BALANCE)
+pub fn edit_brake_balance(menus: &Menus) -> Result<(), Refused> {
+    simple_page(menus, BRAKE_BALANCE)
 }

@@ -4,7 +4,6 @@
 use crate::audio::owner::audio;
 use crate::errors::{BadInput, Refused};
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::records::stages_store::{RecordRef, RecordTable};
 use crate::system::owner::system;
 
@@ -12,8 +11,7 @@ use crate::system::owner::system;
 /// the current one (`dword_75598C`), its +0x2C into `dword_7558C4` and its 0x2C bytes at
 /// +0x50 into the page's copy (`unk_7555B1`). Every register kept. Refuses (before
 /// anything) a player without its record.
-pub fn pick_player(n: u32) -> Result<(), Refused> {
-    let menus = menus();
+pub fn pick_player(menus: &Menus, n: u32) -> Result<(), Refused> {
     // Converted: `rc2k_core::screens::page_values` (`Player::picked`).
     let (value, copy) = crate::menu::player::player(n)
         .ok_or(BadInput("a player without its record"))?

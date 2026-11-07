@@ -15,20 +15,20 @@
 //! Nothing is written then.
 
 use crate::errors::Refused;
-use crate::race::owner_shared::Shared;
+use crate::race::owner::Race;
 use crate::race::pace_notes::{Course, Machine};
 
 /// The Rust version on a course. The original reads no register at entry and keeps them
 /// all (liveness): the walk's registers start from nothing.
-pub fn init_pace_notes_on(course: Course) -> Result<(), Refused> {
+pub fn init_pace_notes_on(race: &Race, course: Course) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::pace_notes::Notes::init`.
-    let mut m = Machine::load(course)?;
+    let mut m = Machine::load(race, course)?;
     m.init()?;
-    m.commit()?;
+    m.commit(race)?;
     Ok(())
 }
 
 /// The Rust version on the game's course.
-pub fn init_pace_notes(shared: &Shared) -> Result<(), Refused> {
-    init_pace_notes_on(crate::race::pace_notes::game_course(shared))
+pub fn init_pace_notes(race: &Race) -> Result<(), Refused> {
+    init_pace_notes_on(race, crate::race::pace_notes::game_course(&race.shared))
 }

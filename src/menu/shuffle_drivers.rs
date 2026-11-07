@@ -11,7 +11,7 @@
 //! Callers: `sub_473126` and one of the game's. The random numbers are `math::random_below`'s.
 //! Refuses a count of 0 (the original's `div` traps, its loop runs on), before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::pointers::Store;
 use crate::session::Dword;
 
@@ -37,8 +37,7 @@ const TABLES: [(usize, &Dword); 4] = [
     ),
 ];
 /// The Rust version (see the header): the registers it leaves.
-pub fn shuffle_drivers() -> Result<(), Refused> {
-    let menus = menus();
+pub fn shuffle_drivers(menus: &Menus) -> Result<(), Refused> {
     use crate::math::random_below::random_below;
     if TABLES.iter().any(|&(_, c)| c.get() == 0) {
         return Err(BadInput("a driver table count of 0").into());

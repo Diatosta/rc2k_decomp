@@ -29,7 +29,10 @@ pub fn object_turn_matrix(race: &Race) -> Result<(), Refused> {
     if object > 0xFF {
         return Err(BadInput("an object past 0xFF").into());
     }
-    set_turn_y(drawing.object_work.angles[0].get().wrapping_neg());
+    set_turn_y(
+        &race.frame.matrices,
+        drawing.object_work.angles[0].get().wrapping_neg(),
+    );
     let (out, turn_y, turn_x) = (
         &race.frame.matrices.object_turn_matrix,
         &race.frame.matrices.turn_y_matrix,
@@ -43,11 +46,17 @@ pub fn object_turn_matrix(race: &Race) -> Result<(), Refused> {
         out[k].set_bits(turn_y[k].bits());
     }
     if drawing.object_work.angles[1].get() != 0 {
-        set_turn_y(drawing.object_work.angles[2].get().wrapping_neg());
+        set_turn_y(
+            &race.frame.matrices,
+            drawing.object_work.angles[2].get().wrapping_neg(),
+        );
         multiply_matrices(&out, &turn_y, &lit);
-        set_turn_x(drawing.object_work.angles[1].get().wrapping_neg());
+        set_turn_x(
+            &race.frame.matrices,
+            drawing.object_work.angles[1].get().wrapping_neg(),
+        );
         multiply_matrices(&lit, &turn_x, &turned);
-        set_turn_y(drawing.object_work.angles[2].get());
+        set_turn_y(&race.frame.matrices, drawing.object_work.angles[2].get());
         multiply_matrices(&turned, &turn_y, &out);
     }
     let figure = drawing.object_work.size.get();

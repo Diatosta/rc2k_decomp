@@ -289,7 +289,7 @@ pub fn loadlevel_init(race: &Race) -> Result<(), Refused> {
         s.indent(-3);
         s.step(&mut || level::init_checkpoints(race), None)?;
         s.step(
-            &mut || crate::race::init_pace_notes::init_pace_notes(&race.shared),
+            &mut || crate::race::init_pace_notes::init_pace_notes(race),
             None,
         )?;
         s.log();

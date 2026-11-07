@@ -18,7 +18,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::event_flow::*;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::session::Dword;
 
@@ -28,8 +28,7 @@ const OUT: &Dword = &crate::menu::owner::MENUS.screens.event.event_out; // dword
 const DUE: &Dword = &crate::menu::owner::MENUS.screens.event.service_due; // dword_755938
 
 /// The Rust version.
-pub fn time_trial_service() -> Result<(), Refused> {
-    let menus = menus();
+pub fn time_trial_service(menus: &'static Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (the minutes, the pauses, who is out,
     // `goes_on`).
@@ -57,7 +56,7 @@ pub fn time_trial_service() -> Result<(), Refused> {
             if yes() {
                 break 'all;
             }
-            { crate::service::apply_repairs::apply_repairs_in_game() }?;
+            { crate::service::apply_repairs::apply_repairs_in_game(menus) }?;
             crate::menu::set_player_entry_kind::set_player_entry_kind(screens)?;
             // The current player as the screens leave it (the original reads it again).
             let serviced = get(CURRENT);

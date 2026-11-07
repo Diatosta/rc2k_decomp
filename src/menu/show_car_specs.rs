@@ -36,12 +36,12 @@ pub fn show_car_specs(menus: &'static Menus) -> Result<(), Refused> {
         { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
         return Ok(());
     }
-    if let Some(cheat) = crate::menu::cheat_car_list::cheat_car_list() {
+    if let Some(cheat) = crate::menu::cheat_car_list::cheat_car_list(menus) {
         cars = cheat;
     }
     { run_screen(screen, &Entry::with_cars(menus, Some(cars))) }?;
     if { menus.tables.captions.screen_left.get() } != 1 {
-        crate::menu::take_shown_car::take_shown_car(Some(cars))?;
+        crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
     }
     Ok(())
 }

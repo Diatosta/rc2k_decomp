@@ -26,7 +26,8 @@ use crate::input::key_to_char::{has_layout, key_to_char};
 use crate::input::take_key::take_key;
 use crate::menu::add_text_length::add_text_length;
 use crate::menu::clear_text::clear_text;
-use crate::menu::owner::{Screens, menus};
+use crate::menu::owner::Menus;
+use crate::menu::owner::Screens;
 use crate::menu::restore_text::restore_text;
 use crate::menu::text_entry::set_length;
 use crate::service::backspace_setup_name::{backspace_setup_name, entry};
@@ -65,8 +66,7 @@ fn end_name(screens: &Screens, name: crate::place::Place) -> Result<(), BadInput
     put_char(name, screens.loop_flags.text_length.get() as i32, 0)
 }
 
-pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
-    let menus = menus();
+pub fn edit_setup_name(menus: &Menus, canvas: &mut dyn Canvas) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Everything that could be refused, before the key is taken.
     let (name, _) = entry(menus)?;
@@ -91,7 +91,7 @@ pub fn edit_setup_name(canvas: &mut dyn Canvas) -> Result<(), Refused> {
         Key::Enter => {
             if (screens.loop_flags.text_length.get() as i32) == 0 {
                 restore_text(name)?;
-                add_text_length(name)?;
+                add_text_length(menus, name)?;
             }
             screens.option_work.typing.set(0u32);
             end_name(screens, name)?;

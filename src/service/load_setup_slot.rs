@@ -20,7 +20,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::go_back;
-use crate::menu::owner::{Menus, menus};
+use crate::menu::owner::Menus;
 use crate::service::clear_repair_flags::clear_repair_flags;
 use crate::service::clear_repair_marks::clear_repair_marks;
 use crate::service::edit_gear_ratio::edit_gear_ratio;
@@ -51,8 +51,7 @@ pub fn highlighted_slot(menus: &Menus) -> u32 {
 
 // ---- Rust version ----
 
-pub fn load_setup_slot() -> Result<(), Refused> {
-    let menus = menus();
+pub fn load_setup_slot(menus: &Menus) -> Result<(), Refused> {
     let (screens, tables) = (&menus.screens, &menus.tables);
     let slot = highlighted_slot(menus);
     let Some(player) = current_player_of(screens) else {
@@ -68,7 +67,7 @@ pub fn load_setup_slot() -> Result<(), Refused> {
     if !read_setup_slot(slot)? {
         return Ok(());
     }
-    clear_repair_flags()?;
+    clear_repair_flags(menus)?;
 
     // Converted: `rc2k_core::service::setups` (`SetupValues`, `CONFIRM_ORDER`).
     use rc2k_core::service::setups::{CONFIRM_ORDER, EditPage, SetupValues};
@@ -88,7 +87,7 @@ pub fn load_setup_slot() -> Result<(), Refused> {
 
     // The original clears both tables again here, this time checking each entry for the
     // end mark before writing it. With the end marks in place that is the same thing.
-    clear_repair_flags()?;
+    clear_repair_flags(menus)?;
     clear_repair_marks(tables)?;
 
     let highlighted = screens.loop_flags.item.get();

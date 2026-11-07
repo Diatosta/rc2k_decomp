@@ -5,7 +5,7 @@
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::event_flow::*;
 use crate::menu::lists_store::CarList;
-use crate::menu::owner::menus;
+use crate::menu::owner::{Menus, menus};
 use crate::menu::run_championship as champ;
 use crate::menu::screen_loop::{Entry, Screen, run_screen};
 use crate::menu::standings::Which;
@@ -17,8 +17,9 @@ use rc2k_core::menu::flow::{self, Picture, Var};
 
 pub const SPEECH_CHANNEL: &Dword = &crate::menu::owner::MENUS.screens.option_work.speech_level; // dword_755698
 
-#[derive(Default)]
 pub struct Game {
+    /// The menus' owner (fetched once, where the flow starts).
+    menus: &'static Menus,
     /// The record `Call::FindRecord` found (the original's edi), read through `Var::Record`.
     record: Option<RecordRef>,
     /// The car list the next car choice shows (`Game::hand_cars`, `Call::CheatCarList`).
@@ -29,7 +30,12 @@ pub struct Game {
 
 impl Game {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            menus: menus(),
+            record: None,
+            cars: None,
+            fault: Fault::default(),
+        }
     }
 
     /// Runs a flow on this game; a refused read or write of its variables ends it.
@@ -71,9 +77,8 @@ enum Place {
     Quitting,
 }
 
-fn place(v: Var) -> Place {
+fn place(menus: &'static Menus, v: Var) -> Place {
     let race = race();
-    let menus = menus();
     use Place::Cell;
     match v {
         Var::Answer => Cell(ANSWER),
@@ -129,7 +134,7 @@ impl Game {
     /// A screen, entered with the car list handed (the only value a screen reads from its
     /// caller).
     fn screen(&self, screen: &Screen) -> Result<(), Refused> {
-        { run_screen(screen, &Entry::with_cars(menus(), self.cars)) }?;
+        { run_screen(screen, &Entry::with_cars(self.menus, self.cars)) }?;
         Ok(())
     }
 }
@@ -143,7 +148,7 @@ impl flow::Game for Game {
     type Error = Refused;
 
     fn get(&mut self, v: Var) -> u32 {
-        match place(v) {
+        match place(self.menus, v) {
             Place::Cell(cell) => cell.get(),
             Place::Player(n, field) => *field.of(&mut player(n).get()),
             Place::Record(offset) => self.fault.ok(self
@@ -155,7 +160,7 @@ impl flow::Game for Game {
     }
 
     fn set(&mut self, v: Var, value: u32) {
-        match place(v) {
+        match place(self.menus, v) {
             Place::Cell(cell) => cell.set(value),
             Place::Player(n, field) => player(n).update(|q| *field.of(q) = value),
             // The flows only read the record.
@@ -169,20 +174,21 @@ impl flow::Game for Game {
 
     fn run(&mut self, c: flow::Call) -> Result<(), Refused> {
         self.fault.check()?;
+        let menus = self.menus;
         use crate::menu as m;
         use flow::Call as C;
         match c {
-            C::BeginEvent => m::begin_event::begin_event()?,
-            C::ShuffleDrivers => m::shuffle_drivers::shuffle_drivers()?,
+            C::BeginEvent => m::begin_event::begin_event(menus)?,
+            C::ShuffleDrivers => m::shuffle_drivers::shuffle_drivers(menus)?,
             C::ClearResultSlots => m::clear_result_slots::clear_result_slots()?,
             C::ResetDrivers => m::reset_drivers::reset_drivers()?,
             C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
-            C::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
+            C::ClearPlayers284 => m::clear_players_284::clear_players_284(menus)?,
             C::TakePlayer1Units => m::take_player1_units::take_player1_units()?,
-            C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
-            C::ClearEventState => m::clear_event_state::clear_event_state()?,
-            C::ReadyPlayers => m::ready_players::ready_players()?,
-            C::ResetSingleEvent => m::reset_single_event::reset_single_event()?,
+            C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724(menus)?,
+            C::ClearEventState => m::clear_event_state::clear_event_state(menus)?,
+            C::ReadyPlayers => m::ready_players::ready_players(menus)?,
+            C::ResetSingleEvent => m::reset_single_event::reset_single_event(menus)?,
             C::ChampionshipWelcome => m::championship_welcome::championship_welcome()?,
             C::A8Welcome => m::a8_welcome::a8_welcome()?,
             C::FindRecord { section, index } => {
@@ -198,51 +204,51 @@ impl flow::Game for Game {
             C::WelcomeLoop => self.screen(&m::welcome_loop::SCREEN)?,
             C::RallyStagesLoop => self.screen(&m::rally_stages_loop::SCREEN)?,
             C::NextStageLoop => self.screen(&m::next_stage_loop::SCREEN)?,
-            C::ServicePass => m::service_pass::service_pass()?,
-            C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all()?,
-            C::SortBByFigure => m::sort_standings_b_by_figure::sort_standings_b_by_figure()?,
-            C::AwardStagePoints => m::award_stage_points::award_stage_points()?,
-            C::SortBByPoints => m::sort_standings_b_by_points::sort_standings_b_by_points()?,
+            C::ServicePass => m::service_pass::service_pass(menus)?,
+            C::StandingsBFromAll => m::standings_b_from_all::standings_b_from_all(menus)?,
+            C::SortBByFigure => m::sort_standings_b_by_figure::sort_standings_b_by_figure(menus)?,
+            C::AwardStagePoints => m::award_stage_points::award_stage_points(menus)?,
+            C::SortBByPoints => m::sort_standings_b_by_points::sort_standings_b_by_points(menus)?,
             C::ClassChampionshipPass => {
-                m::class_championship_pass::class_championship_pass()?;
+                m::class_championship_pass::class_championship_pass(menus)?;
             }
             C::AwardOverallPoints => {
-                m::award_overall_points::award_overall_points()?;
+                m::award_overall_points::award_overall_points(menus)?;
             }
             C::ClearStandingsB => m::standings_steps::clear_standings(Which::B)?,
-            C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score()?,
+            C::SortBByScore => m::sort_standings_b_by_score::sort_standings_b_by_score(menus)?,
             C::NumberAllB => {
                 m::standings_steps::number_all(Which::B)?;
             }
             C::ShowChampionshipStandings => {
-                m::show_championship_standings::show_championship_standings()?;
+                m::show_championship_standings::show_championship_standings(menus)?;
             }
             C::SectionFinish => m::section_finish::section_finish()?,
             C::Review480D46 => self.screen(&m::review_options_480d46_loop::SCREEN)?,
-            C::WalkSectionRecords => m::walk_section_records::walk_section_records()?,
-            C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all()?,
+            C::WalkSectionRecords => m::walk_section_records::walk_section_records(menus)?,
+            C::StandingsAFromAll => m::standings_a_from_all::standings_a_from_all(menus)?,
             C::ClassRallyResultsPass => {
-                m::class_rally_results_pass::class_rally_results_pass()?;
+                m::class_rally_results_pass::class_rally_results_pass(menus)?;
             }
             C::ClearStandingsA => m::standings_steps::clear_standings(Which::A)?,
             C::NumberAllA => {
                 m::standings_steps::number_all(Which::A)?;
             }
             C::ShowOverallRallyResults => {
-                m::show_overall_rally_results::show_overall_rally_results()?;
+                m::show_overall_rally_results::show_overall_rally_results(menus)?;
             }
-            C::RunEventRaces => m::run_event_races::run_event_races()?,
-            C::AddPlayerTimes => m::add_player_times::add_player_times()?,
+            C::RunEventRaces => m::run_event_races::run_event_races(menus)?,
+            C::AddPlayerTimes => m::add_player_times::add_player_times(menus)?,
             C::ClassStageResultsPass => {
-                m::class_stage_results_pass::class_stage_results_pass()?;
+                m::class_stage_results_pass::class_stage_results_pass(menus)?;
             }
             C::ShowOverallStageResults => {
-                m::show_overall_stage_results::show_overall_stage_results()?;
+                m::show_overall_stage_results::show_overall_stage_results(menus)?;
             }
-            C::KeepRecordBest => m::keep_record_best::keep_record_best()?,
-            C::RecordEntriesPass => m::record_entries_pass::record_entries_pass()?,
+            C::KeepRecordBest => m::keep_record_best::keep_record_best(menus)?,
+            C::RecordEntriesPass => m::record_entries_pass::record_entries_pass(menus)?,
             C::BestTimesLoop => self.screen(&m::best_times_loop::SCREEN)?,
-            C::InspectionPass => m::inspection_pass::inspection_pass()?,
+            C::InspectionPass => m::inspection_pass::inspection_pass(menus)?,
             C::Review47D5A5 => self.screen(&m::review_options_47d5a5_loop::SCREEN)?,
             C::Review48108E => self.screen(&m::review_options_48108e_loop::SCREEN)?,
             C::ChampionshipFinish => m::championship_finish::championship_finish()?,
@@ -250,23 +256,23 @@ impl flow::Game for Game {
             C::BestClassScores => m::best_class_scores::best_class_scores()?,
             C::BestOverallScores => m::best_overall_scores::best_overall_scores()?,
             C::Review481429 => self.screen(&m::review_options_481429_loop::SCREEN)?,
-            C::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
+            C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(menus)?,
             C::HideInGameOptions { players } => {
-                m::in_game_options_items::hide_in_game_options(players)?;
+                m::in_game_options_items::hide_in_game_options(menus, players)?;
             }
-            C::ResetPlayerTimes => m::reset_player_times::reset_player_times()?,
-            C::ReloadFrontEnd => m::reload_front_end::reload_front_end()?,
+            C::ResetPlayerTimes => m::reset_player_times::reset_player_times(menus)?,
+            C::ReloadFrontEnd => m::reload_front_end::reload_front_end(menus)?,
             C::RepairCar => crate::service::repair_parts::repair_car()?,
             C::CheatCarList => {
-                if let Some(list) = m::cheat_car_list::cheat_car_list() {
+                if let Some(list) = m::cheat_car_list::cheat_car_list(menus) {
                     self.cars = Some(list);
                 }
             }
             C::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
-            C::TakeShownCar => m::take_shown_car::take_shown_car(self.cars)?,
+            C::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
             C::SelectStageLoop => self.screen(&m::select_stage_loop::SCREEN)?,
             C::TimeTrialSelectStage => self.screen(&m::time_trial_select_stage_loop::SCREEN)?,
-            C::TimeTrialService => m::time_trial_service::time_trial_service()?,
+            C::TimeTrialService => m::time_trial_service::time_trial_service(menus)?,
             C::Race { next, kind } => {
                 crate::race::single_rally_race::single_rally_race(u32::from(next), kind)?;
             }
@@ -278,7 +284,7 @@ impl flow::Game for Game {
             C::KeepStageBest => m::keep_stage_best::keep_stage_best()?,
             C::TimeTrialQualifies => m::time_trial_qualifies::time_trial_qualifies()?,
             C::ClearTimeTrialMarks => m::clear_time_trial_marks::clear_time_trial_marks()?,
-            C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best()?,
+            C::EnterTimeTrialBest => m::enter_time_trial_best::enter_time_trial_best(menus)?,
             C::TimeTrialBestTimesLoop => self.screen(&m::time_trial_best_times_loop::SCREEN)?,
             C::Review485F5E => self.screen(&m::review_options_485f5e_loop::SCREEN)?,
             C::StartStream { channel } => {
@@ -316,7 +322,7 @@ impl flow::Game for Game {
 
     fn load_picture(&mut self, p: Picture) -> Result<bool, Refused> {
         self.fault.check()?;
-        let texts = &menus().tables.texts;
+        let texts = &self.menus.tables.texts;
         let picture: &dyn crate::session::TextPlace = match p {
             Picture::Championship => &texts.mob_welc_png,
             Picture::A8 => &texts.a8_welc_png,

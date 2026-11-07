@@ -101,7 +101,7 @@ enum Next {
 pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
     view(race, mode)?;
     // The end (0x41D436).
-    crate::race::close_viewed_replay::close_viewed_replay(&race.shared)?;
+    crate::race::close_viewed_replay::close_viewed_replay(race)?;
     crate::race::viewer_tidy_stage::viewer_tidy_stage(race)?;
     race.shared.replay_file.viewer_stopped.set(0);
     race.shared.replay_file.hold_car_revs.set(0);

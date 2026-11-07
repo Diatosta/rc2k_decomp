@@ -25,6 +25,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_physics::Physics;
 use crate::race::owner_shared::Shared;
@@ -123,17 +124,13 @@ fn tables(physics: &Physics) -> GamePtr {
 }
 
 impl Machine {
-    pub fn load(course: Course) -> Result<Self, BadInput> {
-        let physics = &race().physics;
+    pub fn load(race: &Race, course: Course) -> Result<Self, BadInput> {
+        let physics = &race.physics;
         if let Ok(mut held) = REFUSED.lock() {
             *held = None;
         }
         Ok(Self(Notes::new(
-            crate::race::owner::race()
-                .shared
-                .physics_tables
-                .pace_slot
-                .bits(),
+            race.shared.physics_tables.pace_slot.bits(),
             tables(physics).read_bytes(IMAGE_LEN, "the pace notes' tables")?,
             course,
             &STAGE,
@@ -141,13 +138,9 @@ impl Machine {
     }
 
     /// The slot and the tables written back.
-    pub fn commit(&self) -> Result<(), BadInput> {
-        let physics = &race().physics;
-        crate::race::owner::race()
-            .shared
-            .physics_tables
-            .pace_slot
-            .set_bits(self.slot);
+    pub fn commit(&self, race: &Race) -> Result<(), BadInput> {
+        let physics = &race.physics;
+        race.shared.physics_tables.pace_slot.set_bits(self.slot);
         tables(physics).write_bytes(&self.image, "the pace notes' tables")
     }
 

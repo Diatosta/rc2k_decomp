@@ -13,7 +13,7 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::service::state::current_player_of;
 
 // ---- game data ----
@@ -21,8 +21,8 @@ use crate::service::state::current_player_of;
 // ---- Rust version ----
 
 /// Refuses a missing player: the original reads through a null pointer.
-pub fn load_setup_values() -> Result<(), BadInput> {
-    let screens = &menus().screens;
+pub fn load_setup_values(menus: &Menus) -> Result<(), BadInput> {
+    let screens = &menus.screens;
     {
         if screens.state.menus.skip_edit_values.get() == 1 {
             return Ok(());

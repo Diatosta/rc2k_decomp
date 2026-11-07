@@ -15,7 +15,7 @@ use crate::audio::owner::audio;
 use crate::errors::Refused;
 use crate::framework::log;
 use crate::gfx::owner::gfx;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 
 // ---- game data ----
@@ -27,21 +27,21 @@ const FINISHED_RVA: &std::ffi::CStr = c"BEV: Finished GB_Front"; // "BEV: Finish
 
 /// The Rust version (the original keeps ebp, ecx, edi and edx; it leaves eax 0 and esi
 /// as the main menu does, which its callers do not read).
-pub fn run_front_end() -> Result<(), Refused> {
+pub fn run_front_end(menus: &'static Menus) -> Result<(), Refused> {
     let fonts = &gfx().fonts;
-    let play = &menus().play;
+    let play = &menus.play;
     log("menu::run_front_end: the Rust version runs");
-    menus()
+    menus
         .screens
         .option_work
         .master_volume_shown
         .set(audio().state.master_volume.get());
-    crate::menu::drop_missing_controllers::drop_missing_controllers()?;
+    crate::menu::drop_missing_controllers::drop_missing_controllers(menus)?;
     crate::gfx::build_fonts::build_fonts()?;
     // The films, with eax 0 (the game's start).
     crate::menu::play_films::play_films(false)?;
     crate::logfile::log_write::log_nul(STARTING_RVA, true, 1);
-    run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::new(menus()))?;
+    run_screen(&crate::menu::main_menu_loop::SCREEN, &Entry::new(menus))?;
     crate::logfile::log_write::log_nul(FINISHED_RVA, true, 1);
     crate::menu::store_player_names::store_player_names(play, &mut |line| {
         crate::logfile::log_write::log_nul(line, true, 1);

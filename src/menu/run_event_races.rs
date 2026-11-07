@@ -31,6 +31,7 @@
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
 use crate::menu::event_flow::Fault;
+use crate::menu::owner::Menus;
 use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::race::owner::race;
@@ -102,7 +103,7 @@ impl races::EventRaces for Game {
         match s {
             Step::CpuTimes => crate::menu::calc_cpu_times::calc_cpu_times(screens)?,
             Step::ResetPlayerTimes => {
-                crate::menu::reset_player_times::reset_player_times()?;
+                crate::menu::reset_player_times::reset_player_times(menus)?;
             }
             Step::StandingsFromDrivers => {
                 crate::menu::standings_from_drivers::standings_from_drivers()?;
@@ -126,7 +127,7 @@ impl races::EventRaces for Game {
             Step::Race { next } => {
                 crate::race::single_rally_race::single_rally_race(u32::from(next), 1)?;
             }
-            Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end()?,
+            Step::ReloadFrontEnd => crate::menu::reload_front_end::reload_front_end(menus)?,
             Step::ClearPlayers288 => {
                 crate::menu::clear_players_288::clear_players_288()?;
             }
@@ -173,8 +174,7 @@ impl races::EventRaces for Game {
 }
 
 /// The Rust version (see the header).
-pub fn run_event_races() -> Result<(), Refused> {
-    let menus = menus();
+pub fn run_event_races(menus: &Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     let drivers = drivers()?;
     let few_running = drivers.len() < PICKED as usize

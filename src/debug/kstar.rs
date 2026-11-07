@@ -16,8 +16,9 @@
 //! the stage reloads, as the developers' keys did.
 
 use crate::debug::wear_page::value_at;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
+use crate::race::owner_shared::Shared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
 use crate::session::Dword;
 use dear_imgui_rs::{TreeNodeFlags, Ui};
@@ -109,8 +110,9 @@ fn section(ui: &Ui, name: &str) -> bool {
 }
 
 /// The tab.
-pub fn tab(frame: &Frame, ui: &Ui) {
-    mode_choice(ui);
+pub fn tab(race: &Race, ui: &Ui) {
+    let frame = &race.frame;
+    mode_choice(&race.shared, ui);
     if section(ui, "Car's faces by group (mode 5)") {
         groups(ui);
     }
@@ -121,13 +123,13 @@ pub fn tab(frame: &Frame, ui: &Ui) {
         kept_places(ui);
     }
     if section(ui, "Car's lights (mode 8)") {
-        lights(frame, ui);
+        lights(race, ui);
     }
     if section(ui, "Road's height ahead and behind (mode 0xC)") {
-        heights(ui);
+        heights(race, ui);
     }
     if section(ui, "Course from above (mode 0x12)") {
-        course_map(ui);
+        course_map(race, ui);
     }
     if section(ui, "Sun (mode 0x11)") {
         let mut on = SUN.load(Relaxed);
@@ -144,8 +146,7 @@ pub fn tab(frame: &Frame, ui: &Ui) {
 }
 
 /// The value of `g_maskKind` itself: only 5 and 8 change what the game draws.
-fn mode_choice(ui: &Ui) {
-    let shared = &race().shared;
+fn mode_choice(shared: &Shared, ui: &Ui) {
     let now = shared.switches.mask_kind.get();
     ui.text("The game's own mode:");
     for (name, mode) in [
@@ -265,7 +266,8 @@ fn kept_places(ui: &Ui) {
 }
 
 /// Mode 8: the car model's lights: 12 places of 3 dwords, 12 x 12 a model.
-fn lights(frame: &Frame, ui: &Ui) {
+fn lights(race: &Race, ui: &Ui) {
+    let frame = &race.frame;
     let kind = dword(CAR_KIND) as usize;
     let mut light = LIGHT.load(Relaxed) as usize % LIGHT_NAMES.len();
     ui.text(format!("Car model {kind}"));
@@ -280,7 +282,7 @@ fn lights(frame: &Frame, ui: &Ui) {
     }
     ui.same_line();
     if ui.button("Apply to the car's real lights") {
-        let _ = crate::race::stage_prefs::copy_lights_data();
+        let _ = crate::race::stage_prefs::copy_lights_data(race);
     }
     ui.text_disabled("One place a pair: the left light is the right's x negated");
     let base = LIGHTS + (kind * 12 + light) * 12;
@@ -305,8 +307,8 @@ fn checkpoint_place(n: usize) -> Option<[i32; 3]> {
 }
 
 /// Mode 0xC: 25 checkpoints around the car's, heights less its own.
-fn heights(ui: &Ui) {
-    let count = race().shared.vars.checkpoint_count.get() as usize;
+fn heights(race: &Race, ui: &Ui) {
+    let count = race.shared.vars.checkpoint_count.get() as usize;
     let here = dword(CAR_CHECKPOINT) as usize;
     let Some(own) = checkpoint_place(here).map(|p| p[1]) else {
         ui.text("No checkpoints");
@@ -325,8 +327,8 @@ fn heights(ui: &Ui) {
 }
 
 /// Mode 0x12: the checkpoints' line from above and the car on it.
-fn course_map(ui: &Ui) {
-    let count = race().shared.vars.checkpoint_count.get() as usize;
+fn course_map(race: &Race, ui: &Ui) {
+    let count = race.shared.vars.checkpoint_count.get() as usize;
     let places: Vec<[i32; 3]> = (0..count)
         .step_by((count / 2000).max(1))
         .filter_map(checkpoint_place)

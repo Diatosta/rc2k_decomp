@@ -19,8 +19,6 @@ use crate::audio::owner::audio;
 use crate::debug::timing::STAGES;
 use crate::debug::wear_page::{SURFACES, value_at};
 use crate::race::owner::Race;
-use crate::race::owner::race;
-use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_physics::Physics;
 use crate::scene::owner::scene;
@@ -124,7 +122,8 @@ pub fn note_view(frame: &Frame) {
 /// noted, each with a line down to the ground found under it. Green the first four (the
 /// wheels, a reading), red a point at or under the ground, white the rest; yellow the
 /// ground. Above the window, and behind the eye skipped.
-fn draw_probes(physics: &Physics, ui: &Ui) {
+fn draw_probes(race: &Race, ui: &Ui) {
+    let physics = &race.physics;
     let wk = &physics.contact;
     let Some((m, scale, centre)) = *VIEW
         .lock()
@@ -154,7 +153,7 @@ fn draw_probes(physics: &Physics, ui: &Ui) {
     };
     let list = ui.get_foreground_draw_list();
     let size = ui.current_font_size() / 4.0;
-    for n in 0..race().shared.car.probe_count.get().min(0x40) as usize {
+    for n in 0..race.shared.car.probe_count.get().min(0x40) as usize {
         let (x, y, z) = (
             wk.probe_x[n].get() as i32,
             wk.probe_y[n].get() as i32,
@@ -201,7 +200,7 @@ fn body(ui: &Ui, f: impl FnOnce()) {
 /// The UI's frame.
 pub fn build(race: &'static Race, ui: &Ui) {
     if PROBES.load(Relaxed) {
-        draw_probes(&race.physics, ui);
+        draw_probes(race, ui);
     }
     crate::debug::kstar::over_picture(&race.frame, ui);
     // The window keeps its share of the screen when the mode changes (the menus' 640 x 480,
@@ -264,13 +263,13 @@ pub fn build(race: &'static Race, ui: &Ui) {
                     body(ui, || dumps(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Profiler") {
-                    body(ui, || profiler(&race.course, ui));
+                    body(ui, || profiler(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Kstar modes") {
-                    body(ui, || crate::debug::kstar::tab(&race.frame, ui));
+                    body(ui, || crate::debug::kstar::tab(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Switches") {
-                    body(ui, || crate::debug::switches::tab(ui));
+                    body(ui, || crate::debug::switches::tab(race, ui));
                 }
                 if let Some(_tab) = ui.tab_item("Rivals") {
                     body(ui, || rivals(&race.physics, ui));
@@ -288,7 +287,7 @@ pub fn build(race: &'static Race, ui: &Ui) {
                     body(ui, || screens(ui));
                 }
                 if let Some(_tab) = ui.tab_item("Developers") {
-                    body(ui, || crate::debug::dev_front_end::tab(ui));
+                    body(ui, || crate::debug::dev_front_end::tab(race, ui));
                 }
             }
         });
@@ -562,10 +561,11 @@ fn take_readings(t: &mut Timings) {
 }
 
 /// The "Profiler" tab.
-fn profiler(course: &Course, ui: &Ui) {
+fn profiler(race: &Race, ui: &Ui) {
+    let course = &race.course;
     let session = &system().session;
     let state = &audio().state;
-    let shared = &race().shared;
+    let shared = &race.shared;
     use crate::debug::timing::Stage;
     let mut t = TIMINGS
         .lock()

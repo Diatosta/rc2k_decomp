@@ -27,7 +27,7 @@
 
 use crate::errors::{BadInput, FatalError, Refused};
 use crate::menu::go_back;
-use crate::menu::owner::{Menus, menus};
+use crate::menu::owner::Menus;
 use crate::pointers::Store;
 use crate::saves::gather_savegame::{CAR_LEN, RECORDS_LEN, cars, head};
 use crate::saves::owner::saves;
@@ -54,16 +54,15 @@ fn highlighted_slot(menus: &Menus) -> u32 {
 // ---- Rust version ----
 
 /// The Rust version (see the header).
-pub fn load_savegame() -> Result<(), Refused> {
+pub fn load_savegame(menus: &Menus) -> Result<(), Refused> {
     let saves = saves();
-    let menus = menus();
     let slot = highlighted_slot(menus);
     if slot >= SLOTS {
         return Err(BadInput("slot past the name list").into());
     }
     let cars = cars(&menus.play)?;
 
-    crate::menu::ready_players::ready_players()?;
+    crate::menu::ready_players::ready_players(menus)?;
     menus.screens.event.event_goes_on.set(1u32);
     menus.tables.pages.reset_times.set(0u32);
     menus.screens.event.event_out.set(0u32);
@@ -83,7 +82,7 @@ pub fn load_savegame() -> Result<(), Refused> {
     if saves.savegame_preview.use_savegame_keys.get() == 0 {
         crate::saves::keep_player_settings::keep_player_settings(file, cursor)?;
     }
-    crate::menu::drop_missing_controllers::drop_missing_controllers()?;
+    crate::menu::drop_missing_controllers::drop_missing_controllers(menus)?;
 
     for car in cars {
         let name = car.get().name_number;
@@ -141,7 +140,7 @@ pub fn load_savegame() -> Result<(), Refused> {
         }
     }
     menus.screens.event.continuing_save.set(1u32);
-    crate::menu::link_player_names::link_player_names()?;
+    crate::menu::link_player_names::link_player_names(menus)?;
     if menus.play.champ_view.event_mode.get() == A8_MODE {
         crate::menu::run_a8_championship::run_a8_championship()?;
     } else {

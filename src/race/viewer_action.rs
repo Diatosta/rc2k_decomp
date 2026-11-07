@@ -294,7 +294,7 @@ fn another_replay(race: &Race) -> Result<(), Refused> {
             return Ok(());
         }
         shared.replay_file.viewer_slot.set(slot);
-        crate::race::close_viewed_replay::close_viewed_replay(&race.shared)?;
+        crate::race::close_viewed_replay::close_viewed_replay(race)?;
         let failed = crate::race::open_viewed_replay::open_viewed_replay(race, slot)?;
         if !failed {
             return crate::race::viewer_load_stage::viewer_load_stage(race);

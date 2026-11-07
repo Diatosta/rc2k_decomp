@@ -232,13 +232,13 @@ pub fn tyre_change(race: &Race) -> Result<(), Refused> {
         && car.tyre_change_state.get() == 0
         && car.stopped_steps.get() >= 0x12C
     {
-        tyre_change_gauge(shared, true, 0)?;
+        tyre_change_gauge(race, true, 0)?;
         car.tyre_change_state.set(1);
     }
     if car.tyre_change_state.get() != 1 {
         return Ok(());
     }
-    let time = tyre_change_gauge(shared, false, 0)?;
+    let time = tyre_change_gauge(race, false, 0)?;
     if time == 0 {
         return Ok(());
     }

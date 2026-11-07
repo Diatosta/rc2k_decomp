@@ -8,6 +8,7 @@
 //! developer's `e:\rally5\bin` file the game does not ship.
 
 use crate::errors::Refused;
+use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::session::Dword;
 use core::sync::atomic::{AtomicU32, Ordering::Relaxed};
@@ -62,8 +63,8 @@ const CREDITS: u32 = 3;
 const REPLAY: u32 = 4;
 
 /// `dev_front_end::set_up_race` (0x446994): the race's variables from the settings.
-fn set_up_race() -> Result<(), Refused> {
-    let shared = &race().shared;
+fn set_up_race(race: &Race) -> Result<(), Refused> {
+    let shared = &race.shared;
     use crate::race::blocks_store::CAR_BLOCKS;
     let s = &SETTINGS;
     let car = s.car.load(Relaxed);
@@ -99,8 +100,8 @@ fn set_up_race() -> Result<(), Refused> {
 
 /// `f` between what the menus' own route does round a race (`race::single_rally`): the
 /// game's mode changes of `sub_44326D` are the menus' here.
-fn round_a_race(f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> {
-    let shared = &race().shared;
+fn round_a_race(race: &Race, f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> {
+    let shared = &race.shared;
     // `sub_44326D`'s, which the race's sound objects are made from (without them, a race
     // with no engine heard); the menus' own put back after.
     let s = &SETTINGS;
@@ -152,7 +153,7 @@ fn round_a_race(f: impl FnOnce() -> Result<(), Refused>) -> Result<(), Refused> 
 fn test_course() -> Result<(), Refused> {
     let race = race();
     use crate::race::{race_end, race_shell, replay, stage_loading};
-    round_a_race(|| {
+    round_a_race(race, || {
         race.course.numbers.replay_mode.set(1);
         race.shared.tables.noise_seed.set(0x1234_5678);
         race.physics.split_tables.arcade_kind.set(2);
@@ -165,7 +166,7 @@ fn test_course() -> Result<(), Refused> {
         );
         // The player's settings, as a race from the menus; then this tab's.
         crate::race::settings_copy::copy_settings_in(race)?;
-        set_up_race()?;
+        set_up_race(race)?;
         crate::race::race_cars::set_up_arcade_cars(race)?;
         race_shell::set_start_states(race)?;
         stage_loading::load_stage(race)?;
@@ -181,7 +182,7 @@ fn test_course() -> Result<(), Refused> {
 /// `sub_442FEF`: the finish sequence, for the course's index (0 .. 5) and the car.
 fn finish_sequence() -> Result<(), Refused> {
     let race = race();
-    round_a_race(|| {
+    round_a_race(race, || {
         let s = &SETTINGS;
         let car = s.car.load(Relaxed);
         race.course.numbers.replay_mode.set(1);
@@ -202,7 +203,7 @@ fn finish_sequence() -> Result<(), Refused> {
 /// `sub_443104`, without its fonts (the menus' are up): the credits' race.
 fn credits() -> Result<(), Refused> {
     let race = race();
-    round_a_race(|| {
+    round_a_race(race, || {
         crate::race::sound_tables::silence_race_sounds()?;
         crate::race::credits_race::credits_race(race)
     })
@@ -213,7 +214,7 @@ fn last_replay() -> Result<(), Refused> {
     let race = race();
     let shared = &race.shared;
     let course = &race.course;
-    round_a_race(|| {
+    round_a_race(race, || {
         course.numbers.replay_mode.set(2);
         shared.view.player_options[0].set(u32::MAX);
         shared.view.player_options[1].set(u32::MAX);
@@ -261,15 +262,14 @@ mod tab {
     }
 
     /// The tab.
-    pub fn tab(ui: &Ui) {
+    pub fn tab(race: &'static Race, ui: &Ui) {
         let s = &SETTINGS;
         number(ui, "Course", &s.course, 99);
         let course = s.course.load(Relaxed) as usize;
-        let present = crate::race::owner::race().shared.switches.course_present[course].get() != 0;
+        let present = race.shared.switches.course_present[course].get() != 0;
         ui.same_line();
         if ui.button("Find the courses")
-            && let Err(e) =
-                crate::race::find_present_courses::find_present_courses(crate::race::owner::race())
+            && let Err(e) = crate::race::find_present_courses::find_present_courses(race)
         {
             crate::framework::log(&format!("debug: find the courses: {e:?}"));
         }
@@ -281,7 +281,7 @@ mod tab {
         });
         number(ui, "Car", &s.car, 0x21);
         ui.same_line();
-        let name = race().physics.car_specs.cars[s.car.load(Relaxed) as usize]
+        let name = race.physics.car_specs.cars[s.car.load(Relaxed) as usize]
             .name
             .read();
         let end = name.iter().position(|&b| b == 0).unwrap_or(name.len());

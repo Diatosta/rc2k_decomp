@@ -16,13 +16,12 @@
 //! before anything.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 
 /// The Rust version (see the header).
-pub fn inspection_pass() -> Result<(), Refused> {
-    let menus = menus();
+pub fn inspection_pass(menus: &'static Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is looked at, the pauses, `goes_on`).
     use rc2k_core::menu::passes;

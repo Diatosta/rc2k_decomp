@@ -18,17 +18,17 @@ use crate::menu::standings::Which;
 use crate::menu::standings_steps::{clear_standings, number_all};
 
 /// The Rust version (see the header).
-pub fn rally_results(menus: &Menus) -> Result<(), Refused> {
+pub fn rally_results(menus: &'static Menus) -> Result<(), Refused> {
     menus.screens.state.menus.which_title.set(1u32);
-    crate::menu::standings_a_from_all::standings_a_from_all()?;
+    crate::menu::standings_a_from_all::standings_a_from_all(menus)?;
     // Converted: `rc2k_core::menu::results_pages::class_pages_only`.
     if !rc2k_core::menu::results_pages::class_pages_only(menus.play.champ_view.event_mode.get()) {
         crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
         clear_standings(Which::A)?;
         number_all(Which::A)?;
-        crate::menu::show_overall_rally_results::show_overall_rally_results()?;
+        crate::menu::show_overall_rally_results::show_overall_rally_results(menus)?;
     } else {
-        crate::menu::class_rally_results_pass::class_rally_results_pass()?;
+        crate::menu::class_rally_results_pass::class_rally_results_pass(menus)?;
     }
     menus.screens.state.menus.which_title.set(0u32);
     Ok(())

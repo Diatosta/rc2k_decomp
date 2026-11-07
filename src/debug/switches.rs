@@ -7,7 +7,7 @@
 
 use crate::debug::kstar::write_at;
 use crate::debug::wear_page::value_at;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::session::Dword;
 use crate::system::owner::system;
 use dear_imgui_rs::Ui;
@@ -29,9 +29,9 @@ fn tick(ui: &Ui, key: u32, name: &str, cell: &Dword, about: &str) {
 }
 
 /// The tab.
-pub fn tab(ui: &Ui) {
+pub fn tab(race: &Race, ui: &Ui) {
     let session = &system().session;
-    let shared = &race().shared;
+    let shared = &race.shared;
     let words = &shared.vars.settings_words;
     ui.text_disabled("Numbered by the keypad key each had");
     tick(

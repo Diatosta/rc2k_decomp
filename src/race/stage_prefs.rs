@@ -6,7 +6,6 @@ use crate::errors::BadInput;
 use crate::errors::Refused;
 use crate::pointers::GamePtr;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::scene::owner::scene;
 
@@ -19,13 +18,13 @@ fn prefs_paths(course: &Course) -> [GamePtr; 2] {
 pub const LIGHT_RECORDS: u32 = rc2k_core::race::stage_objects::LIGHT_RECORDS as u32;
 
 /// `g_textureKinds`.
-fn kind(n: u32) -> u32 {
-    race().course.stage_prefs.texture_kinds[n as usize].get()
+fn kind(race: &Race, n: u32) -> u32 {
+    race.course.stage_prefs.texture_kinds[n as usize].get()
 }
 
 /// `dword_60A67C`: 0x40 kinds (>> 4) swapped in.
-fn swapped(n: u32) -> u32 {
-    race().course.stage_prefs.picture_lists_b[n as usize].get()
+fn swapped(race: &Race, n: u32) -> u32 {
+    race.course.stage_prefs.picture_lists_b[n as usize].get()
 }
 
 /// `race::swap_stage_texture` (0x439B03): for the stages of the core's `TEXTURE_SWAPS`,
@@ -38,7 +37,7 @@ pub fn swap_stage_texture(race: &Race) {
     // Converted: `rc2k_core::race::stage::swap_texture`.
     use rc2k_core::race::stage::{Swap, swap_texture};
     let stage: u32 = race.shared.vars.stage_number.bits();
-    let ((_, new), swap) = swap_texture(stage, kind, swapped);
+    let ((_, new), swap) = swap_texture(stage, |n| kind(race, n), |n| swapped(race, n));
     let swapped_kind = match swap {
         Swap::NotThisStage | Swap::NotFound => return,
         Swap::Listed { kind, .. } | Swap::Full { kind } => kind,
@@ -116,11 +115,11 @@ pub fn init_skidmarks(race: &Race) -> Result<(), BadInput> {
 
 /// `race::copy_lights_data` (0x438B03): 0x22 records of 0x90 bytes from the lights' data
 /// to +0xA4 of the 0x134-byte records at 0x5C906C.
-pub fn copy_lights_data() -> Result<(), BadInput> {
+pub fn copy_lights_data(race: &Race) -> Result<(), BadInput> {
     // Converted: `rc2k_core::race::stage_objects::lay_lights`.
     use rc2k_core::race::stage_objects::{LIGHT_RECORD, lay_lights};
     let records = GamePtr::to(&crate::race::light_records_store::LIGHT_RECORDS.records);
-    let source = race().course.lights_data.lights.read();
+    let source = race.course.lights_data.lights.read();
     let mut laid =
         records.read_bytes(LIGHT_RECORDS as usize * LIGHT_RECORD, "the light records")?;
     lay_lights(&source, &mut laid);
@@ -137,7 +136,7 @@ pub fn load_lights_data(race: &Race) -> Result<(), Refused> {
         )?, // "files\s\data\ldata"
         &race.course.lights_data.lights,
     )?;
-    copy_lights_data()?;
+    copy_lights_data(race)?;
     Ok(())
 }
 
@@ -156,9 +155,9 @@ pub fn get_mat_crash(race: &Race) {
         shared.car.car_roll.get(),
     ]);
     crate::session::write_bits(&scene().drawing.object_work.angles, turns);
-    matrix::set_turn_x(turns[0]);
-    matrix::set_turn_y(turns[1]);
-    matrix::set_turn_z_16(turns[2]);
+    matrix::set_turn_x(&race.frame.matrices, turns[0]);
+    matrix::set_turn_y(&race.frame.matrices, turns[1]);
+    matrix::set_turn_z_16(&race.frame.matrices, turns[2]);
     matrix::multiply_matrices(
         &frame.matrices.turn_z_matrix,
         &frame.matrices.turn_x_matrix,

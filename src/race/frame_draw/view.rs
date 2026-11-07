@@ -222,12 +222,12 @@ pub fn sky_matrix(race: &Race) -> Result<(), BadInput> {
     let drawing = &scene().drawing;
     use crate::scene::matrix;
     let angle = (race.course.stage_prefs.sky_turn.get() << 8).wrapping_neg();
-    matrix::set_turn_y(angle);
+    matrix::set_turn_y(&race.frame.matrices, angle);
     let height = race.course.stage_prefs.sky_height.get() << 8;
     drawing.object_work.place[0].set(0u32);
     drawing.object_work.place[2].set(0u32);
     drawing.object_work.place[1].set(height);
-    matrix::set_place([0, height, 0]);
+    matrix::set_place(&race.frame.matrices, [0, height, 0]);
     matrix::copy_matrix_with_place(
         &race.frame.matrices.turn_y_matrix,
         &race.frame.matrices.placed_matrix,
@@ -251,11 +251,11 @@ pub fn sky_matrix(race: &Race) -> Result<(), BadInput> {
 /// The end of `view_matrices` (0x4388E5 .. and 0x438950 ..): the place negated into
 /// `g_placedMatrix` (kept also at 0x5EA1CC), times the view's turn into `g_viewMatrix`,
 /// the turn undone into `g_viewBackMatrix`.
-pub(super) fn view_place_tail(frame: &Frame) -> Result<(), BadInput> {
+pub(super) fn view_place_tail(course: &Course, frame: &Frame) -> Result<(), BadInput> {
     use crate::scene::{matrix, view_matrix};
     let p = crate::session::read_bits(&frame.view_and_records.view_vars.view_place)
         .map(u32::wrapping_neg);
-    matrix::set_place(p);
+    matrix::set_place(&frame.matrices, p);
     crate::math::cells::copy_cells(
         &frame.matrices.placed_matrix,
         &frame.matrices.view_place_matrix,
@@ -267,6 +267,7 @@ pub(super) fn view_place_tail(frame: &Frame) -> Result<(), BadInput> {
         &frame.matrices.view_matrix,
     );
     view_matrix::invert_turn(
+        course,
         &frame.matrices.view_turn_matrix,
         &frame.matrices.view_back_matrix,
     );
@@ -297,28 +298,34 @@ pub fn view_matrices(race: &Race) -> Result<(), BadInput> {
     );
     if race.physics.ground.view_mirrored.get() != 0 {
         crate::math::cells::copy_cells(&race.frame.matrices.view_turn_copy, &view_turn, 16);
-        view_place_tail(&race.frame)?;
+        view_place_tail(&race.course, &race.frame)?;
         return Ok(());
     }
     let view: u32 = race.shared.car.camera_view.get();
     if view <= 3 {
-        invert_turn(&race.shared.car.crash_matrix, view_turn);
+        invert_turn(&race.course, &race.shared.car.crash_matrix, view_turn);
     } else {
         crate::math::cells::copy_cells(&race.frame.matrices.identity_matrix, &view_turn, 16);
         for angles in [[0usize, 1, 2], [3, 4, 5]] {
             set_fine_turn(
+                &race.course,
+                &race.frame.matrices,
                 Axis::Y,
                 race.frame.view_and_records.view_vars.view_angles[angles[0]]
                     .bits()
                     .wrapping_neg(),
             );
             set_fine_turn(
+                &race.course,
+                &race.frame.matrices,
                 Axis::X,
                 race.frame.view_and_records.view_vars.view_angles[angles[1]]
                     .bits()
                     .wrapping_neg(),
             );
             set_fine_turn(
+                &race.course,
+                &race.frame.matrices,
                 Axis::Z,
                 race.frame.view_and_records.view_vars.view_angles[angles[2]]
                     .bits()
@@ -359,11 +366,11 @@ pub fn view_matrices(race: &Race) -> Result<(), BadInput> {
             race.course.numbers.one_over_two_pi.bits(),
         ) << 4;
         drawing.scene.scratch.set_bits(angle);
-        set_fine_turn(Axis::Z, angle);
+        set_fine_turn(&race.course, &race.frame.matrices, Axis::Z, angle);
         multiply_matrices(view_turn, turn_z, turned);
         crate::math::cells::copy_cells(&turned, &view_turn, 16);
     }
-    view_place_tail(&race.frame)?;
+    view_place_tail(&race.course, &race.frame)?;
     Ok(())
 }
 
@@ -421,6 +428,7 @@ pub fn camera_view(race: &Race) -> Result<(), BadInput> {
             &race.frame.matrices.turned_matrix,
         );
         crate::scene::view_matrix::invert_turn(
+            &race.course,
             &race.frame.matrices.turned_matrix,
             &race.frame.matrices.view_turn_copy,
         );

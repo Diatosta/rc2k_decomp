@@ -425,7 +425,7 @@ pub fn item_fn(menus: &'static Menus, f: ItemFn, c: &table_calls::ItemCall) -> R
         ItemFn::BeginSuspensionStiffnessEdit => {
             begin_edits::begin_edit(begin_edits::SUSPENSION_STIFFNESS)
         }
-        ItemFn::ToggleRepairChoice => toggle_repair_choice::toggle_repair_choice().map(|_| ()),
+        ItemFn::ToggleRepairChoice => toggle_repair_choice::toggle_repair_choice(menus).map(|_| ()),
         ItemFn::NextScoresPage => {
             player_actions::next_scores_page(&menus.tables);
             Ok(())
@@ -449,13 +449,13 @@ pub fn item_fn(menus: &'static Menus, f: ItemFn, c: &table_calls::ItemCall) -> R
             player_actions::next_replay_range(menus, &menus.tables).map_err(Into::into)
         }
         ItemFn::BeginSavegameName => Ok(begin_savegame_name::begin_savegame_name(menus, true)?),
-        ItemFn::LoadSavegame => load_savegame::load_savegame(),
+        ItemFn::LoadSavegame => load_savegame::load_savegame(menus),
         ItemFn::LoadChampionship46e899Loop => load_championship_46e899_loop::run(),
         ItemFn::SaveSetupLoop => save_setup_loop::run(),
-        ItemFn::BeginSetupName => Ok(begin_setup_name::begin_setup_name()?),
-        ItemFn::LoadSetupSlot => load_setup_slot::load_setup_slot().map(|_| ()),
+        ItemFn::BeginSetupName => Ok(begin_setup_name::begin_setup_name(menus)?),
+        ItemFn::LoadSetupSlot => load_setup_slot::load_setup_slot(menus).map(|_| ()),
         ItemFn::NextSetupPage => {
-            next_setup_page::next_setup_page();
+            next_setup_page::next_setup_page(menus);
             Ok(())
         }
         ItemFn::BeginReplayName => Ok(begin_replay_name::begin_replay_name(menus, true)?),
@@ -496,7 +496,7 @@ pub fn item_fn(menus: &'static Menus, f: ItemFn, c: &table_calls::ItemCall) -> R
         ItemFn::ToggleA3d => toggle_a3d::run(),
         ItemFn::ToggleDolby => toggle_dolby::run(),
         ItemFn::ToggleChannels => toggle_channels::run(),
-        ItemFn::ViewStageDetails => item_actions::view_stage_details(&menus.screens),
+        ItemFn::ViewStageDetails => item_actions::view_stage_details(menus, &menus.screens),
         ItemFn::ApplyScreenMode => apply_screen_mode::apply_screen_mode(&menus.screens),
         ItemFn::TogglePlayer3c => player_actions::toggle_controller_mode(&menus.screens),
         ItemFn::ReplayItemC => replay_items::replay_item_c(),
@@ -668,12 +668,12 @@ pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
         ScreenFn::DrawControlBindings => {
             draw_control_bindings::draw_control_bindings(menus, &mut GameCanvas).map(|_| ())
         }
-        ScreenFn::PickPlayer1 => page_settings::pick_player(0).map(|_| ()),
-        ScreenFn::PickPlayer2 => page_settings::pick_player(1).map(|_| ()),
-        ScreenFn::PickPlayer3 => page_settings::pick_player(2).map(|_| ()),
-        ScreenFn::PickPlayer4 => page_settings::pick_player(3).map(|_| ()),
-        ScreenFn::LearnAxis => controller::learn_axis(),
-        ScreenFn::HandleEditKeys => handle_edit_keys::handle_edit_keys().map(|_| ()),
+        ScreenFn::PickPlayer1 => page_settings::pick_player(menus, 0).map(|_| ()),
+        ScreenFn::PickPlayer2 => page_settings::pick_player(menus, 1).map(|_| ()),
+        ScreenFn::PickPlayer3 => page_settings::pick_player(menus, 2).map(|_| ()),
+        ScreenFn::PickPlayer4 => page_settings::pick_player(menus, 3).map(|_| ()),
+        ScreenFn::LearnAxis => controller::learn_axis(menus),
+        ScreenFn::HandleEditKeys => handle_edit_keys::handle_edit_keys(menus).map(|_| ()),
         ScreenFn::BestScoresCaption => best_scores::best_scores_caption(menus).map(|_| ()),
         ScreenFn::DrawBestScoresPage => {
             best_scores::draw_best_scores_page(menus, &mut GameCanvas).map(|_| ())
@@ -706,7 +706,7 @@ pub fn screen_fn(menus: &Menus, f: ScreenFn) -> Result<(), Refused> {
         }
         ScreenFn::DrawSoundSettings => draw_sound_settings::draw_sound_settings(&mut GameCanvas),
         ScreenFn::ReplayRangeCaption => Ok(best_scores::replay_range_caption(menus)?),
-        ScreenFn::LoadSetupValues => Ok(load_setup_values::load_setup_values()?),
+        ScreenFn::LoadSetupValues => Ok(load_setup_values::load_setup_values(menus)?),
         ScreenFn::LoadAudioSettings => {
             page_settings::load_audio_settings(menus);
             Ok(())

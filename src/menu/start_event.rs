@@ -28,6 +28,7 @@ pub struct Starter {
 /// The game's variables and callees for `rc2k_core::menu::starters::start`, and the car
 /// list the car choice was shown.
 struct Game {
+    menus: &'static crate::menu::owner::Menus,
     cars: Option<CarList>,
 }
 
@@ -47,7 +48,7 @@ impl starters::Event for Game {
         use starters::Call as C;
         match c {
             C::RepairCar => crate::service::repair_parts::repair_car()?,
-            C::BeginEvent => m::begin_event::begin_event()?,
+            C::BeginEvent => m::begin_event::begin_event(self.menus)?,
             C::ResetDrivers => m::reset_drivers::reset_drivers()?,
             C::ResetDriverCondition => m::reset_driver_condition::reset_driver_condition()?,
             C::SelectCar(list) => {
@@ -55,14 +56,14 @@ impl starters::Event for Game {
                 {
                     run_screen(
                         &m::select_car_loop::SCREEN,
-                        &Entry::with_cars(crate::menu::owner::menus(), self.cars),
+                        &Entry::with_cars(self.menus, self.cars),
                     )
                 }?;
             }
-            C::TakeShownCar => m::take_shown_car::take_shown_car(self.cars)?,
-            C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
+            C::TakeShownCar => m::take_shown_car::take_shown_car(self.menus, self.cars)?,
+            C::ResetCars750724 => m::reset_cars_750724::reset_cars_750724(self.menus)?,
             C::RunA8Championship => m::run_a8_championship::run_a8_championship()?,
-            C::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
+            C::ShowInGameOptions => m::in_game_options_items::show_in_game_options(self.menus)?,
             C::RunChampionship => m::run_championship::run_championship()?,
         }
 
@@ -93,5 +94,11 @@ fn var(v: starters::Var) -> &'static Dword {
 /// The Rust version of a starter.
 pub fn start_event(s: &Starter) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::starters::start`.
-    starters::start(s.kind, &mut Game { cars: None })
+    starters::start(
+        s.kind,
+        &mut Game {
+            menus: crate::menu::owner::menus(),
+            cars: None,
+        },
+    )
 }

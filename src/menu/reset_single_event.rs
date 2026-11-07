@@ -8,12 +8,11 @@
 //! Caller: `sub_4AA4D7` (twice). Refuses a missing player or a drivers' table without its end
 //! entry, before anything.
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn reset_single_event() -> Result<(), Refused> {
-    let menus = menus();
+pub fn reset_single_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = drivers()?;
 
     menus.tables.pages.services.set(0u32);

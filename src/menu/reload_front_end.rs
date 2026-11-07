@@ -8,11 +8,11 @@
 //! 36 callers (the menus after their races).
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 
 /// The Rust version (see the header).
-pub fn reload_front_end() -> Result<(), Refused> {
-    if { menus().play.arcade.scene_let_go.get() } == 1 {
+pub fn reload_front_end(menus: &Menus) -> Result<(), Refused> {
+    if { menus.play.arcade.scene_let_go.get() } == 1 {
         crate::scene::set_up_engine::set_up_engine()?;
         crate::scene::set_up_front_end_scene::set_up_front_end_scene()?;
         crate::scene::set_up_engine::set_up_engine()?;

@@ -59,11 +59,14 @@ pub fn car_collisions(race: &Race) -> Result<(), Refused> {
             if { Car::at(block) }.driver_kind.bits() == 0 {
                 continue;
             }
-            set_place([0usize, 1, 2].map(|k| {
-                race.shared.car.position[k]
-                    .get()
-                    .wrapping_sub(Car::at(block).position[k].get())
-            }));
+            set_place(
+                &race.frame.matrices,
+                [0usize, 1, 2].map(|k| {
+                    race.shared.car.position[k]
+                        .get()
+                        .wrapping_sub(Car::at(block).position[k].get())
+                }),
+            );
             multiply_matrices(
                 &race.shared.car.crash_matrix,
                 &race.frame.matrices.placed_matrix,

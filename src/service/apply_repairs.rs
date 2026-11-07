@@ -41,7 +41,7 @@ use crate::system::tick_count::tick_count;
 // ---- game data ----
 
 // Converted: `rc2k_core::service::workshop` (the items, the order, the car's fields).
-use crate::menu::owner::{Menus, Screens, menus};
+use crate::menu::owner::{Menus, Screens};
 use rc2k_core::service::workshop::{Setting, Timer, Workshop};
 // ---- Rust version ----
 
@@ -152,6 +152,6 @@ pub fn apply_repairs(menus: &Menus, driver: &mut dyn Driver) -> Result<(), Refus
 /// For Rust callers: the Rust version with the game's clock, frames and sleep. Every
 /// register kept. A refusal is the caller's (before 2026-10-23 the original was called,
 /// which the standalone does not have: it ended there).
-pub fn apply_repairs_in_game() -> Result<(), Refused> {
-    apply_repairs(menus(), &mut GameDriver)
+pub fn apply_repairs_in_game(menus: &Menus) -> Result<(), Refused> {
+    apply_repairs(menus, &mut GameDriver)
 }

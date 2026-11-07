@@ -60,7 +60,7 @@ pub fn set_up_front_end(menus: &Menus) -> Result<(), Refused> {
     if crate::install::owner::install().vars.has_clio.get() == 1 {
         crate::menu::add_clio_car::add_clio_car()?;
     }
-    crate::menu::link_player_names::link_player_names()?;
+    crate::menu::link_player_names::link_player_names(menus)?;
     crate::menu::show_loading_picture::show_loading_picture()?;
     crate::gfx::build_menu_sprites::build_menu_sprites_in_game()?;
     crate::menu::fit_player_names::fit_player_names()?;

@@ -96,11 +96,14 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
     for i in 0..4 {
         scene.drawing.object_work.part_weights[i].set_bits(c.wheel_spring_force[i].bits());
     }
-    set_place([
-        scene.drawing.object_work.place[0].get(),
-        scene.drawing.object_work.place[1].get(),
-        scene.drawing.object_work.place[2].get(),
-    ]);
+    set_place(
+        &race.frame.matrices,
+        [
+            scene.drawing.object_work.place[0].get(),
+            scene.drawing.object_work.place[1].get(),
+            scene.drawing.object_work.place[2].get(),
+        ],
+    );
     crate::math::cells::copy_cells(
         &race.frame.matrices.placed_matrix,
         &race.frame.frame_work.placed_matrices,
@@ -145,19 +148,25 @@ pub fn car_part_matrices(race: &Race, car: u32) -> Result<(), Refused> {
         if n == 2 {
             scene.drawing.object_work.part_values[2].set(0);
         }
-        set_place([
-            x.get().wrapping_neg(),
-            race.physics.camera.axle_rear_lift.get().wrapping_neg(),
-            z.get().wrapping_neg(),
-        ]);
-        set_turn_x(spin.get());
+        set_place(
+            &race.frame.matrices,
+            [
+                x.get().wrapping_neg(),
+                race.physics.camera.axle_rear_lift.get().wrapping_neg(),
+                z.get().wrapping_neg(),
+            ],
+        );
+        set_turn_x(&race.frame.matrices, spin.get());
         let placed = &race.frame.matrices.placed_matrix;
         let turned = &race.frame.matrices.turned_matrix;
         let lit = &race.frame.matrices.lit_matrix;
         multiply_matrices(placed, &race.frame.matrices.turn_x_matrix, turned);
-        set_turn_y(scene.drawing.object_work.part_values[2].get());
+        set_turn_y(
+            &race.frame.matrices,
+            scene.drawing.object_work.part_values[2].get(),
+        );
         multiply_matrices(turned, &race.frame.matrices.turn_y_matrix, lit);
-        set_place([x.get(), lift.get(), z.get()]);
+        set_place(&race.frame.matrices, [x.get(), lift.get(), z.get()]);
         multiply_matrices(lit, placed, out);
     }
     Ok(())

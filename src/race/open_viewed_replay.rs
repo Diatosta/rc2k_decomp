@@ -38,7 +38,7 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
         opened_marks, read_good, version_good,
     };
     let failed = || -> Result<bool, Refused> {
-        crate::race::close_viewed_replay::close_viewed_replay(&race.shared)?;
+        crate::race::close_viewed_replay::close_viewed_replay(race)?;
         Ok(true)
     };
     let found = replay_path(race, slot)?;
@@ -147,6 +147,6 @@ pub fn open_viewed_replay(race: &Race, slot: u32) -> Result<bool, Refused> {
             CAR_HEADER_LEN,
             "the replay header's stage",
         )?;
-    crate::race::replay_patches::apply_replay_patches(&race.shared)?;
+    crate::race::replay_patches::apply_replay_patches(race)?;
     Ok(false)
 }

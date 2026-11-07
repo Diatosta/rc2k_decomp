@@ -13,8 +13,8 @@
 //! entries, a name past the entry, a player count of 0 or past 4, a player missing or without a
 //! name, before anything.
 use crate::errors::{BadInput, Refused};
+use crate::menu::owner::Menus;
 use crate::menu::owner::Screens;
-use crate::menu::owner::menus;
 use crate::menu::standings::*;
 
 /// Each group's (0 .. 3) players, in order, into the table's entries from the group's slot
@@ -30,8 +30,8 @@ fn players_by_group(screens: &Screens, firsts: [usize; 4]) -> Result<(), Refused
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn standings_b_from_all() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn standings_b_from_all(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     let drivers = walked_drivers()?;
     if drivers.len() > 200 {
         return Err(BadInput("more drivers than the standings table holds").into());

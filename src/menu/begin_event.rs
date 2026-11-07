@@ -14,15 +14,14 @@
 //! missing player.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::player::PLAYERS;
 use crate::session::Dword;
 use rc2k_core::menu::event::KEEPS_SETUP;
 use rc2k_core::menu::player::Player;
 
 const CURRENT_PLAYER: &Dword = crate::menu::take_shown_car::CURRENT_PLAYER_RVA;
-pub fn begin_event() -> Result<(), Refused> {
-    let menus = menus();
+pub fn begin_event(menus: &Menus) -> Result<(), Refused> {
     let drivers = crate::menu::standings::drivers()?;
     menus.tables.pages.services.set(0u32);
     menus.screens.event.stages_done.set(0u32);

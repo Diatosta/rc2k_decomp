@@ -267,11 +267,12 @@ pub fn sort_table_a(menus: &Menus, key: rc2k_core::saves::entries::Field) -> Res
 /// bytes; then moved up its group. Refused for a current player past 3 or missing, no name,
 /// no table or a group past 4.
 pub fn enter_best(
+    menus: &Menus,
     group: Option<u32>,
     score: fn(&rc2k_core::menu::player::Player) -> u32,
 ) -> Result<(), BadInput> {
-    let play = &menus().play;
-    let n: u32 = menus().screens.event.current_player.get();
+    let play = &menus.play;
+    let n: u32 = menus.screens.event.current_player.get();
     if n >= 4 {
         return Err(BadInput("a current player past 3 or missing"));
     }

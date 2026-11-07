@@ -17,7 +17,7 @@
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::{Driver, IN_EVENT};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 const STATUS_TEXT_RVA: &std::ffi::CStr = c"Status of driver"; // aStatusOfDriver
@@ -39,8 +39,8 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused>
 }
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn award_stage_points() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn award_stage_points(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     let classes: u32 = screens.event.classes.get();
     let section: u32 = SECTION_RVA.get();
     if classes == 0 || classes > 0x100 || section > 5 {

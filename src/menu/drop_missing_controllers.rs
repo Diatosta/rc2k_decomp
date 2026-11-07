@@ -12,13 +12,13 @@
 
 use crate::errors::BadInput;
 use crate::input::owner::input;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::player_names::cars;
 
 // ---- Rust version ----
 
-pub fn drop_missing_controllers() -> Result<(), BadInput> {
-    let play = &menus().play;
+pub fn drop_missing_controllers(menus: &Menus) -> Result<(), BadInput> {
+    let play = &menus.play;
     // Converted: `rc2k_core::menu::steps::kept_controller`.
     let most = input().devices.controller_count.get();
     for car in cars(play) {

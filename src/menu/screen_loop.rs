@@ -397,7 +397,7 @@ impl Callee {
                 crate::menu::edit_player_name::edit_player_name(screens, &mut GameCanvas)?;
             }
             Self::EditSetupName => {
-                crate::service::edit_setup_name::edit_setup_name(&mut GameCanvas)?;
+                crate::service::edit_setup_name::edit_setup_name(menus, &mut GameCanvas)?;
             }
             Self::EditSavegameName => crate::menu::edit_savegame_name::edit_savegame_name(
                 menus,
@@ -407,7 +407,7 @@ impl Callee {
             Self::EditReplayName => {
                 return crate::menu::edit_replay_name::edit_replay_name(menus, &mut GameCanvas);
             }
-            Self::CheckCheatName => crate::menu::check_cheat_name::check_cheat_name(play)?,
+            Self::CheckCheatName => crate::menu::check_cheat_name::check_cheat_name(menus)?,
             // The way to look is the original's eax there, which the slideshow screen's set-up
             // leaves 0 or (after an action) a small number: always on.
             Self::LoadSlideshowPicture => {
@@ -459,8 +459,8 @@ fn clear_escape(screens: &Screens) {
 }
 
 /// A call whose failure is the fatal error `code`.
-pub fn call_or_fatal(function: Callee, code: u32) -> Result<(), Refused> {
-    if { function.run(menus()) }? {
+pub fn call_or_fatal(menus: &'static Menus, function: Callee, code: u32) -> Result<(), Refused> {
+    if { function.run(menus) }? {
         log(&format!(
             "a screen loop's Rust version raises fatal error {code:#x}"
         ));
@@ -484,7 +484,7 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
             }
             Step::Write(variable, value) => variable(menus).set(value),
             Step::WriteF32(variable, value) => variable(menus).set(value),
-            Step::CallOrFatal(function, code) => call_or_fatal(function, code)?,
+            Step::CallOrFatal(function, code) => call_or_fatal(menus, function, code)?,
             Step::Do(what) => what(entry)?,
         }
     }
@@ -493,8 +493,7 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
 
 /// Puts the menu and the lists in place, as the original does before a frame (the esi it
 /// leaves at the last list's table is read by no one: `cars` is set before its reader).
-fn set_lists(screens: &Screens, screen: &Screen, lists: &[List]) {
-    let menus = menus();
+fn set_lists(menus: &'static Menus, screens: &Screens, screen: &Screen, lists: &[List]) {
     screens.loop_flags.menu.set((screen.menu)(menus));
     for list in lists.iter().filter(|list| !list.run) {
         (list.pointer)(menus).set((list.table)(menus));
@@ -630,6 +629,7 @@ impl Loop<'_> {
         race().shared.physics_tables.scene_clock.set(0u32);
         run(screen.before_first_frame, entry)?;
         set_lists(
+            menus,
             screens,
             screen,
             screen.first_frame_lists.unwrap_or(screen.lists),
@@ -694,7 +694,7 @@ impl Loop<'_> {
                     screens.option_work.menu_sound.set(NO_SOUND);
                 }
                 run(screen.before_frame, entry)?;
-                set_lists(screens, screen, screen.lists);
+                set_lists(menus, screens, screen, screen.lists);
                 run_frame(menus, self.later_callback, menu)?;
                 race().shared.physics_tables.scene_clock.set(
                     system

@@ -156,7 +156,7 @@ pub fn set_up_front_end_scene() -> Result<(), Refused> {
     allocate_point_records_in_game()?;
     colours(course, 0);
     fill_scene_light_tables(scene)?;
-    set_view_matrices(frame);
+    set_view_matrices(&race.course, frame);
     reload_slot_textures()?;
     colours(course, 0x7F);
     shared.switches.other_way.set_bits(1u32);

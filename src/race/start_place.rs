@@ -279,6 +279,7 @@ pub fn nearest_checkpoint(race: &Race) -> Result<u32, Refused> {
 pub fn invert_car_matrix(race: &Race) {
     let shared = &race.shared;
     crate::scene::view_matrix::invert_turn(
+        &race.course,
         &shared.car.crash_matrix,
         &shared.car.car_inverse_matrix,
     );

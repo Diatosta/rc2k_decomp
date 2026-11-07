@@ -9,10 +9,11 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::service::pages::{STEERING_SENSITIVITY, simple_page};
 
 // ---- Rust version ----
 
-pub fn edit_steering_sensitivity() -> Result<(), Refused> {
-    simple_page(crate::menu::owner::menus(), STEERING_SENSITIVITY)
+pub fn edit_steering_sensitivity(menus: &Menus) -> Result<(), Refused> {
+    simple_page(menus, STEERING_SENSITIVITY)
 }

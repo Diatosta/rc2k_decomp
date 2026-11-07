@@ -85,7 +85,7 @@ pub fn draw_slot_object(
     for (k, &p) in place.iter().enumerate() {
         scene.drawing.object_work.place[k].set_bits(p);
     }
-    matrix::set_place(place);
+    matrix::set_place(&race.frame.matrices, place);
     matrix::copy_matrix_with_place(
         &race.frame.matrices.placed_matrix,
         &race.frame.matrices.view_place_matrix,
@@ -506,7 +506,7 @@ pub(super) fn placed_object_tail(frame: &Frame) {
         drawing.object_work.place[1].bits(),
         drawing.object_work.place[2].bits(),
     ];
-    matrix::set_place(place);
+    matrix::set_place(&frame.matrices, place);
     matrix::copy_matrix_with_place(
         &frame.matrices.placed_matrix,
         &frame.matrices.view_place_matrix,
@@ -563,12 +563,21 @@ pub fn place_object_matrix(race: &Race) -> Result<(), BadInput> {
         &frame.matrices.lit_matrix,
         &frame.matrices.object_turn_matrix,
     );
-    set_light_direction();
+    set_light_direction(&race.frame.matrices);
     if scene.lights.state.light_turn_off.get() == 0 {
-        set_turn_y(scene.drawing.object_work.angles[1].bits().wrapping_neg());
-        set_turn_x(scene.drawing.object_work.angles[0].bits().wrapping_neg());
+        set_turn_y(
+            &race.frame.matrices,
+            scene.drawing.object_work.angles[1].bits().wrapping_neg(),
+        );
+        set_turn_x(
+            &race.frame.matrices,
+            scene.drawing.object_work.angles[0].bits().wrapping_neg(),
+        );
         multiply_matrices(turn_y, turn_x, turned);
-        set_turn_z_16(scene.drawing.object_work.angles[2].bits().wrapping_neg());
+        set_turn_z_16(
+            &race.frame.matrices,
+            scene.drawing.object_work.angles[2].bits().wrapping_neg(),
+        );
         multiply_matrices(turned, turn_z, object);
         placed_object_tail(frame);
         return Ok(());
@@ -593,49 +602,71 @@ pub fn place_object_matrix(race: &Race) -> Result<(), BadInput> {
         5 => {
             crate::math::cells::copy_cells(&frame.matrices.identity_matrix, &object, 16);
             set_fine_turn(
+                &race.course,
+                &race.frame.matrices,
                 Axis::Y,
                 frame.view_and_records.view_vars.view_angles[3].get(),
             );
             multiply_matrices(object, turn_y, turned);
             set_fine_turn(
+                &race.course,
+                &race.frame.matrices,
                 Axis::Y,
                 frame.view_and_records.view_vars.view_angles[0].get(),
             );
             multiply_matrices(turned, turn_y, object);
         }
         _ => {
-            set_turn_y(scene.drawing.object_work.angles[0].bits().wrapping_neg());
+            set_turn_y(
+                &race.frame.matrices,
+                scene.drawing.object_work.angles[0].bits().wrapping_neg(),
+            );
             crate::math::cells::copy_cells(&turn_y, &object, 16);
             if scene.drawing.object_work.angles[1].get() != 0 {
-                set_turn_y(scene.drawing.object_work.angles[2].bits().wrapping_neg());
+                set_turn_y(
+                    &race.frame.matrices,
+                    scene.drawing.object_work.angles[2].bits().wrapping_neg(),
+                );
                 multiply_matrices(object, turn_y, lit);
-                set_turn_x(scene.drawing.object_work.angles[1].bits().wrapping_neg());
+                set_turn_x(
+                    &race.frame.matrices,
+                    scene.drawing.object_work.angles[1].bits().wrapping_neg(),
+                );
                 multiply_matrices(lit, turn_x, turned);
-                set_turn_y(scene.drawing.object_work.angles[2].get());
+                set_turn_y(
+                    &race.frame.matrices,
+                    scene.drawing.object_work.angles[2].get(),
+                );
                 multiply_matrices(turned, turn_y, object);
             }
             if scene.drawing.object_work.described_cleared[2].get() != 0
                 || scene.drawing.object_work.described_cleared[1].get() != 0
             {
                 set_turn_y(
+                    &race.frame.matrices,
                     scene.drawing.object_work.described_cleared[2]
                         .bits()
                         .wrapping_neg(),
                 );
                 multiply_matrices(object, turn_y, lit);
                 set_turn_y(
+                    &race.frame.matrices,
                     scene.drawing.object_work.described_cleared[0]
                         .bits()
                         .wrapping_neg(),
                 );
                 multiply_matrices(lit, turn_y, turned);
                 set_turn_x(
+                    &race.frame.matrices,
                     scene.drawing.object_work.described_cleared[1]
                         .bits()
                         .wrapping_neg(),
                 );
                 multiply_matrices(turned, turn_x, lit);
-                set_turn_y(scene.drawing.object_work.described_cleared[0].get());
+                set_turn_y(
+                    &race.frame.matrices,
+                    scene.drawing.object_work.described_cleared[0].get(),
+                );
                 multiply_matrices(lit, turn_y, object);
             }
         }

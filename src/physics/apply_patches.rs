@@ -29,7 +29,7 @@
 //! product at the game's double and extended precision.
 
 use crate::physics::tables_store::Surface;
-use crate::race::owner::race;
+use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
 use crate::session::Float;
 use rc2k_core::physics::patches::{Patches, apply_patches as apply_patches_core};
@@ -104,12 +104,12 @@ fn store(shared: &Shared, before: &Patches, after: &Patches) {
 /// The Rust version (the original's to the bit at the game's double and extended
 /// precision: each figure one quotient, or a product whose first step is exact).
 // Converted: `rc2k_core::physics::patches::apply_patches`.
-pub fn apply_patches() {
-    let before = load(&race().shared);
+pub fn apply_patches(race: &Race) {
+    let before = load(&race.shared);
     if before.applied != 0 {
         return;
     }
     let mut after = before;
-    apply_patches_core(&mut after, race().course.numbers.hundred.get());
-    store(&race().shared, &before, &after);
+    apply_patches_core(&mut after, race.course.numbers.hundred.get());
+    store(&race.shared, &before, &after);
 }

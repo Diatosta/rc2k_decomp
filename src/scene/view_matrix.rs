@@ -7,7 +7,7 @@
 use crate::math::cells::{Cells, Off};
 use crate::math::x87;
 use crate::math::x87_float as bh;
-use crate::race::owner::race;
+use crate::race::matrices_store::SceneMatrices;
 use crate::race::owner_course::Course;
 use crate::scene::matrix;
 use crate::scene::owner::scene;
@@ -23,14 +23,14 @@ pub enum Axis {
 
 /// `scene::set_fine_turn_x` (0x4270BA), `scene::set_fine_turn_y` (0x42710C),
 /// `scene::set_turn_z` (0x42715D).
-pub fn set_fine_turn(axis: Axis, angle: u32) {
+pub fn set_fine_turn(course: &Course, matrices: &SceneMatrices, axis: Axis, angle: u32) {
     let drawing = &scene().drawing;
-    let race = race();
+
     drawing.scene.scratch.set_bits(angle);
     let (sine, cosine) = x87::sine_cosine(
         angle as i32,
-        race.course.numbers.k65536.bits(),
-        race.course.numbers.one_over_two_pi.bits(),
+        course.numbers.k65536.bits(),
+        course.numbers.one_over_two_pi.bits(),
     );
     let negated = sine ^ 0x8000_0000;
     // The work pair, then where the cosine, the sine, the sine negated and the
@@ -38,17 +38,17 @@ pub fn set_fine_turn(axis: Axis, angle: u32) {
     let (work, rows, places): (&[Float; 2], &[Float; 16], [usize; 4]) = match axis {
         Axis::X => (
             &drawing.scene.turn_x_work,
-            &race.frame.matrices.turn_x_matrix,
+            &matrices.turn_x_matrix,
             [5, 6, 9, 10],
         ),
         Axis::Y => (
             &drawing.scene.turn_y_work,
-            &race.frame.matrices.turn_y_matrix,
+            &matrices.turn_y_matrix,
             [0, 8, 2, 10],
         ),
         Axis::Z => (
             &drawing.scene.turn_z_work,
-            &race.frame.matrices.turn_z_matrix,
+            &matrices.turn_z_matrix,
             [0, 1, 4, 5],
         ),
     };
@@ -101,11 +101,11 @@ pub fn cross_product(
 }
 
 /// The squared rows' work (`flt_5C6FA4` ..: 16 floats over three fields, as one run).
-struct Squared;
+struct Squared<'a>(&'a Course);
 
-impl Cells for Squared {
+impl Cells for Squared<'_> {
     fn bits(&self, n: usize) -> u32 {
-        let course = &race().course;
+        let course = self.0;
         match n {
             0..4 => course.lists.squared_row_0[n].bits(),
             4..8 => course.lists.squared_row_1[n - 4].bits(),
@@ -113,7 +113,7 @@ impl Cells for Squared {
         }
     }
     fn set_bits(&self, n: usize, bits: u32) {
-        let course = &race().course;
+        let course = self.0;
         match n {
             0..4 => course.lists.squared_row_0[n].set_bits(bits),
             4..8 => course.lists.squared_row_1[n - 4].set_bits(bits),
@@ -125,20 +125,20 @@ impl Cells for Squared {
 /// `scene::square_matrix` (0x420E94): a turning's three rows made one long and at right
 /// angles again, from its third row and its second.
 pub fn square_matrix(course: &Course, at: &(impl Cells + ?Sized)) {
-    let (first, second, third) = (Off(&Squared, 0), Off(&Squared, 4), Off(&Squared, 8));
+    let squared = Squared(course);
+    let (first, second, third) = (Off(&squared, 0), Off(&squared, 4), Off(&squared, 8));
     unit_vector(course, &Off(at, 8), &third);
     cross_product(&Off(at, 4), &third, &first);
     unit_vector(course, &first, &first);
     cross_product(&third, &first, &second);
     for n in 0..0x10 {
-        at.set_bits(n, Squared.bits(n));
+        at.set_bits(n, squared.bits(n));
     }
 }
 
 /// `scene::invert_turn` (0x420CC2): the turning at `from` undone, into `out`: its nine
 /// floats' cofactors laid out the other way round, then squared.
-pub fn invert_turn(from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
-    let course = &race().course;
+pub fn invert_turn(course: &Course, from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
     let mut m = [0u32; 9];
     for (n, value) in m.iter_mut().enumerate() {
         *value = x87::loaded(from.bits((n / 3) * 4 + n % 3));
@@ -166,16 +166,16 @@ pub fn invert_turn(from: &(impl Cells + ?Sized), out: &(impl Cells + ?Sized)) {
 }
 
 /// `scene::set_view_matrices` (0x438FBF).
-pub fn set_view_matrices(frame: &crate::race::owner_frame::Frame) {
+pub fn set_view_matrices(course: &Course, frame: &crate::race::owner_frame::Frame) {
     crate::session::write_bits(
         &frame.matrices.view_turn_matrix,
         crate::session::read_bits(&frame.matrices.identity_matrix),
     );
     let angles: [u32; 3] =
         crate::session::read_first(&frame.view_and_records.view_vars.view_angles);
-    set_fine_turn(Axis::Y, angles[0].wrapping_neg());
-    set_fine_turn(Axis::X, angles[1].wrapping_neg());
-    set_fine_turn(Axis::Z, angles[2].wrapping_neg());
+    set_fine_turn(course, &frame.matrices, Axis::Y, angles[0].wrapping_neg());
+    set_fine_turn(course, &frame.matrices, Axis::X, angles[1].wrapping_neg());
+    set_fine_turn(course, &frame.matrices, Axis::Z, angles[2].wrapping_neg());
     matrix::multiply_matrices(
         &frame.matrices.turn_y_matrix,
         &frame.matrices.turn_x_matrix,
@@ -188,7 +188,7 @@ pub fn set_view_matrices(frame: &crate::race::owner_frame::Frame) {
     );
     let place = crate::session::read_bits::<_, 3>(&frame.view_and_records.view_vars.view_place)
         .map(u32::wrapping_neg);
-    matrix::set_place(place);
+    matrix::set_place(&frame.matrices, place);
     crate::session::write_bits(
         &frame.matrices.view_place_matrix,
         crate::session::read_bits(&frame.matrices.placed_matrix),
@@ -199,6 +199,7 @@ pub fn set_view_matrices(frame: &crate::race::owner_frame::Frame) {
         &frame.matrices.view_matrix,
     );
     invert_turn(
+        course,
         &frame.matrices.view_turn_matrix,
         &frame.matrices.view_back_matrix,
     );

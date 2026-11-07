@@ -215,6 +215,7 @@ pub fn load_game_data(start: &Start, outside: Outside) -> Result<(), Refused> {
 
 /// The calls done by the Rust versions.
 fn in_game(call: Call) -> Result<u32, Refused> {
+    let menus = menus();
     match call {
         Call::LoadOptions => {
             crate::saves::load_options::load_game_options()?;
@@ -230,11 +231,12 @@ fn in_game(call: Call) -> Result<u32, Refused> {
             )?;
         }
         Call::ReadDriverNames => crate::settings::read_driver_names::read_driver_names(
+            menus,
             crate::settings::read_driver_names::path(),
         )?,
-        Call::ApplyPatches => crate::physics::apply_patches::apply_patches(),
-        Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars()?,
-        Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(&mut |line| {
+        Call::ApplyPatches => crate::physics::apply_patches::apply_patches(race()),
+        Call::RemoveSecretCars => crate::menu::remove_secret_cars::remove_secret_cars(menus)?,
+        Call::ApplyCheats => crate::menu::apply_cheats::apply_cheats(menus, &mut |line| {
             crate::logfile::log_write::log_nul(line, true, 1);
         })?,
         Call::UserName(to) => {

@@ -15,13 +15,12 @@
 //! (`menu::table_calls`); the registers above are the original's, for reference.
 
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::service::state::flagged_item;
 use crate::service::state::{flags, marks, store_flags, store_marks, time_of};
 
 /// The Rust version (see the header).
-pub fn toggle_repair_choice() -> Result<(), Refused> {
-    let menus = menus();
+pub fn toggle_repair_choice(menus: &Menus) -> Result<(), Refused> {
     let (screens, tables) = (&menus.screens, &menus.tables);
     // Converted: `rc2k_core::service::repairs::toggle_choice` (nothing written when it
     // refuses).

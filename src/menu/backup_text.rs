@@ -4,13 +4,15 @@
 //! In:  edi = the text field
 //! Out: every register preserved
 
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::text_entry::{field, with_entry};
 
 // ---- Rust version ----
 
-pub fn backup_text(at: impl Into<crate::place::Place>) -> Result<(), crate::errors::BadInput> {
-    let menus = menus();
+pub fn backup_text(
+    menus: &Menus,
+    at: impl Into<crate::place::Place>,
+) -> Result<(), crate::errors::BadInput> {
     // Converted: `rc2k_core::menu::text_entry::Entry::back_up`.
     let text = field(at)?;
     with_entry(menus, |e| e.back_up(&text));

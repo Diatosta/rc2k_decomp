@@ -12,7 +12,7 @@
 //! 0x100), before anything; what the steps refuse.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::menu::standings_steps::number_standings;
 use rc2k_core::menu::class_pages;
@@ -26,8 +26,7 @@ fn first_class() -> u32 {
 }
 
 /// The Rust version (see the header).
-pub fn class_rally_results_pass() -> Result<(), Refused> {
-    let menus = menus();
+pub fn class_rally_results_pass(menus: &'static Menus) -> Result<(), Refused> {
     crate::menu::sort_standings_by_total::sort_standings_by_total(menus)?;
     let first = first_class();
     // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).

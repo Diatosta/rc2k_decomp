@@ -14,7 +14,7 @@
 //! search's fatal error, before anything.
 use crate::errors::{BadInput, Refused};
 use crate::menu::drivers_store::Driver;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 /// An entry's driver (computer) or player.
@@ -35,8 +35,8 @@ fn owner(e: &rc2k_core::saves::rankings::HistoryEntry) -> Result<Owner, Refused>
 }
 
 /// The Rust version (see the header).
-pub fn award_overall_points() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn award_overall_points(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     {
         let section: u32 = SECTION_RVA.get();
         if section > 5 {

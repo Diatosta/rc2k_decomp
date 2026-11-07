@@ -89,13 +89,14 @@ impl arcade::Arcade for Game {
         use crate::menu as m;
         use crate::menu::arcade_steps as a;
         match s {
-            Step::ClearPlayers284 => m::clear_players_284::clear_players_284()?,
-            Step::ResetCars750724 => m::reset_cars_750724::reset_cars_750724()?,
+            Step::ClearPlayers284 => m::clear_players_284::clear_players_284(menus)?,
+            Step::ResetCars750724 => m::reset_cars_750724::reset_cars_750724(menus)?,
             Step::SecretCarList => {
-                self.cars = Some(m::cheat_car_list::cheat_car_list().unwrap_or(CarList::Second));
+                self.cars =
+                    Some(m::cheat_car_list::cheat_car_list(menus).unwrap_or(CarList::Second));
             }
             Step::SelectCarLoop => self.screen(&m::select_car_loop::SCREEN)?,
-            Step::TakeShownCar => m::take_shown_car::take_shown_car(self.cars)?,
+            Step::TakeShownCar => m::take_shown_car::take_shown_car(menus, self.cars)?,
             Step::NextStageLoop => self.screen(&m::arcade_next_stage_loop::SCREEN)?,
             Step::TakeStageBest => a::take_arcade_stage_best(play)?,
             Step::RepairCar => crate::service::repair_parts::repair_car()?,
@@ -123,7 +124,7 @@ impl arcade::Arcade for Game {
             Step::NextLevelReview => self.screen(&m::review_options_4882e2_loop::SCREEN)?,
             Step::RetryReview => self.screen(&m::review_options_48861d_loop::SCREEN)?,
             Step::StageReview => self.screen(&m::arcade_review_options_loop::SCREEN)?,
-            Step::ShowInGameOptions => m::in_game_options_items::show_in_game_options()?,
+            Step::ShowInGameOptions => m::in_game_options_items::show_in_game_options(menus)?,
         }
         Ok(())
     }

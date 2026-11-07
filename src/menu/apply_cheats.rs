@@ -20,7 +20,7 @@
 //! without its end, or without room for a car more.
 
 use crate::errors::BadInput;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::remove_secret_cars::{FIRST, List, SECOND, read_list, write_list};
 use crate::race::owner::race;
 use rc2k_core::menu::car_lists;
@@ -54,8 +54,8 @@ const CHEATS: [(&std::ffi::CStr, Option<usize>); 19] = [
 // ---- Rust version ----
 
 /// `log` gets each line's text.
-pub fn apply_cheats(log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
-    let play = &menus().play;
+pub fn apply_cheats(menus: &Menus, log: &mut dyn FnMut(&[u8])) -> Result<(), BadInput> {
+    let play = &menus.play;
     // Converted: `rc2k_core::menu::car_lists::apply_cheats`.
     {
         let cheats: u32 = play.cheats.cheats.get();

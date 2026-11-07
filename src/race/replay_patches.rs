@@ -10,8 +10,8 @@
 //! Both keep every register (`pusha` / `popa`).
 
 use crate::errors::Refused;
+use crate::race::owner::Race;
 use crate::race::owner::race;
-use crate::race::owner_shared::Shared;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::race::viewer_screen_store::VIEWER_PANEL;
 use crate::session::Dword;
@@ -30,9 +30,10 @@ fn move_dwords<'a>(to: impl Iterator<Item = &'a Dword>, from: impl Iterator<Item
 }
 
 /// `apply_replay_patches`.
-pub fn apply_replay_patches(shared: &Shared) -> Result<(), Refused> {
+pub fn apply_replay_patches(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::patches_change`.
     use rc2k_core::race::viewer_flow::patches_change;
+    let shared = &race.shared;
     if patches_change(
         REPLAY_WORK.patches_in_header.get(),
         VIEWER_PANEL.patches_in_force.get(),
@@ -42,15 +43,16 @@ pub fn apply_replay_patches(shared: &Shared) -> Result<(), Refused> {
         move_dwords(VIEWER_PANEL.kept_patch_switches.iter(), switches()); // unk_5C2C98
         move_dwords(switches(), REPLAY_WORK.header_patches.iter()); // unk_719C58
         shared.work.patches_applied.set(0);
-        crate::physics::apply_patches::apply_patches();
+        crate::physics::apply_patches::apply_patches(race);
     }
     Ok(())
 }
 
 /// `restore_replay_patches`.
-pub fn restore_replay_patches(shared: &Shared) -> Result<(), Refused> {
+pub fn restore_replay_patches(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::viewer_flow::patches_change`.
     use rc2k_core::race::viewer_flow::patches_change;
+    let shared = &race.shared;
     if patches_change(
         REPLAY_WORK.patches_in_header.get(),
         VIEWER_PANEL.patches_in_force.get(),
@@ -59,7 +61,7 @@ pub fn restore_replay_patches(shared: &Shared) -> Result<(), Refused> {
         VIEWER_PANEL.patches_in_force.set(0);
         move_dwords(switches(), VIEWER_PANEL.kept_patch_switches.iter());
         shared.work.patches_applied.set(0);
-        crate::physics::apply_patches::apply_patches();
+        crate::physics::apply_patches::apply_patches(race);
     }
     Ok(())
 }

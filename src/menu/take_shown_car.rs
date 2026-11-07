@@ -11,7 +11,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::menu::lists_store::CarList;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::player::{PLAYERS, Player, player};
 use crate::session::Dword;
 
@@ -19,8 +19,7 @@ pub const CURRENT_PLAYER_RVA: &Dword = &crate::menu::owner::MENUS.screens.event.
 const _: () = assert!(std::mem::offset_of!(Player, car_number) == 8);
 const _: () = assert!(std::mem::offset_of!(Player, class) == 0x90);
 
-pub fn take_shown_car(list: Option<CarList>) -> Result<(), Refused> {
-    let menus = menus();
+pub fn take_shown_car(menus: &Menus, list: Option<CarList>) -> Result<(), Refused> {
     let list = list.ok_or(BadInput("no list of cars"))?;
     let current: u32 = menus.screens.event.current_player.get();
     if current >= PLAYERS {

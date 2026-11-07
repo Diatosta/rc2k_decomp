@@ -6,15 +6,15 @@
 //!
 //! Caller: `sub_473126` (three times). Refuses a missing player, before anything.
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 
 /// The Rust version (see the header): the registers it leaves.
-pub fn reset_player_times() -> Result<(), Refused> {
+pub fn reset_player_times(menus: &Menus) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::player::Player::reset_times`.
     for n in 0..4 {
         player(n).update(rc2k_core::menu::player::Player::reset_times);
     }
-    menus().screens.event.event_goes_on.set(0u32);
+    menus.screens.event.event_goes_on.set(0u32);
     Ok(())
 }

@@ -9,13 +9,14 @@
 //! registers above are the original's, for reference.
 
 use crate::errors::BadInput;
+use crate::menu::owner::Menus;
 use crate::service::state::{flags, store_flags};
 
 // ---- Rust version ----
 
-pub fn clear_repair_flags() -> Result<(), BadInput> {
+pub fn clear_repair_flags(menus: &Menus) -> Result<(), BadInput> {
     // Converted: `rc2k_core::service::repairs::clear`.
-    let tables = &crate::menu::owner::menus().tables;
+    let tables = &menus.tables;
     let mut t = flags(tables);
     rc2k_core::service::repairs::clear(&mut t)?;
     store_flags(tables, &t);

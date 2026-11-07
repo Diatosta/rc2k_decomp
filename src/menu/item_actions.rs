@@ -20,6 +20,7 @@
 //! registers their last call leaves
 
 use crate::errors::Refused;
+use crate::menu::owner::Menus;
 use crate::menu::owner::Play;
 use crate::menu::owner::Screens;
 use crate::menu::owner::Tables;
@@ -57,20 +58,17 @@ pub fn open_service_box(screens: &Screens, page: u32) {
 }
 
 /// `menu::view_stage_details`: the stage information screen.
-pub fn view_stage_details(screens: &Screens) -> Result<(), Refused> {
+pub fn view_stage_details(menus: &'static Menus, screens: &Screens) -> Result<(), Refused> {
     // Converted: `rc2k_core::menu::stage_screens::time_trial_details`.
     let time_trial =
         rc2k_core::menu::stage_screens::time_trial_details(screens.event.event_type.get());
     if time_trial {
         run_screen(
             &crate::menu::time_trial_stage_details_loop::SCREEN,
-            &Entry::new(crate::menu::owner::menus()),
+            &Entry::new(menus),
         )?;
     } else {
-        run_screen(
-            &crate::menu::view_stage_loop::SCREEN,
-            &Entry::new(crate::menu::owner::menus()),
-        )?;
+        run_screen(&crate::menu::view_stage_loop::SCREEN, &Entry::new(menus))?;
     }
     Ok(())
 }

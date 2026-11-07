@@ -93,7 +93,7 @@ pub fn edit_savegame_name(
         Key::Enter => {
             if length() == 0 {
                 restore_text(name)?;
-                add_text_length(name)?;
+                add_text_length(menus, name)?;
             }
             screens.option_work.typing.set(0u32);
             end_name(name)?;

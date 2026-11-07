@@ -20,5 +20,5 @@ pub fn save_last_replay(race: &Race, slot: u32) -> Result<(), Refused> {
         return Ok(());
     }
     crate::race::save_viewed_replay::save_viewed_replay(race, slot)?;
-    crate::race::close_viewed_replay::close_viewed_replay(&race.shared)
+    crate::race::close_viewed_replay::close_viewed_replay(race)
 }

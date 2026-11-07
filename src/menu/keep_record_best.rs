@@ -10,7 +10,7 @@
 //! Callers: the event drivers. `records::find_record`'s Rust version. Refuses a record past the
 //! table, a player count of 0 or past 4, a missing player or name, before anything.
 use crate::errors::{BadInput, Refused};
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::standings::*;
 use crate::records::stages_store::{Holder, RecordRef};
 use crate::system::owner::system;
@@ -29,8 +29,8 @@ fn current_record() -> Result<RecordRef, BadInput> {
     crate::records::find_record::find_record_in(table, index as i32, section)
 }
 /// The Rust version (see the header): the registers it leaves.
-pub fn keep_record_best() -> Result<(), Refused> {
-    let screens = &menus().screens;
+pub fn keep_record_best(menus: &Menus) -> Result<(), Refused> {
+    let screens = &menus.screens;
     let players = counted_players(screens)?;
     if any_unnamed(&players)? {
         return Err(BadInput("a player without a name").into());
@@ -40,7 +40,7 @@ pub fn keep_record_best() -> Result<(), Refused> {
     use rc2k_core::menu::bests;
     let record = record.record()?;
     for (n, &p) in players.iter().enumerate() {
-        menus().screens.event.current_player.set(n as u32);
+        menus.screens.event.current_player.set(n as u32);
         let p = p.get();
         if !bests::takes_record(p.figure, record.holder(Holder::Fastest).speed) {
             break;

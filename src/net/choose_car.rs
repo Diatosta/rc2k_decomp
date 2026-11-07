@@ -30,7 +30,7 @@ pub fn choose_car(vars: &NetVars) -> Result<(), Refused> {
     let entry = Entry::with_cars(menus, Some(cars));
     { run_screen(&crate::menu::select_car_loop::SCREEN, &entry) }?;
     if ESCAPED.get() != 1 {
-        crate::menu::take_shown_car::take_shown_car(Some(cars))?;
+        crate::menu::take_shown_car::take_shown_car(menus, Some(cars))?;
         vars.own.head.set(
             PlayerRecord::CAR,
             play.players.players[0].get().car_number as u8,

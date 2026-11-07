@@ -10,7 +10,7 @@
 //! refuse, before anything; raises the search's fatal error as the original.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use rc2k_core::menu::results_pages::{Page, held_figure};
 
@@ -18,17 +18,17 @@ use rc2k_core::menu::results_pages::{Page, held_figure};
 // g_eventMode
 
 /// The Rust version (see the header).
-pub fn show_championship_standings() -> Result<(), Refused> {
-    let play = &menus().play;
+pub fn show_championship_standings(menus: &'static Menus) -> Result<(), Refused> {
+    let play = &menus.play;
     let found = crate::menu::first_player_unplaced::first_player_unplaced()?;
     // Converted: `rc2k_core::menu::results_pages::held_figure`.
     let count = held_figure(Page::ChampionshipStandings, found.figure);
-    menus().play.champ_view.count.set(count);
+    menus.play.champ_view.count.set(count);
     crate::menu::first_page_stage::first_page_stage(play);
     crate::menu::stage_range_caption::stage_range_caption(play)?;
     run_screen(
         &crate::menu::championship_standings_loop::SCREEN,
-        &Entry::new(menus()),
+        &Entry::new(menus),
     )?;
     Ok(())
 }

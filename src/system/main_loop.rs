@@ -59,6 +59,7 @@ fn quit_and_leave() -> Result<(), Refused> {
 
 /// The Rust version.
 pub fn main_loop(session: &Session) -> Result<(), Refused> {
+    let menus = crate::menu::owner::menus();
     log_line(c"");
     log_line(c"Entering main loop...");
     // Wait for the window to be the active one and the key thread to have run; the quit
@@ -76,7 +77,7 @@ pub fn main_loop(session: &Session) -> Result<(), Refused> {
     crate::platform::set_menu_mode_now();
     crate::sound::apply_settings::apply_settings()?;
     crate::gfx::load_jade::load_jade_in_game()?;
-    crate::menu::build_notice::build_notice();
+    crate::menu::build_notice::build_notice(menus);
     // The standalone in the download folder installs from it (`install::portable`); and
     // with `-u` (`dword_51B9CC`) it uninstalls where it is: its record is in the installed
     // folder, so the uninstall runs from there (the original's ran from the CD, through the
@@ -100,7 +101,7 @@ pub fn main_loop(session: &Session) -> Result<(), Refused> {
     crate::sound::stop_cd_audio::stop_cd_audio();
     // Its answer is not read (this build's nine `nop`s).
     crate::files::is_cd_drive::is_cd_drive(base_drive());
-    crate::menu::run_front_end::run_front_end()?;
+    crate::menu::run_front_end::run_front_end(menus)?;
     crate::sound::stop_music::stop_music();
     if session.flags.quitting.get() == 1 {
         // The original leaves here without saving: the window closed (or any quit by the

@@ -20,14 +20,13 @@
 //! taking-part player's car without its table, before anything.
 
 use crate::errors::Refused;
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::menu::screen_loop::{Entry, run_screen};
 use crate::menu::standings::*;
 // service::service_area_loop
 
 /// The Rust version (see the header).
-pub fn service_pass() -> Result<(), Refused> {
-    let menus = menus();
+pub fn service_pass(menus: &'static Menus) -> Result<(), Refused> {
     let screens = &menus.screens;
     // Converted: `rc2k_core::menu::passes` (who is serviced, the minutes, the money, the
     // pauses, `goes_on`).
@@ -63,7 +62,7 @@ pub fn service_pass() -> Result<(), Refused> {
             crate::menu::driver_stats::driver_stats(screens)?;
             menus.screens.state.menus.service_flag.set(0);
             crate::menu::reset_driver_condition::reset_driver_condition()?;
-            crate::service::clear_repair_flags::clear_repair_flags()?;
+            crate::service::clear_repair_flags::clear_repair_flags(menus)?;
             for _ in 0..passes::DROPPED_KEYS {
                 crate::input::take_key::take_key();
             }
@@ -74,7 +73,7 @@ pub fn service_pass() -> Result<(), Refused> {
             if menus.tables.pages.yes_no_answer.get() == 1 {
                 break 'all;
             }
-            crate::service::apply_repairs::apply_repairs_in_game()?;
+            crate::service::apply_repairs::apply_repairs_in_game(menus)?;
             crate::menu::set_player_entry_kind::set_player_entry_kind(screens)?;
             if passes::is_out(p.get().entry) {
                 crate::menu::inspection_faults::inspection_faults(menus)?;

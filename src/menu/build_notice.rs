@@ -22,8 +22,8 @@ use rc2k_core::menu::notice::{
 
 // ---- Rust version ----
 
-pub fn build_notice() {
-    let panels = &menus().panels;
+pub fn build_notice(menus: &Menus) {
+    let panels = &menus.panels;
     // Converted: `rc2k_core::menu::notice::notice`.
     if crate::strings::load_language::notice_kind() != BUILDS {
         return;
@@ -42,7 +42,7 @@ pub fn build_notice() {
 
 // ---- the notice's lines (IDA 0x52A263 .. 0x52A30F, split from the network's block) ----
 
-use crate::menu::owner::menus;
+use crate::menu::owner::Menus;
 use crate::session::{Bytes, with_runs};
 
 /// IDA 0x52A263 .. 0x52A30F.

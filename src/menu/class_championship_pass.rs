@@ -13,7 +13,6 @@
 
 use crate::errors::Refused;
 use crate::menu::owner::Menus;
-use crate::menu::owner::menus;
 use crate::menu::standings::*;
 use crate::menu::standings_steps::number_standings;
 use rc2k_core::menu::class_pages;
@@ -26,8 +25,7 @@ fn first_class(menus: &Menus) -> u32 {
 }
 
 /// The Rust version (see the header).
-pub fn class_championship_pass() -> Result<(), Refused> {
-    let menus = menus();
+pub fn class_championship_pass(menus: &'static Menus) -> Result<(), Refused> {
     let first = first_class(menus);
     // Converted: `rc2k_core::menu::class_pages` (`classes`, `has_player`).
     let classes = class_pages::classes(first, menus.screens.event.classes.get())?;
