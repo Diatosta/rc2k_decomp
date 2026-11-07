@@ -20,7 +20,11 @@ use rc2k_core::drive::roaming::{roam_distance, roam_turn};
 /// The Rust version. The registers it leaves are read by no caller (liveness: ecx, edi
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::roaming::{roam_distance, roam_turn}`.
-pub fn simple_car_step(race: &Race, input: &crate::input::owner::Input) -> Result<(), Refused> {
+pub fn simple_car_step(
+    race: &Race,
+    input: &crate::input::owner::Input,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     crate::drive::car_input_words::car_input_words(race, input)?;
     crate::drive::read_car_controls::read_car_controls(race)?;
     crate::drive::steer_inputs::steer_inputs(race);
@@ -28,7 +32,7 @@ pub fn simple_car_step(race: &Race, input: &crate::input::owner::Input) -> Resul
     // The keys `drive::pedal_inputs` leaves in ebx (`reset_request` loads the same again
     // before `physics::reset_car`): the turn's y.
     let keys = race.shared.car.input_keys.get();
-    { crate::drive::reset_request::reset_request(race) }?;
+    { crate::drive::reset_request::reset_request(race, scene) }?;
     let distance = roam_distance(
         CAR_BLOCKS.cars[0].throttle.bits(),
         CAR_BLOCKS.cars[0].brake.bits(),
@@ -50,7 +54,7 @@ pub fn simple_car_step(race: &Race, input: &crate::input::owner::Input) -> Resul
             .bits()
             .wrapping_add(roam_turn(CAR_BLOCKS.cars[0].steering.bits())),
     );
-    { crate::physics::wheel_surfaces::wheel_surfaces(race) }?;
+    { crate::physics::wheel_surfaces::wheel_surfaces(race, scene) }?;
     race.physics
         .ground
         .ground_x
@@ -59,7 +63,7 @@ pub fn simple_car_step(race: &Race, input: &crate::input::owner::Input) -> Resul
         .ground
         .ground_z
         .set(race.course.course.place_z.get());
-    { crate::physics::find_ground::find_ground(race) }?;
+    { crate::physics::find_ground::find_ground(race, scene) }?;
     if race.course.course.ground_slot.get() != u32::MAX {
         let y = race
             .physics

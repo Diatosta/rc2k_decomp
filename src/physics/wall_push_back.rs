@@ -24,7 +24,7 @@ use crate::race::owner::Race;
 
 /// The steps, not guarded. The registers the original leaves are read by none of its
 /// callers.
-pub fn steps(race: &Race) -> Result<(), Refused> {
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let work = &race.frame.scratch.work_vector;
     copy_cells(work, &race.shared.car.velocity);
     negate(&work[0]);
@@ -45,7 +45,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     );
     fill_cells(&race.physics.contact.contact_point, 0);
     race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(race, &race.shared.physics_tables.contacts[4]);
+    contact_force(race, &race.shared.physics_tables.contacts[4], scene);
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     race.shared.physics_tables.wall_heading.set(u32::MAX);
     Ok(())

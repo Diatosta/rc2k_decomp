@@ -45,7 +45,7 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     use crate::race::frame_draw::*;
     use crate::sound::race_sound_tick::race_sound_tick;
     if race.shared.car.view_covered.get() != 0 {
-        return draw_view_tint(race);
+        return draw_view_tint(race, scene);
     }
     // dword_635014, dword_635018.
     for cell in &scene.drawing.object_work.view_cleared {
@@ -53,38 +53,40 @@ pub fn draw_view_scene(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     }
     race_sound_tick(&race.frame)?; // 0x14
     car_light_modes(race)?;
-    clear_point_records(race)?;
-    set_up_fog(race)?;
-    camera_view(race)?;
-    draw_sky(race)?;
+    clear_point_records(race, scene)?;
+    set_up_fog(race, scene)?;
+    camera_view(race, scene)?;
+    draw_sky(race, scene)?;
     crate::race::flush_draw_batch::flush_draw_batch(race)?;
-    view_light(race)?;
+    view_light(race, scene)?;
     race_sound_tick(&race.frame)?; // 0x15
-    reset_lamps(race)?;
+    reset_lamps(race, scene)?;
     race.shared.view.view_lamps.set_bits(0u32);
-    prepare_course_view(race)?;
-    gather_visible_faces(race)?;
-    eax_environment(race)?;
-    gather_lamps(race)?;
+    prepare_course_view(race, scene)?;
+    gather_visible_faces(race, scene)?;
+    eax_environment(race, scene)?;
+    gather_lamps(race, scene)?;
     lamps_wanted(&race.shared)?;
     race_sound_tick(&race.frame)?; // 0x16
     sort_entries(&race.shared.view.sort_entry_count, &FACES.sort_entries)?;
     draw_entries(
         race,
+        scene,
         &race.shared.view.sort_entry_count,
         &FACES.sort_entries,
         sort_list(&race.shared),
     )?;
-    draw_race_slots(race)?;
+    draw_race_slots(race, scene)?;
     race_sound_tick(&race.frame)?; // 0x17
     crate::race::car_shadow::cast_car_shadows(race, scene)?;
     crate::race::skidmarks::draw_skidmarks_if_on(race, scene)?;
-    car_lights(race)?;
+    car_lights(race, scene)?;
     race_sound_tick(&race.frame)?; // 0x18
     sort_entries(&race.shared.view.depth_entry_count, &FACES.depth_entries)?;
     race_sound_tick(&race.frame)?; // 0x19
     draw_entries(
         race,
+        scene,
         &race.shared.view.depth_entry_count,
         &FACES.depth_entries,
         depth_list(&race.shared),

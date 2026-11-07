@@ -42,7 +42,6 @@ use crate::physics::tables_store::{PhysicsTables, Surface};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 use std::cmp::Ordering;
 
@@ -55,7 +54,7 @@ fn info_byte(n: u32, offset: u32) -> Result<u32, Refused> {
 
 /// `fld v[c] x 65536; fistp` through `dword_62400C` (`v` one of the probe shares).
 fn share_bit(course: &Course, v: &[Dword; 64], c: u32, scene: &crate::scene::owner::Scene) -> u32 {
-    x87_1(course, v, c as usize);
+    x87_1(course, v, c as usize, scene);
     scene.drawing.scene.scratch.get()
 }
 
@@ -73,8 +72,7 @@ fn check(race: &Race) -> Result<(), Refused> {
 
 /// The steps (a refusal may come after some are written: `wheel_surfaces` puts them
 /// back).
-fn steps(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let physics = &race.physics;
     check(race)?;
@@ -133,7 +131,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
                 drawing.scene.surface_point[0].set(x);
                 drawing.scene.surface_point[1].set(y.wrapping_sub(x));
                 drawing.scene.surface_point[2].set(z.wrapping_sub(x));
-                x87_2(race, c as usize);
+                x87_2(race, c as usize, scene);
             }
             if crate::race::course_places::face_number(f, "a wheel's face")?.switches() & 0x1000
                 != 0
@@ -213,13 +211,13 @@ fn steps(race: &Race) -> Result<(), Refused> {
             .ground_bump_scale
             .set_bits(crate::math::x87::loaded(least));
     }
-    x87_7(race);
+    x87_7(race, scene);
     Ok(())
 }
 
 /// The Rust version: what was written is put back on a refusal.
-pub fn wheel_surfaces(race: &Race) -> Result<(), Refused> {
-    steps(race)
+pub fn wheel_surfaces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    steps(race, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -227,18 +225,18 @@ pub fn wheel_surfaces(race: &Race) -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = [t + c * 4] * [rc + 0x1C5D98]`
-fn x87_1(course: &Course, t: &[Dword; 64], c: usize) {
+fn x87_1(course: &Course, t: &[Dword; 64], c: usize, scene: &crate::scene::owner::Scene) {
     let t0 = ld(t[c].bits());
     let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 * t1;
-    scene().drawing.scene.scratch.set_bits(to_int(t2) as u32);
+    scene.drawing.scene.scratch.set_bits(to_int(t2) as u32);
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_2(race: &Race, c: usize) {
-    let drawing = &scene().drawing;
+fn x87_2(race: &Race, c: usize, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let t0 = int(drawing.scene.surface_point[1].bits() as i32);
     let t1 = ld(race.physics.contact.probe_share_u[c].bits());
     let t2 = t0 * t1;
@@ -404,8 +402,8 @@ fn x87_6(race: &Race) {
 /// `[rc + 0x214764] = [rc + 0x2146E4]`
 /// `[rc + 0x223DA8] = [rc + 0x2146F8]`
 /// `[rc + 0x223DAC] = [rc + 0x21470C]`
-fn x87_7(race: &Race) {
-    let drawing = &scene().drawing;
+fn x87_7(race: &Race, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let t0 = ld(race.shared.car.ground_bump_scale.bits());
     let t1 = ld(race.shared.physics_tables.handling[6].bits());
     let t2 = t0 * t1;
@@ -489,7 +487,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(&crate::race::owner::race().course, view(a[0], 0), a[1]),
+                plain: |a| {
+                    x87_1(
+                        &crate::race::owner::race().course,
+                        view(a[0], 0),
+                        a[1],
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "wheel_surfaces line 68 idx c=1",
@@ -506,7 +511,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(&crate::race::owner::race().course, view(a[0], 0), a[1]),
+                plain: |a| {
+                    x87_1(
+                        &crate::race::owner::race().course,
+                        view(a[0], 0),
+                        a[1],
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "wheel_surfaces line 68 idx c=4",
@@ -523,7 +535,14 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0], a[1], a[2]) },
-                plain: |a| x87_1(&crate::race::owner::race().course, view(a[0], 0), a[1]),
+                plain: |a| {
+                    x87_1(
+                        &crate::race::owner::race().course,
+                        view(a[0], 0),
+                        a[1],
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=0",
@@ -543,7 +562,13 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(crate::race::owner::race(), a[1]),
+                plain: |a| {
+                    x87_2(
+                        crate::race::owner::race(),
+                        a[1],
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=1",
@@ -563,7 +588,13 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(crate::race::owner::race(), a[1]),
+                plain: |a| {
+                    x87_2(
+                        crate::race::owner::race(),
+                        a[1],
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "wheel_surfaces line 134 idx c=4",
@@ -583,7 +614,13 @@ mod asm_reference {
                 ],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0], a[1]) },
-                plain: |a| x87_2(crate::race::owner::race(), a[1]),
+                plain: |a| {
+                    x87_2(
+                        crate::race::owner::race(),
+                        a[1],
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "wheel_surfaces line 161 idx c=0",
@@ -922,7 +959,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_6(a[0]) },
-                plain: |_| x87_7(race()),
+                plain: |_| x87_7(race(), crate::scene::owner::scene()),
             },
         ]
     }

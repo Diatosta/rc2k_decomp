@@ -66,8 +66,9 @@ fn put_answer(shared: &Shared, answer: u32) -> Result<(), BadInput> {
 /// edx and esi after `drive::play_race`'s call have no read point).
 pub fn race_loop(
     race: &Race,
-    input: &crate::input::owner::Input,
+    input: &'static crate::input::owner::Input,
     system: &crate::system::owner::System,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     let devices = &input.devices;
     for c in 0..8 {
@@ -160,9 +161,9 @@ pub fn race_loop(
             }
             race_keys(race)?;
             let begun = crate::debug::timing::start();
-            { crate::drive::race_step::race_step(race) }?;
+            { crate::drive::race_step::race_step(race, scene) }?;
             crate::debug::timing::stop(crate::debug::timing::Stage::Physics, begun);
-            tyre_change(race)?;
+            tyre_change(race, input, system)?;
             if players_all_out(race)? {
                 if race.shared.work.in_credits.get() != 0 {
                     crate::framework::log(&format!(

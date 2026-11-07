@@ -17,7 +17,10 @@ use crate::race::owner::Race;
 
 /// The steps, not guarded. The registers left are read by none of the callers.
 // Converted: `rc2k_core::physics::ground_search::cells_around`.
-pub fn face_contacts_around(race: &Race) -> Result<(), Refused> {
+pub fn face_contacts_around(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let physics_store = &race.physics;
     physics_store
         .ground
@@ -34,6 +37,6 @@ pub fn face_contacts_around(race: &Race) -> Result<(), Refused> {
                 physics_store.ground.ground_z.get(),
             )
         },
-        |x, z| crate::physics::cell_face_contacts::steps(race, x, z),
+        |x, z| crate::physics::cell_face_contacts::steps(race, x, z, scene),
     )
 }

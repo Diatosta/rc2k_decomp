@@ -15,7 +15,6 @@ use crate::math::x87;
 use crate::math::x87_run::{compare_full, toward_one};
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (edx the slot).
@@ -45,13 +44,13 @@ pub fn blend_at(race: &Race, v: &[&dyn Cell32]) {
     put(slot, toward_one(get(slot), get(4)));
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
         &shared.car.contact_depth as &dyn Cell32,
         &shared.car.contact_point[0],
         &shared.car.contact_point[1],
         &shared.car.contact_point[2],
-        &scene().drawing.scene.scratch,
+        &scene.drawing.scene.scratch,
         &shared.car.impact_octant_marks[0],
         &shared.car.impact_octant_marks[1],
         &shared.car.impact_octant_marks[2],
@@ -65,6 +64,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
 
 /// The Rust version (the exact one, for `physics::car_physics_step`); `r` as the
 /// original leaves are read by none of its callers.
-pub fn blend_wheel_load(race: &Race) {
-    blend_at(race, &game(&race.shared));
+pub fn blend_wheel_load(race: &Race, scene: &crate::scene::owner::Scene) {
+    blend_at(race, &game(&race.shared, scene));
 }

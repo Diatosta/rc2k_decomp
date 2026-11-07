@@ -53,13 +53,18 @@ pub fn next_entry(ring: &Ring) -> Result<Option<u32>, Refused> {
 }
 
 /// The next entry taken (its number + 1; its +8 `dword_93547E`, +0x90 `tag`, +0xC `kind`).
-pub fn take_entry(ring: &Ring, tag: u32, kind: u32) -> Result<u32, Refused> {
+pub fn take_entry(
+    ring: &Ring,
+    effects: &crate::effects::owner::Effects,
+    tag: u32,
+    kind: u32,
+) -> Result<u32, Refused> {
     Ok({
         let e = crate::effects::ring_entries::get(ring, ring.work.cursor.get(), 0)?;
         ring.work.cursor.set(e);
         ring.work.count.set(ring.work.count.get().wrapping_add(1));
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
-        put(8, effects().kinds.emitter.tag.get())?;
+        put(8, effects.kinds.emitter.tag.get())?;
         put(0x90, tag)?;
         put(0xC, kind)?;
         e

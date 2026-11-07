@@ -22,12 +22,16 @@ use rc2k_core::physics::camera_ground::SIDES;
 /// The Rust version: whether the camera and both sides are over ground (CF clear). The
 /// registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::SIDES`.
-pub fn camera_over_ground(race: &Race) -> Result<bool, Refused> {
+pub fn camera_over_ground(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
     if !probe_at(
         race,
         race.shared.car.camera_position[0].get(),
         race.shared.car.camera_position[2].get(),
         &race.shared.car.camera_ground_faces[0],
+        scene,
     )? {
         return Ok(false);
     }
@@ -44,6 +48,7 @@ pub fn camera_over_ground(race: &Race) -> Result<bool, Refused> {
             x.wrapping_add(race.shared.car.camera_position[0].get()),
             z.wrapping_add(race.shared.car.camera_position[2].get()),
             slot,
+            scene,
         )? {
             return Ok(false);
         }

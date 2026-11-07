@@ -31,10 +31,10 @@ pub fn repeat_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refu
             least_delay: r.least_delay.get(),
             most_delay: r.most_delay.get(),
         });
-    let mut voices = load_voices();
+    let mut voices = load_voices(sound);
     repeat::<Refused>(&mut voices, &table_of, |_, range| {
         Ok({ crate::math::random_below::random_below(range) }?)
     })?;
-    store_voices(&voices);
+    store_voices(sound, &voices);
     Ok(())
 }

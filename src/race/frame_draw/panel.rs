@@ -9,7 +9,6 @@ use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::car_at;
 use crate::scene::faces_store::FACES;
-use crate::scene::owner::scene;
 use crate::scene::polygon_store::POLYGON_WORK;
 use crate::session::Dword;
 
@@ -173,8 +172,10 @@ pub fn share_sound_spots(race: &Race) -> Result<(), Refused> {
 /// `race::clear_point_records` (0x4500FF), on its variables: `COURSE_LISTS.clear_count` 0, then the
 /// 0x1000 point records of 0x20 bytes at `g_pointRecords`: each first dword -1, or with
 /// `g_useSse` set each first 16 bytes `LIGHT_WORK.sse_fill` (`movntps`).
-pub fn clear_point_records(race: &Race) -> Result<(), BadInput> {
-    let scene = scene();
+pub fn clear_point_records(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), BadInput> {
     race.course.lists.clear_count.set(0u32);
     let pattern: [u32; 4] = crate::session::read_bits(&scene.lights.work.sse_fill);
     let sse = scene.draw_switches.use_sse.get() != 0;
@@ -639,8 +640,7 @@ pub(super) fn check_panel_neighbours(shared: &Shared) -> Result<(), Refused> {
 /// `race::set_up_panel` (0x45AB36): `panel_values`, `panel_neighbours`, `panel_players`,
 /// `panel_motion`, `panel_marks`, `both_countdown_lights`, `both_split_colours`. Refuses
 /// (before anything) what `panel_neighbours` or `both_split_colours` would.
-pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn set_up_panel(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     check_panel_neighbours(&race.shared)?;
     check_split_colours(race)?;
     // Converted: its float callees' `_plain` versions.
@@ -655,8 +655,7 @@ pub fn set_up_panel(race: &Race) -> Result<(), Refused> {
 
 /// `race::reset_lamps` (0x45487A): `g_lampCount`, `RACE_VIEW.depth_entry_count`, `RACE_VIEW.sort_entry_count` (the sort
 /// entries' count) and `race().frame.frame_work.flare_count` 0, then `race::object_bytes`.
-pub fn reset_lamps(race: &Race) -> Result<(), BadInput> {
-    let scene = crate::scene::owner::scene();
+pub fn reset_lamps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     let shared = &race.shared;
     let course = &race.course;
     shared.view.lamp_count.set_bits(0);

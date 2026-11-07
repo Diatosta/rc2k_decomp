@@ -14,17 +14,22 @@ use crate::sound::store::{SoundObject, SurfaceSounds};
 use rc2k_core::sound::engine::{computers, revs_sound_number, revs_stopped};
 
 /// The engine's sound for object `so` of sound kind number `kind`, through `request`.
-pub fn revs_sound(so: &SoundObject, kind: u32, request: &SoundRequest) -> Result<(), Refused> {
+pub fn revs_sound(
+    so: &SoundObject,
+    kind: u32,
+    request: &SoundRequest,
+    sound: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     let object = so.sound_offset.get();
     let set = if computers(object) {
-        crate::sound::sets_store::SoundKinds::computers_set()
+        sound.race.kinds.computers_set()
     } else {
-        &crate::sound::sets_store::SoundKinds::record(kind)?.revs
+        &sound.race.kinds.record(kind)?.revs
     };
     request
         .sound
         .set(revs_sound_number(object, set.sound.get()));
-    send_engine_sound(so, set, &so.revs_input, EnginePlace::Ahead, request)
+    send_engine_sound(so, set, &so.revs_input, EnginePlace::Ahead, request, sound)
 }
 
 /// Which side of the car the engine sound is heard: the car's place plus its motion, or
@@ -46,18 +51,12 @@ pub fn send_engine_sound(
     volume_input: &Float,
     side: EnginePlace,
     request: &SoundRequest,
+    sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     if revs_stopped(so.state.get()) {
         return crate::sound::turn_parts::stop(request);
     }
-    fill_request(
-        so,
-        set,
-        volume_input,
-        side,
-        &crate::sound::owner::sound().race.surface,
-        request,
-    );
+    fill_request(so, set, volume_input, side, &sound.race.surface, request);
     crate::sound::turn_parts::placed(request)
 }
 

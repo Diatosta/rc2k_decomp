@@ -29,7 +29,6 @@ use crate::math::x87_float::st;
 use crate::physics::scale_vector::scale_vector;
 use crate::physics::vector_length::vector_length;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::owner::scene;
 use crate::scene::rotate_point::rotate_point;
 
 /// The block's speed (+0x198 ..) turned by its matrix (+0x9CC) into +0x1A4 ...
@@ -43,7 +42,7 @@ fn turn_speed(block: &Car) {
     }
 }
 
-fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
+fn steps(race: &Race, other_car: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let race_owner = race;
     for k in 0..3 {
         race_owner.physics.contact.contact_point[k]
@@ -85,7 +84,7 @@ fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
     push_apart(race, &other.position);
     let factor = extended(race_owner.course.numbers.three.bits());
     scale_vector(&race_owner.physics.contact.bump_push, factor);
-    scene().drawing.scene.scratch.set(rounded(factor));
+    scene.drawing.scene.scratch.set(rounded(factor));
     add_push(race, &other.velocity);
     turn_speed(met_car);
     turn_speed(&race.shared.car);
@@ -94,11 +93,15 @@ fn steps(race: &Race, other_car: u32) -> Result<(), Refused> {
 }
 
 /// The Rust version: `other_car` the other car's block (an address in the game's memory).
-pub fn bump_cars(race: &Race, other_car: u32) -> Result<(), Refused> {
+pub fn bump_cars(
+    race: &Race,
+    other_car: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     if other_car == 0 || race.physics.contact.other_car_block.get() == 0 {
         return Err(BadInput("a null car block").into());
     }
-    steps(race, other_car)
+    steps(race, other_car, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----

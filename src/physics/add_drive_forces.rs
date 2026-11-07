@@ -12,7 +12,6 @@
 use crate::math::x87;
 use crate::math::x87_run::mul2_plus;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 fn put(a: &dyn Cell32, v: u32) {
@@ -35,9 +34,9 @@ pub fn add_drive_forces_at(shared: &Shared, v: &[&dyn Cell32]) {
     v[10].set_bits(mul2_plus(v[8].bits(), v[6].bits(), scale, v[10].bits()));
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
-        &scene().drawing.scene.scratch as &dyn Cell32,
+        &scene.drawing.scene.scratch as &dyn Cell32,
         &shared.car.drive_kind,
         &shared.physics_tables.wheel_loads[0],
         &shared.physics_tables.wheel_loads[1],
@@ -52,6 +51,6 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
-pub fn add_drive_forces(shared: &Shared) {
-    add_drive_forces_at(shared, &game(shared));
+pub fn add_drive_forces(shared: &Shared, scene: &crate::scene::owner::Scene) {
+    add_drive_forces_at(shared, &game(shared, scene));
 }

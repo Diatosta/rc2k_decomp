@@ -32,7 +32,7 @@ fn cars(shared: &Shared) -> u32 {
 
 /// The Rust version. The registers it leaves (ebx the cars looked at) are read by none
 /// of its callers.
-pub fn car_collisions(race: &Race) -> Result<(), Refused> {
+pub fn car_collisions(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = &race.physics;
     if !matches!(race.shared.vars.run_kind.get(), 0 | 2) {
         return Ok(());
@@ -81,7 +81,7 @@ pub fn car_collisions(race: &Race) -> Result<(), Refused> {
                 physics.contact.corner_in[0].set_bits(physics.contact.corner_x[k].bits());
                 physics.contact.corner_in[1].set_bits(physics.contact.corner_y[k].bits());
                 physics.contact.corner_in[2].set_bits(physics.contact.corner_z[k].bits());
-                { corner_hits_car(race, block) }?;
+                { corner_hits_car(race, block, scene) }?;
             }
         }
         Ok(())

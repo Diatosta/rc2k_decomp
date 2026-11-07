@@ -19,21 +19,20 @@ use crate::math::x87_float::st;
 use crate::physics::engine_torque::{below, engine_torque};
 use crate::physics::gear_store::GEAR;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 
 /// 0x43EA85 .. 0x43EAE7, as the original.
-fn run(race: &Race) {
-    x87_1(race);
+fn run(race: &Race, scene: &crate::scene::owner::Scene) {
+    x87_1(race, scene);
 }
 
 /// The Rust version (the exact one, for `physics::free_rev_in_neutral`,
 /// `free_rev_clutch` and their callers).
-pub fn free_rev(race: &Race) {
-    engine_torque(race);
-    run(race);
+pub fn free_rev(race: &Race, scene: &crate::scene::owner::Scene) {
+    engine_torque(race, scene);
+    run(race, scene);
     let (e, drag) = (
         race.shared.car.engine_speed.bits(),
-        scene().drawing.scene.scratch.get(),
+        scene.drawing.scene.scratch.get(),
     );
     let x = f32::from_bits(e);
     if x == 0.0 || x.is_nan() {
@@ -61,7 +60,7 @@ pub fn free_rev(race: &Race) {
 /// `[rc + 0x214750] = (((([rc + 0x214740] * [rc + 0x1CB968]) / [rc + 0x2140C0]) / [rc + 0x1C5E34]) * int [rc + 0x31A610]) / [rc + 0x1C5E2C]`
 /// `[rc + 0x31A1B0] = (([rc + 0x214750] * [rc + 0x21388C]) / [rc + 0x2140C0]) + [rc + 0x31A1B0]`
 /// `[rc + 0x22400C] = ([rc + 0x31A1B0] * [rc + 0x213FD8]) + [rc + 0x213FD4]`
-fn x87_1(race: &Race) {
+fn x87_1(race: &Race, scene: &crate::scene::owner::Scene) {
     let t0 = ld(race.shared.physics_tables.drive_ratio.bits());
     let t1 = ld(GEAR.drive_torque_figure.bits());
     let t2 = t0 * t1;
@@ -87,7 +86,7 @@ fn x87_1(race: &Race) {
     let t20 = t18 * t19;
     let t21 = ld(race.shared.physics_tables.free_rev_add.bits());
     let t22 = t20 + t21;
-    scene().drawing.scene.scratch.set_bits(st(t22));
+    scene.drawing.scene.scratch.set_bits(st(t22));
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -120,7 +119,7 @@ mod asm_reference {
             }],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0]) },
-            plain: |_| x87_1(race()),
+            plain: |_| x87_1(race(), crate::scene::owner::scene()),
         }]
     }
 

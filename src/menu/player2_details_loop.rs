@@ -23,7 +23,7 @@ use crate::menu::screen_loop::{
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
     if screens.option_work.typing.get() == 0x1 {
-        Callee::EditPlayerName.run(entry.menus)?;
+        Callee::EditPlayerName.run(entry)?;
         if screens.option_work.typing.get() != 0x0 {
             return Ok(Flow::NextFrame);
         }

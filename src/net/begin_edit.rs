@@ -7,7 +7,6 @@
 //! Out: nothing (every register kept, `pusha` .. `popa`)
 //! Callers: `net::begin_setting_edit`, `net::begin_chat`.
 
-use crate::net::owner::net;
 use crate::net::store::NetVars;
 
 /// The texts an edit works on (`crate::net::owner::net().vars.edit_text`, where the original keeps the address): the
@@ -23,9 +22,11 @@ pub enum EditedText {
 
 impl EditedText {
     /// The text's buffer.
-    pub fn text(self) -> &'static dyn crate::pointers::Store {
-        let install = crate::install::owner::install();
-        let vars = &net().vars;
+    pub fn text<'a>(
+        self,
+        vars: &'a NetVars,
+        install: &'a crate::install::owner::Install,
+    ) -> &'a dyn crate::pointers::Store {
         match self {
             EditedText::MachineName => &vars.machine_name,
             EditedText::HostAddress => &vars.host_address,
@@ -35,8 +36,8 @@ impl EditedText {
     }
 
     /// The text `crate::net::owner::net().vars.edit_text` names (refused when none is).
-    pub fn edited() -> Result<Self, crate::errors::BadInput> {
-        Ok(match net().vars.edit_text.get() {
+    pub fn edited(vars: &NetVars) -> Result<Self, crate::errors::BadInput> {
+        Ok(match vars.edit_text.get() {
             1 => EditedText::MachineName,
             2 => EditedText::HostAddress,
             3 => EditedText::MostPlayers,
@@ -60,7 +61,7 @@ pub fn begin_edit(
     vars.edit_width.set(width);
     vars.edit_font.set(font);
     Ok(crate::pointers::copy_between(
-        text.text(),
+        text.text(vars, install),
         0,
         &install.paths.script_path,
         0,

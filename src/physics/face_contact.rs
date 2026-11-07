@@ -42,19 +42,17 @@ use crate::physics::touch_face::touch_face;
 use crate::physics::vector_length::vector_length;
 use crate::race::norms::normalise_work_vector;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use rc2k_core::physics::face_contacts::{self as contacts, FaceObject, Inside};
 
-fn touch(race: &Race) -> Result<(), Refused> {
-    { touch_face(race) }?;
+fn touch(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    { touch_face(race, scene) }?;
     Ok(())
 }
 
 /// The steps for face `number` (ebx). The registers the original leaves are read by none
 /// of its callers.
 // Converted: `rc2k_core::physics::face_contacts` (the x87 steps stay).
-pub fn steps(race: &Race, number: u32) -> Result<(), Refused> {
-    let scene = scene();
+pub fn steps(race: &Race, number: u32, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.physics.contact.face_number.set(number);
     let face = number;
     let face_byte = |offset| -> Result<u32, Refused> {
@@ -88,7 +86,7 @@ pub fn steps(race: &Race, number: u32) -> Result<(), Refused> {
         FaceObject::NotObject => return Ok(()),
         FaceObject::TouchOnly => {
             race.physics.contact.contact_kind.set(0xFF);
-            return touch(race);
+            return touch(race, scene);
         }
         FaceObject::Object(object) => object,
     };
@@ -162,12 +160,12 @@ pub fn steps(race: &Race, number: u32) -> Result<(), Refused> {
     x87_2(race);
     match contacts::inside(race.physics.contact.contact_kind.get()) {
         Inside::PushBack => {}
-        Inside::Touch => return touch(race),
+        Inside::Touch => return touch(race, scene),
         Inside::Nothing => return Ok(()),
     }
     { crate::physics::restore_saved_car::restore_saved_car(race) }?;
-    { crate::physics::feel_ground::feel_ground(race) }?;
-    touch(race)?;
+    { crate::physics::feel_ground::feel_ground(race, scene) }?;
+    touch(race, scene)?;
     // 0x45E62A: pushed back against the motion, level.
     copy_cells(&race.frame.scratch.work_vector, &race.shared.car.velocity);
     negate(&race.frame.scratch.work_vector[0]);
@@ -201,7 +199,7 @@ pub fn steps(race: &Race, number: u32) -> Result<(), Refused> {
     );
     race.physics.contact.contact_point[1].set_bits(0);
     race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(race, &race.shared.physics_tables.contacts[0]);
+    contact_force(race, &race.shared.physics_tables.contacts[0], scene);
     Ok(())
 }
 

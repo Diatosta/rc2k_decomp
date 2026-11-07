@@ -18,24 +18,19 @@ pub fn list_take_key() -> u8 {
         crate::system::sleep::sleep(1);
     } else {
         // Converted: `rc2k_core::menu::list_menu::repeats`.
-        let repeated = key == crate::install::owner::install().pages.last_key.get();
+        let pages = &crate::install::owner::install().pages;
+        let repeated = key == pages.last_key.get();
         let (mut frame, mut moved) = (0, 0);
         if repeated {
-            (frame, moved) = (
-                crate::install::owner::install().pages.frame_clock.get(),
-                crate::install::owner::install().pages.move_clock.get(),
-            );
+            (frame, moved) = (pages.frame_clock.get(), pages.move_clock.get());
         }
-        crate::install::owner::install()
-            .pages
-            .repeats
-            .set(rc2k_core::menu::list_menu::repeats(
-                crate::install::owner::install().pages.repeats.get(),
-                repeated,
-                frame,
-                moved,
-            ));
-        crate::install::owner::install().pages.last_key.set(key);
+        pages.repeats.set(rc2k_core::menu::list_menu::repeats(
+            pages.repeats.get(),
+            repeated,
+            frame,
+            moved,
+        ));
+        pages.last_key.set(key);
     }
     key
 }

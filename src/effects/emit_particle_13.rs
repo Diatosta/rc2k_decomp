@@ -62,7 +62,7 @@ pub fn emit_particle_13(
         return Ok(());
     }
     let model = object.word(4)? as usize;
-    let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, 0xD)?;
+    let e = take_entry(ring, effects, object.word(0x1C)? & 0xFF_FFFF, 0xD)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
     let car = emitting_car(effects)?;
     let cells = car.whole()?;

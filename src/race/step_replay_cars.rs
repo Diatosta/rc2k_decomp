@@ -44,7 +44,9 @@ pub fn step_replay_cars(race: &Race, input: &crate::input::owner::Input) -> Resu
                     RunStep::GearRules => crate::physics::gear_input_rules::gear_input_rules(race),
                     RunStep::Steering => steer_inputs::steer_inputs(race),
                     RunStep::Pedals => pedal_inputs::pedal_inputs(race),
-                    RunStep::ResetKey => reset_request::reset_request(race)?,
+                    RunStep::ResetKey => {
+                        reset_request::reset_request(race, crate::scene::owner::scene())?;
+                    }
                     RunStep::Physics => crate::physics::car_physics_step::car_physics_step(race)?,
                 }
             }

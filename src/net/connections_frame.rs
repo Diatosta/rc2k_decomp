@@ -34,19 +34,14 @@ pub fn list_frame(
     draw_string(title, STATUS_FONT, 0x316, 0x6F)?;
     let mut y: u32 = 0x6F + 0x2C;
     // Converted: `rc2k_core::net::screens` (`LIST_ROWS`, `listed`, `blink_lit`).
+    let pages = &crate::install::owner::install().pages;
     for row in 0..screens::LIST_ROWS {
-        let Some(item) = screens::listed(
-            row,
-            crate::install::owner::install().pages.choice_before.get(),
-            count.get(),
-        ) else {
+        let Some(item) = screens::listed(row, pages.choice_before.get(), count.get()) else {
             continue;
         };
-        let font = if item == crate::install::owner::install().pages.choice.get()
-            && screens::blink_lit(
-                crate::install::owner::install().pages.frame_clock.get(),
-                crate::install::owner::install().pages.move_clock.get(),
-            ) {
+        let font = if item == pages.choice.get()
+            && screens::blink_lit(pages.frame_clock.get(), pages.move_clock.get())
+        {
             LIT
         } else {
             FONT

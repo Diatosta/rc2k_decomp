@@ -53,6 +53,8 @@ pub struct TableVars {
     pub done: &'static Dword,
     /// unk_516258: 0x40 floats.
     pub sines: &'static [Float; 64],
+    /// The kinds' records.
+    pub kinds: &'static crate::sound::sets_store::SoundKinds,
     /// dword_5183CC: the scratch.
     pub scratch: &'static Dword,
 }
@@ -60,9 +62,11 @@ pub struct TableVars {
 impl TableVars {
     pub fn game() -> Self {
         let system = crate::system::owner::system();
+        let sound = crate::sound::owner::sound();
         Self {
-            done: &crate::sound::owner::sound().race.surface.tables_done,
-            sines: &crate::sound::owner::sound().race.kinds.sines,
+            done: &sound.race.surface.tables_done,
+            sines: &sound.race.kinds.sines,
+            kinds: &sound.race.kinds,
             scratch: &system.session.machine.scratch,
         }
     }
@@ -82,7 +86,7 @@ pub fn prepare_sound_tables_plain(v: &TableVars) -> Result<(), BadInput> {
     }
     v.done.set(1);
     for n in 0..RECORDS {
-        let record = crate::sound::sets_store::SoundKinds::record(n)?;
+        let record = v.kinds.record(n)?;
         sound_span(&record.revs_low, &record.revs_high, &record.revs_scale);
         record
             .revs_scale

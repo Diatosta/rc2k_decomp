@@ -30,20 +30,19 @@ use rc2k_core::physics::clear_place;
 const PORKY: &std::ffi::CStr = c"porky"; // aPorky
 
 /// One try's calls (0x43BE4D .. 0x43BE61).
-fn try_place(race: &Race) -> Result<(), Refused> {
-    { crate::physics::probe_ground::probe_ground(race) }?;
+fn try_place(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    { crate::physics::probe_ground::probe_ground(race, scene) }?;
     crate::physics::crossed_edge::check(&race.physics)?;
-    crate::physics::crossed_edge::steps(race)?;
+    crate::physics::crossed_edge::steps(race, scene)?;
     crate::physics::wall_contacts::check(&race.shared)?;
-    crate::physics::wall_contacts::steps(race)?;
-    { crate::physics::car_collisions::car_collisions(race) }?;
-    crate::physics::face_contacts_around::face_contacts_around(race)
+    crate::physics::wall_contacts::steps(race, scene)?;
+    { crate::physics::car_collisions::car_collisions(race, scene) }?;
+    crate::physics::face_contacts_around::face_contacts_around(race, scene)
 }
 
 /// The steps, not guarded.
 // Converted: `rc2k_core::physics::clear_place`.
-pub fn steps(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics_store = &race.physics;
     race.shared
         .physics_tables
@@ -76,12 +75,12 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
                 let (part, _) = clear_place::move_part(m.step, table[m.entry as usize].get());
                 place.set(place.get().wrapping_add(part));
             }
-            try_place(race)?;
+            try_place(race, scene)?;
             Ok::<_, Refused>(race.shared.physics_tables.clear_place_count.get() == 0)
         },
     )?;
     let Some(n) = found else {
-        return crate::physics::reset_car::reset_car(race);
+        return crate::physics::reset_car::reset_car(race, scene);
     };
     { crate::physics::lowest_body_point::lowest_body_point(race) }?;
     let depth = physics_store.contact.lowest_depth.get();
@@ -104,7 +103,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn find_clear_place(race: &Race) -> Result<(), Refused> {
+pub fn find_clear_place(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::physics::wall_contacts::check(&race.shared)?;
-    steps(race)
+    steps(race, scene)
 }

@@ -57,6 +57,7 @@ fn draw_view(
     blit: bool,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     use crate::race::frame::load_view_car;
     use crate::sound::race_sound_tick::race_sound_tick;
@@ -72,7 +73,7 @@ fn draw_view(
         crate::d3d::copy_screen_to_texture::copy_screen_to_texture(&race.frame);
         race_sound_tick(&race.frame)?; // 0xE
     }
-    crate::race::draw_view_overlays::draw_view_overlays(race, scene, system)?;
+    crate::race::draw_view_overlays::draw_view_overlays(race, scene, system, effects)?;
     race_sound_tick(&race.frame)?; // 0xF
     if race.frame.panel_and_overlay.panel.hud_flags[flags].get() & 8 != 0 {
         load_view_car(&race.shared, car)?;
@@ -89,6 +90,7 @@ pub fn draw_race_scene(
 ) -> Result<(), Refused> {
     let session = &system.session;
     let scene = scene();
+    let effects = crate::effects::owner::effects();
     let frame = &race.frame;
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
@@ -222,11 +224,11 @@ pub fn draw_race_scene(
     crate::scene::load_slot_textures::load_slot_textures_in_game(&race.frame, scene)?;
     race_sound_tick(frame)?; // 0xC
     if race.replay.finish.no_place.get() == 0 {
-        crate::race::frame_draw::set_up_panel(race)?;
+        crate::race::frame_draw::set_up_panel(race, scene)?;
     }
     if race.shared.view.views.get() == 1 {
         race.shared.view.drawn_view.set(0);
-        draw_view(race, 0, 0, true, scene, system)?;
+        draw_view(race, 0, 0, true, scene, system, effects)?;
     } else {
         let side_by_side = race.shared.vars.split.bits() == 1;
         for view in 0..2u32 {
@@ -246,7 +248,15 @@ pub fn draw_race_scene(
             }
             scene.drawing.scene.view_zoom.set_bits(0x100);
             crate::scene::set_view_window::set_view_window_plain(race, scene, system);
-            draw_view(race, view as usize, view as usize, false, scene, system)?;
+            draw_view(
+                race,
+                view as usize,
+                view as usize,
+                false,
+                scene,
+                system,
+                effects,
+            )?;
         }
     }
     crate::race::frame_views::load_first_car(&race.shared)?;

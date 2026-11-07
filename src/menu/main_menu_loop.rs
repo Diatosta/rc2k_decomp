@@ -29,30 +29,28 @@ use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene,
 };
 use crate::menu::update_blink::update_blink;
-use crate::scene::owner::scene;
-use crate::system::owner::system;
 
 // ---- game data ----
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let drawing = &entry.scene.drawing;
     let menus = entry.menus;
     menus.screens.event.event_done.set(0u32);
     // menu::load_background (whether it failed is not looked at)
-    Callee::LoadBackground(|m| &m.tables.texts.main_menu_picture).run(menus)?;
+    Callee::LoadBackground(|m| &m.tables.texts.main_menu_picture).run(entry)?;
     drawing.scene.view_offset[0].set(7u32);
     drawing.scene.view_offset[1].set(0xAu32);
     drawing.scene.view_zoom.set(0x100u32);
-    prepare_scene(); // scene::prepare_menu_scene
+    prepare_scene(entry.scene); // scene::prepare_menu_scene
     menus.screens.loop_flags.ended_a.set(0u32);
-    Callee::TakeKey.run(menus)?; // input::take_key
+    Callee::TakeKey.run(entry)?; // input::take_key
     menus.screens.draw_work.escaped.set(0u32);
     menus.screens.option_work.menu_sound.set(0x6Fu32);
     menus.screens.flow.turning.set(1u32);
     menus.screens.state.carousel.menu.set(0u32);
-    carousel(None)?;
+    carousel(None, entry.scene)?;
     let item = menus.screens.items.current[slot::MAIN_MENU].get();
     menus.screens.loop_flags.item.set(item);
     menus.screens.state.carousel.front.set(item.wrapping_sub(1));
@@ -64,14 +62,14 @@ fn before_first_frame(entry: &Entry) -> Result<(), Refused> {
     let play = &entry.menus.play;
     play.champ_view
         .last_key_time
-        .set(system().session.clocks.setup_time.get());
+        .set(entry.system.session.clocks.setup_time.get());
     play.cheats.notice_due.set(1u32);
 
     Ok(())
 }
 
 fn idle(entry: &Entry) -> Result<Flow, Refused> {
-    let system = system();
+    let system = entry.system;
     let menus = entry.menus;
     if menus.screens.loop_flags.idle.get() == 0 {
         return Ok(Flow::On);
@@ -139,12 +137,12 @@ pub const SCREEN: Screen = Screen {
         Step::Call(Callee::SetUpEngine),
         Step::Call(Callee::SetUpFrontEndScene),
         Step::Call(Callee::SetUpEngine),
-        Step::Write(|_| &scene().drawing.object_work.light_lowest, 0x50),
-        Step::Write(|_| &scene().drawing.object_work.light_highest, 0xFF),
-        Step::Write(|_| &scene().drawing.object_work.light_level, 0),
-        Step::Write(|_| &scene().drawing.object_work.light_strength, 0xFF),
-        Step::Write(|_| &scene().drawing.object_work.light_turns[0], 0x6E),
-        Step::Write(|_| &scene().drawing.object_work.light_turns[1], 0x1E),
+        Step::WriteScene(|s| &s.drawing.object_work.light_lowest, 0x50),
+        Step::WriteScene(|s| &s.drawing.object_work.light_highest, 0xFF),
+        Step::WriteScene(|s| &s.drawing.object_work.light_level, 0),
+        Step::WriteScene(|s| &s.drawing.object_work.light_strength, 0xFF),
+        Step::WriteScene(|s| &s.drawing.object_work.light_turns[0], 0x6E),
+        Step::WriteScene(|s| &s.drawing.object_work.light_turns[1], 0x1E),
         Step::Call(Callee::PlayTune4),
     ],
     set_up_first: &[Step::Do(set_up_first)],

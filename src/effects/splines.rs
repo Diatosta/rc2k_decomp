@@ -249,8 +249,8 @@ pub fn add_face_points(paths: &Paths, s: Spline, face: u32) -> Result<(), Refuse
 /// pairs from `flt_768688`, `dword_768700` 5, `dword_7687D0` 0. Every register kept.
 /// Converted: `rc2k_core::effects::pong::Court::reset` (exact at every precision: `fld;
 /// fstp` of a float only makes a signalling NaN quiet).
-pub fn reset_pong(pong: &crate::effects::pong::Pong) {
-    let rules = crate::effects::pong::rules(pong);
+pub fn reset_pong(pong: &crate::effects::pong::Pong, effects: &crate::effects::owner::Effects) {
+    let rules = crate::effects::pong::rules(pong, effects);
     crate::effects::pong::with_court(pong, |c| c.reset(&rules));
 }
 

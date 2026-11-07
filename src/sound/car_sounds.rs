@@ -30,9 +30,9 @@ pub fn car_sounds(n: u32, sound: &crate::sound::owner::Sound) -> Result<(), Refu
     request.pitch_factor.set(so.pitch_factor.bits());
     request.volume_factor.set(so.volume_factor.bits());
     use crate::sound::*;
-    revs_sound::revs_sound(so, kind, request)?;
-    throttle_sound::throttle_sound(so, kind, request)?;
-    speed_sound::speed_sound(so, kind, request)?;
+    revs_sound::revs_sound(so, kind, request, sound)?;
+    throttle_sound::throttle_sound(so, kind, request, sound)?;
+    speed_sound::speed_sound(so, kind, request, sound)?;
     surface_sounds::surface_sounds(so, request, sound)?;
     car_slot_sounds::car_slot_sounds(so, request)?;
     car_hit_sound::car_hit_sound(so, request)?;

@@ -24,7 +24,7 @@ use crate::race::owner::Race;
 use rc2k_core::drive::race_steps;
 
 /// One car's step (inside `pusha` / `popa`: nothing it leaves in the registers goes out).
-fn car_step(race: &Race) -> Result<(), Refused> {
+fn car_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     crate::drive::car_input_words::car_input_words(race, crate::input::owner::input())?;
     crate::drive::record_inputs_if::record_inputs_if(race)?;
     crate::drive::play_inputs_if::play_inputs_if(race)?;
@@ -39,7 +39,7 @@ fn car_step(race: &Race) -> Result<(), Refused> {
         crate::physics::gear_input_rules::gear_input_rules(race);
         crate::drive::steer_inputs::steer_inputs(race);
         crate::drive::pedal_inputs::pedal_inputs(race);
-        crate::drive::reset_request::reset_request(race)?;
+        crate::drive::reset_request::reset_request(race, scene)?;
         crate::physics::car_physics_step::car_physics_step(race)?;
         // `net::race_step` reads no register at entry (liveness: its esi "read" at
         // 0x4644AF is `imul esi, ebp, ..`'s destination); its Rust version still takes
@@ -62,7 +62,11 @@ fn car_step(race: &Race) -> Result<(), Refused> {
 /// and esi after `drive::race_tick`'s call have no read point).
 // Converted: `rc2k_core::drive::race_steps::{check_cars, each_car, block_slot,
 // skids_restart}`.
-pub fn replay_step(race: &Race, sound: &crate::sound::owner::Sound) -> Result<(), Refused> {
+pub fn replay_step(
+    race: &Race,
+    sound: &crate::sound::owner::Sound,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     race_steps::check_cars(shared.view.race_cars.get())?;
     crate::drive::choose_shown_cars::choose_shown_cars(race)?;
@@ -82,7 +86,7 @@ pub fn replay_step(race: &Race, sound: &crate::sound::owner::Sound) -> Result<()
         || shared.work.current_car.get(),
         || shared.view.race_cars.get(),
         |n| shared.work.current_car.set(n),
-        || car_step(race),
+        || car_step(race, scene),
     )?;
     crate::drive::replay_check::note(race)?;
     crate::drive::animate_stage::animate_stage(race)?;

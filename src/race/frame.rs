@@ -109,8 +109,8 @@ const SHARED_KEY: usize = 0x3F; // byte_4F6D1B
 /// The keys that flip a bit of the view block's +0x220 (`rc2k_core::race::keys::BIT_KEYS`
 /// by place): their key bytes, in the order tested.
 pub const BIT_KEYS: [usize; 7] = [0x58, 0x42, 0x41, 0x44, 0x43, 0x40, 0x57]; // 4F6D34, 4F6D1E, 4F6D1D, 4F6D20, 4F6D1F, 4F6D1C, 4F6D33
-fn pressed(key: usize) -> bool {
-    input().devices.keys_pressed.get(key) != 0
+fn pressed(devices: &crate::input::store::Devices, key: usize) -> bool {
+    devices.keys_pressed.get(key) != 0
 }
 
 /// `race::race_keys` (0x43A649): the race's view and sound keys (see its header). It
@@ -118,10 +118,12 @@ fn pressed(key: usize) -> bool {
 /// (`drive::race_loop`, `drive::pause_until_key`).
 pub fn race_keys(race: &Race) -> Result<(), Refused> {
     let audio = crate::audio::owner::audio();
+    let devices = &input().devices;
+    let sound = crate::sound::owner::sound();
     let state = &audio.state;
     let shared = &race.shared;
     crate::drive::choose_shown_cars::choose_shown_cars(race)?;
-    let second = input().devices.keys_now.get(VIEW_MODE_KEY) != 0;
+    let second = devices.keys_now.get(VIEW_MODE_KEY) != 0;
     let view_addr = shared.view.view_block(usize::from(second));
     let view = Car::at(view_addr);
     // Converted: `rc2k_core::race::keys::{first_key, split_flip, volume_key,
@@ -131,14 +133,17 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
         volume_key, volume_step,
     };
     let key = first_key(|k| {
-        pressed(match k {
-            Key::NextView => NEXT_VIEW_KEY,
-            Key::Split => SPLIT_KEY,
-            Key::VolumeDown => DOWN_KEY,
-            Key::VolumeUp => UP_KEY,
-            Key::Bit(n) => BIT_KEYS[n],
-            Key::Shared => SHARED_KEY,
-        })
+        pressed(
+            devices,
+            match k {
+                Key::NextView => NEXT_VIEW_KEY,
+                Key::Split => SPLIT_KEY,
+                Key::VolumeDown => DOWN_KEY,
+                Key::VolumeUp => UP_KEY,
+                Key::Bit(n) => BIT_KEYS[n],
+                Key::Shared => SHARED_KEY,
+            },
+        )
     });
     // The view block's +0x220 with `bit` flipped; gives the counter.
     let flip = |view: &Car, bit: (u32, u32, u32)| -> u32 {
@@ -174,18 +179,10 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
                 let from: u32 = if up {
                     menus().screens.option_work.other_volume.get()
                 } else {
-                    crate::sound::owner::sound()
-                        .menu
-                        .options
-                        .race_music_volume
-                        .get()
+                    sound.menu.options.race_music_volume.get()
                 };
                 let volume = volume_step(from, step);
-                crate::sound::owner::sound()
-                    .menu
-                    .options
-                    .race_music_volume
-                    .set(volume);
+                sound.menu.options.race_music_volume.set(volume);
                 crate::sound::set_music_volume::set_music_volume(volume, audio);
             } else {
                 let volume = volume_step(state.master_volume.get(), step);
@@ -214,9 +211,11 @@ pub fn race_keys(race: &Race) -> Result<(), Refused> {
 /// `dword_70F740` .. `dword_70F74C`, one per bit 1 .. 4) `race::tyre_change_gauge`
 /// started, then run, its time when done added. It reads no register at entry; the eax and
 /// esi it leaves are read by no caller (`drive::race_loop`).
-pub fn tyre_change(race: &Race) -> Result<(), Refused> {
-    let system = crate::system::owner::system();
-    let input = crate::input::owner::input();
+pub fn tyre_change(
+    race: &Race,
+    input: &'static crate::input::owner::Input,
+    system: &crate::system::owner::System,
+) -> Result<(), Refused> {
     let shared = &race.shared;
     let textures = &scene().textures;
     use crate::race::blocks_store::CAR_BLOCKS;

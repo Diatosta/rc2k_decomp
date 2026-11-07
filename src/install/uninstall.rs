@@ -32,16 +32,15 @@ use crate::install::installer::{
 
 /// byte_95E9F8 = byte_95E7F8 + name #index of `table`, NUL-ended.
 fn build_path(
+    install: &'static crate::install::owner::Install,
     table: &crate::memory::owned::Owned<crate::install::name_tables::NameTable>,
     index: u32,
 ) -> Result<crate::place::Place, Refused> {
-    let mut path = text_at(&crate::install::owner::install().paths.installed);
+    let mut path = text_at(&install.paths.installed);
     crate::install::name_tables::push_name(table, index, &mut path)?;
     path.push(0);
-    store_text(&crate::install::owner::install().paths.path_b, &path);
-    Ok(crate::place::Place::from(
-        &crate::install::owner::install().paths.path_b,
-    ))
+    store_text(&install.paths.path_b, &path);
+    Ok(crate::place::Place::from(&install.paths.path_b))
 }
 
 /// The installation's folder, when "remove all" was chosen and it is one that may go whole.
@@ -114,7 +113,7 @@ pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(),
     if install.run.file_count.get() != 0 {
         let mut n = 0;
         loop {
-            delete_file(build_path(&crate::install::name_tables::FILES, n)?);
+            delete_file(build_path(install, &crate::install::name_tables::FILES, n)?);
             n = n.wrapping_add(1);
             if n == install.run.file_count.get() {
                 break;
@@ -124,7 +123,11 @@ pub fn uninstall(install: &'static crate::install::owner::Install) -> Result<(),
     if install.run.dir_count.get() != 0 {
         let mut n = install.run.dir_count.get().wrapping_sub(1);
         loop {
-            remove_dir(build_path(&crate::install::name_tables::FOLDERS, n)?);
+            remove_dir(build_path(
+                install,
+                &crate::install::name_tables::FOLDERS,
+                n,
+            )?);
             n = n.wrapping_sub(1);
             if (n as i32) < 0 {
                 break;

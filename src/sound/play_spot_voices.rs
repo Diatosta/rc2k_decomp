@@ -31,10 +31,11 @@ use rc2k_core::sound::spot_voices::{Played, REQUEST_FROM, end_time, going_on, pl
 pub fn play_spot_voices(
     request: &SoundRequest,
     audio: &crate::audio::owner::Audio,
+    sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
-    let clock = crate::sound::owner::sound().race.clock.last.get();
+    let clock = sound.race.clock.last.get();
     for n in 0..VOICE_COUNT {
-        let v = voice(n);
+        let v = voice(n, sound);
         if vw(v, 4)? != 1 {
             continue;
         }

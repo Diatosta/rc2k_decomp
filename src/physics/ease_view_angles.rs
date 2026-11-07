@@ -16,7 +16,6 @@ use crate::math::x87_float::ld;
 use crate::math::x87_float::to_int;
 use crate::physics::camera_view::{record, share_done};
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn ease_view_angles(
@@ -35,7 +34,7 @@ pub fn ease_view_angles(
         .iter()
         .zip(&esi.turn_rates)
     {
-        x87_1(race, rate.get());
+        x87_1(race, rate.get(), scene);
         to.set(
             to.get()
                 .wrapping_add(scene.drawing.scene.scratch.get() << 16),
@@ -50,13 +49,13 @@ pub fn ease_view_angles(
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([s + 0] * [rc + 0x205260]) * [rc + 0x1C5D98]` (`[s + 0]` a
 /// record's turn rate, passed by value)
-fn x87_1(race: &Race, rate: u32) {
+fn x87_1(race: &Race, rate: u32, scene: &crate::scene::owner::Scene) {
     let t0 = ld(rate);
     let t1 = ld(race.shared.tables.view_share.bits());
     let t2 = t0 * t1;
     let t3 = ld(race.course.numbers.k65536.bits());
     let t4 = t2 * t3;
-    scene().drawing.scene.scratch.set_bits(to_int(t4) as u32);
+    scene.drawing.scene.scratch.set_bits(to_int(t4) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -84,7 +83,11 @@ mod asm_reference {
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
             plain: |a| {
-                x87_1(race(), crate::scene::x87_mem::Base::dword(a[0], 0));
+                x87_1(
+                    race(),
+                    crate::scene::x87_mem::Base::dword(a[0], 0),
+                    crate::scene::owner::scene(),
+                );
             },
         }]
     }

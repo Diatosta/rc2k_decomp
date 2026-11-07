@@ -102,8 +102,7 @@ pub fn eax_face_weight(
 /// `race().frame.sound_spots.eax_face_count` 0, then the 3 x 3 grid cells around the middle (from
 /// `hold_to_limit(race().course.stage_prefs.grid_reach)` - 1 on each axis; `sub_45C84C` each): every face of
 /// each cell's course record (numbers below 0x0FFFFFFF) weighed by `eax_face_weight`.
-pub fn eax_environment(race: &Race) -> Result<(), BadInput> {
-    let scene = crate::scene::owner::scene();
+pub fn eax_environment(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     {
         ENVIRONMENT.set(0);
         race.frame.sound_spots.eax_face_count.set_bits(0u32);

@@ -172,7 +172,7 @@ fn test_course(race: &Race) -> Result<(), Refused> {
         race_end::record_replay_header(race);
         replay::open_replay(race)?;
         race.shared.view.after_credits.set(0);
-        crate::drive::play_race::play_race(race)?;
+        crate::drive::play_race::play_race(race, crate::scene::owner::scene())?;
         replay::close_replay(race)?;
         race_end::tidy_everything(race)
     })

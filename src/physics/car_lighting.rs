@@ -68,7 +68,7 @@ pub fn car_lighting(
         .course
         .ground_face_last
         .set(race.shared.car.probe_point_face[4].get());
-    { crate::physics::find_ground::find_ground(race) }?;
+    { crate::physics::find_ground::find_ground(race, scene) }?;
     let face = race_owner.course.course.ground_slot.get();
     if face == u32::MAX {
         return Ok(());

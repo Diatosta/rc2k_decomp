@@ -14,8 +14,11 @@ use crate::race::owner_shared::Shared;
 
 /// The Rust version: `records` (a whole table, the wheels' 0x17 or the contacts' 7) on the
 /// work car.
-pub fn apply_forces(shared: &Shared, records: &[ForceRecord]) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn apply_forces(
+    shared: &Shared,
+    records: &[ForceRecord],
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     for rec in records {
         apply_force(shared, rec, &shared.car, scene);
     }

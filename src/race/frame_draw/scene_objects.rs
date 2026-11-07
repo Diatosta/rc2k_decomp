@@ -130,8 +130,7 @@ pub fn check_slot_object(
 /// `race::draw_race_slots` (0x4621E5): `draw_slot_object` for each of the eight race slots
 /// (0x78 bytes at `g_raceSlots`) whose +0 is not 0. Refuses (before anything) as
 /// `check_slot_object` for any.
-pub fn draw_race_slots(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn draw_race_slots(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let slots = &race.shared.work.race_slots;
     for slot in slots {
         if slot.part.get() != 0 {
@@ -219,8 +218,7 @@ pub fn draw_screen_quad(race: &Race, scene: &crate::scene::owner::Scene) -> Resu
 /// `race::draw_view_tint` (0x456092): the whole view (0 .. `DRAW.view_size`, 0 ..
 /// `DRAW.view_size[1]`) as a screen quad in 0x204080 (`RACE_VARS.quad_colour`), switches -1, 1, 0, by
 /// `draw_screen_quad`.
-pub fn draw_view_tint(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn draw_view_tint(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     let drawing = &scene.drawing;
     shared.vars.quad_corners[0].set(0u32);
@@ -492,8 +490,7 @@ pub fn car_light_flares(
 /// +0x6FC bit 5 (lights on, `car_light_modes`) its depth entry (`add_car_depth_entry`) and then `car_light_flares`. Refuses (before anything) no cars (the loop tests at
 /// its end) or more than eight, a null block, or a depth list without room for every car's
 /// entries.
-pub fn car_lights(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn car_lights(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     if race.shared.switches.other_way.bits() == 0 {
         return Ok(());
     }
@@ -851,11 +848,11 @@ pub fn draw_list_entry(
 /// as a description, past its own 8 bytes).
 pub fn draw_entries(
     race: &Race,
+    scene: &crate::scene::owner::Scene,
     count: &crate::session::Dword,
     cells: &[crate::session::Dword],
     list: GamePtr,
 ) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
     let entries = cells
         .get(..2 * count.get() as usize)
         .ok_or(BadInput("a draw list entry past the list"))?;

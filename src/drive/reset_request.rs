@@ -34,7 +34,7 @@ fn clear_notice(shared: &Shared) {
 
 /// The Rust version, then `physics::reset_car`.
 // Converted: `rc2k_core::drive::controls::{reset_counts, reset_held, reset_step, reset_penalty}`.
-pub fn reset_request(race: &Race) -> Result<(), Refused> {
+pub fn reset_request(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let race_owner = race;
 
     if !reset_counts(race_owner.shared.car.run_ticks.get()) {
@@ -75,6 +75,6 @@ pub fn reset_request(race: &Race) -> Result<(), Refused> {
             .wrapping_add(reset_penalty(race_owner.shared.car.stuck_count.get())),
     );
     clear_notice(&race.shared);
-    { crate::physics::reset_car::reset_car(race) }?;
+    { crate::physics::reset_car::reset_car(race, scene) }?;
     Ok(())
 }

@@ -110,6 +110,7 @@ pub fn replay_viewer(race: &Race, mode: Mode) -> Result<(), Refused> {
 /// Up to the end.
 fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
     let system = crate::system::owner::system();
+    let install = crate::install::owner::install();
     let devices = &input().devices;
     let session = &system.session;
     let replay = &race.replay;
@@ -154,19 +155,19 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         &replay.replay_view.viewer_list,
     ));
     race.shared.replay_file.viewer_sound.set(0);
-    crate::install::owner::install().pages.list_answer.set(1);
-    crate::install::owner::install().pages.list_leave.set(0);
+    install.pages.list_answer.set(1);
+    install.pages.list_leave.set(0);
     let now = session.clocks.key_ticks.get();
-    crate::install::owner::install().pages.move_clock.set(now);
-    crate::install::owner::install().pages.key_clock.set(now);
-    crate::install::owner::install().pages.choice.set(6);
+    install.pages.move_clock.set(now);
+    install.pages.key_clock.set(now);
+    install.pages.choice.set(6);
     // The pending key dropped.
     crate::input::take_key::take_key();
     mark_viewer_items::mark_viewer_items(race, list)?;
     // A test run's picture check: the item chosen (play) at once, as Return would.
     #[cfg(feature = "remote")]
     if crate::remote::shots_on() {
-        let chosen = list.item(crate::install::owner::install().pages.choice.get());
+        let chosen = list.item(install.pages.choice.get());
         action_next(race, u32::from(chosen.viewer_action()))?;
     }
     loop {
@@ -174,14 +175,11 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         if let Some(lost) = crate::platform::run_frame_now(viewer_frame::viewer_frame) {
             lost?;
         }
-        crate::install::owner::install()
+        install
             .pages
             .frame_clock
             .set(session.clocks.key_ticks.get());
-        crate::install::owner::install()
-            .pages
-            .choice_before
-            .set(crate::install::owner::install().pages.choice.get());
+        install.pages.choice_before.set(install.pages.choice.get());
         let mut key = crate::menu::list_take_key::list_take_key();
         if session.flags.quitting.get() == 1 {
             return Ok(());
@@ -216,20 +214,20 @@ fn view(race: &Race, mode: Mode) -> Result<(), Refused> {
         let next = if (key as i8) <= 0 {
             Next::Mark
         } else {
-            stopped_key(race, list, key)?
+            stopped_key(race, install, list, key)?
         };
         let next = match next {
             Next::Action(action) => action_next(race, action)?,
             other => other,
         };
         if let Next::Mark = next {
-            mark(race, list, key)?;
+            mark(race, install, list, key)?;
         }
         // The menu sound asked for (0x41D41C).
         let sound = race.shared.replay_file.viewer_sound.get();
         race.shared.replay_file.viewer_sound.set(0);
         crate::sound::play_menu_sound::play_menu_sound_in_game(sound);
-        if crate::install::owner::install().pages.list_leave.get() == 1 {
+        if install.pages.list_leave.get() == 1 {
             return Ok(());
         }
     }
@@ -247,7 +245,12 @@ fn action_next(race: &Race, action: u32) -> Result<Next, Refused> {
 }
 
 /// A key while stopped (0x41D139 ..): where it leads.
-fn stopped_key(race: &Race, list: ListMenu, key: u8) -> Result<Next, Refused> {
+fn stopped_key(
+    race: &Race,
+    install: &crate::install::owner::Install,
+    list: ListMenu,
+    key: u8,
+) -> Result<Next, Refused> {
     if crate::gfx::shots::on() != 0 && key == 0x52 {
         crate::gfx::take_screenshot::take_screenshot()?;
     }
@@ -268,7 +271,7 @@ fn stopped_key(race: &Race, list: ListMenu, key: u8) -> Result<Next, Refused> {
         return Ok(Next::Mark);
     }
     if key == 0x1C {
-        let chosen = list.item(crate::install::owner::install().pages.choice.get());
+        let chosen = list.item(install.pages.choice.get());
         if let Next::Mark = action_next(race, u32::from(chosen.viewer_action()))? {
             return Ok(Next::Mark);
         }
@@ -295,7 +298,12 @@ fn stopped_key(race: &Race, list: ListMenu, key: u8) -> Result<Next, Refused> {
 
 /// After a move or an action (0x41D3B0): the items marked again, the highlight put where
 /// it can be chosen, the key's clock.
-fn mark(race: &Race, list: ListMenu, key: u8) -> Result<(), Refused> {
+fn mark(
+    race: &Race,
+    install: &crate::install::owner::Install,
+    list: ListMenu,
+    key: u8,
+) -> Result<(), Refused> {
     use crate::menu::list_item_unusable::list_item_unusable;
     crate::race::mark_viewer_items::mark_viewer_items(race, list)?;
     'tail: {
@@ -320,25 +328,22 @@ fn mark(race: &Race, list: ListMenu, key: u8) -> Result<(), Refused> {
                 }
             }
             // Else back where it was.
-            crate::install::owner::install()
-                .pages
-                .choice
-                .set(crate::install::owner::install().pages.choice_before.get());
+            install.pages.choice.set(install.pages.choice_before.get());
             if !list_item_unusable(list) {
                 return Ok(());
             }
         }
         // Else item 6, or 0x13 when item 6 is marked.
-        crate::install::owner::install().pages.choice.set(6);
+        install.pages.choice.set(6);
         if list.item(6).first() & 0xC0 != 0 {
-            crate::install::owner::install().pages.choice.set(0x13);
+            install.pages.choice.set(0x13);
         }
     }
     if (key as i8) > 0 {
-        crate::install::owner::install()
+        install
             .pages
             .move_clock
-            .set(crate::install::owner::install().pages.frame_clock.get());
+            .set(install.pages.frame_clock.get());
     }
     Ok(())
 }

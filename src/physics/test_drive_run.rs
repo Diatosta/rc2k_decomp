@@ -27,20 +27,18 @@ use crate::math::x87_float::st;
 use crate::physics::flow::c0;
 use crate::physics::gear_store::GEAR;
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::session::Float;
 
 pub const STEPS: u32 = 0x1388;
 
 /// One step (0x42189D .., in `pusha` / `popa`).
-fn step(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+fn step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.shared.car.local_velocity[2].set_bits(crate::math::x87::loaded(
         race.shared.car.drive_speed_a.bits(),
     ));
     crate::physics::count_down_timers::count_down_timers(&race.shared);
     crate::physics::gearbox_step::gearbox_step(race, scene)?;
-    crate::physics::engine_torque::engine_torque(race);
+    crate::physics::engine_torque::engine_torque(race, scene);
     let gear = race.shared.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
@@ -49,13 +47,13 @@ fn step(race: &Race) -> Result<(), Refused> {
         race,
         &race.shared.physics_tables.gear_ratios[gear.wrapping_add(1) as usize],
     );
-    crate::physics::drive_torque_share::drive_torque_share(race);
-    x87_2(race);
+    crate::physics::drive_torque_share::drive_torque_share(race, scene);
+    x87_2(race, scene);
     { crate::physics::revs_from_wheels::revs_from_wheels(race) }?;
     Ok(())
 }
 
-fn steps(race: &Race) -> Result<(), Refused> {
+fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     for mark in &GEAR.test_marks {
         mark.set(0);
     }
@@ -65,7 +63,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
     race.shared.car.gear.set(1);
     race.shared.car.gearbox_kind.set(1);
     for n in 0..STEPS {
-        step(race)?;
+        step(race, scene)?;
         if GEAR.test_marks[0].get() == 0
             && !c0(
                 race.shared.car.drive_speed_a.bits(),
@@ -96,8 +94,8 @@ fn steps(race: &Race) -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn test_drive_run(race: &Race) -> Result<(), Refused> {
-    steps(race)
+pub fn test_drive_run(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    steps(race, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -121,7 +119,7 @@ fn x87_1(race: &Race, r: &Float) {
 /// `[rc + 0x22400C] = -(((([rc + 0x31A190] * [rc + 0x31A190]) * [rc + 0x213FCC]) / [rc + 0x1C5E34]) + [rc + 0x213FD0])`
 /// (a long formula: see the instructions in the tests' `asm_reference`)
 /// (a long formula: see the instructions in the tests' `asm_reference`)
-fn x87_2(race: &Race) {
+fn x87_2(race: &Race, scene: &crate::scene::owner::Scene) {
     let t0 = ld(race.shared.car.drive_speed_a.bits());
     let t1 = t0 * t0;
     let t2 = ld(race.shared.physics_tables.air_drag.bits());
@@ -131,7 +129,7 @@ fn x87_2(race: &Race) {
     let t6 = ld(race.shared.physics_tables.rolling_drag.bits());
     let t7 = t5 + t6;
     let t8 = -t7;
-    scene().drawing.scene.scratch.set_bits(st(t8));
+    scene.drawing.scene.scratch.set_bits(st(t8));
     let t9 = ld(race.shared.physics_tables.drive_torque.bits());
     let t10 = t8 + t9;
     let t11 = ld(race.shared.physics_tables.step_time.bits());
@@ -207,7 +205,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(race()),
+                plain: |_| x87_2(race(), crate::scene::owner::scene()),
             },
             Block {
                 name: "test_drive_run line 93",

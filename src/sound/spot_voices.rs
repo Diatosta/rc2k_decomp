@@ -23,8 +23,8 @@ pub const MOST_KIND: u32 = 0x15;
 pub type VoiceWords = [Dword; 20];
 
 /// Voice `n` (under `VOICE_COUNT`).
-pub fn voice(n: u32) -> &'static VoiceWords {
-    &crate::sound::owner::sound().race.spot_voices.voices[n as usize]
+pub fn voice(n: u32, sound: &crate::sound::owner::Sound) -> &VoiceWords {
+    &sound.race.spot_voices.voices[n as usize]
 }
 
 /// The address of voice `n` (the pickers' work holds addresses).
@@ -52,23 +52,21 @@ pub fn set(v: &VoiceWords, at: u32, value: u32) -> Result<(), BadInput> {
 }
 
 /// The voices as the core's (`rc2k_core::sound::spot_voices`).
-pub fn load_voices() -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
-    let words: [[u32; 20]; VOICE_COUNT as usize] = std::array::from_fn(|n| {
-        std::array::from_fn(|k| crate::sound::owner::sound().race.spot_voices.voices[n][k].get())
-    });
+pub fn load_voices(
+    sound: &crate::sound::owner::Sound,
+) -> [rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize] {
+    let words: [[u32; 20]; VOICE_COUNT as usize] =
+        std::array::from_fn(|n| std::array::from_fn(|k| sound.race.spot_voices.voices[n][k].get()));
     words.map(rc2k_core::sound::spot_voices::Voice::from_words)
 }
 
 /// The voices stored back.
-pub fn store_voices(voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize]) {
+pub fn store_voices(
+    sound: &crate::sound::owner::Sound,
+    voices: &[rc2k_core::sound::spot_voices::Voice; VOICE_COUNT as usize],
+) {
     let words = voices.map(|v| v.to_words());
-    for (voice, words) in crate::sound::owner::sound()
-        .race
-        .spot_voices
-        .voices
-        .iter()
-        .zip(words)
-    {
+    for (voice, words) in sound.race.spot_voices.voices.iter().zip(words) {
         for (cell, word) in voice.iter().zip(words) {
             cell.set(word);
         }
@@ -83,10 +81,10 @@ pub fn voice_or_0(n: Option<usize>, sound: &crate::sound::owner::Sound) -> u32 {
 /// The pickers' work stored as the original leaves it, and the scratch dword (1000.0,
 /// then the last distance x 1000) when a distance was worked out.
 pub fn store_picks(
+    sound: &crate::sound::owner::Sound,
     picks: &rc2k_core::sound::spot_voices::Picks,
     trail: &rc2k_core::sound::spot_voices::Trail,
 ) {
-    let sound = crate::sound::owner::sound();
     let work = &sound.race.spot_picks;
     work.pick_playing.set(voice_or_0(picks.playing, sound));
     work.pick_nearest_distance.set(picks.nearest_distance);

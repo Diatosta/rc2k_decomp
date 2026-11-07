@@ -80,8 +80,7 @@ fn status_above(status: u16) -> bool {
 }
 
 /// The steps.
-fn steps(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let gear = race.shared.car.gear.get();
     one_less_abs(
@@ -123,7 +122,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         if gear == 0 {
             race.shared.physics_tables.drive_torque.set_bits(0);
         }
-        crate::physics::cap_drive_speed::cap_drive_speed(race);
+        crate::physics::cap_drive_speed::cap_drive_speed(race, scene);
         race.shared.physics_tables.wheels_driven.set(0);
         // the grips at +0 or, braking, +0x14: `wheel_grips_b`
         let mut grips = &race.shared.physics_tables.wheel_grips;
@@ -188,7 +187,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         revs(race)?;
         slip_gaps(&race.shared);
         crate::physics::cap_reverse_inputs::cap_reverse_inputs(race);
-        crate::physics::add_drive_forces::add_drive_forces(&race.shared);
+        crate::physics::add_drive_forces::add_drive_forces(&race.shared, scene);
         crate::physics::ease_low_speed_forces::ease_low_speed_forces(&race.shared);
 
         scale_axle_forces(&race.shared);
@@ -291,12 +290,12 @@ fn revs(race: &Race) -> Result<(), Refused> {
 }
 
 /// The Rust version. The eax and ebx it leaves are read by none of its callers.
-pub fn drive_wheels_step(race: &Race) -> Result<(), Refused> {
+pub fn drive_wheels_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let gear = race.shared.car.gear.get();
     if gear != 0 && !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    steps(race)
+    steps(race, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----

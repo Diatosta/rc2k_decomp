@@ -10,7 +10,6 @@ use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
 use crate::race::trap::car_at;
 use crate::scene::faces_store::FACES;
-use crate::scene::owner::scene;
 use crate::session::Dword;
 
 /// `race::car_light_modes` (0x455B70): `crate::race::owner::race().shared.view.shown_car` = the drawn view's car
@@ -143,8 +142,7 @@ pub(super) fn add_lamp_entry(
 /// `g_lamps` entry (+0 the face's first point, +4 its +0x11 byte, +8 0xFFFFFF) and its depth
 /// entry (`add_lamp_entry`. Refuses (before anything) more than 0x100 lit faces, or a depth
 /// list without room for 16.
-pub fn gather_lamps(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn gather_lamps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     let physics = &race.physics;
     let count: u32 = physics.contact.lit_face_count.bits();
@@ -342,8 +340,7 @@ pub fn light_colour_at(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
 /// `race::view_light` (0x455896): the lit place the work car's (`g_car` +0x134 ..);
 /// `light_colour_at`; `race().frame.frame_work.view_light` = `LIGHT_WORK.view_light_base` plus the light
 /// (`add_colours`, through `DRAW.scratch`).
-pub fn view_light(race: &Race) -> Result<(), Refused> {
-    let scene = scene();
+pub fn view_light(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::lights::add_colours` (through `light_colour_at`'s).
     check_light_colour(&race.shared)?;
     crate::session::write_bits(

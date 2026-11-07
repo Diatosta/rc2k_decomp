@@ -11,7 +11,6 @@ use crate::math::x87_float::int;
 use crate::math::x87_float::st;
 use crate::race::owner_shared::Shared;
 use crate::race::view_vars_store::{ViewRecord, ViewVars};
-use crate::scene::owner::scene;
 
 /// esi as the original leaves it: the mode's record.
 pub fn record(shared: &Shared) -> Result<&ViewRecord, crate::errors::BadInput> {
@@ -34,7 +33,7 @@ pub fn share_done(shared: &Shared, record: &ViewRecord, scene: &crate::scene::ow
         eax = change_time;
     }
     scene.drawing.scene.scratch.set(eax);
-    x87_1(shared, change_time);
+    x87_1(shared, change_time, scene);
     eax
 }
 
@@ -44,8 +43,8 @@ pub fn share_done(shared: &Shared, record: &ViewRecord, scene: &crate::scene::ow
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x205260] = int [rc + 0x22400C] / int [s + 0x3C]` (`s + 0x3C` the record's
 /// `change_time`, passed by value)
-fn x87_1(shared: &Shared, change_time: u32) {
-    let t0 = int(scene().drawing.scene.scratch.bits() as i32);
+fn x87_1(shared: &Shared, change_time: u32, scene: &crate::scene::owner::Scene) {
+    let t0 = int(scene.drawing.scene.scratch.bits() as i32);
     let t1 = int(change_time as i32);
     let t2 = t0 / t1;
     shared.tables.view_share.set_bits(st(t2));
@@ -79,6 +78,7 @@ mod asm_reference {
                 x87_1(
                     &race().shared,
                     crate::scene::x87_mem::Base::dword(a[1], 0x3C),
+                    crate::scene::owner::scene(),
                 );
             },
         }]

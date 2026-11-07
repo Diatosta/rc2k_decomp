@@ -43,8 +43,7 @@ fn blocked(race: &Race, scene: &crate::scene::owner::Scene) -> bool {
 
 /// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::line_places::reset_offsets`.
-pub fn reset_car(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn reset_car(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let lights = &scene.lights;
     lights
         .state

@@ -18,12 +18,12 @@ use crate::physics::gear_store::GEAR;
 use crate::race::owner::Race;
 
 /// The Rust version (the exact one, for the Rust callers' exact comparisons).
-pub fn drive_force(race: &Race) -> Result<(), Refused> {
+pub fn drive_force(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let gear = race.shared.car.gear.get();
     if !(-1..=7).contains(&(gear as i32)) {
         return Err(BadInput("a gear outside g_gearRatios (-1 ..= 7)").into());
     }
-    engine_torque_or_cut(race);
+    engine_torque_or_cut(race, scene);
     race.shared
         .physics_tables
         .drive_ratio
@@ -42,6 +42,6 @@ pub fn drive_force(race: &Race) -> Result<(), Refused> {
     if race.shared.car.drive_cut_steps.get() != 0 {
         race.shared.physics_tables.drive_torque.set_bits(0);
     }
-    drive_torque_share(race);
+    drive_torque_share(race, scene);
     Ok(())
 }

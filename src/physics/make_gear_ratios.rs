@@ -21,7 +21,6 @@ use crate::physics::gear_store::GEAR;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::scene::matrix3::{extended, rounded};
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 const RATIO: usize = 8; // index of gear 0 in `game()`'s list
@@ -65,7 +64,7 @@ pub fn ratios_at(course: &Course, v: &[&dyn Cell32]) -> Result<u32, Refused> {
     Ok(n)
 }
 
-fn game(race: &Race) -> Vec<&dyn Cell32> {
+fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
         &race.shared.physics_tables.gear_count as &dyn Cell32,
         &GEAR.figures[3],
@@ -83,13 +82,13 @@ fn game(race: &Race) -> Vec<&dyn Cell32> {
         &race.shared.physics_tables.gear_ratios[6],
         &race.shared.physics_tables.gear_ratios[7],
         &race.shared.physics_tables.gear_ratios[8],
-        &scene().drawing.scene.scratch,
+        &scene.drawing.scene.scratch,
         &race.shared.physics_tables.gear_ratio_step,
     ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::test_drive`): the gear count.
-pub fn make_gear_ratios(race: &Race) -> Result<u32, Refused> {
-    ratios_at(&race.course, &game(race))
+pub fn make_gear_ratios(race: &Race, scene: &crate::scene::owner::Scene) -> Result<u32, Refused> {
+    ratios_at(&race.course, &game(race, scene))
 }

@@ -46,8 +46,10 @@
 //! (`menu::run_item_action`). A refusal goes back to the loop's caller; a set carry after a
 //! `Step::CallOrFatal` is the fatal error, raised by the caller too.
 
+use crate::audio::owner::Audio;
 use crate::errors::{FatalError, Refused};
 use crate::framework::log;
+use crate::input::owner::Input;
 use crate::input::take_key::take_key;
 use crate::menu::handle_keys::handle_keys;
 use crate::menu::lists_store::CarList;
@@ -58,9 +60,12 @@ use crate::menu::owner::menus;
 use crate::menu::run_item_action::run_item_action;
 use crate::menu::run_list::run_list;
 use crate::menu::update_blink::update_blink;
+use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::scene::owner::Scene;
 use crate::session::{Dword, Float};
-use crate::system::owner::system;
+use crate::sound::owner::Sound;
+use crate::system::owner::{System, system};
 use rc2k_core::menu::keys::Pressed;
 
 // ---- game code the loop calls itself ----
@@ -97,7 +102,9 @@ pub enum Step {
     Call(Callee),
     /// Writes a game variable.
     Write(Cell, u32),
-    WriteF32(fn(&Menus) -> &Float, f32),
+    /// Writes a scene variable.
+    WriteScene(fn(&Scene) -> &Dword, u32),
+    WriteSceneF32(fn(&Scene) -> &Float, f32),
     /// Calls the game function, and if it fails (the original's carry flag), that is the
     /// fatal error with this code (and no message).
     CallOrFatal(Callee, u32),
@@ -228,16 +235,32 @@ pub struct Screen {
 pub struct Entry<'a> {
     pub menus: &'a Menus,
     pub cars: Option<CarList>,
+    /// The other owners the steps and the loop use (fetched once, where the entry is made).
+    pub scene: &'a Scene,
+    pub system: &'a System,
+    pub race: &'a Race,
+    pub sound: &'a Sound,
+    pub input: &'a Input,
+    pub audio: &'a Audio,
 }
 
 impl<'a> Entry<'a> {
     /// Entered with nothing carried in.
     pub fn new(menus: &'a Menus) -> Self {
-        Entry { menus, cars: None }
+        Entry::with_cars(menus, None)
     }
     /// Entered with the list of cars the carousel shows.
     pub fn with_cars(menus: &'a Menus, cars: Option<CarList>) -> Self {
-        Entry { menus, cars }
+        Entry {
+            menus,
+            cars,
+            scene: crate::scene::owner::scene(),
+            system: system(),
+            race: race(),
+            sound: crate::sound::owner::sound(),
+            input: crate::input::owner::input(),
+            audio: crate::audio::owner::audio(),
+        }
     }
 }
 
@@ -248,14 +271,12 @@ pub fn quitting() -> bool {
 
 /// `scene::prepare_menu_scene` (0x46F7FD). (It leaves esi the view's turn matrix: a screen
 /// whose carousel is set up after it hands that no list of cars.)
-pub fn prepare_scene() {
-    let scene = crate::scene::owner::scene();
+pub fn prepare_scene(scene: &Scene) {
     crate::scene::prepare_menu_scene::prepare_menu_scene(scene);
 }
 
 /// `scene::set_up_carousel` (0x4904DD), with the list of cars menus 0xD and 0xE show.
-pub fn carousel(cars: Option<CarList>) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn carousel(cars: Option<CarList>, scene: &Scene) -> Result<(), Refused> {
     crate::scene::set_up_carousel::set_up_carousel(cars, scene)
 }
 
@@ -352,10 +373,9 @@ pub enum Callee {
 impl Callee {
     /// Runs the function: whether it failed (the original's carry flag; false for those that
     /// do not set it).
-    pub fn run(self, menus: &Menus) -> Result<bool, Refused> {
-        let audio = crate::audio::owner::audio();
-        let input = crate::input::owner::input();
-        let sound = crate::sound::owner::sound();
+    pub fn run(self, entry: &Entry) -> Result<bool, Refused> {
+        let menus = entry.menus;
+        let (audio, input, sound) = (entry.audio, entry.input, entry.sound);
         let play = &menus.play;
         let screens = &menus.screens;
         use crate::menu::{controller_items as ci, results_setups as rs, stage_view_steps as v};
@@ -369,7 +389,7 @@ impl Callee {
             Self::LoadBackground(path) => {
                 crate::menu::load_background::load_background(path(menus), &mut GameCanvas)?;
             }
-            Self::PrepareScene => prepare_scene(),
+            Self::PrepareScene => prepare_scene(entry.scene),
             Self::ApplyController => ci::apply_controller()?,
             Self::ReleaseController => ci::release_controller(input),
             Self::DrawStageMap => crate::menu::stage_choice::draw_stage_map(menus)?,
@@ -467,8 +487,8 @@ fn clear_escape(screens: &Screens) {
 }
 
 /// A call whose failure is the fatal error `code`.
-pub fn call_or_fatal(menus: &Menus, function: Callee, code: u32) -> Result<(), Refused> {
-    if { function.run(menus) }? {
+pub fn call_or_fatal(entry: &Entry, function: Callee, code: u32) -> Result<(), Refused> {
+    if { function.run(entry) }? {
         log(&format!(
             "a screen loop's Rust version raises fatal error {code:#x}"
         ));
@@ -488,11 +508,12 @@ fn run(steps: &[Step], entry: &Entry) -> Result<Flow, Refused> {
                 elsewhere => return Ok(elsewhere),
             },
             Step::Call(function) => {
-                function.run(menus)?;
+                function.run(entry)?;
             }
             Step::Write(variable, value) => variable(menus).set(value),
-            Step::WriteF32(variable, value) => variable(menus).set(value),
-            Step::CallOrFatal(function, code) => call_or_fatal(menus, function, code)?,
+            Step::WriteScene(variable, value) => variable(entry.scene).set(value),
+            Step::WriteSceneF32(variable, value) => variable(entry.scene).set(value),
+            Step::CallOrFatal(function, code) => call_or_fatal(entry, function, code)?,
             Step::Do(what) => what(entry)?,
         }
     }
@@ -595,7 +616,7 @@ impl Loop<'_> {
     /// Set-up, again after every action that does not leave the screen: the lists put in place
     /// and the first frame drawn.
     fn set_up(&mut self) -> Result<Next, Refused> {
-        let system = system();
+        let system = self.entry.system;
         let menus = self.entry.menus;
         let screens = &menus.screens;
         let screen = self.screen;
@@ -634,7 +655,7 @@ impl Loop<'_> {
             .clocks
             .setup_time
             .set(system.session.clocks.frame.get());
-        race().shared.physics_tables.scene_clock.set(0u32);
+        self.entry.race.shared.physics_tables.scene_clock.set(0u32);
         run(screen.before_first_frame, entry)?;
         set_lists(
             menus,
@@ -673,7 +694,7 @@ impl Loop<'_> {
 
     /// One frame: blink, quit and Escape checks, the frame self.callback and the per-frame steps.
     fn frame(&mut self) -> Result<Next, Refused> {
-        let system = system();
+        let system = self.entry.system;
         let menus = self.entry.menus;
         let screens = &menus.screens;
         let screen = self.screen;
@@ -704,7 +725,7 @@ impl Loop<'_> {
                 run(screen.before_frame, entry)?;
                 set_lists(menus, screens, screen, screen.lists);
                 run_frame(menus, self.later_callback, menu)?;
-                race().shared.physics_tables.scene_clock.set(
+                self.entry.race.shared.physics_tables.scene_clock.set(
                     system
                         .session
                         .clocks
@@ -732,7 +753,10 @@ impl Loop<'_> {
             menus.tables.texts.keys_menu.set(self.keys_menu.code());
             // The original hands it the time since set-up in eax (the frame's last
             // write there that a screen's steps do not change before it reads it).
-            match handle_keys(menus, race().shared.physics_tables.scene_clock.get())? {
+            match handle_keys(
+                menus,
+                self.entry.race.shared.physics_tables.scene_clock.get(),
+            )? {
                 Pressed::Nothing => self.next_frame,
                 Pressed::Enter => Next::ActionCheck,
                 Pressed::Escape => {
@@ -764,7 +788,7 @@ impl Loop<'_> {
                     Next::Leave
                 } else if menus.screens.event.event_done.get() == 1 {
                     menus.tables.pages.yes_no_answer.set(0u32);
-                    Callee::TakeKey.run(menus)?;
+                    Callee::TakeKey.run(self.entry)?;
                     Next::SetUp
                 } else if menus.screens.loop_flags.back.get() == 1 {
                     self.why = format!("after the action of item {item}: dword_755561 is 1");

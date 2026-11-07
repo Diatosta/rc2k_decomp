@@ -133,9 +133,8 @@ fn fixed_camera(
 /// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::camera_view::{fixed_camera, keeps_light_figure,
 // switch_over, mode_after_switch, check_modes}` (the x87 sums stay).
-pub fn steps(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
-    crate::physics::camera_low_switch::camera_low_switch(race)?;
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    crate::physics::camera_low_switch::camera_low_switch(race, scene)?;
     for k in 0..3 {
         race.frame.frame_work.camera_car[k].set(race.shared.car.position[k].get());
     }
@@ -217,8 +216,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         race.shared.car.camera_blend_view.get(),
     );
     camera_view::check_modes(mode, before)?;
-    crate::physics::take_view_a::take_view_a(race, ViewVars::record_of(mode as usize)?)?;
-    crate::physics::take_view_b::take_view_b(race, ViewVars::record_of(before as usize)?);
+    crate::physics::take_view_a::take_view_a(race, ViewVars::record_of(mode as usize)?, scene)?;
+    crate::physics::take_view_b::take_view_b(race, ViewVars::record_of(before as usize)?, scene);
     x87_6(race);
     // The offsets and turns: (to, from b, from a) each a + (b - a) x share, x 65536.
     let (work, offset_turns) = (&race.physics.camera, &race.shared.car.camera_offset_turns);
@@ -302,7 +301,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     );
     crate::physics::ease_view_angles::ease_view_angles(race, scene)?;
     crate::physics::ease_view_blend::ease_view_blend(race, scene)?;
-    crate::physics::camera_avoid_ground::steps(race)?;
+    crate::physics::camera_avoid_ground::steps(race, scene)?;
     x87_9(race);
     race.course
         .course

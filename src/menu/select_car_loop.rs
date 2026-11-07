@@ -11,12 +11,11 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, Flow, FrameRoutine, List, Screen, Step, carousel, prepare_scene, quitting,
 };
-use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let drawing = &entry.scene.drawing;
     let menus = entry.menus;
     let screens = &menus.screens;
     // The current player's +0x30 (its car).
@@ -27,7 +26,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     screens.flow.shown_gearing.set(player.get().gearing);
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xDu32);
-    carousel(entry.cars)?;
+    carousel(entry.cars, entry.scene)?;
     let item = screens.items.current[slot::SELECT_CAR].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
@@ -38,7 +37,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     drawing.scene.view_offset[0].set(0x7u32);
     drawing.scene.view_offset[1].set(0xFFFFFFCEu32);
     drawing.scene.view_zoom.set(0x100u32);
-    prepare_scene();
+    prepare_scene(entry.scene);
     Ok(())
 }
 
@@ -51,7 +50,7 @@ fn after_first_frame(_: &Entry) -> Result<Flow, Refused> {
 
 fn leaving(entry: &Entry) -> Result<(), Refused> {
     if entry.menus.tables.captions.screen_left.get() == 0x1 {
-        Callee::GoBack.run(entry.menus)?;
+        Callee::GoBack.run(entry)?;
     }
     Ok(())
 }

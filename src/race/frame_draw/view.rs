@@ -8,7 +8,6 @@ use crate::race::owner_course::Course;
 use crate::race::owner_frame::Frame;
 use crate::race::owner_shared::Shared;
 use crate::scene::engine_tables_store::ENGINE_TABLES;
-use crate::scene::owner::scene;
 
 /// `race::draw_distance_settings` (0x43932A): the draw distance's level (`race().course.stage_prefs.draw_distance_level`,
 /// held to 0 ..= 4 by sign) picks from six tables: `race().course.stage_prefs.grid_reach` (at least 1, by sign),
@@ -138,8 +137,7 @@ pub fn fog_table(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
 /// and added); `fog_table`; the colour with 0xFF000000 to the device. None of it reads a
 /// register at entry, and its callers (`race::draw_view_scene`, `race::mirror_view_window`)
 /// read none it leaves. Refuses (before anything) what `fog_table` would.
-pub fn set_up_fog(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn set_up_fog(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let course = &race.course;
     let length = race.shared.view.view_depth[1].get().wrapping_shl(3);
@@ -388,8 +386,7 @@ pub fn view_matrices(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
 /// `race().frame.matrices.view_work` and `g_crashMatrix`, the place the car's raised by 0x8000), written as
 /// whole numbers and floats (also to `g_car` +0x734 ..), and `scene::set_view_window`; then
 /// `view_matrices`.
-pub fn camera_view(race: &Race) -> Result<(), BadInput> {
-    let scene = crate::scene::owner::scene();
+pub fn camera_view(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), BadInput> {
     use crate::math::x87::from_int;
     race.frame
         .view_and_records
@@ -474,9 +471,8 @@ pub fn camera_view(race: &Race) -> Result<(), BadInput> {
 /// `race().course.numbers.k4096_a`) its place on the screen (`race().frame.frame_work.sun_place` / `race().frame.frame_work.sun_hit`
 /// ..), `race().frame.frame_work.sun_on_screen` 1 when on the screen, `race().frame.frame_work.sun_size` its size (256
 /// less half its distance from the centre, at least 0).
-pub fn draw_sky(race: &Race) -> Result<(), Refused> {
+pub fn draw_sky(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let system = crate::system::owner::system();
-    let scene = scene();
     let frame = &race.frame;
     fetch_view_value(race)?;
     race.course.course.polygon_flags.set(0u32);

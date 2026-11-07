@@ -83,8 +83,8 @@ fn turn_place(frame: &Frame, ring: &Ring, e: u32, effects: &crate::effects::owne
 
 /// The size of the colour table in use: 128 colours (`SURFACE.colours`) while
 /// `MARKS_KIND_FLOATS.other` is not 0, else the 257 at 0x939DB2.
-fn colour_count() -> i32 {
-    if effects().setup.kind_floats.other.bits() != 0 {
+fn colour_count(effects: &crate::effects::owner::Effects) -> i32 {
+    if effects.setup.kind_floats.other.bits() != 0 {
         128
     } else {
         257
@@ -139,7 +139,7 @@ fn refusal(
                         life.wrapping_sub(ticks) as i32,
                         eg(ring, e, field::ALPHA_FADE)?,
                     );
-                    if !(0..colour_count()).contains(&i) {
+                    if !(0..colour_count(effects)).contains(&i) {
                         return Ok(Some("a streak's colour index past its table"));
                     }
                 }
@@ -268,7 +268,6 @@ pub fn run_ribbons(
 
 use crate::d3d::vertices_store::VERTICES;
 use crate::effects::frame_state::DrawWork;
-use crate::effects::owner::effects;
 use crate::math::x87_float as bh;
 use crate::math::x87_float::int;
 

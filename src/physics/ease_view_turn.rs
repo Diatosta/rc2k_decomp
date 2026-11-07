@@ -14,7 +14,6 @@
 use crate::math::x87_float::to_int;
 use crate::math::x87_float::{int, ld};
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The Rust version (the exact one, for `physics::camera_avoid_ground`).
@@ -50,7 +49,7 @@ pub fn ease_view_turn(race: &Race, scene: &crate::scene::owner::Scene) {
             .scene
             .scratch
             .set(target.get().wrapping_sub(turn.get()));
-        x87_1(share);
+        x87_1(share, scene);
         turn.set(turn.get().wrapping_add(drawing.scene.scratch.get()));
     }
 }
@@ -60,8 +59,8 @@ pub fn ease_view_turn(race: &Race, scene: &crate::scene::owner::Scene) {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = int [rc + 0x22400C] * [s + 0]`
-fn x87_1(s: &impl Cell32) {
-    let drawing = &scene().drawing;
+fn x87_1(s: &impl Cell32, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let t0 = int(drawing.scene.scratch.bits() as i32);
     let t1 = ld(s.bits());
     let t2 = t0 * t1;
@@ -92,7 +91,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(&HostCell(a[1])),
+            plain: |a| x87_1(&HostCell(a[1]), crate::scene::owner::scene()),
         }]
     }
 

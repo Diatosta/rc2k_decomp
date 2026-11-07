@@ -143,6 +143,7 @@ fn correct_lexicon() -> Result<(), BadInput> {
 /// `compile` stands for `strings::compile_lexicon`.
 pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result<(), Refused> {
     let strings = strings();
+    let install = crate::install::owner::install();
     compile()?;
     layouts().use_built_in();
 
@@ -183,10 +184,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
     // `sub_403462`: the NEC keyboard's head (its layout mode) and layout.
     if system().session.machine.keyboard_type.get() == 2 {
         layouts().use_nec();
-        crate::install::owner::install()
-            .run
-            .first_drive
-            .set(0x61u32);
+        install.run.first_drive.set(0x61u32);
     }
 
     // `sub_403495`
@@ -203,10 +201,7 @@ pub fn load_language(compile: &mut dyn FnMut() -> Result<(), Refused>) -> Result
 
     correct_lexicon()?;
 
-    crate::install::owner::install()
-        .run
-        .offer_registration
-        .set(0u32);
+    install.run.offer_registration.set(0u32);
     // The standalone offers no registration (owner, 2026-10-19).
     Ok(())
 }

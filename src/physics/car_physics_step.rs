@@ -49,7 +49,7 @@ use crate::scene::matrix3::rounded;
 
 /// The motion: moved, spun, levered, the inverse matrix, the angles.
 fn motion(race: &Race, scene: &crate::scene::owner::Scene) {
-    ph::move_car::move_car(race);
+    ph::move_car::move_car(race, scene);
     ph::spin_matrix::spin_matrix(race);
     ph::lever_pushes::lever_pushes(race, scene);
     crate::race::start_place::invert_car_matrix(race);
@@ -65,7 +65,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     let race_owner = race;
     ph::stir_car_word::stir_car_word(&race.shared);
     ph::load_car_specs::load_car_specs(race, scene)?;
-    ph::make_gear_ratios::make_gear_ratios(race)?;
+    ph::make_gear_ratios::make_gear_ratios(race, scene)?;
     ph::store_motion_length::store_motion_length(race);
     ph::set_handling::set_handling(race)?;
     ph::race_timers::race_timers(race, sound)?;
@@ -107,19 +107,19 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         figure.set_bits(0);
     }
     crate::race::start_place::invert_car_matrix(race);
-    ph::feel_ground::feel_ground(race)?;
+    ph::feel_ground::feel_ground(race, scene)?;
     ph::start_skid_mark::start_skid_mark(&race.shared);
-    ph::probe_and_keep::probe_and_keep(race)?;
+    ph::probe_and_keep::probe_and_keep(race, scene)?;
     ph::ease_car_value::ease_car_value(&race.shared);
     ph::count_down_timers::count_down_timers(&race.shared);
-    ph::wheel_surfaces::wheel_surfaces(race)?;
+    ph::wheel_surfaces::wheel_surfaces(race, scene)?;
     ph::surface_noise::surface_noise(race, scene)?;
     ph::save_car_state::save_car_state(race)?;
     ph::clear_forces::clear_forces(&race.shared)?;
     ph::set_wheel_weights::set_wheel_weights(race, scene);
     ph::set_downforce::set_downforce(race);
     ph::gearbox_step::gearbox_step(race, scene)?;
-    { ph::drive_force::drive_force(race) }?;
+    { ph::drive_force::drive_force(race, scene) }?;
     // 0x43B737: the side speed held within the limit.
     race.shared
         .car
@@ -136,10 +136,10 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     );
     negate(&race.shared.physics_tables.side_speed_limit);
     ph::drive_grip_forces::drive_grip_forces(race, scene);
-    ph::drive_wheels_step::drive_wheels_step(race)?;
-    ph::settle_drive_speeds::settle_drive_speeds(race)?;
-    ph::free_rev_in_neutral::free_rev_in_neutral(race);
-    ph::free_rev_clutch::free_rev_clutch(race)?;
+    ph::drive_wheels_step::drive_wheels_step(race, scene)?;
+    ph::settle_drive_speeds::settle_drive_speeds(race, scene)?;
+    ph::free_rev_in_neutral::free_rev_in_neutral(race, scene);
+    ph::free_rev_clutch::free_rev_clutch(race, scene)?;
     // 0x43B7BC: the engine's speed held.
     if race.shared.car.brake.get() == 0 {
         hold_low(
@@ -154,8 +154,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     ph::wheels_from_revs::wheels_from_revs(&race.shared)?;
     ph::air_drag::air_drag(race);
     ph::wheel_springs::wheel_springs(race, scene);
-    ph::crash_contact::crash_contact(race)?;
-    ph::apply_wheel_forces::apply_wheel_forces(&race.shared)?;
+    ph::crash_contact::crash_contact(race, scene)?;
+    ph::apply_wheel_forces::apply_wheel_forces(&race.shared, scene)?;
     ph::apply_wheel_torques::apply_wheel_torques(race)?;
     motion(race, scene);
     race.shared
@@ -168,21 +168,21 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     race.shared.physics_tables.contact_step.set(0);
     loop {
         ph::clear_contacts::clear_contacts(&race.shared)?;
-        ph::feel_ground::feel_ground(race)?;
+        ph::feel_ground::feel_ground(race, scene)?;
 
-        ph::crossed_edge::crossed_edge(race)?;
-        ph::wall_contacts::wall_contacts(race)?;
-        ph::ground_contact::ground_contact(race)?;
-        { ph::car_collisions::car_collisions(race) }?;
-        ph::face_contacts::face_contacts(race)?;
+        ph::crossed_edge::crossed_edge(race, scene)?;
+        ph::wall_contacts::wall_contacts(race, scene)?;
+        ph::ground_contact::ground_contact(race, scene)?;
+        { ph::car_collisions::car_collisions(race, scene) }?;
+        ph::face_contacts::face_contacts(race, scene)?;
         ph::keep_motion::keep_motion(&race.shared);
-        ph::apply_contact_forces::apply_contact_forces(&race.shared)?;
+        ph::apply_contact_forces::apply_contact_forces(&race.shared, scene)?;
         ph::apply_contact_torques::apply_contact_torques(race)?;
 
         if race.shared.physics_tables.clear_place_count.get() == 0 {
             break;
         }
-        ph::stall_when_still::stall_when_still(race);
+        ph::stall_when_still::stall_when_still(race, scene);
         ph::keep_motion_vectors::keep_motion_vectors(race);
 
         motion(race, scene);
@@ -198,7 +198,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
             >= race.shared.physics_tables.contact_steps.get()
         {
             ph::limit_motion::limit_motion(race, scene);
-            ph::find_clear_place::find_clear_place(race)?;
+            ph::find_clear_place::find_clear_place(race, scene)?;
 
             race.shared
                 .physics_tables
@@ -211,10 +211,10 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         ph::put_back_motion_vectors::put_back_motion_vectors(race);
         ph::limit_motion::limit_motion(race, scene);
     }
-    ph::feel_ground::feel_ground(race)?;
-    ph::reset_when_stuck::reset_when_stuck(race)?;
+    ph::feel_ground::feel_ground(race, scene)?;
+    ph::reset_when_stuck::reset_when_stuck(race, scene)?;
     ph::engine_sound::engine_sound(race, scene)?;
-    ph::spin_wheels::spin_wheels(race);
+    ph::spin_wheels::spin_wheels(race, scene);
     ph::track_checkpoints::track_checkpoints(race, scene, sound)?;
     ph::pace_notes_step::pace_notes_step(race, scene, sound)?;
     ph::count_down_notice::count_down_notice(&race.shared);
@@ -236,13 +236,13 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         "a listed car sound",
     )?;
     if listed != u32::MAX {
-        ph::camera_frame::camera_frame(race)?;
+        ph::camera_frame::camera_frame(race, scene)?;
     }
     ph::hold_spin_on_ground::hold_spin_on_ground(race);
     ph::drop_broken_parts::drop_broken_parts(race, scene)?;
     ph::car_lighting::car_lighting(race, scene, system)?;
     ph::sum_forces::sum_forces(race);
-    ph::blend_wheel_load::blend_wheel_load(race);
+    ph::blend_wheel_load::blend_wheel_load(race, scene);
     ph::share_engine_sound::share_engine_sound(race)?;
     ph::note_time_mark::note_time_mark(race);
     ph::false_start::false_start(race)?;

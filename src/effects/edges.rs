@@ -110,6 +110,7 @@ pub fn load_edges(
         &effects.pong,
         &effects.windscreen_flakes,
         crate::effects::shapes::WINDSCREEN_FLAKES_RESUME,
+        effects,
     )?;
     Ok(())
 }

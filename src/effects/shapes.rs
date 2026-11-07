@@ -329,6 +329,7 @@ fn windscreen_flakes_with(
     fl: &WindscreenFlakes,
     resume: u32,
     plain: bool,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     {
         if squares::first(fl, resume)? {
@@ -339,7 +340,7 @@ fn windscreen_flakes_with(
         } else {
             squares::make(fl);
         }
-        crate::effects::splines::reset_pong(pong);
+        crate::effects::splines::reset_pong(pong, effects);
     }
     Ok(())
 }
@@ -349,6 +350,7 @@ pub fn set_up_windscreen_flakes(
     pong: &crate::effects::pong::Pong,
     fl: &WindscreenFlakes,
     resume: u32,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
-    windscreen_flakes_with(pong, fl, resume, false)
+    windscreen_flakes_with(pong, fl, resume, false, effects)
 }

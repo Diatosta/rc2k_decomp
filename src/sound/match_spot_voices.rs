@@ -42,8 +42,8 @@ pub fn match_spot_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refus
         .kind_sounds
         .each_ref()
         .map(super::super::session::Dword::get);
-    let mut voices = load_voices();
+    let mut voices = load_voices(sound);
     rc2k_core::sound::spot_voices::match_spots(&spots, &mut voices, &kinds)?;
-    store_voices(&voices);
+    store_voices(sound, &voices);
     Ok(())
 }

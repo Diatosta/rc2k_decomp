@@ -16,11 +16,16 @@ use rc2k_core::sound::engine::{computers, speed_stopped};
 
 /// A player's sound by the speed for object `so` of sound kind number `kind`, through
 /// `request`.
-pub fn speed_sound(so: &SoundObject, kind: u32, request: &SoundRequest) -> Result<(), Refused> {
+pub fn speed_sound(
+    so: &SoundObject,
+    kind: u32,
+    request: &SoundRequest,
+    owner: &crate::sound::owner::Sound,
+) -> Result<(), Refused> {
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let set = &crate::sound::sets_store::SoundKinds::record(kind)?.speed;
+    let set = &owner.race.kinds.record(kind)?.speed;
     let sound = so.sound_offset.get().wrapping_add(set.sound.get());
     request.sound.set(sound);
     if speed_stopped(
@@ -36,7 +41,7 @@ pub fn speed_sound(so: &SoundObject, kind: u32, request: &SoundRequest) -> Resul
         set,
         &so.speed_input,
         &so.speed_input,
-        &crate::sound::owner::sound().race.surface.speed_gain,
+        &owner.race.surface.speed_gain,
         request,
     );
     for (cell, place) in request.place.iter().zip(&so.place) {

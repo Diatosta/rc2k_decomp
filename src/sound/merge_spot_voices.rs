@@ -21,13 +21,13 @@ use crate::errors::Refused;
 
 /// Converted: `rc2k_core::sound::spot_voices::merge` and `merge_between`. The voices of
 /// `sound` merged.
-pub fn merge_spot_voices(sound: u32) -> Result<(), Refused> {
+pub fn merge_spot_voices(sound: u32, owner: &crate::sound::owner::Sound) -> Result<(), Refused> {
     use crate::sound::spot_voices::{load_voices, store_picks, store_voices};
     use rc2k_core::sound::spot_voices as core;
-    let mut voices = load_voices();
+    let mut voices = load_voices(owner);
     let (picks, trail) = core::merge(&mut voices, sound);
-    store_voices(&voices);
-    store_picks(&picks, &trail);
+    store_voices(owner, &voices);
+    store_picks(owner, &picks, &trail);
     let (Some(nearest), Some(next)) = (picks.nearest, picks.next) else {
         return Ok(());
     };
@@ -36,6 +36,6 @@ pub fn merge_spot_voices(sound: u32) -> Result<(), Refused> {
     // `dword_71C3A8` .. in the original: now `nearest_on_segment`'s own.
     let point = crate::math::nearest_on_segment::nearest_on_segment(a, b, [0; 3]);
     core::merge_between(&mut voices, &picks, point);
-    store_voices(&voices);
+    store_voices(owner, &voices);
     Ok(())
 }

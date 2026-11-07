@@ -20,7 +20,6 @@ use crate::physics::dot_product::dot_product;
 use crate::physics::vector_length::vector_length;
 use crate::race::owner::Race;
 use crate::scene::matrix3::rounded;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The Rust core on the variables' cells `v`. The registers the original leaves are read by none of its callers (esi, edi).
@@ -46,12 +45,12 @@ pub fn stall_at(race: &Race, v: &[&dyn Cell32]) {
     put(11, 0);
 }
 
-fn game(race: &Race) -> Vec<&dyn Cell32> {
+fn game<'a>(race: &'a Race, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
         &race.shared.physics_tables.kept_motion[0] as &dyn Cell32,
         &race.shared.physics_tables.kept_motion[1],
         &race.shared.physics_tables.kept_motion[2],
-        &scene().drawing.scene.scratch,
+        &scene.drawing.scene.scratch,
         &race.shared.car.local_velocity[0],
         &race.shared.car.local_velocity[1],
         &race.shared.car.local_velocity[2],
@@ -64,6 +63,6 @@ fn game(race: &Race) -> Vec<&dyn Cell32> {
 }
 
 /// The Rust version.
-pub fn stall_when_still(race: &Race) {
-    stall_at(race, &game(race));
+pub fn stall_when_still(race: &Race, scene: &crate::scene::owner::Scene) {
+    stall_at(race, &game(race, scene));
 }

@@ -72,7 +72,7 @@ pub fn emit_particle_18(
                 // (The original's esi: the entry before's last x, 0 here.)
                 Some(b) => crate::effects::ring_entries::get(ring, b, field::LAST_PLACE_X)?,
             };
-            let e = take_entry(ring, tag & 0xFF_FFFF, 0x12)?;
+            let e = take_entry(ring, effects, tag & 0xFF_FFFF, 0x12)?;
             before = Some(e);
             let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
             let m = effects

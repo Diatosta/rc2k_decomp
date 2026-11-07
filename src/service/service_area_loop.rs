@@ -43,7 +43,6 @@
 //! registers above are the original's, for reference.
 use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{Callee, FrameRoutine, List, Screen, Step};
-use crate::scene::owner::scene;
 
 // ---- game data ----
 
@@ -89,14 +88,14 @@ pub const SCREEN: Screen = Screen {
     ],
     set_up_first: &[Step::Write(|m| &m.screens.flow.left_service, 0)],
     prepare: &[
-        Step::Write(|_| &scene().drawing.scene.view_offset[0], 0), // dword_623FB0
-        Step::Write(|_| &scene().drawing.scene.view_offset[1], 0), // dword_623FB4
-        Step::Write(|_| &scene().drawing.scene.view_zoom, 0x100),  // dword_624080
+        Step::WriteScene(|s| &s.drawing.scene.view_offset[0], 0), // dword_623FB0
+        Step::WriteScene(|s| &s.drawing.scene.view_offset[1], 0), // dword_623FB4
+        Step::WriteScene(|s| &s.drawing.scene.view_zoom, 0x100),  // dword_624080
         Step::Call(Callee::PrepareScene),
-        Step::Write(|_| &scene().drawing.scene.clip_edges[2], 0), // dword_6241DC
-        Step::Write(|_| &scene().drawing.scene.clip_edges[3], 800), // dword_6241E0
-        Step::WriteF32(|_| &scene().drawing.scene.clip_screen[2], 0.0), // flt_6241EC
-        Step::WriteF32(|_| &scene().drawing.scene.clip_screen[3], 800.0), // flt_6241F0
+        Step::WriteScene(|s| &s.drawing.scene.clip_edges[2], 0), // dword_6241DC
+        Step::WriteScene(|s| &s.drawing.scene.clip_edges[3], 800), // dword_6241E0
+        Step::WriteSceneF32(|s| &s.drawing.scene.clip_screen[2], 0.0), // flt_6241EC
+        Step::WriteSceneF32(|s| &s.drawing.scene.clip_screen[3], 800.0), // flt_6241F0
         Step::Call(Callee::PlayTune9),
     ],
     after_lists: &[],

@@ -14,7 +14,6 @@
 use crate::math::x87;
 use crate::math::x87_run::{div_then_mul, lerp_table, trunc_mul_to_int};
 use crate::race::owner::Race;
-use crate::scene::owner::scene;
 use std::cmp::Ordering;
 
 /// C0 of comparing `a` with `b`: below, or unordered.
@@ -27,9 +26,9 @@ pub fn below(a: u32, b: u32) -> bool {
 
 /// The Rust version (the exact one, for `physics::engine_torque_or_cut`, `drive_force`,
 /// `free_rev*`, `test_drive_run`).
-pub fn engine_torque(race: &Race) {
+pub fn engine_torque(race: &Race, scene: &crate::scene::owner::Scene) {
     let shared_store = &race.shared;
-    let drawing = &scene().drawing;
+    let drawing = &scene.drawing;
     let course = &race.course;
     let s = x87::div(
         shared_store.car.engine_speed.bits(),

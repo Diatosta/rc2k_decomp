@@ -2,7 +2,6 @@
 //! 2026-10-18): the full-screen and mirror windows, the flat triangle, the marks'
 //! overlays, the first car loaded.
 
-use crate::effects::owner::effects;
 use crate::errors::{BadInput, Refused};
 use crate::gfx::owner::gfx;
 use crate::pointers::GamePtr;
@@ -96,7 +95,7 @@ pub fn mirror_view_window(
     scene.drawing.scene.cleared_rectangle[3].set(y.wrapping_add(sy));
     scene.drawing.scene.view_zoom.set(0x100);
     crate::scene::set_view_window::set_view_window(race, scene);
-    crate::race::frame_draw::set_up_fog(race)?;
+    crate::race::frame_draw::set_up_fog(race, scene)?;
     scene.lights.state.draw_mode.set(0);
     race.physics.ground.view_mirrored.set(1);
     Ok(())
@@ -123,7 +122,10 @@ pub fn draw_flat_triangle(scene: &crate::scene::owner::Scene) {
 
 /// The marks' shadow refusals (`effects::draw_shadow`'s first and second shadows), checked
 /// before anything.
-fn shadow_refuses(sh: &crate::effects::draw_shadow::Shadow<'_>) -> Result<(), Refused> {
+fn shadow_refuses(
+    sh: &crate::effects::draw_shadow::Shadow<'_>,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     let corner = sh.corner();
     if corner == u32::MAX {
         return Ok(());
@@ -131,7 +133,7 @@ fn shadow_refuses(sh: &crate::effects::draw_shadow::Shadow<'_>) -> Result<(), Re
     if corner >= 0x100 {
         return Err(BadInput("a shadow corner past g_marksCorners").into());
     }
-    if effects().setup.settings.is_set.get() == 0 {
+    if effects.setup.settings.is_set.get() == 0 {
         return Err(BadInput("no marks settings").into());
     }
     match sh.angle_refuses() {
@@ -142,12 +144,15 @@ fn shadow_refuses(sh: &crate::effects::draw_shadow::Shadow<'_>) -> Result<(), Re
 
 /// `race::draw_marks_overlays` (0x45632B): `effects::draw_overlays`, then
 /// `effects::draw_shadow`. Refuses (before anything) the second shadow's refusals.
-pub fn draw_marks_overlays(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+pub fn draw_marks_overlays(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+    effects: &crate::effects::owner::Effects,
+) -> Result<(), Refused> {
     let gfx = crate::gfx::owner::gfx();
-    shadow_refuses(&crate::effects::draw_shadow::FIRST)?;
+    shadow_refuses(&crate::effects::draw_shadow::FIRST, effects)?;
     // Neither reads a register, and the race reads none they leave (only DF, ST).
     {
-        let effects = effects();
         crate::effects::draw_overlays::draw_overlays(
             race,
             &effects.masks,
@@ -443,6 +448,7 @@ pub fn draw_own_car(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let frame = &race.frame;
     // Converted: `rc2k_core::race::view_steps::{car_number, seen_inside, clears_depth}`.
@@ -480,7 +486,7 @@ pub fn draw_own_car(
     crate::scene::set_texture::set_texture(scene.textures.kinds.kind_first_slots[202].get());
     crate::scene::set_render_state::set_render_state(2, 0x14);
     scene.drawing.scene.polygon_vertex_count.set(4);
-    draw_marks_overlays(race, scene)
+    draw_marks_overlays(race, scene, effects)
 }
 
 /// `fild i; fdiv a; fmul b; fstp`.
@@ -502,9 +508,9 @@ pub fn run_view_marks(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let session = &system.session;
-    let effects = effects();
     let drawing = &scene.drawing;
     // Converted: `rc2k_core::race::view_steps::{check_view_marks, marks_shown,
     // layout_index, first_word}` (the centre's floats the x87's).

@@ -16,7 +16,6 @@ use crate::math::x87;
 use crate::physics::gearing::{GearPlaces, revs_from_wheels_at};
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 /// The switches and the scratch: the game's or a test's.
@@ -33,12 +32,12 @@ pub struct SettlePlaces<'a> {
 }
 
 impl<'a> SettlePlaces<'a> {
-    pub fn game(shared: &'a Shared) -> Self {
+    pub fn game(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Self {
         Self {
             first: &shared.car.front_wheels_off,
             second: &shared.car.rear_wheels_off,
             fast: &shared.car.brake,
-            scratch: &scene().drawing.scene.scratch,
+            scratch: &scene.drawing.scene.scratch,
         }
     }
 }
@@ -97,10 +96,10 @@ pub fn settle_drive_speeds_at(
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step`).
-pub fn settle_drive_speeds(race: &Race) -> Result<(), Refused> {
+pub fn settle_drive_speeds(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     settle_drive_speeds_at(
         race,
         &GearPlaces::game(&race.shared),
-        &SettlePlaces::game(&race.shared),
+        &SettlePlaces::game(&race.shared, scene),
     )
 }

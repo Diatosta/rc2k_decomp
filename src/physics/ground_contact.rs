@@ -33,7 +33,7 @@ use crate::physics::restore_saved_car::restore_saved_car;
 use crate::race::owner::Race;
 
 // Converted: `rc2k_core::physics::contacts::touches` and `walls::raised_hit` (the x87 steps stay).
-fn steps(race: &Race) -> Result<(), Refused> {
+fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics_store = &race.physics;
     physics_store.contact.ground_contact_started.set(0);
     { lowest_body_point(race) }?;
@@ -53,7 +53,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
     race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[n].bits());
     take_contact(race, n)?;
     physics_store.contact.contact_slide_limit.set_bits(0);
-    contact_force(race, &race.shared.physics_tables.contacts[2]);
+    contact_force(race, &race.shared.physics_tables.contacts[2], scene);
     { place_sound_e1(race) }?;
     if let Some(hit) = rc2k_core::physics::walls::raised_hit(
         f32::from_bits(physics_store.contact.contact_speed_length.bits()),
@@ -67,12 +67,12 @@ fn steps(race: &Race) -> Result<(), Refused> {
     );
     if sign(physics_store.contact.lowest_depth.get()) {
         { restore_saved_car(race) }?;
-        { feel_ground(race) }?;
+        { feel_ground(race, scene) }?;
     }
     Ok(())
 }
 
 /// The Rust version. The registers it leaves are read by none of its callers.
-pub fn ground_contact(race: &Race) -> Result<(), Refused> {
-    steps(race)
+pub fn ground_contact(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    steps(race, scene)
 }

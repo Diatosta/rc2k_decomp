@@ -351,14 +351,15 @@ impl Textures {
 }
 
 /// A system texture's record where it lies.
-pub struct Record(&'static RecordCell);
+pub struct Record(&'static RecordCell, &'static Textures);
 
 impl Record {
     pub fn of(texture: u32) -> Result<Self, Refused> {
         if texture >= TEXTURES {
             return Err(BadInput("a texture past the records").into());
         }
-        let record = Record(&gfx().card.texture_tables.system.records[texture as usize]);
+        let tables = &gfx().card.texture_tables;
+        let record = Record(&tables.system.records[texture as usize], tables);
         if record.get().format == 0 {
             return Err(BadInput("a texture's record without its format").into());
         }
@@ -374,9 +375,7 @@ impl Record {
     }
 
     fn texture_format(&self) -> Result<TextureFormat, BadInput> {
-        gfx()
-            .card
-            .texture_tables
+        self.1
             .description(self.get().format)
             .map(FormatCell::get)
             .ok_or(BadInput("a texture's format that names no description"))

@@ -15,7 +15,7 @@ use crate::race::owner::Race;
 /// and esi after `drive::race_loop`'s call have no read point but the false ones of
 /// `imul` and the physics; `race::play_movie_loop` has only DF live after it).
 // Converted: `rc2k_core::drive::race_ticks::run_ticks`.
-pub fn race_step(race: &Race) -> Result<(), Refused> {
+pub fn race_step(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let input = crate::input::owner::input();
     let sound = crate::sound::owner::sound();
     crate::drive::race_clock_tick::race_clock_tick(&race.shared);
@@ -24,7 +24,7 @@ pub fn race_step(race: &Race) -> Result<(), Refused> {
             race.shared.physics_tables.race_tenths.get(),
             |ecx| {
                 crate::debug::timing::note_tick();
-                { crate::drive::race_tick::race_tick(race, sound, input) }?;
+                { crate::drive::race_tick::race_tick(race, sound, input, scene) }?;
                 let out = crate::race::frame::players_all_out(race)?;
                 Ok::<_, Refused>((out, ecx))
             },

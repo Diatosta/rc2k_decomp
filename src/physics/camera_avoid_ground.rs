@@ -36,8 +36,7 @@ use crate::race::owner_shared::Shared;
 use crate::session::Dword;
 use rc2k_core::physics::camera_ground;
 
-fn place(race: &Race) {
-    let scene = crate::scene::owner::scene();
+fn place(race: &Race, scene: &crate::scene::owner::Scene) {
     crate::physics::place_camera::place_camera(race, scene);
 }
 
@@ -91,8 +90,8 @@ fn turn_back(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
                 .car
                 .camera_heading
                 .set(race.shared.car.camera_heading.get().wrapping_add(step));
-            place(race);
-            if camera_over_ground(race)? {
+            place(race, scene);
+            if camera_over_ground(race, scene)? {
                 continue;
             }
             stepped_back = true;
@@ -117,8 +116,7 @@ fn turn_back(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refu
 /// The steps. The registers the original leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::{back_checkpoint, turn_step,
 // next_turn_step}`.
-pub fn steps(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let drawing = &scene.drawing;
     let physics_store = &race.physics;
     crate::physics::ease_view_turn::ease_view_turn(race, scene);
@@ -128,18 +126,18 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         .scene
         .camera_heading_kept
         .set(race.shared.car.camera_heading.get());
-    place(race);
+    place(race, scene);
     if record(&race.shared)?.halve_tilt.get() == 0 {
         return Ok(());
     }
-    if !camera_over_ground(race)? {
+    if !camera_over_ground(race, scene)? {
         let mut found = false;
         for back in [1, 2] {
             if !face_checkpoint(&race.course, &race.shared, back) {
                 break;
             }
-            place(race);
-            if camera_over_ground(race)? {
+            place(race, scene);
+            if camera_over_ground(race, scene)? {
                 found = true;
                 break;
             }
@@ -155,8 +153,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     }
     // 0x4392A3: clear of the ground by the pitch.
     race.shared.tables.camera_ground_flag.set(u32::MAX);
-    place(race);
-    if camera_clear_of_ground(race)? {
+    place(race, scene);
+    if camera_clear_of_ground(race, scene)? {
         return Ok(());
     }
     physics_store
@@ -181,7 +179,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         if physics_store.camera.pitch_step.get() == 0 {
             return Ok(());
         }
-        place(race);
-        up = !camera_clear_of_ground(race)?;
+        place(race, scene);
+        up = !camera_clear_of_ground(race, scene)?;
     }
 }

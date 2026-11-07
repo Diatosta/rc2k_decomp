@@ -48,8 +48,7 @@ pub const MOST_POINTS: u32 = 0x40;
 /// the last point's) are read by none of its callers.
 // Converted: `rc2k_core::physics::ground::{wheel_lifted, noise_cell, bump_noise}` (the
 // turns and the bump's scaling stay x87).
-pub fn probe_ground_at(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn probe_ground_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let n = race.shared.car.probe_count.get();
     if n < 1 {
         return Ok(());
@@ -107,7 +106,7 @@ fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resu
             .ground_face_last
             .set(race.shared.car.probe_point_face[b as usize].get());
         race.physics.ground_probe.settle_mark.set(0x80);
-        ground_search_at(race)?;
+        ground_search_at(race, scene)?;
         work.probe_ground_height[i].set(0);
         if race.physics.ground.ground_found.get() == 0 {
             race.physics.contact.crossed_probe.set(b);
@@ -191,6 +190,6 @@ fn probe_points(race: &Race, n: u32, scene: &crate::scene::owner::Scene) -> Resu
 }
 
 /// The Rust version.
-pub fn probe_ground(race: &Race) -> Result<(), Refused> {
-    probe_ground_at(race)
+pub fn probe_ground(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    probe_ground_at(race, scene)
 }

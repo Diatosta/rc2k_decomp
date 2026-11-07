@@ -20,12 +20,16 @@ use rc2k_core::physics::camera_ground::{is_clear, over};
 /// The Rust version: whether the camera is clear of the ground (CF clear). The registers it
 /// leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::camera_ground::{over, is_clear}`.
-pub fn camera_clear_of_ground(race: &Race) -> Result<bool, Refused> {
+pub fn camera_clear_of_ground(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<bool, Refused> {
     let mut clear = probe_at(
         race,
         race.shared.car.camera_position[0].get(),
         race.shared.car.camera_position[2].get(),
         &race.shared.car.camera_ground_faces[0],
+        scene,
     )?;
     if clear {
         clear = is_clear(over(

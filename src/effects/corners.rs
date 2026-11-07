@@ -54,8 +54,12 @@ fn put<const N: usize>(table: &Bytes<N>, at: u32, v: u32) -> Result<(), BadInput
 }
 
 /// The two turns step k gives table n: the second result of each of its two steps.
-fn turns(drops: &WindscreenDrops, n: usize, k: u32) -> (u32, u32) {
-    let effects = crate::effects::owner::effects();
+fn turns(
+    drops: &WindscreenDrops,
+    effects: &crate::effects::owner::Effects,
+    n: usize,
+    k: u32,
+) -> (u32, u32) {
     let setup = &effects.setup;
     let (starts, end) = steps(drops)[n];
     let b: u32 = end.get();
@@ -104,7 +108,7 @@ pub fn make_corners(
         }
         for n in 0..2 {
             for k in 0..ENTRIES {
-                let (a, b) = turns(drops, n, k);
+                let (a, b) = turns(drops, effects, n, k);
                 turn_shape_checks(drops, a, b)?;
             }
         }

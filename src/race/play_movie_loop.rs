@@ -52,7 +52,7 @@ pub fn play_movie_loop(race: &Race, input: &crate::input::owner::Input) -> Resul
         if input.devices.keys_pressed.get(1) != 0 {
             break;
         }
-        { crate::drive::race_step::race_step(race) }?;
+        { crate::drive::race_step::race_step(race, crate::scene::owner::scene()) }?;
         race_parts::race_frame(race)?;
         if race.replay.replay_view.replay_block.get() == race.replay.replay_view.play_end.get() {
             break;

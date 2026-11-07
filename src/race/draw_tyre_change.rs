@@ -42,17 +42,21 @@ fn set_clip(edge: &Dword, v: u32) {
 }
 
 /// The font the tyre change's texts are drawn in (`FONTS.game_fonts[2]`).
-fn font() -> &'static crate::gfx::typefaces::FontObject {
-    &gfx().fonts.menu_fonts.game_fonts[2]
+fn font(gfx: &crate::gfx::owner::Gfx) -> &crate::gfx::typefaces::FontObject {
+    &gfx.fonts.menu_fonts.game_fonts[2]
 }
 
 /// A line's height (`FONTS.game_fonts[0]`'s).
-fn line() -> u32 {
-    gfx().fonts.menu_fonts.game_fonts[0].get().line_height as u32
+fn line(gfx: &crate::gfx::owner::Gfx) -> u32 {
+    gfx.fonts.menu_fonts.game_fonts[0].get().line_height as u32
 }
 
 /// The text buffer: string `id`, then (with `time`) a time, then a NUL.
-fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
+fn build_text(
+    strings: &crate::strings::owner::Strings,
+    id: u32,
+    time: Option<u32>,
+) -> Result<(), Refused> {
     use crate::strings::append_time::{append_time, show_hours};
     let mut t = Vec::new();
     crate::strings::append_string_by_id::push_string(&mut t, id)?;
@@ -64,7 +68,7 @@ fn build_text(id: u32, time: Option<u32>) -> Result<(), Refused> {
         return Err(BadInput("a tyre change text longer than the text buffer").into());
     }
     for (n, &b) in t.iter().enumerate() {
-        strings().text.buffer.text.set(n, b);
+        strings.text.buffer.text.set(n, b);
     }
     Ok(())
 }
@@ -94,15 +98,20 @@ fn text(
 }
 
 /// The text buffer drawn three times, each 0x78 to the left and a line down.
-fn three_times(x: u32, y: u32) -> Result<(), Refused> {
-    let text_stores = &strings().text;
-    gfx().fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0x168);
+fn three_times(
+    gfx: &crate::gfx::owner::Gfx,
+    strings: &'static crate::strings::owner::Strings,
+    x: u32,
+    y: u32,
+) -> Result<(), Refused> {
+    let text_stores = &strings.text;
+    gfx.fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0x168);
     let (mut x, mut y) = (x, y);
-    text(font(), &text_stores.buffer.text, x, y)?;
+    text(font(gfx), &text_stores.buffer.text, x, y)?;
     for _ in 0..2 {
         x = x.wrapping_sub(0x78);
-        y = y.wrapping_add(line());
-        text(font(), &text_stores.buffer.text, x, y)?;
+        y = y.wrapping_add(line(gfx));
+        text(font(gfx), &text_stores.buffer.text, x, y)?;
     }
     Ok(())
 }
@@ -115,6 +124,7 @@ pub fn draw_tyre_change(
     device: &InputDevice,
 ) -> Result<(), Refused> {
     let gfx = gfx();
+    let strings = strings();
     let clips = (
         clip(&gfx.drawing.blit.clip.left),
         clip(&gfx.drawing.blit.clip.right),
@@ -138,7 +148,7 @@ pub fn draw_tyre_change(
                         y = 0x80;
                     }
                     1 => y = 0,
-                    _ => y = y.wrapping_add(line()),
+                    _ => y = y.wrapping_add(line(gfx)),
                 }
                 crate::text::draw_string_by_id::draw_string_by_id_at(
                     id,
@@ -154,12 +164,12 @@ pub fn draw_tyre_change(
         }
         set_clip(&gfx.drawing.blit.clip.left, 0x80);
         fill(shared, 0x80, 0x32, 0x80, 0x4B)?;
-        { build_text(0x12E, Some(shared.tyre_change.record.get())) }?;
-        three_times(0x84, 0x32)?;
+        { build_text(strings, 0x12E, Some(shared.tyre_change.record.get())) }?;
+        three_times(gfx, strings, 0x84, 0x32)?;
         set_clip(&gfx.drawing.blit.clip.left, 0);
         fill(shared, 0, 0x99, 0x100, 0x19)?;
         gfx.fonts.menu_fonts.game_fonts[2].update(|f| f.box_width = 0xF8);
-        text(font(), &race.shared.tyre_change.record_name, 4, 0x99)?;
+        text(font(gfx), &race.shared.tyre_change.record_name, 4, 0x99)?;
         let x = if shared.tyre_change.player.get() == 0 {
             set_clip(&gfx.drawing.blit.clip.right, 0x7F);
             0
@@ -170,11 +180,11 @@ pub fn draw_tyre_change(
         fill(shared, x, 0xB2, 0x80, 0x4B)?;
         if device.stage.get() == 1 {
             let time = device.clock.get();
-            { build_text(0x12D, Some(time)) }?;
+            { build_text(strings, 0x12D, Some(time)) }?;
         } else {
-            { build_text(0x12C, None) }?;
+            { build_text(strings, 0x12C, None) }?;
         }
-        three_times(x.wrapping_add(4), 0xB2)?;
+        three_times(gfx, strings, x.wrapping_add(4), 0xB2)?;
         { crate::d3d::unlock_texture::unlock_texture(shared.tyre_change.texture.get()) }?;
         // The platform's (Direct3D).
         crate::d3d::copy_to_device_texture::copy_to_device_texture(

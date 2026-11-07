@@ -1493,10 +1493,8 @@ impl SoundKinds {
 impl SoundKinds {
     /// Kind `n`'s record. The kind past the table, or a table entry off the records, is
     /// refused.
-    pub fn record(n: u32) -> Result<&'static KindRecord, crate::errors::BadInput> {
-        let cell = crate::sound::owner::sound()
-            .race
-            .kinds
+    pub fn record(&self, n: u32) -> Result<&KindRecord, crate::errors::BadInput> {
+        let cell = self
             .kinds
             .get(n as usize)
             .ok_or(crate::errors::BadInput("a sound kind past the table"))?;
@@ -1512,10 +1510,7 @@ impl SoundKinds {
                 "a sound table's entry off its piece",
             ));
         }
-        crate::sound::owner::sound()
-            .race
-            .kinds
-            .records
+        self.records
             .get(at / KIND_RECORD_LEN)
             .ok_or(crate::errors::BadInput(
                 "a sound table's entry off its piece",
@@ -1523,8 +1518,8 @@ impl SoundKinds {
     }
 
     /// The computers' cars' set (40 bytes).
-    pub fn computers_set() -> &'static SoundSet {
-        &crate::sound::owner::sound().race.kinds.computers
+    pub fn computers_set(&self) -> &SoundSet {
+        &self.computers
     }
 
     pub const START: usize = 0x514F90;
@@ -3315,7 +3310,7 @@ mod tests {
             set.offset(4).read::<u32>("a set").unwrap();
         }
         for n in 0..36 {
-            let record = SoundKinds::record(n).unwrap();
+            let record = crate::sound::owner::sound().race.kinds.record(n).unwrap();
             assert!(
                 crate::pointers::GamePtr::to(record).addr() as usize >= SoundKinds::home() + 36 * 4
             );

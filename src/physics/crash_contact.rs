@@ -88,7 +88,7 @@ pub fn point_number(physics: &Physics) -> Result<usize, Refused> {
 
 // Converted: `rc2k_core::physics::contacts::{touches, normal_offsets, check_body_point}`
 // (the x87 steps stay).
-fn steps(race: &Race) -> Result<(), Refused> {
+fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.shared.car.contact_found.set(0);
     { lowest_body_point(race) }?;
     let depth = race.physics.contact.lowest_depth.get();
@@ -131,7 +131,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         )
     }));
     x87_1(race);
-    contact_force(race, &race.shared.physics_tables.forces[21]);
+    contact_force(race, &race.shared.physics_tables.forces[21], scene);
     { place_sound_e5(race) }?;
     for k in 0..3 {
         race.physics.contact.ground_force[k]
@@ -157,8 +157,8 @@ fn steps(race: &Race) -> Result<(), Refused> {
 }
 
 /// The Rust version. The registers it leaves are read by none of its callers.
-pub fn crash_contact(race: &Race) -> Result<(), Refused> {
-    steps(race)
+pub fn crash_contact(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    steps(race, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----

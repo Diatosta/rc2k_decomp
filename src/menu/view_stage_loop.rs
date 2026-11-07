@@ -45,10 +45,10 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 
 fn after_lists(entry: &Entry) -> Result<(), Refused> {
     let menus = entry.menus;
-    Callee::CountStagePages.run(menus)?;
-    Callee::StyleChosenStageItem.run(menus)?;
+    Callee::CountStagePages.run(entry)?;
+    Callee::StyleChosenStageItem.run(entry)?;
     if menus.screens.event.stage_pages.get() == 0x0 {
-        Callee::StyleStageItem.run(menus)?;
+        Callee::StyleStageItem.run(entry)?;
     }
     menus.play.champ_view.stage_mode.set(0x3u32);
     Ok(())
@@ -58,7 +58,7 @@ fn after(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.event.index.set(take_kept());
     screens.event.section.set(take_kept());
-    Callee::StopStream.run(entry.menus)?;
+    Callee::StopStream.run(entry)?;
     Ok(())
 }
 

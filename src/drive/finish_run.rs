@@ -80,7 +80,7 @@ pub fn finish_run(
         CAR_BLOCKS.cars[0].camera_view.set_bits(6);
         crate::race::frame_views::load_first_car(&race.shared)?;
         crate::drive::finish_camera::finish_camera(&race.replay);
-        crate::physics::camera_frame::camera_frame(race)?;
+        crate::physics::camera_frame::camera_frame(race, scene)?;
         crate::drive::store_first_car::store_first_car(&race.shared)?;
         race_frame(race)?;
     }

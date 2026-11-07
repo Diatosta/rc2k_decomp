@@ -28,12 +28,15 @@ use rc2k_core::sound::engine::{Engine, extrapolation, over_256, readings, state}
 
 pub const KIND_COUNT: u32 = 36;
 /// The kind of object `o` (its +4, a number into the kinds' table), or a refusal.
-pub fn kind_of(o: &crate::sound::store::SoundObject) -> Result<u32, BadInput> {
+pub fn kind_of(
+    o: &crate::sound::store::SoundObject,
+    kinds: &crate::sound::sets_store::SoundKinds,
+) -> Result<u32, BadInput> {
     let n = o.kind.get();
     if n >= KIND_COUNT {
         return Err(BadInput("a sound kind past the 36 of the table"));
     }
-    crate::sound::sets_store::SoundKinds::record(n)?;
+    kinds.record(n)?;
     Ok(n)
 }
 
@@ -142,8 +145,8 @@ pub fn car_engine_state(
 ) -> Result<u32, Refused> {
     // Converted: `rc2k_core::sound::engine` (`extrapolation`, `readings`, `state`,
     // `over_256`); the floats are the original's x87 still.
-    let kind = kind_of(so)?;
-    let record = crate::sound::sets_store::SoundKinds::record(kind)?;
+    let kind = kind_of(so, &sound.race.kinds)?;
+    let record = sound.race.kinds.record(kind)?;
     let before = load(so);
     let mut object = before;
     let clock = sound.race.clock.last.get();

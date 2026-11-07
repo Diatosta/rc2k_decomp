@@ -22,11 +22,9 @@ use crate::physics::flow::{hold_high, hold_low, negate};
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 
 // Converted: `rc2k_core::physics::camera_view::shakes` (the x87 steps stay).
-fn steps(race: &Race) -> Result<(), Refused> {
-    let scene = scene();
+fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     scene.lights.state.listener_camera.set_bits(0);
     scene.lights.state.camera_frame_a.set(0);
     scene.lights.state.camera_frame_b.set(0);
@@ -35,7 +33,7 @@ fn steps(race: &Race) -> Result<(), Refused> {
         race.shared.car.camera_view.get(),
         race.shared.car.all_wheels_off.get(),
     ) {
-        x87_1(&race.shared);
+        x87_1(&race.shared, scene);
         hold_high(
             &scene.lights.state.camera_frame_b,
             &race.shared.physics_tables.camera_frame_limit,
@@ -51,19 +49,19 @@ fn steps(race: &Race) -> Result<(), Refused> {
             .scene
             .scratch
             .set(crate::math::next_random::next_random());
-        x87_2(&race.course);
+        x87_2(&race.course, scene);
         if race.physics.split_tables.still.get() != 0 {
             scene.lights.state.camera_frame_b.set(0);
             scene.lights.state.listener_camera.set_bits(0);
         }
     }
-    crate::physics::update_camera::steps(race)
+    crate::physics::update_camera::steps(race, scene)
 }
 
 /// The Rust version. The registers the original leaves are read by none of its callers
 /// (`physics::car_physics_step`, `drive::finish_run`, `race::show_replay_still`).
-pub fn camera_frame(race: &Race) -> Result<(), Refused> {
-    steps(race)
+pub fn camera_frame(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    steps(race, scene)
 }
 
 // ---- the arithmetic that was x87 assembly ----
@@ -71,18 +69,17 @@ pub fn camera_frame(race: &Race) -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x23763C] = [rc + 0x31A8E4] * [rc + 0x214098]`
-fn x87_1(shared: &Shared) {
+fn x87_1(shared: &Shared, scene: &crate::scene::owner::Scene) {
     let t0 = ld(shared.car.unknown_90c.bits());
     let t1 = ld(shared.physics_tables.camera_frame_scale.bits());
     let t2 = t0 * t1;
-    scene().lights.state.camera_frame_b.set_bits(st(t2));
+    scene.lights.state.camera_frame_b.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x237644] = (((int [rc + 0x22400C] / [rc + 0x1C5D98]) / [rc + 0x1C5E28]) * [rc + 0x1C5D40]) * [rc + 0x23763C]`
-fn x87_2(course: &Course) {
-    let scene = scene();
+fn x87_2(course: &Course, scene: &crate::scene::owner::Scene) {
     let t0 = int(scene.drawing.scene.scratch.bits() as i32);
     let t1 = ld(course.numbers.k65536.bits());
     let t2 = t0 / t1;
@@ -115,7 +112,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |_| x87_1(&race().shared),
+                plain: |_| x87_1(&race().shared, crate::scene::owner::scene()),
             },
             Block {
                 name: "camera_frame line 37",
@@ -131,7 +128,12 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(&crate::race::owner::race().course),
+                plain: |_| {
+                    x87_2(
+                        &crate::race::owner::race().course,
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
         ]
     }

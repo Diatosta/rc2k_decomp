@@ -12,7 +12,7 @@ use crate::physics::engine_torque::{below, engine_torque};
 use crate::race::owner::Race;
 
 /// The Rust version (the exact one, for `physics::drive_force`).
-pub fn engine_torque_or_cut(race: &Race) {
+pub fn engine_torque_or_cut(race: &Race, scene: &crate::scene::owner::Scene) {
     let shared = &race.shared;
     if !below(
         shared.car.engine_speed.bits(),
@@ -25,7 +25,7 @@ pub fn engine_torque_or_cut(race: &Race) {
             .rev_cut_count
             .set(shared.car.rev_cut_count.get().wrapping_sub(1));
     } else {
-        engine_torque(race);
+        engine_torque(race, scene);
         return;
     }
     shared.physics_tables.engine_force.set_bits(0);

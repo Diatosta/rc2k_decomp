@@ -40,14 +40,15 @@ pub struct Vars<'a> {
 
 impl<'a> Vars<'a> {
     pub fn game(input: &'a Input) -> Self {
+        let sound = crate::sound::owner::sound();
         Self {
             // g_playerCarA, g_playerCarB, g_onePlayer, g_raceSoundObjectCount.
-            cars: &crate::sound::owner::sound().race.sounds.player_cars,
-            one_player: &crate::sound::owner::sound().race.sounds.one_player,
-            count: &crate::sound::owner::sound().race.sounds.count,
+            cars: &sound.race.sounds.player_cars,
+            one_player: &sound.race.sounds.one_player,
+            count: &sound.race.sounds.count,
             devices: &input.devices.input_devices,
             views: &race().shared.view.view_blocks,
-            objects: &crate::sound::owner::sound().race.sounds.objects,
+            objects: &sound.race.sounds.objects,
             two_devices: &input.devices.two_devices_one_player,
         }
     }

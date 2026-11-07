@@ -128,7 +128,7 @@ pub fn emit_particle_5_with(
         if !emits(set, wheel)? || next_entry(ring)?.is_none() {
             return Ok(());
         }
-        let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
+        let e = take_entry(ring, effects, object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
         let (sign, strength) = if kinds.emitter.record.get() & 1 == 0 {
             (-1i32, x87::sub(strength, wheel.speed_10.bits()))

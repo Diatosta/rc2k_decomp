@@ -12,7 +12,6 @@ use crate::math::x87;
 use crate::math::x87_run::over_abs_plus_minus;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 use std::cmp::Ordering;
 
@@ -56,16 +55,16 @@ pub fn cap_drive_speed_at(race: &Race, v: CapPlaces<'_>) {
     }
 }
 
-fn game(shared: &Shared) -> CapPlaces<'_> {
+fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> CapPlaces<'a> {
     [
         &shared.physics_tables.drive_speed_figure,
         &shared.car.local_velocity[2],
-        &scene().drawing.scene.scratch,
+        &scene.drawing.scene.scratch,
         &shared.car.drive_speed_a,
     ]
 }
 
 /// The Rust version (the exact one, for `physics::drive_wheels_step`).
-pub fn cap_drive_speed(race: &Race) {
-    cap_drive_speed_at(race, game(&race.shared));
+pub fn cap_drive_speed(race: &Race, scene: &crate::scene::owner::Scene) {
+    cap_drive_speed_at(race, game(&race.shared, scene));
 }

@@ -11,6 +11,9 @@ use crate::race::owner_shared::Shared;
 const COUNT: usize = 0x17;
 
 /// The Rust version.
-pub fn apply_wheel_forces(shared: &Shared) -> Result<(), Refused> {
-    apply_forces(shared, &shared.physics_tables.forces[..COUNT])
+pub fn apply_wheel_forces(
+    shared: &Shared,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
+    apply_forces(shared, &shared.physics_tables.forces[..COUNT], scene)
 }

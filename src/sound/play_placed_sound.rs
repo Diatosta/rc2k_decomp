@@ -85,15 +85,12 @@ pub fn play_placed_sound(
             request.volume_factor.get(),
         ));
         request.volume.set(volume);
+        let clock = &crate::sound::owner::sound().race.clock;
         let (angle, place) = angle_and_place(
             request.place[2].get(),
             request.place[0].get(),
-            crate::sound::owner::sound()
-                .race
-                .clock
-                .pan_per_radian
-                .bits(),
-            crate::sound::owner::sound().race.clock.pan_centre.bits(),
+            clock.pan_per_radian.bits(),
+            clock.pan_centre.bits(),
         );
         request.angle.set(angle);
         request.pan.set(place);

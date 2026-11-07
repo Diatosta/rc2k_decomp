@@ -348,8 +348,10 @@ pub fn gather_record_faces(
 /// `race::gather_visible_faces` (0x454B71): `gather_record_faces` of each record in
 /// `g_courseGrid` (numbers below 0x0FFFFFFF), then of the last record once more (its "already
 /// done" test sets ebp, so it is lost: `notes/bugs.md`). Refuses as `gather_record_faces`.
-pub fn gather_visible_faces(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn gather_visible_faces(
+    race: &Race,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let course = &race.course;
     let todo = visible_records(course)?;
     for &record in &todo {
@@ -363,7 +365,7 @@ pub fn gather_visible_faces(race: &Race) -> Result<(), Refused> {
 /// when any is set (0xA), or'd with bits 4 and 5 likewise (0x30).
 pub fn face_hide_mask(race: &Race) -> Result<(), Refused> {
     let frame = &race.frame;
-    crate::physics::probe_ground::probe_ground(race)?;
+    crate::physics::probe_ground::probe_ground(race, crate::scene::owner::scene())?;
     let ground: u32 = race.shared.car.probe_point_face[4].bits();
     if ground == u32::MAX {
         return Ok(());
@@ -426,8 +428,7 @@ pub fn mark_far_cells(race: &Race, scene: &crate::scene::owner::Scene) -> Result
 /// `course_grid`; with `FRAME_SWITCHES.other_way` set, `LEVEL_GRID.far_cell_limit` 0x10 again, `checkpoint_colours`
 /// with two checkpoints or more (`g_checkpointCount`), and `mark_far_cells`. Refuses
 /// (before anything) what `course_grid` would.
-pub fn prepare_course_view(race: &Race) -> Result<(), Refused> {
-    let scene = crate::scene::owner::scene();
+pub fn prepare_course_view(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let course = &race.course;
     check_course_grid(course)?;
     // `face_hide_mask` first: its `probe_ground` may refuse, and neither reads

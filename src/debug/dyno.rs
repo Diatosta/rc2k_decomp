@@ -113,7 +113,7 @@ fn kept<T>(shared: &Shared, f: impl FnOnce() -> T) -> T {
 fn torque(race: &Race) {
     let shared = &race.shared;
     let course = &race.course;
-    engine_torque(race);
+    engine_torque(race, crate::scene::owner::scene());
     shared
         .physics_tables
         .drive_ratio
@@ -133,7 +133,7 @@ fn torque(race: &Race) {
     if shared.car.drive_cut_steps.get() != 0 {
         shared.physics_tables.drive_torque.set_bits(0);
     }
-    drive_torque_share(race);
+    drive_torque_share(race, crate::scene::owner::scene());
 }
 
 /// The drive at `speed`, full throttle: None at or above the limit, or where the engine's

@@ -20,7 +20,6 @@ use crate::physics::camera_view::record;
 use crate::physics::flow::{hold_high, hold_low};
 use crate::race::owner::Race;
 use crate::race::owner_frame::Frame;
-use crate::scene::owner::scene;
 
 /// The Rust version (the exact one, for `physics::update_camera`).
 pub fn camera_height_bias(
@@ -32,13 +31,13 @@ pub fn camera_height_bias(
     if esi.height_bias.get() == 0 {
         return Ok(());
     }
-    x87_1(&race.frame);
+    x87_1(&race.frame, scene);
     hold_low(&drawing.scene.scratch, &race.course.numbers.zero);
     hold_high(&drawing.scene.scratch, &race.course.numbers.one);
     if (esi.height_bias.get() as i32) < 0 {
-        x87_2();
+        x87_2(scene);
     }
-    x87_3(race);
+    x87_3(race, scene);
     let eax = drawing.scene.scratch.get();
     race.frame
         .view_and_records
@@ -55,18 +54,18 @@ pub fn camera_height_bias(
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = [rc + 0x20631C] / [rc + 0x206290]`
-fn x87_1(frame: &Frame) {
+fn x87_1(frame: &Frame, scene: &crate::scene::owner::Scene) {
     let t0 = ld(frame.view_and_records.view_vars.camera_distance.bits());
     let t1 = ld(frame.view_and_records.view_vars.camera_bias_limit.bits());
     let t2 = t0 / t1;
-    scene().drawing.scene.scratch.set_bits(st(t2));
+    scene.drawing.scene.scratch.set_bits(st(t2));
 }
 
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `[rc + 0x22400C] = 1 - [rc + 0x22400C]`
-fn x87_2() {
-    let drawing = &scene().drawing;
+fn x87_2(scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let t0 = X(1.0);
     let t1 = ld(drawing.scene.scratch.bits());
     let t2 = t0 - t1;
@@ -76,8 +75,8 @@ fn x87_2() {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = ([rc + 0x22400C] * [rc + 0x1C5D98]) * [rc + 0x20628C]`
-fn x87_3(race: &Race) {
-    let drawing = &scene().drawing;
+fn x87_3(race: &Race, scene: &crate::scene::owner::Scene) {
+    let drawing = &scene.drawing;
     let t0 = ld(drawing.scene.scratch.bits());
     let t1 = ld(race.course.numbers.k65536.bits());
     let t2 = t0 * t1;
@@ -111,7 +110,12 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_0(a[0]) },
-                plain: |_| x87_1(&crate::race::owner::race().frame),
+                plain: |_| {
+                    x87_1(
+                        &crate::race::owner::race().frame,
+                        crate::scene::owner::scene(),
+                    );
+                },
             },
             Block {
                 name: "camera_height_bias line 33",
@@ -121,7 +125,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_1(a[0]) },
-                plain: |_| x87_2(),
+                plain: |_| x87_2(crate::scene::owner::scene()),
             },
             Block {
                 name: "camera_height_bias line 40",
@@ -131,7 +135,7 @@ mod asm_reference {
                 }],
                 ulps: 0,
                 reference: |a| unsafe { ref_2(a[0]) },
-                plain: |_| x87_3(crate::race::owner::race()),
+                plain: |_| x87_3(crate::race::owner::race(), crate::scene::owner::scene()),
             },
         ]
     }

@@ -17,7 +17,7 @@ use rc2k_core::physics::start::stuck_tick;
 
 /// The Rust version. The registers it leaves are read by none of its callers.
 // Converted: `rc2k_core::physics::start::stuck_tick`.
-pub fn reset_when_stuck(race: &Race) -> Result<(), Refused> {
+pub fn reset_when_stuck(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let shared = &race.shared;
     let mode: u32 = shared.car.driver_kind.bits();
     let mut stuck = if mode == 2 || mode == 0 {
@@ -28,7 +28,7 @@ pub fn reset_when_stuck(race: &Race) -> Result<(), Refused> {
     let reset = stuck_tick(mode, &mut stuck);
     shared.car.stuck_count.set(stuck);
     if reset {
-        crate::physics::reset_car::reset_car(race)?;
+        crate::physics::reset_car::reset_car(race, scene)?;
     }
     Ok(())
 }

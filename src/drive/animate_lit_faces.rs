@@ -172,7 +172,7 @@ fn animate_faces(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), 
                         .course
                         .ground_face_last
                         .set(CAR_BLOCKS.cars[0].probe_point_face[4].bits());
-                    crate::physics::find_ground::find_ground(race)?;
+                    crate::physics::find_ground::find_ground(race, scene)?;
                     put(
                         f,
                         0x34,

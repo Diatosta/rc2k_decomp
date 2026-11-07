@@ -29,7 +29,6 @@ use crate::physics::contact_force::contact_force;
 use crate::physics::flow::copy_cells;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
-use crate::scene::owner::scene;
 use rc2k_core::physics::walls;
 
 /// The four corners (scene point numbers) of face `face`.
@@ -45,8 +44,13 @@ fn corners(face: u32) -> Result<[u32; 4], Refused> {
 /// `flt_5C5DD4` x `flt_5C5D98`, & 0xFFFF, through `dword_62400C`) << 16 + 0x40000000
 /// into `dword_6141C8`; (0, 0, 1) turned by it (`math::turn_float_point_xz`) into
 /// `qword_6D3078` ... Returns what that leaves in eax, ebx, ecx, edx.
-pub fn edge_normal(race: &Race, first: u32, second: u32) -> Result<[u32; 4], Refused> {
-    let drawing = &scene().drawing;
+pub fn edge_normal(
+    race: &Race,
+    first: u32,
+    second: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<[u32; 4], Refused> {
+    let drawing = &scene.drawing;
     let race_owner = race;
     let rd = crate::race::scene_points::point_word;
     race.shared.physics_tables.edge_points[0].set(rd(first, 0)?);
@@ -60,7 +64,7 @@ pub fn edge_normal(race: &Race, first: u32, second: u32) -> Result<[u32; 4], Ref
         .get()
         .wrapping_sub(race.shared.physics_tables.edge_points[1].get());
     let d = [dx, dz];
-    x87_1(&race.course, d);
+    x87_1(&race.course, d, scene);
     drawing
         .scene
         .scratch
@@ -84,19 +88,19 @@ pub fn edge_normal(race: &Race, first: u32, second: u32) -> Result<[u32; 4], Ref
 /// The steps, not guarded. The registers the original leaves are read by none of its
 /// callers.
 // Converted: `rc2k_core::physics::walls::shared_edge` (the edge's heading stays x87).
-pub fn steps(race: &Race) -> Result<(), Refused> {
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let face_corners = corners(race.physics.contact.wall_face_now.get())?;
     let wall_corners = corners(race.physics.contact.wall_face_before.get())?;
     let (shared, to, from) = walls::shared_edge(|j| wall_corners[j], face_corners);
     if !shared {
-        return crate::physics::wall_push_back::steps(race);
+        return crate::physics::wall_push_back::steps(race, scene);
     }
     // 0x45DA9E: along the edge.
     let n = race.physics.contact.probe_index.get();
     walls::check_probe(n)?;
     race.physics.contact.wall_edge_from.set(from);
     race.physics.contact.wall_edge_to.set(to);
-    edge_normal(race, to, from)?;
+    edge_normal(race, to, from, scene)?;
     copy_cells(
         &race.physics.contact.contact_car_speed,
         &race.shared.car.velocity,
@@ -114,7 +118,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         race.course.numbers.tenth.bits(),
     ));
     race.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(race, &race.shared.physics_tables.contacts[4]);
+    contact_force(race, &race.shared.physics_tables.contacts[4], scene);
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     Ok(())
 }
@@ -124,7 +128,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
 /// An x87 run of the original, in plain Rust over `X`, over the memory at the operands'
 /// addresses (`[base + offset]`: a float; `int [..]`: a whole number; `ext [..]`: 80 bits):
 /// `int [rc + 0x22400C] = (atan2(int [d + 0], int [d + 4]) * [rc + 0x1C5DD4]) * [rc + 0x1C5D98]`
-fn x87_1(course: &Course, d: [u32; 2]) {
+fn x87_1(course: &Course, d: [u32; 2], scene: &crate::scene::owner::Scene) {
     let t0 = int(d[0] as i32);
     let t1 = int(d[1] as i32);
     let t2 = t0.atan2(t1);
@@ -132,7 +136,7 @@ fn x87_1(course: &Course, d: [u32; 2]) {
     let t4 = t2 * t3;
     let t5 = ld(course.numbers.k65536.bits());
     let t6 = t4 * t5;
-    scene().drawing.scene.scratch.set_bits(to_int(t6) as u32);
+    scene.drawing.scene.scratch.set_bits(to_int(t6) as u32);
 }
 
 #[cfg(all(test, target_arch = "x86"))]
@@ -160,7 +164,7 @@ mod asm_reference {
             ],
             ulps: 0,
             reference: |a| unsafe { ref_0(a[0], a[1]) },
-            plain: |a| x87_1(&race().course, *view(a[0], 0)),
+            plain: |a| x87_1(&race().course, *view(a[0], 0), crate::scene::owner::scene()),
         }]
     }
 

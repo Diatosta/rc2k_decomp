@@ -26,7 +26,7 @@ pub fn edit_key(net: &Net, key: u8) -> Result<bool, Refused> {
     // Converted: `rc2k_core::net::editing` (`EditKey`, `last_char`, `takes`,
     // `end_for_char`, `too_wide`).
     if net.vars.edited.get() != editing::NOT_EDITING {
-        let text = crate::net::begin_edit::EditedText::edited()?.text();
+        let text = crate::net::begin_edit::EditedText::edited(&net.vars)?.text(&net.vars, install);
         let words = StoreBytes(text);
         match EditKey::of(key) {
             EditKey::Escape => {

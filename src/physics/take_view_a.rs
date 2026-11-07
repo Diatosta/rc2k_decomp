@@ -20,12 +20,15 @@ use crate::physics::camera_view::record;
 use crate::race::owner::Race;
 use crate::race::owner_physics::Physics;
 use crate::race::view_vars_store::ViewRecord;
-use crate::scene::owner::scene;
 
 /// The Rust version (the exact one, for `physics::update_camera`): `s` the view's record
 /// (esi). The registers it leaves are read by none of its callers.
-pub fn take_view_a(race: &Race, s: &ViewRecord) -> Result<(), crate::errors::BadInput> {
-    x87_1(&race.physics, s.offset_bits());
+pub fn take_view_a(
+    race: &Race,
+    s: &ViewRecord,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), crate::errors::BadInput> {
+    x87_1(&race.physics, s.offset_bits(), scene);
     for (put, v) in copies().iter().zip(s.taken()) {
         put(&race.physics.camera, v);
     }
@@ -73,8 +76,8 @@ fn copies() -> [fn(&CameraWork, u32); 11] {
 /// `[rc + 0x208B98] = [s + 4] + [rc + 0x237638]`
 /// `[rc + 0x208B9C] = [s + 8] + [rc + 0x23763C]`
 /// `[rc + 0x208BA0] = [s + 0xC] + [rc + 0x237640]`
-fn x87_1(physics: &Physics, offset: [u32; 3]) {
-    let lights = &scene().lights;
+fn x87_1(physics: &Physics, offset: [u32; 3], scene: &crate::scene::owner::Scene) {
+    let lights = &scene.lights;
     let t0 = ld(offset[0]);
     let t1 = ld(lights.state.camera_frame_a.bits());
     let t2 = t0 + t1;
@@ -116,6 +119,7 @@ mod asm_reference {
                 x87_1(
                     &crate::race::owner::race().physics,
                     [4, 8, 0xC].map(|o| crate::scene::x87_mem::Base::dword(a[0], o)),
+                    crate::scene::owner::scene(),
                 );
             },
         }]

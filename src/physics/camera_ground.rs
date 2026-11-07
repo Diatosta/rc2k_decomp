@@ -18,11 +18,12 @@ pub fn probe_at(
     x: u32,
     z: u32,
     slot: &crate::session::Dword,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<bool, Refused> {
     race.course.course.ground_face_last.set(slot.get());
     race.physics.ground.ground_x.set(x);
     race.physics.ground.ground_z.set(z);
-    { crate::physics::count_ground_probe::count_ground_probe(race) }?;
+    { crate::physics::count_ground_probe::count_ground_probe(race, scene) }?;
     if race.physics.ground.ground_found.get() == 0 {
         return Ok(false);
     }

@@ -34,17 +34,17 @@ fn word(face: u32) -> Result<u32, Refused> {
     )?))
 }
 
-fn after(race: &Race) -> Result<(), Refused> {
+fn after(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     race.shared.car.contact_flag.set(1);
     race.shared.car.wall_hit_timer.set(0x32);
     { crate::physics::restore_saved_car::restore_saved_car(race) }?;
-    crate::physics::feel_ground::feel_ground(race)
+    crate::physics::feel_ground::feel_ground(race, scene)
 }
 
 /// The steps, not guarded (`check` before). The registers the original leaves are read by
 /// none of its callers.
 // Converted: `rc2k_core::physics::walls::walk`.
-pub fn steps(race: &Race) -> Result<(), Refused> {
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics_store = &race.physics;
     let walked = walls::walk(race.shared.car.probe_count.get(), |k| {
         let k = k as usize;
@@ -71,14 +71,14 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
             race.shared.car.contact_point[0].set_bits(race.shared.car.probe_point_x[k].bits());
             race.shared.car.contact_point[1].set_bits(race.shared.car.probe_point_y[k].bits());
             race.shared.car.contact_point[2].set_bits(race.shared.car.probe_point_z[k].bits());
-            crate::physics::wall_edge_contact::steps(race)?;
+            crate::physics::wall_edge_contact::steps(race, scene)?;
             if let Some(hit) = rc2k_core::physics::walls::raised_hit(
                 f32::from_bits(physics_store.contact.contact_speed_length.bits()),
                 f32::from_bits(race.shared.car.contact_depth.bits()),
             ) {
                 race.shared.car.contact_depth.set_bits(hit.to_bits());
             }
-            after(race)
+            after(race, scene)
         }
         walls::Walk::Clear { bits } => {
             physics_store
@@ -92,8 +92,8 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
             race.shared.car.contact_point[0].set_bits(race.shared.car.local_velocity[0].bits());
             race.shared.car.contact_point[1].set_bits(race.shared.car.local_velocity[1].bits());
             race.shared.car.contact_point[2].set_bits(race.shared.car.local_velocity[2].bits());
-            crate::physics::wall_push_back::steps(race)?;
-            after(race)
+            crate::physics::wall_push_back::steps(race, scene)?;
+            after(race, scene)
         }
     }
 }
@@ -104,7 +104,7 @@ pub fn check(shared: &Shared) -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn wall_contacts(race: &Race) -> Result<(), Refused> {
+pub fn wall_contacts(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     check(&race.shared)?;
-    steps(race)
+    steps(race, scene)
 }

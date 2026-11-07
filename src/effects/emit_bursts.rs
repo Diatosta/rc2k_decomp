@@ -208,7 +208,7 @@ pub fn emit_bursts_with(
                 if ring.work.count.get() == MOST_TAKEN {
                     return Ok(());
                 }
-                let e = take_entry(ring, object.word(0x1C)? & 0xFF_FFFF, h.kind)?;
+                let e = take_entry(ring, effects, object.word(0x1C)? & 0xFF_FFFF, h.kind)?;
                 let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
                 let d = read_bits(&ring.work.direction);
                 let (out, _) = crate::effects::spread_point::spread_point(

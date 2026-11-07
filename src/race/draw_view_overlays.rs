@@ -18,6 +18,7 @@ pub fn draw_view_overlays(
     race: &Race,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
+    effects: &crate::effects::owner::Effects,
 ) -> Result<(), Refused> {
     let draw_switches = &scene.draw_switches;
     use crate::hud::overlay_states::overlay_states;
@@ -28,7 +29,7 @@ pub fn draw_view_overlays(
     }
     overlay_states();
     crate::scene::set_render_state::set_render_state(3, 3);
-    crate::race::frame_views::run_view_marks(race, scene, system)?;
+    crate::race::frame_views::run_view_marks(race, scene, system, effects)?;
     overlay_states();
     crate::sound::race_sound_tick::race_sound_tick(&race.frame)?;
     draw_flat_triangle(scene);
@@ -36,7 +37,7 @@ pub fn draw_view_overlays(
     set_filters();
     let kept: u32 = draw_switches.far_on.bits();
     draw_switches.far_on.set_bits(0u32);
-    let drawn = draw_own_car(race, scene, system);
+    let drawn = draw_own_car(race, scene, system, effects);
     draw_switches.far_on.set_bits(kept);
     drawn?;
     draw_screen_tint(race, scene)?;

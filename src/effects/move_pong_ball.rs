@@ -44,7 +44,7 @@ pub fn move_pong_ball(pong: &Pong, effects: &crate::effects::owner::Effects) {
         Some(limit(3)),
     );
     if hit != 0 {
-        crate::effects::splines::reset_pong(pong);
+        crate::effects::splines::reset_pong(pong, effects);
     }
     if x87::compare_status(p.ball[1].bits(), limit(4)) != 0 {
         p.ball[1].set_bits(x87::loaded(limit(5)));

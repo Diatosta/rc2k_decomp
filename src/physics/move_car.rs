@@ -10,7 +10,6 @@
 use crate::math::x87_run::mul2_to_int;
 use crate::race::owner::Race;
 use crate::race::owner_shared::Shared;
-use crate::scene::owner::scene;
 use crate::session::Cell32;
 
 fn get(v: &[&dyn Cell32], k: usize) -> u32 {
@@ -34,7 +33,7 @@ pub fn move_at(race: &Race, v: &[&dyn Cell32]) -> u32 {
     last
 }
 
-fn game(shared: &Shared) -> Vec<&dyn Cell32> {
+fn game<'a>(shared: &'a Shared, scene: &'a crate::scene::owner::Scene) -> Vec<&'a dyn Cell32> {
     vec![
         &shared.car.velocity[0] as &dyn Cell32,
         &shared.car.velocity[1],
@@ -42,12 +41,12 @@ fn game(shared: &Shared) -> Vec<&dyn Cell32> {
         &shared.car.position[0],
         &shared.car.position[1],
         &shared.car.position[2],
-        &scene().drawing.scene.scratch,
+        &scene.drawing.scene.scratch,
     ]
 }
 
 /// The Rust version (the exact one, for `physics::car_physics_step` and
 /// `physics::apply_wheel_torques`).
-pub fn move_car(race: &Race) -> u32 {
-    move_at(race, &game(&race.shared))
+pub fn move_car(race: &Race, scene: &crate::scene::owner::Scene) -> u32 {
+    move_at(race, &game(&race.shared, scene))
 }

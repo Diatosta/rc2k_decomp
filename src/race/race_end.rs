@@ -349,7 +349,7 @@ pub fn run_race(race: &Race) -> Result<(), Refused> {
     record_replay_header(race);
     crate::race::replay::open_replay(race)?;
     race.shared.view.after_credits.set(0u32);
-    crate::drive::play_race::play_race(race)?;
+    crate::drive::play_race::play_race(race, crate::scene::owner::scene())?;
     crate::race::replay::close_replay(race)?;
     tidy_everything(race)?;
     crate::race::settings_copy::copy_settings_out(race)?;

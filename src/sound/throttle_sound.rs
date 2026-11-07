@@ -17,15 +17,23 @@ pub fn throttle_sound(
     so: &crate::sound::store::SoundObject,
     kind: u32,
     request: &SoundRequest,
+    sound: &crate::sound::owner::Sound,
 ) -> Result<(), Refused> {
     if computers(so.sound_offset.get()) {
         return Ok(());
     }
-    let set = &crate::sound::sets_store::SoundKinds::record(kind)?.throttle;
+    let set = &sound.race.kinds.record(kind)?.throttle;
     request
         .sound
         .set(so.sound_offset.get().wrapping_add(set.sound.get()));
-    send_engine_sound(so, set, &so.throttle_input, EnginePlace::Behind, request)
+    send_engine_sound(
+        so,
+        set,
+        &so.throttle_input,
+        EnginePlace::Behind,
+        request,
+        sound,
+    )
 }
 
 #[cfg(all(test, target_arch = "x86"))]

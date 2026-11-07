@@ -21,6 +21,7 @@ pub fn race_tick(
     race: &Race,
     sound: &crate::sound::owner::Sound,
     input: &crate::input::owner::Input,
+    scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     if CAR_BLOCKS.cars[0].probe_count.bits() == 0 {
         return Err(FatalError {
@@ -30,7 +31,7 @@ pub fn race_tick(
         .into());
     }
     if race.shared.switches.levers_on.get() == 0 {
-        return crate::drive::simple_car_step::simple_car_step(race, input);
+        return crate::drive::simple_car_step::simple_car_step(race, input, scene);
     }
     race.shared
         .vars
@@ -42,5 +43,5 @@ pub fn race_tick(
     ) {
         return Ok(());
     }
-    crate::drive::replay_step::replay_step(race, sound)
+    crate::drive::replay_step::replay_step(race, sound, scene)
 }

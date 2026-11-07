@@ -18,10 +18,15 @@ use crate::race::owner::Race;
 
 /// The steps for the cell of (`x`, `z`) (eax, ecx), not guarded.
 // Converted: `rc2k_core::physics::ground_search::cell_key`.
-pub fn steps(race: &Race, x: u32, z: u32) -> Result<(), Refused> {
+pub fn steps(
+    race: &Race,
+    x: u32,
+    z: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     let (key, _) = rc2k_core::physics::ground_search::cell_key(x, z);
     let Some(record) = find_course_record(&race.course, key)? else {
         return Ok(());
     };
-    crate::physics::record_face_contacts::steps(race, record)
+    crate::physics::record_face_contacts::steps(race, record, scene)
 }

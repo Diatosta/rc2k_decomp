@@ -48,13 +48,17 @@ pub fn corner_inside(race: &Race) -> bool {
 
 /// The Rust version: `block` the other car's block (edi). The registers it leaves are
 /// read by none of its callers.
-pub fn corner_hits_car(race: &Race, block: u32) -> Result<(), Refused> {
+pub fn corner_hits_car(
+    race: &Race,
+    block: u32,
+    scene: &crate::scene::owner::Scene,
+) -> Result<(), Refused> {
     if !corner_inside(race) {
         return Ok(());
     }
     race.physics.contact.corner_inside.set(1);
     { crate::physics::restore_saved_car::restore_saved_car(race) }?;
-    { crate::physics::bump_cars::bump_cars(race, block) }?;
+    { crate::physics::bump_cars::bump_cars(race, block, scene) }?;
     Ok(())
 }
 

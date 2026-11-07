@@ -32,7 +32,7 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 fn each_frame(entry: &Entry) -> Result<Flow, Refused> {
     let screens = &entry.menus.screens;
     if screens.option_work.typing.get() == 0x1 {
-        Callee::EditSavegameName.run(entry.menus)?;
+        Callee::EditSavegameName.run(entry)?;
         if screens.option_work.typing.get() != 0x0 {
             return Ok(Flow::NextFrame);
         }

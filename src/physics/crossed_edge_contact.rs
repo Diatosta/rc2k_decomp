@@ -59,7 +59,7 @@ fn side(physics: &Physics, x: u32, z: u32) -> bool {
 /// The steps, not guarded (the probe checked before). The registers the original leaves
 /// are read by none of its callers.
 // Converted: `rc2k_core::physics::walls::{path_side, crossed_edge}`.
-pub fn steps(race: &Race) -> Result<(), Refused> {
+pub fn steps(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let race_owner = race;
     let n = race_owner.physics.contact.crossed_probe.get();
     race_owner.physics.contact.probe_index.set(n);
@@ -95,7 +95,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
     let (from, to) = (corner_point(first)?, corner_point(second)?);
     race.shared.physics_tables.crossed_edge[0].set(from);
     race.shared.physics_tables.crossed_edge[1].set(to);
-    edge_normal(race, from, to)?;
+    edge_normal(race, from, to, scene)?;
     race_owner
         .physics
         .contact
@@ -120,7 +120,7 @@ pub fn steps(race: &Race) -> Result<(), Refused> {
         race_owner.course.numbers.tenth.bits(),
     ));
     race_owner.physics.contact.contact_slide_limit.set_bits(0);
-    contact_force(race, &race.shared.physics_tables.contacts[1]);
+    contact_force(race, &race.shared.physics_tables.contacts[1], scene);
     { crate::physics::place_sound_e1::place_sound_e1(race) }?;
     Ok(())
 }

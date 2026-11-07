@@ -20,7 +20,7 @@ use rc2k_core::physics::walls::ProbeCounts;
 /// The Rust version. The eax it leaves (`dword_5CCC78` when found) is read by none of its
 /// callers.
 // Converted: `rc2k_core::physics::walls::ProbeCounts`.
-pub fn count_ground_probe(race: &Race) -> Result<(), Refused> {
+pub fn count_ground_probe(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let mut counts = ProbeCounts {
         tries: race.physics.camera.ground_probes.get(),
         found: race.physics.camera.ground_found.get(),
@@ -29,7 +29,7 @@ pub fn count_ground_probe(race: &Race) -> Result<(), Refused> {
     race.physics.ground_probe.settle_mark.set(0x40);
     counts.tried();
     race.physics.camera.ground_probes.set(counts.tries);
-    { crate::physics::find_ground::find_ground(race) }?;
+    { crate::physics::find_ground::find_ground(race, scene) }?;
     if race.physics.ground.ground_found.get() != 0 {
         counts.searched(
             true,

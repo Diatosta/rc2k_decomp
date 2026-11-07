@@ -19,9 +19,9 @@ use crate::race::owner::Race;
 
 /// The Rust core. The registers it leaves (esi, edi past the copies, ecx 0) are read by
 /// none of its callers.
-pub fn probe_and_keep_at(race: &Race) -> Result<(), Refused> {
+pub fn probe_and_keep_at(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
     let physics = &race.physics;
-    probe_ground_at(race)?;
+    probe_ground_at(race, scene)?;
     for k in 0..64 {
         physics.contact.saved_probe_x[k].set(physics.contact.probe_x[k].get());
     }
@@ -38,6 +38,6 @@ pub fn probe_and_keep_at(race: &Race) -> Result<(), Refused> {
 }
 
 /// The Rust version.
-pub fn probe_and_keep(race: &Race) -> Result<(), Refused> {
-    probe_and_keep_at(race)
+pub fn probe_and_keep(race: &Race, scene: &crate::scene::owner::Scene) -> Result<(), Refused> {
+    probe_and_keep_at(race, scene)
 }

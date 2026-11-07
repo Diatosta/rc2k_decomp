@@ -15,7 +15,6 @@ use crate::menu::screen_items_store::slot;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, screen_entry,
 };
-use crate::scene::owner::scene;
 
 // ---- Rust version: `menu::screen_loop` with this ----
 
@@ -31,7 +30,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0x2u32);
-    carousel(None)?;
+    carousel(None, entry.scene)?;
     let item = screens.items.current[slot::NEW_SIMULATION].get();
     screens.loop_flags.item.set(item);
     screens.state.carousel.front.set(item.wrapping_sub(1));
@@ -70,9 +69,9 @@ pub const SCREEN: Screen = Screen {
         &m.tables.texts.new_simulation_picture
     }))],
     after_first_frame: &[
-        Step::Write(|_| &scene().drawing.scene.view_offset[0], 0x7),
-        Step::Write(|_| &scene().drawing.scene.view_offset[1], 0xA),
-        Step::Write(|_| &scene().drawing.scene.view_zoom, 0x100),
+        Step::WriteScene(|s| &s.drawing.scene.view_offset[0], 0x7),
+        Step::WriteScene(|s| &s.drawing.scene.view_offset[1], 0xA),
+        Step::WriteScene(|s| &s.drawing.scene.view_zoom, 0x100),
         Step::Call(Callee::PrepareScene),
     ],
     confirm: None,

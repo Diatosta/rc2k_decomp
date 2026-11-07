@@ -6,7 +6,6 @@ use crate::errors::Refused;
 use crate::menu::screen_loop::{
     Callee, Entry, FrameRoutine, List, Screen, Step, carousel, prepare_scene,
 };
-use crate::scene::owner::scene;
 
 /// `unk_7476E4`'s slot, the item kept between visits.
 const SLOT: usize = (0x7476E4 - 0x747660) / 4;
@@ -22,11 +21,11 @@ fn before(entry: &Entry) -> Result<(), Refused> {
 // The original prepares the scene before the carousel, which left the front car white
 // (seen 2026-10-30): here as `menu::select_car_loop`, the scene last.
 fn set_up_first(entry: &Entry) -> Result<(), Refused> {
-    let drawing = &scene().drawing;
+    let drawing = &entry.scene.drawing;
     let screens = &entry.menus.screens;
     screens.flow.turning.set(0x1u32);
     screens.state.carousel.menu.set(0xCu32);
-    carousel(None)?;
+    carousel(None, entry.scene)?;
     screens
         .loop_flags
         .item
@@ -37,7 +36,7 @@ fn set_up_first(entry: &Entry) -> Result<(), Refused> {
     drawing.scene.view_offset[0].set(0x7u32);
     drawing.scene.view_offset[1].set(0xFFFFFFCEu32);
     drawing.scene.view_zoom.set(0x100u32);
-    prepare_scene();
+    prepare_scene(entry.scene);
     Ok(())
 }
 

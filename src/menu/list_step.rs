@@ -27,7 +27,8 @@ pub fn list_step(
     if !MOVES.contains(&key) {
         return Ok(false);
     }
-    let ecx = crate::install::owner::install().pages.choice.get();
+    let pages = &crate::install::owner::install().pages;
+    let ecx = pages.choice.get();
     let fault = crate::menu::event_flow::Fault::default();
     // Asked only with a table (`step` is told whether there is one).
     let entry_of = |k: usize| match table {
@@ -43,9 +44,6 @@ pub fn list_step(
     let Step::Moved(cl) = stepped else {
         return Ok(false);
     };
-    crate::install::owner::install()
-        .pages
-        .choice
-        .set(with_cl(cl));
+    pages.choice.set(with_cl(cl));
     Ok(true)
 }

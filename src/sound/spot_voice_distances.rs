@@ -24,7 +24,7 @@ pub fn spot_voice_distances(
     sound: &crate::sound::owner::Sound,
 ) -> Result<(), crate::errors::BadInput> {
     for n in 0..VOICE_COUNT {
-        let bx = voice(n);
+        let bx = voice(n, sound);
         if vw(bx, 4)? != 1 {
             continue;
         }
