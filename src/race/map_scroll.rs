@@ -119,7 +119,7 @@ pub fn scroll_maps(race: &Race) -> Result<(), Refused> {
         },
     );
     for &v in views {
-        let car = view_car(v).get() & 7;
+        let car = view_car(&race.shared, v).get() & 7;
         if race.shared.work.car_block(car as usize) == 0 {
             return Err(BadInput("a view car without its block").into());
         }
@@ -128,7 +128,7 @@ pub fn scroll_maps(race: &Race) -> Result<(), Refused> {
     for &v in views {
         load_view_car(&race.shared, v)?;
         scroll_map(race)?;
-        store_view_car(v)?;
+        store_view_car(&race.shared, v)?;
     }
     Ok(())
 }

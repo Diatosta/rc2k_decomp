@@ -8,7 +8,6 @@ use crate::errors::{BadInput, Refused};
 use crate::math::x87;
 use crate::race::checkpoints_store::CHECKPOINTS;
 use crate::race::owner::Race;
-use crate::race::owner::race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
 use crate::race::trap::Trap;
@@ -28,8 +27,8 @@ fn check_face(n: u32) -> u32 {
     crate::race::checkpoints_store::face(n as usize).get()
 }
 
-fn count() -> Result<u32, Refused> {
-    let n: u32 = race().shared.vars.checkpoint_count.bits();
+fn count(shared: &Shared) -> Result<u32, Refused> {
+    let n: u32 = shared.vars.checkpoint_count.bits();
     if n > MOST_CHECKS {
         return Err(BadInput("more checkpoints than the lists hold").into());
     }
@@ -70,10 +69,9 @@ pub fn add_surface_share(race: &Race, surface: u32) {
 /// `race::next_map_anchor` (0x445FEE): from checkpoint `from` on, the first whose face has
 /// +0x2C (the map's x and y words) not 0: `g_mapAnchorCount` + 1, and it; None at
 /// `g_checkpointCount` (the original's carry). Refuses more checkpoints than the lists hold.
-pub fn next_map_anchor(from: u32) -> Result<Option<u32>, Refused> {
-    let shared = &race().shared;
+pub fn next_map_anchor(shared: &Shared, from: u32) -> Result<Option<u32>, Refused> {
     // Converted: `rc2k_core::race::checkpoints::next_map_anchor`.
-    let n = count()?;
+    let n = count(shared)?;
     let trap = Trap::new();
     let anchor = rc2k_core::race::checkpoints::next_map_anchor(from, n, |c| {
         trap.keep_read(crate::race::course_places::face_number(
@@ -96,9 +94,9 @@ pub fn next_map_anchor(from: u32) -> Result<Option<u32>, Refused> {
 /// `race::count_checks` (0x445AAB): with two checkpoints or more, `g_checkCounts`[n] the
 /// checkpoints up to n whose face's byte +0x26 is neither 0 nor 1. Refuses more
 /// checkpoints than the lists hold.
-pub fn count_checks() -> Result<(), Refused> {
+pub fn count_checks(shared: &Shared) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::checkpoints::check_counts`.
-    let n = count()?;
+    let n = count(shared)?;
     if n < 2 {
         return Ok(());
     }
@@ -148,8 +146,8 @@ pub fn cameras() -> [Cameras; 2] {
 }
 
 /// The map work cell at `o` (the original's offsets, from 0xB8).
-fn work(o: u32) -> &'static Dword {
-    &race().shared.vars.map_work[((o - 0xB8) / 4) as usize]
+fn work(shared: &Shared, o: u32) -> &Dword {
+    &shared.vars.map_work[((o - 0xB8) / 4) as usize]
 }
 
 fn read_n(table: &Dword, n: u32) -> u32 {
@@ -251,9 +249,10 @@ pub fn sort_checkpoints(race: &Race) -> Result<(), Refused> {
 /// (x and z from the last checkpoint's first point to this one's: the x87's `fpatan` over
 /// pi, times 0.5, 65536 and 65536) into `g_checkpointAngles` + 1 .. n, n + 1 the same as n; then 0
 /// and 1 as 2.
-pub fn checkpoint_angles(course: &Course) -> Result<(), Refused> {
+pub fn checkpoint_angles(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     // Converted: `rc2k_core::race::best_line::link_angles`; each link's angle the x87's.
-    let n = count()?;
+    let n = count(&race.shared)?;
     let trap = Trap::new();
     {
         let scales = (n >= 2).then(|| (course.numbers.half.bits(), course.numbers.k65536.bits()));
@@ -297,7 +296,7 @@ pub fn checkpoint_angles(course: &Course) -> Result<(), Refused> {
 /// its one caller, `build_best_line`, never reaches (it calls with two line faces or more,
 /// and `sort_checkpoints` makes the checkpoint count the same).
 pub fn checkpoint_distances(shared: &Shared) -> Result<(), Refused> {
-    let n = count()?;
+    let n = count(shared)?;
     if n < 2 {
         return Err(BadInput("fewer than two checkpoints: the original writes at ecx").into());
     }
@@ -353,7 +352,7 @@ pub fn checkpoint_distances(shared: &Shared) -> Result<(), Refused> {
 pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
     let course = &race.course;
     let shared = &race.shared;
-    let n = count()?;
+    let n = count(shared)?;
     if n < 2 {
         return Ok(());
     }
@@ -415,10 +414,10 @@ pub fn replay_cameras(race: &Race, set: &Cameras) -> Result<(), Refused> {
 /// `add_surface_share`): +0x21's weighted by the face's bytes +0x22 .. +0x25 (a quarter of
 /// their sum; 0 without a +0x21, or with its kind (+0x2C, by `dword_63D9D0`) 4 or 5),
 /// +1's by 0x100 less; then the shares made whole numbers.
-pub fn surface_shares(course: &Course) -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+pub fn surface_shares(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
     let shared = &race.shared;
-    let n = count()?;
+    let n = count(shared)?;
     if n < 2 {
         return Ok(());
     }
@@ -491,10 +490,12 @@ pub fn surface_shares(course: &Course) -> Result<(), Refused> {
 /// (`math::turn_point_xz`), scaled, turned by the map angle, moved to the first anchor's
 /// place: `g_mapX`, `g_mapY` (negated). Leaves ebx past the last, eax and ecx the last's
 /// map x and minus its y. Refuses anchors past the lists.
-pub fn map_segment(course: &Course) -> Result<(), Refused> {
+pub fn map_segment(race: &Race) -> Result<(), Refused> {
+    let course = &race.course;
+    let shared = &race.shared;
     use crate::math::turn_point_xz::turn_point_xz;
     {
-        let (a, b) = (work(0xC4).get(), work(0xC0).get());
+        let (a, b) = (work(shared, 0xC4).get(), work(shared, 0xC0).get());
         if a >= MOST_CHECKS || b >= MOST_CHECKS {
             return Err(BadInput("map anchors past the lists").into());
         }
@@ -513,10 +514,10 @@ pub fn map_segment(course: &Course) -> Result<(), Refused> {
             ))
         };
         let (place_a, point_a) = anchor(a)?;
-        work(0xEC).set(place_a[0]);
-        work(0xF0).set(place_a[1]);
-        work(0xD4).set(point_a[0]);
-        work(0xD8).set(point_a[1]);
+        work(shared, 0xEC).set(place_a[0]);
+        work(shared, 0xF0).set(place_a[1]);
+        work(shared, 0xD4).set(point_a[0]);
+        work(shared, 0xD8).set(point_a[1]);
         let (place_b, point_b) = anchor(b)?;
         let ground = [
             point_b[0].wrapping_sub(point_a[0]),
@@ -526,24 +527,24 @@ pub fn map_segment(course: &Course) -> Result<(), Refused> {
             place_b[0].wrapping_sub(place_a[0]),
             place_b[1].wrapping_sub(place_a[1]),
         ];
-        work(0xF4).set(map[0]);
-        work(0xF8).set(map[1]);
-        work(0xDC).set(ground[0]);
-        work(0xE0).set(ground[1]);
+        work(shared, 0xF4).set(map[0]);
+        work(shared, 0xF8).set(map[1]);
+        work(shared, 0xDC).set(ground[0]);
+        work(shared, 0xE0).set(ground[1]);
         let scale = x87::hypot_ratio(
             map[0] as i32,
             map[1] as i32,
             ground[0] as i32,
             ground[1] as i32,
         );
-        work(0xC8).set(scale);
+        work(shared, 0xC8).set(scale);
         let (half, unit) = (course.numbers.half.bits(), course.numbers.k65536.bits());
         let map_angle =
             (x87::angle_scaled5_to_int(map[0] as i32, map[1] as i32, half, unit) as u32) << 2;
-        work(0xB8).set(map_angle);
+        work(shared, 0xB8).set(map_angle);
         let ground_angle =
             (x87::angle_scaled5_to_int(ground[0] as i32, ground[1] as i32, half, unit) as u32) << 2;
-        work(0xBC).set(ground_angle);
+        work(shared, 0xBC).set(ground_angle);
         let mut e = a;
         loop {
             // The point's number rides along as `turn_point_xz`'s y (ebx in the original).
@@ -552,8 +553,8 @@ pub fn map_segment(course: &Course) -> Result<(), Refused> {
                 crate::race::scene_points::point_word(number, 0)?,
                 crate::race::scene_points::point_word(number, 2)?,
             ];
-            work(0xCC).set(p[0]);
-            work(0xD0).set(p[1]);
+            work(shared, 0xCC).set(p[0]);
+            work(shared, 0xD0).set(p[1]);
             let [x, _, z, _] = {
                 turn_point_xz(
                     p[0].wrapping_sub(point_a[0]) as i32,
@@ -584,24 +585,24 @@ pub fn map_segment(course: &Course) -> Result<(), Refused> {
 /// `race::map_checkpoints` (0x445FB4): `g_mapAnchorCount` 0; with two checkpoints or more,
 /// from checkpoint 0, each stretch to the next anchor (`next_map_anchor`) mapped
 /// (`map_segment`), until none is left. Refuses more checkpoints than the lists hold.
-pub fn map_checkpoints(course: &Course) -> Result<(), Refused> {
+pub fn map_checkpoints(race: &Race) -> Result<(), Refused> {
     // Converted: `rc2k_core::race::best_line::map_stretches`.
-    let n = count()?;
+    let shared = &race.shared;
+    let n = count(shared)?;
     {
-        crate::race::owner::RACE
-            .shared
-            .vars
-            .map_anchor_count
-            .set_bits(0u32);
+        shared.vars.map_anchor_count.set_bits(0u32);
         if n < 2 {
             return Ok(());
         }
-        rc2k_core::race::best_line::map_stretches(next_map_anchor, |from, to| {
-            // The stretch's two anchors (0x6236C4, 0x6236C0 of the map work).
-            crate::race::owner::RACE.shared.vars.map_work[3].set(from);
-            crate::race::owner::RACE.shared.vars.map_work[2].set(to);
-            map_segment(course)
-        })
+        rc2k_core::race::best_line::map_stretches(
+            |from| next_map_anchor(shared, from),
+            |from, to| {
+                // The stretch's two anchors (0x6236C4, 0x6236C0 of the map work).
+                shared.vars.map_work[3].set(from);
+                shared.vars.map_work[2].set(to);
+                map_segment(race)
+            },
+        )
     }
 }
 
@@ -652,7 +653,6 @@ const SUMMARY: Summary = [
 pub fn build_best_line() -> Result<(), Refused> {
     let race = crate::race::owner::race();
     let lights = &scene().lights;
-    let course = &race.course;
     use crate::logfile::log_int::log_int;
     let text =
         |at: &std::ffi::CStr, newline: bool| crate::logfile::log_write::log_nul(&at, newline, 1);
@@ -663,16 +663,16 @@ pub fn build_best_line() -> Result<(), Refused> {
             for (word, step) in STEP_WORDS {
                 text(word, false);
                 match step {
-                    1 => checkpoint_angles(course)?,
-                    2 => count_checks()?,
+                    1 => checkpoint_angles(race)?,
+                    2 => count_checks(&race.shared)?,
                     3 => {} // `nullsub_7`
                     4 => checkpoint_distances(&race.shared)?,
-                    5 => map_checkpoints(course)?,
+                    5 => map_checkpoints(race)?,
                     6 => replay_cameras(race, &cameras()[0])?,
                     _ => replay_cameras(race, &cameras()[1])?,
                 }
             }
-            surface_shares(course)?;
+            surface_shares(race)?;
         }
         text(COMPLETED_RVA, true);
         for (n, (at, value)) in SUMMARY.into_iter().enumerate() {

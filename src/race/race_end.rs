@@ -251,8 +251,7 @@ impl Tidy {
 /// fonts, the map, the textures, the course's two memories, the objects (then `g_inRace`
 /// 0, `dword_606294` `dword_6235F4`); "finis". What the steps leave in eax, ebx and the
 /// flags is read by no caller (taint at its one site, 0x444B56 in `tidy_everything`: 0 reads).
-pub fn tidy_stage() -> Result<(), Refused> {
-    let race = race();
+pub fn tidy_stage(race: &Race) -> Result<(), Refused> {
     let course = &race.course;
     use crate::race::stage_free::{
         COURSE, COURSE_2, FONTS, MUD, OBJECT_POINTS, POINT_RECORDS, free,
@@ -296,7 +295,8 @@ pub fn tidy_stage() -> Result<(), Refused> {
 /// line break. Reads no register; of what it leaves its callers read only esi, which it
 /// keeps (taint at all six sites: 0 reads of the rest).
 pub fn tidy_everything() -> Result<(), Refused> {
-    let shared = &race().shared;
+    let race = race();
+    let shared = &race.shared;
     let s = Tidy;
     s.newline();
     s.log(EVERYTHING_WORDS[0]);
@@ -308,7 +308,7 @@ pub fn tidy_everything() -> Result<(), Refused> {
         Ok(())
     })?;
     s.step(EVERYTHING_WORDS[3], || Ok(()))?;
-    s.step(EVERYTHING_WORDS[4], tidy_stage)?;
+    s.step(EVERYTHING_WORDS[4], || tidy_stage(race))?;
     s.log(EVERYTHING_WORDS[5]);
     s.indent(3);
     reset_race_sounds(&SoundVars::game())?;

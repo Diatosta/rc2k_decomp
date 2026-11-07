@@ -18,6 +18,7 @@
 //! by address goes through `routes.rs`.
 
 use crate::errors::Refused;
+use crate::race::owner::Race;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
 const RESTORE: usize = 0x405B10; // sub_405B10: the surfaces restored (the platform's)
@@ -45,26 +46,26 @@ pub fn loading_bar_frame() -> Result<(), Refused> {
     use std::sync::atomic::Ordering::Relaxed;
     // Not the original's: some 30 frames a second at most, and the last. Every step's frame
     // was 3/4 of a load (882 ms of 1231, 2026-10-30).
+    let race = crate::race::owner::race();
     let begun = std::time::Instant::now();
     {
         let mut last = LAST_FRAME
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if crate::race::owner::race().shared.vars.bar_share.bits() < 100
+        if race.shared.vars.bar_share.bits() < 100
             && last.is_some_and(|last| begun.duration_since(last) < BAR_FRAME)
         {
             return Ok(());
         }
         *last = Some(begun);
     }
-    let result = frame();
+    let result = frame(race);
     FRAMES[0].fetch_add(1, Relaxed);
     FRAMES[1].fetch_add(begun.elapsed().as_micros() as u64, Relaxed);
     result
 }
 
-fn frame() -> Result<(), Refused> {
-    let race = crate::race::owner::race();
+fn frame(race: &Race) -> Result<(), Refused> {
     let session = &system().session;
     let shared = &race.shared;
     // Converted: `rc2k_core::race::loading::{FRAME_MARK, frame_tried}`.

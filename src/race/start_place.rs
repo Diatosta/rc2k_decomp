@@ -10,10 +10,11 @@ use crate::race::best_line::MOST_CHECKS;
 use crate::race::owner::Race;
 use crate::race::owner::race;
 use crate::race::owner_course::Course;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
-fn count() -> Result<u32, Refused> {
-    let n: u32 = race().shared.vars.checkpoint_count.bits();
+fn count(shared: &Shared) -> Result<u32, Refused> {
+    let n: u32 = shared.vars.checkpoint_count.bits();
     if n > MOST_CHECKS {
         return Err(BadInput("more checkpoints than the lists hold").into());
     }
@@ -45,7 +46,7 @@ pub fn place_car_on_line(course: &Course) -> Result<(), Refused> {
     let lights = &scene().lights;
     // Converted: `rc2k_core::race::checkpoints::{line_neighbours, lerp}`.
     use rc2k_core::race::checkpoints::{lerp, line_neighbours};
-    let count = count()?;
+    let count = count(shared)?;
     {
         let (c, n) = line_neighbours(lights.state.line_place.bits(), count)?;
         let t: u32 = lights.state.line_fraction.bits();
@@ -110,7 +111,7 @@ pub struct Nearest {
 /// equals) and its distance (-1 and 0 for none). Refuses more than 0x1418 measures or
 /// checkpoints, before anything.
 pub fn nearest_checkpoint_in(race: &Race, from: u32, to: u32) -> Result<Nearest, Refused> {
-    count()?;
+    count(&race.shared)?;
     let steps = if from < to { to - from } else { 1 };
     if steps > MOST_CHECKS {
         return Err(BadInput("more measures than checkpoints").into());
@@ -246,7 +247,7 @@ fn measure_held(
 /// registers it leaves are read by none of its callers. Refuses more checkpoints than the
 /// lists, before anything.
 pub fn nearest_checkpoint(race: &Race) -> Result<u32, Refused> {
-    let count = count()?;
+    let count = count(&race.shared)?;
     {
         race.physics
             .ground

@@ -24,15 +24,13 @@
 use crate::errors::Refused;
 use crate::gfx::owner::gfx;
 use crate::race::blocks_store::CAR_BLOCKS;
-use crate::race::owner::race;
 use crate::race::owner_shared::Shared;
 use crate::race::replay_work_store::REPLAY_WORK;
 use crate::session::Dword;
 
 const DOOR_TEXT: &std::ffi::CStr = c"doornr="; // "doornr="
 /// (to, from): the header's settings.
-fn settings() -> [(&'static Dword, &'static Dword); 5] {
-    let shared = &race().shared;
+fn settings(shared: &Shared) -> [(&Dword, &'static Dword); 5] {
     [
         (&shared.state.settings.run_kind, &REPLAY_WORK.header_mode),
         (
@@ -67,7 +65,7 @@ pub fn viewer_load_stage(shared: &Shared) -> Result<(), Refused> {
         race_shell::set_race_screen_mode();
 
         crate::menu::show_loading_picture::show_loading_picture()?;
-        for (to, from) in settings() {
+        for (to, from) in settings(shared) {
             to.set(from.get());
         }
         // g_onePlayer (the sound module's) takes the header's setting too.

@@ -35,13 +35,13 @@
 use crate::errors::{BadInput, Refused};
 use crate::race::owner::Race;
 use crate::race::owner::race;
+use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 use crate::system::owner::system;
 const SLOTS: u32 = 0x400;
 
 /// The two view blocks, or the refusal.
-fn view_blocks() -> Result<[u32; 2], Refused> {
-    let shared = &race().shared;
+fn view_blocks(shared: &Shared) -> Result<[u32; 2], Refused> {
     let blocks: [u32; 2] = [shared.view.view_block(0), shared.view.view_block(1)];
     if blocks.contains(&0) {
         return Err(BadInput("a null view block").into());
@@ -85,7 +85,7 @@ pub fn draw_race_scene() -> Result<(), Refused> {
     let physics = &race.physics;
     use crate::scene::set_render_state::set_render_state;
     use crate::sound::race_sound_tick::race_sound_tick;
-    let blocks = view_blocks()?;
+    let blocks = view_blocks(&race.shared)?;
     for (k, extra) in race
         .frame
         .panel_and_overlay

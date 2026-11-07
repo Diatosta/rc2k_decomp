@@ -12,8 +12,8 @@ use crate::race::owner::race;
 use crate::race::owner_shared::Shared;
 use crate::scene::owner::scene;
 
-fn block(n: u32) -> u32 {
-    race().shared.work.car_block(n as usize)
+fn block(shared: &Shared, n: u32) -> u32 {
+    shared.work.car_block(n as usize)
 }
 
 /// `race::players_all_out` (0x445506): carry when every player is out (+0xB0 not 0): the
@@ -22,15 +22,16 @@ fn block(n: u32) -> u32 {
 /// than 8 players (the original reads past the table).
 pub fn players_all_out() -> Result<bool, Refused> {
     let vars = &net().vars;
+    let shared = &race().shared;
     // Converted: `rc2k_core::race::cars::players_all_out`.
     use rc2k_core::race::cars::{Players, players_all_out};
     {
         let trap = crate::race::trap::Trap::new();
-        let out = |n: u32| trap.read::<u32>(block(n) + 0xB0, "a car block's out flag") != 0;
+        let out = |n: u32| trap.read::<u32>(block(shared, n) + 0xB0, "a car block's out flag") != 0;
         let players = if vars.session.get() == 1 {
             Players::Chosen(vars.player.get())
         } else {
-            Players::First(race().shared.view.players.bits())
+            Players::First(shared.view.players.bits())
         };
         let all = players_all_out(players, out)?;
         trap.finish()?;
@@ -58,8 +59,7 @@ pub fn set_both_counters(value: u32) {
 }
 
 /// The view car `n`'s number: `dword_63DBA8`, `dword_63DBAC`, `dword_63DBA0`.
-pub fn view_car(n: usize) -> &'static crate::session::Dword {
-    let shared = &race().shared;
+pub fn view_car(shared: &Shared, n: usize) -> &crate::session::Dword {
     match n {
         0 => &shared.view.view_cars[0],
         1 => &shared.view.view_cars[1],
@@ -84,7 +84,7 @@ fn with_view_car(
 ) -> Result<(), Refused> {
     let current = &shared.work.current_car;
     let was = current.get();
-    current.set(view_car(n).get());
+    current.set(view_car(shared, n).get());
     let result = then();
     if result.is_err() {
         current.set(was);
@@ -95,8 +95,7 @@ fn with_view_car(
 /// `race::store_car_a` / `_b` / `_c` (0x454253, 0x454265, 0x454289): `g_currentCar` the
 /// view car's number, `drive::store_car`. (Its one caller, `race::scroll_maps`, reads no
 /// register it leaves.)
-pub fn store_view_car(n: usize) -> Result<(), Refused> {
-    let shared = &crate::race::owner::race().shared;
+pub fn store_view_car(shared: &Shared, n: usize) -> Result<(), Refused> {
     with_view_car(shared, n, crate::drive::store_car::store_car)
 }
 
