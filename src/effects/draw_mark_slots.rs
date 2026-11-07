@@ -61,9 +61,9 @@ pub fn draw_mark_slots(
     }
     // The settings' +0x8C and +0x64: the first car record's +0x2C and +4.
     let first = &crate::effects::setup::marks()?.cars[0];
-    if first.word(0x2C)? != 0 {
+    if first.gear_notice.get() != 0 {
         crate::effects::add_mark_slot::add_mark_slot(
-            first.word(4)?,
+            first.model.get(),
             crate::effects::mark_slots::VIEW_PLACE_MATRIX,
             effects,
         );

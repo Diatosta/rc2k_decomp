@@ -124,7 +124,7 @@ fn refusal(
             if e == 0 || eg(ring, e, field::PREV)? == 0 || eg(ring, e, field::NEXT)? == 0 {
                 return Ok(Some("a null ring entry or link"));
             }
-            if marks.cars[0].word(0)? != 0 && eg(ring, e, field::KIND)? == STREAK {
+            if marks.cars[0].streaks_on.get() != 0 && eg(ring, e, field::KIND)? == STREAK {
                 let life = eg(ring, e, field::LIFE)?;
                 if life >= ticks
                     && x87::compare_status(
@@ -241,7 +241,7 @@ pub fn run_ribbons(
             }
             let next = eg(ring, e, field::NEXT)?;
             // The settings' +0x60: the first car record's first word.
-            if crate::effects::setup::marks()?.cars[0].word(0)? != 0
+            if crate::effects::setup::marks()?.cars[0].streaks_on.get() != 0
                 && eg(ring, e, field::KIND)? == STREAK
                 && streak(frame, ring, e, scene, effects)?
             {

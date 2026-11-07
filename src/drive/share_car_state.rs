@@ -8,7 +8,7 @@
 //! - the car file's light record (`g_lightRecords`, 0x134 each, by
 //!   `race::car_file_number` of block +0x24) +0x2C .. +0x38 into record +0xC .. +0x18;
 //! - the block named at record +0x24 and +0x28 (the original wrote the addresses of
-//!   block +0x8C0 and +0x740 there; a block handle here: `MarkCar::whole_matrix`,
+//!   block +0x8C0 and +0x740 there; a block handle here: `MarkCar::whole`,
 //!   `part_matrix`);
 //! - about eighty fields moved as the original moves them (`MOVES`, the wheels' four
 //!   each), four of them cleared by the block's switches (+0x600 .. and bits 5 .. 8 of
@@ -61,10 +61,10 @@ macro_rules! blk {
 
 /// The light record's (record field, light record field) moves.
 const LIGHT_MOVES: [(RecordField, LightField); 4] = [
-    (|o| &o.head[5], |l| &l.axles[2]),
-    (|o| &o.head[6], |l| &l.axles[3]),
-    (|o| &o.head[3], |l| &l.axles[0]),
-    (|o| &o.head[4], |l| &l.axles[1]),
+    (|o| &o.axles[2], |l| &l.axles[2]),
+    (|o| &o.axles[3], |l| &l.axles[3]),
+    (|o| &o.axles[0], |l| &l.axles[0]),
+    (|o| &o.axles[1], |l| &l.axles[1]),
 ];
 
 /// (record field, block field) moves in the original's order, after the light record: the
@@ -145,31 +145,32 @@ pub fn share_car_state_at(
 ) -> Result<(), Refused> {
     let n = light_record(car)?;
     if let Some(count) = sharing::count_down(car.reset_marker.get()) {
-        o.put(0x30, 1)?;
+        o.reset_wait.set(1);
         car.reset_marker.set(count);
     }
-    o.put(0x2C, p.gear_notice.get())?;
+    o.gear_notice.set(p.gear_notice.get());
     p.gear_notice.set(0);
     let from = race.shared.view.level_from.bits();
     let step = race.course.numbers.four.bits();
-    for (out, field) in [(0x4C0, 0x2B4), (0x4C4, 0x2B8)] {
-        o.put(out, 0)?;
+    for (level, field) in o.levels.iter().zip([0x2B4, 0x2B8]) {
+        level.set(0);
         if compare_full(at(car, field)?, from) & 0x100 == 0 {
             let v = sub_div_to_int(at(car, field)?, from, step);
             scratch.set(v as u32);
-            o.put(out, sharing::level(v))?;
+            level.set(sharing::level(v));
         }
     }
-    o.put(0x1C, car.light_colour.get())?;
+    o.tag.set(car.light_colour.get());
     let light = &LIGHT_RECORDS.records[n as usize];
     for (r, l) in LIGHT_MOVES {
         r(o).set_bits(l(light).get());
     }
     o.set_block(crate::race::blocks_store::handle_of(
         GamePtr::to(car).addr(),
-    ))?;
-    o.put(8, x87::loaded(car.engine_speed.bits()))?;
-    o.put(4, n)?;
+    ));
+    o.engine_speed
+        .set_bits(x87::loaded(car.engine_speed.bits()));
+    o.model.set(n);
     for (r, b) in MOVES_A {
         r(o).set_bits(b(car).bits());
     }
@@ -202,40 +203,39 @@ pub fn share_car_state_at(
     o.records[4].kind.set(0);
     o.records[4].under_kind.set(0);
     let zero = x87::loaded(0);
-    for r in [0x24C, 0x250, 0x254, 0x244] {
-        o.put(r, zero)?;
+    for cell in &o.morph_floats {
+        cell.set_bits(zero);
     }
+    o.morph_start.set(zero);
     if car.contact_found.get() != 0 {
         for (r, b) in MOVES_B {
             r(o).set_bits(b(car).bits());
         }
-        for (r, v) in [
-            (0x230, &car.contact_point_x),
-            (0x234, &car.contact_point_ground),
-            (0x238, &car.contact_point_z),
-        ] {
-            o.put(r, x87::from_int(v.get() as i32))?;
+        for (cell, v) in o.records[4].place.iter().zip([
+            &car.contact_point_x,
+            &car.contact_point_ground,
+            &car.contact_point_z,
+        ]) {
+            cell.set_bits(x87::from_int(v.get() as i32));
         }
-        o.put(0x22C, car.contact_value.get())?;
+        o.records[4].size.set_bits(car.contact_value.get());
     }
-    for (k, mark) in car.impact_octant_marks.iter().enumerate() {
-        o.put(0x2CC + 4 * k as u32, mark.bits())?;
+    for (cell, mark) in o.factors.iter().zip(&car.impact_octant_marks) {
+        cell.set_bits(mark.bits());
     }
-    let mut kept = [0u32; 6];
-    for (k, v) in kept.iter_mut().enumerate() {
-        *v = o.word(0x258 + 4 * k as u32)?;
-    }
+    let kept_from = o.face_sums.each_ref().map(Dword::get);
+    let mut kept = kept_from;
     sharing::fill_holes(&mut kept);
     for (cell, v) in car.part_wake_counts.iter().zip(kept) {
         cell.set(v);
     }
     // +0xA3C .. (eight dwords, past `part_damage_limits`' seven) and +0xA5C .. (inside
     // `unknown_a58`): by offset in the block.
-    for k in 0..8 {
-        put(car, 0xA3C + 4 * k, o.word(0x32C + 4 * k)?)?;
+    for (k, cell) in o.slot_sums.iter().enumerate() {
+        put(car, 0xA3C + 4 * k as u32, cell.get())?;
     }
-    for k in 0..0x11 {
-        put(car, 0xA5C + 4 * k, o.word(0x3F4 + 4 * k)?)?;
+    for (k, cell) in o.kind_sums.iter().enumerate() {
+        put(car, 0xA5C + 4 * k as u32, cell.get())?;
     }
     Ok(())
 }

@@ -230,16 +230,3 @@ pub fn try_any<I: Iterator>(
     }
     Ok(false)
 }
-
-/// Whether `f` holds for every item of `items` (stopping at the first that fails).
-pub fn try_all<I: Iterator>(
-    items: I,
-    mut f: impl FnMut(I::Item) -> Result<bool, crate::errors::Refused>,
-) -> Result<bool, crate::errors::Refused> {
-    for item in items {
-        if !f(item)? {
-            return Ok(false);
-        }
-    }
-    Ok(true)
-}

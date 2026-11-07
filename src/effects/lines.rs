@@ -18,8 +18,7 @@ use crate::session::{Bytes, Dword, Float};
 use rc2k_core::effects::lines as core;
 
 /// A settings block is a car record's part (`core::BLOCKS_AT` from the settings).
-const BLOCK: u32 = crate::race::marks_settings_store::CAR_BLOCK;
-const _: () = assert!(BLOCK + 0x60 == core::BLOCKS_AT);
+const _: () = assert!(crate::race::marks_settings_store::CAR_BLOCK + 0x60 == core::BLOCKS_AT);
 
 fn get(at: GamePtr) -> Result<u32, BadInput> {
     at.read("a game field")
@@ -88,7 +87,7 @@ pub fn measure_slot_lines(
     {
         for k in 0..core::SLOTS {
             if core::slot_takes(
-                block.word(BLOCK + 0xD0 + 4 * k)?,
+                block.slot_kinds[k as usize].get(),
                 crate::scene::object_faces::byte(from + 7)?,
             ) {
                 lines_with(
@@ -96,7 +95,7 @@ pub fn measure_slot_lines(
                     paths,
                     from,
                     to,
-                    block.at(BLOCK + 0xF0 + 4 * k),
+                    GamePtr::to(&block.slot_sums[k as usize]),
                     x87_length,
                 )?;
             }
@@ -119,11 +118,11 @@ pub fn measure_kind_lines(
     {
         for k in 0..core::KINDS {
             if core::kind_takes(
-                block.word(BLOCK + 0x130 + 4 * k)?,
+                block.kinds[k as usize].get(),
                 crate::scene::object_faces::byte(from + 6)?,
                 crate::scene::object_faces::byte(from + 0xB)?,
             ) {
-                let count = block.at(BLOCK + 0x240 + 4 * k);
+                let count = GamePtr::to(&block.kind_counts[k as usize]);
                 put(
                     count,
                     get(count)?.wrapping_add(crate::scene::object_faces::word(from)?),
@@ -133,7 +132,7 @@ pub fn measure_kind_lines(
                     paths,
                     from,
                     to,
-                    block.at(BLOCK + 0x1B8 + 4 * k),
+                    GamePtr::to(&block.kind_sums[k as usize]),
                     x87_length,
                 )?;
             }
@@ -146,22 +145,24 @@ pub fn measure_kind_lines(
 struct GameBlocks(&'static MarksSettings, crate::effects::Sticky);
 
 impl GameBlocks {
-    /// Block `k`'s word at `offset`; a block past the eighth is refused.
-    fn word(&self, k: u32, offset: u32) -> Result<u32, BadInput> {
+    /// Block `k`; a block past the eighth is refused.
+    fn block(&self, k: u32) -> Result<&MarkCar, BadInput> {
         self.0
             .cars
             .get(k as usize)
-            .ok_or(BadInput("a settings block past the eighth"))?
-            .word(BLOCK + offset)
+            .ok_or(BadInput("a settings block past the eighth"))
     }
 }
 
 impl core::Blocks for GameBlocks {
     fn marked(&self, k: u32) -> bool {
-        self.1.take(self.word(k, 0xC)) != 0
+        self.1.take(self.block(k).map(|b| b.morph_kept.get())) != 0
     }
     fn objects(&self, k: u32) -> [u32; 2] {
-        [self.1.take(self.word(k, 0)), self.1.take(self.word(k, 4))]
+        [
+            self.1.take(self.block(k).map(|b| b.object.get())),
+            self.1.take(self.block(k).map(|b| b.second_object.get())),
+        ]
     }
     fn face_count(&self, object: u32) -> u32 {
         ObjectTables::slot_value(
@@ -227,15 +228,15 @@ pub fn measure_lines(
             if !every {
                 paths.lines_work.any.set(1u32);
             }
-            for o in (0x1C..=0x30).step_by(4) {
-                block.put(BLOCK + o, 0)?;
+            for cell in &block.face_sums {
+                cell.set(0);
             }
-            for n in 0..8 {
-                block.put(BLOCK + 0xF0 + 4 * n, 0)?;
+            for cell in &block.slot_sums {
+                cell.set(0);
             }
             for n in 0..0x11 {
-                block.put(BLOCK + 0x1B8 + 4 * n, 0)?;
-                block.put(BLOCK + 0x240 + 4 * n, 0)?;
+                block.kind_sums[n].set(0);
+                block.kind_counts[n].set(0);
             }
             for n in 0..(faces as i32).max(0) as u32 {
                 let from: u32 = crate::scene::objects::face_cell((first_a + n) as usize).get();
@@ -243,7 +244,13 @@ pub fn measure_lines(
                 if crate::scene::object_faces::byte(from + 6)? == 0x1C {
                     let kind = crate::scene::object_faces::byte(from + 0xB)? as u32;
                     if (1..=6).contains(&kind) {
-                        lines(course, paths, from, to, block.at(BLOCK + 0x18 + 4 * kind))?;
+                        lines(
+                            course,
+                            paths,
+                            from,
+                            to,
+                            GamePtr::to(&block.face_sums[kind as usize - 1]),
+                        )?;
                     }
                 }
                 measure_slot_lines(course, paths, from, to, block)?;
@@ -258,20 +265,20 @@ pub fn measure_lines(
                     )?;
                     Ok(())
                 };
-                for o in (0x1C..=0x30).step_by(4) {
-                    share(block.at(BLOCK + o), block.at(BLOCK + o + 0x18))?;
+                for (sum, of) in block.face_sums.iter().zip(&block.face_shares) {
+                    share(GamePtr::to(sum), GamePtr::to(of))?;
                 }
                 x87::finit();
                 for n in (0..8).rev() {
                     share(
-                        block.at(BLOCK + 0xF0 + 4 * n),
-                        block.at(BLOCK + 0x110 + 4 * n),
+                        GamePtr::to(&block.slot_sums[n]),
+                        GamePtr::to(&block.slot_shares[n]),
                     )?;
                 }
                 for n in (0..0x11).rev() {
                     share(
-                        block.at(BLOCK + 0x1B8 + 4 * n),
-                        block.at(BLOCK + 0x1FC + 4 * n),
+                        GamePtr::to(&block.kind_sums[n]),
+                        GamePtr::to(&block.kind_shares[n]),
                     )?;
                 }
             }
@@ -299,16 +306,19 @@ pub fn measure_starting_sums(
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
         let block = &marks.cars[k as usize];
-        for o in (0x1C..=0x30).step_by(4) {
-            block.put(BLOCK + o + 0x18, block.word(BLOCK + o)?)?;
+        for (share, sum) in block.face_shares.iter().zip(&block.face_sums) {
+            share.set(sum.get());
         }
-        for o in (0x1C..=0x30).step_by(4) {
-            block.put(BLOCK + o, 0)?;
+        for sum in &block.face_sums {
+            sum.set(0);
         }
-        for (from, to, n) in [(0xF0, 0x110, 8u32), (0x1B8, 0x1FC, 0x11)] {
-            for k in (0..n).rev() {
-                block.put(BLOCK + to + 4 * k, block.word(BLOCK + from + 4 * k)?)?;
-                block.put(BLOCK + from + 4 * k, 0)?;
+        for (sums, shares) in [
+            (&block.slot_sums[..], &block.slot_shares[..]),
+            (&block.kind_sums[..], &block.kind_shares[..]),
+        ] {
+            for (sum, share) in sums.iter().zip(shares).rev() {
+                share.set(sum.get());
+                sum.set(0);
             }
         }
     }
@@ -350,9 +360,9 @@ pub fn copy_block_points(
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), Refused> {
     {
-        let object = block.word(BLOCK)?;
+        let object = block.object.get();
         core::check_object(object)?;
-        let to = block_points(paths, block.word(BLOCK + 0x8C)?)?;
+        let to = block_points(paths, block.point_block.get())?;
         let count = scene.objects.slots.point_counts[object as usize].get() as i32;
         let first: u32 = scene.objects.slots.first_point[object as usize].get();
         let mut from = first
@@ -386,12 +396,12 @@ pub fn set_up_blocks(
     let count = marks.cars_copy.get() as i32;
     for k in (0..count.max(0) as u32).rev() {
         let block = &marks.cars[k as usize];
-        for o in (0x90..=0xCC).step_by(4) {
-            block.put(BLOCK + o, u32::MAX)?;
+        for cell in block.factors.iter().chain(&block.kept_factors) {
+            cell.set_bits(u32::MAX);
         }
         let points: u32 = ObjectTables::slot_value(
             &scene.objects.slots.point_counts,
-            block.word(BLOCK)? as usize,
+            block.object.get() as usize,
         );
         let bytes = points
             .checked_mul(12)
@@ -400,14 +410,18 @@ pub fn set_up_blocks(
             .block_points
             .get(k as usize)
             .ok_or(BadInput("more than 8 settings blocks"))?;
-        table.take_at(block.at(BLOCK + 0x4C), bytes, vec![[0; 3]; points as usize])?;
+        table.take_at(
+            GamePtr::to(&block.points_list),
+            bytes,
+            vec![[0; 3]; points as usize],
+        )?;
         let taken = k + 1;
         paths.morph_work.taken.set(taken);
-        block.put(BLOCK + 0x8C, taken)?;
+        block.point_block.set(taken);
         copy_block_points(course, paths, block, scene)?;
         for n in 0..8 {
             let v = x87::loaded(paths.lines_work.block_start[n].bits());
-            block.put(BLOCK + 0x90 + 4 * n as u32, v)?;
+            block.factors[n].set_bits(v);
         }
     }
     Ok(())

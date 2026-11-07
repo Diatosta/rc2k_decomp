@@ -67,7 +67,7 @@ pub fn emit_particle_18(
                 break;
             }
             let tag = match before {
-                None => object.word(car_word::TAG)?,
+                None => object.tag.get(),
                 // (The original's esi: the entry before's last x, 0 here.)
                 Some(b) => crate::effects::ring_entries::get(ring, b, field::LAST_PLACE_X)?,
             };

@@ -27,8 +27,8 @@ fn prepare(
 ) -> Result<(), Refused> {
     {
         let size =
-            x87::int_times_to_int(object.word(0x90)? as i32, effects.setup.floats.three.bits());
-        object.at(0x90).write::<i32>(size, "a mark's field")?;
+            x87::int_times_to_int(object.rate.get() as i32, effects.setup.floats.three.bits());
+        object.rate.set(size as u32);
         record.pace.set(record.pace.get().wrapping_add(PACE));
         effects.kinds.emitter.record.set(2);
         let flip = record.flip.get() ^ 1;

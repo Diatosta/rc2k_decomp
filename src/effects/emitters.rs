@@ -16,16 +16,6 @@ pub use crate::effects::ring_store::Ring;
 
 pub const MOST_TAKEN: u32 = 0x3FE;
 
-/// Byte offsets in a car's object (`MarkCar::word`) the emitters read.
-pub mod car_word {
-    /// The car's tag (24 bits of it go on the entries).
-    pub const TAG: u32 = 0x1C;
-    /// The car's pace.
-    pub const PACE: u32 = 0x88;
-    /// The sum the rate gate adds the rate to.
-    pub const GATE_BASE: u32 = 0x90;
-}
-
 /// A variable the emitters keep a random in (a typed dword, `&Dword`).
 pub trait Random: Copy {
     fn load(self) -> u32;
@@ -104,7 +94,7 @@ pub fn emitting_car(
 /// Whether the emitters are on a car whose matrix is set (the emitters' refusal).
 pub fn car_with_matrix() -> Result<bool, Refused> {
     match crate::race::marks_settings_store::car_or_none(effects().kinds.emitter.car.get()) {
-        Some(car) => Ok(car.has_block(0x24)?),
+        Some(car) => Ok(car.has_whole()),
         None => Ok(false),
     }
 }
@@ -148,7 +138,7 @@ pub fn gate(
 /// The gate after the rate (see `gate`).
 pub fn gate_with(wheel: &MarkRecord, object: &'static MarkCar, rate: i32) -> Result<Gate, Refused> {
     Ok({
-        let sum = object.word(car_word::GATE_BASE)?.wrapping_add(rate as u32);
+        let sum = object.rate.get().wrapping_add(rate as u32);
         if (sum as i32) < 0x1000 {
             return Ok(Gate {
                 rate,
@@ -156,7 +146,7 @@ pub fn gate_with(wheel: &MarkRecord, object: &'static MarkCar, rate: i32) -> Res
                 passes: false,
             });
         }
-        let total = wheel.pace.get().wrapping_add(object.word(car_word::PACE)?);
+        let total = wheel.pace.get().wrapping_add(object.pace.get());
         let limit = sum.wrapping_add(sum).wrapping_sub(sum >> 1);
         if (total as i32) < limit as i32 {
             return Ok(Gate {

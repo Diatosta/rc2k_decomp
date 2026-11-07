@@ -62,7 +62,7 @@ fn box_(ring: &Ring, e: u32, whole: &[Float; 16], car: &MarkCar) {
 
 /// The car's whole matrix (its block's), refused where the original would read address 0.
 fn whole_of(car: &MarkCar) -> Result<&'static [Float; 16], BadInput> {
-    crate::race::blocks_store::car_of(car.word(0x24)?)
+    crate::race::blocks_store::car_of(car.whole_block.get())
         .map(|b| &b.whole_matrix)
         .ok_or(BadInput("a ring entry without its object"))
 }
@@ -203,7 +203,7 @@ fn refusal(ring: &Ring) -> Result<Option<&'static str>, Refused> {
                 let obj = car_or_none(eg(ring, e, field::CAR)?);
                 let needs = matches!(kind, 6 | 0x15 | 1 | 0x10 | 0x11)
                     || entry_flag(marks, eg(ring, e, field::EMITTER_TAG)?)? != 0;
-                if needs && !obj.map_or(Ok(false), |c| c.has_block(0x24))? {
+                if needs && !obj.is_some_and(MarkCar::has_whole) {
                     return Ok(Some("a ring entry without its object"));
                 }
                 // The draws' own refusals, for an entry that may be drawn.
@@ -794,26 +794,14 @@ pub fn run_ring(
 use crate::effects::plain::{ld_cell, ldi_cell};
 use crate::math::x87_float as bh;
 
-/// Byte offsets of the words of a car's record in the settings that this file reads.
-mod car_word {
-    /// The car's pace (an integer).
-    pub const PACE: usize = 0x88;
-    /// The car's direction vector.
-    pub const AXIS_X: usize = 0x4C;
-    pub const AXIS_Y: usize = 0x50;
-    pub const AXIS_Z: usize = 0x54;
-    /// The car's 3 x 3 turning matrix.
-    pub const MATRIX: usize = 0x94;
+/// `fld dword ptr` of a float of a car record in the settings.
+fn car_float(cell: &Float) -> bh::X {
+    bh::ld(cell.bits())
 }
 
-/// `fld dword ptr [car + off]` of a car record in the settings.
-fn car_float(car: &MarkCar, off: usize) -> bh::X {
-    bh::ld(car.head[off / 4].get())
-}
-
-/// `fld dword ptr [m + off]` of the car's 3 x 3 matrix (the record's +0x94).
-fn turn(car: &MarkCar, off: usize) -> bh::X {
-    car_float(car, car_word::MATRIX + off)
+/// The car's 3 x 3 turning matrix (the record's `matrix`, 4 floats a row): cell `n`.
+fn turn(car: &MarkCar, n: usize) -> bh::X {
+    car_float(&car.matrix[n])
 }
 
 /// `box_`'s x87 block as plain Rust on the x87 model (45 instructions), same order and memory places.
@@ -832,25 +820,25 @@ fn box_x87(ring: &Ring, w: &RingWork, e: u32, whole: &[Float; 16], car: &MarkCar
     let t8 = bh::ld(w.away[0].bits());
     let t9 = turn(car, 0);
     let t10 = t9 * t8;
-    let t11 = turn(car, 0x10);
+    let t11 = turn(car, 4);
     let t12 = t11 * t7;
-    let t13 = turn(car, 0x20);
+    let t13 = turn(car, 8);
     let t14 = t13 * t6;
     let t15 = t12 + t14;
     let t16 = t10 + t15;
-    let t17 = turn(car, 0x4);
+    let t17 = turn(car, 1);
     let t18 = t17 * t8;
-    let t19 = turn(car, 0x14);
+    let t19 = turn(car, 5);
     let t20 = t19 * t7;
-    let t21 = turn(car, 0x24);
+    let t21 = turn(car, 9);
     let t22 = t21 * t6;
     let t23 = t20 + t22;
     let _t24 = t18 + t23;
-    let t25 = turn(car, 0x8);
+    let t25 = turn(car, 2);
     let t26 = t8 * t25;
-    let t27 = turn(car, 0x18);
+    let t27 = turn(car, 6);
     let t28 = t7 * t27;
-    let t29 = turn(car, 0x28);
+    let t29 = turn(car, 10);
     let t30 = t6 * t29;
     let t31 = t30 + t28;
     let t32 = t26 + t31;
@@ -882,11 +870,11 @@ fn facing_x87(car: &MarkCar, f: &MarksFloats, w: &RingWork) {
     let t15 = t9 * t14;
     w.away[2].set_bits(bh::st(t15));
     let t16 = bh::ld(w.away[0].bits());
-    let t17 = t16 * car_float(car, car_word::AXIS_X);
+    let t17 = t16 * car_float(&car.motion[0]);
     let t18 = bh::ld(w.away[1].bits());
-    let t19 = t18 * car_float(car, car_word::AXIS_Y);
+    let t19 = t18 * car_float(&car.motion[1]);
     let t20 = bh::ld(w.away[2].bits());
-    let t21 = t20 * car_float(car, car_word::AXIS_Z);
+    let t21 = t20 * car_float(&car.motion[2]);
     let t22 = t19 + t21;
     let t23 = t17 + t22;
     w.facing.set_bits(bh::st(t23));
@@ -938,15 +926,15 @@ fn pull_facing_x87(car: &MarkCar, l: &[u8; 10], f: &MarksFloats, w: &RingWork) {
     let t6 = bh::ld(w.away[2].bits());
     let t7 = t1 * t6;
     w.away[2].set_bits(bh::st(t7));
-    let t8 = ldi_cell(&car.head[car_word::PACE / 4]);
+    let t8 = ldi_cell(&car.pace);
     let t9 = bh::ld(f.one.bits()) / t8;
-    let t10 = car_float(car, car_word::AXIS_X);
+    let t10 = car_float(&car.motion[0]);
     let t11 = t10 * t9;
     w.turned[0].set_bits(bh::st(t11));
-    let t12 = car_float(car, car_word::AXIS_Y);
+    let t12 = car_float(&car.motion[1]);
     let t13 = t12 * t9;
     w.turned[1].set_bits(bh::st(t13));
-    let t14 = car_float(car, car_word::AXIS_Z);
+    let t14 = car_float(&car.motion[2]);
     let t15 = t9 * t14;
     w.turned[2].set_bits(bh::st(t15));
     let t16 = bh::ld(w.away[0].bits());
@@ -972,7 +960,7 @@ fn pull_strength_x87(
     w: &RingWork,
     rk: &RingKinds,
 ) {
-    let t0 = ldi_cell(&car.head[car_word::PACE / 4]);
+    let t0 = ldi_cell(&car.pace);
     let t1 = t0 * bh::ld(rk.near_scale.to_bits());
     let t2 = t1 + bh::ld(f.one.bits());
     let t3 = bh::ld(f.one.bits()) / t2;
@@ -996,25 +984,25 @@ fn box_place_x87(ring: &Ring, w: &RingWork, e: u32, car: &MarkCar) {
     let t2 = eld(ring, e, field::PLACE_X);
     let t3 = turn(car, 0);
     let t4 = t3 * t2;
-    let t5 = turn(car, 0x10);
+    let t5 = turn(car, 4);
     let t6 = t5 * t1;
-    let t7 = turn(car, 0x20);
+    let t7 = turn(car, 8);
     let t8 = t7 * t0;
     let t9 = t6 + t8;
     let t10 = t4 + t9;
-    let t11 = turn(car, 0x4);
+    let t11 = turn(car, 1);
     let t12 = t11 * t2;
-    let t13 = turn(car, 0x14);
+    let t13 = turn(car, 5);
     let t14 = t13 * t1;
-    let t15 = turn(car, 0x24);
+    let t15 = turn(car, 9);
     let t16 = t15 * t0;
     let t17 = t14 + t16;
     let _t18 = t12 + t17;
-    let t19 = turn(car, 0x8);
+    let t19 = turn(car, 2);
     let t20 = t2 * t19;
-    let t21 = turn(car, 0x18);
+    let t21 = turn(car, 6);
     let t22 = t1 * t21;
-    let t23 = turn(car, 0x28);
+    let t23 = turn(car, 10);
     let t24 = t0 * t23;
     let t25 = t24 + t22;
     let t26 = t20 + t25;
@@ -1473,7 +1461,7 @@ mod asm_differential {
     use crate::effects::ring_store::RingWork;
     use crate::effects::tuning::MarksFloats;
     use crate::race::marks_settings_store::MarkCar;
-    use crate::session::{Dword, Float};
+    use crate::session::Float;
 
     fn word(at: usize) -> u32 {
         unsafe { crate::pointers::host_at(at).cast::<u32>().read_unaligned() }
@@ -1481,15 +1469,12 @@ mod asm_differential {
 
     /// A car record whose words at the record `offsets` hold the test buffer's dwords at `at + offset - base`.
     fn car_with(at: usize, base: usize, offsets: &[usize]) -> MarkCar {
-        let car = MarkCar {
-            head: std::array::from_fn(|_| Dword::new(0)),
-            records: std::array::from_fn(|_| {
-                crate::race::marks_settings_store::MarkRecord::zeroed()
-            }),
-            tail: std::array::from_fn(|_| Dword::new(0)),
-        };
+        let car = MarkCar::zeroed();
         for &o in offsets {
-            car.head[o / 4].set(word(at + o - base));
+            crate::pointers::GamePtr::to(&car)
+                .offset(o as u32)
+                .write(word(at + o - base), "a test car record")
+                .unwrap();
         }
         car
     }

@@ -549,14 +549,14 @@ pub fn run_view_marks(
         race.shared
             .work
             .car_record(b as usize)?
-            .at(0)
-            .write(first, "a car record's first word")?;
+            .streaks_on
+            .set(first);
     }
     race.shared
         .work
         .car_record(view as usize)?
-        .at(0)
-        .write(1u32, "a car record's first word")?;
+        .streaks_on
+        .set(1);
     let centre = (
         drawing.scene.view_centre[0].bits(),
         drawing.scene.view_centre[1].bits(),

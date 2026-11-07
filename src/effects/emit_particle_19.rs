@@ -35,8 +35,8 @@ const LEVELS: u32 = 9;
 /// One twin's variables.
 pub struct TwinSet {
     pub kind: u32,
-    /// The car's field holding the level.
-    pub level_at: u32,
+    /// The index of the car's level in its `levels`.
+    pub level: usize,
     pub flags: u32,
     pub tuning: &'static TwinTuning,
 }
@@ -44,7 +44,7 @@ pub struct TwinSet {
 /// `emit_particle_19`'s.
 pub static NINETEENTH: TwinSet = TwinSet {
     kind: 0x13,
-    level_at: 0x4C0,
+    level: 0,
     flags: 0x3E,
     tuning: &crate::effects::owner::EFFECTS.particles.nineteenth_tuning,
 };
@@ -53,7 +53,7 @@ pub static NINETEENTH: TwinSet = TwinSet {
 /// writing.
 fn makes(ring: &Ring, set: &TwinSet, object: &'static MarkCar) -> Result<bool, Refused> {
     Ok({
-        let level = object.word(set.level_at)? as i32;
+        let level = object.levels[set.level].get() as i32;
         let r = set
             .tuning
             .chance_random
@@ -77,7 +77,7 @@ pub fn refusal(
         if !car_with_matrix()? {
             return Ok(Some("a null g_marksCar or matrix"));
         }
-        if object.word(set.level_at)? >= LEVELS {
+        if object.levels[set.level].get() >= LEVELS {
             return Ok(Some("a level past dword_939B86's 9 entries"));
         }
         None
@@ -106,19 +106,23 @@ pub fn emit_twin(
     if let Some(why) = refusal(ring, set, object)? {
         return Err(BadInput(why).into());
     }
-    let level = object.word(set.level_at)?;
+    let level = object.levels[set.level].get();
     particles.twin_state.level.set(level);
     let r = next_c5(&set.tuning.chance_random);
     if (r.rotate_right(16) & 7) as i32 >= level as i32 {
         return Ok(());
     }
     masks.surface.wheel_flags.set(set.flags);
-    let motion = [object.word(0x4C)?, object.word(0x50)?, object.word(0x54)?];
+    let motion = [
+        object.motion[0].bits(),
+        object.motion[1].bits(),
+        object.motion[2].bits(),
+    ];
     crate::session::write_bits(&particles.twin_state.motion, motion);
     if next_entry(ring)?.is_none() {
         return Ok(());
     }
-    let e = take_entry(ring, effects, object.word(0x1C)? & 0xFF_FFFF, set.kind)?;
+    let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, set.kind)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
     let car = emitting_car(effects)?;
     let cells = car.whole()?;

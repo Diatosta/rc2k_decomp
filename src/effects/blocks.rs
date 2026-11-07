@@ -149,21 +149,22 @@ pub fn reset_settings_blocks(effects: &crate::effects::owner::Effects) -> Result
     {
         let marks = crate::effects::setup::marks()?;
         for n in (0..SETTINGS_BLOCKS).rev() {
-            let at = |o: u32| marks.cars[n as usize].at(o);
-            for k in 0..6u32 {
-                let v = x87::loaded(effects.kinds.emitter.settings_start[k as usize].bits());
-                at(0x4C + 4 * k).write(v, "a settings block")?;
+            let car = &marks.cars[n as usize];
+            for (cell, v) in car
+                .motion
+                .iter()
+                .chain(&car.steps[0])
+                .zip(&effects.kinds.emitter.settings_start)
+            {
+                cell.set_bits(x87::loaded(v.bits()));
             }
-            let mut last = [0u32; 3];
-            for (slot, o) in last.iter_mut().zip([0x58, 0x5C, 0x60]) {
-                *slot = at(o).read::<u32>("a settings block")?;
-            }
-            for o in [0x64, 0x70, 0x7C] {
-                for (k, v) in last.into_iter().enumerate() {
-                    at(o + 4 * k as u32).write(v, "a settings block")?;
+            let last = car.steps[0].each_ref().map(Float::bits);
+            for steps in &car.steps[1..] {
+                for (cell, v) in steps.iter().zip(last) {
+                    cell.set_bits(v);
                 }
             }
-            at(0x30).write(8u32, "a settings block")?;
+            car.reset_wait.set(8);
         }
     }
     Ok(())

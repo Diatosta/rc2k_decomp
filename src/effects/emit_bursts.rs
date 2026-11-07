@@ -207,7 +207,7 @@ pub fn emit_bursts_with(
                 if ring.work.count.get() == MOST_TAKEN {
                     return Ok(());
                 }
-                let e = take_entry(ring, effects, object.word(0x1C)? & 0xFF_FFFF, h.kind)?;
+                let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, h.kind)?;
                 let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
                 let d = read_bits(&ring.work.direction);
                 let (out, _) = crate::effects::spread_point::spread_point(
@@ -229,9 +229,9 @@ pub fn emit_bursts_with(
                 put(0x60, x87::from_int(size as i32))?;
                 put(0x58, ((flags2 & 0x3F) << 4) + (r.rotate_right(17) & 3))?;
                 let tk: u32 = effects.setup.floats.minus_eighth.bits();
-                put(0x40, x87::mul(car.word(0x54)?, tk))?;
-                put(0x3C, x87::mul(car.word(0x50)?, tk))?;
-                put(0x38, x87::mul(car.word(0x4C)?, tk))?;
+                put(0x40, x87::mul(car.motion[2].bits(), tk))?;
+                put(0x3C, x87::mul(car.motion[1].bits(), tk))?;
+                put(0x38, x87::mul(car.motion[0].bits(), tk))?;
                 for o in [0x44, 0x48, 0x4C] {
                     put(o, 0)?;
                 }

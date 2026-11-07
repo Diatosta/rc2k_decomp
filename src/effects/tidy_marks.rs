@@ -25,7 +25,6 @@ use crate::memory::free_list::{free_list, free_list_at};
 use crate::pointers::{GamePtr, Store, load_value};
 
 // 0x4D06F3's ebp: the settings' +0x29C for car 0.
-const CAR_PART: u32 = crate::race::marks_settings_store::CAR_BLOCK;
 const MOST_CARS: i32 = 8;
 /// The six lists, in the order freed.
 fn lists<'a>(ring: &'a Ring, masks: &'a Masks) -> [&'a dyn Store; 6] {
@@ -44,7 +43,7 @@ fn car_lists() -> Result<Vec<GamePtr>, BadInput> {
     let marks = crate::effects::setup::marks()?;
     let count = (marks.cars_copy.get() as i32).clamp(0, MOST_CARS) as u32;
     Ok((0..count)
-        .map(|n| marks.cars[n as usize].at(CAR_PART + 0x4C))
+        .map(|n| GamePtr::to(&marks.cars[n as usize].points_list))
         .collect())
 }
 
@@ -71,11 +70,11 @@ pub fn tidy_marks(effects: &Effects) -> Result<(), Refused> {
     }
     for n in 0..count as u32 {
         let car = &marks.cars[n as usize];
-        free_list_at(car.at(CAR_PART + 0x4C))?;
+        free_list_at(GamePtr::to(&car.points_list))?;
         if let Some(points) = paths.block_points.get(n as usize) {
             points.give_back();
         }
-        car.put(CAR_PART + 0x8C, paths.morph_work.taken.get())?;
+        car.point_block.set(paths.morph_work.taken.get());
     }
     for list in lists(ring, masks) {
         free_list(list)?;

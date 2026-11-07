@@ -65,10 +65,10 @@ fn refusal(settings: u32) -> Result<Option<&'static str>, Refused> {
         }
         for n in cars()? {
             let car = &marks.cars[n];
-            if !car.has_block(0x24)? || !car.has_block(0x28)? {
+            if !car.has_whole() || !car.has_parts() {
                 return Ok(Some("a car's null matrix or vector"));
             }
-            if car.word(4)? >= MODELS {
+            if car.model.get() >= MODELS {
                 return Ok(Some("a car model past the cars' 34"));
             }
         }
@@ -93,52 +93,51 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
         let car = &crate::effects::setup::marks()?.cars[n as usize];
         effects.kinds.emitter.car.set(car_handle(n as usize));
         let whole = car.whole()?;
-        adjugate_matrix(whole, &car.head[0x94 / 4..]);
-        for (to, from) in [(0x7C, 0x70), (0x70, 0x64), (0x64, 0x58)] {
-            let v = [car.word(from)?, car.word(from + 4)?, car.word(from + 8)?];
-            for (k, x) in v.iter().enumerate() {
-                car.put(to + 4 * k as u32, *x)?;
+        adjugate_matrix(whole, &car.matrix);
+        for (to, from) in [(3, 2), (2, 1), (1, 0)] {
+            for k in 0..3 {
+                car.steps[to][k].set_bits(car.steps[from][k].bits());
             }
         }
         for k in 0..3 {
-            let k4 = 4 * k;
-            car.put(
-                0x58 + k4,
-                x87::sub(matrix_cell(whole, 0x30 + k4)?, car.word(0x40 + k4)?),
-            )?;
+            car.steps[0][k].set_bits(x87::sub(
+                matrix_cell(whole, 0x30 + 4 * k as u32)?,
+                car.last_place[k].bits(),
+            ));
         }
         let mean_k: u32 = effects.setup.floats.quarter.bits();
         for k in 0..3 {
-            let k4 = 4 * k;
-            car.put(
-                0x4C + k4,
-                x87::sum4_times(
-                    car.word(0x58 + k4)?,
-                    car.word(0x64 + k4)?,
-                    car.word(0x70 + k4)?,
-                    car.word(0x7C + k4)?,
-                    mean_k,
-                ),
-            )?;
+            car.motion[k].set_bits(x87::sum4_times(
+                car.steps[0][k].bits(),
+                car.steps[1][k].bits(),
+                car.steps[2][k].bits(),
+                car.steps[3][k].bits(),
+                mean_k,
+            ));
         }
-        car.put(0x40, matrix_cell(whole, 0x30)?)?;
-        car.put(0x44, matrix_cell(whole, 0x34)?)?;
-        car.put(0x48, matrix_cell(whole, 0x38)?)?;
+        for k in 0..3 {
+            car.last_place[k].set_bits(matrix_cell(whole, 0x30 + 4 * k as u32)?);
+        }
         let [k1, k2, k3] = read_bits(&effects.kinds.emitter.rate_k);
         let one: u32 = effects.setup.floats.one.bits();
         let (length, rate) = x87::length_and_rate(
-            [car.word(0x4C)?, car.word(0x50)?, car.word(0x54)?],
+            [
+                car.motion[0].bits(),
+                car.motion[1].bits(),
+                car.motion[2].bits(),
+            ],
             k1,
             k2,
             one,
             k3,
         );
-        car.put(0x88, length as u32)?;
-        car.put(0x90, rate as u32)?;
-        if car.word(0x30)? != 0 {
-            for o in [0x4C, 0x50, 0x54, 0x88] {
-                car.put(o, 0)?;
+        car.pace.set(length as u32);
+        car.rate.set(rate as u32);
+        if car.reset_wait.get() != 0 {
+            for cell in &car.motion {
+                cell.set_bits(0);
             }
+            car.pace.set(0);
         }
         let parts = car.parts()?;
         let up = read_bits(&effects.kinds.emitter.up);
@@ -157,11 +156,11 @@ pub fn cars_particles(effects: &Effects) -> Result<(), Refused> {
             x87::product_difference(b[0], across[1], b[1], across[0]),
         ];
         write_bits(&effects.kinds.emitter.side_a, a);
-        let model = car.word(4)?;
+        let model = car.model.get();
         effects.kinds.emitter.looks[0].set(paths.spline_head.look(2 * model as usize));
         effects.kinds.emitter.looks[1].set(paths.spline_head.look(2 * model as usize + 2));
-        if car.word(0x30)? != 0 {
-            car.put(0x30, car.word(0x30)?.wrapping_sub(1))?;
+        if car.reset_wait.get() != 0 {
+            car.reset_wait.set(car.reset_wait.get().wrapping_sub(1));
         } else {
             emit_car_particles(effects, car)?;
         }

@@ -10,17 +10,98 @@ use crate::race::owner::race;
 use crate::session::{Dword, Float};
 
 /// A car's record in the settings (0x4C8 bytes; `effects::blocks`, `effects::cars_particles`,
-/// `effects::morph_object_points`, `effects::tidy_marks` read its words by offset). Its five
-/// wheel and body records (0x48 bytes each, from +0xD4) are typed; the rest is words.
+/// `effects::morph_object_points`, `effects::tidy_marks` work on it). Names are readings from
+/// what writes the record (`drive::share_car_state`, from the car block) and what reads it.
+/// The five wheel and body records (0x48 bytes each) are `MarkRecord`s; the tail from +0x23C
+/// is the lines' and the point morphs' part (`CAR_BLOCK`).
 #[repr(C)]
 #[derive(rc2k_derive::Cells)]
 pub struct MarkCar {
-    /// +0x0 .. +0xD4: the car's words (the object's figures, the matrix at +0x94).
-    pub head: [Dword; RECORDS_AT / 4],
-    /// +0xD4: the four wheels' records, then the body's (+0x1F4).
+    /// +0x0: whether the streaks are drawn (the first car's is the one `effects::run_ribbons` asks).
+    pub streaks_on: Dword,
+    /// +0x4: the car's model (`effects::cars_particles` refuses 34 or more); the light
+    /// record's number.
+    pub model: Dword,
+    /// +0x8: the engine speed (a float), the strength of the kind 13 particles.
+    pub engine_speed: Float,
+    /// +0xc: the four axles' whole numbers (the light record's `axles`).
+    pub axles: [Dword; 4],
+    /// +0x1c: the car's tag (the light colour; 24 bits of it go on the ring entries).
+    pub tag: Dword,
+    /// +0x20: not read.
+    pub unread_20: Dword,
+    /// +0x24: the car block (handle) whose whole matrix is used; 0 for none.
+    pub whole_block: Dword,
+    /// +0x28: the car block (handle) whose part matrices are used; 0 for none.
+    pub parts_block: Dword,
+    /// +0x2c: the gear notice (copied from the sound object).
+    pub gear_notice: Dword,
+    /// +0x30: the countdown after a reset (the emitters wait it out; 8 at the start).
+    pub reset_wait: Dword,
+    /// +0x34: not read.
+    pub unread_34: [Dword; 3],
+    /// +0x40: the car's place (the whole matrix's translation, as of the last frame).
+    pub last_place: [Float; 3],
+    /// +0x4c: the car's motion (the mean of the four steps).
+    pub motion: [Float; 3],
+    /// +0x58: the last four steps (this frame's first), three floats each.
+    pub steps: [[Float; 3]; 4],
+    /// +0x88: the car's pace (a whole number after `cars_particles`).
+    pub pace: Dword,
+    /// +0x8c: not read.
+    pub unread_8c: Dword,
+    /// +0x90: the rate the emitters' gates add (after `cars_particles`); the body's size.
+    pub rate: Dword,
+    /// +0x94: the car's inverse matrix (`adjugate_matrix` of the whole one: the turn at
+    /// +0x94 .. +0xb4, the translation at +0xc4 .. +0xcc).
+    pub matrix: [Float; 15],
+    /// +0xd0: not read.
+    pub unread_d0: Dword,
+    /// +0xd4: the four wheels' records, then the body's (+0x1f4).
     pub records: [MarkRecord; RECORDS],
-    /// +0x23C ..: the car's other words.
-    pub tail: [Dword; (CAR_LEN - RECORDS_AT - RECORDS * RECORD_LEN) / 4],
+    /// +0x23c: the object the lines and morphs work on.
+    pub object: Dword,
+    /// +0x240: the second object (the morphs' other end).
+    pub second_object: Dword,
+    /// +0x244: the morph's start (zeroed by `drive::share_car_state`).
+    pub morph_start: Dword,
+    /// +0x248: the morph's kept figure (`effects::morph_object_points`).
+    pub morph_kept: Dword,
+    /// +0x24c: three floats `drive::share_car_state` zeroes.
+    pub morph_floats: [Float; 3],
+    /// +0x258: the face sums of the kinds 1 to 6 (`effects::lines`); the car block's wake counts.
+    pub face_sums: [Dword; 6],
+    /// +0x270: the shares made from them.
+    pub face_shares: [Dword; 6],
+    /// +0x288: the list (16 bytes: a `MemoryList`) the block's point table is counted on
+    /// (`effects::lines::BLOCK_POINTS`).
+    pub points_list: [Dword; 4],
+    /// +0x298: not read.
+    pub unread_298: [Dword; 12],
+    /// +0x2c8: the number of the table taken for the block's points (1 + the car's).
+    pub point_block: Dword,
+    /// +0x2cc: the eight factors of the morph (`g_marksBlockStart`; the car block's octant marks).
+    pub factors: [Float; 8],
+    /// +0x2ec: the factors kept by the morph.
+    pub kept_factors: [Float; 8],
+    /// +0x30c: the eight slots' kinds (the low byte).
+    pub slot_kinds: [Dword; 8],
+    /// +0x32c: the slots' line sums.
+    pub slot_sums: [Dword; 8],
+    /// +0x34c: the slots' shares.
+    pub slot_shares: [Dword; 8],
+    /// +0x36c: the 0x11 kinds (the low byte).
+    pub kinds: [Dword; 0x11],
+    /// +0x3b0: not read.
+    pub unread_3b0: [Dword; 0x11],
+    /// +0x3f4: the kinds' line sums.
+    pub kind_sums: [Dword; 0x11],
+    /// +0x438: the kinds' shares.
+    pub kind_shares: [Dword; 0x11],
+    /// +0x47c: the kinds' point counts.
+    pub kind_counts: [Dword; 0x11],
+    /// +0x4c0: the two levels `drive::share_car_state` keeps.
+    pub levels: [Dword; 2],
 }
 
 /// A wheel's or the body's record inside a car's (0x48 bytes): what the emitters keep per
@@ -80,31 +161,47 @@ const _: () = assert!(std::mem::offset_of!(MarkRecord, chance) == 0x34);
 const _: () = assert!(std::mem::offset_of!(MarkRecord, place) == 0x3C);
 const _: () = assert!(std::mem::size_of::<MarkCar>() == CAR_LEN);
 const _: () = assert!(std::mem::offset_of!(MarkCar, records) == RECORDS_AT);
+const _: () = {
+    use std::mem::offset_of as at;
+    assert!(at!(MarkCar, model) == 0x4);
+    assert!(at!(MarkCar, engine_speed) == 0x8);
+    assert!(at!(MarkCar, axles) == 0xC);
+    assert!(at!(MarkCar, tag) == 0x1C);
+    assert!(at!(MarkCar, whole_block) == 0x24);
+    assert!(at!(MarkCar, parts_block) == 0x28);
+    assert!(at!(MarkCar, gear_notice) == 0x2C);
+    assert!(at!(MarkCar, reset_wait) == 0x30);
+    assert!(at!(MarkCar, last_place) == 0x40);
+    assert!(at!(MarkCar, motion) == 0x4C);
+    assert!(at!(MarkCar, steps) == 0x58);
+    assert!(at!(MarkCar, pace) == 0x88);
+    assert!(at!(MarkCar, rate) == 0x90);
+    assert!(at!(MarkCar, matrix) == 0x94);
+    assert!(at!(MarkCar, unread_d0) == 0xD0);
+    assert!(at!(MarkCar, object) == 0x23C);
+    assert!(at!(MarkCar, second_object) == 0x240);
+    assert!(at!(MarkCar, morph_start) == 0x244);
+    assert!(at!(MarkCar, morph_kept) == 0x248);
+    assert!(at!(MarkCar, morph_floats) == 0x24C);
+    assert!(at!(MarkCar, face_sums) == 0x258);
+    assert!(at!(MarkCar, face_shares) == 0x270);
+    assert!(at!(MarkCar, points_list) == 0x288);
+    assert!(at!(MarkCar, unread_298) == 0x298);
+    assert!(at!(MarkCar, point_block) == 0x2C8);
+    assert!(at!(MarkCar, factors) == 0x2CC);
+    assert!(at!(MarkCar, kept_factors) == 0x2EC);
+    assert!(at!(MarkCar, slot_kinds) == 0x30C);
+    assert!(at!(MarkCar, slot_sums) == 0x32C);
+    assert!(at!(MarkCar, slot_shares) == 0x34C);
+    assert!(at!(MarkCar, kinds) == 0x36C);
+    assert!(at!(MarkCar, unread_3b0) == 0x3B0);
+    assert!(at!(MarkCar, kind_sums) == 0x3F4);
+    assert!(at!(MarkCar, kind_shares) == 0x438);
+    assert!(at!(MarkCar, kind_counts) == 0x47C);
+    assert!(at!(MarkCar, levels) == 0x4C0);
+};
 
 impl MarkRecord {
-    /// A record of zeros (for the tests' stand-in cars).
-    #[cfg(all(test, target_arch = "x86"))]
-    pub fn zeroed() -> Self {
-        Self {
-            flip: Dword::new(0),
-            pace: Dword::new(0),
-            unknown_8: Dword::new(0),
-            speed_c: Float::from_bits(0),
-            speed_10: Float::from_bits(0),
-            unknown_14: Dword::new(0),
-            speed_18: Float::from_bits(0),
-            kind: Dword::new(0),
-            flags: Dword::new(0),
-            flags2: Dword::new(0),
-            under_kind: Dword::new(0),
-            under_flags: Dword::new(0),
-            under_flags2: Dword::new(0),
-            chance: Float::from_bits(0),
-            size: Float::from_bits(0),
-            place: std::array::from_fn(|_| Float::from_bits(0)),
-        }
-    }
-
     /// The surface under the wheel becomes the current one (+0x28 .. +0x30 to +0x1C .. +0x24).
     pub fn take_surface(&self) {
         self.kind.set(self.under_kind.get());
@@ -254,30 +351,24 @@ pub fn car_or_none(handle: u32) -> Option<&'static MarkCar> {
 }
 
 impl MarkCar {
-    /// The record's place `offset` bytes in, bounded by the record.
-    pub fn at(&self, offset: u32) -> crate::pointers::GamePtr {
-        crate::pointers::GamePtr::to(self).offset(offset)
+    /// A record of zeros (for the tests' stand-in cars).
+    #[cfg(all(test, target_arch = "x86"))]
+    pub fn zeroed() -> Self {
+        // SAFETY: the record is plain atomics, all zero a valid value.
+        unsafe { std::mem::zeroed() }
     }
 
-    /// The dword at `offset`.
-    pub fn word(&self, offset: u32) -> Result<u32, crate::errors::BadInput> {
-        self.at(offset).read("a car record's field")
-    }
-
-    /// The car block the record's +0x24 and +0x28 name (the original kept the block's
-    /// whole matrix's and first part matrix's addresses there; a block handle here, set by
-    /// `drive::share_car_state`), none when 0.
-    fn block_at(
-        &self,
-        offset: u32,
-    ) -> Result<Option<&'static crate::physics::car_store::Car>, crate::errors::BadInput> {
-        Ok(crate::race::blocks_store::car_of(self.word(offset)?))
+    /// The car block a handle names (the original kept the block's whole matrix's and first
+    /// part matrix's addresses; a block handle here, set by `drive::share_car_state`), none
+    /// when 0.
+    fn block_of(handle: &Dword) -> Option<&'static crate::physics::car_store::Car> {
+        crate::race::blocks_store::car_of(handle.get())
     }
 
     /// The car's whole matrix (the block's +0x8C0, the original's +0x24); refused when no
     /// block is set (the original reads from address 0).
     pub fn whole(&self) -> Result<&'static [crate::session::Float; 16], crate::errors::BadInput> {
-        self.block_at(0x24)?
+        Self::block_of(&self.whole_block)
             .map(|b| &b.whole_matrix)
             .ok_or(crate::errors::BadInput("a car record without its block"))
     }
@@ -285,25 +376,25 @@ impl MarkCar {
     /// The car's four part matrices (the block's +0x740, the original's +0x28); refused when no
     /// block is set.
     pub fn parts(&self) -> Result<&'static [crate::session::Float; 64], crate::errors::BadInput> {
-        self.block_at(0x28)?
+        Self::block_of(&self.parts_block)
             .map(|b| &b.part_matrices)
             .ok_or(crate::errors::BadInput("a car record without its block"))
     }
 
-    /// Whether the record's block handle at `offset` (+0x24 or +0x28) names a block.
-    pub fn has_block(&self, offset: u32) -> Result<bool, crate::errors::BadInput> {
-        Ok(self.block_at(offset)?.is_some())
+    /// Whether the whole matrix's block is set.
+    pub fn has_whole(&self) -> bool {
+        Self::block_of(&self.whole_block).is_some()
     }
 
-    /// Names block `handle` for `whole` and `parts` (+0x24, +0x28).
-    pub fn set_block(&self, handle: u32) -> Result<(), crate::errors::BadInput> {
-        self.put(0x24, handle)?;
-        self.put(0x28, handle)
+    /// Whether the part matrices' block is set.
+    pub fn has_parts(&self) -> bool {
+        Self::block_of(&self.parts_block).is_some()
     }
 
-    /// Writes the dword at `offset`.
-    pub fn put(&self, offset: u32, value: u32) -> Result<(), crate::errors::BadInput> {
-        self.at(offset).write(value, "a car record's field")
+    /// Names block `handle` for `whole` and `parts`.
+    pub fn set_block(&self, handle: u32) {
+        self.whole_block.set(handle);
+        self.parts_block.set(handle);
     }
 }
 

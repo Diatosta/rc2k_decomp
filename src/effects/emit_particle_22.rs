@@ -19,7 +19,7 @@ use crate::session::{Dword, Float};
 /// `emit_particle_22`'s variables.
 pub static TWENTY_SECOND: TwinSet = TwinSet {
     kind: 0x16,
-    level_at: 0x4C4,
+    level: 1,
     flags: 0x33,
     tuning: &crate::effects::owner::EFFECTS
         .particles

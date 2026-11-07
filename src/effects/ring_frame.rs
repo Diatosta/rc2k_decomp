@@ -39,7 +39,7 @@ pub fn ring_frame(
         crate::scene::depth_test_off::depth_test_off();
         // dword_939BA6: the ninth of `lives_by_level`.
         // The settings' +0x7C: the first car record's +0x1C.
-        masks.surface.lives_by_level[8].set(marks.cars[0].word(0x1C)? & 0xFF_FFFF);
+        masks.surface.lives_by_level[8].set(marks.cars[0].tag.get() & 0xFF_FFFF);
         particles.kind1_choice.choice.set(weather.rain.drops.get());
         crate::effects::run_ring::run_ring(frame, masks, ring, effects)?;
         set_render_state(2, 0x14);

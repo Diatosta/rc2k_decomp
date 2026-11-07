@@ -39,7 +39,7 @@ fn refusal(ring: &Ring, object: &'static MarkCar) -> Result<Option<&'static str>
         if !car_with_matrix()? {
             return Ok(Some("a null g_marksCar or matrix"));
         }
-        if object.word(4)? >= MODELS {
+        if object.model.get() >= MODELS {
             return Ok(Some("a car model past flt_769312's 34 entries"));
         }
         None
@@ -60,8 +60,8 @@ pub fn emit_particle_13(
     if next_entry(ring)?.is_none() {
         return Ok(());
     }
-    let model = object.word(4)? as usize;
-    let e = take_entry(ring, effects, object.word(car_word::TAG)? & 0xFF_FFFF, 0xD)?;
+    let model = object.model.get() as usize;
+    let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, 0xD)?;
     let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
     let car = emitting_car(effects)?;
     let cells = car.whole()?;
@@ -78,7 +78,11 @@ pub fn emit_particle_13(
     put(field::GROUND_Y, y_less)?;
     put(field::PLACE_Z, z)?;
     let one: u32 = effects.setup.floats.one.bits();
-    let s = x87::one_less_inverse(object.word(8)?, particles.kind13_set.strength_k.bits(), one);
+    let s = x87::one_less_inverse(
+        object.engine_speed.bits(),
+        particles.kind13_set.strength_k.bits(),
+        one,
+    );
     ring.work.whole.set(s);
     let motion: [u32; 3] = crate::effects::try_from_fn(|k| {
         Ok({
@@ -123,7 +127,7 @@ pub fn emit_particle_13(
         particles.kind13_set.size_k[1].bits(),
     );
     put(field::SIZE_GOAL, size as u32)?;
-    put(field::CAR_PACE, car.word(car_word::PACE)?)?;
+    put(field::CAR_PACE, car.pace.get())?;
     put(
         field::SIZE,
         x87::int_times(size, particles.kind13_set.size_k[2].bits()),

@@ -141,7 +141,7 @@ pub fn emit_particle_1(
         if next_entry(ring)?.is_none() {
             return Ok(());
         }
-        let e = take_entry(ring, effects, object.word(0x1C)? & 0xFF_FFFF, 1)?;
+        let e = take_entry(ring, effects, object.tag.get() & 0xFF_FFFF, 1)?;
         let put = |o: u32, v: u32| crate::effects::ring_entries::put(ring, e, o, v);
         let car = emitting_car(effects)?;
         let m = car.whole()?;
@@ -200,7 +200,7 @@ pub fn emit_particle_1(
         put(0x74, fade)?;
         put(0x68, effects.kinds.emitter.car.get())?;
         put(0x70, SIZE)?;
-        put(0x6C, car.word(0x88)?)?;
+        put(0x6C, car.pace.get())?;
         put(
             0x60,
             x87::int_times(SIZE as i32, particles.kind1_set.size_k.bits()),

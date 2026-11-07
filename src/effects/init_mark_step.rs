@@ -64,8 +64,14 @@ pub fn init_mark_step(
                 ))
             });
             bad.done()?;
-            for (field, v) in fields {
-                record(n).at(field).write::<u32>(v, "a mark's field")?;
+            let car = record(n);
+            car.object.set(fields.object);
+            car.second_object.set(fields.second_object);
+            for (cell, v) in car.slot_kinds.iter().zip(fields.slot_kinds) {
+                cell.set(v);
+            }
+            for (cell, v) in car.kinds.iter().zip(fields.kinds) {
+                cell.set(v);
             }
         }
         // The file number is left in eax: `init_marks`' seed.

@@ -24,7 +24,6 @@ use crate::scene::object_slots_store::ObjectTables;
 use crate::scene::objects::SLOTS;
 use crate::session::{Bytes, Dword};
 
-const BLOCK: u32 = crate::race::marks_settings_store::CAR_BLOCK;
 const MOST_CARS: i32 = 8;
 
 /// The cars' blocks, the last first (none for a count of 0 or less).
@@ -40,13 +39,11 @@ fn blocks() -> Result<Vec<&'static MarkCar>, Refused> {
 }
 
 /// Whether a block's factors differ from its kept ones.
-fn changed(b: &MarkCar) -> Result<bool, BadInput> {
-    for k in 0..8 {
-        if b.word(BLOCK + 0x90 + 4 * k)? != b.word(BLOCK + 0xB0 + 4 * k)? {
-            return Ok(true);
-        }
-    }
-    Ok(false)
+fn changed(b: &MarkCar) -> bool {
+    b.factors
+        .iter()
+        .zip(&b.kept_factors)
+        .any(|(f, kept)| f.bits() != kept.bits())
 }
 
 /// A block's objects' first points (in `g_objectPoints`) and their count.
@@ -61,7 +58,7 @@ fn points(course: &Course, b: &MarkCar) -> Result<(u32, u32, i32), Refused> {
                 ),
             )
         };
-        let (a, c) = (b.word(BLOCK)?, b.word(BLOCK + 4)?);
+        let (a, c) = (b.object.get(), b.second_object.get());
         (
             first(a),
             first(c),
@@ -83,13 +80,13 @@ fn refusal(course: &Course, paths: &Paths) -> Result<Option<&'static str>, Refus
         let base: u32 = course.lists.object_points.bits();
         let room: u32 = course.lists.object_points_room.bits();
         for b in blocks()? {
-            if !changed(b)? {
+            if !changed(b) {
                 continue;
             }
-            if b.word(BLOCK)? >= SLOTS || b.word(BLOCK + 4)? >= SLOTS {
+            if b.object.get() >= SLOTS || b.second_object.get() >= SLOTS {
                 return Ok(Some("an object past 0xFF"));
             }
-            if b.word(BLOCK + 0x8C)? == 0 {
+            if b.point_block.get() == 0 {
                 return Ok(Some("a null base point list"));
             }
             let (a, c, n) = points(course, b)?;
@@ -97,7 +94,7 @@ fn refusal(course: &Course, paths: &Paths) -> Result<Option<&'static str>, Refus
                 return Ok(Some("a negative point count: the loop runs on"));
             }
             if n > 0
-                && crate::effects::lines::block_point(paths, b.word(BLOCK + 0x8C)?, n as u32 - 1)
+                && crate::effects::lines::block_point(paths, b.point_block.get(), n as u32 - 1)
                     .is_err()
             {
                 return Ok(Some("a base point list shorter than the object's points"));
@@ -124,20 +121,18 @@ pub fn morph_object_points(
     }
     {
         for b in blocks()? {
-            b.put(BLOCK + 0xC, b.word(BLOCK + 8)?)?;
-            if crate::effects::try_all(0..8, |k| {
-                Ok(b.word(BLOCK + 0x90 + 4 * k)? == b.word(BLOCK + 0xB0 + 4 * k)?)
-            })? {
+            b.morph_kept.set(b.morph_start.get());
+            if !changed(b) {
                 continue;
             }
-            b.put(BLOCK + 0xC, 0xFFFF_FFFF)?;
+            b.morph_kept.set(0xFFFF_FFFF);
             for k in 0..8 {
-                let v = b.word(BLOCK + 0x90 + 4 * k)?;
-                b.put(BLOCK + 0xB0 + 4 * k, v)?;
-                paths.morph_work.kept[k as usize].set(v);
+                let v = b.factors[k].bits();
+                b.kept_factors[k].set_bits(v);
+                paths.morph_work.kept[k].set(v);
             }
             let (a, c, n) = points(course, b)?;
-            let points = b.word(BLOCK + 0x8C)?;
+            let points = b.point_block.get();
             for k in 0..n.max(0) as u32 {
                 let (to, from) = (a + 12 * k, c + 12 * k);
                 let base = crate::effects::lines::block_point(paths, points, k)?;

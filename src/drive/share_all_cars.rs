@@ -83,7 +83,7 @@ pub fn share_all_cars(race: &Race, scene: &crate::scene::owner::Scene) -> Result
     let reading = crate::scene::reading::Reading::new();
     let (shown, _) =
         sharing::cars_shown(crate::race::blocks_store::own_car().car_kind.bits(), || {
-            reading.keep(first_record.word(0x258))
+            reading.keep(Ok(first_record.face_sums[0].get()))
         });
     reading.finish()?;
     if shown {

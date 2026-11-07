@@ -11,9 +11,6 @@ use crate::math::x87;
 use crate::race::marks_settings_store::MarkCar;
 use crate::session::Float;
 
-/// The car record's block (`effects::morph_object_points`).
-const BLOCK: u32 = crate::race::marks_settings_store::CAR_BLOCK;
-
 /// The Rust version (see the header): `block` the car record whose block holds the factors (the original's ebp), `to` where
 /// the point goes (esi), `from` the point blended (edi), `base` the base point (edx's).
 pub fn blend_corner(
@@ -27,7 +24,7 @@ pub fn blend_corner(
         // `from` and `to` are places of `scene::object_points` (phase 13).
         let src = crate::scene::object_points::point(from)?;
         let signs = src.iter().fold(0, |b, &v| (b << 1) | (v >> 31));
-        let f = x87::loaded(block.word(BLOCK + 0x90 + 4 * signs)?);
+        let f = x87::loaded(block.factors[signs as usize].bits());
         effects.clipping.blend_work.factor.set_bits(f);
         for (c, &s) in src.iter().enumerate() {
             let v = x87::int_lerp_to_int(s as i32, base[c] as i32, f);

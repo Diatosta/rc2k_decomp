@@ -12,20 +12,25 @@ pub const ROW_LEN: usize = 0x134;
 /// The stages' records (`off_606320`).
 pub const STAGE_RECORDS: u32 = 0x34;
 
-/// The record's fields set from the kind's row: (the field, the row's offset).
-pub const COPIES: [(u32, usize); 7] = [
-    (0x30C, 0),
-    (0x310, 0x20),
-    (0x314, 0x24),
-    (0x318, 0x18),
-    (0x31C, 0x1C),
-    (0x320, 0x14),
-    (0x324, 0x28),
-];
-/// The seventeen numbers at +0x36C ...
+/// The row's offsets the record's `slot_kinds` (its first seven) are set from.
+pub const SLOT_KIND_ROWS: [usize; 7] = [0, 0x20, 0x24, 0x18, 0x1C, 0x14, 0x28];
+/// The seventeen numbers of the record's `kinds`.
 pub const FIXED: [u32; 17] = [
     0xA, 0xB, 0x18, 0x19, 0xC, 0xD, 0x16, 0x17, 0x1A, 0x1B, 0xE, 0xF, 0x10, 0x11, 0x13, 0x14, 0x12,
 ];
+
+/// A car's record fields set when a stage loads.
+#[derive(Debug, PartialEq, Eq)]
+pub struct CarFields {
+    /// The record's `object`.
+    pub object: u32,
+    /// The record's `second_object`.
+    pub second_object: u32,
+    /// The record's first seven `slot_kinds`, from the kind's row.
+    pub slot_kinds: [u32; 7],
+    /// The record's `kinds`.
+    pub kinds: [u32; 17],
+}
 
 /// `init_mark_step`'s check, before anything: refuses no cars or more than 8 (the original's
 /// loop would run on) and a car without its block or record (`has(n)`).
@@ -44,20 +49,17 @@ pub fn kind_row(kind: i32) -> usize {
     kind.clamp(0, LAST_KIND) as usize * ROW_LEN
 }
 
-/// Car n's record's fields, in the order written: its places +0x23C (0x50 + 0x14 a car)
-/// and +0x240 (0xA more), the seven from its kind's row (`row(offset)`), the seventeen
-/// fixed numbers.
-pub fn car_fields(n: u32, row: impl Fn(usize) -> u32) -> Vec<(u32, u32)> {
+/// Car n's record's fields, the places first (0x50 + 0x14 a car, and 0xA more), the seven
+/// from its kind's row (`row(offset)`, asked in the order of `SLOT_KIND_ROWS`), the
+/// seventeen fixed numbers.
+pub fn car_fields(n: u32, row: impl Fn(usize) -> u32) -> CarFields {
     let place = n * 0x14 + 0x50;
-    let mut out = vec![(0x23C, place), (0x240, place + 0xA)];
-    out.extend(COPIES.map(|(field, offset)| (field, row(offset))));
-    out.extend(
-        FIXED
-            .iter()
-            .enumerate()
-            .map(|(k, &v)| (0x36C + 4 * k as u32, v)),
-    );
-    out
+    CarFields {
+        object: place,
+        second_object: place + 0xA,
+        slot_kinds: SLOT_KIND_ROWS.map(row),
+        kinds: FIXED,
+    }
 }
 
 /// `stage_record`: the record of a stage's number; refuses one past the table (unsigned).
@@ -81,9 +83,9 @@ mod tests {
         assert_eq!(kind_row(-1), 0);
         assert_eq!(kind_row(0x17), 0x16 * 0x134);
         let f = car_fields(2, |o| o as u32 + 1);
-        assert_eq!(f.len(), 2 + 7 + 17);
-        assert_eq!(&f[..3], &[(0x23C, 0x78), (0x240, 0x82), (0x30C, 1)]);
-        assert_eq!(f[25], (0x36C + 64, 0x12));
+        assert_eq!((f.object, f.second_object), (0x78, 0x82));
+        assert_eq!(f.slot_kinds, [1, 0x21, 0x25, 0x19, 0x1D, 0x15, 0x29]);
+        assert_eq!(f.kinds[16], 0x12);
         assert_eq!(stage_record(0x33), Ok(0x33));
         assert!(stage_record(0x34).is_err());
     }

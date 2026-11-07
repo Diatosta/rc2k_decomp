@@ -31,39 +31,42 @@ use crate::session::{read_bits, write_bits};
 pub fn emit_car_particles(effects: &Effects, o: &'static MarkCar) -> Result<(), Refused> {
     o.whole()?;
     let k = read_bits(&effects.kinds.emitter.place_k);
-    let z1 = x87::int_times(o.word(0xC)? as i32, k[0]);
-    o.put(0x118, z1)?;
-    o.put(0x160, z1)?;
-    let z2 = x87::int_times(o.word(0x10)? as i32, k[1]);
-    o.put(0x1A8, z2)?;
-    o.put(0x1F0, z2)?;
-    let (x, left) = x87::int_times_plus_and_negated(o.word(0x14)? as i32, k[2], k[3]);
-    o.put(0x158, x)?;
-    o.put(0x1E8, x)?;
-    o.put(0x110, left)?;
-    o.put(0x1A0, left)?;
-    let y = x87::int_times_less_less(o.word(0x18)? as i32, k[4], k[5], k[6]);
-    for a in [0x15C, 0x1EC, 0x114, 0x1A4] {
-        o.put(a, y)?;
+    let place = |wheel: usize, axis: usize| &o.records[wheel].place[axis];
+    let z1 = x87::int_times(o.axles[0].get() as i32, k[0]);
+    place(0, 2).set_bits(z1);
+    place(1, 2).set_bits(z1);
+    let z2 = x87::int_times(o.axles[1].get() as i32, k[1]);
+    place(2, 2).set_bits(z2);
+    place(3, 2).set_bits(z2);
+    let (x, left) = x87::int_times_plus_and_negated(o.axles[2].get() as i32, k[2], k[3]);
+    place(1, 0).set_bits(x);
+    place(3, 0).set_bits(x);
+    place(0, 0).set_bits(left);
+    place(2, 0).set_bits(left);
+    let y = x87::int_times_less_less(o.axles[3].get() as i32, k[4], k[5], k[6]);
+    for wheel in [1, 3, 0, 2] {
+        place(wheel, 1).set_bits(y);
     }
-    effects.kinds.emitter.looks[0].set(x87::to_int(o.word(0x110)? & 0x7FFF_FFFF) as u32);
+    effects.kinds.emitter.looks[0]
+        .set(x87::to_int(o.records[0].place[0].bits() & 0x7FFF_FFFF) as u32);
     effects.kinds.emitter.looks[1].set(x87::abs_sum_times_to_int(
-        o.word(0x118)?,
-        o.word(0x1A8)?,
+        o.records[0].place[2].bits(),
+        o.records[2].place[2].bits(),
         effects.setup.floats.half.bits(),
     ) as u32);
     let m = o.whole()?;
-    for p in [0x110, 0x158, 0x1A0, 0x1E8] {
+    for wheel in [0, 1, 2, 3] {
+        let at = &o.records[wheel].place;
         let turned = rotate_point(
             m,
             [
-                extended(o.word(p)?),
-                extended(o.word(p + 4)?),
-                extended(o.word(p + 8)?),
+                extended(at[0].bits()),
+                extended(at[1].bits()),
+                extended(at[2].bits()),
             ],
         );
-        for (n, v) in turned.iter().enumerate() {
-            o.put(p + 4 * n as u32, rounded(*v))?;
+        for (cell, v) in at.iter().zip(turned) {
+            cell.set_bits(rounded(v));
         }
     }
     for n in 0..4 {
