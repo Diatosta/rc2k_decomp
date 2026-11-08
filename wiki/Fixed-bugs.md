@@ -445,3 +445,13 @@ has the same fixed addresses, but its network mode could not be run here to see 
 **Seen or read:** read in `install::make_folders` (0x413A97) and seen in the standalone's trace (2026-10-20); the stop seen under Wine (2026-11-07).
 
 **Fix:** the walk treats the path's end as its closing `\`: the last folder is gone into or made there, and the walk ends without reading past the path.
+
+## A championship's settings stay after it
+
+**What it is:** a championship, started or loaded, works on the players' own records: the car chosen, the gearing, the controller and its set-up, the names. Loading a saved championship puts the saved records over the players' whole, and nothing puts the players' own back when the championship is over or left.
+
+**In game:** after playing a championship, a single rally or the arcade starts with the championship's car, gearing and controls; leaving the front end then writes them into `var\ral.dat`, so they stay for good. Settings changed on the player pages before loading a championship are lost the same way.
+
+**Seen or read:** seen in the original (2026-10-24, settings changed in one run were back in the next after loading a save) and read in `saves::load_savegame` (0x46E6E1).
+
+**Fix:** the four player records and names are set aside before a championship starts or is loaded and put back when it ends or is left, on every way out. Inside the championship its own settings are used and saved as before. (Which of the save's or the player's controls and gearing a loaded championship uses is still `usesavegamekeys` in `var\ral.cfg`.)

@@ -19,6 +19,9 @@
 //!   `menu::run_championship`. These only come back when the event is over or left;
 //! - `menu::go_back`.
 //!
+//! Not the original's: the players' own records and names are set aside first and put
+//! back at the end (`menu::own_settings`).
+//!
 //! Ten menu tables point at this function. Refuses, before anything is done: a slot past 99, a
 //! missing player or a car without its pointer at +0x18; later, what its Rust callees refuse (the
 //! event loops when their callees refuse).
@@ -51,8 +54,13 @@ fn highlighted_slot(menus: &Menus) -> u32 {
 
 // ---- Rust version ----
 
-/// The Rust version (see the header).
+/// The Rust version (see the header). The players' own records and names come back when
+/// the loaded championship is over or left (`menu::own_settings`; not the original's).
 pub fn load_savegame(menus: &Menus) -> Result<(), Refused> {
+    crate::menu::own_settings::around_championship(menus, || load_and_run(menus))
+}
+
+fn load_and_run(menus: &Menus) -> Result<(), Refused> {
     let saves = saves();
     let slot = highlighted_slot(menus);
     if slot >= SLOTS {

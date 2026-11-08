@@ -94,6 +94,9 @@ fn var(v: starters::Var) -> &'static Dword {
 
 /// The Rust version of a starter.
 pub fn start_event(menus: &Menus, s: &Starter) -> Result<(), Refused> {
-    // Converted: `rc2k_core::menu::starters::start`.
-    starters::start(s.kind, &mut Game { menus, cars: None })
+    // Converted: `rc2k_core::menu::starters::start`. The players' own settings come back
+    // afterwards (`menu::own_settings`; not the original's).
+    crate::menu::own_settings::around_championship(menus, || {
+        starters::start(s.kind, &mut Game { menus, cars: None })
+    })
 }
