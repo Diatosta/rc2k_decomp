@@ -1235,7 +1235,18 @@ pub fn find_sessions(host: &str, port: u16, application: [u8; 16]) -> Vec<(Desc,
         if let Ok(reader) = reader {
             std::thread::spawn(move || {
                 let mut buffer = [0u8; 1024];
-                while let Ok((n, from)) = reader.recv_from(&mut buffer) {
+                loop {
+                    let (n, from) = match reader.recv_from(&mut buffer) {
+                        Ok(got) => got,
+                        // Windows reports an earlier probe's "port unreachable" (a probe to
+                        // this machine with no session here) on the next receive: the socket
+                        // still works, and ending here would leave every later answer unread.
+                        Err(e) if e.kind() == std::io::ErrorKind::ConnectionReset => continue,
+                        Err(_) => {
+                            std::thread::sleep(Duration::from_millis(50));
+                            continue;
+                        }
+                    };
                     let mut r = R(&buffer[..n]);
                     if r.raw::<8>().as_ref() != Some(MAGIC) {
                         continue;
@@ -1307,6 +1318,41 @@ mod tests {
             to: 8,
             data: vec![0x55; len],
         }
+    }
+
+    #[test]
+    fn a_session_is_found_after_a_probe_nobody_answered() {
+        // A free port: bound and let go.
+        let free = |kind: &str| {
+            let port = UdpSocket::bind(("127.0.0.1", 0))
+                .and_then(|u| u.local_addr())
+                .map(|a| a.port());
+            port.unwrap_or_else(|e| panic!("a free port for {kind}: {e}"))
+        };
+        let application = [0x5A; 16];
+        // First a probe to a port with nothing behind it (Windows then reports the port
+        // unreachable on the finder's next receive).
+        let nobody = free("nobody");
+        let _ = find_sessions("127.0.0.1", nobody, application);
+        std::thread::sleep(Duration::from_millis(200));
+        let port = free("the session");
+        let desc = Desc {
+            application,
+            instance: [0x33; 16],
+            name: "found".into(),
+            ..Default::default()
+        };
+        let session = Session::host(desc, port, Arc::new(quiet)).expect("a hosted session");
+        let mut found = Vec::new();
+        for _ in 0..20 {
+            found = find_sessions("127.0.0.1", port, application);
+            if !found.is_empty() {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        session.close();
+        assert_eq!(found.first().map(|(d, _)| d.name.as_str()), Some("found"));
     }
 
     #[test]
