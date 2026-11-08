@@ -64,14 +64,18 @@ pub fn give_back() {
     TAKEN.store(false, Ordering::Relaxed);
 }
 
-/// The first `n` records' cells.
-pub fn first_records(n: usize) -> Result<&'static [[Dword; 8]], BadInput> {
+/// The first `n` records' cells in every drawing thread's copy (copy 0 first): a clear
+/// of the records reaches them all, so no copy keeps a record of an earlier frame.
+pub fn first_records_everywhere(
+    n: usize,
+) -> Result<impl Iterator<Item = &'static [Dword; 8]>, BadInput> {
     if !TAKEN.load(Ordering::Relaxed) {
         return Err(BadInput("no point records"));
     }
-    RECORDS
-        .get(..n)
-        .ok_or(BadInput("a point record past the block"))
+    if n > COUNT as usize {
+        return Err(BadInput("a point record past the block"));
+    }
+    Ok(RECORDS.all().iter().flat_map(move |copy| &copy[..n]))
 }
 
 /// Every record's bytes (`race::draw_chunks`' check).

@@ -184,7 +184,7 @@ pub fn clear_point_records(
     race.course.lists.clear_count.set(0u32);
     let pattern: [u32; 4] = crate::session::read_bits(&scene.lights.work.sse_fill);
     let sse = scene.draw_switches.use_sse.get() != 0;
-    for record in crate::scene::point_records::first_records(0x1000)? {
+    for record in crate::scene::point_records::first_records_everywhere(0x1000)? {
         if sse {
             for (cell, v) in record.iter().zip(pattern) {
                 cell.set(v);

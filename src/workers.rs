@@ -90,8 +90,10 @@ impl<T: crate::pointers::Store> Copies for PerWorker<T> {
     }
 }
 
-/// Every store of the drawing's working state (the write watch's list, `notes/conversion.md`).
-fn stores() -> [&'static dyn Copies; 21] {
+/// The stores of the drawing's working state a run reads as the list began (the write
+/// watch's list, `notes/conversion.md`): copied into each run's copy, the changes merged
+/// back.
+fn carried_stores() -> [&'static dyn Copies; 18] {
     let race = crate::race::owner::race();
     let scene = crate::scene::owner::scene();
     [
@@ -113,6 +115,15 @@ fn stores() -> [&'static dyn Copies; 21] {
         &scene.objects.slots,
         &scene.objects.tables,
         &crate::d3d::owner::d3d().cards,
+    ]
+}
+
+/// The stores each run makes for itself before reading (neither copied in nor merged; the
+/// replays' every flush is the same as on one thread): the point records (a cache of the
+/// points' projections, each record named by its point, the frame's clear reaching every
+/// copy: `point_records::first_records_everywhere`), the vertex buffer and the polygon work.
+fn scratch_stores() -> [&'static dyn Copies; 3] {
+    [
         crate::scene::point_records::copies(),
         &crate::d3d::vertices_store::VERTICES,
         &crate::scene::polygon_store::POLYGON_WORK,
@@ -174,7 +185,7 @@ fn pool() -> Option<&'static rayon::ThreadPool> {
         if threads() > 1 {
             // The copies are regions as copy 0 (the store's home) is: a place in them named by
             // its game address is read through their cells.
-            for s in stores() {
+            for s in carried_stores().into_iter().chain(scratch_stores()) {
                 for n in 1..COUNT {
                     crate::pointers::register_store(s.copy(n));
                 }
@@ -237,7 +248,7 @@ pub fn draw_in_runs(
         return draw(0..count);
     };
     let ranges: Vec<Range<usize>> = (0..k).map(|i| i * count / k..(i + 1) * count / k).collect();
-    let stores = stores();
+    let stores = carried_stores();
     let start: Vec<Vec<u8>> = stores.iter().map(|s| load(s.copy(0))).collect();
     for n in 1..k {
         for (s, bytes) in stores.iter().zip(&start) {

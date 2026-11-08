@@ -152,6 +152,8 @@ def start(gpu, fresh, profile=False):
         renderer += f"RC2K_GL_BENCH={int(os.environ['RC2K_GL_BENCH'])} "
     if os.environ.get('RC2K_SLOW_FRAMES'):  # log each frame in a race slower than this many ms
         renderer += f"RC2K_SLOW_FRAMES={int(os.environ['RC2K_SLOW_FRAMES'])} "
+    if os.environ.get('RC2K_DRAW_THREADS'):  # the scene drawn on this many threads
+        renderer += f"RC2K_DRAW_THREADS={int(os.environ['RC2K_DRAW_THREADS'])} "
     if HOST:
         ssh(f'rm -rf {FOLDER}; mkdir -p {FOLDER}; cd {DEVICE_GAME}; '
             '[ -d .remote_kept ] || { mkdir .remote_kept; cp -r var savedata .remote_kept/; }; '
