@@ -88,8 +88,8 @@ pub fn set_object_light_in_game(
     set_object_light(
         race,
         &mut || {
-            add_car_lights(race, &mut |car| {
-                add_car_light(&race.course, car, scene, system);
+            add_car_lights(race, &mut |car, marks| {
+                add_car_light(&race.course, car, marks, scene, system);
                 Ok(())
             })?;
             add_point_lights(race, scene, system)?;

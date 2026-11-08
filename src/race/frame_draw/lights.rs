@@ -44,8 +44,9 @@ pub fn car_light_modes(race: &Race) -> Result<(), Refused> {
     use rc2k_core::race::lights::{light_word, lights_drawn};
     let mode: u32 = race.shared.vars.run_kind.bits();
     for n in 0..cars {
-        let this_car = car_at(block(n))?;
-        let at = &this_car.state_bits;
+        // The state bits are the drawing's own (in the block); what decides them, the physics'.
+        let this_car = crate::race::frame_view::car_at(block(n))?;
+        let at = &car_at(block(n))?.state_bits;
         let me = n == shown;
         let drawn = lights_drawn(
             this_car.driver_kind.bits() != 0,
@@ -190,7 +191,8 @@ pub fn add_colours(a: u32, b: u32) -> u32 {
 /// `light_colour_at`). Called.
 pub(super) fn car_light_on_point(
     course: &Course,
-    car: &crate::physics::car_store::Car,
+    car: &crate::race::frame_view::CarView,
+    marks_count: u32,
     scene: &crate::scene::owner::Scene,
 ) -> Result<(), BadInput> {
     use crate::math::x87_load::{int_square_sum_scaled_to_int, rotate_rounding};
@@ -219,7 +221,7 @@ pub(super) fn car_light_on_point(
     // The second spread is worked out and then not used (eax is loaded over it).
     let s2 = int_square_sum_scaled_to_int(t[2].wrapping_sub(0x10_0000) as i32, t[0] as i32, k, 1);
     scene.drawing.scene.scratch.set_bits(s2);
-    let index = headlight_index(s1, t[1], car.marks_count.bits());
+    let index = headlight_index(s1, t[1], marks_count);
     let colour = scene.light_tables.car_light_table[index as usize].get();
     scene
         .lights
@@ -268,7 +270,13 @@ pub(super) fn car_lights_on_point(
         );
         trap.finish()?;
         if lit {
-            car_light_on_point(course, shared.work.car(n as usize)?, scene)?;
+            // The marks count is the drawing's own (`race::car_parts`), in the block.
+            car_light_on_point(
+                course,
+                crate::race::frame_view::car(n as usize)?,
+                shared.work.car(n as usize)?.marks_count.bits(),
+                scene,
+            )?;
         }
     }
     Ok(())

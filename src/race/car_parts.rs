@@ -47,39 +47,42 @@ pub fn car_part_matrices(
     use crate::math::x87::loaded;
     use crate::math::x87_load::below_or_unordered;
     use rc2k_core::race::car_parts::{PartState, mark_switches, marks_bytes, steering};
+    // `c` the block (what the drawing keeps there: the shown speed and steering, the switches,
+    // the marks), `p` the car as the drawing sees it (`race::frame_view`).
     let c = car_at(car)?;
-    let Some(ax) = axles(&race.shared, c.car_kind.bits())? else {
+    let p = crate::race::frame_view::car_at(car)?;
+    let Some(ax) = axles(&race.shared, p.car_kind.bits())? else {
         return Err(BadInput("a car model whose axle scaling would fault").into());
     };
     let shown = &c.shown_engine_speed;
-    shown.set_bits(loaded(c.engine_speed.bits()));
+    shown.set_bits(loaded(p.engine_speed.bits()));
     if below_or_unordered(
         shown.bits(),
         race.shared.physics_tables.idle_engine_speed.bits(),
     ) {
         shown.set_bits(loaded(race.shared.physics_tables.idle_engine_speed.bits()));
     }
-    let on = c.lights_on.bits();
+    let on = p.lights_on.bits();
     let s = mark_switches(&PartState {
         on,
         marks_mask: scene.lights.work.marks_mask.get(),
         lamps_mask: scene.lights.work.lamps_mask.get(),
-        inside: c.brake.bits(),
-        mode: c.camera_view.bits(),
-        reversing: c.gear.bits(),
-        broken: std::array::from_fn(|k| c.electrical_failures[1 + k].bits()),
-        flags: c.parts_present.bits(),
+        inside: p.brake.bits(),
+        mode: p.camera_view.bits(),
+        reversing: p.gear.bits(),
+        broken: std::array::from_fn(|k| p.electrical_failures[1 + k].bits()),
+        flags: p.parts_present.bits(),
     });
     c.marks_on.set(s.marks_on);
     c.mode_on.set(s.mode_on);
     c.part_switches
         .write_at(0, &s.bytes, "a car block's switches")?;
     let slow = below_or_unordered(
-        c.electrics_damage.bits(),
+        p.electrics_damage.bits(),
         race.course.numbers.hundred.bits(),
     );
     c.marks_count.set(marks_bytes(s.count, slow, on));
-    c.shown_steering.set(steering(c.steer_angle_visual.bits()));
+    c.shown_steering.set(steering(p.steer_angle_visual.bits()));
     let [front, rear_lift, height, front_z, _] = ax;
     race.physics.camera.axle_front.set(front);
     race.physics.camera.axle_front_neg.set(front.wrapping_neg());
@@ -89,14 +92,14 @@ pub fn car_part_matrices(
     race.physics.camera.car_axles.set(ax[4]);
     scene.drawing.object_work.size.set(0x10);
     scene.drawing.object_work.part_values[2].set(c.shown_steering.get());
-    scene.drawing.object_work.part_values[0].set_bits(c.driven_wheel_turns[0].bits());
-    scene.drawing.object_work.part_values[1].set_bits(c.driven_wheel_turns[1].bits());
+    scene.drawing.object_work.part_values[0].set_bits(p.driven_wheel_turns[0].bits());
+    scene.drawing.object_work.part_values[1].set_bits(p.driven_wheel_turns[1].bits());
     for i in 0..3 {
-        scene.drawing.object_work.place[i].set_bits(c.position[i].bits());
+        scene.drawing.object_work.place[i].set_bits(p.position[i].bits());
     }
-    copy_cells(&c.crash_matrix, &race.frame.matrices.body_turn_matrix, 16);
+    copy_cells(&p.crash_matrix, &race.frame.matrices.body_turn_matrix, 16);
     for i in 0..4 {
-        scene.drawing.object_work.part_weights[i].set_bits(c.wheel_spring_force[i].bits());
+        scene.drawing.object_work.part_weights[i].set_bits(p.wheel_spring_force[i].bits());
     }
     set_place(
         &race.frame.matrices,
@@ -192,7 +195,7 @@ pub fn ready_car_parts(race: &Race, scene: &crate::scene::owner::Scene) -> Resul
     loop {
         let car = race.shared.work.car_block(c as usize);
         let block = car_at(car)?;
-        if parts_shown(block.driver_kind.get()) {
+        if parts_shown(crate::race::frame_view::car_at(car)?.driver_kind.get()) {
             car_part_matrices(race, car, scene)?;
             let wheels = &block.part_matrices;
             let kept: [&[Float]; KEPT_MATRICES as usize] = [

@@ -43,7 +43,7 @@ pub fn mark_car_voices(sound: &crate::sound::owner::Sound) -> Result<(), Refused
         return Ok(());
     }
     for (n, (o, car)) in pairs()?.into_iter().enumerate() {
-        let kind = crate::race::trap::car_at(car)?.driver_kind.get();
+        let kind = crate::race::frame_view::car_at(car)?.driver_kind.get();
         let (sounds, voice) = rc2k_core::sound::cars::voice_mark(n as u32, kind);
         o.in_use.set(sounds);
         if let Some(voice) = voice {

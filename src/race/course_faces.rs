@@ -6,7 +6,6 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::pointers::GamePtr;
-use crate::race::blocks_store::CAR_BLOCKS;
 use crate::race::owner::Race;
 use crate::race::owner_course::Course;
 use crate::race::owner_shared::Shared;
@@ -142,7 +141,7 @@ pub fn face_materials(
     let course = &race.course;
     let shared = &race.shared;
     {
-        let clock: u32 = CAR_BLOCKS.cars[0].step_clock.bits();
+        let clock: u32 = crate::race::frame_view::car(0)?.step_clock.bits();
         let (k1, k2) = (course.numbers.ten.bits(), course.numbers.quarter.bits());
         let texture = |object: u32, first: bool| -> Result<u32, BadInput> {
             let speed = table_byte(&course.stage_prefs.face_speeds, object, "the face speeds")?;

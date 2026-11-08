@@ -148,9 +148,12 @@ pub fn lay_skidmarks(race: &Race, scene: &crate::scene::owner::Scene) -> Result<
     let zero = int_80(0);
     for c in 0..count {
         frame.shadow_skids.skid_cars.set(1 << (c & 31));
-        let car = car_at(shared.work.car_block(c as usize))?;
+        // The skid slots are the drawing's own (in the block); the wheels, the physics'.
+        let block = shared.work.car_block(c as usize);
+        let slots = &car_at(block)?.skid_slots;
+        let car = crate::race::frame_view::car_at(block)?;
         for wheel in 0..4usize {
-            let slot = &car.skid_slots[wheel];
+            let slot = &slots[wheel];
             let on = car.wheel_squeeze[wheel].bits() != 0
                 && !crate::math::x87_load::below_or_unordered(
                     car.skid_grip[wheel / 2].bits(),

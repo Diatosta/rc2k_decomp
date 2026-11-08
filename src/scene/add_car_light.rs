@@ -19,7 +19,6 @@
 //! original's instructions are `asm_reference` in the tests). Callers: `scene::add_car_lights`,
 //! twice. Takes the car's block as a typed reference.
 
-use crate::physics::car_store::Car;
 use crate::scene::vertex_light::plus;
 use crate::scene::x87_mem::{Base, cells, fild, fistp, fld};
 
@@ -121,7 +120,8 @@ fn held(value: i32) -> u32 {
 
 pub fn add_car_light(
     course: &crate::race::owner_course::Course,
-    car: &Car,
+    car: &crate::race::frame_view::CarView,
+    marks_count: u32,
     scene: &crate::scene::owner::Scene,
     system: &crate::system::owner::System,
 ) {
@@ -148,7 +148,7 @@ pub fn add_car_light(
         .set(squares(z.wrapping_sub(0x10_0000), x, factor, false));
     let height = if (y as i32) < 0 { y.wrapping_neg() } else { y };
     let level = held((0x10_0000u32.wrapping_sub(height) as i32) >> 12);
-    let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(car.marks_count.bits()) >> 8;
+    let amount = (level.wrapping_mul(cone * 2) >> 8).wrapping_mul(marks_count) >> 8;
     let colour: u32 = scene.light_tables.car_light_table[held(amount as i32) as usize].get();
     let mmx = system.session.machine.has_mmx.get() != 0;
     scene

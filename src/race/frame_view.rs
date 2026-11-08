@@ -86,6 +86,18 @@ car_view! {
     start_slot_value: Dword,
     drive_speed_a: Float,
     drive_speed_b: Float,
+    brake: Dword,
+    electrical_failures: [Dword; 7],
+    steer_angle_visual: Dword,
+    driven_wheel_turns: [Dword; 2],
+    wheel_spring_force: [Dword; 4],
+    wheel_squeeze: [Float; 4],
+    skid_grip: [Float; 2],
+    wheel_ground_x: [Dword; 4],
+    wheel_ground_height: [Dword; 4],
+    wheel_ground_z: [Dword; 4],
+    surface_noise_a: Dword,
+    surface_noise_b: Dword,
 }
 
 /// Two cells (or arrays of them) with the same bits.

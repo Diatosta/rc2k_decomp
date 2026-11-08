@@ -16,7 +16,7 @@
 
 use crate::errors::{BadInput, Refused};
 use crate::net::owner::net;
-use crate::physics::car_store::Car;
+use crate::race::frame_view::CarView;
 use crate::race::owner::Race;
 
 // ---- game data ----
@@ -61,7 +61,7 @@ impl rc2k_core::scene::lamps::CarLights for GameCars<'_> {
 // Converted: `rc2k_core::scene::lamps::car_lights`
 pub fn add_car_lights(
     race: &Race,
-    add: &mut dyn FnMut(&Car) -> Result<(), Refused>,
+    add: &mut dyn FnMut(&CarView, u32) -> Result<(), Refused>,
 ) -> Result<(), Refused> {
     let shared = &race.shared;
     {
@@ -75,7 +75,12 @@ pub fn add_car_lights(
             let lit = rc2k_core::scene::lamps::car_lights(&lights, car);
             lights.1.finish()?;
             if lit {
-                add(crate::race::blocks_store::block_at(block, "no car")?)?;
+                // The car as the drawing sees it, and its marks count (the drawing's own, in
+                // the block: `race::car_parts`).
+                let marks = crate::race::blocks_store::block_at(block, "no car")?
+                    .marks_count
+                    .bits();
+                add(crate::race::frame_view::car_at(block)?, marks)?;
             }
         }
         Ok(())
