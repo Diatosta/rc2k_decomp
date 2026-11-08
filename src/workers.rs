@@ -175,8 +175,9 @@ fn scratch_stores() -> [&'static dyn Copies; 4] {
 
 // ---- the runs ----
 
-/// The drawing threads asked for: `RC2K_DRAW_THREADS` (the game's with them; 1, the
-/// default, draws on the game's thread alone), at most `COUNT`.
+/// The drawing threads a list is split over (`draw_in_runs`): `RC2K_DRAW_THREADS` (the
+/// game's with them; 1, the default, draws a list on the game's thread alone), at most
+/// `COUNT`.
 pub fn threads() -> usize {
     static N: OnceLock<usize> = OnceLock::new();
     *N.get_or_init(|| {
@@ -220,13 +221,17 @@ fn register_copies() {
 }
 
 /// The other drawing threads.
+/// `threads()`, and at least one besides the game's on a machine of two cores or more (the
+/// mirror beside its view, `draw_beside`; the handheld: 24 to 29 frames a second).
 fn pool() -> Option<&'static rayon::ThreadPool> {
     static POOL: OnceLock<Option<rayon::ThreadPool>> = OnceLock::new();
     POOL.get_or_init(|| {
-        (threads() > 1)
+        let cores = std::thread::available_parallelism().map_or(1, usize::from);
+        let all = threads().max(cores.min(2));
+        (all > 1)
             .then(|| {
                 rayon::ThreadPoolBuilder::new()
-                    .num_threads(threads() - 1)
+                    .num_threads(all - 1)
                     .thread_name(|n| format!("draw {}", n + 1))
                     .build()
                     .ok()
