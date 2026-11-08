@@ -106,6 +106,9 @@ pub fn start_link(mode: u32) -> Result<(), Refused> {
         Way::End => {}
         Way::On => {
             vars.session.set(1);
+            if mode == 2 {
+                take_messages::joined();
+            }
             lock_received::lock_received(&net.vars);
             clear_chat::clear_chat();
             unlock_received::unlock_received(&net.vars);

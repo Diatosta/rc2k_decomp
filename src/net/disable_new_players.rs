@@ -32,3 +32,19 @@ pub fn disable_new_players(net: &Net) {
     let result = crate::net::dp_objects::set_session_desc(net.vars.dplay.get(), &desc);
     log_hex(result, true);
 }
+
+/// Not the original's (2026-11-08): on the host, with the session closed by
+/// `disable_new_players`, the session opened to new players again (0x21 cleared), so a player
+/// who left can join again between races. The original closed it for good at the first race.
+/// Caller: `net::lobby_loop`, each frame no player is still racing (only then: a player let
+/// in while others raced would be sent their race's messages).
+pub fn enable_new_players(net: &Net) {
+    let flags = net.vars.session_desc.flags.get();
+    if net.vars.own.state() & 0x10 == 0 || flags & CLOSED == 0 || net.vars.dplay.get() == 0 {
+        return;
+    }
+    net.vars.session_desc.flags.set(flags & !CLOSED);
+    let desc = crate::net::dp_objects::desc(&net.vars.session_desc, &net.vars.machine_name.read());
+    let result = crate::net::dp_objects::set_session_desc(net.vars.dplay.get(), &desc);
+    crate::framework::log(&format!("net: new players let in again ({result:#x})"));
+}

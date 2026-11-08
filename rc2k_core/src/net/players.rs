@@ -103,6 +103,16 @@ pub fn all_in_state(bits: u8, count: u32, state_of: impl Fn(u32) -> u8) -> u8 {
     }
 }
 
+/// Whether none of the players (`state_of`, asked of each of `count`) is still in a race
+/// (`WAITING`), those with `LEFT_OUT` left out. The lobby's wait after a race: the original
+/// waited for every player to have `RACED`, which a player who joined the session since the
+/// race never has (the host lets players in again between races).
+pub fn none_racing(count: u32, state_of: impl Fn(u32) -> u8) -> bool {
+    (0..count)
+        .map(state_of)
+        .all(|state| state & LEFT_OUT != 0 || state & WAITING == 0)
+}
+
 /// DirectPlay's system messages the game handles, by their first dword.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum System {
@@ -137,6 +147,17 @@ impl System {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn none_racing_waits_for_racers_only() {
+        let of = |states: &'static [u8]| move |n: u32| states[n as usize];
+        assert!(none_racing(2, of(&[RACED | HOST, RACED])));
+        // a player who joined since the race
+        assert!(none_racing(3, of(&[RACED | HOST, RACED, 0])));
+        assert!(none_racing(3, of(&[RACED | HOST, RACED, READY])));
+        assert!(!none_racing(2, of(&[RACED | HOST, WAITING])));
+        assert!(none_racing(2, of(&[RACED | HOST, WAITING | LEFT_OUT])));
+    }
 
     #[test]
     fn order() {

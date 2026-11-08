@@ -10,7 +10,8 @@
 //! - 0x40 / 0x50 (two bytes, the second the round `g_netSync`; on a machine not the host,
 //!   `g_netOwnRecord` bit 0x10 clear): answered 0x41 / 0x51 with the round
 //!   (`word_52A916`, `net::dplay_send` to the sender, flags 0) and `g_netAllRaced` /
-//!   `g_netRaceOver` set;
+//!   `g_netRaceOver` set; not the original's: a machine that has just joined takes the round
+//!   of the host's first call (`ROUND_UNKNOWN`);
 //! - 0x41 / 0x51 (two bytes, the round; on the host): the player's byte of `g_netSynced` 1;
 //! - bit 0x80 (a race message), 1 .. 0xFF bytes: the bytes after the first, with the time
 //!   (`system::tick_count`), put into the player's block (`net::store_received`) under the
@@ -34,6 +35,18 @@ use rc2k_core::net::messages::{self, Kind};
 
 /// The players the blocks have room for.
 pub const MOST_PLAYERS: u32 = 16;
+
+/// Not the original's (2026-11-08): whether this machine has joined a session and not yet
+/// heard the host's round. Every machine counts the rounds up as it enters the lobby, so one
+/// that joins after races (the host lets players in again between them,
+/// `net::enable_new_players`) is behind the others: it takes the round of the host's first
+/// call. A machine there from the start has the host's round already and takes the same.
+static ROUND_UNKNOWN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// A session joined (`net::start_link`): the round taken from the host's first call.
+pub fn joined() {
+    ROUND_UNKNOWN.store(true, std::sync::atomic::Ordering::Relaxed);
+}
 
 /// The received message's byte `at` (the buffer's `unk_52A968`).
 fn get8(vars: &NetVars, at: usize) -> Result<u8, BadInput> {
@@ -106,6 +119,12 @@ pub fn take_messages(net: &Net) -> Result<(), Refused> {
                 chat_line_locked(net, player, &after_first(&net.vars, ROOM as usize - 1)?)?;
             }
             Kind::Call { reply, ready } => {
+                if m.size == 2
+                    && !rc2k_core::net::record::is_host(own_state)
+                    && ROUND_UNKNOWN.swap(false, std::sync::atomic::Ordering::Relaxed)
+                {
+                    net.vars.sync.set(get8(&net.vars, 1)?);
+                }
                 if !messages::answers_call(round()?, own_state) {
                     continue;
                 }

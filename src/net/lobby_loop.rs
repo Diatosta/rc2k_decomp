@@ -14,9 +14,10 @@
 //! with bit 0x80 left out), each player not yet answering is sent "@" and the sync counter
 //! once a second ('@' messages, `net::dplay_send` to its id) until all have (`byte_52AD90`,
 //! filled by the receiving thread); then everyone has raced (`dword_52AD78` 1) and it ends
-//! with 1, as on the others when `dword_52AD78` is 1 (set by the host's message). All
-//! players' state bit 4 (racing) clear (or no player) ends the "after a race"
-//! (`dword_52AD80` 0). The game closing ends it with -1.
+//! with 1, as on the others when `dword_52AD78` is 1 (set by the host's message). In the
+//! original, all players with state bit 4 (raced) ends the "after a race" (`dword_52AD80` 0);
+//! here (2026-11-08) no player with bit 2 (still racing), as a player who joined since never
+//! has bit 4, and then the host opens the session again (`net::enable_new_players`). The game closing ends it with -1.
 //!
 //! Returns 1 (the race) or -1 (left).
 //! A failed listing would give -2, but `net::list_players_regs` never comes back with the
@@ -217,8 +218,15 @@ pub fn lobby_loop(
             install.pages.choice.set(1);
             return Ok(install.pages.choice.get());
         }
-        if net.vars.players.get() >= 1 && all_states(&net.vars, 4, net.vars.players.get()) == 4 {
+        // Changed (2026-11-08): the original waited for every player to have raced, which a
+        // player who joined since the race never has; now for none to be still racing.
+        if net.vars.players.get() >= 1
+            && rc2k_core::net::players::none_racing(net.vars.players.get(), |n| {
+                net.vars.player_block(n).record.state()
+            })
+        {
             net.vars.after_race.set(0);
+            crate::net::disable_new_players::enable_new_players(net);
         }
         if system.session.flags.quitting.get() == 1 {
             break;
