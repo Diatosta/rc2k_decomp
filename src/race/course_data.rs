@@ -174,6 +174,11 @@ pub fn load_level(race: &Race) -> Result<(), Refused> {
     )?;
     crate::files::state::BYTES_READ.set(out.eax);
     if out.carry {
+        // The original says nothing more: the path named, for the reports.
+        crate::framework::log(&format!(
+            "race::load_level: the course data \"{}\" could not be read",
+            String::from_utf8_lossy(&course.level_paths.cdat_src.text())
+        ));
         return Err(NOT_READ.into());
     }
     load_log(1);

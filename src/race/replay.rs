@@ -376,15 +376,15 @@ pub fn open_replay(race: &Race) -> Result<(), Refused> {
         to.set(from.get());
     }
     seal_replay_header(replay)?;
-    // The store types the stage's 0x400 bytes by their first dword.
-    // The file's header is bytes.
-    let stage = shared
+    // The car header (0x400 bytes from `g_headerStage`, run on past the store's first
+    // field) copied into the file's header at +0x30.
+    let stage = GamePtr::to(&REPLAY_WORK.header_stage)
+        .unbounded()
+        .read_bytes(0x400, "the replay header's stage")?;
+    shared
         .replays
         .header
-        .read_at(0x30, 0x400, "the replay header's stage")?;
-    GamePtr::to(&REPLAY_WORK.header_stage)
-        .unbounded()
-        .write_bytes(&stage, "the replay header's stage")?;
+        .write_at(0x30, &stage, "the replay header's stage")?;
     for cell in shared.replay_file.index() {
         cell.set(0);
     }
