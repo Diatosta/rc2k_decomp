@@ -15,8 +15,7 @@
 //! Refuses when there is no face or no records.
 
 use crate::errors::{BadInput, FatalError, Refused};
-use crate::math::x87_float::{X, compare};
-use crate::scene::x87_mem::{Base, cells, fld, fnstsw, fstp};
+use crate::math::x87_float::{X, compare, ld, st};
 
 // ---- game data ----
 
@@ -27,76 +26,55 @@ const BAD_POINT: FatalError = FatalError {
 
 // ---- Rust version ----
 
-/// 0x4520A5 from its first `fld`: the block is the three points (nine floats), the
-/// six differences, the cross product, and the x87's status after `fldz; fcompp` (only the
-/// condition bits are modelled).
-fn triangle_at(w: impl Base) {
-    let t0 = fld(w, 0xC);
-    let t1 = fld(w, 0x0);
-    let t2 = t0 - t1;
-    fstp(w, 0x24, t2);
-    let t3 = fld(w, 0x18);
-    let t4 = fld(w, 0x0);
-    let t5 = t3 - t4;
-    fstp(w, 0x28, t5);
-    let t6 = fld(w, 0x10);
-    let t7 = fld(w, 0x4);
-    let t8 = t6 - t7;
-    fstp(w, 0x2C, t8);
-    let t9 = fld(w, 0x1C);
-    let t10 = fld(w, 0x4);
-    let t11 = t9 - t10;
-    fstp(w, 0x30, t11);
-    let t12 = fld(w, 0x14);
-    let t13 = fld(w, 0x8);
-    let t14 = t12 - t13;
-    fstp(w, 0x34, t14);
-    let t15 = fld(w, 0x20);
-    let t16 = fld(w, 0x8);
-    let t17 = t15 - t16;
-    fstp(w, 0x38, t17);
-    let t18 = fld(w, 0x38);
-    let t19 = fld(w, 0x2C);
-    let t20 = t18 * t19;
-    let t21 = fld(w, 0x30);
-    let t22 = fld(w, 0x34);
-    let t23 = t21 * t22;
-    let t24 = t20 - t23;
-    fstp(w, 0x3C, t24);
-    let t25 = fld(w, 0x28);
-    let t26 = fld(w, 0x34);
-    let t27 = t25 * t26;
-    let t28 = fld(w, 0x38);
-    let t29 = fld(w, 0x24);
-    let t30 = t28 * t29;
-    let t31 = t27 - t30;
-    fstp(w, 0x40, t31);
-    let t32 = fld(w, 0x30);
-    let t33 = fld(w, 0x24);
-    let t34 = t32 * t33;
-    let t35 = fld(w, 0x28);
-    let t36 = fld(w, 0x2C);
-    let t37 = t35 * t36;
-    let t38 = t34 - t37;
-    fstp(w, 0x44, t38);
-    let t39 = fld(w, 0x0);
-    let t40 = fld(w, 0x3C);
-    let t41 = t39 * t40;
-    let t42 = fld(w, 0x4);
-    let t43 = fld(w, 0x40);
-    let t44 = t42 * t43;
-    let t45 = fld(w, 0x8);
-    let t46 = fld(w, 0x44);
-    let t47 = t45 * t46;
-    let t48 = t44 + t47;
-    let t49 = t41 + t48;
-    let t50 = X(0.0);
-    let t51 = compare(t50, t49);
-    fnstsw(w, 0x48, t51); // status word C3 C2 C0 (TOP not modelled)
+/// 0x4520A5's work on one triangle, as the original leaves it at `dword_6396A0`: the three
+/// points' places, the sides from the first point to the second and to the third, their
+/// cross product, and the x87's condition bits after comparing 0 with the first point's place
+/// times that product.
+struct Triangle {
+    /// The places (x, y, z of each point), then the sides by axis: x to the second point, x
+    /// to the third, y to the second, ...
+    work: [u32; 15],
+    cross: [u32; 3],
+    status: u16,
 }
 
-fn triangle(w: &mut [u32; 19]) {
-    triangle_at(cells(w));
+impl Triangle {
+    /// The x87's arithmetic in its order, each value stored as a float where the original
+    /// stores it (`fstp dword`) and read back from there.
+    fn of(places: [[u32; 3]; 3]) -> Triangle {
+        let p = places.map(|point| point.map(ld));
+        let side = |axis: usize, to: usize| st(p[to][axis] - p[0][axis]);
+        let sides = [
+            side(0, 1),
+            side(0, 2),
+            side(1, 1),
+            side(1, 2),
+            side(2, 1),
+            side(2, 2),
+        ];
+        let [ax, bx, ay, by, az, bz] = sides.map(ld);
+        // The side to the third point times the side to the second.
+        let cross = [
+            st(bz * ay - by * az),
+            st(bx * az - bz * ax),
+            st(by * ax - bx * ay),
+        ];
+        let c = cross.map(ld);
+        let product = p[0][0] * c[0] + (p[0][1] * c[1] + p[0][2] * c[2]);
+        let mut work = [0; 15];
+        work[..9].copy_from_slice(places.as_flattened());
+        work[9..].copy_from_slice(&sides);
+        Triangle {
+            work,
+            cross,
+            status: compare(X(0.0), product),
+        }
+    }
+
+    /// The carry of the compare: the product above 0, or no number.
+    fn faces_away(&self) -> bool {
+        self.status & 0x100 != 0
+    }
 }
 
 pub fn face_faces_away(
@@ -129,18 +107,14 @@ pub fn face_faces_away(
         if points.iter().any(|&p| (p as i32) < 0) {
             return Err(BAD_POINT.into());
         }
-        let mut w = [0u32; 19];
-        for (at, p) in points.into_iter().enumerate() {
-            let place = table.place(p)?;
-            w[at * 3..at * 3 + 3].copy_from_slice(&place);
-        }
-        triangle(&mut w);
-        let work: [u32; 15] = w[..15].try_into().expect("15 dwords");
-        let cross: [u32; 3] = w[15..18].try_into().expect("3 dwords");
-        crate::session::write_bits(&race.physics.ground.normal_work, work);
-        crate::session::write_first(&race.frame.scratch.work_vector, &cross);
-        // The carry of the compare: 0 below the product, or no number.
-        if w[18] & 0x100 == 0 {
+        let triangle = Triangle::of([
+            table.place(points[0])?,
+            table.place(points[1])?,
+            table.place(points[2])?,
+        ]);
+        crate::session::write_bits(&race.physics.ground.normal_work, triangle.work);
+        crate::session::write_first(&race.frame.scratch.work_vector, &triangle.cross);
+        if !triangle.faces_away() {
             return Ok(false);
         }
     }
@@ -231,9 +205,15 @@ mod asm_reference {
                 s.write_unaligned(s.read_unaligned() & 0x4500);
             },
             |base| unsafe {
-                triangle_at(base);
-                let s = base.add(72).cast::<u32>();
-                s.write_unaligned(s.read_unaligned() & 0x4500);
+                let w = base.cast::<[u32; 19]>();
+                let mut block = w.read_unaligned();
+                let places =
+                    std::array::from_fn(|k| [block[3 * k], block[3 * k + 1], block[3 * k + 2]]);
+                let t = Triangle::of(places);
+                block[..15].copy_from_slice(&t.work);
+                block[15..18].copy_from_slice(&t.cross);
+                block[18] = u32::from(t.status) & 0x4500;
+                w.write_unaligned(block);
             },
         );
     }
